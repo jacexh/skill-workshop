@@ -3,6 +3,12 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      plugin:
+        description: 'Plugin to release'
+        required: true
+        type: choice
+        options:
+          - superpowers-memory
       version:
         description: 'Version (e.g., 1.0.1)'
         required: true
@@ -27,21 +33,30 @@ jobs:
             exit 1
           fi
 
-      - name: Get current version
+      - name: Get current versions
         id: current
         run: |
-          CURRENT=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[0].version')
-          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          MARKETPLACE_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.metadata.version')
+          PLUGIN_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version')
+          echo "marketplace_version=$MARKETPLACE_VERSION" >> $GITHUB_OUTPUT
+          echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update version in marketplace.json
+      - name: Update versions in marketplace.json
         run: |
-          jq '.plugins[0].version = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
+          # Update plugin version
+          jq '(.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version) = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
           mv tmp.json .claude-plugin/marketplace.json
 
-      - name: Verify update
+          # Update marketplace version
+          jq '.metadata.version = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
+          mv tmp.json .claude-plugin/marketplace.json
+
+      - name: Verify updates
         run: |
-          NEW_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[0].version')
-          echo "Version updated: ${{ steps.current.outputs.version }} -> $NEW_VERSION"
+          NEW_MARKETPLACE_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.metadata.version')
+          NEW_PLUGIN_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version')
+          echo "Marketplace: ${{ steps.current.outputs.marketplace_version }} -> $NEW_MARKETPLACE_VERSION"
+          echo "Plugin [${{ github.event.inputs.plugin }}]: ${{ steps.current.outputs.plugin_version }} -> $NEW_PLUGIN_VERSION"
 
       - name: Configure Git
         run: |
@@ -51,18 +66,18 @@ jobs:
       - name: Commit and push
         run: |
           git add .claude-plugin/marketplace.json
-          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+          git commit -m "chore: bump ${{ github.event.inputs.plugin }} to v${{ github.event.inputs.version }}"
           git push
 
       - name: Create tag
         run: |
-          git tag "v${{ github.event.inputs.version }}"
-          git push origin "v${{ github.event.inputs.version }}"
+          git tag "${{ github.event.inputs.plugin }}-v${{ github.event.inputs.version }}"
+          git push origin "${{ github.event.inputs.plugin }}-v${{ github.event.inputs.version }}"
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ github.event.inputs.version }}
-          name: Release v${{ github.event.inputs.version }}
+          tag_name: ${{ github.event.inputs.plugin }}-v${{ github.event.inputs.version }}
+          name: ${{ github.event.inputs.plugin }} v${{ github.event.inputs.version }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
