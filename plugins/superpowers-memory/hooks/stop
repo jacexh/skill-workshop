@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+# Check if we're in a git repo
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # Not a git repo — nothing to check
+    printf '{}\n'
+    exit 0
+fi
+
+# Check for plan file changes (staged + unstaged)
+plan_changes=$(git diff --name-only HEAD -- docs/superpowers/plans/ 2>/dev/null || true)
+plan_staged=$(git diff --name-only --cached -- docs/superpowers/plans/ 2>/dev/null || true)
+
+if [ -n "$plan_changes" ] || [ -n "$plan_staged" ]; then
+    context="This session modified plan files. Consider running superpowers-memory:update to incrementally update the project knowledge base."
+    escaped_context=$(escape_for_json "$context")
+
+    if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+        printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
+    elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+        printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+    else
+        printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+    fi
+else
+    # No plan changes — output empty JSON (no injection)
+    printf '{}\n'
+fi
+
+exit 0
