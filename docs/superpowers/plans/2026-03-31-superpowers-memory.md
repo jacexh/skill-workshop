@@ -15,15 +15,15 @@
 ### Task 1: Plugin Metadata
 
 **Files:**
-- Create: `superpowers-memory/.claude-plugin/plugin.json`
+- Create: `plugins/superpowers-memory/.claude-plugin/plugin.json`
 
 - [ ] **Step 1: Create plugin.json**
 
 ```bash
-mkdir -p superpowers-memory/.claude-plugin
+mkdir -p plugins/superpowers-memory/.claude-plugin
 ```
 
-Write `superpowers-memory/.claude-plugin/plugin.json`:
+Write `plugins/superpowers-memory/.claude-plugin/plugin.json`:
 
 ```json
 {
@@ -40,13 +40,13 @@ Write `superpowers-memory/.claude-plugin/plugin.json`:
 
 - [ ] **Step 2: Verify plugin.json is valid JSON**
 
-Run: `cat superpowers-memory/.claude-plugin/plugin.json | python3 -m json.tool`
+Run: `cat plugins/superpowers-memory/.claude-plugin/plugin.json | python3 -m json.tool`
 Expected: Pretty-printed JSON output with no errors
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add superpowers-memory/.claude-plugin/plugin.json
+git add plugins/superpowers-memory/.claude-plugin/plugin.json
 git commit -m "feat: add superpowers-memory plugin metadata"
 ```
 
@@ -55,12 +55,12 @@ git commit -m "feat: add superpowers-memory plugin metadata"
 ### Task 2: Hook Infrastructure
 
 **Files:**
-- Create: `superpowers-memory/hooks/hooks.json`
-- Create: `superpowers-memory/hooks/run-hook.cmd`
+- Create: `plugins/superpowers-memory/hooks/hooks.json`
+- Create: `plugins/superpowers-memory/hooks/run-hook.cmd`
 
 - [ ] **Step 1: Create hooks.json**
 
-Write `superpowers-memory/hooks/hooks.json`:
+Write `plugins/superpowers-memory/hooks/hooks.json`:
 
 ```json
 {
@@ -105,12 +105,12 @@ Write `superpowers-memory/hooks/hooks.json`:
 
 - [ ] **Step 2: Verify hooks.json is valid JSON**
 
-Run: `cat superpowers-memory/hooks/hooks.json | python3 -m json.tool`
+Run: `cat plugins/superpowers-memory/hooks/hooks.json | python3 -m json.tool`
 Expected: Pretty-printed JSON with no errors
 
 - [ ] **Step 3: Create run-hook.cmd (cross-platform polyglot wrapper)**
 
-Write `superpowers-memory/hooks/run-hook.cmd`:
+Write `plugins/superpowers-memory/hooks/run-hook.cmd`:
 
 ```batch
 : << 'CMDBLOCK'
@@ -158,17 +158,17 @@ exec "$SCRIPT_DIR/$HOOK_NAME" "$@"
 
 - [ ] **Step 4: Make run-hook.cmd executable**
 
-Run: `chmod +x superpowers-memory/hooks/run-hook.cmd`
+Run: `chmod +x plugins/superpowers-memory/hooks/run-hook.cmd`
 
 - [ ] **Step 5: Verify run-hook.cmd structure**
 
-Run: `head -3 superpowers-memory/hooks/run-hook.cmd`
+Run: `head -3 plugins/superpowers-memory/hooks/run-hook.cmd`
 Expected: First line is `: << 'CMDBLOCK'` (polyglot pattern)
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add superpowers-memory/hooks/hooks.json superpowers-memory/hooks/run-hook.cmd
+git add plugins/superpowers-memory/hooks/hooks.json plugins/superpowers-memory/hooks/run-hook.cmd
 git commit -m "feat: add hook infrastructure (hooks.json + cross-platform wrapper)"
 ```
 
@@ -177,13 +177,13 @@ git commit -m "feat: add hook infrastructure (hooks.json + cross-platform wrappe
 ### Task 3: SessionStart Hook
 
 **Files:**
-- Create: `superpowers-memory/hooks/session-start`
+- Create: `plugins/superpowers-memory/hooks/session-start`
 
 The SessionStart hook detects whether `docs/project-knowledge/` exists in the current project directory and injects appropriate behavior guidelines into the agent context.
 
 - [ ] **Step 1: Create session-start hook script**
 
-Write `superpowers-memory/hooks/session-start`:
+Write `plugins/superpowers-memory/hooks/session-start`:
 
 ```bash
 #!/usr/bin/env bash
@@ -237,22 +237,22 @@ exit 0
 
 - [ ] **Step 2: Make executable**
 
-Run: `chmod +x superpowers-memory/hooks/session-start`
+Run: `chmod +x plugins/superpowers-memory/hooks/session-start`
 
 - [ ] **Step 3: Verify — without knowledge base directory**
 
-Run: `cd /tmp && bash /Users/xuhao/skill-workshop/superpowers-memory/hooks/session-start | python3 -m json.tool`
+Run: `cd /tmp && bash /Users/xuhao/skill-workshop/plugins/superpowers-memory/hooks/session-start | python3 -m json.tool`
 Expected: JSON output containing "Project knowledge base not initialized" in the context field
 
 - [ ] **Step 4: Verify — with knowledge base directory**
 
-Run: `mkdir -p /tmp/test-session-start/docs/project-knowledge && cd /tmp/test-session-start && bash /Users/xuhao/skill-workshop/superpowers-memory/hooks/session-start | python3 -m json.tool && rm -rf /tmp/test-session-start`
+Run: `mkdir -p /tmp/test-session-start/docs/project-knowledge && cd /tmp/test-session-start && bash /Users/xuhao/skill-workshop/plugins/superpowers-memory/hooks/session-start | python3 -m json.tool && rm -rf /tmp/test-session-start`
 Expected: JSON output containing "Project knowledge base initialized" and all 5 behavior guidelines
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add superpowers-memory/hooks/session-start
+git add plugins/superpowers-memory/hooks/session-start
 git commit -m "feat: add SessionStart hook — inject behavior guidelines based on knowledge base presence"
 ```
 
@@ -261,13 +261,13 @@ git commit -m "feat: add SessionStart hook — inject behavior guidelines based 
 ### Task 4: TaskCompleted Hook
 
 **Files:**
-- Create: `superpowers-memory/hooks/task-completed`
+- Create: `plugins/superpowers-memory/hooks/task-completed`
 
 The TaskCompleted hook fires whenever any task is marked complete. It reminds the agent to update the corresponding plan file checkbox.
 
 - [ ] **Step 1: Create task-completed hook script**
 
-Write `superpowers-memory/hooks/task-completed`:
+Write `plugins/superpowers-memory/hooks/task-completed`:
 
 ```bash
 #!/usr/bin/env bash
@@ -300,17 +300,17 @@ exit 0
 
 - [ ] **Step 2: Make executable**
 
-Run: `chmod +x superpowers-memory/hooks/task-completed`
+Run: `chmod +x plugins/superpowers-memory/hooks/task-completed`
 
 - [ ] **Step 3: Verify output is valid JSON**
 
-Run: `bash superpowers-memory/hooks/task-completed | python3 -m json.tool`
+Run: `bash plugins/superpowers-memory/hooks/task-completed | python3 -m json.tool`
 Expected: JSON with "Please update the checkbox in the corresponding plan file" in additionalContext
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add superpowers-memory/hooks/task-completed
+git add plugins/superpowers-memory/hooks/task-completed
 git commit -m "feat: add TaskCompleted hook — remind agent to update plan checkboxes"
 ```
 
@@ -319,13 +319,13 @@ git commit -m "feat: add TaskCompleted hook — remind agent to update plan chec
 ### Task 5: Stop Hook
 
 **Files:**
-- Create: `superpowers-memory/hooks/stop`
+- Create: `plugins/superpowers-memory/hooks/stop`
 
 The Stop hook fires at session end. It checks `git diff --name-only` for changes in `docs/superpowers/plans/` and suggests running `superpowers-memory:update` if plan files were modified.
 
 - [ ] **Step 1: Create stop hook script**
 
-Write `superpowers-memory/hooks/stop`:
+Write `plugins/superpowers-memory/hooks/stop`:
 
 ```bash
 #!/usr/bin/env bash
@@ -373,24 +373,24 @@ exit 0
 
 - [ ] **Step 2: Make executable**
 
-Run: `chmod +x superpowers-memory/hooks/stop`
+Run: `chmod +x plugins/superpowers-memory/hooks/stop`
 
 - [ ] **Step 3: Verify — no plan changes**
 
-Run: `cd /Users/xuhao/skill-workshop && bash superpowers-memory/hooks/stop`
+Run: `cd /Users/xuhao/skill-workshop && bash plugins/superpowers-memory/hooks/stop`
 Expected: `{}` (empty JSON, no plan file changes detected)
 
 - [ ] **Step 4: Verify — with plan changes**
 
 To test with actual plan changes, create a temporary modification:
 
-Run: `echo "test" >> docs/superpowers/plans/2026-03-31-superpowers-memory.md && bash superpowers-memory/hooks/stop | python3 -m json.tool && git checkout -- docs/superpowers/plans/2026-03-31-superpowers-memory.md`
+Run: `echo "test" >> docs/superpowers/plans/2026-03-31-superpowers-memory.md && bash plugins/superpowers-memory/hooks/stop | python3 -m json.tool && git checkout -- docs/superpowers/plans/2026-03-31-superpowers-memory.md`
 Expected: JSON containing "Consider running superpowers-memory:update" before the checkout restores the file
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add superpowers-memory/hooks/stop
+git add plugins/superpowers-memory/hooks/stop
 git commit -m "feat: add Stop hook — detect plan changes and suggest knowledge base update"
 ```
 
@@ -399,17 +399,17 @@ git commit -m "feat: add Stop hook — detect plan changes and suggest knowledge
 ### Task 6: Knowledge Base Templates
 
 **Files:**
-- Create: `superpowers-memory/templates/architecture.md`
-- Create: `superpowers-memory/templates/tech-stack.md`
-- Create: `superpowers-memory/templates/features.md`
-- Create: `superpowers-memory/templates/conventions.md`
-- Create: `superpowers-memory/templates/decisions.md`
+- Create: `plugins/superpowers-memory/templates/architecture.md`
+- Create: `plugins/superpowers-memory/templates/tech-stack.md`
+- Create: `plugins/superpowers-memory/templates/features.md`
+- Create: `plugins/superpowers-memory/templates/conventions.md`
+- Create: `plugins/superpowers-memory/templates/decisions.md`
 
 These templates are used by the `rebuild` and `update` skills as the structural basis for generating knowledge base files. The agent fills in concrete content based on codebase analysis.
 
 - [ ] **Step 1: Create architecture.md template**
 
-Write `superpowers-memory/templates/architecture.md`:
+Write `plugins/superpowers-memory/templates/architecture.md`:
 
 ```markdown
 ---
@@ -454,7 +454,7 @@ triggered_by_plan: null
 
 - [ ] **Step 2: Create tech-stack.md template**
 
-Write `superpowers-memory/templates/tech-stack.md`:
+Write `plugins/superpowers-memory/templates/tech-stack.md`:
 
 ```markdown
 ---
@@ -490,7 +490,7 @@ triggered_by_plan: null
 
 - [ ] **Step 3: Create features.md template**
 
-Write `superpowers-memory/templates/features.md`:
+Write `plugins/superpowers-memory/templates/features.md`:
 
 ```markdown
 ---
@@ -520,7 +520,7 @@ triggered_by_plan: null
 
 - [ ] **Step 4: Create conventions.md template**
 
-Write `superpowers-memory/templates/conventions.md`:
+Write `plugins/superpowers-memory/templates/conventions.md`:
 
 ```markdown
 ---
@@ -550,7 +550,7 @@ triggered_by_plan: null
 
 - [ ] **Step 5: Create decisions.md template**
 
-Write `superpowers-memory/templates/decisions.md`:
+Write `plugins/superpowers-memory/templates/decisions.md`:
 
 ```markdown
 ---
@@ -584,13 +584,13 @@ triggered_by_plan: null
 
 - [ ] **Step 6: Verify all 5 templates exist**
 
-Run: `ls -la superpowers-memory/templates/`
+Run: `ls -la plugins/superpowers-memory/templates/`
 Expected: 5 files — architecture.md, tech-stack.md, features.md, conventions.md, decisions.md
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add superpowers-memory/templates/
+git add plugins/superpowers-memory/templates/
 git commit -m "feat: add 5 knowledge base templates (architecture, tech-stack, features, conventions, decisions)"
 ```
 
@@ -599,13 +599,13 @@ git commit -m "feat: add 5 knowledge base templates (architecture, tech-stack, f
 ### Task 7: Load Skill
 
 **Files:**
-- Create: `superpowers-memory/skills/load/SKILL.md`
+- Create: `plugins/superpowers-memory/skills/load/SKILL.md`
 
 This skill reads all project knowledge files and presents a structured summary to the agent, enabling rapid project context acquisition at the start of brainstorming.
 
 - [ ] **Step 1: Create load skill**
 
-Write `superpowers-memory/skills/load/SKILL.md`:
+Write `plugins/superpowers-memory/skills/load/SKILL.md`:
 
 ```markdown
 ---
@@ -660,7 +660,7 @@ After presenting the summary, proceed with the task at hand (typically brainstor
 
 - [ ] **Step 2: Verify SKILL.md frontmatter is valid**
 
-Run: `head -4 superpowers-memory/skills/load/SKILL.md`
+Run: `head -4 plugins/superpowers-memory/skills/load/SKILL.md`
 Expected:
 ```
 ---
@@ -672,7 +672,7 @@ description: Use when starting brainstorming or needing to understand current pr
 - [ ] **Step 3: Commit**
 
 ```bash
-git add superpowers-memory/skills/load/SKILL.md
+git add plugins/superpowers-memory/skills/load/SKILL.md
 git commit -m "feat: add load skill — read and present project knowledge base"
 ```
 
@@ -681,13 +681,13 @@ git commit -m "feat: add load skill — read and present project knowledge base"
 ### Task 8: Update Skill
 
 **Files:**
-- Create: `superpowers-memory/skills/update/SKILL.md`
+- Create: `plugins/superpowers-memory/skills/update/SKILL.md`
 
 This skill incrementally updates the project knowledge base based on changes made during the current development iteration.
 
 - [ ] **Step 1: Create update skill**
 
-Write `superpowers-memory/skills/update/SKILL.md`:
+Write `plugins/superpowers-memory/skills/update/SKILL.md`:
 
 ```markdown
 ---
@@ -754,7 +754,7 @@ git commit -m "docs: update project knowledge base from [plan-name]"
 
 - [ ] **Step 2: Verify SKILL.md frontmatter is valid**
 
-Run: `head -4 superpowers-memory/skills/update/SKILL.md`
+Run: `head -4 plugins/superpowers-memory/skills/update/SKILL.md`
 Expected:
 ```
 ---
@@ -766,7 +766,7 @@ description: Use after completing a development branch or when prompted by Stop 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add superpowers-memory/skills/update/SKILL.md
+git add plugins/superpowers-memory/skills/update/SKILL.md
 git commit -m "feat: add update skill — incremental project knowledge update"
 ```
 
@@ -775,13 +775,13 @@ git commit -m "feat: add update skill — incremental project knowledge update"
 ### Task 9: Rebuild Skill
 
 **Files:**
-- Create: `superpowers-memory/skills/rebuild/SKILL.md`
+- Create: `plugins/superpowers-memory/skills/rebuild/SKILL.md`
 
 This skill performs a full scan of the codebase and generates the complete project knowledge base from scratch.
 
 - [ ] **Step 1: Create rebuild skill**
 
-Write `superpowers-memory/skills/rebuild/SKILL.md`:
+Write `plugins/superpowers-memory/skills/rebuild/SKILL.md`:
 
 ```markdown
 ---
@@ -851,7 +851,7 @@ git commit -m "docs: rebuild project knowledge base from codebase"
 
 - [ ] **Step 2: Verify SKILL.md frontmatter is valid**
 
-Run: `head -4 superpowers-memory/skills/rebuild/SKILL.md`
+Run: `head -4 plugins/superpowers-memory/skills/rebuild/SKILL.md`
 Expected:
 ```
 ---
@@ -863,7 +863,7 @@ description: Use when initializing project knowledge for the first time or when 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add superpowers-memory/skills/rebuild/SKILL.md
+git add plugins/superpowers-memory/skills/rebuild/SKILL.md
 git commit -m "feat: add rebuild skill — full codebase scan and knowledge generation"
 ```
 
@@ -872,11 +872,11 @@ git commit -m "feat: add rebuild skill — full codebase scan and knowledge gene
 ### Task 10: README
 
 **Files:**
-- Create: `superpowers-memory/README.md`
+- Create: `plugins/superpowers-memory/README.md`
 
 - [ ] **Step 1: Create README.md**
 
-Write `superpowers-memory/README.md`:
+Write `plugins/superpowers-memory/README.md`:
 
 ```markdown
 # superpowers-memory
@@ -940,7 +940,7 @@ MIT
 - [ ] **Step 2: Commit**
 
 ```bash
-git add superpowers-memory/README.md
+git add plugins/superpowers-memory/README.md
 git commit -m "docs: add README for superpowers-memory plugin"
 ```
 
@@ -952,44 +952,44 @@ Verify the complete plugin structure matches the spec.
 
 - [ ] **Step 1: Verify directory structure**
 
-Run: `find superpowers-memory -type f | sort`
+Run: `find plugins/superpowers-memory -type f | sort`
 Expected output:
 ```
-superpowers-memory/.claude-plugin/plugin.json
-superpowers-memory/README.md
-superpowers-memory/hooks/hooks.json
-superpowers-memory/hooks/run-hook.cmd
-superpowers-memory/hooks/session-start
-superpowers-memory/hooks/stop
-superpowers-memory/hooks/task-completed
-superpowers-memory/skills/load/SKILL.md
-superpowers-memory/skills/rebuild/SKILL.md
-superpowers-memory/skills/update/SKILL.md
-superpowers-memory/templates/architecture.md
-superpowers-memory/templates/conventions.md
-superpowers-memory/templates/decisions.md
-superpowers-memory/templates/features.md
-superpowers-memory/templates/tech-stack.md
+plugins/superpowers-memory/.claude-plugin/plugin.json
+plugins/superpowers-memory/README.md
+plugins/superpowers-memory/hooks/hooks.json
+plugins/superpowers-memory/hooks/run-hook.cmd
+plugins/superpowers-memory/hooks/session-start
+plugins/superpowers-memory/hooks/stop
+plugins/superpowers-memory/hooks/task-completed
+plugins/superpowers-memory/skills/load/SKILL.md
+plugins/superpowers-memory/skills/rebuild/SKILL.md
+plugins/superpowers-memory/skills/update/SKILL.md
+plugins/superpowers-memory/templates/architecture.md
+plugins/superpowers-memory/templates/conventions.md
+plugins/superpowers-memory/templates/decisions.md
+plugins/superpowers-memory/templates/features.md
+plugins/superpowers-memory/templates/tech-stack.md
 ```
 
 - [ ] **Step 2: Verify all hook scripts are executable**
 
-Run: `ls -la superpowers-memory/hooks/session-start superpowers-memory/hooks/task-completed superpowers-memory/hooks/stop superpowers-memory/hooks/run-hook.cmd`
+Run: `ls -la plugins/superpowers-memory/hooks/session-start plugins/superpowers-memory/hooks/task-completed plugins/superpowers-memory/hooks/stop plugins/superpowers-memory/hooks/run-hook.cmd`
 Expected: All files show `-rwxr-xr-x` (executable permissions)
 
 - [ ] **Step 3: Verify all hooks produce valid JSON**
 
-Run: `bash superpowers-memory/hooks/session-start | python3 -m json.tool && bash superpowers-memory/hooks/task-completed | python3 -m json.tool && bash superpowers-memory/hooks/stop | python3 -m json.tool`
+Run: `bash plugins/superpowers-memory/hooks/session-start | python3 -m json.tool && bash plugins/superpowers-memory/hooks/task-completed | python3 -m json.tool && bash plugins/superpowers-memory/hooks/stop | python3 -m json.tool`
 Expected: Three valid JSON outputs, no errors
 
 - [ ] **Step 4: Verify skill frontmatter consistency**
 
-Run: `for f in superpowers-memory/skills/*/SKILL.md; do echo "=== $f ==="; head -4 "$f"; echo; done`
+Run: `for f in plugins/superpowers-memory/skills/*/SKILL.md; do echo "=== $f ==="; head -4 "$f"; echo; done`
 Expected: Each file has `---` delimiters with `name` and `description` fields
 
 - [ ] **Step 5: Verify template frontmatter consistency**
 
-Run: `for f in superpowers-memory/templates/*.md; do echo "=== $f ==="; head -5 "$f"; echo; done`
+Run: `for f in plugins/superpowers-memory/templates/*.md; do echo "=== $f ==="; head -5 "$f"; echo; done`
 Expected: Each template has `last_updated: YYYY-MM-DD`, `updated_by: superpowers-memory:<skill-name>`, `triggered_by_plan: null`
 
 - [ ] **Step 6: Cross-check against spec**
