@@ -38,12 +38,14 @@ jobs:
         run: |
           MARKETPLACE_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.metadata.version')
           PLUGIN_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version')
+          PLUGIN_JSON_VERSION=$(cat plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json | jq -r '.version')
           echo "marketplace_version=$MARKETPLACE_VERSION" >> $GITHUB_OUTPUT
           echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
+          echo "plugin_json_version=$PLUGIN_JSON_VERSION" >> $GITHUB_OUTPUT
 
       - name: Update versions in marketplace.json
         run: |
-          # Update plugin version
+          # Update plugin version in marketplace.json
           jq '(.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version) = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
           mv tmp.json .claude-plugin/marketplace.json
 
@@ -51,12 +53,20 @@ jobs:
           jq '.metadata.version = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
           mv tmp.json .claude-plugin/marketplace.json
 
+      - name: Update version in plugin.json
+        run: |
+          # Update version in plugins/{plugin}/.claude-plugin/plugin.json
+          jq '.version = "${{ github.event.inputs.version }}"' plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json > tmp.json
+          mv tmp.json plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json
+
       - name: Verify updates
         run: |
           NEW_MARKETPLACE_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.metadata.version')
           NEW_PLUGIN_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version')
+          NEW_PLUGIN_JSON_VERSION=$(cat plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json | jq -r '.version')
           echo "Marketplace: ${{ steps.current.outputs.marketplace_version }} -> $NEW_MARKETPLACE_VERSION"
-          echo "Plugin [${{ github.event.inputs.plugin }}]: ${{ steps.current.outputs.plugin_version }} -> $NEW_PLUGIN_VERSION"
+          echo "Plugin [${{ github.event.inputs.plugin }}] (marketplace): ${{ steps.current.outputs.plugin_version }} -> $NEW_PLUGIN_VERSION"
+          echo "Plugin [${{ github.event.inputs.plugin }}] (plugin.json): ${{ steps.current.outputs.plugin_json_version }} -> $NEW_PLUGIN_JSON_VERSION"
 
       - name: Configure Git
         run: |
