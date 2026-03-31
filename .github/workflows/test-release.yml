@@ -1,0 +1,44 @@
+name: Test Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check current versions
+        run: |
+          echo "=== plugin.json ==="
+          cat plugins/superpowers-memory/.claude-plugin/plugin.json | grep version
+          echo ""
+          echo "=== marketplace.json ==="
+          cat .claude-plugin/marketplace.json | grep -A5 '"version"'
+
+      - name: Test version bump
+        run: |
+          # Bump version to 1.0.1 for testing
+          jq '.version = "1.0.1"' plugins/superpowers-memory/.claude-plugin/plugin.json > tmp.json
+          mv tmp.json plugins/superpowers-memory/.claude-plugin/plugin.json
+
+          jq '.plugins[0].version = "1.0.1"' .claude-plugin/marketplace.json > tmp.json
+          mv tmp.json .claude-plugin/marketplace.json
+
+          echo "=== After bump ==="
+          cat plugins/superpowers-memory/.claude-plugin/plugin.json | grep version
+          cat .claude-plugin/marketplace.json | grep -A5 '"version"'
+
+      - name: Git status
+        run: |
+          git status
+          git diff
+
+      - name: Should we push?
+        run: |
+          echo "Current commit: $(git rev-parse HEAD)"
+          echo "If I push this, users will get the update via:"
+          echo "  /plugin update superpowers-memory@skill-workshop"
+          echo ""
+          echo "NOT via git tag or GitHub Release"
