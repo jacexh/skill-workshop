@@ -1,10 +1,10 @@
 # Skill Workshop
 
-A [Claude Code](https://claude.ai/code) plugin marketplace for superpowers workflow extensions.
+A [Claude Code](https://claude.ai/code) plugin marketplace for productivity and development workflow extensions.
 
 ## Overview
 
-Skill Workshop is a curated collection of plugins that extend Claude Code's superpowers workflow capabilities. Each plugin is designed to solve specific problems in the development lifecycle while maintaining zero-modification compatibility with the core superpowers system.
+Skill Workshop is a curated collection of plugins that enhance Claude Code's capabilities for software development workflows. Each plugin is designed to solve specific problems in the development lifecycle with a focus on practicality and developer experience.
 
 ## Usage
 
@@ -42,30 +42,25 @@ By default, third-party marketplaces do not auto-update. To automatically receiv
 /plugin update --all
 ```
 
-**Note for private repositories:** If your repository is private, set a GitHub token for background auto-updates:
-```bash
-export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
-```
-
 ## Available Plugins
 
 ### superpowers-memory
 
-**Description:** Project knowledge persistence and plan checkpoint tracking for superpowers workflows
+**Description:** Project knowledge persistence and plan checkpoint tracking for development workflows
 
-**Version:** 1.0.0
+**Version:** 1.0.3
 
 **License:** MIT
 
-**Keywords:** superpowers, memory, project-knowledge, plan-tracking
+**Keywords:** memory, project-knowledge, plan-tracking, documentation
 
-The superpowers-memory plugin addresses two key gaps in the superpowers workflow:
+The superpowers-memory plugin helps developers maintain project context across Claude Code sessions:
 
 1. **Project Knowledge Base** — Maintains architecture, tech stack, feature list, conventions, and decision records across sessions
-2. **Living Plans** — Automatically updates plan checkboxes as tasks are completed, enabling session recovery
+2. **Living Plans** — Tracks task completion by updating plan checkboxes, enabling session recovery
 
 **Key Features:**
-- Zero-modification design — doesn't change any superpowers core files
+- Non-intrusive design — works alongside your existing workflow
 - SessionStart hook injects knowledge base context at the right moments
 - Three skills for knowledge management: `load`, `update`, and `rebuild`
 - Project knowledge stored in your repo under `docs/project-knowledge/`
@@ -100,7 +95,7 @@ The superpowers-memory plugin addresses two key gaps in the superpowers workflow
 1. Create a new directory under `plugins/<plugin-name>/`
 2. Add `.claude-plugin/plugin.json` with plugin metadata
 3. Update `.claude-plugin/marketplace.json` to include the new plugin
-4. Add design specs and implementation plans under `docs/superpowers/`
+4. Add design specs and implementation plans under `docs/plugins/`
 
 ### Plugin structure requirements
 

@@ -4,24 +4,24 @@
     "name": "xuhao"
   },
   "metadata": {
-    "description": "A marketplace for superpowers workflow plugins and extensions",
+    "description": "A marketplace for Claude Code productivity and development plugins",
     "version": "1.0.3"
   },
   "plugins": [
     {
       "name": "superpowers-memory",
       "source": "./plugins/superpowers-memory",
-      "description": "Project knowledge persistence and plan checkpoint tracking for superpowers workflows",
+      "description": "Project knowledge persistence and plan checkpoint tracking for development workflows",
       "version": "1.0.3",
       "author": {
         "name": "xuhao"
       },
       "license": "MIT",
       "keywords": [
-        "superpowers",
         "memory",
         "project-knowledge",
-        "plan-tracking"
+        "plan-tracking",
+        "documentation"
       ]
     }
   ]
