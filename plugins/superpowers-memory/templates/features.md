@@ -10,9 +10,9 @@ triggered_by_plan: null
 
 <!-- List completed features with links to their spec/plan files -->
 
-| Feature | Description | Spec | Plan |
-|---------|------------|------|------|
-| | | | |
+| Feature | Description | Added | Spec | Plan |
+|---------|------------|-------|------|------|
+| | | | | |
 
 ## In Progress
 
@@ -21,3 +21,11 @@ triggered_by_plan: null
 | Feature | Description | Plan | Status |
 |---------|------------|------|--------|
 | | | | |
+
+## Backlog
+
+<!-- Features planned but not yet started. Source: specs without a corresponding plan. -->
+
+| Feature | Description | Spec |
+|---------|------------|------|
+| | | |
