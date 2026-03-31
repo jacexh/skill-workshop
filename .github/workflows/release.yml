@@ -76,6 +76,7 @@ jobs:
       - name: Commit and push
         run: |
           git add .claude-plugin/marketplace.json
+          git add plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json
           git commit -m "chore: bump ${{ github.event.inputs.plugin }} to v${{ github.event.inputs.version }}"
           git push
 
