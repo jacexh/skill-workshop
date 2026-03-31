@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g., 1.0.1)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate version format
+        run: |
+          if ! [[ "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version format. Expected: x.y.z (e.g., 1.0.1)"
+            exit 1
+          fi
+
+      - name: Get current version
+        id: current
+        run: |
+          CURRENT=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[0].version')
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+
+      - name: Update version in marketplace.json
+        run: |
+          jq '.plugins[0].version = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
+          mv tmp.json .claude-plugin/marketplace.json
+
+      - name: Verify update
+        run: |
+          NEW_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[0].version')
+          echo "Version updated: ${{ steps.current.outputs.version }} -> $NEW_VERSION"
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push
+        run: |
+          git add .claude-plugin/marketplace.json
+          git commit -m "chore: bump version to ${{ github.event.inputs.version }}"
+          git push
+
+      - name: Create tag
+        run: |
+          git tag "v${{ github.event.inputs.version }}"
+          git push origin "v${{ github.event.inputs.version }}"
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: Release v${{ github.event.inputs.version }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
