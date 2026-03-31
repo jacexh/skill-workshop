@@ -46,21 +46,21 @@ By default, third-party marketplaces do not auto-update. To automatically receiv
 
 ### superpowers-memory
 
-**Description:** Project knowledge persistence and plan checkpoint tracking for development workflows
+**Description:** Project knowledge persistence and plan checkpoint tracking for superpowers workflows
 
 **Version:** 1.0.3
 
 **License:** MIT
 
-**Keywords:** memory, project-knowledge, plan-tracking, documentation
+**Keywords:** superpowers, memory, project-knowledge, plan-tracking
 
-The superpowers-memory plugin helps developers maintain project context across Claude Code sessions:
+The superpowers-memory plugin addresses two key gaps in the superpowers workflow:
 
 1. **Project Knowledge Base** — Maintains architecture, tech stack, feature list, conventions, and decision records across sessions
-2. **Living Plans** — Tracks task completion by updating plan checkboxes, enabling session recovery
+2. **Living Plans** — Automatically updates plan checkboxes as tasks are completed, enabling session recovery
 
 **Key Features:**
-- Non-intrusive design — works alongside your existing workflow
+- Zero-modification design — doesn't change any superpowers core files
 - SessionStart hook injects knowledge base context at the right moments
 - Three skills for knowledge management: `load`, `update`, and `rebuild`
 - Project knowledge stored in your repo under `docs/project-knowledge/`
@@ -95,7 +95,7 @@ The superpowers-memory plugin helps developers maintain project context across C
 1. Create a new directory under `plugins/<plugin-name>/`
 2. Add `.claude-plugin/plugin.json` with plugin metadata
 3. Update `.claude-plugin/marketplace.json` to include the new plugin
-4. Add design specs and implementation plans under `docs/plugins/`
+4. Add design specs and implementation plans under `docs/superpowers/`
 
 ### Plugin structure requirements
 
