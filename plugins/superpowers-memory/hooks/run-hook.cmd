@@ -32,7 +32,7 @@ exit /b 1
 CMDBLOCK
 
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 HOOK_NAME="$1"
