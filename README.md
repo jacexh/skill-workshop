@@ -11,7 +11,7 @@ Skill Workshop is a curated collection of plugins that extend Claude Code's supe
 ### Add this marketplace to Claude Code
 
 ```bash
-/plugin marketplace add https://github.com/jacexh/skill-workshop
+/plugin marketplace add jacexh/skill-workshop
 ```
 
 ### Install plugins
