@@ -21,6 +21,32 @@ Skill Workshop is a curated collection of plugins that extend Claude Code's supe
 /plugin install superpowers-memory@skill-workshop
 ```
 
+### Enable auto-update
+
+By default, third-party marketplaces do not auto-update. To automatically receive plugin updates:
+
+**Option 1: Via UI**
+```
+/plugin → Marketplaces → skill-workshop → Enable auto-update
+```
+
+**Option 2: Manual update**
+```bash
+# Check for available updates
+/plugin update --check
+
+# Update a specific plugin
+/plugin update superpowers-memory@skill-workshop
+
+# Update all plugins from this marketplace
+/plugin update --all
+```
+
+**Note for private repositories:** If your repository is private, set a GitHub token for background auto-updates:
+```bash
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
 ## Available Plugins
 
 ### superpowers-memory
