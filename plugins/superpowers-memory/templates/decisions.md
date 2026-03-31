@@ -6,8 +6,30 @@ triggered_by_plan: null
 
 # Decisions
 
-<!-- Architecture Decision Records (ADR) format.
-     Add new decisions at the top. Do not remove old decisions — mark superseded ones. -->
+## Known Issues
+
+<!-- Living record of known problems. Each entry needs: description, file path(s), and fix direction.
+     Remove entries when resolved. -->
+
+### Tech Debt
+
+<!-- Shortcuts or workarounds that will need revisiting -->
+<!-- Format: **[Area]** (`path/to/file`) — description. Fix: approach. -->
+
+### Known Bugs
+
+<!-- Documented defects not yet fixed -->
+<!-- Format: **[Bug]** — symptom. Reproduces when: condition. Location: `path/to/file`. -->
+
+### Security Considerations
+
+<!-- Known risks and current mitigations -->
+<!-- Format: **[Risk]** — description. Mitigation: current approach. -->
+
+---
+
+<!-- ADR list below — add new decisions at the top of this section.
+     Do not remove old decisions — mark superseded ones instead. -->
 
 ## ADR-NNN: [Decision Title]
 
@@ -15,12 +37,11 @@ triggered_by_plan: null
 
 **Status:** Proposed | Accepted | Superseded by ADR-NNN
 
-**Context:** <!-- What is the issue that we're seeing that is motivating this decision? -->
+**Context:** <!-- What is the issue that is motivating this decision? -->
 
 **Decision:** <!-- What is the change that we're proposing/doing? -->
 
 **Alternatives Considered:**
-<!-- What other options were evaluated? Why were they rejected? -->
 - Alternative A: ...
 - Alternative B: ...
 
