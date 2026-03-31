@@ -241,12 +241,12 @@ Run: `chmod +x plugins/superpowers-memory/hooks/session-start`
 
 - [ ] **Step 3: Verify — without knowledge base directory**
 
-Run: `cd /tmp && bash /Users/xuhao/skill-workshop/plugins/superpowers-memory/hooks/session-start | python3 -m json.tool`
+Run: `cd /tmp && bash $(pwd)/plugins/superpowers-memory/hooks/session-start | python3 -m json.tool`
 Expected: JSON output containing "Project knowledge base not initialized" in the context field
 
 - [ ] **Step 4: Verify — with knowledge base directory**
 
-Run: `mkdir -p /tmp/test-session-start/docs/project-knowledge && cd /tmp/test-session-start && bash /Users/xuhao/skill-workshop/plugins/superpowers-memory/hooks/session-start | python3 -m json.tool && rm -rf /tmp/test-session-start`
+Run: `mkdir -p /tmp/test-session-start/docs/project-knowledge && cd /tmp/test-session-start && bash $(pwd)/plugins/superpowers-memory/hooks/session-start | python3 -m json.tool && rm -rf /tmp/test-session-start`
 Expected: JSON output containing "Project knowledge base initialized" and all 5 behavior guidelines
 
 - [ ] **Step 5: Commit**
@@ -377,7 +377,7 @@ Run: `chmod +x plugins/superpowers-memory/hooks/stop`
 
 - [ ] **Step 3: Verify — no plan changes**
 
-Run: `cd /Users/xuhao/skill-workshop && bash plugins/superpowers-memory/hooks/stop`
+Run: `bash plugins/superpowers-memory/hooks/stop`
 Expected: `{}` (empty JSON, no plan file changes detected)
 
 - [ ] **Step 4: Verify — with plan changes**
