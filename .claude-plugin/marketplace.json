@@ -12,12 +12,17 @@
       "name": "superpowers-memory",
       "source": "./plugins/superpowers-memory",
       "description": "Project knowledge persistence and plan checkpoint tracking for superpowers workflows",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "author": {
         "name": "xuhao"
       },
       "license": "MIT",
-      "keywords": ["superpowers", "memory", "project-knowledge", "plan-tracking"]
+      "keywords": [
+        "superpowers",
+        "memory",
+        "project-knowledge",
+        "plan-tracking"
+      ]
     }
   ]
 }
