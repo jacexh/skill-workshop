@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+context="Please update the checkbox in the corresponding plan file: change completed steps from \`- [ ]\` to \`- [x]\`, making the plan a living document that supports interruption recovery."
+
+escaped_context=$(escape_for_json "$context")
+
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "TaskCompleted",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
+elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+else
+    printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+fi
+
+exit 0
