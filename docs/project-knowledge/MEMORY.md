@@ -1,7 +1,7 @@
 ---
 last_updated: 2026-04-01
 updated_by: superpowers-memory:update
-triggered_by_plan: null
+triggered_by_plan: 2026-04-01-memory-index.md
 ---
 
 # Project Knowledge Index
