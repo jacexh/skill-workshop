@@ -42,32 +42,7 @@ Incrementally update the project knowledge base based on changes from the curren
 
    - Re-read all 5 knowledge files (including any you just updated)
    - Extract 2-3 concrete key points per file
-   - Write `docs/project-knowledge/MEMORY.md` using this exact format:
-
-   ```markdown
-   ---
-   last_updated: YYYY-MM-DD
-   updated_by: superpowers-memory:update
-   triggered_by_plan: <plan-filename>
-   ---
-
-   # Project Knowledge Index
-
-   - [architecture.md](architecture.md) — System overview, module structure, data flow
-     Key points: [2-3 specific facts from architecture.md]
-
-   - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
-     Key points: [2-3 specific facts from tech-stack.md]
-
-   - [features.md](features.md) — Implemented features, in-progress work
-     Key points: [2-3 specific facts from features.md]
-
-   - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-     Key points: [2-3 specific facts from conventions.md]
-
-   - [decisions.md](decisions.md) — ADR log, known issues
-     Key points: [2-3 specific facts from decisions.md]
-   ```
+   - Write `docs/project-knowledge/MEMORY.md` following the format in `templates/MEMORY.md`, setting `updated_by: superpowers-memory:update` and `triggered_by_plan: <plan-filename>`
 
    **Size constraint:** Keep MEMORY.md under 30 lines total.
 

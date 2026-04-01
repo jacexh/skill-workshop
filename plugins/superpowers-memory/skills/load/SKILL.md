@@ -1,6 +1,6 @@
 ---
 name: load
-description: Use when starting brainstorming or needing to understand current project state — reads project knowledge base and presents structured context
+description: Use before exploring the codebase, brainstorming, or making architectural decisions — reads project knowledge base so you understand the project before touching files or directories
 ---
 
 # Load Project Knowledge
