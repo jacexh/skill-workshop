@@ -1,7 +1,7 @@
 ---
 last_updated: 2026-04-01
 updated_by: superpowers-memory:update
-triggered_by_plan: 2026-04-01-auto-kb-update.md
+triggered_by_plan: 2026-04-01-memory-index-design.md
 ---
 
 # Features
@@ -26,4 +26,4 @@ triggered_by_plan: 2026-04-01-auto-kb-update.md
 
 | Feature | Description | Plan | Status |
 |---------|------------|------|--------|
-| — | No features currently in progress | — | — |
+| `MEMORY.md` knowledge index | Introduce `docs/project-knowledge/MEMORY.md` as a structured index (filename + description + key points); written by `rebuild`/`update`; injected by `session-start`; mandatory first read in `pre-tool-use` messages | — (plan not yet written) | Spec approved, awaiting implementation plan |

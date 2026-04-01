@@ -1,10 +1,28 @@
 ---
 last_updated: 2026-04-01
 updated_by: superpowers-memory:update
-triggered_by_plan: 2026-04-01-auto-kb-update.md
+triggered_by_plan: 2026-04-01-memory-index-design.md
 ---
 
 # Decisions
+
+## ADR-005: MEMORY.md as KB index with two-layer injection
+
+**Date:** 2026-04-01
+
+**Status:** Accepted
+
+**Context:** Reading all 5 KB files on every `load` invocation is verbose. The `session-start` hook returns `{}` when KB is initialized, missing an opportunity to give the agent passive KB awareness. The `pre-tool-use` hook points agents at the raw `docs/project-knowledge/` directory without a lightweight entry point.
+
+**Decision:** Introduce `docs/project-knowledge/MEMORY.md` as a structured index (filename + one-line description + 2-3 key points per file, ≤30 lines). Written by `rebuild` and `update`. Two injection layers: (1) `session-start` injects MEMORY.md content for passive awareness; (2) `pre-tool-use` explicitly requires agents to read MEMORY.md before brainstorming/writing-plans, then load relevant detail files on demand.
+
+**Alternatives Considered:**
+- MEMORY.md as cached view (pre-compiled full summary): heavier, load could skip reading files entirely but risks stale summaries.
+- MEMORY.md only in pre-tool-use injection: misses passive session-start awareness.
+
+**Reason:** Two complementary layers — session-start for passive context, pre-tool-use for enforced read — cover both the case where the agent absorbed session context and the case where it didn't. Index stays lightweight by design (≤30 lines), keeping token cost low.
+
+---
 
 ## ADR-004: PreToolUse hook over SessionStart for KB context injection
 
