@@ -1,7 +1,7 @@
 ---
 last_updated: YYYY-MM-DD
 updated_by: <skill-name>
-triggered_by_plan: <plan-filename or null>
+triggered_by_plan: <plan-filename — preserve existing value if no triggering plan>
 ---
 
 # Project Knowledge Index
