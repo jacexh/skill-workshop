@@ -35,7 +35,6 @@ claude plugin add <path-or-url-to-superpowers-memory>
 | Hook | Event | Behavior |
 |------|-------|----------|
 | SessionStart | startup, clear, compact | Inject behavior guidelines (read knowledge, update checkboxes, pass context to subagents) |
-| TaskCompleted | Any task marked done | Remind to update plan checkbox |
 | Stop | Session end | If plan files changed, suggest `superpowers-memory:update` |
 
 ## Knowledge Base Structure
