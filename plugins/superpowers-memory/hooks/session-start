@@ -12,9 +12,22 @@ escape_for_json() {
 }
 
 KNOWLEDGE_DIR="docs/project-knowledge"
+MEMORY_INDEX="$KNOWLEDGE_DIR/MEMORY.md"
 
 if [ ! -d "$KNOWLEDGE_DIR" ]; then
     context="Project knowledge base not initialized. Run superpowers-memory:rebuild to generate the full knowledge base from the codebase."
+    escaped_context=$(escape_for_json "$context")
+
+    if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+        printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
+    elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+        printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+    else
+        printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+    fi
+elif [ -f "$MEMORY_INDEX" ]; then
+    memory_content=$(cat "$MEMORY_INDEX")
+    context="Project knowledge index loaded from docs/project-knowledge/MEMORY.md:\n\n${memory_content}"
     escaped_context=$(escape_for_json "$context")
 
     if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
