@@ -34,8 +34,9 @@ claude plugin add <path-or-url-to-superpowers-memory>
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| SessionStart | startup, clear, compact | Inject behavior guidelines (read knowledge, update checkboxes, pass context to subagents) |
-| Stop | Session end | If plan files changed, suggest `superpowers-memory:update` |
+| SessionStart | startup, clear, compact | KB not initialized prompt — injects rebuild instruction when `docs/project-knowledge/` does not exist; outputs `{}` otherwise |
+| Stop | Session end | Session-end KB staleness safety net — injects mandatory `:update` reminder when KB SHA is behind HEAD |
+| PreToolUse | superpowers skill invocations | Precise KB context injection — intercepts `superpowers:brainstorming`, `superpowers:writing-plans`, and `superpowers:finishing-a-development-branch`; injects KB-state-aware context (load instruction, stale warning, or update/rebuild mandate) |
 
 ## Knowledge Base Structure
 
