@@ -1,10 +1,28 @@
 ---
 last_updated: 2026-04-01
-updated_by: superpowers-memory:rebuild
-triggered_by_plan: null
+updated_by: superpowers-memory:update
+triggered_by_plan: 2026-04-01-auto-kb-update.md
 ---
 
 # Decisions
+
+## ADR-004: PreToolUse hook over SessionStart for KB context injection
+
+**Date:** 2026-04-01
+
+**Status:** Accepted
+
+**Context:** The original SessionStart hook injected 5 broad behavior guidelines into every session. This caused KB instructions to appear even for sessions where no superpowers skills were used, and the guidelines were often ignored or diluted by the time the relevant skill was called.
+
+**Decision:** Replace broad SessionStart guidelines with a PreToolUse hook that intercepts exactly the three skills where KB context matters (`superpowers:brainstorming`, `superpowers:writing-plans`, `superpowers:finishing-a-development-branch`). Inject targeted, state-aware context (not_initialized / stale / fresh) at the moment the skill is invoked. SessionStart retains only the "not initialized" prompt.
+
+**Alternatives Considered:**
+- Keep SessionStart guidelines: simple but context is stale and often ignored.
+- Modify superpowers skills directly: would require forking superpowers, violating ADR-002.
+
+**Reason:** Precise injection at skill invocation time means the agent sees the KB instruction immediately before acting, maximizing compliance. State-awareness (not_initialized / stale / fresh) allows the instruction to be appropriately calibrated rather than one-size-fits-all.
+
+---
 
 ## ADR-003: Split knowledge base into 5 separate files
 
