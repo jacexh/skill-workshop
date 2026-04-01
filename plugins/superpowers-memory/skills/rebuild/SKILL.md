@@ -43,14 +43,48 @@ Scan the entire codebase and generate a complete project knowledge base from scr
    - `updated_by`: `superpowers-memory:rebuild`
    - `triggered_by_plan`: `null`
 
-4. **Commit:**
+4. **Generate MEMORY.md index:**
+
+   After writing the 5 knowledge files, generate `docs/project-knowledge/MEMORY.md`:
+
+   - For each of the 5 files, extract 2-3 concrete key points from the content you just wrote (e.g., specific pattern names, version numbers, rule names — not generic descriptions)
+   - Write the file in this exact format:
+
+   ```markdown
+   ---
+   last_updated: YYYY-MM-DD
+   updated_by: superpowers-memory:rebuild
+   triggered_by_plan: null
+   ---
+
+   # Project Knowledge Index
+
+   - [architecture.md](architecture.md) — System overview, module structure, data flow
+     Key points: [2-3 specific facts from architecture.md]
+
+   - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
+     Key points: [2-3 specific facts from tech-stack.md]
+
+   - [features.md](features.md) — Implemented features, in-progress work
+     Key points: [2-3 specific facts from features.md]
+
+   - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
+     Key points: [2-3 specific facts from conventions.md]
+
+   - [decisions.md](decisions.md) — ADR log, known issues
+     Key points: [2-3 specific facts from decisions.md]
+   ```
+
+   **Size constraint:** Keep MEMORY.md under 30 lines total.
+
+5. **Commit:**
 
 ```bash
 git add docs/project-knowledge/
 git commit -m "docs: rebuild project knowledge base from codebase"
 ```
 
-5. **Report:**
+6. **Report:**
    - Summarize what was generated
    - Note any areas where information was sparse or uncertain
    - Suggest running `superpowers-memory:update` after the next iteration to keep knowledge fresh
