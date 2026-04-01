@@ -1,7 +1,7 @@
 ---
 last_updated: 2026-04-01
 updated_by: superpowers-memory:update
-triggered_by_plan: 2026-04-01-memory-index.md
+triggered_by_plan: null
 ---
 
 # Features
@@ -16,7 +16,7 @@ triggered_by_plan: 2026-04-01-memory-index.md
 | PreToolUse hook | Intercepts `superpowers:brainstorming`, `superpowers:writing-plans`, and `superpowers:finishing-a-development-branch`; injects KB-state-aware context (not_initialized / stale / fresh) at the exact moment each skill is called | [Auto-KB Design](../superpowers/specs/2026-04-01-auto-kb-update-design.md) | [Auto-KB Plan](../superpowers/plans/2026-04-01-auto-kb-update.md) Task 5 |
 | Stop hook | Fires at session end; uses SHA-based KB staleness check (`git log -1` on `docs/project-knowledge/` vs `HEAD`); outputs `:update` reminder only when KB is behind | [Auto-KB Design](../superpowers/specs/2026-04-01-auto-kb-update-design.md) | [Auto-KB Plan](../superpowers/plans/2026-04-01-auto-kb-update.md) Task 3 |
 | Cross-platform hook dispatcher | `run-hook.cmd` polyglot bash/batch wrapper routes hook calls on both Unix and Windows | Design Spec §Plugin Structure | Plan Task 2 |
-| 5 knowledge base templates | Structural scaffolds for `architecture.md`, `tech-stack.md`, `features.md`, `conventions.md`, `decisions.md`; expanded in v1.0.8 with Pattern Overview, Layers, Entry Points, Error Handling, Cross-Cutting Concerns, Runtime, Backlog, Known Issues, Naming Patterns, and more | [Template Optimization Design](../superpowers/specs/2026-04-01-template-optimization-design.md) | [Template Optimization Plan](../superpowers/plans/2026-04-01-template-optimization.md) |
+| 6 knowledge base templates | Structural scaffolds for `architecture.md`, `tech-stack.md`, `features.md`, `conventions.md`, `decisions.md` (expanded in v1.0.8); plus `MEMORY.md` template (added in v1.2.1) as single source of truth for the index format used by `rebuild` and `update` skills | [Template Optimization Design](../superpowers/specs/2026-04-01-template-optimization-design.md) | [Template Optimization Plan](../superpowers/plans/2026-04-01-template-optimization.md) |
 | `superpowers-memory:load` skill | Two-phase loading: Phase 1 reads MEMORY.md index if present; Phase 2 offers on-demand detail file loading. Legacy fallback reads all 5 files directly. Warns if any file >30 days stale. | [Memory Index Design](../superpowers/specs/2026-04-01-memory-index-design.md) | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) Task 3 |
 | `superpowers-memory:update` skill | Incremental KB update: reads current KB + recent plan/spec/git diff; updates only changed files; always regenerates MEMORY.md index in full | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) Task 2 | Plan Task 8 |
 | `superpowers-memory:rebuild` skill | Full KB regeneration from codebase scan; generates all 5 KB files + MEMORY.md index | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) Task 1 | Plan Task 9 |
