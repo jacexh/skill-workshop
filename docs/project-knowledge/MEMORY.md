@@ -16,7 +16,7 @@ triggered_by_plan: 2026-04-01-memory-index.md
   Key points: v1.2.1; 6 templates (5 KB files + MEMORY.md); 3 skills (load/update/rebuild) + 3 hooks; no features in progress
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: set -euo pipefail + printf in all hooks; no external deps rule; conventional commits; specs before plans
+  Key points: set -euo pipefail + printf in all hooks; triggered_by_plan preserved when no plan exists; no external deps rule; conventional commits
 
 - [decisions.md](decisions.md) — ADR log, known issues
   Key points: ADR-005 MEMORY.md two-layer injection (session-start passive + pre-tool-use enforced); ADR-004 PreToolUse over SessionStart; ADR-003 5-file KB split

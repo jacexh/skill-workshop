@@ -10,6 +10,7 @@ triggered_by_plan: null
 
 - **Hook scripts:** Written in bash with `set -euo pipefail`. All JSON output is produced with `printf` (not `echo`) to avoid platform differences. JSON special characters are escaped via a shared `escape_for_json()` function defined at the top of each hook script.
 - **Markdown files:** Skills use YAML frontmatter with `name` and `description` fields. Knowledge base files use frontmatter with `last_updated` (YYYY-MM-DD), `updated_by`, and `triggered_by_plan` fields.
+- **`triggered_by_plan` rule:** Only update this field when a concrete plan filename can be identified as the trigger. If no plan triggered the update, preserve the existing value — never overwrite with `null`.
 - **JSON manifests:** `plugin.json` and `hooks.json` use 2-space indentation. Verified valid via `python3 -m json.tool` during development.
 - **No linter configs present** — the repo has no `.eslintrc`, `.shellcheckrc`, or equivalent. Conventions are followed by practice.
 
