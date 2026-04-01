@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# JSON escape function: handle backslash, quote, newline, carriage return, tab
 escape_for_json() {
     local s="$1"
     s="${s//\\/\\\\}"
@@ -14,34 +13,19 @@ escape_for_json() {
 
 KNOWLEDGE_DIR="docs/project-knowledge"
 
-if [ -d "$KNOWLEDGE_DIR" ]; then
-    # Knowledge base exists — inject full behavior guidelines
-    context="Project knowledge base initialized. Please follow these behavior guidelines:\n\n"
-    context+="1. The project knowledge base is located at docs/project-knowledge/, containing architecture, tech stack, feature list, conventions, and decision records.\n\n"
-    context+="2. Before Brainstorming:\n"
-    context+="   - Read the project knowledge base first to understand current project state\n"
-    context+="   - Make design decisions based on existing architecture and constraints, not from scratch\n\n"
-    context+="3. When executing Tasks in a Plan:\n"
-    context+="   - After completing a Task, update the corresponding checkbox in the plan file from \`- [ ]\` to \`- [x]\`\n"
-    context+="   - This makes the plan a living document that supports interruption recovery\n\n"
-    context+="4. When dispatching SubAgents:\n"
-    context+="   - Include key information from the knowledge base (architecture, conventions, tech stack) in the Context section\n"
-    context+="   - Inform the subagent of the knowledge base path for self-reference\n\n"
-    context+="5. After completing a development branch (finishing-a-development-branch):\n"
-    context+="   - Remind the user to run superpowers-memory:update to refresh the project knowledge base"
-else
-    # Knowledge base not initialized
+if [ ! -d "$KNOWLEDGE_DIR" ]; then
     context="Project knowledge base not initialized. Run superpowers-memory:rebuild to generate the full knowledge base from the codebase."
-fi
+    escaped_context=$(escape_for_json "$context")
 
-escaped_context=$(escape_for_json "$context")
-
-if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
-    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
-elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
-    printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+    if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+        printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
+    elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+        printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+    else
+        printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+    fi
 else
-    printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+    printf '{}\n'
 fi
 
 exit 0
