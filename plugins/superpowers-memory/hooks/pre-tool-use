@@ -1,0 +1,109 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+# Read stdin JSON and extract tool_input.skill
+input=$(cat)
+skill_name=$(printf '%s' "$input" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get('tool_input', {}).get('skill', ''))
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+
+# Only handle the three target skills
+case "$skill_name" in
+    superpowers:brainstorming|superpowers:writing-plans|superpowers:finishing-a-development-branch)
+        ;;
+    *)
+        printf '{}\n'
+        exit 0
+        ;;
+esac
+
+# Determine KB state: not_initialized / stale / fresh
+kb_state="not_initialized"
+if [ -d "docs/project-knowledge" ]; then
+    kb_state="fresh"
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        kb_last_commit=$(git log -1 --format="%H" -- docs/project-knowledge/ 2>/dev/null || echo "")
+        current_commit=$(git rev-parse HEAD 2>/dev/null || echo "")
+        if [ -n "$kb_last_commit" ] && [ "$kb_last_commit" != "$current_commit" ]; then
+            kb_state="stale"
+        fi
+    fi
+fi
+
+# Build context string based on skill + KB state
+context=""
+
+case "$skill_name" in
+    superpowers:brainstorming)
+        case "$kb_state" in
+            not_initialized)
+                context="Project knowledge base not initialized. You MUST run superpowers-memory:rebuild before starting brainstorming."
+                ;;
+            stale)
+                context="WARNING: The project knowledge base is behind the current codebase. Consider running superpowers-memory:update first. If this brainstorming session itself introduces breaking architectural changes, the KB will need rebuilding afterward.\n\nBefore brainstorming, read docs/project-knowledge/ to understand the current architecture and constraints."
+                ;;
+            fresh)
+                context="Before brainstorming, you MUST read docs/project-knowledge/ to understand the current architecture, tech stack, conventions, and decisions."
+                ;;
+        esac
+        ;;
+    superpowers:writing-plans)
+        case "$kb_state" in
+            not_initialized)
+                printf '{}\n'
+                exit 0
+                ;;
+            stale)
+                context="WARNING: The project knowledge base may not reflect recent changes. The plan should be based on actual code state, not KB alone."
+                ;;
+            fresh)
+                context="Before writing plans, you MUST read docs/project-knowledge/ to ensure alignment with existing architecture, conventions, and decisions."
+                ;;
+        esac
+        ;;
+    superpowers:finishing-a-development-branch)
+        case "$kb_state" in
+            not_initialized)
+                context="Project knowledge base does not exist. You MUST run superpowers-memory:rebuild as part of finishing this branch to create the initial KB."
+                ;;
+            stale)
+                context="The project knowledge base is behind the current codebase. You MUST run superpowers-memory:update before finishing this branch."
+                ;;
+            fresh)
+                context="After completing this development branch, you MUST run superpowers-memory:update to keep the project knowledge base current."
+                ;;
+        esac
+        ;;
+esac
+
+if [ -z "$context" ]; then
+    printf '{}\n'
+    exit 0
+fi
+
+escaped_context=$(escape_for_json "$context")
+
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
+elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+else
+    printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+fi
+
+exit 0
