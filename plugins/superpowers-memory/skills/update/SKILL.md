@@ -34,7 +34,7 @@ Incrementally update the project knowledge base based on changes from the curren
    - Update frontmatter in every modified file:
      - `last_updated`: today's date (YYYY-MM-DD)
      - `updated_by`: `superpowers-memory:update`
-     - `triggered_by_plan`: the plan filename that triggered this update (e.g., `2026-03-31-superpowers-memory.md`)
+     - `triggered_by_plan`: the plan filename that triggered this update (e.g., `2026-03-31-superpowers-memory.md`); if no plan triggered this update, **preserve the existing value — do not set to `null`**
 
 4. **Regenerate MEMORY.md index:**
 
