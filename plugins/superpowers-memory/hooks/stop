@@ -31,13 +31,7 @@ if [ "$kb_is_stale" = "yes" ]; then
     context="This session has commits not yet reflected in the project knowledge base. You MUST run superpowers-memory:update before this session ends."
     escaped_context=$(escape_for_json "$context")
 
-    if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
-        printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "Stop",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
-    elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
-        printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
-    else
-        printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
-    fi
+    printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$escaped_context"
 else
     printf '{}\n'
 fi
