@@ -28,7 +28,7 @@ Skill Workshop is a Claude Code plugin marketplace — a curated collection of p
 2. **Session start:** Claude Code fires `SessionStart` hook → `run-hook.cmd session-start` executes → (a) if KB missing: "not initialized" prompt; (b) if `docs/project-knowledge/MEMORY.md` exists: reads and injects index content; (c) otherwise `{}`
 3. **Knowledge management:** User or agent invokes `superpowers-memory:rebuild` / `:update` / `:load` → agent reads codebase / existing knowledge files → agent writes/updates `docs/project-knowledge/*.md` in the target project
 4. **Skill interception:** Claude Code fires `PreToolUse` on `Skill` tool calls → `run-hook.cmd pre-tool-use` → stdin JSON parsed with `python3` to extract `tool_input.skill` → if skill is `brainstorming`, `writing-plans`, or `finishing-a-development-branch`, determines KB state (not_initialized / stale / fresh) and injects targeted context
-5. **Session end:** Claude Code fires `Stop` → `run-hook.cmd stop` → script compares `git log -1 -- docs/project-knowledge/` SHA against `HEAD` → if KB is behind, injects `:update` reminder
+5. **Session end:** Claude Code fires `Stop` → `run-hook.cmd stop` → script checks for `feat:` or `refactor:` commits between last KB update SHA and `HEAD` → if any found, blocks session end and injects mandatory `:update` reminder
 
 ## Key Design Decisions
 

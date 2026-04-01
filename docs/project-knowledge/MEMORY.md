@@ -7,13 +7,13 @@ triggered_by_plan: 2026-04-01-memory-index.md
 # Project Knowledge Index
 
 - [architecture.md](architecture.md) — System overview, module structure, data flow
-  Key points: Plugin Marketplace pattern; 3 hooks (SessionStart injects MEMORY.md, PreToolUse intercepts skills, Stop staleness check); zero-modification principle
+  Key points: Plugin Marketplace pattern; 3 hooks (SessionStart injects MEMORY.md, PreToolUse intercepts skills, Stop blocks on feat/refactor commits); zero-modification principle
 
 - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
   Key points: Bash + Markdown + JSON; python3 for stdin JSON parsing; no external dependencies beyond git
 
 - [features.md](features.md) — Implemented features, in-progress work
-  Key points: v1.2.1; 6 templates (5 KB files + MEMORY.md); 3 skills (load/update/rebuild) + 3 hooks; no features in progress
+  Key points: v1.2.2; 6 templates (5 KB files + MEMORY.md); Stop hook scoped to feat/refactor commits only; no features in progress
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
   Key points: set -euo pipefail + printf in all hooks; triggered_by_plan preserved when no plan exists; no external deps rule; conventional commits
