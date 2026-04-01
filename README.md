@@ -48,20 +48,19 @@ By default, third-party marketplaces do not auto-update. To automatically receiv
 
 **Description:** Project knowledge persistence and plan checkpoint tracking for superpowers workflows
 
-**Version:** 1.0.3
+**Version:** 1.2.2
 
 **License:** MIT
 
 **Keywords:** superpowers, memory, project-knowledge, plan-tracking
 
-The superpowers-memory plugin addresses two key gaps in the superpowers workflow:
-
-1. **Project Knowledge Base** — Maintains architecture, tech stack, feature list, conventions, and decision records across sessions
-2. **Living Plans** — Automatically updates plan checkboxes as tasks are completed, enabling session recovery
+The superpowers-memory plugin maintains a project knowledge base across Claude Code sessions, so each session starts with full architectural and historical context rather than from scratch.
 
 **Key Features:**
 - Zero-modification design — doesn't change any superpowers core files
-- SessionStart hook injects knowledge base context at the right moments
+- `MEMORY.md` index injected at every session start for lightweight passive context
+- `PreToolUse` hook injects KB-state-aware context precisely when brainstorming or planning skills are invoked
+- `Stop` hook blocks session end when `feat:` or `refactor:` commits are not yet reflected in the KB
 - Three skills for knowledge management: `load`, `update`, and `rebuild`
 - Project knowledge stored in your repo under `docs/project-knowledge/`
 
@@ -79,9 +78,9 @@ The superpowers-memory plugin addresses two key gaps in the superpowers workflow
 │   └── superpowers-memory/       # Plugin source code
 │       ├── .claude-plugin/
 │       │   └── plugin.json       # Plugin manifest
-│       ├── hooks/                # Claude Code hooks (planned)
-│       ├── skills/               # Skill definitions (planned)
-│       └── templates/            # Knowledge base templates (planned)
+│       ├── hooks/                # SessionStart, PreToolUse, Stop hooks
+│       ├── skills/               # load, update, rebuild skills
+│       └── templates/            # Knowledge base file scaffolds
 └── docs/
     └── superpowers/
         ├── specs/                # Plugin design specifications

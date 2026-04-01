@@ -4,22 +4,25 @@ A Claude Code plugin that adds project knowledge persistence and plan checkpoint
 
 ## Problem
 
-Superpowers' workflow (brainstorming → writing-plans → executing-plans → finishing) lacks cross-iteration memory. Each new session starts from scratch. Additionally, plan file checkboxes are never updated during execution, preventing session recovery.
+Superpowers' workflow (brainstorming → writing-plans → executing-plans → finishing) lacks cross-iteration memory. Each new session starts from scratch with no context about existing architecture, conventions, or past decisions.
 
 ## What This Plugin Does
 
-1. **Project Knowledge Base** — Maintains 5 knowledge files (`docs/project-knowledge/`) covering architecture, tech stack, features, conventions, and decisions. Updated incrementally after each iteration.
+1. **Project Knowledge Base** — Maintains 5 knowledge files (`docs/project-knowledge/`) covering architecture, tech stack, features, conventions, and decisions. Updated incrementally after each development iteration.
 
-2. **Plan Live Documents** — Hooks remind the agent to update plan checkboxes (`- [ ]` → `- [x]`) as tasks complete, enabling mid-session recovery.
+2. **MEMORY.md Index** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading all 5 files.
 
-3. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
+3. **Precise Context Injection** — `PreToolUse` hook intercepts `brainstorming`, `writing-plans`, and `finishing-a-development-branch` skills; injects KB-state-aware context (`not_initialized` / `stale` / `fresh`) at the exact moment each skill is called.
+
+4. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
 
 ## Installation
 
-Install as a Claude Code plugin:
+Install via the Skill Workshop marketplace:
 
 ```bash
-claude plugin add <path-or-url-to-superpowers-memory>
+/plugin marketplace add jacexh/skill-workshop
+/plugin install superpowers-memory@skill-workshop
 ```
 
 ## Skills
@@ -44,6 +47,7 @@ After running `superpowers-memory:rebuild`, your project will have:
 
 ```
 docs/project-knowledge/
+├── MEMORY.md         # Lightweight index — injected at every session start
 ├── architecture.md   # System structure, modules, data flow
 ├── tech-stack.md     # Languages, frameworks, dependencies
 ├── features.md       # Implemented and in-progress features
