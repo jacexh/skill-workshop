@@ -16,7 +16,7 @@ Read the project knowledge base from `docs/project-knowledge/` and present a str
 
 2. **Phase 1 — Index:**
    - Check if `docs/project-knowledge/MEMORY.md` exists
-   - If yes: read it and present the index as the initial overview (see Output Format below)
+   - If yes: read `docs/project-knowledge/MEMORY.md` and display its complete contents verbatim as the initial overview (see Output Format below)
    - If no (legacy project without MEMORY.md): skip to Phase 2 and read all 5 files directly
 
 3. **Phase 2 — On-demand detail:**
