@@ -57,10 +57,10 @@ case "$skill_name" in
                 context="Project knowledge base not initialized. You MUST run superpowers-memory:rebuild before starting brainstorming."
                 ;;
             stale)
-                context="WARNING: The project knowledge base is behind the current codebase. Consider running superpowers-memory:update first. If this brainstorming session itself introduces breaking architectural changes, the KB will need rebuilding afterward.\n\nBefore brainstorming, read docs/project-knowledge/ to understand the current architecture and constraints."
+                context="WARNING: The project knowledge base is behind the current codebase. Consider running superpowers-memory:update first. If this brainstorming session itself introduces breaking architectural changes, the KB will need rebuilding afterward.\n\nBefore brainstorming, you MUST read docs/project-knowledge/MEMORY.md to get the project knowledge index, then load any relevant files listed there before proceeding."
                 ;;
             fresh)
-                context="Before brainstorming, you MUST read docs/project-knowledge/ to understand the current architecture, tech stack, conventions, and decisions."
+                context="Before brainstorming, you MUST read docs/project-knowledge/MEMORY.md to get the project knowledge index, then load any relevant files listed there before proceeding."
                 ;;
         esac
         ;;
@@ -71,10 +71,10 @@ case "$skill_name" in
                 exit 0
                 ;;
             stale)
-                context="WARNING: The project knowledge base may not reflect recent changes. The plan should be based on actual code state, not KB alone."
+                context="WARNING: The project knowledge base may not reflect recent changes. The plan should be based on actual code state, not KB alone.\n\nBefore writing plans, you MUST read docs/project-knowledge/MEMORY.md to get the project knowledge index, then load any relevant files listed there before proceeding."
                 ;;
             fresh)
-                context="Before writing plans, you MUST read docs/project-knowledge/ to ensure alignment with existing architecture, conventions, and decisions."
+                context="Before writing plans, you MUST read docs/project-knowledge/MEMORY.md to get the project knowledge index, then load any relevant files listed there before proceeding."
                 ;;
         esac
         ;;
