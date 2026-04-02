@@ -67,8 +67,7 @@ case "$skill_name" in
     superpowers:writing-plans)
         case "$kb_state" in
             not_initialized)
-                printf '{}\n'
-                exit 0
+                context="Project knowledge base not initialized. You MUST run superpowers-memory:rebuild before writing plans."
                 ;;
             stale)
                 context="WARNING: The project knowledge base may not reflect recent changes. The plan should be based on actual code state, not KB alone.\n\nBefore writing plans, you MUST read docs/project-knowledge/MEMORY.md to get the project knowledge index, then load any relevant files listed there before proceeding."
@@ -100,6 +99,13 @@ fi
 
 escaped_context=$(escape_for_json "$context")
 
+# Block the skill invocation when KB is not ready, so the agent must fix KB first
+if [ "$kb_state" = "not_initialized" ] || [ "$kb_state" = "stale" ]; then
+    printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$escaped_context"
+    exit 0
+fi
+
+# Fresh state: inject context as additional guidance
 if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
     printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
 elif [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
