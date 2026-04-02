@@ -20,9 +20,15 @@ Read the project knowledge base from `docs/project-knowledge/` and present a str
    - If no (legacy project without MEMORY.md): skip to Phase 2 and read all 5 files directly
 
 3. **Phase 2 — On-demand detail:**
-   - After presenting the index (or after reading all 5 files in legacy mode), check `last_updated` in each file's frontmatter. If any file is older than 30 days, warn: "⚠ [filename] last updated on [date], consider running superpowers-memory:update to refresh."
+   - Read the frontmatter of each of the 5 knowledge files to check `last_updated`. If any file is older than 30 days, warn: "⚠ [filename] last updated on [date], consider running superpowers-memory:update to refresh."
    - State: "I can load any of these files in full if the current task requires it."
-   - Load specific files based on task context (e.g., load `architecture.md` before brainstorming a structural change, load `decisions.md` before writing a new ADR)
+   - Load specific files based on task context using this mapping:
+     - Brainstorming a structural change or new module → `architecture.md`
+     - Writing or evaluating an ADR → `decisions.md`
+     - Adding a dependency or changing the build → `tech-stack.md`
+     - Implementing a new feature or checking what's done → `features.md`
+     - Setting up conventions, hooks, or workflow rules → `conventions.md`
+     - If the task spans multiple areas, load all relevant files before proceeding.
 
 ### Output Format (MEMORY.md present)
 
@@ -59,3 +65,8 @@ Ready to load detail files on demand. Which areas are relevant to your current t
 ## After Loading
 
 After presenting the summary, proceed with the task at hand (typically brainstorming). The loaded knowledge should inform your design decisions — reference specific constraints, existing patterns, and architectural choices from the knowledge base.
+
+## Related Skills
+
+- Run `superpowers-memory:rebuild` first if `docs/project-knowledge/` does not exist.
+- Run `superpowers-memory:update` after completing a development branch to keep the knowledge base current.

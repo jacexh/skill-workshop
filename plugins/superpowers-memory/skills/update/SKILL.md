@@ -17,9 +17,9 @@ Incrementally update the project knowledge base based on changes from the curren
 
 1. **Gather context:**
    - Read all 5 current knowledge files from `docs/project-knowledge/`
-   - Identify the most recent plan file: check `docs/superpowers/plans/` for recently modified plans, or ask the user which plan triggered this update
+   - Identify the most recent plan file: list `docs/superpowers/plans/` sorted by modification time and pick the most recently modified file. If there are multiple files modified within the last 24 hours or no plan files exist, ask the user which plan triggered this update.
    - Read the triggering plan file and its associated spec (from `docs/superpowers/specs/`)
-   - Run `git diff main...HEAD --stat` (or appropriate base branch) to see what files changed
+   - Determine the base branch: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` and fall back to `main` if the command fails. Then run `git diff <base-branch>...HEAD --stat` to see what files changed.
 
 2. **Analyze what changed:**
    - New features implemented? → update `features.md`
@@ -34,7 +34,7 @@ Incrementally update the project knowledge base based on changes from the curren
    - Update frontmatter in every modified file:
      - `last_updated`: today's date (YYYY-MM-DD)
      - `updated_by`: `superpowers-memory:update`
-     - `triggered_by_plan`: the plan filename that triggered this update (e.g., `2026-03-31-superpowers-memory.md`); if no plan triggered this update, **preserve the existing value — do not set to `null`**
+     - `triggered_by_plan`: the plan filename that triggered this update (e.g., `2026-03-31-superpowers-memory.md`); if no plan triggered this update, **preserve the existing value — do not overwrite with `null` or `"none"`**
 
 4. **Regenerate MEMORY.md index:**
 
@@ -60,6 +60,11 @@ Knowledge files follow the structure defined in the plugin templates. If you nee
 - `features.md` → Implemented (with spec/plan links), In Progress
 - `conventions.md` → Coding Standards, Architecture Rules, Testing Conventions, Git & Workflow
 - `decisions.md` → ADR format (Context, Decision, Alternatives, Reason)
+
+## Related Skills
+
+- If `docs/project-knowledge/` does not exist, run `superpowers-memory:rebuild` instead.
+- Run `superpowers-memory:load` before brainstorming or architectural work to surface the updated knowledge.
 
 ## Commit
 

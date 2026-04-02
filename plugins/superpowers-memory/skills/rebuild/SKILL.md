@@ -41,14 +41,14 @@ Scan the entire codebase and generate a complete project knowledge base from scr
    For every generated file:
    - `last_updated`: today's date (YYYY-MM-DD)
    - `updated_by`: `superpowers-memory:rebuild`
-   - `triggered_by_plan`: `null`
+   - `triggered_by_plan`: `"none"` (literal string — not YAML null)
 
 4. **Generate MEMORY.md index:**
 
    After writing the 5 knowledge files, generate `docs/project-knowledge/MEMORY.md`:
 
    - For each of the 5 files, extract 2-3 concrete key points from the content you just wrote (e.g., specific pattern names, version numbers, rule names — not generic descriptions)
-   - Write the file following the format in `templates/MEMORY.md`, setting `updated_by: superpowers-memory:rebuild` and `triggered_by_plan: null`
+   - Write the file following the format in `templates/MEMORY.md`, setting `updated_by: superpowers-memory:rebuild` and `triggered_by_plan: "none"`
 
    **Size constraint:** Keep MEMORY.md under 30 lines total.
 
