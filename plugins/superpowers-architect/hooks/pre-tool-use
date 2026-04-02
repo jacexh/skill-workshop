@@ -84,11 +84,11 @@ if not entries:
     sys.exit(0)
 
 if skill_type == 'review':
-    header = 'The following design patterns define the hard constraints for this codebase.\nRead any that are relevant and use them as the review criteria.'
+    header = 'The following design patterns are hard constraints for this codebase.\nYou MUST use the Read tool to open any relevant patterns BEFORE reviewing,\nand evaluate the code against them. Do not approve code that violates these constraints.'
 else:
-    header = 'The following design patterns define hard constraints for this codebase.\nRead any that are relevant to the current task and apply them strictly\nbefore writing the plan or generating code.'
+    header = 'The following design patterns are hard constraints for this codebase.\nYou MUST use the Read tool to open any relevant patterns BEFORE proceeding,\nand apply them strictly to your plan and generated code. These are not suggestions.'
 
-full_context = '====== Architect Standards ======\n' + header + '\n\n' + '\n\n'.join(entries) + '\n\nIf none are relevant to the current task, skip.\n' + '=' * 34
+full_context = '====== Architect Standards ======\n' + header + '\n\n' + '\n\n'.join(entries) + '\n\nIf none are relevant, state that explicitly and proceed.\n' + '=' * 34
 print(json.dumps(full_context))
 " 2>/dev/null || true)
 

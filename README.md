@@ -4,7 +4,7 @@ A [Claude Code](https://claude.ai/code) plugin marketplace for productivity and 
 
 ## Overview
 
-Skill Workshop is a curated collection of plugins that enhance Claude Code's capabilities for software development workflows. Each plugin is designed to solve specific problems in the development lifecycle with a focus on practicality and developer experience.
+Skill Workshop is a curated collection of plugins that enhance Claude Code's capabilities for software development workflows. Each plugin is self-contained under `plugins/<name>/` with its own hooks, skills, templates, and documentation.
 
 ## Usage
 
@@ -17,8 +17,8 @@ Skill Workshop is a curated collection of plugins that enhance Claude Code's cap
 ### Install plugins
 
 ```bash
-# Install a specific plugin
 /plugin install superpowers-memory@skill-workshop
+/plugin install superpowers-architect@skill-workshop
 ```
 
 ### Enable auto-update
@@ -32,41 +32,32 @@ By default, third-party marketplaces do not auto-update. To automatically receiv
 
 **Option 2: Manual update**
 ```bash
-# Check for available updates
 /plugin update --check
-
-# Update a specific plugin
 /plugin update superpowers-memory@skill-workshop
-
-# Update all plugins from this marketplace
 /plugin update --all
 ```
+
+---
 
 ## Available Plugins
 
 ### superpowers-memory
 
-**Description:** Project knowledge persistence and plan checkpoint tracking for superpowers workflows
+Project knowledge persistence and plan checkpoint tracking for superpowers workflows.
 
-**Version:** 1.2.2
+- **Version:** 1.2.3
+- **License:** MIT
+- **Details:** [plugins/superpowers-memory/README.md](plugins/superpowers-memory/README.md)
 
-**License:** MIT
+### superpowers-architect
 
-**Keywords:** superpowers, memory, project-knowledge, plan-tracking
+Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows.
 
-The superpowers-memory plugin maintains a project knowledge base across Claude Code sessions, so each session starts with full architectural and historical context rather than from scratch.
+- **Version:** 1.0.0
+- **License:** MIT
+- **Details:** [plugins/superpowers-architect/README.md](plugins/superpowers-architect/README.md)
 
-**Key Features:**
-- Zero-modification design — doesn't change any superpowers core files
-- `MEMORY.md` index injected at every session start for lightweight passive context
-- `PreToolUse` hook injects KB-state-aware context precisely when brainstorming or planning skills are invoked
-- `Stop` hook blocks session end when `feat:` or `refactor:` commits are not yet reflected in the KB
-- Three skills for knowledge management: `load`, `update`, and `rebuild`
-- Project knowledge stored in your repo under `docs/project-knowledge/`
-
-**Documentation:**
-- [Design Spec](docs/superpowers/specs/2026-03-31-superpowers-memory-design.md)
-- [Implementation Plan](docs/superpowers/plans/2026-03-31-superpowers-memory.md)
+---
 
 ## Repository Structure
 
@@ -75,12 +66,8 @@ The superpowers-memory plugin maintains a project knowledge base across Claude C
 ├── .claude-plugin/
 │   └── marketplace.json          # Marketplace catalog definition
 ├── plugins/
-│   └── superpowers-memory/       # Plugin source code
-│       ├── .claude-plugin/
-│       │   └── plugin.json       # Plugin manifest
-│       ├── hooks/                # SessionStart, PreToolUse, Stop hooks
-│       ├── skills/               # load, update, rebuild skills
-│       └── templates/            # Knowledge base file scaffolds
+│   ├── superpowers-memory/       # Plugin source code
+│   └── superpowers-architect/    # Plugin source code
 └── docs/
     └── superpowers/
         ├── specs/                # Plugin design specifications
