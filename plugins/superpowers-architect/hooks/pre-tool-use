@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+escape_for_json() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\n'/\\n}"
+    s="${s//$'\r'/\\r}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "$s"
+}
+
+# Parse skill name from stdin JSON
+input=$(cat)
+skill_name=$(printf '%s' "$input" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    print(d.get('tool_input', {}).get('skill', ''))
+except Exception:
+    print('')
+" 2>/dev/null || echo "")
+
+# Only handle trigger skills
+case "$skill_name" in
+    superpowers:writing-plans|\
+    superpowers:executing-plans|\
+    superpowers:subagent-driven-development|\
+    superpowers:requesting-code-review|\
+    superpowers:receiving-code-review)
+        ;;
+    *)
+        printf '{}\n'
+        exit 0
+        ;;
+esac
+
+# Determine wording mode based on skill
+case "$skill_name" in
+    superpowers:requesting-code-review|superpowers:receiving-code-review)
+        skill_type="review"
+        ;;
+    *)
+        skill_type="plan"
+        ;;
+esac
+
+# Build merged pattern index via python3:
+# - Scans $SP_ARCHITECT_DIR (global) then docs/design-patterns/ (project)
+# - Project files override global files with the same filename
+# - Extracts name + description from frontmatter
+# - Outputs formatted index string, or nothing if no patterns found
+context=$(SKILL_TYPE="$skill_type" SP_ARCHITECT_DIR="${SP_ARCHITECT_DIR:-}" python3 -c "
+import os, glob, sys
+
+skill_type = os.environ.get('SKILL_TYPE', 'plan')
+global_dir = os.environ.get('SP_ARCHITECT_DIR') or os.path.expanduser('~/.claude/superpowers-architect/design-patterns')
+project_dir = 'docs/design-patterns'
+
+files = {}
+
+if os.path.isdir(global_dir):
+    for f in sorted(glob.glob(os.path.join(global_dir, '*.md'))):
+        files[os.path.basename(f)] = f
+
+if os.path.isdir(project_dir):
+    for f in sorted(glob.glob(os.path.join(project_dir, '*.md'))):
+        files[os.path.basename(f)] = f
+
+if not files:
+    sys.exit(0)
+
+entries = []
+for fname, fpath in sorted(files.items()):
+    try:
+        content = open(fpath).read()
+        name = fname
+        description = ''
+        if content.startswith('---'):
+            end = content.find('---', 3)
+            if end != -1:
+                fm = content[3:end]
+                for line in fm.splitlines():
+                    if line.startswith('name:'):
+                        name = line[5:].strip()
+                    elif line.startswith('description:'):
+                        description = line[12:].strip()
+        entries.append('- [' + name + ']\n  ' + description + '\n  Path: ' + fpath)
+    except Exception:
+        pass
+
+if not entries:
+    sys.exit(0)
+
+if skill_type == 'review':
+    header = 'The following design patterns define the hard constraints for this codebase.\nRead any that are relevant and use them as the review criteria.'
+else:
+    header = 'The following design patterns define hard constraints for this codebase.\nRead any that are relevant to the current task and apply them strictly\nbefore writing the plan or generating code.'
+
+print('====== Architect Standards ======')
+print(header)
+print()
+print('\n\n'.join(entries))
+print()
+print('If none are relevant to the current task, skip.')
+print('=' * 34)
+" 2>/dev/null || true)
+
+# Exit silently if no patterns found
+if [ -z "$context" ]; then
+    printf '{}\n'
+    exit 0
+fi
+
+escaped_context=$(escape_for_json "$context")
+
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
+else
+    printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+fi
+
+exit 0
