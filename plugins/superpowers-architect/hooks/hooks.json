@@ -7,7 +7,8 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" pre-tool-use",
-            "async": false
+            "async": false,
+            "statusMessage": "Loading design patterns..."
           }
         ]
       }

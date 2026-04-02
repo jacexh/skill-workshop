@@ -85,10 +85,26 @@ if [ -z "$context_json" ]; then
     exit 0
 fi
 
-if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
-    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": %s\n  }\n}\n' "$context_json"
+# Extract pattern names for the notification message
+pattern_names=$(printf '%s' "$context_json" | node -e "
+let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
+  const s=JSON.parse(d);
+  const names=(s.match(/^- \[(.+?)\]/gm)||[]).map(m=>m.replace(/^- \[|\]$/g,''));
+  console.log(names.join(', '));
+})
+" 2>/dev/null || echo "")
+
+# Build notification message
+if [ -n "$pattern_names" ]; then
+    sys_msg=$(node -e "console.log(JSON.stringify('Architect: loaded design patterns — ' + process.argv[1]))" "$pattern_names" 2>/dev/null || echo '""')
 else
-    printf '{\n  "additional_context": %s\n}\n' "$context_json"
+    sys_msg='""'
+fi
+
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": %s\n  },\n  "systemMessage": %s\n}\n' "$context_json" "$sys_msg"
+else
+    printf '{\n  "additional_context": %s,\n  "systemMessage": %s\n}\n' "$context_json" "$sys_msg"
 fi
 
 exit 0
