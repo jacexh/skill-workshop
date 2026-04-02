@@ -8,7 +8,8 @@ on:
         required: true
         type: choice
         options:
-          - superpowers-memory
+        - superpowers-memory
+        - superpowers-architect
       version:
         description: 'Version (e.g., 1.0.1)'
         required: true
@@ -21,74 +22,74 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
 
-      - name: Validate version format
-        run: |
-          if ! [[ "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Invalid version format. Expected: x.y.z (e.g., 1.0.1)"
-            exit 1
-          fi
+    - name: Validate version format
+      run: |
+        if ! [[ "${{ github.event.inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "Invalid version format. Expected: x.y.z (e.g., 1.0.1)"
+          exit 1
+        fi
 
-      - name: Get current versions
-        id: current
-        run: |
-          MARKETPLACE_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.metadata.version')
-          PLUGIN_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version')
-          PLUGIN_JSON_VERSION=$(cat plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json | jq -r '.version')
-          echo "marketplace_version=$MARKETPLACE_VERSION" >> $GITHUB_OUTPUT
-          echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
-          echo "plugin_json_version=$PLUGIN_JSON_VERSION" >> $GITHUB_OUTPUT
+    - name: Get current versions
+      id: current
+      run: |
+        MARKETPLACE_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.metadata.version')
+        PLUGIN_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version')
+        PLUGIN_JSON_VERSION=$(cat plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json | jq -r '.version')
+        echo "marketplace_version=$MARKETPLACE_VERSION" >> $GITHUB_OUTPUT
+        echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
+        echo "plugin_json_version=$PLUGIN_JSON_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Update versions in marketplace.json
-        run: |
-          # Update plugin version in marketplace.json
-          jq '(.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version) = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
-          mv tmp.json .claude-plugin/marketplace.json
+    - name: Update versions in marketplace.json
+      run: |
+        # Update plugin version in marketplace.json
+        jq '(.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version) = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
+        mv tmp.json .claude-plugin/marketplace.json
 
-          # Update marketplace version
-          jq '.metadata.version = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
-          mv tmp.json .claude-plugin/marketplace.json
+        # Update marketplace version
+        jq '.metadata.version = "${{ github.event.inputs.version }}"' .claude-plugin/marketplace.json > tmp.json
+        mv tmp.json .claude-plugin/marketplace.json
 
-      - name: Update version in plugin.json
-        run: |
-          # Update version in plugins/{plugin}/.claude-plugin/plugin.json
-          jq '.version = "${{ github.event.inputs.version }}"' plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json > tmp.json
-          mv tmp.json plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json
+    - name: Update version in plugin.json
+      run: |
+        # Update version in plugins/{plugin}/.claude-plugin/plugin.json
+        jq '.version = "${{ github.event.inputs.version }}"' plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json > tmp.json
+        mv tmp.json plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json
 
-      - name: Verify updates
-        run: |
-          NEW_MARKETPLACE_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.metadata.version')
-          NEW_PLUGIN_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version')
-          NEW_PLUGIN_JSON_VERSION=$(cat plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json | jq -r '.version')
-          echo "Marketplace: ${{ steps.current.outputs.marketplace_version }} -> $NEW_MARKETPLACE_VERSION"
-          echo "Plugin [${{ github.event.inputs.plugin }}] (marketplace): ${{ steps.current.outputs.plugin_version }} -> $NEW_PLUGIN_VERSION"
-          echo "Plugin [${{ github.event.inputs.plugin }}] (plugin.json): ${{ steps.current.outputs.plugin_json_version }} -> $NEW_PLUGIN_JSON_VERSION"
+    - name: Verify updates
+      run: |
+        NEW_MARKETPLACE_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.metadata.version')
+        NEW_PLUGIN_VERSION=$(cat .claude-plugin/marketplace.json | jq -r '.plugins[] | select(.name == "${{ github.event.inputs.plugin }}") | .version')
+        NEW_PLUGIN_JSON_VERSION=$(cat plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json | jq -r '.version')
+        echo "Marketplace: ${{ steps.current.outputs.marketplace_version }} -> $NEW_MARKETPLACE_VERSION"
+        echo "Plugin [${{ github.event.inputs.plugin }}] (marketplace): ${{ steps.current.outputs.plugin_version }} -> $NEW_PLUGIN_VERSION"
+        echo "Plugin [${{ github.event.inputs.plugin }}] (plugin.json): ${{ steps.current.outputs.plugin_json_version }} -> $NEW_PLUGIN_JSON_VERSION"
 
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Commit and push
-        run: |
-          git add .claude-plugin/marketplace.json
-          git add plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json
-          git commit -m "chore: bump ${{ github.event.inputs.plugin }} to v${{ github.event.inputs.version }}"
-          git push
+    - name: Commit and push
+      run: |
+        git add .claude-plugin/marketplace.json
+        git add plugins/${{ github.event.inputs.plugin }}/.claude-plugin/plugin.json
+        git commit -m "chore: bump ${{ github.event.inputs.plugin }} to v${{ github.event.inputs.version }}"
+        git push
 
-      - name: Create tag
-        run: |
-          git tag "${{ github.event.inputs.plugin }}-v${{ github.event.inputs.version }}"
-          git push origin "${{ github.event.inputs.plugin }}-v${{ github.event.inputs.version }}"
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.event.inputs.plugin }}-v${{ github.event.inputs.version }}
-          name: ${{ github.event.inputs.plugin }} v${{ github.event.inputs.version }}
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create tag
+      run: |
+        git tag "${{ github.event.inputs.plugin }}-v${{ github.event.inputs.version }}"
+        git push origin "${{ github.event.inputs.plugin }}-v${{ github.event.inputs.version }}"
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.plugin }}-v${{ github.event.inputs.version }}
+        name: ${{ github.event.inputs.plugin }} v${{ github.event.inputs.version }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
