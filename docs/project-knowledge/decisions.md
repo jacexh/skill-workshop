@@ -1,10 +1,27 @@
 ---
-last_updated: 2026-04-01
+last_updated: 2026-04-02
 updated_by: superpowers-memory:update
-triggered_by_plan: 2026-04-01-memory-index-design.md
+triggered_by_plan: 2026-04-02-superpowers-architect.md
 ---
 
 # Decisions
+
+## ADR-006: Progressive design pattern loading via PreToolUse hook
+
+**Date:** 2026-04-02
+
+**Status:** Accepted
+
+**Context:** The `writing-plans`, `executing-plans`, and code review skills produce implementation guidance without awareness of team or project design standards. Manually pasting standards into every prompt is error-prone and inconsistent.
+
+**Decision:** Build `superpowers-architect` as a `pre-tool-use` hook plugin that intercepts five target skills (`writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, `receiving-code-review`). It scans a two-layer pattern directory (global `$SP_ARCHITECT_DIR` + project `docs/design-patterns/`) and injects only a compact index (`name + description + path`). Claude then decides which patterns are relevant and loads full content on demand via the `Read` tool. Project-level files override global files by filename.
+
+**Alternatives Considered:**
+- Full-content injection: would dump all patterns into every prompt, causing token bloat and noise when only one or two patterns are relevant.
+- Tag-based activation: would require users to manually tag tasks or maintain a config file — adds friction.
+
+**Reason:** Progressive loading keeps context small (only the index is injected regardless of pattern count) while still enforcing standards. The two-layer directory model lets teams share global defaults and override per-project without forking the plugin.
+
 
 ## ADR-005: MEMORY.md as KB index with two-layer injection
 

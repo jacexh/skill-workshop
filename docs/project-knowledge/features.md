@@ -1,8 +1,8 @@
 ---
-last_updated: 2026-04-01
+last_updated: 2026-04-02
 updated_by: superpowers-memory:update
-triggered_by_plan: 2026-04-01-memory-index.md
-version: v1.2.2
+triggered_by_plan: 2026-04-02-superpowers-architect.md
+version: v1.2.3
 ---
 
 # Features
@@ -23,6 +23,10 @@ version: v1.2.2
 | `superpowers-memory:rebuild` skill | Full KB regeneration from codebase scan; generates all 5 KB files + MEMORY.md index | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) Task 1 | Plan Task 9 |
 | `MEMORY.md` knowledge index | `docs/project-knowledge/MEMORY.md` — structured index with filename + description + 2-3 key points per file; written by `rebuild`/`update`; injected by `session-start` at every session; required first read in `pre-tool-use` brainstorming/writing-plans messages | [Memory Index Design](../superpowers/specs/2026-04-01-memory-index-design.md) | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) |
 | Plugin README | User-facing documentation covering problem statement, skills table, hooks table, KB structure | — | Plan Task 10 |
+| `superpowers-architect` plugin | Full plugin with `pre-tool-use` hook that injects design pattern constraints into planning, execution, and code review skills via progressive loading | [Design Spec](../superpowers/specs/2026-04-02-superpowers-architect-design.md) | [Implementation Plan](../superpowers/plans/2026-04-02-superpowers-architect.md) |
+| Progressive pattern loading | Hook injects only `name + description + path` index; Claude uses `Read` tool on demand to load full pattern content — avoids dumping all patterns into every prompt | [Design Spec](../superpowers/specs/2026-04-02-superpowers-architect-design.md) | [Implementation Plan](../superpowers/plans/2026-04-02-superpowers-architect.md) Task 2 |
+| Two-layer pattern directories | Global patterns (`$SP_ARCHITECT_DIR`, default `~/.claude/superpowers-architect/design-patterns/`) merged with project-level `docs/design-patterns/`; project files override global files by filename | [Design Spec](../superpowers/specs/2026-04-02-superpowers-architect-design.md) | [Implementation Plan](../superpowers/plans/2026-04-02-superpowers-architect.md) Task 2 |
+| Example design patterns | Three reference pattern files (`database.md`, `rest-api.md`, `architecture.md`) shipped under `plugins/superpowers-architect/design-patterns/` for users to copy to their global or project directories | — | [Implementation Plan](../superpowers/plans/2026-04-02-superpowers-architect.md) Task 3 |
 
 ## In Progress
 
