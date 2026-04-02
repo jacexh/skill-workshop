@@ -1,0 +1,15 @@
+{
+  "name": "superpowers-architect",
+  "description": "Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows",
+  "version": "1.0.0",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "superpowers",
+    "architect",
+    "design-patterns",
+    "standards"
+  ]
+}
