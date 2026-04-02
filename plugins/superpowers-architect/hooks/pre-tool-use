@@ -1,16 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-escape_for_json() {
-    local s="$1"
-    s="${s//\\/\\\\}"
-    s="${s//\"/\\\"}"
-    s="${s//$'\n'/\\n}"
-    s="${s//$'\r'/\\r}"
-    s="${s//$'\t'/\\t}"
-    printf '%s' "$s"
-}
-
 # Parse skill name from stdin JSON
 input=$(cat)
 skill_name=$(printf '%s' "$input" | python3 -c "
@@ -51,12 +41,12 @@ esac
 # - Project files override global files with the same filename
 # - Extracts name + description from frontmatter
 # - Outputs formatted index string, or nothing if no patterns found
-context=$(SKILL_TYPE="$skill_type" SP_ARCHITECT_DIR="${SP_ARCHITECT_DIR:-}" python3 -c "
-import os, glob, sys
+context_json=$(SKILL_TYPE="$skill_type" SP_ARCHITECT_DIR="${SP_ARCHITECT_DIR:-}" python3 -c "
+import os, glob, sys, json
 
 skill_type = os.environ.get('SKILL_TYPE', 'plan')
 global_dir = os.environ.get('SP_ARCHITECT_DIR') or os.path.expanduser('~/.claude/superpowers-architect/design-patterns')
-project_dir = 'docs/design-patterns'
+project_dir = 'docs/design-patterns'  # relative to project root (Claude Code hooks run from project root)
 
 files = {}
 
@@ -98,27 +88,20 @@ if skill_type == 'review':
 else:
     header = 'The following design patterns define hard constraints for this codebase.\nRead any that are relevant to the current task and apply them strictly\nbefore writing the plan or generating code.'
 
-print('====== Architect Standards ======')
-print(header)
-print()
-print('\n\n'.join(entries))
-print()
-print('If none are relevant to the current task, skip.')
-print('=' * 34)
+full_context = '====== Architect Standards ======\n' + header + '\n\n' + '\n\n'.join(entries) + '\n\nIf none are relevant to the current task, skip.\n' + '=' * 34
+print(json.dumps(full_context))
 " 2>/dev/null || true)
 
 # Exit silently if no patterns found
-if [ -z "$context" ]; then
+if [ -z "$context_json" ]; then
     printf '{}\n'
     exit 0
 fi
 
-escaped_context=$(escape_for_json "$context")
-
 if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
-    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": "%s"\n  }\n}\n' "$escaped_context"
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": %s\n  }\n}\n' "$context_json"
 else
-    printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
+    printf '{\n  "additional_context": %s\n}\n' "$context_json"
 fi
 
 exit 0
