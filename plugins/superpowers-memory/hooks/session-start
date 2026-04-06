@@ -12,7 +12,14 @@ escape_for_json() {
 }
 
 KNOWLEDGE_DIR="docs/project-knowledge"
-MEMORY_INDEX="$KNOWLEDGE_DIR/MEMORY.md"
+# Check index.md first, fall back to legacy MEMORY.md for backward compatibility
+if [ -f "$KNOWLEDGE_DIR/index.md" ]; then
+    MEMORY_INDEX="$KNOWLEDGE_DIR/index.md"
+elif [ -f "$KNOWLEDGE_DIR/MEMORY.md" ]; then
+    MEMORY_INDEX="$KNOWLEDGE_DIR/MEMORY.md"
+else
+    MEMORY_INDEX=""
+fi
 
 if [ ! -d "$KNOWLEDGE_DIR" ]; then
     context="Project knowledge base not initialized. Run superpowers-memory:rebuild to generate the full knowledge base from the codebase."
@@ -25,7 +32,7 @@ if [ ! -d "$KNOWLEDGE_DIR" ]; then
     else
         printf '{\n  "additional_context": "%s"\n}\n' "$escaped_context"
     fi
-elif [ -f "$MEMORY_INDEX" ]; then
+elif [ -n "$MEMORY_INDEX" ] && [ -f "$MEMORY_INDEX" ]; then
     memory_content=$(cat "$MEMORY_INDEX")
 
     # Check if KB is stale relative to HEAD
@@ -37,7 +44,7 @@ elif [ -f "$MEMORY_INDEX" ]; then
         fi
     fi
 
-    context="${stale_warning}Project knowledge index loaded from docs/project-knowledge/MEMORY.md:\n\n${memory_content}"
+    context="${stale_warning}Project knowledge index loaded from ${MEMORY_INDEX}:\n\n${memory_content}"
     escaped_context=$(escape_for_json "$context")
 
     if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then

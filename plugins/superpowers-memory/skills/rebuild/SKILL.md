@@ -69,14 +69,16 @@ For every generated file:
 - `updated_by`: `superpowers-memory:rebuild`
 - `triggered_by_plan`: `null`
 
-### 5. Generate MEMORY.md index
+### 5. Generate index.md
 
-After writing the 6 knowledge files, generate `docs/project-knowledge/MEMORY.md`:
+After writing the 6 knowledge files, generate `docs/project-knowledge/index.md`:
 
 - For each of the 6 files, extract 1-2 key points that help AI decide whether to load the file in full (e.g., specific pattern names, version numbers, counts — not generic descriptions)
-- Write the file following the format in `templates/MEMORY.md`, setting `updated_by: superpowers-memory:rebuild` and `triggered_by_plan: null`
+- Write the file following the format in `templates/index.md`, setting `updated_by: superpowers-memory:rebuild` and `triggered_by_plan: null`
 
-**Size constraint:** Keep MEMORY.md under 50 lines total.
+**Size constraint:** Keep index.md under 50 lines total.
+
+**Legacy cleanup:** If `docs/project-knowledge/MEMORY.md` exists (from an older version), delete it after creating `index.md`.
 
 ### 6. Verify (before commit)
 

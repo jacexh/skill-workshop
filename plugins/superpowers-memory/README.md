@@ -8,9 +8,9 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 ## What This Plugin Does
 
-1. **Project Knowledge Base** — Maintains 5 knowledge files (`docs/project-knowledge/`) covering architecture, tech stack, features, conventions, and decisions. Updated incrementally after each development iteration.
+1. **Project Knowledge Base** — Maintains 6 knowledge files (`docs/project-knowledge/`) covering architecture, tech stack, features, conventions, decisions, and domain glossary. Updated incrementally after each development iteration.
 
-2. **MEMORY.md Index** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading all 5 files.
+2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading all 6 files.
 
 3. **Precise Context Injection** — `PreToolUse` hook intercepts `brainstorming`, `writing-plans`, and `finishing-a-development-branch` skills; injects KB-state-aware context (`not_initialized` / `stale` / `fresh`) at the exact moment each skill is called.
 
@@ -47,12 +47,13 @@ After running `superpowers-memory:rebuild`, your project will have:
 
 ```
 docs/project-knowledge/
-├── MEMORY.md         # Lightweight index — injected at every session start
+├── index.md          # Lightweight index — injected at every session start
 ├── architecture.md   # System structure, modules, data flow
 ├── tech-stack.md     # Languages, frameworks, dependencies
 ├── features.md       # Implemented and in-progress features
 ├── conventions.md    # Coding standards, architecture rules
-└── decisions.md      # Architecture Decision Records
+├── decisions.md      # Architecture Decision Records
+└── glossary.md       # Domain terminology (Ubiquitous Language)
 ```
 
 ## License

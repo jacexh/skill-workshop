@@ -15,9 +15,10 @@ Read the project knowledge base from `docs/project-knowledge/` and present a str
    - If not: tell the user "Project knowledge base not initialized. Please run superpowers-memory:rebuild to generate from codebase first." and stop
 
 2. **Phase 1 — Index:**
-   - Check if `docs/project-knowledge/MEMORY.md` exists
-   - If yes: read `docs/project-knowledge/MEMORY.md` and display its complete contents verbatim as the initial overview (see Output Format below)
-   - If no (legacy project without MEMORY.md): skip to Phase 2 and read all files directly
+   - Check if `docs/project-knowledge/index.md` exists
+   - If yes: read `docs/project-knowledge/index.md` and display its complete contents verbatim as the initial overview (see Output Format below)
+   - If no: check for legacy `docs/project-knowledge/MEMORY.md` (older versions used this name) and use it instead
+   - If neither exists: skip to Phase 2 and read all files directly
 
 3. **Phase 2 — Staleness check + on-demand detail:**
 
@@ -37,21 +38,21 @@ Read the project knowledge base from `docs/project-knowledge/` and present a str
      - Adding a dependency or changing the build → `tech-stack.md`
      - Implementing a new feature or checking what's done → `features.md`
      - Setting up conventions, hooks, or workflow rules → `conventions.md`
-     - Understanding domain terminology → `glossary.md`
+     - Understanding domain terminology → `glossary.md` (skip if file does not exist — older knowledge bases may not have it)
      - If the task spans multiple areas, load all relevant files before proceeding.
 
-### Output Format (MEMORY.md present)
+### Output Format (index.md present)
 
 ```
 ## Project Knowledge Index
 
-[MEMORY.md content displayed as-is]
+[index.md content displayed as-is]
 
 ---
 Ready to load detail files on demand. Which areas are relevant to your current task?
 ```
 
-### Output Format (legacy — no MEMORY.md)
+### Output Format (legacy — no index.md)
 
 ```
 ## Project Knowledge Overview

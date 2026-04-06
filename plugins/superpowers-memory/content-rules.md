@@ -38,7 +38,7 @@ After generating or updating files, check line counts. If any file exceeds its t
 | tech-stack.md | 120 |
 | features.md | 100 |
 | glossary.md | 80 |
-| MEMORY.md | 50 |
+| index.md | 50 |
 
 Compression suggestions by file type:
 - features.md: collapse old completed iterations into one-line summaries

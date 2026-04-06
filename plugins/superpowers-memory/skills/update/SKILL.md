@@ -17,7 +17,7 @@ Incrementally update the project knowledge base based on changes from the curren
 
 ### 1. Gather context
 
-- Read all 6 current knowledge files from `docs/project-knowledge/`
+- Read existing knowledge files from `docs/project-knowledge/`. If fewer than 6 files exist (e.g., `glossary.md` missing from older versions), note which files are missing — they will be created during this update if relevant content is found, otherwise skipped.
 - Identify the most recent plan file: list `docs/superpowers/plans/` sorted by modification time and pick the most recently modified file. If there are multiple files modified within the last 24 hours or no plan files exist, ask the user which plan triggered this update.
 - Read the triggering plan file and its associated spec (from `docs/superpowers/specs/`)
 - Determine the base branch: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` and fall back to `main` if the command fails. Then run `git diff <base-branch>...HEAD --stat` to see what files changed.
@@ -60,15 +60,17 @@ Check for architecture-level changes beyond `git diff --stat`:
 
 Check features.md for plans that appear abandoned (no corresponding commits in recent history, superseded by newer plans). If found, ask the user to confirm removal. Remove only after user confirmation.
 
-### 6. Regenerate MEMORY.md index
+### 6. Regenerate index.md
 
-Always regenerate `docs/project-knowledge/MEMORY.md` in full (full overwrite — any file's key points may have changed):
+Always regenerate `docs/project-knowledge/index.md` in full (full overwrite — any file's key points may have changed):
 
-- Re-read all 6 knowledge files (including any you just updated)
+- Re-read all existing knowledge files (including any you just updated or created)
 - Extract 1-2 key points per file that help AI decide whether to load it in full
-- Write `docs/project-knowledge/MEMORY.md` following the format in `templates/MEMORY.md`, setting `updated_by: superpowers-memory:update` and `triggered_by_plan: <plan-filename>`
+- Write `docs/project-knowledge/index.md` following the format in `templates/index.md`, setting `updated_by: superpowers-memory:update` and `triggered_by_plan: <plan-filename>`
 
-**Size constraint:** Keep MEMORY.md under 50 lines total.
+**Size constraint:** Keep index.md under 50 lines total.
+
+**Legacy cleanup:** If `docs/project-knowledge/MEMORY.md` exists (from an older version), delete it after creating `index.md`.
 
 ### 7. Verify (before commit)
 
@@ -103,8 +105,8 @@ git commit -m "docs: update project knowledge base from [plan-name]"
 ### 10. Report changes
 
 - List which knowledge files were updated and what changed
-- Confirm MEMORY.md was regenerated
-- If no knowledge file updates were needed, still regenerate MEMORY.md
+- Confirm index.md was regenerated
+- If no knowledge file updates were needed, still regenerate index.md
 
 ## Templates
 
