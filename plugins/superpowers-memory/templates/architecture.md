@@ -4,71 +4,95 @@ updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
 ---
 
+<!-- OWNER: System boundaries, module responsibilities, cross-module relationships, data flows.
+     Design decision rationale belongs in decisions.md — reference by ADR number only.
+     Domain term business definitions belong in glossary.md — use term names only here.
+
+     CONTENT EXCLUSION: Do NOT include information that AI can get by reading 1-2 source files
+     and that may change without an architectural decision:
+     - Struct/class field lists
+     - Enum/constant value mappings (e.g., int8: 0=Skill)
+     - Method signatures (unless enforcing non-obvious invariants)
+     - Single-module implementation details
+
+     TARGET: ≤200 lines. -->
+
 # Architecture
 
 ## Pattern Overview
 
-**Overall:** [Pattern name: e.g., "Monolithic CLI", "Layered API", "Full-stack MVC", "Plugin Marketplace"]
+<!-- Architecture paradigm + 2-3 key characteristics. One paragraph. -->
+
+**Overall:** [Pattern name: e.g., "DDD + Clean Architecture", "Layered API", "Full-stack MVC"]
 
 **Key Characteristics:**
-- [e.g., "Single executable with subcommands"]
+- [e.g., "Vertical slicing by bounded context"]
 - [e.g., "Stateless request handling"]
-- [e.g., "File-based state, no database"]
 
-## System Overview
+## System Boundaries
 
-<!-- One paragraph describing what this system does and its high-level architecture -->
+<!-- C4 L1: Who/what uses this system? What external services does it depend on?
+     List external actors (users, other systems) and external dependencies (databases, APIs). -->
 
-## Layers
+**Actors:**
+- [e.g., "Browser client (React SPA)"]
+- [e.g., "CI/CD pipeline"]
 
-<!-- One entry per conceptual layer. Location is critical — it makes this actionable for planning. -->
+**External Dependencies:**
+- [e.g., "PostgreSQL 15 — primary data store"]
+- [e.g., "Redis — session cache"]
 
-**[Layer Name]:**
-- Purpose: [What this layer does]
-- Contains: [Types of code: e.g., "route handlers", "business logic"]
-- Location: [`src/xxx/`]
-- Depends on: [What it uses: e.g., "service layer only"]
-- Used by: [What uses it: e.g., "CLI entry point"]
+## Components
+
+<!-- C4 L2-L3: Core modules/components.
+     DDD: Bounded Context list + responsibilities + aggregate root names
+     Layered: Layer responsibilities + locations
+     Microservices: Service list + responsibilities + communication
+
+     Each component: name, responsibility (1 sentence), location, key abstraction name only.
+     Note: location is retained as navigation index, exempt from exclusion rule.
+     DO NOT include field lists or method signatures. -->
+
+**[Component/Context Name]** — [One sentence responsibility]. Location: `path/to/module/`
+- Key abstractions: [Aggregate root names, core interface names — names only, no signatures]
 
 ## Data Flow
 
-<!-- Describe the primary data flows through the system. Use numbered steps. -->
+<!-- 2-3 core cross-module scenarios using Mermaid sequenceDiagram.
+     Only include flows that span 3+ components.
+     Single-module internal flows do not belong here. -->
 
-**[Flow Name] (e.g., "HTTP Request", "CLI Command"):**
-
-1. [Entry point]
-2. [Processing step]
-3. [Processing step]
-4. [Output]
-
-**State Management:**
-- [How state is handled: e.g., "Stateless — no persistent state", "File-based in .planning/", "Database per request"]
-
-## Entry Points
-
-**[Entry Point Name]:**
-- Location: [`path/to/file`]
-- Triggers: [What invokes it: e.g., "CLI invocation", "HTTP request"]
-- Responsibilities: [What it sets up or routes]
-
-## Error Handling
-
-<!-- System-level strategy: where errors are caught, what happens at boundaries.
-     Code-level patterns (naming, async style) go in conventions.md. -->
-
-**Strategy:** [e.g., "Throw exceptions, catch at command boundary", "Return Result<T,E>"]
-
-**Patterns:**
-- [e.g., "Services throw, command handlers catch and log, then exit(1)"]
-- [e.g., "Validation errors surfaced before execution (fail fast)"]
-
-## Cross-Cutting Concerns
-
-**Logging:** [Approach: e.g., "console.log, no framework" or "pino, structured JSON"]
-**Validation:** [Approach: e.g., "Zod schemas at API boundary" or "Manual in command handlers"]
-**Authentication:** [Approach: e.g., "JWT middleware on protected routes" or "N/A"]
+```mermaid
+sequenceDiagram
+    participant A as [Component A]
+    participant B as [Component B]
+    participant C as [Component C]
+    A->>B: [action]
+    B->>C: [action]
+    C-->>A: [response]
+```
 
 ## Key Design Decisions
 
-<!-- Brief notes on architectural choices that affect the whole system.
-     Detailed rationale goes in decisions.md -->
+<!-- 3-5 architectural decisions affecting the whole system.
+     Summary only — detailed rationale in decisions.md, reference by ADR number. -->
+
+- **[Decision title]** — [one sentence summary] (ADR-NNN)
+
+## Entry Points [OPTIONAL]
+
+<!-- File paths of main entry points. Only include if project has multiple entry points. ≤10 lines. -->
+
+## Layers [OPTIONAL]
+
+<!-- Layer names + dependency direction. Reference to design pattern docs if applicable. ≤10 lines.
+     Example: domain → application → infrastructure (dependency inversion via interfaces) -->
+
+## Error Handling [OPTIONAL]
+
+<!-- System-level error strategy only. Code-level patterns go in conventions.md.
+     Example: "Services return domain errors; handlers translate to HTTP status codes" -->
+
+## Cross-Cutting Concerns [OPTIONAL]
+
+<!-- Logging, validation, authentication approaches. Only if project-wide and non-obvious. -->
