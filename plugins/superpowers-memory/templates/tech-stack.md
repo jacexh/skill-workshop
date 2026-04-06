@@ -4,6 +4,14 @@ updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
 ---
 
+<!-- OWNER: Languages, frameworks, dependencies, version numbers, build tools, infrastructure.
+     "Not yet implemented" features (Redis cache, S3, etc.) belong in features.md, not here.
+
+     ORGANIZATION: Use EITHER technology category (Languages / Runtime / Dependencies)
+     OR system boundary (Backend / Frontend / Database / Infrastructure).
+     Choose whichever fits the project better.
+     Core constraint: every technology choice must include version and selection rationale. -->
+
 # Tech Stack
 
 ## Languages & Frameworks
