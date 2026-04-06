@@ -17,10 +17,19 @@ Read the project knowledge base from `docs/project-knowledge/` and present a str
 2. **Phase 1 — Index:**
    - Check if `docs/project-knowledge/MEMORY.md` exists
    - If yes: read `docs/project-knowledge/MEMORY.md` and display its complete contents verbatim as the initial overview (see Output Format below)
-   - If no (legacy project without MEMORY.md): skip to Phase 2 and read all 5 files directly
+   - If no (legacy project without MEMORY.md): skip to Phase 2 and read all files directly
 
-3. **Phase 2 — On-demand detail:**
-   - Read the frontmatter of each of the 5 knowledge files to check `last_updated`. If any file is older than 30 days, warn: "⚠ [filename] last updated on [date], consider running superpowers-memory:update to refresh."
+3. **Phase 2 — Staleness check + on-demand detail:**
+
+   **Staleness check:**
+   For each knowledge file, read `last_updated` from frontmatter. Count significant commits since that date:
+
+       git log --oneline --since="<last_updated>" -E --grep="^(feat|refactor)" --no-merges | wc -l
+
+   - ≥ 5 significant commits → warn: "⚠ [filename] may be stale — N feat/refactor commits since last update on [date]. Consider running superpowers-memory:update."
+   - < 5 → no warning
+
+   **On-demand detail:**
    - State: "I can load any of these files in full if the current task requires it."
    - Load specific files based on task context using this mapping:
      - Brainstorming a structural change or new module → `architecture.md`
@@ -28,6 +37,7 @@ Read the project knowledge base from `docs/project-knowledge/` and present a str
      - Adding a dependency or changing the build → `tech-stack.md`
      - Implementing a new feature or checking what's done → `features.md`
      - Setting up conventions, hooks, or workflow rules → `conventions.md`
+     - Understanding domain terminology → `glossary.md`
      - If the task spans multiple areas, load all relevant files before proceeding.
 
 ### Output Format (MEMORY.md present)
@@ -47,7 +57,7 @@ Ready to load detail files on demand. Which areas are relevant to your current t
 ## Project Knowledge Overview
 
 ### Architecture
-[Key points from architecture.md: system overview, module structure]
+[Key points from architecture.md: system boundaries, components]
 
 ### Tech Stack
 [Key points from tech-stack.md: primary languages, frameworks, key dependencies]
