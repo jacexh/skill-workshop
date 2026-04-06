@@ -118,17 +118,4 @@ git commit -m "docs: rebuild project knowledge base from codebase"
 
 ## Content Rules
 
-**Language:** Generate content in the same language as the project's existing documentation (README, specs, plans, code comments). Section headings remain in English for skill parsing compatibility.
-
-**Inclusion principle:** Only include information that requires crossing module/package boundaries to understand, changes only with architectural decisions, and affects understanding of multiple modules.
-
-**Exclusion list — do NOT include:**
-- Struct/class field lists — AI should read source code directly
-- Enum/constant value mappings — these change with code and go stale
-- Method signatures (unless enforcing non-obvious invariants)
-- Single-module implementation details
-- Information derivable from `git log` or `git blame`
-
-**SSOT:** Each piece of information has one owner file per the ownership matrix in templates. Full content only in the owner; other files reference by pointer ("see ADR-011").
-
-**Quality:** Be factual (verify from codebase, do not speculate), be concise (scannable in under 2 minutes per file), be structured (follow template format), link to sources (file paths, spec files, plan files).
+Follow all rules defined in [`content-rules.md`](../../content-rules.md) — language, inclusion/exclusion, SSOT, quality, and **size guard** (check line counts after generating, warn if exceeded).
