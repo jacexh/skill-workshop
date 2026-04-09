@@ -56,20 +56,6 @@ Check for architecture-level changes beyond `git diff --stat`:
   - `updated_by`: `superpowers-memory:update`
   - `triggered_by_plan`: the plan filename that triggered this update (e.g., `2026-03-31-superpowers-memory.md`); if no plan triggered this update, **preserve the existing value — do not overwrite with `null` or `"none"`**
 
-### 4.5. Refresh machine state
-
-Update `docs/project-knowledge/.state.json` alongside the markdown files.
-
-- Preserve `version: 1`
-- Update `base_revision` to the current `git rev-parse HEAD` result if available
-- Update `generated_at` to the current ISO timestamp
-- Update `generated_by` to `superpowers-memory:update`
-- For each changed knowledge file, refresh `source_paths` so they reflect the code/doc/spec/plan paths you actually relied on in this update
-- Keep unchanged knowledge files' `source_paths` unless you discover they are stale or incomplete
-- Prefer repo-relative directories when an entire subtree is the evidence source; prefer single files for precise evidence
-- Do NOT infer language-specific defaults; record only actual evidence paths
-- If the update used uncommitted changes, set `workspace_dirty: true`
-
 ### 5. Abandoned plan cleanup
 
 Check features.md for plans that appear abandoned (no corresponding commits in recent history, superseded by newer plans). If found, ask the user to confirm removal. Remove only after user confirmation.
@@ -92,11 +78,6 @@ Run these checks against updated content. Fix any issues found before committing
 
 **7a. Path existence:**
 Extract file/directory paths referenced in knowledge files (including code locations in glossary.md). Verify each exists with `ls`. Remove or correct stale paths.
-
-**7a.1. State existence and source coverage:**
-- Verify `docs/project-knowledge/.state.json` exists
-- Verify every `source_paths` entry still exists
-- Add missing evidence paths for any knowledge file you updated
 
 **7b. Version consistency:**
 Compare version numbers in tech-stack.md against actual manifests:

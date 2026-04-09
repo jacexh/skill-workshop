@@ -69,19 +69,6 @@ For every generated file:
 - `updated_by`: `superpowers-memory:rebuild`
 - `triggered_by_plan`: `null`
 
-### 4.5. Generate machine state
-
-After writing the knowledge files, create `docs/project-knowledge/.state.json` so hooks can detect drift from actual evidence paths instead of commit-message heuristics.
-
-- Set `version` to `1`
-- Set `base_revision` to the current `git rev-parse HEAD` result if available
-- Set `generated_at` to the current ISO timestamp
-- Set `generated_by` to `superpowers-memory:rebuild`
-- For each knowledge file, record `source_paths`: the repo-relative code/doc/spec/plan paths you actually relied on to write that file
-- Prefer directory paths when one subtree is the true evidence source; prefer file paths for precise one-off evidence
-- Do NOT guess language-specific defaults. Only record paths you actually inspected or cited
-- If the rebuild used uncommitted changes, set `workspace_dirty: true`
-
 ### 5. Generate index.md
 
 After writing the 6 knowledge files, generate `docs/project-knowledge/index.md`:
@@ -99,11 +86,6 @@ Run these checks against generated content. Fix any issues found before committi
 
 **6a. Path existence:**
 Extract file/directory paths referenced in knowledge files (including code locations in glossary.md). Verify each exists with `ls`. Remove or correct stale paths.
-
-**6a.1. State existence and source coverage:**
-- Verify `docs/project-knowledge/.state.json` exists
-- Verify every `source_paths` entry exists
-- Remove dead paths and add any important evidence paths you used but forgot to record
 
 **6b. Version consistency:**
 Compare version numbers in tech-stack.md against actual manifests:

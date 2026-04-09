@@ -12,11 +12,9 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading all 6 files.
 
-3. **.state.json Evidence Tracking** — Stores repo-relative `source_paths` for each knowledge file so stale detection follows the evidence actually used to build the KB, rather than commit-message conventions or language-specific file guesses.
+3. **Lightweight Context Injection** — `PreToolUse` hook intercepts `brainstorming`, `writing-plans`, and `finishing-a-development-branch`; reminds the agent to load KB files before planning and to run `:update` only when the finished branch actually changed project knowledge.
 
-4. **Precise Context Injection** — `PreToolUse` hook intercepts `brainstorming`, `writing-plans`, and `finishing-a-development-branch` skills; injects KB-state-aware context (`fresh` / `minor_stale` / `stale` / `drifted`) at the exact moment each skill is called.
-
-5. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
+4. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
 
 ## Installation
 
@@ -39,9 +37,9 @@ Install via the Skill Workshop marketplace:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| SessionStart | startup, clear, compact | Injects the index plus evidence-aware freshness warnings derived from `.state.json` or inferred markdown references |
-| Stop | Session end | Blocks session end when knowledge-relevant evidence changed and the KB still needs `:update` or `:rebuild` |
-| PreToolUse | superpowers skill invocations | Intercepts `superpowers:brainstorming`, `superpowers:writing-plans`, and `superpowers:finishing-a-development-branch`; injects or blocks based on `fresh` / `minor_stale` / `stale` / `drifted` |
+| SessionStart | startup, clear, compact | Injects the KB index when it exists, or prompts the user to run `:rebuild` when the KB is missing |
+| Stop | Session end | Warning-only reminder when the workspace has project changes outside `docs/project-knowledge/`; it never blocks session end |
+| PreToolUse | superpowers skill invocations | Intercepts `superpowers:brainstorming`, `superpowers:writing-plans`, and `superpowers:finishing-a-development-branch`; reminds the agent to use the KB, and blocks only when the KB does not exist |
 
 ## Knowledge Base Structure
 
