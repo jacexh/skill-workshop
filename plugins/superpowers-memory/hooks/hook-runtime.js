@@ -250,7 +250,7 @@ async function main() {
       process.stdout.write("{}\n");
       return;
     }
-    process.stdout.write(JSON.stringify(hookPayload("Stop", warning), null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ systemMessage: warning }, null, 2) + "\n");
     return;
   }
 
