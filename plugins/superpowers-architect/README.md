@@ -62,4 +62,7 @@ design-patterns/                    ← examples only, NOT loaded by the hook
 See the `design-patterns/` directory for ready-to-use examples:
 - `database.md` — schema conventions, index strategy, migrations
 - `rest-api.md` — URL naming, status codes, pagination, error format
-- `architecture.md` — dependency direction, module structure, service boundaries
+- `ddd-core.md` — dependency direction, bounded contexts, and service layer boundaries
+- `ddd-golang.md` — Go-specific implementation guidance for the DDD core standard
+- `ddd-python.md` — Python-specific implementation guidance for the DDD core standard
+- `frontend-patterns.md` — frontend development patterns for React, Next.js, and UI architecture

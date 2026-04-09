@@ -1,0 +1,15 @@
+{
+  "name": "designing-tests",
+  "description": "Risk-driven test design guidance for choosing the right boundary, coverage, and regression-protective test cases",
+  "version": "0.1.0",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "testing",
+    "test-design",
+    "quality",
+    "regression"
+  ]
+}

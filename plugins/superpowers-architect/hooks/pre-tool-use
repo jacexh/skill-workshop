@@ -73,9 +73,9 @@ for(const [fname,fpath] of sorted){
 }
 if(!entries.length)process.exit(0);
 const header=skillType==='review'
-  ?'The following design patterns are hard constraints for this codebase.\nYou MUST use the Read tool to open any relevant patterns BEFORE reviewing,\nand evaluate the code against them. Do not approve code that violates these constraints.'
-  :'The following design patterns are hard constraints for this codebase.\nYou MUST use the Read tool to open any relevant patterns BEFORE proceeding,\nand apply them strictly to your plan and generated code. These are not suggestions.';
-const full='====== Architect Standards ======\n'+header+'\n\n'+entries.join('\n\n')+'\n\nIf none are relevant, state that explicitly and proceed.\n'+'='.repeat(34);
+  ?'The following design patterns are hard constraints for this codebase.\nYou MUST identify and read any relevant patterns BEFORE reviewing.\n\nIn your review:\n- cite the relevant pattern for each standards-related finding,\n- explain how the code complies or violates that pattern,\n- do not approve code that violates applicable patterns.'
+  :'The following design patterns are hard constraints for this codebase.\nYou MUST identify and read any relevant patterns BEFORE proceeding.\nApply them strictly to your plan and generated code.\n\nIn your response, explicitly state:\n- which patterns apply to this task,\n- which important constraints from those patterns affect your plan or code,\n- which listed patterns are not relevant, if any.\n\nIf a requested change conflicts with a pattern, state the conflict explicitly instead of silently ignoring the pattern.\nThese are not suggestions.';
+const full='====== Architect Standards ======\n'+header+'\n\n'+entries.join('\n\n')+'\n\nIf none are relevant, state that explicitly and briefly explain why before proceeding.\n'+'='.repeat(34);
 console.log(JSON.stringify(full));
 " 2>/dev/null || true)
 
