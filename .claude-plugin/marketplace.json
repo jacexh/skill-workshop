@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.5.0"
+    "version": "1.5.1"
   },
   "plugins": [
     {
@@ -28,7 +28,7 @@
       "name": "superpowers-architect",
       "source": "./plugins/superpowers-architect",
       "description": "Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows",
-      "version": "1.3.5",
+      "version": "1.5.1",
       "author": {
         "name": "xuhao"
       },
