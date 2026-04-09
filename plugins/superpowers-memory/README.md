@@ -12,9 +12,11 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading all 6 files.
 
-3. **Precise Context Injection** — `PreToolUse` hook intercepts `brainstorming`, `writing-plans`, and `finishing-a-development-branch` skills; injects KB-state-aware context (`not_initialized` / `stale` / `fresh`) at the exact moment each skill is called.
+3. **.state.json Evidence Tracking** — Stores repo-relative `source_paths` for each knowledge file so stale detection follows the evidence actually used to build the KB, rather than commit-message conventions or language-specific file guesses.
 
-4. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
+4. **Precise Context Injection** — `PreToolUse` hook intercepts `brainstorming`, `writing-plans`, and `finishing-a-development-branch` skills; injects KB-state-aware context (`fresh` / `minor_stale` / `stale` / `drifted`) at the exact moment each skill is called.
+
+5. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
 
 ## Installation
 
@@ -37,9 +39,9 @@ Install via the Skill Workshop marketplace:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| SessionStart | startup, clear, compact | KB not initialized prompt — injects rebuild instruction when `docs/project-knowledge/` does not exist; outputs `{}` otherwise |
-| Stop | Session end | Session-end KB staleness safety net — blocks session end and injects mandatory `:update` reminder when `feat:` or `refactor:` commits exist that are not yet reflected in the KB |
-| PreToolUse | superpowers skill invocations | Precise KB context injection — intercepts `superpowers:brainstorming`, `superpowers:writing-plans`, and `superpowers:finishing-a-development-branch`; injects KB-state-aware context (load instruction, stale warning, or update/rebuild mandate) |
+| SessionStart | startup, clear, compact | Injects the index plus evidence-aware freshness warnings derived from `.state.json` or inferred markdown references |
+| Stop | Session end | Blocks session end when knowledge-relevant evidence changed and the KB still needs `:update` or `:rebuild` |
+| PreToolUse | superpowers skill invocations | Intercepts `superpowers:brainstorming`, `superpowers:writing-plans`, and `superpowers:finishing-a-development-branch`; injects or blocks based on `fresh` / `minor_stale` / `stale` / `drifted` |
 
 ## Knowledge Base Structure
 

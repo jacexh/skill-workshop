@@ -1,40 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-escape_for_json() {
-    local s="$1"
-    s="${s//\\/\\\\}"
-    s="${s//\"/\\\"}"
-    s="${s//$'\n'/\\n}"
-    s="${s//$'\r'/\\r}"
-    s="${s//$'\t'/\\t}"
-    printf '%s' "$s"
-}
-
-# Check if we're in a git repo
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    printf '{}\n'
-    exit 0
-fi
-
-# Check for feat: or refactor: commits since last KB update
-kb_is_stale="no"
-if [ -d "docs/project-knowledge" ]; then
-    kb_last_commit=$(git log -1 --format="%H" -- docs/project-knowledge/ 2>/dev/null || echo "")
-    if [ -n "$kb_last_commit" ]; then
-        if git log --format="%s" "${kb_last_commit}..HEAD" 2>/dev/null | grep -qE "^(feat|refactor):"; then
-            kb_is_stale="yes"
-        fi
-    fi
-fi
-
-if [ "$kb_is_stale" = "yes" ]; then
-    context="This session has feat/refactor commits not yet reflected in the project knowledge base. You MUST run superpowers-memory:update before this session ends."
-    escaped_context=$(escape_for_json "$context")
-
-    printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$escaped_context"
-else
-    printf '{}\n'
-fi
-
-exit 0
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+exec node "$SCRIPT_DIR/hook-runtime.js" stop
