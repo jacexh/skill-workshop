@@ -23,12 +23,17 @@ Read the project knowledge base from `docs/project-knowledge/` and present a str
 3. **Phase 2 — Staleness check + on-demand detail:**
 
    **Staleness check:**
-   For each knowledge file, read `last_updated` from frontmatter. Count significant commits since that date:
+   For each knowledge file, read `last_updated` from frontmatter. Use two-tier detection (excluding the KB directory itself):
 
-       git log --oneline --since="<last_updated>" -E --grep="^(feat|refactor)" --no-merges | wc -l
+       # Tier 1: conventional commits (precise signal)
+       git log --oneline --since="<last_updated>" -E -i --grep="^(feat|refactor)" --no-merges -- . ':!docs/project-knowledge' | wc -l
 
-   - ≥ 5 significant commits → warn: "⚠ [filename] may be stale — N feat/refactor commits since last update on [date]. Consider running superpowers-memory:update."
-   - < 5 → no warning
+       # Tier 2: if tier 1 returns 0, fall back to total commit count
+       git log --oneline --since="<last_updated>" --no-merges -- . ':!docs/project-knowledge' | wc -l
+
+   - Tier 1 ≥ 5 → warn: "⚠ [filename] may be stale — N feat/refactor commits since last update on [date]. Consider running superpowers-memory:update."
+   - Tier 1 = 0 AND tier 2 ≥ 20 → warn: "⚠ [filename] may be stale — N commits since last update on [date]. Consider running superpowers-memory:update."
+   - Otherwise → no warning
 
    **On-demand detail:**
    - State: "I can load any of these files in full if the current task requires it."

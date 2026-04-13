@@ -19,11 +19,14 @@ Scan the entire codebase and generate a complete project knowledge base from scr
 
 If `docs/project-knowledge/` already exists:
 - Read `last_updated` from any knowledge file
-- Count significant commits since last update:
-  `git log --oneline --since="<last_updated>" -E --grep="^(feat|refactor)" --no-merges | wc -l`
-- If < 5 significant commits since last update: warn user
-  "Knowledge base was recently updated on [date] with only N feat/refactor
-  commits since. Full rebuild will overwrite incremental changes. Continue?"
+- Count commits since last update using two-tier detection (excluding the KB directory itself):
+  - Tier 1: `git log --oneline --since="<last_updated>" -E -i --grep="^(feat|refactor)" --no-merges -- . ':!docs/project-knowledge' | wc -l`
+  - Tier 2 (if tier 1 = 0): `git log --oneline --since="<last_updated>" --no-merges -- . ':!docs/project-knowledge' | wc -l`
+- If tier 1 ≥ 5: proceed without warning (significant changes justify rebuild)
+- If tier 1 = 0 AND tier 2 ≥ 20: proceed without warning (many commits justify rebuild)
+- Otherwise: warn user
+  "Knowledge base was recently updated on [date] with only N commits
+  since. Full rebuild will overwrite incremental changes. Continue?"
 - Wait for confirmation before proceeding.
 
 ## Process
@@ -82,21 +85,26 @@ After writing the 6 knowledge files, generate `docs/project-knowledge/index.md`:
 
 ### 6. Verify (before commit)
 
-Run these checks against generated content. Fix any issues found before committing.
+Run the automated verification script first, then do manual spot-checks:
 
-**6a. Path existence:**
-Extract file/directory paths referenced in knowledge files (including code locations in glossary.md). Verify each exists with `ls`. Remove or correct stale paths.
+```bash
+node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
+```
 
-**6b. Version consistency:**
+The script checks: file size thresholds, stale path references, and git commit readiness. Fix any `staleRefs` or `sizeWarnings` it reports before proceeding.
+
+**Manual checks (on top of automated):**
+
+**6a. Version consistency:**
 Compare version numbers in tech-stack.md against actual manifests:
 - Go: `grep '^go ' go.mod`
 - Node: `node -v` or `cat .node-version`
 - Key deps: spot-check 2-3 against go.mod / package.json
 
-**6c. Module coverage:**
-List actual top-level modules (e.g., `ls internal/` or `ls src/`). Confirm each appears in architecture.md Components section. Flag modules in code but missing from knowledge, or vice versa.
+**6b. Module coverage:**
+List actual top-level source directories. Confirm each appears in architecture.md Components section. Flag modules in code but missing from knowledge, or vice versa.
 
-**6d. SSOT spot-check:**
+**6c. SSOT spot-check:**
 Pick 2-3 concepts appearing in multiple files. Confirm full description only in designated owner file; other files use references only.
 
 ### 7. Post-rebuild diff summary
@@ -107,10 +115,16 @@ If previous knowledge files existed:
 
 ### 8. Commit
 
+Check the `committable` field from the step 6 verify output. If `false`, skip the commit — leave files uncommitted and tell the user why (mid-rebase, mid-merge, or detached HEAD).
+
 ```bash
 git add docs/project-knowledge/
 git commit -m "docs: rebuild project knowledge base from codebase"
 ```
+
+If the commit fails (e.g., pre-commit hook), report the error to the user. Do not retry with `--no-verify`.
+
+**Recovery:** If the rebuild is interrupted before this step, the previous KB can be restored with `git checkout HEAD -- docs/project-knowledge/` (assuming it was committed).
 
 ### 9. Report
 

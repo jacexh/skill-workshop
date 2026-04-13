@@ -18,9 +18,8 @@ Incrementally update the project knowledge base based on changes from the curren
 ### 1. Gather context
 
 - Read existing knowledge files from `docs/project-knowledge/`. If fewer than 6 files exist (e.g., `glossary.md` missing from older versions), note which files are missing — they will be created during this update if relevant content is found, otherwise skipped.
-- Identify the most recent plan file: list `docs/superpowers/plans/` sorted by modification time and pick the most recently modified file. If there are multiple files modified within the last 24 hours or no plan files exist, ask the user which plan triggered this update.
-- Read the triggering plan file and its associated spec (from `docs/superpowers/specs/`)
 - Determine the base branch: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` and fall back to `main` if the command fails. Then run `git diff <base-branch>...HEAD --stat` to see what files changed.
+- **Plan context (optional):** If `docs/superpowers/plans/` exists and has files, identify the most recent plan file (sorted by modification time). If multiple files were modified within the last 24 hours, ask the user which plan triggered this update. Read the triggering plan and its associated spec from `docs/superpowers/specs/`. If no plan files exist, proceed with `git diff` analysis alone — plan association is not required.
 
 ### 2. Structural change detection
 
@@ -74,21 +73,26 @@ Always regenerate `docs/project-knowledge/index.md` in full (full overwrite — 
 
 ### 7. Verify (before commit)
 
-Run these checks against updated content. Fix any issues found before committing.
+Run the automated verification script first, then do manual spot-checks:
 
-**7a. Path existence:**
-Extract file/directory paths referenced in knowledge files (including code locations in glossary.md). Verify each exists with `ls`. Remove or correct stale paths.
+```bash
+node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
+```
 
-**7b. Version consistency:**
+The script checks: file size thresholds, stale path references, and git commit readiness. Fix any `staleRefs` or `sizeWarnings` it reports before proceeding.
+
+**Manual checks (on top of automated):**
+
+**7a. Version consistency:**
 Compare version numbers in tech-stack.md against actual manifests:
 - Go: `grep '^go ' go.mod`
 - Node: `node -v` or `cat .node-version`
 - Key deps: spot-check 2-3 against go.mod / package.json
 
-**7c. Module coverage:**
-List actual top-level modules (e.g., `ls internal/` or `ls src/`). Confirm each appears in architecture.md Components section. Flag modules in code but missing from knowledge, or vice versa.
+**7b. Module coverage:**
+List actual top-level source directories. Confirm each appears in architecture.md Components section. Flag modules in code but missing from knowledge, or vice versa.
 
-**7d. SSOT spot-check:**
+**7c. SSOT spot-check:**
 Pick 2-3 concepts appearing in multiple files. Confirm full description only in designated owner file; other files use references only.
 
 ### 8. Size guard
@@ -97,10 +101,17 @@ Follow the size guard rules in [`content-rules.md`](../../content-rules.md) — 
 
 ### 9. Commit
 
+Check the `committable` field from the step 7 verify output. If `false`, skip the commit — leave files uncommitted and tell the user why (mid-rebase, mid-merge, or detached HEAD).
+
 ```bash
 git add docs/project-knowledge/
-git commit -m "docs: update project knowledge base from [plan-name]"
+# Use plan name if available, otherwise describe the trigger
+git commit -m "docs: update project knowledge base from [plan-name or 'recent changes']"
 ```
+
+If the commit fails (e.g., pre-commit hook), report the error to the user. Do not retry with `--no-verify`.
+
+**Recovery:** If the update is interrupted before this step, partially updated files are uncommitted and can be discarded with `git checkout -- docs/project-knowledge/`.
 
 ### 10. Report changes
 

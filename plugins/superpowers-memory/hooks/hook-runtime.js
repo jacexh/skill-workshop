@@ -6,25 +6,18 @@ const cp = require("child_process");
 const mode = process.argv[2];
 const repoRoot = process.cwd();
 const knowledgeDir = path.join(repoRoot, "docs", "project-knowledge");
-const ignoredPrefixes = [
-  "node_modules/",
-  "vendor/",
-  "dist/",
-  "build/",
-  ".next/",
-  "coverage/",
-  ".git/",
-  "docs/project-knowledge/",
-];
+const selfPrefix = "docs/project-knowledge/";
 
 function run(command, args) {
   const result = cp.spawnSync(command, args, {
     cwd: repoRoot,
     encoding: "utf8",
+    timeout: 30000,
   });
   return {
     code: result.status ?? 1,
     stdout: result.stdout || "",
+    stderr: result.stderr || "",
   };
 }
 
@@ -57,6 +50,10 @@ function normalizePath(inputPath) {
   return cleaned.replace(/^\.\//, "");
 }
 
+// Hook output formats per Claude Code protocol:
+// - Advisory (SessionStart/PreToolUse): hookSpecificOutput wrapper (plugin env) or flat additional_context
+// - Blocking (PreToolUse only): { decision: "block", reason }
+// - Warning (Stop only): { systemMessage }
 function hookPayload(eventName, message) {
   if (process.env.CLAUDE_PLUGIN_ROOT) {
     return {
@@ -104,6 +101,20 @@ function buildSessionStartOutput() {
   );
 }
 
+// Per-skill advisory messages. Adding a new skill = adding one map entry.
+const skillAdvisory = {
+  "superpowers:brainstorming":
+    "Load the relevant files from docs/project-knowledge before brainstorming. Use the index first, then read only the detail files needed for this task.",
+  "superpowers:writing-plans":
+    "Load the relevant files from docs/project-knowledge before writing plans. Use the index first, then read only the detail files needed for this plan.",
+  "superpowers:executing-plans":
+    "Load the relevant files from docs/project-knowledge before executing this plan. Use the index first, then read only the detail files needed for execution.",
+  "superpowers:subagent-driven-development":
+    "Load the relevant files from docs/project-knowledge before dispatching subagents. Use the index first, then read only the detail files needed for the tasks.",
+  "superpowers:finishing-a-development-branch":
+    "If this development branch changed project knowledge, run superpowers-memory:update before finishing. If not, you can finish without updating the KB.",
+};
+
 function buildPreToolUseOutput(input) {
   let skill = "";
   try {
@@ -112,13 +123,8 @@ function buildPreToolUseOutput(input) {
     skill = "";
   }
 
-  if (![
-    "superpowers:brainstorming",
-    "superpowers:writing-plans",
-    "superpowers:finishing-a-development-branch",
-  ].includes(skill)) {
-    return {};
-  }
+  const advisory = skillAdvisory[skill];
+  if (!advisory) return {};
 
   const kbExists = hasKnowledgeBase();
   const indexPath = findIndexPath();
@@ -131,24 +137,7 @@ function buildPreToolUseOutput(input) {
     return { decision: "block", reason };
   }
 
-  if (skill === "superpowers:brainstorming") {
-    return hookPayload(
-      "PreToolUse",
-      "Load the relevant files from docs/project-knowledge before brainstorming. Use the index first, then read only the detail files needed for this task."
-    );
-  }
-
-  if (skill === "superpowers:writing-plans") {
-    return hookPayload(
-      "PreToolUse",
-      "Load the relevant files from docs/project-knowledge before writing plans. Use the index first, then read only the detail files needed for this plan."
-    );
-  }
-
-  return hookPayload(
-    "PreToolUse",
-    "If this development branch changed project knowledge, run superpowers-memory:update before finishing. If not, you can finish without updating the KB."
-  );
+  return hookPayload("PreToolUse", advisory);
 }
 
 function parseNameOnly(output) {
@@ -158,40 +147,10 @@ function parseNameOnly(output) {
     .filter(Boolean);
 }
 
-function isIgnored(pathname) {
-  return ignoredPrefixes.some((prefix) => pathname.startsWith(prefix));
-}
-
 function isKnowledgeRelevant(pathname) {
-  if (isIgnored(pathname)) return false;
-  if (
-    pathname.startsWith("docs/superpowers/") ||
-    pathname.startsWith("docs/design-patterns/") ||
-    pathname.startsWith("src/") ||
-    pathname.startsWith("internal/") ||
-    pathname.startsWith("app/") ||
-    pathname.startsWith("cmd/") ||
-    pathname.startsWith("packages/") ||
-    pathname.startsWith("services/") ||
-    pathname.startsWith("domains/") ||
-    pathname.startsWith("plugins/")
-  ) {
-    return true;
-  }
-  if (
-    pathname === "README.md" ||
-    pathname === "package.json" ||
-    pathname === "go.mod" ||
-    pathname === "Cargo.toml" ||
-    pathname === "pyproject.toml" ||
-    pathname === "Makefile"
-  ) {
-    return true;
-  }
-  if (pathname.startsWith(".github/workflows/")) {
-    return true;
-  }
-  return false;
+  // Trust git's own filtering (.gitignore + tracking) for everything except
+  // the knowledge base itself — its own changes should not trigger an update reminder.
+  return !pathname.startsWith(selfPrefix);
 }
 
 function getStopWarning() {
@@ -232,6 +191,71 @@ function getStopWarning() {
   );
 }
 
+function buildVerifyOutput() {
+  if (!hasKnowledgeBase()) {
+    return { ok: false, error: "Knowledge base not found" };
+  }
+
+  const sizeThresholds = {
+    "architecture.md": 200,
+    "conventions.md": 150,
+    "decisions.md": 150,
+    "tech-stack.md": 120,
+    "features.md": 100,
+    "glossary.md": 80,
+    "index.md": 50,
+  };
+
+  const sizeWarnings = [];
+  const staleRefs = [];
+  const refPattern = /`([a-zA-Z0-9_.][a-zA-Z0-9_./\-]*\/[a-zA-Z0-9_./\-]*)`/g;
+
+  for (const [filename, threshold] of Object.entries(sizeThresholds)) {
+    const filePath = path.join(knowledgeDir, filename);
+    if (!fs.existsSync(filePath)) continue;
+    const content = fs.readFileSync(filePath, "utf8");
+
+    const lines = content.split("\n").length;
+    if (lines > threshold) {
+      sizeWarnings.push({ file: filename, lines, threshold });
+    }
+
+    let match;
+    while ((match = refPattern.exec(content)) !== null) {
+      const ref = match[1];
+      if (ref.includes("://") || ref.startsWith("docs/project-knowledge/") || ref.includes("<")) continue;
+      // Skip GitHub owner/repo references (e.g., "jacexh/skill-workshop")
+      const segments = ref.split("/");
+      if (segments.length === 2 && !ref.endsWith("/") && !/\.\w+$/.test(ref)) continue;
+      const target = path.join(repoRoot, ref.replace(/\/$/, ""));
+      if (!fs.existsSync(target)) {
+        staleRefs.push({ file: filename, ref });
+      }
+    }
+  }
+
+  // Git commit readiness — resolve actual git dir to support worktrees
+  let committable = false;
+  if (isGitRepo()) {
+    const gitDir = run("git", ["rev-parse", "--git-dir"]).stdout.trim();
+    if (gitDir) {
+      const absGitDir = path.resolve(repoRoot, gitDir);
+      committable =
+        !fs.existsSync(path.join(absGitDir, "rebase-merge")) &&
+        !fs.existsSync(path.join(absGitDir, "rebase-apply")) &&
+        !fs.existsSync(path.join(absGitDir, "MERGE_HEAD")) &&
+        run("git", ["symbolic-ref", "HEAD"]).code === 0;
+    }
+  }
+
+  return {
+    ok: staleRefs.length === 0 && sizeWarnings.length === 0,
+    sizeWarnings,
+    staleRefs,
+    committable,
+  };
+}
+
 async function main() {
   if (mode === "session-start") {
     process.stdout.write(JSON.stringify(buildSessionStartOutput(), null, 2) + "\n");
@@ -251,6 +275,11 @@ async function main() {
       return;
     }
     process.stdout.write(JSON.stringify({ systemMessage: warning }, null, 2) + "\n");
+    return;
+  }
+
+  if (mode === "verify") {
+    process.stdout.write(JSON.stringify(buildVerifyOutput(), null, 2) + "\n");
     return;
   }
 
