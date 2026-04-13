@@ -1,35 +1,37 @@
 ---
-last_updated: 2026-04-02
-updated_by: superpowers-memory:update
-triggered_by_plan: 2026-04-02-superpowers-architect.md
+last_updated: 2026-04-13
+updated_by: superpowers-memory:rebuild
+triggered_by_plan: null
 ---
 
 # Conventions
 
 ## Coding Standards
 
-- **Hook scripts:** Written in bash with `set -euo pipefail`. All JSON output is produced with `printf` (not `echo`) to avoid platform differences. JSON special characters are escaped via a shared `escape_for_json()` function defined at the top of each hook script, or by building the JSON payload inside a `python3` heredoc and using `json.dumps()` to handle escaping safely.
+- **Hook runtime (superpowers-memory):** All hook logic lives in `hook-runtime.js` (Node.js). The bash scripts (`pre-tool-use`, `session-start`, `stop`) are thin 2-5 line wrappers that `exec node hook-runtime.js <mode>`. JSON output follows Claude Code hook protocol: `hookSpecificOutput` wrapper in plugin env, flat `additional_context` otherwise.
+- **Hook scripts (superpowers-architect):** Written in bash with `set -euo pipefail`. Uses inline `node -e` for JSON parsing and output construction.
 - **Markdown files:** Skills use YAML frontmatter with `name` and `description` fields. Knowledge base files use frontmatter with `last_updated` (YYYY-MM-DD), `updated_by`, and `triggered_by_plan` fields.
 - **`triggered_by_plan` rule:** Only update this field when a concrete plan filename can be identified as the trigger. If no plan triggered the update, preserve the existing value — never overwrite with `null`.
-- **JSON manifests:** `plugin.json` and `hooks.json` use 2-space indentation. Verified valid via `python3 -m json.tool` during development.
-- **No linter configs present** — the repo has no `.eslintrc`, `.shellcheckrc`, or equivalent. Conventions are followed by practice.
+- **Content rules:** `content-rules.md` is the shared SSOT for content generation guidelines used by `rebuild` and `update` skills. Defines language, inclusion/exclusion criteria, SSOT ownership, quality standards, and size guard thresholds.
+- **JSON manifests:** `plugin.json` and `hooks.json` use 2-space indentation.
+- **No linter configs present** — conventions followed by practice.
 
 ## Architecture Rules
 
-- **Zero-modification principle:** Never modify superpowers core files. The plugin may only influence agent behavior through hook context injection and its own skills.
+- **Zero-modification principle:** Never modify superpowers core files. Only influence agent behavior through hook context injection and independent skills (ADR-002).
 - **Project-local knowledge base:** Knowledge files (`docs/project-knowledge/`) belong in the target user's project repo, not in this plugin repo. The plugin only ships templates.
-- **No external dependencies:** Hook scripts may only use tools universally present in a dev environment (bash, git). No npm, pip, or other package managers.
-- **Cross-platform hooks:** Any new hook script must work on both Unix (bash) and Windows (via Git for Windows bash). The `run-hook.cmd` polyglot wrapper handles dispatch.
+- **No external dependencies beyond Node.js and git:** Hook scripts may only use tools present in a standard Claude Code environment.
+- **Cross-platform hooks:** Any new hook script must work on both Unix and Windows. The `run-hook.cmd` polyglot wrapper handles dispatch.
 
 ## Testing Conventions
 
-- No automated test suite exists. Verification is done manually per the steps in each plan task (e.g., run `| python3 -m json.tool` to validate JSON, check file permissions with `ls -la`, test hooks with `bash hooks/session-start`).
-- Each plan task includes explicit verification steps that serve as the acceptance criteria.
+- No automated test suite. Verification is done manually per plan task acceptance criteria.
+- The `verify` command in `hook-runtime.js` provides automated checks for KB files (size thresholds, stale path references, git commit readiness).
 
 ## Git & Workflow
 
-- **Commit message format:** `<type>: <description>` (e.g., `feat:`, `fix:`, `docs:`, `chore:`). Observed from git log.
+- **Commit message format:** `<type>: <description>` or `<type>(<scope>): <description>` (e.g., `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`).
 - **Branch:** All work committed directly to `main`.
-- **Versioning:** Plugin version in `plugin.json` is bumped manually with a `chore: bump superpowers-memory to vX.Y.Z` commit.
-- **Specs before plans:** Design specs are written first (`docs/superpowers/specs/`), then implementation plans (`docs/superpowers/plans/`). Plans reference specs.
-- **Plan checkboxes:** Implementation plan steps use `- [x]` / `- [ ]` syntax. All steps should be checked when work is complete.
+- **Versioning:** Bumped via GitHub Actions release workflow (`workflow_dispatch`) or manual commit. Version tracked in both `plugin.json` and `marketplace.json`.
+- **Specs before plans:** Design specs (`docs/superpowers/specs/`), then implementation plans (`docs/superpowers/plans/`). Plans reference specs.
+- **Plan checkboxes:** Implementation plan steps use `- [x]` / `- [ ]` syntax.

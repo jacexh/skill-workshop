@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-04-02
-updated_by: superpowers-memory:update
-triggered_by_plan: 2026-04-02-superpowers-architect.md
+last_updated: 2026-04-13
+updated_by: superpowers-memory:rebuild
+triggered_by_plan: null
 ---
 
 # Architecture
@@ -15,28 +15,32 @@ Skill Workshop is a Claude Code plugin marketplace — a curated collection of p
 | Module | Responsibility | Key Interfaces | Dependencies |
 |--------|---------------|----------------|--------------|
 | `.claude-plugin/` | Marketplace catalog definition | `marketplace.json` — lists available plugins and their locations | None |
-| `plugins/superpowers-memory/` | Plugin: cross-session project knowledge persistence and plan checkpoint tracking | Skills (`load`, `update`, `rebuild`), Hooks (`session-start`, `task-completed`, `stop`) | Claude Code plugin runtime |
-| `plugins/superpowers-memory/.claude-plugin/plugin.json` | Plugin manifest (name, version, author, license) | Parsed by Claude Code plugin manager | None |
-| `plugins/superpowers-memory/hooks/` | Hook scripts that inject behavior context into agent sessions | `hooks.json` declares event bindings; `run-hook.cmd` is the cross-platform dispatcher; `pre-tool-use` intercepts skill calls | bash, git, python3 |
-| `plugins/superpowers-memory/skills/` | Three skills for managing the project knowledge base | `load/SKILL.md`, `update/SKILL.md`, `rebuild/SKILL.md` | Read by Claude Code skill system |
-| `plugins/superpowers-memory/templates/` | Structural templates for the 5 knowledge base file types | Used by `rebuild` and `update` skills as fill-in-the-blank scaffolds | None |
-| `plugins/superpowers-architect/` | Plugin: injects design pattern standards into planning, execution, and code review skills | Hooks (`pre-tool-use`) | Claude Code plugin runtime |
-| `plugins/superpowers-architect/hooks/pre-tool-use` | Hook script that scans global + project pattern directories and injects a compact name/description/path index into trigger skills | `hooks.json` binds to `Skill` tool calls; supports 5 target skills | bash, python3 |
-| `plugins/superpowers-architect/design-patterns/` | Example pattern files (reference only — not loaded by hook) | `database.md`, `rest-api.md`, `architecture.md` | None |
-| `docs/superpowers/` | Design specs and implementation plans for plugins in this repo | `specs/`, `plans/` — consumed by developers and agents during implementation | None |
+| `plugins/superpowers-memory/` | Plugin: cross-session project knowledge persistence and plan checkpoint tracking | Skills (`load`, `update`, `rebuild`), Hooks (`session-start`, `pre-tool-use`, `stop`) | Claude Code plugin runtime, Node.js |
+| `plugins/superpowers-memory/hooks/` | Hook scripts — thin bash wrappers delegating to `hook-runtime.js` | `hooks.json` declares event bindings; `hook-runtime.js` is the Node.js runtime handling all 3 hooks + `verify` + `analyze` modes | Node.js, git |
+| `plugins/superpowers-memory/skills/` | Three skills for managing the project knowledge base | load, update, rebuild (each in its own subdirectory with `SKILL.md`) | Read by Claude Code skill system |
+| `plugins/superpowers-memory/templates/` | Structural templates for the 7 knowledge base file types | `architecture.md`, `tech-stack.md`, `features.md`, `conventions.md`, `decisions.md`, `glossary.md`, `index.md` | None |
+| `plugins/superpowers-memory/content-rules.md` | Shared content generation rules for `rebuild` and `update` skills | Language, inclusion/exclusion, SSOT, quality, size guard thresholds | None |
+| `plugins/superpowers-architect/` | Plugin: injects design pattern standards into planning, execution, and code review skills | Hook (`pre-tool-use`) | Claude Code plugin runtime, Node.js |
+| `plugins/superpowers-architect/hooks/pre-tool-use` | Scans global + project pattern directories and injects compact index into trigger skills | Targets 5 skills; two wording modes (plan vs review); uses `node -e` for JSON parsing | Node.js, bash |
+| `plugins/superpowers-architect/design-patterns/` | Reference design pattern files (6 patterns) | `database.md`, `rest-api.md`, `ddd-core.md`, `ddd-golang.md`, `ddd-python.md`, `frontend-patterns.md` | None |
+| `plugins/designing-tests/` | Plugin: risk-driven test design guidance (skills-only, no hooks) | Skill (`designing-tests`) + 4 reference files | Claude Code skill system |
+| `docs/superpowers/` | Design specs and implementation plans for plugins in this repo | `docs/superpowers/specs/`, `docs/superpowers/plans/` — consumed by developers and agents during implementation | None |
 
 ## Data Flow
 
 1. **Install:** User runs `/plugin marketplace add jacexh/skill-workshop` → Claude Code reads `.claude-plugin/marketplace.json` → user installs desired plugin
-2. **Session start:** Claude Code fires `SessionStart` hook → `run-hook.cmd session-start` executes → (a) if KB missing: "not initialized" prompt; (b) if `docs/project-knowledge/MEMORY.md` exists: reads and injects index content; (c) otherwise `{}`
+2. **Session start:** Claude Code fires `SessionStart` hook → bash wrapper calls `hook-runtime.js session-start` → if KB missing: "not initialized" prompt; if `index.md` or `MEMORY.md` exists: reads and injects index content as additionalContext; if KB exists but no index: "run rebuild" prompt
 3. **Knowledge management:** User or agent invokes `superpowers-memory:rebuild` / `:update` / `:load` → agent reads codebase / existing knowledge files → agent writes/updates `docs/project-knowledge/*.md` in the target project
-4. **Skill interception (memory):** Claude Code fires `PreToolUse` on `Skill` tool calls → `run-hook.cmd pre-tool-use` (superpowers-memory) → stdin JSON parsed with `python3` to extract `tool_input.skill` → if skill is `brainstorming`, `writing-plans`, or `finishing-a-development-branch`, determines KB state (not_initialized / stale / fresh) and injects targeted context
-5. **Session end:** Claude Code fires `Stop` → `run-hook.cmd stop` → script checks for `feat:` or `refactor:` commits between last KB update SHA and `HEAD` → if any found, blocks session end and injects mandatory `:update` reminder
-6. **Skill interception (architect):** Claude Code fires `PreToolUse` on `Skill` tool calls → `run-hook.cmd pre-tool-use` (superpowers-architect) → if skill is `writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, or `receiving-code-review`, scans `$SP_ARCHITECT_DIR` (global) and `docs/design-patterns/` (project, overrides global) → builds compact index (name + description + path) → injects as `additionalContext`
+4. **Skill interception (memory):** Claude Code fires `PreToolUse` on `Skill` tool calls → `hook-runtime.js pre-tool-use` → parses stdin JSON to extract `tool_input.skill` → if skill matches one of 5 triggers (`brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`), checks KB state and injects advisory or blocks if KB not ready
+5. **Session end:** Claude Code fires `Stop` → `hook-runtime.js stop` → detects file-level changes outside `docs/project-knowledge/` using git diff (committed since last KB update, staged, unstaged, untracked) → if changes found, emits systemMessage reminder to run `:update`
+6. **Skill interception (architect):** Claude Code fires `PreToolUse` on `Skill` tool calls → `pre-tool-use` bash script → if skill matches one of 5 triggers (`writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, `receiving-code-review`), scans `$SP_ARCHITECT_DIR` (global) + project-level pattern directory (overrides by filename) → builds compact index (name + description + path) → injects as additionalContext with plan or review wording
 
 ## Key Design Decisions
 
-- **Zero-modification principle:** The plugin never modifies superpowers core files. All behavior influence is through hook context injection and independent skills.
-- **Project-local knowledge base:** `docs/project-knowledge/` lives inside the target project repo, versioned alongside code.
-- **5-file split:** Knowledge is split into distinct files (architecture, tech-stack, features, conventions, decisions) to enable surgical incremental updates rather than full rewrites.
-- **Cross-platform hook dispatcher:** `run-hook.cmd` is a polyglot bash/batch script that works on both Windows and Unix.
+- **Zero-modification principle:** The plugins never modify superpowers core files; behavior influence is through hook context injection and independent skills (ADR-002)
+- **Project-local knowledge base:** `docs/project-knowledge/` lives inside the target project repo, versioned alongside code (ADR-003)
+- **Knowledge split into separate files:** Enables surgical incremental updates rather than full rewrites (ADR-003)
+- **PreToolUse over SessionStart for KB injection:** Precise injection at skill invocation time maximizes compliance (ADR-004)
+- **Index-first progressive loading:** Both memory and architect plugins inject lightweight indexes; full content loaded on demand (ADR-005, ADR-006)
+- **Node.js hook runtime:** Replaced bash+python3 with a single `hook-runtime.js` for all superpowers-memory hooks (ADR-007)
+- **Evidence-based staleness:** Stop hook uses file-level change detection instead of commit message patterns (ADR-008)

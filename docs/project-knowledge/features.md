@@ -1,35 +1,52 @@
 ---
-last_updated: 2026-04-02
-updated_by: superpowers-memory:update
-triggered_by_plan: 2026-04-02-superpowers-architect.md
-version: v1.2.3
+last_updated: 2026-04-13
+updated_by: superpowers-memory:rebuild
+triggered_by_plan: null
 ---
 
 # Features
 
 ## Implemented
 
-| Feature | Description | Spec | Plan |
-|---------|------------|------|------|
-| Plugin marketplace catalog | `.claude-plugin/marketplace.json` makes this repo discoverable and installable via `/plugin marketplace add jacexh/skill-workshop` | — | — |
-| `superpowers-memory` plugin | Full plugin with hooks + skills for project knowledge persistence and plan checkpoint tracking | [Design Spec](../superpowers/specs/2026-03-31-superpowers-memory-design.md) | [Implementation Plan](../superpowers/plans/2026-03-31-superpowers-memory.md) |
-| SessionStart hook | Three branches: (1) KB not initialized → "run rebuild" prompt; (2) `MEMORY.md` exists → inject index content as additionalContext; (3) KB exists but no MEMORY.md → `{}` silent fallback | [Memory Index Design](../superpowers/specs/2026-04-01-memory-index-design.md) | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) Task 4 |
-| PreToolUse hook | Intercepts `superpowers:brainstorming`, `superpowers:writing-plans`, and `superpowers:finishing-a-development-branch`; injects KB-state-aware context (not_initialized / stale / fresh) at the exact moment each skill is called | [Auto-KB Design](../superpowers/specs/2026-04-01-auto-kb-update-design.md) | [Auto-KB Plan](../superpowers/plans/2026-04-01-auto-kb-update.md) Task 5 |
-| Stop hook | Fires at session end; checks for `feat:` or `refactor:` commits since last KB update (`git log --format="%s" kb_last_commit..HEAD | grep -qE "^(feat\|refactor):"`) ; blocks session end and injects mandatory `:update` reminder only when such commits exist | [Auto-KB Design](../superpowers/specs/2026-04-01-auto-kb-update-design.md) | [Auto-KB Plan](../superpowers/plans/2026-04-01-auto-kb-update.md) Task 3 |
-| Cross-platform hook dispatcher | `run-hook.cmd` polyglot bash/batch wrapper routes hook calls on both Unix and Windows | Design Spec §Plugin Structure | Plan Task 2 |
-| 6 knowledge base templates | Structural scaffolds for `architecture.md`, `tech-stack.md`, `features.md`, `conventions.md`, `decisions.md` (expanded in v1.0.8); plus `MEMORY.md` template (added in v1.2.1) as single source of truth for the index format used by `rebuild` and `update` skills | [Template Optimization Design](../superpowers/specs/2026-04-01-template-optimization-design.md) | [Template Optimization Plan](../superpowers/plans/2026-04-01-template-optimization.md) |
-| `superpowers-memory:load` skill | Two-phase loading: Phase 1 reads MEMORY.md index if present; Phase 2 offers on-demand detail file loading. Legacy fallback reads all 5 files directly. Warns if any file >30 days stale. | [Memory Index Design](../superpowers/specs/2026-04-01-memory-index-design.md) | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) Task 3 |
-| `superpowers-memory:update` skill | Incremental KB update: reads current KB + recent plan/spec/git diff; updates only changed files; always regenerates MEMORY.md index in full; preserves `triggered_by_plan` when no plan triggers the update | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) Task 2 | Plan Task 8 |
-| `superpowers-memory:rebuild` skill | Full KB regeneration from codebase scan; generates all 5 KB files + MEMORY.md index | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) Task 1 | Plan Task 9 |
-| `MEMORY.md` knowledge index | `docs/project-knowledge/MEMORY.md` — structured index with filename + description + 2-3 key points per file; written by `rebuild`/`update`; injected by `session-start` at every session; required first read in `pre-tool-use` brainstorming/writing-plans messages | [Memory Index Design](../superpowers/specs/2026-04-01-memory-index-design.md) | [Memory Index Plan](../superpowers/plans/2026-04-01-memory-index.md) |
-| Plugin README | User-facing documentation covering problem statement, skills table, hooks table, KB structure | — | Plan Task 10 |
-| `superpowers-architect` plugin | Full plugin with `pre-tool-use` hook that injects design pattern constraints into planning, execution, and code review skills via progressive loading | [Design Spec](../superpowers/specs/2026-04-02-superpowers-architect-design.md) | [Implementation Plan](../superpowers/plans/2026-04-02-superpowers-architect.md) |
-| Progressive pattern loading | Hook injects only `name + description + path` index; Claude uses `Read` tool on demand to load full pattern content — avoids dumping all patterns into every prompt | [Design Spec](../superpowers/specs/2026-04-02-superpowers-architect-design.md) | [Implementation Plan](../superpowers/plans/2026-04-02-superpowers-architect.md) Task 2 |
-| Two-layer pattern directories | Global patterns (`$SP_ARCHITECT_DIR`, default `~/.claude/superpowers-architect/design-patterns/`) merged with project-level `docs/design-patterns/`; project files override global files by filename | [Design Spec](../superpowers/specs/2026-04-02-superpowers-architect-design.md) | [Implementation Plan](../superpowers/plans/2026-04-02-superpowers-architect.md) Task 2 |
-| Example design patterns | Three reference pattern files (`database.md`, `rest-api.md`, `architecture.md`) shipped under `plugins/superpowers-architect/design-patterns/` for users to copy to their global or project directories | — | [Implementation Plan](../superpowers/plans/2026-04-02-superpowers-architect.md) Task 3 |
+### Marketplace (v1.5.4)
+
+| Feature | Description |
+|---------|------------|
+| Plugin marketplace catalog | `.claude-plugin/marketplace.json` — 3 plugins discoverable via `/plugin marketplace add jacexh/skill-workshop` |
+| GitHub Actions release | Automated `workflow_dispatch` for version bumping, tagging, and GitHub Release per plugin |
+
+### superpowers-memory (v1.5.4)
+
+| Feature | Description |
+|---------|------------|
+| Node.js hook runtime | `hook-runtime.js` — unified runtime for all 3 hooks + `verify` + `analyze` modes; thin bash wrappers delegate to it |
+| SessionStart hook | Reads `index.md` or `MEMORY.md` (backward compat) from `docs/project-knowledge/`; injects index as additionalContext; prompts rebuild if KB missing |
+| PreToolUse hook | Intercepts 5 skills: `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; blocks if KB not ready, otherwise injects advisory |
+| Stop hook | Evidence-based staleness: detects file-level changes outside `docs/project-knowledge/` via git diff (committed, staged, unstaged, untracked); emits systemMessage reminder if changes found |
+| Verify command | Checks file size thresholds, stale path references, and git commit readiness; used by `rebuild` and `update` skills before commit |
+| `load` skill | Two-phase: reads index first, then offers on-demand detail file loading |
+| `update` skill | Incremental KB update from recent changes; regenerates index; preserves `triggered_by_plan` |
+| `rebuild` skill | Full KB regeneration: two-phase codebase scan, generates 6 KB files + index, runs verify, commits |
+| 7 templates | Structural scaffolds: `architecture.md`, `tech-stack.md`, `features.md`, `conventions.md`, `decisions.md`, `glossary.md`, `index.md` |
+| `content-rules.md` | Shared content generation rules (language, inclusion/exclusion, SSOT, size guard) for `rebuild` and `update` |
+| Cross-platform dispatcher | `run-hook.cmd` polyglot bash/batch wrapper for Unix and Windows |
+
+### superpowers-architect (v1.5.1)
+
+| Feature | Description |
+|---------|------------|
+| PreToolUse hook | Intercepts 5 skills: `writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, `receiving-code-review`; two wording modes (plan vs review) |
+| Progressive pattern loading | Injects only name + description + path index; Claude loads full content on demand via `Read` tool |
+| Two-layer pattern directories | Global `$SP_ARCHITECT_DIR` (default `~/.claude/superpowers-architect/design-patterns/`) + project-level pattern directory; project overrides global by filename |
+| 6 reference design patterns | `database.md`, `rest-api.md`, `ddd-core.md`, `ddd-golang.md`, `ddd-python.md`, `frontend-patterns.md` |
+
+### designing-tests (v1.5.0)
+
+| Feature | Description |
+|---------|------------|
+| `designing-tests` skill | Risk-driven test design: choose narrowest real boundary, design minimal sufficient coverage, classify tests as real/shallow/fake |
+| 4 reference files | `layer-selection.md`, `risk-catalog.md`, `test-case-patterns.md`, `test-quality-review.md` |
 
 ## In Progress
 
-| Feature | Description | Plan | Status |
-|---------|------------|------|--------|
-| — | No features currently in progress | — | — |
+No features currently in progress.
