@@ -7,6 +7,7 @@ Automatically injects architectural design pattern standards as hard constraints
 When you invoke any of the following skills, the plugin scans your pattern files and injects a compact index as context. Claude then reads only the relevant patterns in full before proceeding.
 
 **Triggered on:**
+- `superpowers:brainstorming`
 - `superpowers:writing-plans`
 - `superpowers:executing-plans`
 - `superpowers:subagent-driven-development`
@@ -17,24 +18,26 @@ This is **progressive loading**: the hook only injects names + descriptions, not
 
 ## Setup
 
-### 1. Create your global patterns directory
+The plugin works out of the box — its bundled patterns load automatically when installed.
 
-```bash
-mkdir -p ~/.claude/superpowers-architect/design-patterns
-```
+### (Optional) Add project-specific patterns
 
-Copy or adapt the example patterns from `design-patterns/` in this repo.
+Place `.md` files in `docs/design-patterns/` at your project root. Files with the same name as a bundled pattern will override it for that project.
 
-### 2. (Optional) Customize the global directory path
+### (Optional) Set a global patterns directory
 
 ```bash
 # ~/.zshrc or ~/.bashrc
-export SP_ARCHITECT_DIR="$HOME/my-team-standards/design-patterns"
+export SPA_GLOBAL="$HOME/my-team-standards/design-patterns"
 ```
 
-### 3. (Optional) Add project-specific patterns
+### (Optional) Disable bundled patterns
 
-Place `.md` files in `docs/design-patterns/` at your project root. Files with the same name as a global pattern will override it for that project.
+```bash
+export SPA_DEFAULTS=false
+```
+
+When disabled, only `SPA_GLOBAL` and project-level patterns are loaded.
 
 ## Pattern File Format
 
@@ -52,14 +55,23 @@ Your design constraints here, written in plain language for Claude to read.
 ## Priority Order
 
 ```
-<project>/docs/design-patterns/    ← highest priority
-$SP_ARCHITECT_DIR                   ← user global (default: ~/.claude/superpowers-architect/design-patterns/)
-design-patterns/                    ← examples only, NOT loaded by the hook
+<project>/docs/design-patterns/    ← highest priority (project-specific)
+$SPA_GLOBAL                        ← user global (skipped if not set)
+<plugin>/design-patterns/           ← plugin defaults (disable with SPA_DEFAULTS=false)
 ```
 
-## Example Patterns
+Files with the same name in a higher layer override the lower layer.
 
-See the `design-patterns/` directory for ready-to-use examples:
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SPA_DEFAULTS` | *(enabled)* | Set to `false` to disable bundled patterns |
+| `SPA_GLOBAL` | *(unset)* | Path to a global patterns directory |
+
+## Bundled Patterns
+
+See the `design-patterns/` directory:
 - `database.md` — schema conventions, index strategy, migrations
 - `rest-api.md` — URL naming, status codes, pagination, error format
 - `ddd-core.md` — dependency direction, bounded contexts, and service layer boundaries

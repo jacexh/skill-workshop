@@ -36,17 +36,22 @@ case "$skill_name" in
 esac
 
 # Build merged pattern index via node:
-# - Scans $SP_ARCHITECT_DIR (global) then docs/design-patterns/ (project)
-# - Project files override global files with the same filename
+# - Three-layer scan: plugin defaults → SPA_GLOBAL → docs/design-patterns/ (project)
+# - Higher layers override lower layers by filename
+# - SPA_DEFAULTS=false disables plugin defaults
 # - Extracts name + description from frontmatter
 # - Outputs formatted index string, or nothing if no patterns found
-context_json=$(SKILL_TYPE="$skill_type" SP_ARCHITECT_DIR="${SP_ARCHITECT_DIR:-}" node -e "
-const fs=require('fs'),path=require('path'),{glob}=require('fs');
+context_json=$(SKILL_TYPE="$skill_type" SPA_DEFAULTS="${SPA_DEFAULTS:-}" SPA_GLOBAL="${SPA_GLOBAL:-}" CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}" node -e "
+const fs=require('fs'),path=require('path');
 const skillType=process.env.SKILL_TYPE||'plan';
-const globalDir=process.env.SP_ARCHITECT_DIR||path.join(require('os').homedir(),'.claude/superpowers-architect/design-patterns');
-const projectDir='docs/design-patterns';
+const dirs=[];
+if(process.env.SPA_DEFAULTS!=='false'&&process.env.CLAUDE_PLUGIN_ROOT){
+  dirs.push(path.join(process.env.CLAUDE_PLUGIN_ROOT,'design-patterns'));
+}
+if(process.env.SPA_GLOBAL)dirs.push(process.env.SPA_GLOBAL);
+dirs.push('docs/design-patterns');
 const files={};
-for(const dir of [globalDir,projectDir]){
+for(const dir of dirs){
   try{
     fs.readdirSync(dir).filter(f=>f.endsWith('.md')).sort().forEach(f=>{
       files[f]=path.join(dir,f);

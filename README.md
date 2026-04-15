@@ -52,7 +52,7 @@ Project knowledge persistence and plan checkpoint tracking for superpowers workf
 
 ### superpowers-architect
 
-Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows.
+Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows. Bundled patterns load automatically on install; customize via three-layer override (`SPA_DEFAULTS`, `SPA_GLOBAL`, project `docs/design-patterns/`).
 
 - **Version:** 1.5.6
 - **License:** MIT
