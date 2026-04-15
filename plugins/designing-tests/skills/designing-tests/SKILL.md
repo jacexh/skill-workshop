@@ -1,6 +1,6 @@
 ---
 name: designing-tests
-description: Use when designing tests, choosing between unit/integration/E2E, reviewing an existing test suite, deciding what regression cases to add, or planning coverage for business rules, state machines, APIs, async flows, and service boundaries.
+description: Use when writing tests, adding test coverage, fixing flaky tests, reviewing test quality, choosing between unit/integration/E2E, deciding what to test, planning regression cases, or when asked "does this need tests", "what should I test", "write tests for X", "add tests", "improve test coverage". Covers business rules, state machines, APIs, async flows, service boundaries, and mocking strategy.
 ---
 
 # Designing Tests

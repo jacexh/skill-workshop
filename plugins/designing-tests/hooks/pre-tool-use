@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Parse skill name from stdin JSON
+input=$(cat)
+skill_name=$(printf '%s' "$input" | node -e "
+let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
+  try{console.log(JSON.parse(d).tool_input?.skill||'')}
+  catch(e){console.log('')}
+})
+" 2>/dev/null || echo "")
+
+# Only intercept TDD skill
+case "$skill_name" in
+    superpowers:test-driven-development)
+        ;;
+    *)
+        printf '{}\n'
+        exit 0
+        ;;
+esac
+
+# Build context from SKILL.md and references
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+SKILL_DIR="$PLUGIN_ROOT/skills/designing-tests"
+
+context=""
+
+# Read main skill guidance
+if [ -f "$SKILL_DIR/SKILL.md" ]; then
+    # Strip frontmatter, keep the guidance body
+    content=$(node -e "
+const fs=require('fs');
+const raw=fs.readFileSync(process.argv[1],'utf8');
+let body=raw;
+if(raw.startsWith('---')){
+  const end=raw.indexOf('---',3);
+  if(end!==-1) body=raw.slice(end+3).trim();
+}
+console.log(body);
+" "$SKILL_DIR/SKILL.md" 2>/dev/null || true)
+    if [ -n "$content" ]; then
+        context="$content"
+    fi
+fi
+
+# Append reference summaries if they exist
+ref_dir="$SKILL_DIR/references"
+if [ -d "$ref_dir" ]; then
+    for ref in "$ref_dir"/*.md; do
+        [ -f "$ref" ] || continue
+        # Extract first heading as summary
+        summary=$(node -e "
+const fs=require('fs');
+const raw=fs.readFileSync(process.argv[1],'utf8');
+let body=raw;
+if(raw.startsWith('---')){
+  const end=raw.indexOf('---',3);
+  if(end!==-1) body=raw.slice(end+3).trim();
+}
+// First heading
+const lines=body.split('\n');
+let title='',desc='';
+for(const l of lines){
+  if(l.startsWith('#')){title=l.replace(/^#+\s*/,'');break;}
+}
+console.log('- ['+title+'] Reference: '+process.argv[1]);
+" "$ref" 2>/dev/null || true)
+        if [ -n "$summary" ]; then
+            context="$context
+$summary"
+        fi
+    done
+fi
+
+if [ -z "$context" ]; then
+    printf '{}\n'
+    exit 0
+fi
+
+# Build output JSON
+context_json=$(node -e "console.log(JSON.stringify(process.argv[1]))" "$context" 2>/dev/null || echo '""')
+
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": %s\n  },\n  "systemMessage": "Test Design: loaded risk-driven test guidance"\n}\n' "$context_json"
+else
+    printf '{\n  "additional_context": %s,\n  "systemMessage": "Test Design: loaded risk-driven test guidance"\n}\n' "$context_json"
+fi
+
+exit 0
