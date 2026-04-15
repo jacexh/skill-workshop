@@ -19,6 +19,7 @@ Skill Workshop is a curated collection of plugins that enhance Claude Code's cap
 ```bash
 /plugin install superpowers-memory@skill-workshop
 /plugin install superpowers-architect@skill-workshop
+/plugin install designing-tests@skill-workshop
 ```
 
 ### Enable auto-update
@@ -45,7 +46,7 @@ By default, third-party marketplaces do not auto-update. To automatically receiv
 
 Project knowledge persistence and plan checkpoint tracking for superpowers workflows.
 
-- **Version:** 1.2.3
+- **Version:** 1.5.5
 - **License:** MIT
 - **Details:** [plugins/superpowers-memory/README.md](plugins/superpowers-memory/README.md)
 
@@ -53,9 +54,17 @@ Project knowledge persistence and plan checkpoint tracking for superpowers workf
 
 Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows.
 
-- **Version:** 1.0.0
+- **Version:** 1.5.6
 - **License:** MIT
 - **Details:** [plugins/superpowers-architect/README.md](plugins/superpowers-architect/README.md)
+
+### designing-tests
+
+Risk-driven test design guidance for choosing the right boundary, coverage, and regression-protective test cases.
+
+- **Version:** 1.5.7
+- **License:** MIT
+- **Details:** [plugins/designing-tests/README.md](plugins/designing-tests/README.md)
 
 ---
 
@@ -66,8 +75,9 @@ Injects architectural design pattern standards as hard constraints into planning
 ├── .claude-plugin/
 │   └── marketplace.json          # Marketplace catalog definition
 ├── plugins/
-│   ├── superpowers-memory/       # Plugin source code
-│   └── superpowers-architect/    # Plugin source code
+│   ├── superpowers-memory/       # Project knowledge persistence
+│   ├── superpowers-architect/    # Architectural design patterns
+│   └── designing-tests/          # Test design guidance
 └── docs/
     └── superpowers/
         ├── specs/                # Plugin design specifications
