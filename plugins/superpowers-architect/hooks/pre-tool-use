@@ -12,6 +12,7 @@ let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
 
 # Only handle trigger skills
 case "$skill_name" in
+    superpowers:brainstorming|\
     superpowers:writing-plans|\
     superpowers:executing-plans|\
     superpowers:subagent-driven-development|\
