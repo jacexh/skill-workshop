@@ -9,7 +9,10 @@ description: Go implementation guide for DDD + Clean Architecture. Use when impl
 **Version**: v2.1  
 **Date**: 2026-04-15  
 **Scope**: Team backend service architecture standard  
-**Prerequisite**: This document is the Go implementation guide for [`ddd-core.md`](ddd-core.md). All architecture principles defer to `ddd-core.md`.
+**Prerequisites**:
+- **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
+- **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`.
+- This document is the Go implementation guide that builds on both.
 
 ---
 
@@ -1074,6 +1077,7 @@ var Module = fx.Module(
 ---
 
 **References:**
+- [ddd-modeling.md](ddd-modeling.md) — Strategic domain modeling (bounded context discovery, aggregate design)
 - [ddd-core.md](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification
 - [The Clean Architecture — Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [Domain-Driven Design Reference — Eric Evans](https://domainlanguage.com/ddd/reference/)

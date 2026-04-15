@@ -9,7 +9,10 @@ description: Python implementation guide for DDD + Clean Architecture. Use when 
 **Version**: v1.0
 **Date**: 2026-04-02
 **Scope**: Team backend service architecture standard
-**Prerequisite**: This document is the Python implementation guide for [`ddd-core.md`](ddd-core.md). All architecture principles defer to `ddd-core.md`.
+**Prerequisites**:
+- **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
+- **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`.
+- This document is the Python implementation guide that builds on both.
 **Python Version**: 3.12+
 
 ---
@@ -33,7 +36,7 @@ Four layers with the **Domain Layer as the core** (innermost):
 
 ```
                     ┌─────────────────────────────────────┐
-                    │       Adapter Layer                 │
+                    │      Interface Layer                │
                     │  (FastAPI Router / gRPC Servicer)   │
                     │  - Input validation, protocol       │
                     │    transformation, routing          │
@@ -70,7 +73,7 @@ Four layers with the **Domain Layer as the core** (innermost):
 
 **Golden rule: dependencies point inward only. The Domain Layer must not depend on any other layer.**
 
-- Adapter Layer depends on Application and Domain layers
+- Interface Layer depends on Application and Domain layers
 - Application Layer depends only on Domain Layer
 - Domain Layer has zero dependencies (no `import` of infrastructure, database, or HTTP packages)
 - Infrastructure Layer depends on Domain Layer (implements Repository interfaces) and Application Layer (implements QueryRepository interfaces)
@@ -124,7 +127,7 @@ project/
 │       │   ├── __init__.py
 │       │   ├── domain/                # Domain layer
 │       │   ├── application/           # Application layer
-│       │   ├── adapter/               # Adapter layer
+│       │   ├── interfaces/             # Interface layer
 │       │   └── infrastructure/        # Infrastructure layer
 │       └── shared/                    # Shared infrastructure (use sparingly)
 │           ├── __init__.py
@@ -172,7 +175,7 @@ src/<project_name>/user/               # User bounded context
 │   ├── dto.py                         # DTO definitions (Pydantic models)
 │   └── assembler.py                   # DTO <-> Domain conversion
 │
-├── adapter/                           # Adapter layer - adapts external protocols
+├── interfaces/                        # Interface layer - adapts external protocols
 │   ├── __init__.py
 │   ├── http.py                        # FastAPI router
 │   └── grpc.py                        # gRPC servicer (if applicable)
@@ -821,11 +824,11 @@ class FindUserListHandler:
         return await self._query_repo.list(query)
 ```
 
-### 3.3 Adapter Layer
+### 3.3 Interface Layer
 
 **Role**: Adapt external protocols (HTTP/gRPC); handle input/output transformation.
 
-> For the full specification, see [ddd-core.md §3.3 "Adapter Layer"](ddd-core.md).
+> For the full specification, see [ddd-core.md §3.3 "Interface Layer"](ddd-core.md).
 
 **Contents**:
 - **FastAPI Router**: REST API handling
@@ -840,7 +843,7 @@ class FindUserListHandler:
 - Handles protocol details (HTTP status codes, gRPC error codes, etc.)
 
 ```python
-# adapter/http.py
+# interfaces/http.py
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
 
@@ -1189,7 +1192,7 @@ class UserQueryRepository(QueryRepository):
 | **Query Repository** | Application (ABC) + Infra (impl) | `ABC` + concrete class | Read repository, returns DTOs, bypasses Domain |
 | **Domain Event** | Domain | `@dataclass(frozen=True, slots=True)` | Records significant domain occurrences |
 | **Application Service** | Application | Handler classes | Coordinates aggregates/services, owns transaction boundary |
-| **DTO** | Application / Adapter | Pydantic `BaseModel` | Decouples internal and external models |
+| **DTO** | Application / Interface | Pydantic `BaseModel` | Decouples internal and external models |
 | **Factory** | Domain | `@classmethod` or independent Factory class | Complex object creation logic |
 | **CQRS** | Application | Command + Query separation | Command and Query responsibility segregation |
 
@@ -1283,8 +1286,8 @@ class UserPointsSubscriber:
 | `application/handler.py` | Handler implementations |
 | `application/dto.py` | DTO definitions (Pydantic models) |
 | `application/assembler.py` | Object conversion |
-| `adapter/http.py` | FastAPI router |
-| `adapter/grpc.py` | gRPC servicer |
+| `interfaces/http.py` | FastAPI router |
+| `interfaces/grpc.py` | gRPC servicer |
 | `infrastructure/persistence/model.py` | SQLAlchemy ORM models |
 | `infrastructure/persistence/repository.py` | Write repository implementation |
 | `infrastructure/persistence/query_repository.py` | Read repository implementation |
@@ -1302,7 +1305,7 @@ class UserPointsSubscriber:
 | ORM | `sqlalchemy[asyncio]` >= 2.0 | Async support, declarative mapping |
 | Async DB Driver | `asyncpg` (PostgreSQL) / `aiomysql` (MySQL) | Match your database |
 | Migration | `alembic` | SQLAlchemy-native migration tool |
-| Validation (Adapter) | `pydantic` >= 2.0 | Request/response schemas, DTOs |
+| Validation (Interface) | `pydantic` >= 2.0 | Request/response schemas, DTOs |
 | Configuration | `pydantic-settings` | Env-based config with type safety |
 | Dependency Injection | `dependency-injector` | Explicit wiring, supports async |
 | Logging | `structlog` | Structured, async-friendly logging |
@@ -1325,7 +1328,7 @@ class UserPointsSubscriber:
 | Domain | Define error classes inheriting from `DomainError`. Raise when business rules are violated. |
 | Infrastructure | Wrap technical errors with context: `raise InfraError("...") from original`. Log only at Application layer. |
 | Application | Log infrastructure errors via `structlog`; propagate domain errors silently (no logging). |
-| Adapter | Convert to HTTP status codes via `match` statement (see §3.3 error mapping). |
+| Interface | Convert to HTTP status codes via `match` statement (see §3.3 error mapping). |
 
 ### 8.2 Error Hierarchy
 
@@ -1334,13 +1337,13 @@ class UserPointsSubscriber:
 
 class DomainError(Exception):
     """Base for all domain errors. Represents business rule violations.
-    Translated to 4xx at the Adapter layer. Never logged."""
+    Translated to 4xx at the Interface layer. Never logged."""
     pass
 
 
 class InfrastructureError(Exception):
     """Base for all infrastructure errors. Represents technical failures.
-    Logged at the Application layer. Translated to 5xx at the Adapter layer."""
+    Logged at the Application layer. Translated to 5xx at the Interface layer."""
     pass
 ```
 
@@ -1369,7 +1372,7 @@ Application layer:
   Infrastructure errors → log + propagate
   Domain errors        → propagate silently (no logging)
 
-Adapter layer:
+Interface layer:
   All errors → match statement → HTTP status codes → return to caller
 ```
 
@@ -1467,7 +1470,7 @@ from fastapi import FastAPI
 
 from .container import Container
 from .settings import Settings
-from .user.adapter.http import create_routes
+from .user.interfaces.http import create_routes
 
 
 @asynccontextmanager
@@ -1572,7 +1575,7 @@ class InMemoryEventBus:
 | **Domain** | Pure unit tests | Standard library only | `pytest` |
 | **Application** | Unit tests + mocks | Mocked Repository / QueryRepository | `pytest` + `unittest.mock` |
 | **Infrastructure** | Integration tests | Real database (test containers) | `pytest-asyncio` + `testcontainers` |
-| **Adapter** | End-to-end tests | FastAPI test client | `httpx` + `pytest-asyncio` |
+| **Interface** | End-to-end tests | FastAPI test client | `httpx` + `pytest-asyncio` |
 
 ### 11.2 Domain Layer Test Example
 
@@ -1906,6 +1909,7 @@ dev = [
 ---
 
 **References:**
+- [ddd-modeling.md](ddd-modeling.md) — Strategic domain modeling (bounded context discovery, aggregate design)
 - [ddd-core.md](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification
 - [The Clean Architecture — Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [Domain-Driven Design Reference — Eric Evans](https://domainlanguage.com/ddd/reference/)

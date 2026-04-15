@@ -6,9 +6,10 @@ description: DDD + Clean Architecture specification for backend services. Use wh
 # Backend Architecture Specification
 ## DDD + Clean Architecture
 
-**Version**: v2.1
-**Date**: 2026-04-02
+**Version**: v2.2
+**Date**: 2026-04-15
 **Scope**: All backend services, language-agnostic
+**Prerequisite**: Before using this specification, complete the strategic modeling phase described in [`ddd-modeling.md`](ddd-modeling.md). That document guides you from business requirements to a domain model (bounded contexts, aggregate boundaries). This document then provides the tactical implementation rules for that model.
 
 ---
 
@@ -29,7 +30,7 @@ Four layers, with the **Domain Layer as the core**:
 
 ```
         ┌──────────────────────────────────────┐
-        │           Adapter Layer              │
+        │          Interface Layer             │
         │   Protocol adaptation: HTTP / gRPC   │
         │   Input validation, routing,         │
         │   request/response transformation    │
@@ -64,7 +65,7 @@ Four layers, with the **Domain Layer as the core**:
 
 **The golden rule: dependencies point inward only. The Domain Layer must not depend on any other layer.**
 
-- Adapter Layer depends on Application and Domain layers
+- Interface Layer depends on Application and Domain layers
 - Application Layer depends only on Domain Layer
 - Domain Layer has zero dependencies (no frameworks, no ORM, no HTTP)
 - Infrastructure Layer depends on Domain Layer (to implement Repository interfaces) and Application Layer (to implement QueryRepository interfaces); neither Domain nor Application depends on Infrastructure
@@ -90,7 +91,7 @@ project/
 │   ├── <context-a>/         # Bounded context A
 │   │   ├── domain/          # Domain layer
 │   │   ├── application/     # Application layer
-│   │   ├── adapter/         # Adapter layer
+│   │   ├── interfaces/      # Interface layer
 │   │   └── infrastructure/  # Infrastructure layer
 │   ├── <context-b>/         # Bounded context B
 │   └── shared/              # Shared infrastructure (use sparingly)
@@ -116,7 +117,7 @@ internal/<context>/
 │   ├── dto.{ext}                  # Data Transfer Objects
 │   └── assembler.{ext}            # DTO ↔ Domain object conversion
 │
-├── adapter/
+├── interfaces/
 │   ├── http/                      # REST handlers
 │   └── grpc/                      # gRPC server implementations
 │
@@ -156,7 +157,7 @@ internal/<context>/
 - **Never** import any framework, ORM, database, or HTTP-related package
 - **Never** depend directly on another bounded context's domain layer
 - All state changes must go through **domain methods** — external direct field mutation is prohibited
-- Business rules (validation, invariants) live in the domain layer and must not leak into the Application or Adapter layer
+- Business rules (validation, invariants) live in the domain layer and must not leak into the Application or Interface layer
 
 #### ID Generation
 
@@ -226,10 +227,10 @@ event_bus.dispatch(events)      # dispatch after persist
 
 ```
 Write path (Command):
-  Adapter → CommandHandler → AggregateRoot (domain method) → Repository.Save() → dispatch events
+  Interface → CommandHandler → AggregateRoot (domain method) → Repository.Save() → dispatch events
 
 Read path (Query):
-  Adapter → QueryHandler → QueryRepository (direct DB query) → return DTO
+  Interface → QueryHandler → QueryRepository (direct DB query) → return DTO
 ```
 
 #### Constraints
@@ -252,7 +253,7 @@ ar.method_2()
 repo.save(ar)
 ```
 
-### 3.3 Adapter Layer
+### 3.3 Interface Layer
 
 **Core rule: protocol transformation only. No business logic.**
 
@@ -355,7 +356,7 @@ Technical soft delete:
 | Query Repository | Application (interface) + Infra (impl) | Interface + implementation | Read-side; returns DTOs directly; not a domain concern |
 | Domain Event | Domain | Data class / struct | Records significant domain occurrences |
 | Application Service | Application | Command / Query Handler | Orchestrates use cases; owns transaction boundary |
-| DTO | Application / Adapter | Data class / struct | Decouples internal and external models |
+| DTO | Application / Interface | Data class / struct | Decouples internal and external models |
 | Factory | Domain | Static factory method / constructor / independent Factory class | Encapsulates complex object creation |
 
 ---
@@ -496,9 +497,9 @@ The following conventions describe **conceptual naming**. Each language should a
 
 | Error Type | Defined In | Handling |
 |------------|------------|----------|
-| **Domain Error** | Domain layer | Represents a business rule violation. Part of the normal business flow. Do not log. Propagate up; translate to 4xx at the Adapter layer. |
-| **Infrastructure Error** | Infrastructure layer | Represents a technical failure (DB timeout, network issue). Log at the Application layer. Translate to 5xx at the Adapter layer. |
-| **Input Validation Error** | Adapter layer | Represents a malformed request. Handle and return 4xx directly at the Adapter layer. Do not propagate inward. |
+| **Domain Error** | Domain layer | Represents a business rule violation. Part of the normal business flow. Do not log. Propagate up; translate to 4xx at the Interface layer. |
+| **Infrastructure Error** | Infrastructure layer | Represents a technical failure (DB timeout, network issue). Log at the Application layer. Translate to 5xx at the Interface layer. |
+| **Input Validation Error** | Interface layer | Represents a malformed request. Handle and return 4xx directly at the Interface layer. Do not propagate inward. |
  
 ### 8.2 Error Propagation
 
@@ -514,7 +515,7 @@ Application layer:
   Infrastructure errors → log + propagate
   Domain errors        → propagate silently (no logging)
 
-Adapter layer:
+Interface layer:
   All errors → translate to protocol error codes → return to caller
 ```
 
@@ -529,7 +530,7 @@ Adapter layer:
 | **Domain** | Pure unit tests | Language standard library only | Verify business rules, invariants, domain event emission |
 | **Application** | Unit tests + mocks | Mocked Repository / QueryRepository | Verify use-case orchestration logic |
 | **Infrastructure** | Integration tests | Real database (test containers) | Verify SQL correctness, optimistic locking, soft deletes |
-| **Adapter** | End-to-end tests | Simulated HTTP / gRPC requests | Verify protocol transformation and error code mapping |
+| **Interface** | End-to-end tests | Simulated HTTP / gRPC requests | Verify protocol transformation and error code mapping |
 
 ### 9.2 Domain Layer Test Priorities
 
@@ -567,7 +568,15 @@ Domain tests should cover:
 
 ---
 
-## Appendix: Language-Specific Implementation Guides
+## Appendix A: Strategic Modeling
+
+This document covers tactical architecture principles — it assumes you already know what your bounded contexts and aggregates are. For the strategic modeling phase (discovering bounded contexts, identifying aggregate roots, designing aggregate boundaries from business requirements), see:
+
+| Phase | Document |
+|-------|----------|
+| Strategic modeling | [`ddd-modeling.md`](ddd-modeling.md) |
+
+## Appendix B: Language-Specific Implementation Guides
 
 This document covers language-agnostic architecture principles only. For technology stack selection, code examples, and language-specific conventions, refer to the corresponding implementation guide:
 
