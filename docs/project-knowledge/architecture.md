@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-04-13
-updated_by: superpowers-memory:rebuild
+last_updated: 2026-04-15
+updated_by: superpowers-memory:update
 triggered_by_plan: null
 ---
 
@@ -23,7 +23,8 @@ Skill Workshop is a Claude Code plugin marketplace — a curated collection of p
 | `plugins/superpowers-architect/` | Plugin: injects design pattern standards into planning, execution, and code review skills | Hook (`pre-tool-use`) | Claude Code plugin runtime, Node.js |
 | `plugins/superpowers-architect/hooks/pre-tool-use` | Scans global + project pattern directories and injects compact index into trigger skills | Targets 5 skills; two wording modes (plan vs review); uses `node -e` for JSON parsing | Node.js, bash |
 | `plugins/superpowers-architect/design-patterns/` | Reference design pattern files (6 patterns) | `database.md`, `rest-api.md`, `ddd-core.md`, `ddd-golang.md`, `ddd-python.md`, `frontend-patterns.md` | None |
-| `plugins/designing-tests/` | Plugin: risk-driven test design guidance (skills-only, no hooks) | Skill (`designing-tests`) + 4 reference files | Claude Code skill system |
+| `plugins/designing-tests/` | Plugin: risk-driven test design guidance | Skill (`designing-tests`), Hook (`pre-tool-use`), 4 reference files | Claude Code plugin runtime, Node.js |
+| `plugins/designing-tests/hooks/pre-tool-use` | Intercepts `test-driven-development` skill and injects test design guidance + reference index | Targets 1 skill; uses `node -e` for JSON parsing; reads `SKILL.md` body + reference headings | Node.js, bash |
 | `docs/superpowers/` | Design specs and implementation plans for plugins in this repo | `docs/superpowers/specs/`, `docs/superpowers/plans/` — consumed by developers and agents during implementation | None |
 
 ## Data Flow
@@ -33,7 +34,8 @@ Skill Workshop is a Claude Code plugin marketplace — a curated collection of p
 3. **Knowledge management:** User or agent invokes `superpowers-memory:rebuild` / `:update` / `:load` → agent reads codebase / existing knowledge files → agent writes/updates `docs/project-knowledge/*.md` in the target project
 4. **Skill interception (memory):** Claude Code fires `PreToolUse` on `Skill` tool calls → `hook-runtime.js pre-tool-use` → parses stdin JSON to extract `tool_input.skill` → if skill matches one of 5 triggers (`brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`), checks KB state and injects advisory or blocks if KB not ready
 5. **Session end:** Claude Code fires `Stop` → `hook-runtime.js stop` → detects file-level changes outside `docs/project-knowledge/` using git diff (committed since last KB update, staged, unstaged, untracked) → if changes found, emits systemMessage reminder to run `:update`
-6. **Skill interception (architect):** Claude Code fires `PreToolUse` on `Skill` tool calls → `pre-tool-use` bash script → if skill matches one of 5 triggers (`writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, `receiving-code-review`), scans `$SP_ARCHITECT_DIR` (global) + project-level pattern directory (overrides by filename) → builds compact index (name + description + path) → injects as additionalContext with plan or review wording
+6. **Skill interception (designing-tests):** Claude Code fires `PreToolUse` on `Skill` tool calls → `pre-tool-use` bash script → if skill is `test-driven-development`, reads `SKILL.md` body + reference file headings → injects as additionalContext with test design guidance
+7. **Skill interception (architect):** Claude Code fires `PreToolUse` on `Skill` tool calls → `pre-tool-use` bash script → if skill matches one of 5 triggers (`writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, `receiving-code-review`), scans `$SP_ARCHITECT_DIR` (global) + project-level pattern directory (overrides by filename) → builds compact index (name + description + path) → injects as additionalContext with plan or review wording
 
 ## Key Design Decisions
 
