@@ -6,7 +6,6 @@ const cp = require("child_process");
 const mode = process.argv[2];
 const repoRoot = process.cwd();
 const knowledgeDir = path.join(repoRoot, "docs", "project-knowledge");
-const selfPrefix = "docs/project-knowledge/";
 
 function run(command, args) {
   const result = cp.spawnSync(command, args, {
@@ -43,17 +42,9 @@ function relativePath(filePath) {
   return path.relative(repoRoot, filePath).replace(/\\/g, "/");
 }
 
-function normalizePath(inputPath) {
-  if (!inputPath) return null;
-  const cleaned = inputPath.trim().replace(/\\/g, "/");
-  if (!cleaned) return null;
-  return cleaned.replace(/^\.\//, "");
-}
-
 // Hook output formats per Claude Code protocol:
 // - Advisory (SessionStart/PreToolUse): hookSpecificOutput wrapper (plugin env) or flat additional_context
 // - Blocking (PreToolUse only): { decision: "block", reason }
-// - Warning (Stop only): { systemMessage }
 function hookPayload(eventName, message) {
   if (process.env.CLAUDE_PLUGIN_ROOT) {
     return {
@@ -104,15 +95,15 @@ function buildSessionStartOutput() {
 // Per-skill advisory messages. Adding a new skill = adding one map entry.
 const skillAdvisory = {
   "superpowers:brainstorming":
-    "Load the relevant files from docs/project-knowledge before brainstorming. Use the index first, then read only the detail files needed for this task.",
+    "Run superpowers-memory:load before brainstorming to understand the project context.",
   "superpowers:writing-plans":
-    "Load the relevant files from docs/project-knowledge before writing plans. Use the index first, then read only the detail files needed for this plan.",
+    "Run superpowers-memory:load before writing plans to understand the project context.",
   "superpowers:executing-plans":
-    "Load the relevant files from docs/project-knowledge before executing this plan. Use the index first, then read only the detail files needed for execution.",
+    "Run superpowers-memory:load before executing this plan to understand the project context. IMPORTANT: You MUST run superpowers-memory:update after execution completes to capture what was built.",
   "superpowers:subagent-driven-development":
-    "Load the relevant files from docs/project-knowledge before dispatching subagents. Use the index first, then read only the detail files needed for the tasks.",
+    "Run superpowers-memory:load before dispatching subagents to understand the project context. IMPORTANT: You MUST run superpowers-memory:update after all subagents complete to capture what was built.",
   "superpowers:finishing-a-development-branch":
-    "If this development branch changed project knowledge, run superpowers-memory:update before finishing. If not, you can finish without updating the KB.",
+    "IMPORTANT: You MUST run superpowers-memory:update after finishing this branch to capture what was built.",
 };
 
 function buildPreToolUseOutput(input) {
@@ -138,57 +129,6 @@ function buildPreToolUseOutput(input) {
   }
 
   return hookPayload("PreToolUse", advisory);
-}
-
-function parseNameOnly(output) {
-  return output
-    .split(/\r?\n/)
-    .map((line) => normalizePath(line))
-    .filter(Boolean);
-}
-
-function isKnowledgeRelevant(pathname) {
-  // Trust git's own filtering (.gitignore + tracking) for everything except
-  // the knowledge base itself — its own changes should not trigger an update reminder.
-  return !pathname.startsWith(selfPrefix);
-}
-
-function getStopWarning() {
-  if (!hasKnowledgeBase() || !findIndexPath() || !isGitRepo()) {
-    return null;
-  }
-
-  const relevant = new Set();
-
-  const kbCommit = run("git", ["log", "-1", "--format=%H", "--", "docs/project-knowledge/"]);
-  const kbRevision = kbCommit.code === 0 ? kbCommit.stdout.trim() : "";
-  if (kbRevision) {
-    for (const pathname of parseNameOnly(run("git", ["diff", "--name-only", kbRevision + "..HEAD"]).stdout)) {
-      if (isKnowledgeRelevant(pathname)) relevant.add(pathname);
-    }
-  }
-
-  for (const pathname of parseNameOnly(run("git", ["diff", "--name-only"]).stdout)) {
-    if (isKnowledgeRelevant(pathname)) relevant.add(pathname);
-  }
-  for (const pathname of parseNameOnly(run("git", ["diff", "--cached", "--name-only"]).stdout)) {
-    if (isKnowledgeRelevant(pathname)) relevant.add(pathname);
-  }
-  for (const pathname of parseNameOnly(run("git", ["ls-files", "--others", "--exclude-standard"]).stdout)) {
-    if (isKnowledgeRelevant(pathname)) relevant.add(pathname);
-  }
-
-  if (relevant.size === 0) {
-    return null;
-  }
-
-  const sample = [...relevant].sort().slice(0, 3).join(" | ");
-  return (
-    "Reminder: this workspace has project changes outside docs/project-knowledge. " +
-    "If those changes affect project knowledge, run superpowers-memory:update.\n\n" +
-    "Examples: " +
-    sample
-  );
 }
 
 function buildVerifyOutput() {
@@ -265,16 +205,6 @@ async function main() {
   if (mode === "pre-tool-use") {
     const input = await readStdin();
     process.stdout.write(JSON.stringify(buildPreToolUseOutput(input), null, 2) + "\n");
-    return;
-  }
-
-  if (mode === "stop") {
-    const warning = getStopWarning();
-    if (!warning) {
-      process.stdout.write("{}\n");
-      return;
-    }
-    process.stdout.write(JSON.stringify({ systemMessage: warning }, null, 2) + "\n");
     return;
   }
 

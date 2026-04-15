@@ -12,7 +12,7 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading all 6 files.
 
-3. **Lightweight Context Injection** — `PreToolUse` hook intercepts `brainstorming`, `writing-plans`, and `finishing-a-development-branch`; reminds the agent to load KB files before planning and to run `:update` only when the finished branch actually changed project knowledge.
+3. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `:load` before planning/execution, and to run `:update` after execution completes or when finishing a development branch.
 
 4. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
 
@@ -38,8 +38,7 @@ Install via the Skill Workshop marketplace:
 | Hook | Event | Behavior |
 |------|-------|----------|
 | SessionStart | startup, clear, compact | Injects the KB index when it exists, or prompts the user to run `:rebuild` when the KB is missing |
-| Stop | Session end | Warning-only reminder when the workspace has project changes outside `docs/project-knowledge/`; it never blocks session end |
-| PreToolUse | superpowers skill invocations | Intercepts `superpowers:brainstorming`, `superpowers:writing-plans`, and `superpowers:finishing-a-development-branch`; reminds the agent to use the KB, and blocks only when the KB does not exist |
+| PreToolUse | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `:load` before work and `:update` after completion; blocks only when the KB does not exist |
 
 ## Knowledge Base Structure
 

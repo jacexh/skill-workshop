@@ -1,6 +1,6 @@
 ---
 name: update
-description: Use after completing a development branch or when prompted by Stop hook — incrementally updates project knowledge base from recent changes
+description: Use after completing a development branch — incrementally updates project knowledge base from recent changes
 ---
 
 # Update Project Knowledge
