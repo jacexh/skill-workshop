@@ -30,6 +30,29 @@ function findIndexPath() {
   return null;
 }
 
+function readCoversBranch() {
+  const indexPath = findIndexPath();
+  if (!indexPath) return null;
+  const content = fs.readFileSync(indexPath, "utf8");
+  const match = content.match(/^covers_branch:\s*(.+)$/m);
+  if (!match) return null;
+  const value = match[1].trim();
+  return value === "null" || value === "" ? null : value;
+}
+
+function getCurrentBranch() {
+  const result = run("git", ["branch", "--show-current"]);
+  return result.code === 0 ? result.stdout.trim() : null;
+}
+
+function getBaseBranch() {
+  const result = run("git", ["symbolic-ref", "refs/remotes/origin/HEAD"]);
+  if (result.code === 0) {
+    return result.stdout.trim().replace("refs/remotes/origin/", "");
+  }
+  return "main";
+}
+
 function hasKnowledgeBase() {
   return fs.existsSync(knowledgeDir);
 }
@@ -126,6 +149,27 @@ function buildPreToolUseOutput(input) {
       ? "Project knowledge base exists but the index file is missing. You MUST run superpowers-memory:rebuild before using this workflow."
       : "Project knowledge base not initialized. You MUST run superpowers-memory:rebuild before using this workflow.";
     return { decision: "block", reason };
+  }
+
+  if (skill === "superpowers:finishing-a-development-branch") {
+    const currentBranch = getCurrentBranch();
+    const baseBranch = getBaseBranch();
+
+    // On base branch — no guard needed
+    if (!currentBranch || currentBranch === baseBranch) {
+      return hookPayload("PreToolUse", advisory);
+    }
+
+    const coversBranch = readCoversBranch();
+    if (coversBranch !== currentBranch) {
+      return {
+        decision: "block",
+        reason:
+          "Project knowledge base has not been updated for this branch. " +
+          "Run superpowers-memory:update before finishing the branch. " +
+          "(covers_branch: " + (coversBranch || "null") + ", current: " + currentBranch + ")",
+      };
+    }
   }
 
   return hookPayload("PreToolUse", advisory);
