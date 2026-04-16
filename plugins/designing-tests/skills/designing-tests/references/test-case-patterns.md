@@ -12,23 +12,43 @@ Expand only when risk justifies it.
 
 ## Pattern Selection
 
-### Range or format rules
+### Equivalence Partitioning
 
-Use equivalence partitioning and boundary value analysis.
+Divide the input space into classes where all values in a class produce the same behavior. Test **one representative per class**. Testing more within the same class adds no detection value.
 
-Check:
+Typical classes for any input:
+- valid range / valid format
+- below minimum / above maximum
+- invalid type or format
+- empty / null / zero-length
 
-- valid representative
-- just-inside boundary
-- boundary
-- just-outside boundary
-- malformed or empty input
+### Boundary Value Analysis
 
-### Multi-condition decisions
+Bugs cluster at boundaries. For every valid range `[min, max]`, test these six points:
 
-Use a decision table.
+```
+min-1  (just outside lower → invalid)
+min    (lower boundary → valid)
+min+1  (just inside lower → valid)
+max-1  (just inside upper → valid)
+max    (upper boundary → valid)
+max+1  (just outside upper → invalid)
+```
 
-Do not brute-force every combination if pairwise or risk-based selection is enough.
+Always apply alongside equivalence partitioning — boundaries are the edges of equivalence classes.
+
+### Decision Table
+
+For logic controlled by multiple independent conditions, enumerate combinations to avoid missing cases.
+
+| Condition A | Condition B | Expected Outcome |
+|-------------|-------------|-----------------|
+| true        | true        | result X        |
+| true        | false       | result Y        |
+| false       | true        | error Z         |
+| false       | false       | error W         |
+
+When the number of combinations is large, use **pairwise testing** — cover every pair of condition values at least once rather than all N-way combinations.
 
 ### State machines
 
