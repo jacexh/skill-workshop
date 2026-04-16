@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-04-15
+last_updated: 2026-04-16
 updated_by: superpowers-memory:update
 triggered_by_plan: null
 ---
@@ -40,13 +40,13 @@ triggered_by_plan: null
 | Two-layer pattern directories | Global `$SP_ARCHITECT_DIR` (default `~/.claude/superpowers-architect/design-patterns/`) + project-level pattern directory; project overrides global by filename |
 | 6 reference design patterns | `database.md`, `rest-api.md`, `ddd-core.md`, `ddd-golang.md`, `ddd-python.md`, `frontend-patterns.md` |
 
-### designing-tests (v1.5.7)
+### designing-tests (v1.6.0)
 
 | Feature | Description |
 |---------|------------|
-| `designing-tests` skill | Risk-driven test design: choose narrowest real boundary, design minimal sufficient coverage, classify tests as real/shallow/fake |
-| PreToolUse hook | Intercepts `test-driven-development` skill; injects `SKILL.md` body + reference file index as additionalContext |
-| 4 reference files | `layer-selection.md`, `risk-catalog.md`, `test-case-patterns.md`, `test-quality-review.md` |
+| `designing-tests` skill | Intent-first test design: derive tests from function intent before reading implementation; test list as planning step; intent comments on every test; quality labels (real/shallow/fake); boundary selection rule |
+| PreToolUse hook (three-tier) | Intercepts 4 skills: `writing-plans` (planning tier — TDD reminder), `executing-plans` + `subagent-driven-development` (execution tier — condensed principles), `test-driven-development` (full tier — SKILL.md body + reference index) |
+| 4 reference files | `layer-selection.md`, `risk-catalog.md`, `test-case-patterns.md` (with EP/BVA/Decision Table definitions), `test-quality-review.md` |
 | Cross-platform dispatcher | `run-hook.cmd` polyglot bash/batch wrapper for Unix and Windows |
 
 ## In Progress
