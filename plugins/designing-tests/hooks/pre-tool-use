@@ -10,9 +10,17 @@ let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
 })
 " 2>/dev/null || echo "")
 
-# Only intercept TDD skill
+# Determine injection tier
 case "$skill_name" in
+    superpowers:writing-plans)
+        tier="planning"
+        ;;
+    superpowers:executing-plans|\
+    superpowers:subagent-driven-development)
+        tier="execution"
+        ;;
     superpowers:test-driven-development)
+        tier="full"
         ;;
     *)
         printf '{}\n'
@@ -20,16 +28,57 @@ case "$skill_name" in
         ;;
 esac
 
-# Build context from SKILL.md and references
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 SKILL_DIR="$PLUGIN_ROOT/skills/designing-tests"
 
-context=""
+# --- Tier: planning ---
+# Brief reminder for writing-plans to include TDD steps
+if [ "$tier" = "planning" ]; then
+    context="====== Test Design: Planning ======
+When implementation involves code changes, include test-driven development steps:
+1. Require invoking superpowers:test-driven-development for each component that needs tests.
+2. Test steps BEFORE implementation steps — write tests first, implement second.
+3. Each test step should specify: what intent to verify, which boundary (unit/integration/E2E).
+Plans for code changes without a test strategy are incomplete.
+======================================"
 
-# Read main skill guidance
-if [ -f "$SKILL_DIR/SKILL.md" ]; then
-    # Strip frontmatter, keep the guidance body
-    content=$(node -e "
+    context_json=$(node -e "console.log(JSON.stringify(process.argv[1]))" "$context" 2>/dev/null || echo '""')
+    sys_msg='"Test Design: injected planning guidance"'
+fi
+
+# --- Tier: execution ---
+# Condensed test design principles for plan execution
+if [ "$tier" = "execution" ]; then
+    context="====== Test Design: Execution Guidance ======
+When executing steps that involve writing tests, follow these rules:
+
+1. INTENT-FIRST: Derive test cases from the function's INTENT (what it should do), not its IMPLEMENTATION (how it does it). Intent sources: spec, API contract, function signature, naming, docstring, architectural role. Do NOT decide what to test by reading if/else branches.
+
+2. TEST LIST BEFORE CODE: Before writing any test code, list each planned test case: <what to test> -> <expected outcome>. Apply equivalence partitioning for ranges, boundary value analysis for limits, decision tables for multi-condition logic.
+
+3. INTENT COMMENTS: Every test MUST have a comment above it explaining what regression it protects, in the language of the test file.
+
+4. BOUNDARY SELECTION: Pick the lowest layer that catches the real bug. Do not duplicate the same check across unit/integration/E2E.
+
+5. QUALITY CHECK: A test is 'real' only if it would fail when intended behavior regresses. Tests that only check trivial shape/status are 'shallow'. Tests that reimplement business logic in assertions are 'fake'.
+
+6. MINIMUM COVERAGE: One success path + one meaningful failure path + one edge/boundary path. Expand only when risk justifies it.
+
+For full test design guidance, invoke the designing-tests:designing-tests skill.
+================================================="
+
+    context_json=$(node -e "console.log(JSON.stringify(process.argv[1]))" "$context" 2>/dev/null || echo '""')
+    sys_msg='"Test Design: injected execution guidance"'
+fi
+
+# --- Tier: full ---
+# Full SKILL.md + reference index (original behavior)
+if [ "$tier" = "full" ]; then
+    context=""
+
+    # Read main skill guidance
+    if [ -f "$SKILL_DIR/SKILL.md" ]; then
+        content=$(node -e "
 const fs=require('fs');
 const raw=fs.readFileSync(process.argv[1],'utf8');
 let body=raw;
@@ -39,18 +88,17 @@ if(raw.startsWith('---')){
 }
 console.log(body);
 " "$SKILL_DIR/SKILL.md" 2>/dev/null || true)
-    if [ -n "$content" ]; then
-        context="$content"
+        if [ -n "$content" ]; then
+            context="$content"
+        fi
     fi
-fi
 
-# Append reference summaries if they exist
-ref_dir="$SKILL_DIR/references"
-if [ -d "$ref_dir" ]; then
-    for ref in "$ref_dir"/*.md; do
-        [ -f "$ref" ] || continue
-        # Extract first heading as summary
-        summary=$(node -e "
+    # Append reference summaries
+    ref_dir="$SKILL_DIR/references"
+    if [ -d "$ref_dir" ]; then
+        for ref in "$ref_dir"/*.md; do
+            [ -f "$ref" ] || continue
+            summary=$(node -e "
 const fs=require('fs');
 const raw=fs.readFileSync(process.argv[1],'utf8');
 let body=raw;
@@ -58,33 +106,34 @@ if(raw.startsWith('---')){
   const end=raw.indexOf('---',3);
   if(end!==-1) body=raw.slice(end+3).trim();
 }
-// First heading
 const lines=body.split('\n');
-let title='',desc='';
+let title='';
 for(const l of lines){
   if(l.startsWith('#')){title=l.replace(/^#+\s*/,'');break;}
 }
 console.log('- ['+title+'] Reference: '+process.argv[1]);
 " "$ref" 2>/dev/null || true)
-        if [ -n "$summary" ]; then
-            context="$context
+            if [ -n "$summary" ]; then
+                context="$context
 $summary"
-        fi
-    done
+            fi
+        done
+    fi
+
+    if [ -z "$context" ]; then
+        printf '{}\n'
+        exit 0
+    fi
+
+    context_json=$(node -e "console.log(JSON.stringify(process.argv[1]))" "$context" 2>/dev/null || echo '""')
+    sys_msg='"Test Design: loaded full test design guidance"'
 fi
 
-if [ -z "$context" ]; then
-    printf '{}\n'
-    exit 0
-fi
-
-# Build output JSON
-context_json=$(node -e "console.log(JSON.stringify(process.argv[1]))" "$context" 2>/dev/null || echo '""')
-
+# Output JSON
 if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
-    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": %s\n  },\n  "systemMessage": "Test Design: loaded risk-driven test guidance"\n}\n' "$context_json"
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": %s\n  },\n  "systemMessage": %s\n}\n' "$context_json" "$sys_msg"
 else
-    printf '{\n  "additional_context": %s,\n  "systemMessage": "Test Design: loaded risk-driven test guidance"\n}\n' "$context_json"
+    printf '{\n  "additional_context": %s,\n  "systemMessage": %s\n}\n' "$context_json" "$sys_msg"
 fi
 
 exit 0
