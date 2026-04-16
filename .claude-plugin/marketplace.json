@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.5.11"
+    "version": "1.6.0"
   },
   "plugins": [
     {
@@ -44,7 +44,7 @@
       "name": "designing-tests",
       "source": "./plugins/designing-tests",
       "description": "Risk-driven test design guidance for choosing the right boundary, coverage, and regression-protective test cases",
-      "version": "1.5.7",
+      "version": "1.6.0",
       "author": {
         "name": "xuhao"
       },
