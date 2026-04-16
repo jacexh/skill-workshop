@@ -65,7 +65,7 @@ Always regenerate `docs/project-knowledge/index.md` in full (full overwrite — 
 
 - Re-read all existing knowledge files (including any you just updated or created)
 - Extract 1-2 key points per file that help AI decide whether to load it in full
-- Write `docs/project-knowledge/index.md` following the format in `templates/index.md`, setting `updated_by: superpowers-memory:update` and `triggered_by_plan: <plan-filename>`
+- Write `docs/project-knowledge/index.md` following the format in `templates/index.md`, setting `updated_by: superpowers-memory:update`, `triggered_by_plan: <plan-filename>`, and `covers_branch: <current-branch>` (the output of `git branch --show-current`)
 
 **Size constraint:** Keep index.md under 50 lines total.
 
