@@ -126,7 +126,7 @@ const skillAdvisory = {
   "superpowers:subagent-driven-development":
     "Run superpowers-memory:load before dispatching subagents to understand the project context. IMPORTANT: You MUST run superpowers-memory:update after all subagents complete to capture what was built.",
   "superpowers:finishing-a-development-branch":
-    "IMPORTANT: You MUST run superpowers-memory:update after finishing this branch to capture what was built.",
+    "IMPORTANT: You MUST run superpowers-memory:update for this branch before finishing it.",
 };
 
 function buildPreToolUseOutput(input) {
@@ -155,7 +155,7 @@ function buildPreToolUseOutput(input) {
     const currentBranch = getCurrentBranch();
     const baseBranch = getBaseBranch();
 
-    // On base branch — no guard needed
+    // On base branch or detached HEAD — no guard needed
     if (!currentBranch || currentBranch === baseBranch) {
       return hookPayload("PreToolUse", advisory);
     }
