@@ -6,8 +6,8 @@ description: Go implementation guide for DDD + Clean Architecture. Use when impl
 # Go Web System Architecture Guide
 ## DDD + Clean Architecture — Go Implementation
 
-**Version**: v2.1  
-**Date**: 2026-04-15  
+**Version**: v2.2  
+**Date**: 2026-04-16  
 **Scope**: Team backend service architecture standard  
 **Prerequisites**:
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
@@ -123,7 +123,8 @@ project/
 │   └── client/
 │       └── main.go              # CLI client (if applicable)
 ├── configs/
-│   └── default.yml              # Configuration, supports env var overrides
+│   ├── default.yml              # Default configuration
+│   └── default_prod.yml         # Profile-specific overrides (optional, see §9)
 ├── internal/
 │   ├── <module>/                # Bounded context (vertical slice)
 │   │   ├── domain/              # Domain layer - core business logic
@@ -626,7 +627,7 @@ import (
     "context"
 
     "connectrpc.com/connect"
-    userv1 "example.com/proto/user/v1"
+    userv1 "github.com/example/project/pkg/gen/proto/user/v1"
 )
 
 // Application implements the generated userv1connect.UserServiceHandler interface
@@ -981,6 +982,7 @@ func NewApplication(ev mediator.Mediator, ...) {
 | Error Handling | `github.com/samber/oops` |
 | Event Bus | `github.com/go-jimu/components/mediator` |
 | State Machine | `github.com/go-jimu/components/fsm` |
+| Configuration | `github.com/go-jimu/components/config` + `config/loader` |
 | Object Copying | `github.com/jinzhu/copier` |
 
 ---
@@ -1017,7 +1019,231 @@ var (
 
 ---
 
-## 9. Complete Example: Module Assembly
+## 9. Configuration Management
+
+### 9.1 Configuration Struct
+
+Define a single configuration struct with `fx.Out` embedding. Each field corresponds to an infrastructure component's configuration. `fx` automatically distributes each field to its consumer via dependency injection.
+
+```go
+// cmd/server/main.go
+package main
+
+import (
+    "github.com/go-jimu/components/config/loader"
+    "github.com/go-jimu/components/mediator"
+    "github.com/go-jimu/components/sloghelper"
+    "github.com/example/project/internal/pkg/database"
+    "github.com/example/project/internal/pkg/httpsrv"
+    "github.com/example/project/internal/pkg/grpcsrv"
+    "go.uber.org/fx"
+)
+
+// Option holds all infrastructure configuration.
+// fx.Out enables automatic distribution — each field is injected
+// into the component that declares a matching type dependency.
+type Option struct {
+    fx.Out
+    Logger     sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
+    MySQL      database.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
+    HTTPServer httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
+    GRPCServer grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
+    Eventbus   mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+}
+
+func parseOption() (Option, error) {
+    opt := new(Option)
+    err := loader.Load(opt)
+    return *opt, err
+}
+```
+
+### 9.2 Configuration Files & Profiles
+
+Configuration files are stored in the `configs/` directory. `loader.Load` automatically discovers and merges them:
+
+```
+configs/
+├── default.yml          # Base configuration (always loaded)
+└── default_prod.yml     # Profile override (loaded when JIMU_PROFILES_ACTIVE=prod)
+```
+
+Profile switching via environment variable:
+
+```bash
+export JIMU_PROFILES_ACTIVE=prod   # Loads default.yml, then default_prod.yml overrides
+```
+
+Supported formats: YAML, TOML, JSON. The file extension determines the codec.
+
+### 9.3 Environment Variable Override
+
+Environment variables do **not** automatically map to nested config keys (unlike Spring Boot's convention). Instead, use **placeholder syntax** `${VAR:default}` in config files to reference environment variables:
+
+```yaml
+# configs/default.yml
+logger:
+  level: "${LOG_LEVEL:info}"
+
+mysql:
+  dsn: "${MYSQL_DSN:root:123456@tcp(localhost:3306)/mydb}"
+
+http-server:
+  addr: "${HTTP_ADDR::8080}"
+
+grpc:
+  addr: "${GRPC_ADDR::9090}"
+
+eventbus:
+  timeout: "30s"
+  concurrent: 100
+```
+
+Loading and resolution order:
+
+1. `default.yml` — base configuration
+2. `default_<profile>.yml` — profile-specific overrides (merged on top)
+3. Environment variables — collected into a flat key-value pool
+4. **Resolve phase** — `${VAR:default}` placeholders in the merged config are expanded using the environment variable pool; if the variable is unset, the default value after `:` is used
+
+---
+
+## 10. Entry Point & Graceful Shutdown
+
+### 10.1 Entry Point
+
+Use `app.Run()` as the standard entry point. It encapsulates the full lifecycle: Start → Wait for signal (SIGINT/SIGTERM) → Stop → Exit.
+
+```go
+// cmd/server/main.go
+func main() {
+    app := fx.New(
+        fx.Provide(parseOption),
+        fx.Provide(sloghelper.NewLog),
+        fx.Provide(eventbus.NewMediator),
+        pkg.Module,
+        user.Module,
+        fx.StopTimeout(30*time.Second),
+        fx.NopLogger,
+    )
+    app.Run()
+}
+```
+
+`Run()` internally uses `app.Wait()` (not `app.Done()`), which returns `ShutdownSignal{Signal, ExitCode}` — properly propagating exit codes when a component triggers shutdown via `fx.Shutdowner`.
+
+**When to use manual Start/Wait/Stop instead**: only when you need post-shutdown logic before exit (e.g., flushing telemetry). For most services, `app.Run()` is sufficient.
+
+### 10.2 Lifecycle Hooks
+
+Components that have **in-flight work** at shutdown time must register `fx.Lifecycle` hooks to drain gracefully. Components that are pure connection pools do not need them — the OS reclaims connections on process exit.
+
+**Needs OnStop** (has in-flight work):
+
+| Component | In-flight work | OnStop action |
+|-----------|---------------|---------------|
+| HTTP Server | HTTP requests being processed | `srv.Shutdown(ctx)` — stop accepting, drain in-flight requests |
+| gRPC Server | RPC calls being processed | `server.GracefulStop()` — stop accepting, drain in-flight calls |
+| EventBus (Mediator) | Event handler goroutines running | `GracefulShutdown(ctx)` — reject new events, wait for handlers |
+| Message queue consumer | Messages being processed | Stop consuming, finish current batch |
+
+Pure connection pools (Database, Redis, HTTP Client) do not need OnStop — they have no in-flight work of their own, and the OS reclaims connections on process exit.
+
+#### Server: Listen/Serve Separation
+
+Separate `net.Listen` (synchronous, in OnStart) from `Serve` (asynchronous, in goroutine). Startup errors (e.g., port already in use) are caught immediately and cause `app.Start` to fail. OnStop drains in-flight requests before returning.
+
+```go
+// internal/pkg/httpsrv/server.go
+func NewHTTPServer(lc fx.Lifecycle, opt Option) *http.Server {
+    srv := &http.Server{Addr: opt.Addr, Handler: mux}
+
+    lc.Append(fx.Hook{
+        OnStart: func(ctx context.Context) error {
+            ln, err := net.Listen("tcp", srv.Addr)
+            if err != nil {
+                return err
+            }
+            go srv.Serve(ln)
+            return nil
+        },
+        OnStop: func(ctx context.Context) error {
+            return srv.Shutdown(ctx)
+        },
+    })
+    return srv
+}
+```
+
+gRPC Server follows the same pattern — OnStart binds listener and calls `go server.Serve(ln)`, OnStop calls `server.GracefulStop()`.
+
+#### EventBus: Drain Handler Goroutines
+
+```go
+// internal/pkg/eventbus/eventbus.go
+func NewMediator(lc fx.Lifecycle, opt mediator.Options) mediator.Mediator {
+    m := mediator.NewInMemMediator(opt)
+
+    lc.Append(fx.Hook{
+        OnStop: func(ctx context.Context) error {
+            return m.(*mediator.InMemMediator).GracefulShutdown(ctx)
+        },
+    })
+    return m
+}
+```
+
+`GracefulShutdown` marks the mediator as closed (rejecting new events), waits for all in-flight handler goroutines to complete, and respects the caller's context deadline (`fx.StopTimeout`).
+
+### 10.3 Shutdown Ordering
+
+`fx` executes OnStop hooks in **reverse order of OnStart**. The dependency graph naturally produces the correct shutdown sequence:
+
+```
+Start order (determined by dependency graph):
+  EventBus → Database → Application → Server
+
+Stop order (automatic reverse):
+  Server.OnStop        → drain in-flight requests
+                          (last requests may call Events.Raise(), dispatching final events)
+  EventBus.OnStop      → drain in-flight handler goroutines
+                          (handlers can still access Database — it has no OnStop)
+  Process exits        → OS reclaims all connections
+```
+
+Database has no OnStop hook, so it remains available throughout the entire shutdown sequence. This is by design — as long as all consumers (Server, EventBus handlers) finish their work before the process exits, the database connection pool does not need explicit cleanup.
+
+### 10.4 Kubernetes Deployment
+
+When deploying to Kubernetes, there is a **race condition** between SIGTERM delivery to the Pod and kube-proxy removing the Pod from the Service's Endpoints. During this window (typically a few seconds), new requests may still be routed to a Pod that is already shutting down.
+
+This is a **network-layer concern, not an application-layer concern**. The recommended solution is a `preStop` hook that delays SIGTERM delivery, giving kube-proxy time to complete the endpoint update:
+
+```yaml
+spec:
+  terminationGracePeriodSeconds: 60
+  containers:
+  - name: app
+    lifecycle:
+      preStop:
+        exec:
+          command: ["sleep", "5"]
+```
+
+The sequence becomes:
+
+```
+Kubernetes initiates Pod deletion
+  ├─ async: kube-proxy starts removing Pod from Endpoints
+  ├─ sync:  preStop executes → sleep 5s (app still serving normally)
+  └─ after preStop: SIGTERM → app.Run() triggers OnStop hooks → graceful shutdown
+```
+
+> **Note**: For low-traffic internal services, the impact of this race condition is minimal (a few connection-refused errors, retried by clients). The `preStop` hook is most important for high-traffic, user-facing services.
+
+---
+
+## 11. Complete Example: Module Assembly
 
 ```go
 // user.go - Module assembly (gRPC/ConnectRPC — no interfaces/ layer)
@@ -1051,7 +1277,7 @@ var Module = fx.Module(
 
 ---
 
-## 10. Key Principles Summary
+## 12. Key Principles Summary
 
 > These are the Go-specific implementations of the principles defined in [ddd-core.md §10](ddd-core.md).
 
@@ -1073,6 +1299,9 @@ var Module = fx.Module(
 16. **Interface layer is optional** — for gRPC/ConnectRPC with generated stubs, `Application` struct implements the handler interface directly in `application.go`; `interfaces/` is only needed for hand-written protocol adaptation (REST controllers, custom WebSocket handlers)
 17. **Infrastructure is for external systems only** — `infrastructure/` contains implementations that integrate with databases, caches, message queues, and third-party APIs; utility/tool packages belong in `internal/pkg/` (cross-domain), `pkg/` (public), or `internal/<domain>/pkg/` (domain-scoped)
 18. **State machine in Domain (optional)** — for aggregates with complex lifecycle (4+ states, guard conditions, multi-role flows): states, actions, conditions are business invariants defined in Domain; Aggregate Root implements `fsm.StateContext`; domain methods drive transitions via `sm.TransitionToNext()`; Infrastructure only persists `fsm.StateLabel`. Simple 2-3 state aggregates use plain enum + domain method guards instead
+19. **Configuration management** — single `Option` struct with `fx.Out` distributes config to consumers; `loader.Load` discovers files in `configs/`, supports profiles via `JIMU_PROFILES_ACTIVE`; environment variables override config values through `${VAR:default}` placeholder syntax, not automatic key mapping
+20. **Entry point uses `app.Run()`** — encapsulates Start → Wait → Stop → Exit; manual Start/Wait/Stop only when post-shutdown logic is needed before exit
+21. **Lifecycle hooks for in-flight work** — components with in-flight work (HTTP/gRPC Server, EventBus) register `fx.Lifecycle` OnStop hooks to drain gracefully; pure connection pools (Database, Redis) do not need OnStop; `fx` executes OnStop in reverse start order, determined by the dependency graph
 
 ---
 
