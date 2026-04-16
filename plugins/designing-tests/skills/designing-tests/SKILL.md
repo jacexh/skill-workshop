@@ -9,22 +9,27 @@ Design tests to catch real regressions at the lowest reliable boundary. Do not o
 
 ## Workflow
 
-1. Read the requirement source first.
-   - Prefer product spec, acceptance criteria, API contract, issue, bug report, ADR, or migration notes.
-   - If formal docs are missing, use the best available artifacts and mark assumptions explicitly.
-2. Read the implementation and the existing tests.
-   - Find the real production boundary under risk.
-   - Check what is already covered, duplicated, shallow, or fake.
-3. State the regression to catch.
-   - Write one sentence: `If <behavior breaks>, users/system will observe <failure>.`
-4. Choose the narrowest real boundary that can catch that regression.
-5. Design the minimum sufficient test set.
-   - Usually cover one main success path, one meaningful failure path, and one edge or bug-shaped path.
-6. Prefer assertions on externally visible behavior.
+1. Identify the intent of the code under test.
+   - Sources (in priority order): product spec, API contract, acceptance criteria, issue/bug report, ADR — then function signature, naming, docstring, and architectural role.
+   - If formal docs are missing, derive intent from the function's public contract (name, parameters, return type, module role). Mark inferred intent as assumptions.
+2. Generate a test list from intent — before reading implementation code.
+   - For each test, write one line: `<unit/integration/e2e>: <what to test> → <expected outcome>`
+   - Apply equivalence partitioning for ranges, boundary value analysis for limits, decision tables for multi-condition logic. See [references/test-case-patterns.md](references/test-case-patterns.md) for techniques.
+   - This is a planning step output in your response, not a file to create.
+3. Read the implementation and existing tests.
+   - Purpose: determine the real test boundary and check what is already covered, duplicated, shallow, or fake.
+   - Do NOT add or remove test cases based on implementation details discovered here. The test list from step 2 is locked.
+4. State the regression each test protects.
+   - Write one sentence per test: `If <behavior breaks>, users/system will observe <failure>.`
+5. Choose the narrowest real boundary that can catch each regression.
+6. Write test code.
+   - Each test MUST have an intent comment above it: one sentence explaining what regression this test catches, written in the language of the test file.
+   - Default minimum: one main success path, one meaningful failure path, one edge or bug-shaped path.
+7. Prefer assertions on externally visible behavior.
    - User-visible result, contract-visible state, or key side effect.
-7. Keep mocks at the system edge.
+8. Keep mocks at the system edge.
    - Do not mock the unit under test or copy the production logic into the test.
-8. Run the relevant tests and state what regression each test protects.
+9. Run the relevant tests and verify each one protects its stated regression.
 
 ## Boundary Selection Rule
 
@@ -38,21 +43,65 @@ Pick the lowest layer that still catches the real bug:
 
 If a lower layer can catch the bug with a stable signal, prefer the lower layer.
 
-## Requirement Sources
+## Intent-First Rule
 
-Good test design starts from requirements, not from implementation alone. But do not stop at the spec.
+Derive test cases from the function's **intent** (what it should do), not its **implementation** (how it does it).
 
-Use this order:
+Intent sources:
+- formal spec, API contract, acceptance criteria, issue description
+- function signature, naming, docstring
+- the function's role in the module and who calls it
 
-1. Read the requirement source
-2. Read the implementation to find the real boundary and observables
-3. Read existing tests before adding new ones
+Read implementation code only to determine the **test boundary** and check **existing coverage** — never to decide what to test.
 
-If documentation is incomplete:
+Common violations:
+- reading an `if/else` branch and writing an assert for each branch → tests the implementation, not the intent
+- copying internal logic into the test setup → the test passes by construction, not by verification
+- testing private methods directly → couples tests to implementation structure
 
-- use API schema, code comments, migration docs, PR descriptions, and current product behavior
-- mark inferred requirements as assumptions
-- avoid presenting assumptions as authoritative spec
+## Test List Format
+
+Before writing test code, output a test list in your response:
+
+```
+Test List: <function or component name>
+Intent source: <where you derived the intent from>
+
+- [ ] unit: <what to test> → <expected outcome>
+- [ ] integration: <scenario> → <expected side effect or status>
+```
+
+Example for `OrderService.place_order` (intent source: API spec — max 10 items, qty > 0):
+
+```
+- [ ] unit: valid items list → returns order with generated id
+- [ ] unit: empty items list → raises ValidationError
+- [ ] unit: item qty = 0 (boundary) → raises ValidationError
+- [ ] unit: 10 items (max boundary) → succeeds
+- [ ] unit: 11 items (above max) → raises ValidationError
+- [ ] integration: valid payload, authenticated → 201, order persisted
+- [ ] integration: unauthenticated → 401
+```
+
+This is a planning step, not a file to create.
+
+## Intent Comment Rule
+
+Every test MUST have a comment above it explaining what regression it protects. Write the comment in the language of the test file.
+
+```go
+// When order items exceed the maximum (10), placing the order should fail
+// with a validation error rather than silently truncating.
+func TestPlaceOrder_ExceedsMaxItems_ReturnsValidationError(t *testing.T) {
+```
+
+```python
+# Duplicate idempotency keys within the 5-minute window must return the
+# original order, not create a second one.
+def test_place_order_duplicate_idempotency_key_returns_same_order():
+```
+
+The comment states the **intent** (what should happen and why it matters), not the **mechanism** (what the test code does).
 
 ## Quality Labels
 
