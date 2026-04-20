@@ -11,8 +11,10 @@ description: Go implementation guide for DDD + Clean Architecture. Use when impl
 **Scope**: Team backend service architecture standard  
 **Prerequisites**:
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
-- **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`.
+- **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the consolidated principles checklist lives at [ddd-core.md §10](ddd-core.md).
 - This document is the Go implementation guide that builds on both.
+
+> **Cross-reference convention**: every section number below mirrors the corresponding `ddd-core.md` section (e.g., §3.2 here ↔ ddd-core.md §3.2). The Go guide adds only what is implementation-specific; for the full language-agnostic rationale, jump to the matching ddd-core section.
 
 ---
 
@@ -27,8 +29,6 @@ This guide combines **Domain-Driven Design (DDD)** with **Clean Architecture**, 
 3. **Vertical slicing** — Code organized by bounded context, not by technical layer
 4. **Testability** — Business logic testable without external infrastructure
 
-> For the full rationale, see [ddd-core.md §1.1](ddd-core.md).
-
 ### 1.2 Layered Architecture
 
 Three or four layers with the **Domain Layer as the core** (innermost):
@@ -36,40 +36,25 @@ Three or four layers with the **Domain Layer as the core** (innermost):
 ```
           ┌─────────────────────────────────────────────┐
           │   Interface Layer (optional — see §3.3)     │
-          │   Only needed for hand-written protocol     │
-          │   adaptation (e.g., REST controllers).      │
-          │   For gRPC/ConnectRPC with generated stubs, │
-          │   Application layer implements the stub     │
-          │   interface directly — skip this layer.     │
           └──────────────────┬──────────────────────────┘
                              │ depends on
           ┌──────────────────▼──────────────────────────┐
           │      Application Layer                      │
-          │  - Use-case orchestration,                  │
-          │    transaction management, DTOs             │
-          │  - QueryRepository interfaces (read)        │
-          │  - gRPC/ConnectRPC handler (Application      │
-          │    struct implements generated stub)        │
-          │  - Cross-aggregate coordination,            │
-          │    authorization checks                     │
+          │  Use-case orchestration, transactions,      │
+          │  DTOs, QueryRepository interfaces,          │
+          │  RPC handler (implements generated stub)    │
           └──────────────────┬──────────────────────────┘
                              │ depends on
           ┌──────────────────▼──────────────────────────┐
-          │      Domain Layer ◄─────────────────────────┼── Core. Zero external deps.
-          │  - Entities, Value Objects,                  │
-          │    Domain Services                          │
-          │  - Write Repository interfaces,             │
-          │    Domain Events                            │
+          │      Domain Layer ◄─── Core. Zero external deps.
+          │  Entities, VOs, Domain Services,            │
+          │  Write Repository interfaces, Events        │
           └─────────────────────────────────────────────┘
-                             ▲
-          ┌──────────────────┘
-          │ implements
-  ┌───────┴─────────────────────────────────────────────┐
+                             ▲ implements
+  ┌──────────────────────────┴──────────────────────────┐
   │       Infrastructure Layer                          │
-  │  - Repository implementations (DB access)           │
-  │  - External API clients, message queues, caches    │
-  │  ⚠ ONLY for external system integrations —         │
-  │    utility/tool packages go in pkg/ (see §3.4)     │
+  │  Repository impls, external API clients, MQs,       │
+  │  caches — external system integrations ONLY         │
   └─────────────────────────────────────────────────────┘
 ```
 
@@ -82,38 +67,13 @@ Three or four layers with the **Domain Layer as the core** (innermost):
 - Domain Layer has zero dependencies (no `import` of infrastructure, database, or HTTP packages)
 - Infrastructure Layer depends on Domain Layer (implements Repository interfaces) and Application Layer (implements QueryRepository interfaces)
 
-> For full dependency rules and common violations, see [ddd-core.md §1.3](ddd-core.md).
-
-```go
-// ✅ Correct: Domain defines write repository interface
-type Repository interface {
-    Get(ctx context.Context, id string) (*User, error)
-    Save(ctx context.Context, user *User) error
-}
-
-// ✅ Correct: Application defines read repository interface
-type QueryRepository interface {
-    FindByEmail(ctx context.Context, email string) (*UserDetailDTO, error)
-    List(ctx context.Context, query *QueryFindUserList) ([]*UserListDTO, int64, error)
-}
-
-// ✅ Correct: Infrastructure implements both interfaces
-type userRepository struct{ db *xorm.Engine }       // implements domain.Repository
-type userQueryRepository struct{ db *xorm.Engine }  // implements application.QueryRepository
-
-// ✅ Correct: Assembled via dependency injection
-func NewApplication(repo domain.Repository, qr QueryRepository) *Application {
-    return &Application{repo: repo, queryRepo: qr}
-}
-```
+> For full dependency rules and common violations, see [ddd-core.md §1.3](ddd-core.md). Concrete Go code shown in §3.1 / §3.2 / §3.4.
 
 ---
 
 ## 2. Directory Structure
 
 ### 2.1 Overall Layout
-
-> Corresponds to [ddd-core.md §2.1](ddd-core.md). Go-specific conventions applied.
 
 ```
 project/
@@ -126,18 +86,20 @@ project/
 │   ├── default.yml              # Default configuration
 │   └── default_prod.yml         # Profile-specific overrides (optional, see §9)
 ├── internal/
-│   ├── <module>/                # Bounded context (vertical slice)
-│   │   ├── domain/              # Domain layer - core business logic
-│   │   ├── application/         # Application layer - use-case orchestration
-│   │   ├── interfaces/          # Interface layer (optional, see §3.3)
-│   │   ├── infrastructure/      # Infrastructure layer - external system integrations ONLY
-│   │   ├── pkg/                 # Domain-scoped utilities (if needed)
-│   │   └── <module>.go          # Module assembly (fx Module)
-│   └── pkg/                     # Cross-domain shared utilities
-│       ├── eventbus/
-│       ├── database/
-│       ├── httpsrv/
-│       └── grpcsrv/
+│   ├── business/                # Business code — bounded contexts (vertical slices)
+│   │   └── <module>/            # One bounded context
+│   │       ├── domain/          # Domain layer - core business logic
+│   │       ├── application/     # Application layer - use-case orchestration
+│   │       ├── interfaces/      # Interface layer (optional, see §3.3)
+│   │       ├── infrastructure/  # Infrastructure layer - external system integrations ONLY
+│   │       ├── pkg/             # Domain-scoped utilities (if needed)
+│   │       └── <module>.go      # Module assembly (fx Module)
+│   └── pkg/                     # Infrastructure adapters — third-party libs wrapped + fx providers
+│       ├── eventbus/            # mediator wrapper + lifecycle hooks
+│       ├── database/            # XORM driver wrapper + config
+│       ├── httpsrv/             # HTTP server wrapper + lifecycle hooks
+│       ├── grpcsrv/             # gRPC server wrapper + lifecycle hooks
+│       └── module.go            # Aggregates the above into a single fx.Module("internal.pkg")
 ├── pkg/                         # Public utilities (consumable by external projects)
 │   └── gen/                     # Generated code (proto, etc.)
 ├── proto/                       # Protobuf definitions
@@ -145,12 +107,12 @@ project/
     └── sql/                     # Database migration scripts
 ```
 
+**`internal/business/` vs `internal/pkg/`** — `business/` holds bounded contexts (the DDD four-layer structure); `pkg/` holds infrastructure adapters (DB, HTTP/gRPC server, event bus, validator …). Business may depend on `pkg/`; `pkg/` must never import `internal/business/*`.
+
 ### 2.2 Bounded Context Internal Structure
 
-> Corresponds to [ddd-core.md §2.2](ddd-core.md).
-
 ```
-internal/user/                   # User bounded context
+internal/business/user/          # User bounded context
 ├── domain/                      # Domain layer - PURE, zero external dependencies
 │   ├── user.go                  # Aggregate Root + Entity
 │   ├── valueobject.go           # Value Objects (Email, Password, etc.)
@@ -197,8 +159,6 @@ internal/user/                   # User bounded context
 ### 3.1 Domain Layer
 
 **Role**: Core business logic, independent of frameworks, databases, and UI.
-
-> For the full specification, see [ddd-core.md §3.1](ddd-core.md).
 
 **Contents**:
 - **Aggregate Root**: Guardian of business invariants
@@ -250,94 +210,54 @@ When an Aggregate Root has a complex lifecycle with multiple state transitions a
 - **Infrastructure only persists `fsm.StateLabel`** — it does not know about transition rules or conditions
 
 ```go
-// domain/order.go
+// domain/order.go — minimal viable shape; replicate the same idiom for additional states / transitions
 package domain
 
 import "github.com/go-jimu/components/fsm"
 
-// State labels
 const (
-    OrderStatePending   fsm.StateLabel = "pending"
-    OrderStatePaid      fsm.StateLabel = "paid"
-    OrderStateShipped   fsm.StateLabel = "shipped"
-    OrderStateCancelled fsm.StateLabel = "cancelled"
+    OrderStatePending fsm.StateLabel = "pending"
+    OrderStatePaid    fsm.StateLabel = "paid"
+    OrderActionPay    fsm.Action     = "pay"
 )
 
-// Actions
-const (
-    OrderActionPay    fsm.Action = "pay"
-    OrderActionShip   fsm.Action = "ship"
-    OrderActionCancel fsm.Action = "cancel"
-)
-
-// State machine definition — called once during module initialization
 func NewOrderStateMachine() fsm.StateMachine {
     sm := fsm.NewStateMachine("order")
+    sm.RegisterStateBuilder(OrderStatePending, func() fsm.State { return fsm.NewSimpleState(OrderStatePending) })
+    sm.RegisterStateBuilder(OrderStatePaid, func() fsm.State { return fsm.NewSimpleState(OrderStatePaid) })
 
-    sm.RegisterStateBuilder(OrderStatePending, func() fsm.State {
-        return fsm.NewSimpleState(OrderStatePending)
+    // Transition with a business guard
+    sm.AddTransition(OrderStatePending, OrderStatePaid, OrderActionPay, func(sc fsm.StateContext) bool {
+        return sc.(*Order).TotalAmount > 0
     })
-    sm.RegisterStateBuilder(OrderStatePaid, func() fsm.State {
-        return fsm.NewSimpleState(OrderStatePaid)
-    })
-    sm.RegisterStateBuilder(OrderStateShipped, func() fsm.State {
-        return fsm.NewSimpleState(OrderStateShipped)
-    })
-    sm.RegisterStateBuilder(OrderStateCancelled, func() fsm.State {
-        return fsm.NewSimpleState(OrderStateCancelled)
-    })
-
-    // Transitions
-    sm.AddTransition(OrderStatePending, OrderStatePaid, OrderActionPay, nil)
-    sm.AddTransition(OrderStatePending, OrderStateCancelled, OrderActionCancel, nil)
-    sm.AddTransition(OrderStatePaid, OrderStateShipped, OrderActionShip, func(sc fsm.StateContext) bool {
-        order := sc.(*Order)
-        return order.ShippingAddress != "" // Guard: must have shipping address
-    })
-    sm.AddTransition(OrderStatePaid, OrderStateCancelled, OrderActionCancel, nil)
-
     if err := sm.Check(); err != nil {
-        panic(err) // Fail fast on invalid state machine definition
+        panic(err) // Fail fast on invalid definition
     }
     return sm
 }
 
 // Order Aggregate Root implements fsm.StateContext
 type Order struct {
-    ID              string
-    Status          fsm.State               // Current state
-    ShippingAddress string
-    Events          mediator.EventCollection
-    Version         int
+    ID          string
+    Status      fsm.State
+    TotalAmount int64
+    Events      mediator.EventCollection
+    Version     int
 }
 
-func (o *Order) CurrentState() fsm.State {
-    return o.Status
-}
+func (o *Order) CurrentState() fsm.State { return o.Status }
 
 func (o *Order) TransitionTo(next fsm.State, by fsm.Action) error {
     prev := o.Status.Label()
     next.SetContext(o)
     o.Status = next
-
-    // State transition triggers domain event
-    o.Events.Add(EventOrderStatusChanged{
-        ID:   o.ID,
-        From: string(prev),
-        To:   string(next.Label()),
-    })
+    o.Events.Add(EventOrderStatusChanged{ID: o.ID, From: string(prev), To: string(next.Label())})
     return nil
 }
 
-// Domain method: uses state machine, never manipulates Status directly
+// Domain method drives transition via the FSM — never mutates Status directly
 func (o *Order) Pay() error {
-    sm := fsm.MustGetStateMachine("order")
-    return sm.TransitionToNext(o, OrderActionPay)
-}
-
-func (o *Order) Ship() error {
-    sm := fsm.MustGetStateMachine("order")
-    return sm.TransitionToNext(o, OrderActionShip)
+    return fsm.MustGetStateMachine("order").TransitionToNext(o, OrderActionPay)
 }
 ```
 
@@ -349,13 +269,12 @@ import "github.com/go-jimu/components/mediator"
 
 // Event kind constants
 const (
-    EventKindUserCreated      mediator.EventKind = "user.created"
-    EventKindPasswordChanged  mediator.EventKind = "user.password_changed"
-    EventKindUserActivated    mediator.EventKind = "user.activated"
+    EventKindUserCreated     mediator.EventKind = "user.created"
+    EventKindPasswordChanged mediator.EventKind = "user.password_changed"
 )
 
-// Domain events: implement mediator.Event interface (Kind() method)
-// Rich Event style: carry ID + minimum necessary fields
+// Domain events implement mediator.Event (Kind() method).
+// Rich Event style: carry ID + minimum necessary fields.
 type EventUserCreated struct {
     ID    string
     Name  string
@@ -364,17 +283,9 @@ type EventUserCreated struct {
 
 func (e EventUserCreated) Kind() mediator.EventKind { return EventKindUserCreated }
 
-type EventPasswordChanged struct {
-    ID string
-}
+type EventPasswordChanged struct{ ID string }
 
 func (e EventPasswordChanged) Kind() mediator.EventKind { return EventKindPasswordChanged }
-
-type EventUserActivated struct {
-    ID string
-}
-
-func (e EventUserActivated) Kind() mediator.EventKind { return EventKindUserActivated }
 ```
 
 ```go
@@ -484,19 +395,6 @@ func (u *User) ChangePassword(oldRaw, newRaw string) error {
     return nil
 }
 
-// Domain Method: Activate user
-func (u *User) Activate() error {
-    if u.Status == UserStatusActive {
-        return nil
-    }
-
-    u.Status = UserStatusActive
-    u.UpdatedAt = time.Now()
-
-    u.Events.Add(EventUserActivated{ID: u.ID})
-    return nil
-}
-
 // Repository Interface (write repository, defined in Domain layer)
 //go:generate mockery --name=Repository --case=snake
 type Repository interface {
@@ -508,8 +406,6 @@ type Repository interface {
 ### 3.2 Application Layer
 
 **Role**: Orchestrate domain objects to fulfill use cases; define transaction boundaries.
-
-> For the full specification, see [ddd-core.md §3.2](ddd-core.md).
 
 **Contents**:
 - **Application Service**: Use-case orchestration, coordinating multiple aggregates/domain services
@@ -541,14 +437,6 @@ type Repository interface {
 // application/command.go
 package application
 
-import (
-    "context"
-    "log/slog"
-
-    "github.com/go-jimu/components/mediator"
-    "github.com/samber/oops"
-)
-
 // Command definition
 type CommandChangePassword struct {
     ID          string
@@ -556,24 +444,17 @@ type CommandChangePassword struct {
     NewPassword string
 }
 
-// Command Handler (lives in command.go alongside the command definition)
+// Command Handler — canonical 4-step orchestration:
+// Load aggregate → invoke domain method → Save → dispatch events.
 type CommandChangePasswordHandler struct {
     repo domain.Repository
 }
 
-func NewCommandChangePasswordHandler(repo domain.Repository) *CommandChangePasswordHandler {
-    return &CommandChangePasswordHandler{repo: repo}
-}
-
-func (h *CommandChangePasswordHandler) Handle(
-    ctx context.Context,
-    logger *slog.Logger,
-    cmd *CommandChangePassword,
-) error {
+func (h *CommandChangePasswordHandler) Handle(ctx context.Context, cmd *CommandChangePassword) error {
     // 1. Load aggregate
     user, err := h.repo.Get(ctx, cmd.ID)
     if err != nil {
-        return oops.With("user_id", cmd.ID).Wrap(err)
+        return err
     }
 
     // 2. Execute business logic (in Domain layer)
@@ -583,11 +464,10 @@ func (h *CommandChangePasswordHandler) Handle(
 
     // 3. Persist
     if err = h.repo.Save(ctx, user); err != nil {
-        return oops.With("user_id", cmd.ID).Wrap(err)
+        return err
     }
 
     // 4. Dispatch domain events after successful persist
-    //    (Raise is one-time; internally guarantees no duplicate dispatch)
     user.Events.Raise(mediator.Default())
     return nil
 }
@@ -595,27 +475,12 @@ func (h *CommandChangePasswordHandler) Handle(
 
 ### 3.3 Interface Layer (Optional)
 
-**Role**: Adapt external protocols that require hand-written routing and request/response mapping (e.g., REST with chi/gin).
+**Role**: Adapt external protocols that require hand-written routing and request/response mapping (e.g., REST with chi/gin/echo, custom WebSocket handlers). In Go this layer is named `interfaces/` rather than ddd-core's `adapter/`.
 
-> For the full specification, see [ddd-core.md §3.3 "Adapter Layer"](ddd-core.md). In Go, this layer is named `interfaces/` rather than `adapter/`.
+**Skip this layer for gRPC / ConnectRPC.** The code generator emits a handler interface (e.g., `userv1connect.UserServiceHandler`) — the `Application` struct implements it directly, and a separate `interfaces/` directory only adds indirection.
 
-**When to use `interfaces/`**:
-- REST APIs with hand-written routing (chi, gin, echo)
-- Custom WebSocket handlers
-- Any protocol where you manually define request/response mapping
-
-**When to skip `interfaces/` (use Application layer instead)**:
-- **gRPC / ConnectRPC**: The code generator produces a handler interface (e.g., `ExecutorServiceHandler`). The Application layer struct directly implements this interface — there is no routing or protocol adaptation to write by hand, so a separate `interfaces/` directory adds an unnecessary indirection layer.
-
-**Contents** (when used):
-- **HTTP Handler**: REST API handling
-- **Request/Response**: Protocol-specific data structures
-- **Input validation**: Basic format validation (business validation belongs in Domain)
-
-**Constraints**:
-- Depends only on Application and Domain layers
-- No business logic
-- Handles protocol details (HTTP status codes, etc.)
+**Contents (when used)**: HTTP handler, request/response structs, input format validation (business validation belongs in Domain).
+**Constraints**: depends only on Application and Domain; no business logic; owns protocol details (status codes, error mapping).
 
 #### gRPC/ConnectRPC: Application struct implements the generated stub directly
 
@@ -630,31 +495,20 @@ import (
     userv1 "github.com/example/project/pkg/gen/proto/user/v1"
 )
 
-// Application implements the generated userv1connect.UserServiceHandler interface
-// directly — no separate interfaces/ layer or sub-package needed.
-
+// Thin protocol adapter — translate request, delegate to the §3.2
+// Command handler, map errors back to connect codes.
 func (app *Application) ChangePassword(
     ctx context.Context,
     req *connect.Request[userv1.ChangePasswordRequest],
 ) (*connect.Response[userv1.ChangePasswordResponse], error) {
-    // 1. Load aggregate
-    user, err := app.repo.Get(ctx, req.Msg.UserId)
+    err := app.changePasswordHandler.Handle(ctx, &CommandChangePassword{
+        ID:          req.Msg.UserId,
+        OldPassword: req.Msg.OldPassword,
+        NewPassword: req.Msg.NewPassword,
+    })
     if err != nil {
         return nil, convertError(err)
     }
-
-    // 2. Execute business logic (in Domain layer)
-    if err = user.ChangePassword(req.Msg.OldPassword, req.Msg.NewPassword); err != nil {
-        return nil, convertError(err)
-    }
-
-    // 3. Persist
-    if err = app.repo.Save(ctx, user); err != nil {
-        return nil, convertError(err)
-    }
-
-    // 4. Dispatch domain events after successful persist
-    user.Events.Raise(mediator.Default())
     return connect.NewResponse(&userv1.ChangePasswordResponse{}), nil
 }
 
@@ -690,8 +544,6 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 
 **Role**: Implement Domain/Application-layer interfaces that integrate with **external systems** (databases, caches, message queues, third-party APIs).
 
-> For the full specification, see [ddd-core.md §3.4](ddd-core.md).
-
 **Contents** (external system integrations ONLY):
 - **Repository Implementation**: Database access implementation
 - **Data Object (DO)**: ORM models
@@ -703,9 +555,9 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 **What does NOT belong in Infrastructure**:
 - Utility/tool packages (CLI wrappers, parsers, helpers) — these are not external system integrations
 - Place them according to scope:
-  - `internal/pkg/` — cross-domain shared utilities
+  - `internal/pkg/` — cross-domain shared infrastructure adapters
   - `pkg/` — public utilities consumable by external projects
-  - `internal/<domain>/pkg/` — utilities scoped to a single domain
+  - `internal/business/<domain>/pkg/` — utilities scoped to a single domain
 
 **Constraints**:
 - Implements Repository interfaces (Domain layer) and QueryRepository interfaces (Application layer)
@@ -756,7 +608,7 @@ import (
     "xorm.io/xorm"
     "github.com/samber/oops"
 
-    "github.com/example/project/internal/user/domain"
+    "github.com/example/project/internal/business/user/domain"
 )
 
 // Compile-time interface check
@@ -830,29 +682,25 @@ func convertToDO(user *domain.User) *UserDO {
 
 ## 4. DDD Tactical Design Reference
 
-> Corresponds to [ddd-core.md §4](ddd-core.md).
-
-| DDD Concept | Layer | Go Implementation | Notes |
-|-------------|-------|-------------------|-------|
-| **Aggregate** | Domain | `struct` + domain methods + `mediator.EventCollection` | Aggregate root, enforces business invariants |
-| **Entity** | Domain | `struct` with ID | Unique identity, mutable |
-| **Value Object** | Domain | Immutable `struct` | Equality by value, no identity |
-| **Domain Service** | Domain | Stateless function / struct | Cross-aggregate logic |
-| **State Machine** | Domain (definition) | `fsm.StateMachine` + `fsm.StateContext` | Aggregate lifecycle; global registration; Domain methods drive transitions |
-| **Repository** | Domain (interface) + Infra (impl) | Interface + Impl | Write repository, aggregate persistence |
-| **Query Repository** | Application (interface) + Infra (impl) | Interface + Impl | Read repository, returns DTOs, bypasses Domain |
-| **Domain Event** | Domain | `Event` struct implementing `mediator.Event` | Records significant domain occurrences |
-| **Application Service** | Application | Use-case orchestration | Coordinates aggregates/services, owns transaction boundary |
-| **Event Handler** | Application | `mediator.EventHandler` impl | Consumes domain events; idempotent; owns its own transaction |
-| **DTO** | Application / Interface | Data transfer struct | Decouples internal and external models |
-| **Factory** | Domain | Constructor / independent Factory struct | Complex object creation logic |
-| **CQRS** | Application | Command + Query separation | Command and Query responsibility segregation |
+| DDD Concept | Layer | Go Implementation |
+|-------------|-------|-------------------|
+| **Aggregate** | Domain | `struct` + domain methods + `mediator.EventCollection` |
+| **Entity** | Domain | `struct` with ID |
+| **Value Object** | Domain | Immutable `struct` |
+| **Domain Service** | Domain | Stateless function / struct |
+| **State Machine** | Domain (definition) | `fsm.StateMachine` + `fsm.StateContext` |
+| **Repository** | Domain (interface) + Infra (impl) | Interface + Impl |
+| **Query Repository** | Application (interface) + Infra (impl) | Interface + Impl |
+| **Domain Event** | Domain | `Event` struct implementing `mediator.Event` |
+| **Application Service** | Application | Use-case orchestration |
+| **Event Handler** | Application | `mediator.EventHandler` impl |
+| **DTO** | Application / Interface | Data transfer struct |
+| **Factory** | Domain | Constructor / independent Factory struct |
+| **CQRS** | Application | Command + Query separation |
 
 ---
 
 ## 5. Cross-Context Communication
-
-> For the full specification, see [ddd-core.md §5](ddd-core.md).
 
 ### 5.1 Direct Calls Are Prohibited
 
@@ -869,64 +717,27 @@ func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderComman
 
 ### 5.2 Communicate via Domain Events
 
+Producer side: nothing special — after `Save()`, the producing context's Application Service calls `order.Events.Raise(mediator.Default())` (canonical 4-step flow, §3.3). Consumer side lives in the **subscribing** context's `application/handler.go`:
+
 ```go
-// ✅ Correct: Decoupled via event bus
-
-// Order context publishes event
-func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderCommand) error {
-    order, err := domain.NewOrder(cmd.UserID, cmd.Items)
-    if err != nil {
-        return err
-    }
-
-    if err = s.repo.Save(ctx, order); err != nil {
-        return err
-    }
-
-    // Dispatch events after successful persist
-    order.Events.Raise(mediator.Default())
-    return nil
-}
-
-// User context subscribes to event
-func NewUserPointsHandler(repo domain.Repository) *UserPointsHandler {
-    return &UserPointsHandler{repo: repo}
-}
+// internal/business/user/application/handler.go — User context subscribes to Order's event
+type UserPointsHandler struct{ repo domain.Repository }
 
 func (h *UserPointsHandler) Listening() []mediator.EventKind {
-    return []mediator.EventKind{domain.EventKindOrderCompleted}
+    return []mediator.EventKind{orderdomain.EventKindOrderCompleted}
 }
 
 func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
-    ev := event.(domain.EventOrderCompleted)
-    // Add user points
-    user, err := h.repo.Get(ctx, ev.UserID)
-    if err != nil {
-        slog.ErrorContext(ctx, "failed to get user", slog.Any("error", err))
-        return
-    }
-    user.AddPoints(ev.TotalAmount / 10)
-    if err = h.repo.Save(ctx, user); err != nil {
-        slog.ErrorContext(ctx, "failed to save user", slog.Any("error", err))
-    }
+    // Idempotent side effect; owns its own transaction; logs and returns on failure
+    // — never propagates errors back to the producer.
 }
 
-// Subscribe events (during module initialization)
-func NewApplication(ev mediator.Mediator, ...) {
-    handlers := []mediator.EventHandler{
-        NewUserPointsHandler(repo),
-    }
-    for _, h := range handlers {
-        ev.Subscribe(h)
-    }
-}
+// Wire in the module's NewApplication: ev.Subscribe(NewUserPointsHandler(repo))
 ```
 
 ---
 
 ## 6. Naming Conventions
-
-> Applies Go casing conventions (PascalCase for exports) to the conceptual names defined in [ddd-core.md §7](ddd-core.md).
 
 ### 6.1 General Rules
 
@@ -989,8 +800,6 @@ func NewApplication(ev mediator.Mediator, ...) {
 
 ## 8. Error Handling
 
-> For the full specification, see [ddd-core.md §8](ddd-core.md).
-
 ### 8.1 Per-Layer Strategy
 
 | Layer | Approach |
@@ -1021,21 +830,66 @@ var (
 
 ## 9. Configuration Management
 
-### 9.1 Configuration Struct
+### 9.1 Option Declaration Convention
 
-Define a single configuration struct with `fx.Out` embedding. Each field corresponds to an infrastructure component's configuration. `fx` automatically distributes each field to its consumer via dependency injection.
+Each component owns its `Option`; the top-level `main` only aggregates and distributes. Three rules:
+
+1. **Component-owned `Option`** — Every fx-provided component declares its own `Option` struct in **its own package** (alongside `NewXxx`, or in a sibling `option.go`). Fields carry `json/yaml/toml` tags so the loader can map config files into them.
+2. **Constructor consumes `Option` directly** — Signature pattern: `NewXxx(lc fx.Lifecycle, opt Option, ...) (*Xxx, error)`. The component does not know where `Option` came from; `fx` injects it.
+3. **Top-level only aggregates** — `cmd/server/main.go` declares one `Option` struct embedding `fx.Out`, with **one field per component**. Field tags map to top-level YAML keys. Never inline a component's leaf fields (host, port, dsn …) into the top-level struct — those belong inside the component's package.
+
+**Business modules follow the same rule.** If a bounded context needs runtime config (e.g., `user.MaxLoginAttempts`), declare `user.Option` in `internal/business/user/option.go` and add a `User user.Option` field to the top-level `Option`.
+
+**Example — adding a Redis client.** Declare `Option` next to the constructor:
+
+```go
+// internal/pkg/redis/redis.go
+package redis
+
+import (
+    "context"
+
+    "github.com/redis/go-redis/v9"
+    "go.uber.org/fx"
+)
+
+type Option struct {
+    Addr     string `json:"addr" yaml:"addr" toml:"addr"`
+    Password string `json:"password" yaml:"password" toml:"password"`
+    DB       int    `json:"db" yaml:"db" toml:"db"`
+}
+
+func NewClient(lc fx.Lifecycle, opt Option) *redis.Client {
+    client := redis.NewClient(&redis.Options{
+        Addr: opt.Addr, Password: opt.Password, DB: opt.DB,
+    })
+    lc.Append(fx.Hook{
+        OnStop: func(ctx context.Context) error { return client.Close() },
+    })
+    return client
+}
+```
+
+Then: register `fx.Provide(redis.NewClient)` in `internal/pkg/module.go`, add a `Redis redis.Option` field (with `yaml:"redis"` tag) to the top-level `Option` in `cmd/server/main.go` (see §9.2), and add a `redis:` block to `configs/default.yml`. The component never imports anything from `cmd/`, and `main` never imports `redis.Client` — `fx` wires both ends through the typed `Option`.
+
+### 9.2 Aggregate Configuration in `main`
+
+The aggregate `Option` lives in `cmd/server/main.go`. It embeds `fx.Out` so each field is automatically injected into the component declaring a matching type dependency. Load it once at startup, log it (success or failure), and hand it to `fx.Supply` — no helper function needed. Always log the resolved config so problems are diagnosable from a single line.
 
 ```go
 // cmd/server/main.go
 package main
 
 import (
+    "log/slog"
+    "os"
+
     "github.com/go-jimu/components/config/loader"
     "github.com/go-jimu/components/mediator"
     "github.com/go-jimu/components/sloghelper"
     "github.com/example/project/internal/pkg/database"
-    "github.com/example/project/internal/pkg/httpsrv"
     "github.com/example/project/internal/pkg/grpcsrv"
+    "github.com/example/project/internal/pkg/httpsrv"
     "go.uber.org/fx"
 )
 
@@ -1051,14 +905,27 @@ type Option struct {
     Eventbus   mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
 }
 
-func parseOption() (Option, error) {
-    opt := new(Option)
-    err := loader.Load(opt)
-    return *opt, err
+func main() {
+    var opt Option
+    err := loader.Load(&opt)
+    // Always log the resolved config — even on partial failure it helps diagnose.
+    slog.Info("load config", slog.Any("config", opt))
+    if err != nil {
+        slog.Error("load config failed", slog.Any("error", err))
+        os.Exit(1)
+    }
+
+    app := fx.New(
+        fx.Supply(opt),  // distributes every field via fx.Out
+        // ... other providers and modules (see §10.1)
+    )
+    app.Run()
 }
 ```
 
-### 9.2 Configuration Files & Profiles
+> The bootstrap log uses slog's default handler (the configured logger from `sloghelper.NewLog` is not yet wired). That is expected — keep it; it is the only signal you have if `fx` itself fails to start.
+
+### 9.3 Configuration Files & Profiles
 
 Configuration files are stored in the `configs/` directory. `loader.Load` automatically discovers and merges them:
 
@@ -1076,7 +943,7 @@ export JIMU_PROFILES_ACTIVE=prod   # Loads default.yml, then default_prod.yml ov
 
 Supported formats: YAML, TOML, JSON. The file extension determines the codec.
 
-### 9.3 Environment Variable Override
+### 9.4 Environment Variable Override
 
 Environment variables do **not** automatically map to nested config keys (unlike Spring Boot's convention). Instead, use **placeholder syntax** `${VAR:default}` in config files to reference environment variables:
 
@@ -1112,22 +979,19 @@ Loading and resolution order:
 
 ### 10.1 Entry Point
 
-Use `app.Run()` as the standard entry point. It encapsulates the full lifecycle: Start → Wait for signal (SIGINT/SIGTERM) → Stop → Exit.
+Use `app.Run()` as the standard entry point — it encapsulates Start → Wait for SIGINT/SIGTERM → Stop → Exit. The full `main()` (with config loading and bootstrap logging) is in §9.2; the module wiring inside `fx.New` is what differs per service:
 
 ```go
-// cmd/server/main.go
-func main() {
-    app := fx.New(
-        fx.Provide(parseOption),
-        fx.Provide(sloghelper.NewLog),
-        fx.Provide(eventbus.NewMediator),
-        pkg.Module,
-        user.Module,
-        fx.StopTimeout(30*time.Second),
-        fx.NopLogger,
-    )
-    app.Run()
-}
+app := fx.New(
+    fx.Supply(opt),                  // distributes every field via fx.Out (see §9.2)
+    fx.Provide(sloghelper.NewLog),
+    fx.Provide(eventbus.NewMediator),
+    pkg.Module,                      // infrastructure adapters (internal/pkg)
+    user.Module,                     // bounded contexts (internal/business/<module>)
+    fx.StopTimeout(30*time.Second),
+    fx.NopLogger,
+)
+app.Run()
 ```
 
 `Run()` internally uses `app.Wait()` (not `app.Done()`), which returns `ShutdownSignal{Signal, ExitCode}` — properly propagating exit codes when a component triggers shutdown via `fx.Shutdowner`.
@@ -1175,7 +1039,7 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option) *http.Server {
 }
 ```
 
-gRPC Server follows the same pattern — OnStart binds listener and calls `go server.Serve(ln)`, OnStop calls `server.GracefulStop()`.
+gRPC Server follows the same pattern: OnStart binds listener + `go server.Serve(ln)`; OnStop calls `server.GracefulStop()`.
 
 #### EventBus: Drain Handler Goroutines
 
@@ -1183,17 +1047,16 @@ gRPC Server follows the same pattern — OnStart binds listener and calls `go se
 // internal/pkg/eventbus/eventbus.go
 func NewMediator(lc fx.Lifecycle, opt mediator.Options) mediator.Mediator {
     m := mediator.NewInMemMediator(opt)
-
     lc.Append(fx.Hook{
         OnStop: func(ctx context.Context) error {
+            // marks mediator closed, waits for in-flight handler goroutines,
+            // honors fx.StopTimeout via ctx
             return m.(*mediator.InMemMediator).GracefulShutdown(ctx)
         },
     })
     return m
 }
 ```
-
-`GracefulShutdown` marks the mediator as closed (rejecting new events), waits for all in-flight handler goroutines to complete, and respects the caller's context deadline (`fx.StopTimeout`).
 
 ### 10.3 Shutdown Ordering
 
@@ -1246,62 +1109,28 @@ Kubernetes initiates Pod deletion
 ## 11. Complete Example: Module Assembly
 
 ```go
-// user.go - Module assembly (gRPC/ConnectRPC — no interfaces/ layer)
+// user.go - Module assembly
 package user
 
 import (
     "go.uber.org/fx"
 
-    "github.com/example/project/internal/user/application"
-    "github.com/example/project/internal/user/infrastructure/persistence"
+    "github.com/example/project/internal/business/user/application"
+    "github.com/example/project/internal/business/user/infrastructure/persistence"
     userv1connect "github.com/example/project/pkg/gen/proto/user/v1/userv1connect"
 )
 
 var Module = fx.Module(
     "domain.user",
-    // Infrastructure layer — external system integrations
     fx.Provide(persistence.NewRepository),
     fx.Provide(persistence.NewQueryRepository),
-
-    // Application layer — use-case orchestration + gRPC handler
-    // Application directly implements userv1connect.UserServiceHandler
     fx.Provide(application.NewApplication),
-
-    // Route registration
     fx.Invoke(func(app *application.Application, mux *http.ServeMux) {
         path, handler := userv1connect.NewUserServiceHandler(app)
         mux.Handle(path, handler)
     }),
 )
 ```
-
----
-
-## 12. Key Principles Summary
-
-> These are the Go-specific implementations of the principles defined in [ddd-core.md §10](ddd-core.md).
-
-1. **Domain layer has zero dependencies** — no `import` of infrastructure, database, or HTTP packages
-2. **Vertical slicing** — organize by bounded context, not by technical layer
-3. **Dependency inversion** — Domain defines write Repository interfaces; Application defines read QueryRepository interfaces; Infrastructure implements both
-4. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
-5. **State encapsulation** — all state changes go through domain methods; direct field mutation is prohibited
-6. **ID generation in Domain** — use UUID/ULID; database auto-increment IDs are prohibited
-7. **Event-driven cross-context communication** — via domain events; direct calls prohibited; Rich Event style (ID + minimum necessary fields)
-8. **Event collection** — aggregates collect events via `mediator.EventCollection`; Application calls `Events.Raise(mediator)` after successful `Save()` to dispatch
-9. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return DTOs
-10. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
-11. **Repository collection semantics** — `Save()` covers create, update, and state-driven soft delete; never split by SQL operation type
-12. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
-13. **Optimistic locking** — Infrastructure increments `version` via SQL; Domain holds Version as a read-only token; always reload after `Save()`
-14. **Event dispatch timing** — dispatch after successful persist, never before
-15. **Program to interfaces** — depend on interfaces; assemble via `fx` dependency injection
-16. **Interface layer is optional** — for gRPC/ConnectRPC with generated stubs, `Application` struct implements the handler interface directly in `application.go`; `interfaces/` is only needed for hand-written protocol adaptation (REST controllers, custom WebSocket handlers)
-17. **Infrastructure is for external systems only** — `infrastructure/` contains implementations that integrate with databases, caches, message queues, and third-party APIs; utility/tool packages belong in `internal/pkg/` (cross-domain), `pkg/` (public), or `internal/<domain>/pkg/` (domain-scoped)
-18. **State machine in Domain (optional)** — for aggregates with complex lifecycle (4+ states, guard conditions, multi-role flows): states, actions, conditions are business invariants defined in Domain; Aggregate Root implements `fsm.StateContext`; domain methods drive transitions via `sm.TransitionToNext()`; Infrastructure only persists `fsm.StateLabel`. Simple 2-3 state aggregates use plain enum + domain method guards instead
-19. **Configuration management** — single `Option` struct with `fx.Out` distributes config to consumers; `loader.Load` discovers files in `configs/`, supports profiles via `JIMU_PROFILES_ACTIVE`; environment variables override config values through `${VAR:default}` placeholder syntax, not automatic key mapping
-20. **Entry point uses `app.Run()`** — encapsulates Start → Wait → Stop → Exit; manual Start/Wait/Stop only when post-shutdown logic is needed before exit
-21. **Lifecycle hooks for in-flight work** — components with in-flight work (HTTP/gRPC Server, EventBus) register `fx.Lifecycle` OnStop hooks to drain gracefully; pure connection pools (Database, Redis) do not need OnStop; `fx` executes OnStop in reverse start order, determined by the dependency graph
 
 ---
 
