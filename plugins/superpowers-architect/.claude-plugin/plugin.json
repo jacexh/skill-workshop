@@ -1,7 +1,7 @@
 {
   "name": "superpowers-architect",
   "description": "Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows",
-  "version": "1.5.11",
+  "version": "1.6.1",
   "author": {
     "name": "xuhao"
   },
