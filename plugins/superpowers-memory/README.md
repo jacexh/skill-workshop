@@ -38,7 +38,7 @@ Install via the Skill Workshop marketplace:
 | Hook | Event | Behavior |
 |------|-------|----------|
 | SessionStart | startup, clear, compact | Injects the KB index when it exists, or prompts the user to run `:rebuild` when the KB is missing |
-| PreToolUse | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `:load` before work and `:update` after completion; blocks only when the KB does not exist |
+| PreToolUse | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `:load` before work and `:update` before finishing a branch; blocks when the KB does not exist, or when finishing a branch whose `covers_branch` (branch name + HEAD SHA) does not match current `HEAD` |
 
 ## Knowledge Base Structure
 

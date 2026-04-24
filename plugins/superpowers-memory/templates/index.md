@@ -2,7 +2,7 @@
 last_updated: YYYY-MM-DD
 updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
-covers_branch: null
+covers_branch: <branch>@<short-sha>
 ---
 
 # Project Knowledge Index

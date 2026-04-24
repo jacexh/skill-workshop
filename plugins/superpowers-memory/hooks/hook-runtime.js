@@ -4,7 +4,22 @@ const path = require("path");
 const cp = require("child_process");
 
 const mode = process.argv[2];
-const repoRoot = process.cwd();
+
+// Resolve repoRoot to the worktree top-level so the hook reads the correct
+// docs/project-knowledge/ when invoked from a subdir or a linked worktree.
+// Falls back to process.cwd() if git is unavailable or the dir is not a repo.
+function resolveRepoRoot() {
+  const result = cp.spawnSync("git", ["rev-parse", "--show-toplevel"], {
+    cwd: process.cwd(),
+    encoding: "utf8",
+    timeout: 5000,
+  });
+  if (result.status === 0 && result.stdout.trim()) {
+    return result.stdout.trim();
+  }
+  return process.cwd();
+}
+const repoRoot = resolveRepoRoot();
 const knowledgeDir = path.join(repoRoot, "docs", "project-knowledge");
 
 function run(command, args) {
@@ -37,12 +52,29 @@ function readCoversBranch() {
   const match = content.match(/^covers_branch:\s*(.+)$/m);
   if (!match) return null;
   const value = match[1].trim();
-  return value === "null" || value === "" ? null : value;
+  if (value === "null" || value === "") return null;
+  // Parse <branch>@<sha>; legacy plain <branch> returns sha=null
+  const atIdx = value.lastIndexOf("@");
+  if (atIdx === -1) return { branch: value, sha: null };
+  return { branch: value.slice(0, atIdx), sha: value.slice(atIdx + 1) };
 }
 
 function getCurrentBranch() {
   const result = run("git", ["branch", "--show-current"]);
   return result.code === 0 ? result.stdout.trim() : null;
+}
+
+function getCurrentSHA() {
+  const result = run("git", ["rev-parse", "HEAD"]);
+  return result.code === 0 ? result.stdout.trim() : null;
+}
+
+// Resolve a stored short/long SHA to its full 40-char form via git rev-parse.
+// Returns null if the SHA is unknown to the repo (garbage-collected, amended, ambiguous).
+function resolveStoredSHA(storedSHA) {
+  if (!storedSHA) return null;
+  const result = run("git", ["rev-parse", "--verify", "--quiet", storedSHA + "^{commit}"]);
+  return result.code === 0 && result.stdout.trim() ? result.stdout.trim() : null;
 }
 
 function getBaseBranch() {
@@ -325,9 +357,9 @@ const skillAdvisory = {
   "superpowers:writing-plans":
     "Run superpowers-memory:load before writing plans to understand the project context.",
   "superpowers:executing-plans":
-    "Run superpowers-memory:load before executing this plan to understand the project context. IMPORTANT: You MUST run superpowers-memory:update after execution completes to capture what was built.",
+    "Run superpowers-memory:load before executing this plan to understand the project context.",
   "superpowers:subagent-driven-development":
-    "Run superpowers-memory:load before dispatching subagents to understand the project context. IMPORTANT: You MUST run superpowers-memory:update after all subagents complete to capture what was built.",
+    "Run superpowers-memory:load before dispatching subagents to understand the project context.",
   "superpowers:finishing-a-development-branch":
     "IMPORTANT: You MUST run superpowers-memory:update for this branch before finishing it.",
 };
@@ -363,14 +395,28 @@ function buildPreToolUseOutput(input) {
       return hookPayload("PreToolUse", advisory);
     }
 
-    const coversBranch = readCoversBranch();
-    if (coversBranch !== currentBranch) {
+    const covered = readCoversBranch();
+    const currentSHA = getCurrentSHA();
+    const resolvedStoredSHA = covered && covered.sha ? resolveStoredSHA(covered.sha) : null;
+    const branchMatches = covered && covered.branch === currentBranch;
+    const shaMatches = resolvedStoredSHA && currentSHA && resolvedStoredSHA === currentSHA;
+
+    if (!branchMatches || !shaMatches) {
+      const storedRepr = covered
+        ? (covered.sha ? covered.branch + "@" + covered.sha : covered.branch + " (legacy: no SHA recorded)")
+        : "null";
+      const currentRepr = currentSHA ? currentBranch + "@" + currentSHA : currentBranch;
+      let detail;
+      if (!covered) detail = "Knowledge base has no covers_branch recorded.";
+      else if (!branchMatches) detail = "Knowledge base does not cover this branch.";
+      else if (!covered.sha) detail = "Legacy covers_branch format (no SHA). Re-run update to record current HEAD.";
+      else if (!resolvedStoredSHA) detail = "Stored SHA is unresolvable (amended or garbage-collected).";
+      else detail = "New commits since last update on this branch.";
       return {
         decision: "block",
         reason:
-          "Project knowledge base has not been updated for this branch. " +
-          "Run superpowers-memory:update before finishing the branch. " +
-          "(covers_branch: " + (coversBranch || "null") + ", current: " + currentBranch + ")",
+          detail + " Run superpowers-memory:update before finishing the branch. " +
+          "(covers_branch: " + storedRepr + ", current: " + currentRepr + ")",
       };
     }
   }

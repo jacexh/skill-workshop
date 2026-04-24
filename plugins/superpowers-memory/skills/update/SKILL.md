@@ -118,7 +118,7 @@ Always regenerate `docs/project-knowledge/index.md` in full (full overwrite — 
 
 - Re-read all existing knowledge files (including any you just updated or created)
 - Extract 1-2 key points per file that help AI decide whether to load it in full
-- Write `docs/project-knowledge/index.md` following the format in `templates/index.md`, setting `updated_by: superpowers-memory:update`, `triggered_by_plan: <plan-filename>`, and `covers_branch: <current-branch>` (the output of `git branch --show-current`)
+- Write `docs/project-knowledge/index.md` following the format in `templates/index.md`, setting `updated_by: superpowers-memory:update`, `triggered_by_plan: <plan-filename>`, and `covers_branch: <branch>@<short-sha>` where `<branch>` is the output of `git branch --show-current` and `<short-sha>` is the output of `git rev-parse --short HEAD` (e.g., `covers_branch: hotfix-auth@a1b2c3d`). The SHA anchor ensures the finishing-a-development-branch guard detects new commits added after this update. The hook resolves short SHAs via `git rev-parse`, so any length git produces is acceptable.
 
 **Size constraint:** Keep index.md under 50 lines total.
 

@@ -2,7 +2,7 @@
 last_updated: 2026-04-24
 updated_by: superpowers-memory:rebuild
 triggered_by_plan: null
-covers_branch: main
+covers_branch: main@0000000000000000000000000000000000000000
 ---
 
 # Project Knowledge Index

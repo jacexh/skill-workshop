@@ -166,7 +166,7 @@ Always regenerate `docs/project-knowledge/index.md` — in both modes — since 
 
 - Re-read all existing knowledge files (including the one(s) just rewritten)
 - For each file, extract 1-2 key points that help AI decide whether to load the file in full (e.g., specific pattern names, version numbers, counts — not generic descriptions)
-- Write the file following the format in `templates/index.md`, setting `updated_by: superpowers-memory:rebuild` and `covers_branch: <current-branch>` (the output of `git branch --show-current`).
+- Write the file following the format in `templates/index.md`, setting `updated_by: superpowers-memory:rebuild` and `covers_branch: <branch>@<short-sha>` where `<branch>` is the output of `git branch --show-current` and `<short-sha>` is the output of `git rev-parse --short HEAD` (e.g., `covers_branch: main@a1b2c3d`). The SHA anchor ensures staleness detection works at commit granularity, not just branch-name granularity.
 - `triggered_by_plan`:
   - **Full mode**: `null` (fresh KB, no plan attribution)
   - **Scoped mode**: preserve the existing value from the prior `index.md` — scoped rebuild is not plan-triggered and should not overwrite the attribution with `null`
