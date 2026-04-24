@@ -4,7 +4,14 @@ updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
 ---
 
-<!-- OWNER: System boundaries, module responsibilities, cross-module relationships, data flows.
+<!-- OWNER: Structure — components, module responsibilities, how modules are wired, data flows.
+
+     BOUNDARY vs features.md:
+     - This file describes HOW the system is structured (modules, boundaries, communication).
+     - features.md describes WHAT the system can do (capabilities from the outside).
+     If you're writing about a capability's user-facing behavior, it belongs in features.md.
+     If you're writing about component wiring or data flow, it belongs here.
+
      Design decision rationale belongs in decisions.md — reference by ADR number only.
      Domain term business definitions belong in glossary.md — use term names only here.
 
