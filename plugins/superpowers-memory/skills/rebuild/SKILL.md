@@ -83,7 +83,7 @@ Before writing any file:
    - `adr/ADR-NNN-<slug>.md`: **full rationale** — one file per ADR with Context / Decision / Alternatives Rejected (paragraph per rejected alt) / Consequences. Target ~100 lines. Loaded on demand via `Read`, not injected at session start.
    - `glossary.md`: ≤2 lines per term, one-line definition, 1 path.
    - `features.md`: capability view — current state in 3–6 lines + ADR ref. No SHAs, no test counts, no changelog narrative.
-   - `architecture.md`: structure view — modules, wiring, data flow. Not capabilities.
+   - `architecture.md`: structure view — Pattern Overview, System Context, Layering, Scenario Sequences (Mermaid `sequenceDiagram`), Key Object FSMs (Mermaid `stateDiagram-v2` with trigger + emitted-event labels), Key Design Decisions (pointer list). No implementation constants (ports, timeouts, TTLs), no env var names, no HTTP header names, no prose FSM state lists, no capability descriptions (those belong in `features.md`).
 
 ### 3. Generate knowledge files
 
@@ -91,7 +91,7 @@ Create `docs/project-knowledge/` directory if it doesn't exist.
 
 For each of the 6 knowledge files, use the plugin template as the structural basis and fill in concrete content from the codebase analysis:
 
-- **architecture.md** — System boundaries (external actors + dependencies), components (modules/contexts with responsibilities + locations + key abstraction names), data flows (2-3 Mermaid sequenceDiagrams for core cross-module scenarios), key design decisions (summary + ADR reference). Optional sections (Entry Points, Layers, Error Handling, Cross-Cutting Concerns) only if project has them.
+- **architecture.md** — Pattern Overview (paradigm + 2–3 key characteristics, 1 paragraph); System Context (external actors + external systems, list form, ≤10 lines); Layering (bounded contexts or layers; each entry is name + one-sentence responsibility + path + key abstraction names; declare call-direction rules at the end); Scenario Sequences (2–3 Mermaid `sequenceDiagram` for cross-module flows of 3+ components; single-module internal flows do NOT belong here); Key Object FSMs (Mermaid `stateDiagram-v2` for aggregates whose transitions cross module boundaries, with trigger + emitted-event labels — bullet-list state enumerations are Exclusion List violations); Key Design Decisions (pointer list, 3–5 entries as `**[title]** — see ADR-NNN`). Skip §Key Object FSMs only if the project genuinely has no aggregates with cross-BC state transitions — and declare this explicitly rather than silently omitting the section.
 - **tech-stack.md** — Languages and frameworks (from config files), key dependencies (from package manifests), build tools (from scripts/Makefile). Organize by technology category or system boundary — whichever fits better.
 - **features.md** — Implemented features grouped by plan/iteration (from specs, README, and code), in-progress features (from plans with unchecked items), planned features (from specs without plans).
 - **conventions.md** — Coding standards (from linter configs, existing patterns), architecture rules (project-specific only — do not duplicate general DDD/Clean Architecture rules from design-pattern docs), testing conventions (framework, mock principle, coverage target), git workflow. Add Domain-Specific Conventions (DB, API, frontend standards) only if non-obvious project-specific rules exist.

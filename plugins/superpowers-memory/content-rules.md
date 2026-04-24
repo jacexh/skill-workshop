@@ -27,10 +27,26 @@ Every fact in the KB has exactly one owner file. Other files reference the owner
 
 ### architecture.md — structure view
 
-- Describes how modules/services are wired and talk to each other. **Not** what capabilities exist (that's `features.md`).
-- Components list: name + one-sentence responsibility + `path/` + key abstraction names only. No method signatures, no struct fields, no enum value catalogs.
-- Data flows: 2–3 Mermaid sequence diagrams for cross-module scenarios (3+ components). Single-module internal flows do NOT belong here.
-- Design decision context collapsed to "see ADR-NNN" references; full rationale in `decisions.md`.
+Describes how modules/services are wired, how they interact over time, and how core aggregates transition. **Not** what capabilities exist (that's `features.md`).
+
+**Required sections (in order):**
+
+1. **Pattern Overview** — architecture paradigm + 2–3 key characteristics, one paragraph. Elevator pitch for a cold reader.
+2. **System Context** — external actors + external systems (databases, MQ, external services). List form, ≤10 lines. Enumerate, don't narrate.
+3. **Layering** — architectural layers or bounded contexts. For each: name + one-sentence responsibility + `path/` + key abstraction names only. State call-direction rules at the end of the section. No method signatures, no struct fields, no enum value catalogs.
+4. **Scenario Sequences** — 2–3 Mermaid `sequenceDiagram` for cross-module flows of 3+ components. Single-module internal flows do NOT belong here.
+5. **Key Object FSMs** — Mermaid `stateDiagram-v2` for aggregates whose transitions cross module boundaries (typically via cross-BC event emission). **Must be rendered as transition diagrams with trigger + emitted-event labels, not bullet lists of state names.** Bullet-list FSM enumerations are Exclusion List violations — they duplicate what code owns without capturing the cross-BC contract that makes the FSM architectural.
+6. **Key Design Decisions** — pointer list only, 3–5 entries in the form `**[title]** — see ADR-NNN`. Full rationale lives in `decisions.md` + `adr/ADR-NNN-*.md` — never expand inline here.
+
+**architecture.md Exclusion List (in addition to the global Exclusion List):**
+
+| Pattern | Goes to |
+|---------|---------|
+| Implementation constants (ports, timeout values, TTLs, keepalive settings) | `tech-stack.md` or code |
+| Env var names, Redis key templates, HTTP header names | `conventions.md` or `glossary.md` |
+| FSM state names inlined as prose lists (`"states: a / b / c / d"`) | reshape as Mermaid `stateDiagram-v2` |
+| Capability descriptions (what a component does for a user) | `features.md`; here use `"see features.md §..."` pointer |
+| Full ADR rationale (Context / Alternatives / Consequences) | `decisions.md` summary + `adr/ADR-NNN-*.md` |
 
 ### features.md — capability view
 

@@ -40,7 +40,16 @@ Check for architecture-level changes beyond `git diff --stat`:
 ### 3. Analyze what changed
 
 - New features implemented? → update `features.md`
-- Architecture changed (new modules, changed data flow)? → update `architecture.md`
+- Architecture changes → update `architecture.md` per this decision table (route each change to its specific section; if none match, `architecture.md` doesn't need updating even if other files do):
+
+  | Code change | architecture.md section to update |
+  |-------------|-----------------------------------|
+  | New / deleted / renamed BC or service directory (under `cmd/`, `apps/`, `internal/<bc>/`, or equivalent) | §Layering |
+  | New / changed cross-module call path or event publish-subscribe edge | §Scenario Sequences (revise existing diagram or add a new one) |
+  | Aggregate FSM gains / loses a state, or a transition changes which cross-BC event it emits | §Key Object FSMs |
+  | New / replaced external infrastructure dependency (database, MQ, cache, external service) | §System Context |
+  | Project-wide architectural style change (e.g., monolith → event-driven; new cross-cutting call-direction rule) | §Pattern Overview |
+
 - New dependencies added? → update `tech-stack.md`
 - New conventions established? → update `conventions.md`
 - Significant design decisions made? → apply the 3-criteria granularity gate (cross-module scope, ≥2 substantive rejected alternatives, not trivially reversible). Failing any criterion → route to `tech-stack.md` / `conventions.md` / `docs/design/` instead. Passing all three → (a) add 4-line summary entry to `decisions.md` (heading + Decision + Trade-off + pointer to detail); (b) create `docs/project-knowledge/adr/ADR-NNN-<slug>.md` with full Context / Decision / Alternatives Rejected / Consequences. When an existing ADR is superseded → collapse its `decisions.md` entry to the 1-line supersede heading and add `superseded_by: ADR-MMM` to the detail file's frontmatter.
@@ -84,6 +93,7 @@ Before writing any new entry, spot-check 2-3 existing entries in each file you w
 - **decisions.md**: ADRs with full body (Context / Alternatives / Consequences sections) still inline — these should be split so the summary is 4-6 lines and the detail lives in `adr/ADR-NNN-*.md`. ADRs that fail the 3-criteria granularity gate (tool picks, single-rationale convention rules) — route to `tech-stack.md` / `conventions.md`. ADRs marked `Superseded by` but still carrying body content — collapse to the 1-line supersede heading.
 - **glossary.md**: entries longer than 2 lines, paragraph-style explanations, method signatures, enum value catalogs
 - **conventions.md**: sections describing data flow, component wiring, or sequences of runtime steps (those belong in `architecture.md`)
+- **architecture.md**: entries carrying (a) implementation constants (port numbers, timeout values, keepalive settings, TTLs); (b) env var names, Redis key templates, HTTP header names; (c) FSM state names inlined as prose lists rather than Mermaid `stateDiagram-v2` with trigger + emitted-event labels; (d) capability descriptions that duplicate `features.md` entries; (e) missing required sections per the per-file format rule (Pattern Overview / System Context / Layering / Scenario Sequences / Key Object FSMs / Key Design Decisions). Remediation: move (a) to `tech-stack.md` or drop; move (b) to `conventions.md` / `glossary.md`; reshape (c) as stateDiagram-v2 with `state_a --> state_b: Trigger / emits Event` labels; replace (d) with `"see features.md §..."` pointers; add (e) if the project genuinely has that dimension (e.g., skip §Key Object FSMs if the project has no aggregates with cross-BC state transitions — but declare this explicitly rather than silently omitting).
 
 **v1 decisions.md detection:** if `docs/project-knowledge/adr/` does not exist AND `decisions.md` carries ADR bodies beyond the summary shape (sections like `**Context:**`, `**Alternatives Rejected:**`, or `**Consequences:**` under any `## ADR-` heading), the KB is in pre-v1.8 single-file format. Surface this to the user and offer interactive migration — walk through each ADR, apply the granularity gate, split surviving ones into summary + detail, and drop or reroute the rest. Do not auto-migrate silently — the granularity gate needs human judgment on borderline cases.
 
@@ -166,7 +176,7 @@ If the commit fails (e.g., pre-commit hook), report the error to the user. Do no
 
 Knowledge files follow the structure defined in the plugin templates:
 
-- `architecture.md` → Pattern Overview, System Boundaries, Components, Data Flow (Mermaid), Key Design Decisions, + optional sections. Components list: name + one-sentence responsibility + path + key abstractions only. No method signatures, no capability descriptions (those belong in `features.md`).
+- `architecture.md` → Pattern Overview (paradigm + 2–3 key characteristics, 1 paragraph), System Context (external actors + external systems, ≤10 lines), Layering (BCs/layers with responsibility + path + key abstractions, call-direction rules), Scenario Sequences (2–3 Mermaid `sequenceDiagram` for cross-module flows), Key Object FSMs (Mermaid `stateDiagram-v2` with trigger + emitted-event labels), Key Design Decisions (pointer list to ADRs only). No implementation constants (ports, timeouts, TTLs), no env var names, no HTTP header names, no prose FSM state lists, no capability descriptions (those belong in `features.md`).
 - `tech-stack.md` → Flexible: by technology category or system boundary
 - `features.md` → Implemented (**capability-grouped, current state only**), In Progress, Planned. Each capability = one entry describing what the system can do now. Do NOT group by plan/branch/iteration; do NOT include commit SHAs, test counts, "shipped YYYY-MM-DD" timestamps, or scope-boundary blocks.
 - `conventions.md` → Naming, Code Style, Error Handling, Architecture Rules, Testing, Git & Workflow, + optional Domain-Specific. Rules only. If a section describes data flow, component wiring, or a sequence of runtime steps, it belongs in `architecture.md`.

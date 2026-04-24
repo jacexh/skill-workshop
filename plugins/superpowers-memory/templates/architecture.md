@@ -4,23 +4,22 @@ updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
 ---
 
-<!-- OWNER: Structure — components, module responsibilities, how modules are wired, data flows.
+<!-- OWNER: Structure view — how modules are wired, how they interact over time, how core aggregates transition.
 
-     BOUNDARY vs features.md:
-     - This file describes HOW the system is structured (modules, boundaries, communication).
-     - features.md describes WHAT the system can do (capabilities from the outside).
-     If you're writing about a capability's user-facing behavior, it belongs in features.md.
-     If you're writing about component wiring or data flow, it belongs here.
+     BOUNDARY vs other KB files:
+     - features.md: WHAT the system can do (user-visible capabilities). If you're describing behavior from the outside, it belongs there.
+     - decisions.md + adr/: WHY it was decided this way. Reference by ADR number only here; never expand rationale inline.
+     - tech-stack.md: which libs/tools + versions + pick rationale. Implementation constants (ports, timeouts, TTLs) go there, NOT here.
+     - glossary.md: domain term business definitions. Use term names only here.
+     - conventions.md: project-wide coding/workflow rules. Env var names, Redis key templates, HTTP header conventions go there, NOT here.
 
-     Design decision rationale belongs in decisions.md — reference by ADR number only.
-     Domain term business definitions belong in glossary.md — use term names only here.
-
-     CONTENT EXCLUSION: Do NOT include information that AI can get by reading 1-2 source files
-     and that may change without an architectural decision:
-     - Struct/class field lists
-     - Enum/constant value mappings (e.g., int8: 0=Skill)
-     - Method signatures (unless enforcing non-obvious invariants)
-     - Single-module implementation details
+     CONTENT EXCLUSION (specific to architecture.md):
+     - Implementation constants: port numbers, timeout values, keepalive settings, TTLs → tech-stack.md or code
+     - Env var names, Redis key templates, HTTP header names → conventions.md or glossary.md
+     - FSM state names as prose lists ("states: a / b / c / d") → render as Mermaid stateDiagram instead
+     - Struct/class field lists, method signatures, enum value catalogs → read from code
+     - Capability descriptions (what each component does for a user) → features.md
+     - Single-module implementation details → code comments or design docs
 
      TARGET: ≤200 lines. -->
 
@@ -28,46 +27,55 @@ triggered_by_plan: null
 
 ## Pattern Overview
 
-<!-- Architecture paradigm + 2-3 key characteristics. One paragraph. -->
+<!-- Architecture paradigm + 2-3 key characteristics. One paragraph. Elevator pitch for a reader coming in cold. -->
 
-**Overall:** [Pattern name: e.g., "DDD + Clean Architecture", "Layered API", "Full-stack MVC"]
+**Overall:** [Pattern name: e.g., "DDD + Bounded Context + event-driven", "Layered API", "Full-stack MVC"]
 
 **Key Characteristics:**
-- [e.g., "Vertical slicing by bounded context"]
-- [e.g., "Stateless request handling"]
+- [e.g., "Vertical slicing by bounded context; cross-BC communication via Kafka events"]
+- [e.g., "Stateless request handling; state lives in aggregates"]
+- [e.g., "Monorepo; one Go module; one TypeScript pnpm workspace"]
 
-## System Boundaries
+## System Context
 
-<!-- C4 L1: Who/what uses this system? What external services does it depend on?
-     List external actors (users, other systems) and external dependencies (databases, APIs). -->
+<!-- External actors + external systems. The outside-the-trust-boundary view.
+     List form, ≤10 lines. Enumerate, don't narrate. -->
 
 **Actors:**
-- [e.g., "Browser client (React SPA)"]
-- [e.g., "CI/CD pipeline"]
+- [e.g., "Internal developers (CLI + Portal)"]
+- [e.g., "Operators (kubectl / ops dashboards)"]
 
-**External Dependencies:**
-- [e.g., "PostgreSQL 15 — primary data store"]
-- [e.g., "Redis — session cache"]
+**External Systems:**
+- [e.g., "MySQL — primary datastore for Supervisor + Sandbox"]
+- [e.g., "Kafka — cross-BC event bus"]
+- [e.g., "Kubernetes — deployment target + workload runtime"]
 
-## Components
+## Layering
 
-<!-- C4 L2-L3: Core modules/components.
-     DDD: Bounded Context list + responsibilities + aggregate root names
-     Layered: Layer responsibilities + locations
-     Microservices: Service list + responsibilities + communication
+<!-- Architectural layers or bounded contexts. The static-structure view.
 
-     Each component: name, responsibility (1 sentence), location, key abstraction name only.
-     Note: location is retained as navigation index, exempt from exclusion rule.
-     DO NOT include field lists or method signatures. -->
+     For each layer/BC:
+     - name + one-sentence responsibility
+     - location: `path/to/module/`
+     - key abstraction names only (aggregate root names, core interface names — no signatures, no field lists)
 
-**[Component/Context Name]** — [One sentence responsibility]. Location: `path/to/module/`
-- Key abstractions: [Aggregate root names, core interface names — names only, no signatures]
+     State call direction rules at the end (e.g., upper → lower direct; lower → upper via events).
+     DO NOT duplicate capability descriptions that belong in features.md. -->
 
-## Data Flow
+**[Layer / BC Name]** — [one-sentence responsibility]. Location: `path/to/module/`
+- Key abstractions: [AggregateRoot names, interface names — names only]
 
-<!-- 2-3 core cross-module scenarios using Mermaid sequenceDiagram.
-     Only include flows that span 3+ components.
-     Single-module internal flows do not belong here. -->
+**Call direction rules:**
+- [e.g., "Upper layers call lower directly (ConnectRPC); lower layers publish events, never call back"]
+- [e.g., "Within a BC, services communicate freely"]
+
+## Scenario Sequences
+
+<!-- 2-3 Mermaid sequenceDiagram for cross-module scenarios (3+ components).
+     Single-module internal flows do NOT belong here — they're implementation detail.
+     Prefer scenarios that exercise the call direction rules above. -->
+
+### [Scenario A name]
 
 ```mermaid
 sequenceDiagram
@@ -79,27 +87,40 @@ sequenceDiagram
     C-->>A: [response]
 ```
 
+### [Scenario B name]
+
+```mermaid
+sequenceDiagram
+    ...
+```
+
+## Key Object FSMs
+
+<!-- Mermaid stateDiagram-v2 for aggregates whose state transitions cross module boundaries
+     (typically by emitting cross-BC events that other BCs react to).
+
+     Render as transition diagrams — NOT as bullet lists of state names.
+     Label transitions with trigger (incoming command/event) and emitted event where relevant:
+       state_a --> state_b: TriggerCommand / emits SomeEvent
+
+     A pure bullet list of state names is an Exclusion List violation — it duplicates what code owns
+     without capturing the cross-BC contract that makes the FSM architectural. -->
+
+### [AggregateName] FSM
+
+```mermaid
+stateDiagram-v2
+    [*] --> initial
+    initial --> active: Command / emits ActivatedEvent
+    active --> done: Complete / emits CompletedEvent
+    done --> [*]
+```
+
 ## Key Design Decisions
 
-<!-- 3-5 architectural decisions affecting the whole system.
-     Summary only — detailed rationale in decisions.md, reference by ADR number. -->
+<!-- Pointer list only. 3-5 entries.
+     Each entry: one-line summary + (ADR-NNN).
+     Full rationale lives in decisions.md + adr/ADR-NNN-*.md — do NOT expand here. -->
 
-- **[Decision title]** — [one sentence summary] (ADR-NNN)
-
-## Entry Points [OPTIONAL]
-
-<!-- File paths of main entry points. Only include if project has multiple entry points. ≤10 lines. -->
-
-## Layers [OPTIONAL]
-
-<!-- Layer names + dependency direction. Reference to design pattern docs if applicable. ≤10 lines.
-     Example: domain → application → infrastructure (dependency inversion via interfaces) -->
-
-## Error Handling [OPTIONAL]
-
-<!-- System-level error strategy only. Code-level patterns go in conventions.md.
-     Example: "Services return domain errors; handlers translate to HTTP status codes" -->
-
-## Cross-Cutting Concerns [OPTIONAL]
-
-<!-- Logging, validation, authentication approaches. Only if project-wide and non-obvious. -->
+- **[Decision title]** — see ADR-NNN
+- **[Decision title]** — see ADR-NNN
