@@ -85,7 +85,7 @@ Before writing any new entry, spot-check 2-3 existing entries in each file you w
 - **glossary.md**: entries longer than 2 lines, paragraph-style explanations, method signatures, enum value catalogs
 - **conventions.md**: sections describing data flow, component wiring, or sequences of runtime steps (those belong in `architecture.md`)
 
-**v1 decisions.md detection:** if `decisions.md` has >150 lines AND `docs/project-knowledge/adr/` does not exist, the KB is in pre-v1.8 single-file format. Surface this to the user and offer interactive migration — walk through each ADR, apply the granularity gate, split surviving ones into summary + detail, and drop or reroute the rest. Do not auto-migrate silently — the granularity gate needs human judgment on borderline cases.
+**v1 decisions.md detection:** if `docs/project-knowledge/adr/` does not exist AND `decisions.md` carries ADR bodies beyond the summary shape (sections like `**Context:**`, `**Alternatives Rejected:**`, or `**Consequences:**` under any `## ADR-` heading), the KB is in pre-v1.8 single-file format. Surface this to the user and offer interactive migration — walk through each ADR, apply the granularity gate, split surviving ones into summary + detail, and drop or reroute the rest. Do not auto-migrate silently — the granularity gate needs human judgment on borderline cases.
 
 This step exists because the skill's earlier versions allowed append-only behavior; files accumulated pre-rule entries that never get cleaned up unless this audit runs explicitly.
 

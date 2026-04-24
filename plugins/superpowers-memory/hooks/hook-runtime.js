@@ -386,7 +386,7 @@ function buildVerifyOutput() {
   const sizeThresholds = {
     "architecture.md": 200,
     "conventions.md": 150,
-    "decisions.md": 150,
+    "decisions.md": 300,
     "tech-stack.md": 120,
     "features.md": 100,
     "glossary.md": 80,
