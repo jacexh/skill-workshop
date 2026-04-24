@@ -16,6 +16,6 @@ No git init required — the `committable` field is only meaningful in a real re
 
 - **clean/** — minimal valid KB; all checks return empty violations. Includes `cmd/server/main.go` stub so staleRef check is quiet.
 - **ssot-violation/** — three identical lines span architecture.md + features.md; triggers `ssotViolations`.
-- **shape-violation/** — commit SHA + test count in features.md; multi-line term + method signatures in glossary.md; triggers `shapeViolations`.
+- **shape-violation/** — exercises all `shapeViolations` kinds: commit SHA + test count + shipped-narrative + commits-range in features.md; multi-line term + method signatures + over-wide single-line entry in glossary.md; CRITICAL-format ADR with a single rejected alternative in decisions.md.
 
 For `tokenBudgetViolation` (>20K tokens ≈ >80KB of content), use a real large KB (e.g., `/home/xuhao/talgent/`) rather than a dedicated fixture — mocking 80KB of filler content here has no additional signal over the real-data dry-run in Task 11.

@@ -10,3 +10,12 @@ triggered_by_plan: null
 **Decision:** Use Go.
 **Why:** Team expertise.
 **Trade-off:** None.
+
+## ADR-002: Use Redis for cache
+
+**Context:** Need fast cache with TTL.
+**Decision:** Redis.
+**Alternatives rejected:**
+- Memcached: insufficient feature set for our use case.
+
+**Consequences:** One more runtime dependency.

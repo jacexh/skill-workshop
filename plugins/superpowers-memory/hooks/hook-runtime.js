@@ -110,6 +110,9 @@ function ssotCheckKnowledgeBase(files) {
 const SHA_PATTERN = /\b[0-9a-f]{7,40}\b/;
 const TEST_COUNT_PATTERN = /\b\d+\s+(?:unit|integration|e2e|end-to-end|smoke)?\s*tests?\b/i;
 const METHOD_SIG_PATTERN = /\b\w+\s*\(\s*ctx\b/;
+const SHIPPED_NARRATIVE_PATTERN = /\bshipped\s+\d{4}-\d{2}-\d{2}\b/i;
+const COMMITS_RANGE_PATTERN = /\bcommits on [\w\/-]+|\b[0-9a-f]{7,40}\.\.(?:HEAD|[\w\/-]+)/i;
+const GLOSSARY_WIDTH_THRESHOLD = 400;
 
 function lintFeatures(content) {
   const findings = [];
@@ -120,6 +123,12 @@ function lintFeatures(content) {
     }
     if (TEST_COUNT_PATTERN.test(line)) {
       findings.push({ line: i + 1, kind: "test_count", sample: line.trim().slice(0, 120) });
+    }
+    if (SHIPPED_NARRATIVE_PATTERN.test(line)) {
+      findings.push({ line: i + 1, kind: "shipped_narrative", sample: line.trim().slice(0, 120) });
+    }
+    if (COMMITS_RANGE_PATTERN.test(line)) {
+      findings.push({ line: i + 1, kind: "commits_range", sample: line.trim().slice(0, 120) });
     }
   });
   return findings;
@@ -144,6 +153,13 @@ function lintGlossary(content) {
           line: entryStart + 1,
           kind: "glossary_entry_too_long",
           sample: lines[entryStart].trim().slice(0, 120),
+        });
+      }
+      if (line.length > GLOSSARY_WIDTH_THRESHOLD) {
+        findings.push({
+          line: i + 1,
+          kind: "glossary_entry_too_wide",
+          sample: trimmed.slice(0, 120),
         });
       }
       entryStart = i;
@@ -177,12 +193,68 @@ function lintGlossary(content) {
   return findings;
 }
 
+const ADR_HEADING_PATTERN = /^## ADR-/;
+const ALTERNATIVES_HEADING_PATTERN = /^\*\*\s*Alternatives\s+(?:considered|rejected)\s*:?\s*\*\*/i;
+const SECTION_BREAK_PATTERN = /^\*\*[^*]+:\*\*|^##\s/;
+const BULLET_PATTERN = /^\s*[-*]\s+\S/;
+
+function lintDecisions(content) {
+  const findings = [];
+  const lines = content.split("\n");
+
+  // Walk ADR by ADR. Each ADR starts at `## ADR-` and ends at the next `## ADR-` or EOF.
+  let adrStart = -1;
+  for (let i = 0; i <= lines.length; i++) {
+    const atEnd = i === lines.length;
+    const isAdrStart = !atEnd && ADR_HEADING_PATTERN.test(lines[i]);
+
+    if (isAdrStart || atEnd) {
+      if (adrStart >= 0) {
+        // Inspect the just-closed ADR range [adrStart, i).
+        let altHeadingLine = -1;
+        for (let j = adrStart; j < i; j++) {
+          if (ALTERNATIVES_HEADING_PATTERN.test(lines[j])) {
+            altHeadingLine = j;
+            break;
+          }
+        }
+        if (altHeadingLine >= 0) {
+          // Count bullets until next section break or end of ADR.
+          let bullets = 0;
+          for (let j = altHeadingLine + 1; j < i; j++) {
+            if (SECTION_BREAK_PATTERN.test(lines[j])) break;
+            if (BULLET_PATTERN.test(lines[j])) bullets++;
+          }
+          if (bullets < 2) {
+            findings.push({
+              line: adrStart + 1,
+              kind: "critical_format_without_alts",
+              sample: lines[adrStart].trim().slice(0, 120),
+            });
+          }
+        }
+      }
+      if (isAdrStart) adrStart = i;
+    }
+  }
+
+  // Also flag method signatures (applies to all non-specialized files).
+  lines.forEach((line, i) => {
+    if (METHOD_SIG_PATTERN.test(line)) {
+      findings.push({ line: i + 1, kind: "method_signature", sample: line.trim().slice(0, 120) });
+    }
+  });
+
+  return findings;
+}
+
 function contentShapeLintKnowledgeBase(files) {
   const violations = [];
   for (const [filename, content] of files) {
     let findings = [];
     if (filename === "features.md") findings = lintFeatures(content);
     else if (filename === "glossary.md") findings = lintGlossary(content);
+    else if (filename === "decisions.md") findings = lintDecisions(content);
     // Other files: only method signature lint
     else {
       content.split("\n").forEach((line, i) => {

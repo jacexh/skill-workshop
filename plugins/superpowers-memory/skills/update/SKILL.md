@@ -75,10 +75,16 @@ For every piece of information being added, pick ONE owner file per the Ownershi
 
 Other files that need to reference this information get a ≤1-line pointer ("see ADR-NNN", "see architecture.md §Components"). Never duplicate the expansion.
 
+### 3c. Existing entry audit
+
+Before writing any new entry, spot-check 2-3 existing entries in each file you will touch against the per-file format rule. If any are in a format forbidden by current `content-rules.md` (e.g., features entry with commit SHAs / test counts / "shipped YYYY-MM-DD" narrative, ADR using CRITICAL format without ≥2 substantive rejected alts, glossary entry longer than 2 lines or containing method signatures, conventions section describing data flow instead of a rule), list them and rewrite them in Step 4 alongside the new entries.
+
+This step exists because the skill's earlier versions allowed append-only behavior; files accumulated pre-rule entries that never get cleaned up unless this audit runs explicitly.
+
 ### 4. Apply updates
 
 - Only modify files that need changes — do not rewrite unchanged files
-- Preserve existing content; append or modify specific sections
+- Apply the Exclusion Gate (Step 3a) and per-file format rule to **ALL entries in any file you touch, not just new ones**. If an existing entry violates current rules (changelog-shaped features entry, CRITICAL-format ADR without ≥2 substantive rejected alts, multi-line glossary entry, architecture facts inside conventions, etc.), rewrite it to comply in the same update. Do not preserve violations just because they predate the current rules.
 - Update frontmatter in every modified file:
   - `last_updated`: today's date (YYYY-MM-DD)
   - `updated_by`: `superpowers-memory:update`
@@ -108,7 +114,7 @@ Run the automated verification script first, then do manual spot-checks:
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
 ```
 
-The script checks: file size thresholds, stale path references, and git commit readiness. Fix any `staleRefs` or `sizeWarnings` it reports before proceeding.
+The script checks: file size thresholds, stale path references, content-shape violations, and git commit readiness. Fix any `staleRefs`, `sizeWarnings`, or `shapeViolations` it reports before proceeding. Shape violations must be corrected in-place per the per-file format rule — do not suppress them or leave them for a future pass.
 
 **Manual checks (on top of automated):**
 
@@ -152,12 +158,12 @@ If the commit fails (e.g., pre-commit hook), report the error to the user. Do no
 
 Knowledge files follow the structure defined in the plugin templates:
 
-- `architecture.md` → Pattern Overview, System Boundaries, Components, Data Flow (Mermaid), Key Design Decisions, + optional sections
+- `architecture.md` → Pattern Overview, System Boundaries, Components, Data Flow (Mermaid), Key Design Decisions, + optional sections. Components list: name + one-sentence responsibility + path + key abstractions only. No method signatures, no capability descriptions (those belong in `features.md`).
 - `tech-stack.md` → Flexible: by technology category or system boundary
-- `features.md` → Implemented (plan-grouped lists), In Progress, Planned
-- `conventions.md` → Naming, Code Style, Error Handling, Architecture Rules, Testing, Git & Workflow, + optional Domain-Specific
-- `decisions.md` → Normal ADR (3-line) + CRITICAL ADR (full format), Known Issues
-- `glossary.md` → Definition list: `**Term** — Definition. → \`path\``
+- `features.md` → Implemented (**capability-grouped, current state only**), In Progress, Planned. Each capability = one entry describing what the system can do now. Do NOT group by plan/branch/iteration; do NOT include commit SHAs, test counts, "shipped YYYY-MM-DD" timestamps, or scope-boundary blocks.
+- `conventions.md` → Naming, Code Style, Error Handling, Architecture Rules, Testing, Git & Workflow, + optional Domain-Specific. Rules only. If a section describes data flow, component wiring, or a sequence of runtime steps, it belongs in `architecture.md`.
+- `decisions.md` → **NORMAL 3-line ADR is the default.** CRITICAL format ONLY when the granularity gate produces ≥2 substantive rejected alternatives (not one-line dismissals). Superseded ADRs collapse to the 2-line supersede format.
+- `glossary.md` → Definition list: `**Term** — one-line definition. → \`path\` (ADR-NNN if applicable)`. **≤2 lines per term, hard rule.** No paragraphs, no method signatures, no enum catalogs. If a term needs more context, link to the owner file.
 
 ## Content Rules
 
