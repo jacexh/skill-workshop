@@ -79,7 +79,8 @@ Before writing any file:
    Other files get ≤1-line pointers only.
 
 3. **Per-file format rules** (from `content-rules.md`):
-   - `decisions.md`: default NORMAL 3-line; CRITICAL only when ≥2 rejected alts AND each has substantive analysis. Supersede entries collapse to 2 lines.
+   - `decisions.md`: **summary only** — 4 lines per ADR (heading + Decision + Trade-off + pointer to detail). Max 6 non-blank lines per entry. Apply the 3-criteria granularity gate before writing any ADR — cross-module scope, ≥2 substantive rejected alternatives, not trivially reversible. If any fails → route to tech-stack.md / conventions.md / design docs / plan files instead. Superseded ADRs collapse to the 1-line heading.
+   - `adr/ADR-NNN-<slug>.md`: **full rationale** — one file per ADR with Context / Decision / Alternatives Rejected (paragraph per rejected alt) / Consequences. Target ~100 lines. Loaded on demand via `Read`, not injected at session start.
    - `glossary.md`: ≤2 lines per term, one-line definition, 1 path.
    - `features.md`: capability view — current state in 3–6 lines + ADR ref. No SHAs, no test counts, no changelog narrative.
    - `architecture.md`: structure view — modules, wiring, data flow. Not capabilities.
@@ -94,7 +95,7 @@ For each of the 6 knowledge files, use the plugin template as the structural bas
 - **tech-stack.md** — Languages and frameworks (from config files), key dependencies (from package manifests), build tools (from scripts/Makefile). Organize by technology category or system boundary — whichever fits better.
 - **features.md** — Implemented features grouped by plan/iteration (from specs, README, and code), in-progress features (from plans with unchecked items), planned features (from specs without plans).
 - **conventions.md** — Coding standards (from linter configs, existing patterns), architecture rules (project-specific only — do not duplicate general DDD/Clean Architecture rules from design-pattern docs), testing conventions (framework, mock principle, coverage target), git workflow. Add Domain-Specific Conventions (DB, API, frontend standards) only if non-obvious project-specific rules exist.
-- **decisions.md** — Extract significant decisions from git history, specs, and code comments. Use Normal 3-line format by default. Use CRITICAL format when the decision has a seemingly reasonable but rejected alternative that AI might re-propose.
+- **decisions.md + adr/** — Extract significant decisions from git history, specs, and code comments. Apply the 3-criteria granularity gate first — most "decisions" fail one criterion and should go elsewhere (tech-stack.md, conventions.md, design docs). For each surviving ADR, write TWO artifacts: (1) a 4-line summary in `decisions.md` (heading + Decision + Trade-off + pointer); (2) a full detail file at `docs/project-knowledge/adr/ADR-NNN-<slug>.md` with Context / Decision / Alternatives Rejected / Consequences. Create the `adr/` directory if missing.
 - **glossary.md** — Domain terms from Ubiquitous Language: terms where the business meaning is not obvious from the code name, or the same word means different things in different contexts. Use definition list format: `**Term** — Definition. → \`path\``
 
 ### 4. Set frontmatter
@@ -123,7 +124,7 @@ Run the automated verification script first, then do manual spot-checks:
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
 ```
 
-The script checks: file size thresholds, stale path references, and git commit readiness. Fix any `staleRefs` or `sizeWarnings` it reports before proceeding.
+The script checks: file size thresholds, stale path references, content-shape violations, and git commit readiness. Fix any `staleRefs`, `sizeWarnings`, or `shapeViolations` it reports before proceeding.
 
 **Manual checks (on top of automated):**
 
@@ -150,7 +151,7 @@ If previous knowledge files existed:
 Check the `committable` field from the step 6 verify output. If `false`, skip the commit — leave files uncommitted and tell the user why (mid-rebase, mid-merge, or detached HEAD).
 
 ```bash
-git add docs/project-knowledge/
+git add docs/project-knowledge/ docs/project-knowledge/adr/
 git commit -m "docs: rebuild project knowledge base from codebase"
 ```
 

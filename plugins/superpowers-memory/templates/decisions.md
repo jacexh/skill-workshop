@@ -4,21 +4,26 @@ updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
 ---
 
-<!-- OWNER: Design decisions (WHY something is the way it is), known issues, tech debt.
-     This is the sole owner file for decision rationale.
-     Other files reference ADRs by number (e.g., "see ADR-011"); never duplicate full rationale here.
+<!-- OWNER: ADR summary log (always loaded at session start).
+     This file carries decision SUMMARIES only. Full context / alternatives /
+     consequences live in `adr/ADR-NNN-<slug>.md`, loaded on demand.
 
-     GRANULARITY GATE (see content-rules.md §decisions.md):
-     An ADR is needed only when a future reader (human or AI), without this record,
-     would plausibly re-propose the opposite choice. If not, don't write an ADR —
-     put the fact in conventions.md or skip it entirely.
+     GRANULARITY GATE (see content-rules.md §decisions.md) — all three must hold:
+       1. Cross-module scope (≥2 bounded contexts / services / packages)
+       2. ≥2 substantive rejected alternatives (each with real paragraph-level analysis)
+       3. Not trivially reversible (needs migration / proto wire / contract renegotiation)
 
-     FORMAT DEFAULT IS NORMAL (3 lines). CRITICAL only when BOTH conditions met:
-       1. ≥2 rejected alternatives, AND
-       2. each rejected alternative has substantive analysis (not one-line dismissal).
+     Fails the gate → not an ADR. Route to:
+       - tech-stack.md (tool/library pick with single rationale)
+       - conventions.md (coding / workflow rule)
+       - docs/design/<topic>.md (single-module structural choice)
+       - docs/superpowers/plans/ (temporary workaround with cleanup plan)
 
-     SUPERSEDE: when an ADR is superseded, collapse to the 2-line short format
-     (see below). Do NOT leave the original full format in place. -->
+     PER-ADR SIZE: max 6 non-blank lines in this file. Beyond that, move rationale
+     to the detail file.
+
+     SUPERSEDE: collapse the entry to a single heading line; keep the detail file
+     with `superseded_by: ADR-MMM` added to its frontmatter. -->
 
 # Decisions
 
@@ -40,32 +45,18 @@ triggered_by_plan: null
 
 ---
 
-<!-- ADR list below — add new decisions at the top. Do not delete old decisions —
-     collapse superseded ones to the 2-line short format. -->
+<!-- ADR summaries below — add new decisions at the top. Do not delete old ADRs;
+     collapse superseded ones to the 1-line supersede format. -->
 
 <!--
-NORMAL ADR (default — 3 lines):
+SUMMARY FORMAT (default — 4 lines per ADR):
 
 ## ADR-NNN: [Decision Title]
 **Decision:** [What was decided, one sentence]
-**Why:** [Why this over alternatives, one sentence]
 **Trade-off:** [Known cost or limitation. "None" if none]
+→ [adr/ADR-NNN-<slug>.md](adr/ADR-NNN-<slug>.md)
 
-CRITICAL ADR (use only when BOTH criteria met; see header comment):
+SUPERSEDE (1-line collapsed — replaces original when superseded):
 
-## ADR-NNN: [Title] [CRITICAL]
-**Date:** YYYY-MM-DD
-**Status:** Accepted
-**Context:** [What issue motivated this decision]
-**Decision:** [What was decided]
-**Alternatives Considered:**
-- [Alt A]: [substantive analysis of why rejected]
-- [Alt B]: [substantive analysis of why rejected]
-**Reason:** [Why current approach was chosen]
-**Consequences:** [Positive + negative outcomes, including known risks]
-
-SUPERSEDE (2-line collapsed format — replaces original when superseded):
-
-## ADR-NNN: Original Title (Superseded by ADR-MMM on YYYY-MM-DD)
-**Original:** [one-line summary of the original decision]
+## ADR-NNN: Original Title (Superseded by ADR-MMM)
 -->

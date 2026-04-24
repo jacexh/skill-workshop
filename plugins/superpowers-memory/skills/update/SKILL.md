@@ -43,7 +43,7 @@ Check for architecture-level changes beyond `git diff --stat`:
 - Architecture changed (new modules, changed data flow)? → update `architecture.md`
 - New dependencies added? → update `tech-stack.md`
 - New conventions established? → update `conventions.md`
-- Significant design decisions made? → add ADR to `decisions.md` (Normal 3-line by default; CRITICAL if the decision has a seemingly reasonable but rejected alternative)
+- Significant design decisions made? → apply the 3-criteria granularity gate (cross-module scope, ≥2 substantive rejected alternatives, not trivially reversible). Failing any criterion → route to `tech-stack.md` / `conventions.md` / `docs/design/` instead. Passing all three → (a) add 4-line summary entry to `decisions.md` (heading + Decision + Trade-off + pointer to detail); (b) create `docs/project-knowledge/adr/ADR-NNN-<slug>.md` with full Context / Decision / Alternatives Rejected / Consequences. When an existing ADR is superseded → collapse its `decisions.md` entry to the 1-line supersede heading and add `superseded_by: ADR-MMM` to the detail file's frontmatter.
 - New domain terms introduced? → update `glossary.md`
 
 ### 3a. Exclusion Gate (before writing any new entry)
@@ -67,7 +67,8 @@ For every piece of information being added, pick ONE owner file per the Ownershi
 |-----------|-------|
 | Structure / wiring / data flow | architecture.md |
 | Capability / current behavior | features.md |
-| Decision rationale (WHY) | decisions.md |
+| Decision summary (what + trade-off) | decisions.md |
+| Decision rationale detail (context, alternatives, consequences) | adr/ADR-NNN-<slug>.md |
 | Dep version + pick rationale | tech-stack.md |
 | Coding / workflow rules | conventions.md |
 | Term definition | glossary.md |
@@ -77,7 +78,14 @@ Other files that need to reference this information get a ≤1-line pointer ("se
 
 ### 3c. Existing entry audit
 
-Before writing any new entry, spot-check 2-3 existing entries in each file you will touch against the per-file format rule. If any are in a format forbidden by current `content-rules.md` (e.g., features entry with commit SHAs / test counts / "shipped YYYY-MM-DD" narrative, ADR using CRITICAL format without ≥2 substantive rejected alts, glossary entry longer than 2 lines or containing method signatures, conventions section describing data flow instead of a rule), list them and rewrite them in Step 4 alongside the new entries.
+Before writing any new entry, spot-check 2-3 existing entries in each file you will touch against the per-file format rule. If any are in a format forbidden by current `content-rules.md`, list them and rewrite them in Step 4 alongside the new entries. Common patterns to flag:
+
+- **features.md**: entries with commit SHAs, test counts, "shipped YYYY-MM-DD" narrative, "Commits on hotfix/…" blocks, scope-boundary sections
+- **decisions.md**: ADRs with full body (Context / Alternatives / Consequences sections) still inline — these should be split so the summary is 4-6 lines and the detail lives in `adr/ADR-NNN-*.md`. ADRs that fail the 3-criteria granularity gate (tool picks, single-rationale convention rules) — route to `tech-stack.md` / `conventions.md`. ADRs marked `Superseded by` but still carrying body content — collapse to the 1-line supersede heading.
+- **glossary.md**: entries longer than 2 lines, paragraph-style explanations, method signatures, enum value catalogs
+- **conventions.md**: sections describing data flow, component wiring, or sequences of runtime steps (those belong in `architecture.md`)
+
+**v1 decisions.md detection:** if `decisions.md` has >150 lines AND `docs/project-knowledge/adr/` does not exist, the KB is in pre-v1.8 single-file format. Surface this to the user and offer interactive migration — walk through each ADR, apply the granularity gate, split surviving ones into summary + detail, and drop or reroute the rest. Do not auto-migrate silently — the granularity gate needs human judgment on borderline cases.
 
 This step exists because the skill's earlier versions allowed append-only behavior; files accumulated pre-rule entries that never get cleaned up unless this audit runs explicitly.
 
@@ -139,7 +147,7 @@ Follow the size guard rules in [`content-rules.md`](../../content-rules.md) — 
 Check the `committable` field from the step 7 verify output. If `false`, skip the commit — leave files uncommitted and tell the user why (mid-rebase, mid-merge, or detached HEAD).
 
 ```bash
-git add docs/project-knowledge/
+git add docs/project-knowledge/ docs/project-knowledge/adr/
 # Use plan name if available, otherwise describe the trigger
 git commit -m "docs: update project knowledge base from [plan-name or 'recent changes']"
 ```
@@ -162,7 +170,8 @@ Knowledge files follow the structure defined in the plugin templates:
 - `tech-stack.md` → Flexible: by technology category or system boundary
 - `features.md` → Implemented (**capability-grouped, current state only**), In Progress, Planned. Each capability = one entry describing what the system can do now. Do NOT group by plan/branch/iteration; do NOT include commit SHAs, test counts, "shipped YYYY-MM-DD" timestamps, or scope-boundary blocks.
 - `conventions.md` → Naming, Code Style, Error Handling, Architecture Rules, Testing, Git & Workflow, + optional Domain-Specific. Rules only. If a section describes data flow, component wiring, or a sequence of runtime steps, it belongs in `architecture.md`.
-- `decisions.md` → **NORMAL 3-line ADR is the default.** CRITICAL format ONLY when the granularity gate produces ≥2 substantive rejected alternatives (not one-line dismissals). Superseded ADRs collapse to the 2-line supersede format.
+- `decisions.md` → **summary only, 4 lines per ADR** (heading + Decision + Trade-off + pointer to detail file). Max 6 non-blank lines per entry. The 3-criteria granularity gate governs what qualifies as an ADR — failing any criterion routes the fact elsewhere. Superseded ADRs collapse to a 1-line heading (no body in the summary).
+- `adr/ADR-NNN-<slug>.md` → **full rationale** loaded on demand. One file per ADR: Context / Decision / Alternatives Rejected (paragraph per alt) / Consequences. Target ~100 lines.
 - `glossary.md` → Definition list: `**Term** — one-line definition. → \`path\` (ADR-NNN if applicable)`. **≤2 lines per term, hard rule.** No paragraphs, no method signatures, no enum catalogs. If a term needs more context, link to the owner file.
 
 ## Content Rules

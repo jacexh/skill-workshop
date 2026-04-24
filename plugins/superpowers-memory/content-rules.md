@@ -14,7 +14,8 @@ Every fact in the KB has exactly one owner file. Other files reference the owner
 |-----------|-------|--------------------|
 | Structure: components, boundaries, how modules are wired, data flows | `architecture.md` | "see architecture.md §<section>" |
 | **Capability: what the system can DO (current state, not history)** | `features.md` | "see features.md §<capability>" |
-| Decision rationale (WHY something is the way it is) | `decisions.md` (ADR-NNN) | "see ADR-NNN" |
+| **Decision summary** (what was decided + one-line trade-off) | `decisions.md` (ADR-NNN) | "see ADR-NNN" |
+| **Decision rationale detail** (context, rejected alternatives, consequences) | `docs/project-knowledge/adr/ADR-NNN-<slug>.md` | "see adr/ADR-NNN-*.md" |
 | Dependency version + selection rationale | `tech-stack.md` | "see tech-stack.md" |
 | Coding, workflow, CI rules | `conventions.md` | "see conventions.md §<section>" |
 | Domain term definitions | `glossary.md` | "see glossary" |
@@ -48,46 +49,87 @@ Describes **current** capabilities of the system. Each entry = system's current 
 - Key invariants or constraints that shape how it's used
 - ADR reference(s) that gate the capability
 
-### decisions.md — ADR log
+### decisions.md — ADR summary log (always loaded)
 
-**Granularity gate** (single question):
-> If a future reader (human or AI) did NOT see this record, would they plausibly re-propose the opposite choice?
+Carries **decision summaries only**. Every `load` injects this file into the session, so it must stay short and scannable. Full rationale (context, alternatives, consequences) lives in per-ADR detail files under `docs/project-knowledge/adr/` — loaded on demand by `Read`, never auto-loaded.
 
-- YES → record ADR
-- NO → not an ADR. If the fact is useful, capture in `conventions.md`; otherwise skip.
+**Granularity gate — all three must hold** to record an ADR:
 
-**Default format is NORMAL (3 lines)**:
+1. **Cross-module scope.** Touches ≥2 bounded contexts / services / packages. Single-module implementation choices are code comments or design docs, not ADRs.
+2. **≥2 substantive rejected alternatives.** Each rejected alternative must have real analysis — why it was considered, what its trade-offs were, why rejected. One-line dismissals ("rejected: insufficient") do NOT count as substantive. If you cannot write a paragraph about why each was rejected, it is not ADR-worthy.
+3. **Not trivially reversible.** Reversing the decision requires data migration, proto wire changes, external contract renegotiation, or coordinated multi-service deployment. Reversible-with-a-commit decisions are conventions, not ADRs.
+
+**Fails the gate → not an ADR.** Route as:
+
+| What you have | Goes to |
+|--------------|---------|
+| Library/tool pick with a single rationale | `tech-stack.md` (the "why chosen" column) |
+| Coding / project-workflow / CI rule | `conventions.md` |
+| Single-module structural choice | code comment or `docs/design/<topic>.md` |
+| Temporary workaround with a cleanup plan | plan file under `docs/superpowers/plans/` |
+
+**Summary format (per ADR in `decisions.md`):**
 
 ```
 ## ADR-NNN: [Decision Title]
 **Decision:** [What was decided, one sentence]
-**Why:** [Why this over alternatives, one sentence]
 **Trade-off:** [Known cost or limitation, one sentence. "None" if none]
+→ [adr/ADR-NNN-<slug>.md](adr/ADR-NNN-<slug>.md)
 ```
 
-**CRITICAL format** — use ONLY when BOTH conditions met:
-1. ≥2 rejected alternatives
-2. Each rejected alternative has substantive analysis (not a one-line dismissal)
+Maximum **6 non-blank lines per ADR** in the summary file (heading + Decision + Trade-off + pointer = 4 typical; 2 extra lines allowed for multi-part decisions). Beyond 6 lines → move rationale to the detail file.
+
+**Supersede format (1 line in summary):**
 
 ```
-## ADR-NNN: [Title] [CRITICAL]
-**Date:** YYYY-MM-DD
-**Status:** Accepted
-**Context:** [Motivating problem]
-**Decision:** [What was decided]
-**Alternatives Considered:**
-- [Alt A]: [substantive analysis of why rejected]
-- [Alt B]: [substantive analysis of why rejected]
-**Reason:** [Why current approach was chosen]
-**Consequences:** [Positive + negative outcomes, known risks]
+## ADR-NNN: Original Title (Superseded by ADR-MMM)
 ```
 
-**Supersede format (2 lines)** — when an ADR is superseded, collapse to:
+No body in the summary. The detail file at `adr/ADR-NNN-<slug>.md` stays (historical record) with `superseded_by: ADR-MMM` added to its frontmatter.
+
+### adr/ADR-NNN-<slug>.md — ADR detail (on-demand load)
+
+One file per ADR. Not loaded at session start — fetched by `Read` when the AI or user needs the full rationale (considering a reversal, writing a new ADR that builds on this one, architectural review).
+
+**Format:**
 
 ```
-## ADR-NNN: Original Title (Superseded by ADR-MMM on YYYY-MM-DD)
-**Original:** [one-line summary of what was originally decided]
+---
+adr: NNN
+title: [Decision Title]
+date: YYYY-MM-DD
+status: Accepted | Superseded
+superseded_by: ADR-MMM  # omit if status=Accepted
+---
+
+# ADR-NNN: [Decision Title]
+
+## Context
+[Motivating problem, constraints, what forced the decision]
+
+## Decision
+[What was decided, in full]
+
+## Alternatives Rejected
+- **[Alt A]**: [substantive analysis of why rejected — what it was, what its trade-offs were, why it lost]
+- **[Alt B]**: [same]
+
+## Consequences
+[Operational effects now in force. Do NOT list forward-looking "X will need Y" work — that belongs in plan files.]
 ```
+
+**Per-ADR-detail size guard:** each detail file should fit in a single browser-page read (~100 lines / ~2500 tokens). Beyond that, the decision probably mixes multiple ADRs.
+
+### Migration from pre-1.8 format
+
+If `decisions.md` still holds full-format ADRs (pre-v1.8 single-file structure):
+
+1. For each ADR, extract the `## ADR-NNN:` block to `adr/ADR-NNN-<slug>.md` (create directory if missing).
+2. Reduce the entry in `decisions.md` to the 4-line summary format above.
+3. For superseded ADRs, collapse to the 1-line supersede format; keep the detail file with `superseded_by:` in frontmatter.
+4. Re-run `verify` — `decisions.md` size should drop under threshold and `adr/` files are outside the token budget.
+
+The `update` skill detects v1 format and offers interactive migration.
 
 ### glossary.md — term dictionary
 
@@ -136,17 +178,19 @@ Per-file line thresholds (enforced by `verify sizeWarnings` — warn-only, does 
 |------|------------------|
 | architecture.md | 200 |
 | conventions.md | 150 |
-| decisions.md | 300 |
+| decisions.md | 150 |
 | tech-stack.md | 120 |
 | features.md | 100 |
 | glossary.md | 80 |
 | index.md | 50 |
 
+`adr/ADR-NNN-*.md` files are NOT aggregated into a threshold — each is judged individually against the per-ADR-detail guard (~100 lines). They do not count toward `decisions.md`'s line count.
+
 Exceeding threshold → warning in `verify` output + compression suggestion. Commits are NOT blocked; user retains control over whether to compress or accept. `committable` reflects git state only (rebase/merge/detached-HEAD checks).
 
 ## Total Token Budget
 
-Per-file caps don't compose. Aggregate check: sum of all KB file bytes / 4 ≈ tokens.
+Per-file caps don't compose. Aggregate check: sum of the seven canonical KB file bytes / 4 ≈ tokens. `adr/` detail files are excluded — they load on demand, not at session start.
 
 - **Default budget: 20,000 tokens** (approx what a full `load` would inject; ~2% of 1M context).
 - Exceed → warning in `verify` output with per-file breakdown. Warn-only; does not block commits.
@@ -162,7 +206,7 @@ Per-file caps don't compose. Aggregate check: sum of all KB file bytes / 4 ≈ t
 
 When size guard / content-shape warnings fire, suggest specific compression actions:
 
-- `decisions.md` over cap → first check granularity gate on every ADR; most overflow comes from ADRs that shouldn't exist. Next: convert CRITICAL-format ADRs to NORMAL where the CRITICAL conditions are not both met.
+- `decisions.md` over cap → (1) run every ADR through the 3-criteria granularity gate — downgrade tool/library picks to `tech-stack.md`, convention-shaped rules to `conventions.md`; (2) collapse superseded ADRs to 1-line supersede format; (3) move any remaining rationale detail from `decisions.md` into `adr/ADR-NNN-*.md` so the summary file carries only 4-6 lines per ADR.
 - `features.md` over cap → strip changelog blocks, commit SHAs, test counts; reduce each capability to its current-state description.
 - `glossary.md` over cap → compress each entry to ≤2 lines; move context to owner file per Matrix.
 - `architecture.md` over cap → remove implementation details; keep module-level wiring only.

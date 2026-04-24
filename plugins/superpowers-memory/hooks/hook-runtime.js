@@ -194,9 +194,8 @@ function lintGlossary(content) {
 }
 
 const ADR_HEADING_PATTERN = /^## ADR-/;
-const ALTERNATIVES_HEADING_PATTERN = /^\*\*\s*Alternatives\s+(?:considered|rejected)\s*:?\s*\*\*/i;
-const SECTION_BREAK_PATTERN = /^\*\*[^*]+:\*\*|^##\s/;
-const BULLET_PATTERN = /^\s*[-*]\s+\S/;
+const SUPERSEDE_HEADING_PATTERN = /Superseded by ADR-/i;
+const ADR_SUMMARY_MAX_LINES = 6;
 
 function lintDecisions(content) {
   const findings = [];
@@ -210,28 +209,27 @@ function lintDecisions(content) {
 
     if (isAdrStart || atEnd) {
       if (adrStart >= 0) {
-        // Inspect the just-closed ADR range [adrStart, i).
-        let altHeadingLine = -1;
-        for (let j = adrStart; j < i; j++) {
-          if (ALTERNATIVES_HEADING_PATTERN.test(lines[j])) {
-            altHeadingLine = j;
-            break;
-          }
-        }
-        if (altHeadingLine >= 0) {
-          // Count bullets until next section break or end of ADR.
-          let bullets = 0;
-          for (let j = altHeadingLine + 1; j < i; j++) {
-            if (SECTION_BREAK_PATTERN.test(lines[j])) break;
-            if (BULLET_PATTERN.test(lines[j])) bullets++;
-          }
-          if (bullets < 2) {
+        const heading = lines[adrStart];
+        const body = lines.slice(adrStart + 1, i);
+        const nonBlankBody = body.filter((l) => l.trim().length > 0);
+
+        if (SUPERSEDE_HEADING_PATTERN.test(heading)) {
+          // Supersede: summary must be heading-only (no body content).
+          if (nonBlankBody.length > 0) {
             findings.push({
               line: adrStart + 1,
-              kind: "critical_format_without_alts",
-              sample: lines[adrStart].trim().slice(0, 120),
+              kind: "unresolved_supersede",
+              sample: heading.trim().slice(0, 120),
             });
           }
+        } else if (nonBlankBody.length > ADR_SUMMARY_MAX_LINES) {
+          // Active ADR: summary must fit in ≤6 non-blank lines (Decision + Trade-off + pointer).
+          // Exceeding means full rationale is still inline instead of in adr/ADR-NNN-*.md.
+          findings.push({
+            line: adrStart + 1,
+            kind: "unsplit_adr_detail",
+            sample: heading.trim().slice(0, 120),
+          });
         }
       }
       if (isAdrStart) adrStart = i;
@@ -388,7 +386,7 @@ function buildVerifyOutput() {
   const sizeThresholds = {
     "architecture.md": 200,
     "conventions.md": 150,
-    "decisions.md": 300,
+    "decisions.md": 150,
     "tech-stack.md": 120,
     "features.md": 100,
     "glossary.md": 80,
