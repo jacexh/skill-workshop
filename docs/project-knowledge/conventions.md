@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-04-13
-updated_by: superpowers-memory:rebuild
-triggered_by_plan: null
+last_updated: 2026-04-24
+updated_by: superpowers-memory:update
+triggered_by_plan: "2026-04-24-memory-rules-refinement.md"
 ---
 
 # Conventions
@@ -35,3 +35,12 @@ triggered_by_plan: null
 - **Versioning:** Bumped via GitHub Actions release workflow (`workflow_dispatch`) or manual commit. Version tracked in both `plugin.json` and `marketplace.json`.
 - **Specs before plans:** Design specs (`docs/superpowers/specs/`), then implementation plans (`docs/superpowers/plans/`). Plans reference specs.
 - **Plan checkboxes:** Implementation plan steps use `- [x]` / `- [ ]` syntax.
+
+## Knowledge Base Content Rules (plugin-enforced)
+
+- **Ownership matrix** — see `plugins/superpowers-memory/content-rules.md`. Each fact has ONE owner file; others reference by pointer (≤1 line).
+- **ADR granularity gate** — new ADRs only when a future reader without this record would re-propose the opposite (NORMAL 3-line default; CRITICAL only when ≥2 rejected alts with substantive analysis).
+- **`features.md` is capability view** — current state in 3–6 lines + ADR ref. No commit SHAs, test counts, timestamps, changelog narrative.
+- **`glossary.md` entries ≤2 lines** — one-line business definition + 1 path.
+- **Exclusion Gate** in `update` / `rebuild` skills checks every new entry against the content-shape rules before write.
+- **`verify` surfaces** `ssotViolations`, `shapeViolations`, `tokenBudgetViolation` (20K default), and `sizeWarnings`. All warn-only — commits are not blocked (hard gate rejected 2026-04-24 per D6). `committable` reflects git state only.

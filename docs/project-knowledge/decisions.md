@@ -1,10 +1,18 @@
 ---
-last_updated: 2026-04-13
-updated_by: superpowers-memory:rebuild
-triggered_by_plan: null
+last_updated: 2026-04-24
+updated_by: superpowers-memory:update
+triggered_by_plan: "2026-04-24-memory-rules-refinement.md"
 ---
 
 # Decisions
+
+## ADR-009: Plugin-level enforcement of KB content discipline
+
+**Decision:** Add explicit Ownership Matrix, single-question ADR gate, capability-view `features.md`, ≤2-line `glossary.md` rule, Exclusion Gate step in update/rebuild skills, and three new warn-only `verify` checks (`ssotCheck`, `contentShapeLint`, `totalTokenBudget` 20K default). `decisions.md` size cap raised from 150 → 300.
+**Why:** User case study (talgent KB) showed pre-existing rules (implied ownership in template comments, Exclusion List never invoked as a skill step, only coarse size warnings) allowed progressive drift across three categories — size overflow via granularity creep, SSOT breakdown, Exclusion List violations. Explicit matrix + gates + richer `verify` warnings give users specific, actionable feedback at update time.
+**Trade-off:** No hard enforcement — `verify` stays warn-only, `committable` remains git-state-only. Users retain control over whether to compress or accept warnings. Machine-checkable format rules (especially ≤2-line glossary) will surface legacy patterns as violations; re-shaping legacy KBs happens progressively on subsequent updates, not forced in one shot.
+
+---
 
 ## ADR-008: Evidence-based staleness detection in stop hook
 
