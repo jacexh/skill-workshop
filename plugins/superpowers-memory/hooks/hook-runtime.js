@@ -415,9 +415,28 @@ function buildVerifyOutput() {
     while ((match = refPattern.exec(content)) !== null) {
       const ref = match[1];
       if (ref.includes("://") || ref.startsWith("docs/project-knowledge/") || ref.includes("<")) continue;
-      // Skip GitHub owner/repo references (e.g., "jacexh/skill-workshop")
-      const segments = ref.split("/");
+
+      const rawSegments = ref.split("/");
+      const segments = rawSegments.filter(Boolean);
+
+      // Bare single-segment references (`application/`, `nats/`) — too generic to resolve
+      if (segments.length < 2) continue;
+
+      // GitHub owner/repo references (e.g., "jacexh/skill-workshop")
       if (segments.length === 2 && !ref.endsWith("/") && !/\.\w+$/.test(ref)) continue;
+
+      // Filename-or-list form: every segment looks like `name.ext` (e.g., `go.mod/go.sum`)
+      if (segments.every((s) => /^[\w-]+\.[\w-]+$/.test(s))) continue;
+
+      // Module/host-prefixed paths: first segment is a dotted host (github.com, k8s.io, oras.land, go.uber.org)
+      if (segments[0].includes(".")) continue;
+
+      // Go package.Type references: last segment is `lowercase.CamelCase` (pkg/bus.MessageBus)
+      if (/^[a-z]\w*\.[A-Z]\w*$/.test(segments[segments.length - 1])) continue;
+
+      // Identifier catalog: 3+ bare identifiers with no trailing slash (WorkStarted/Activated/Archived, json/toml/yaml)
+      if (!ref.endsWith("/") && segments.length >= 3 && segments.every((s) => /^[A-Za-z]\w*$/.test(s))) continue;
+
       const target = path.join(repoRoot, ref.replace(/\/$/, ""));
       if (!fs.existsSync(target)) {
         staleRefs.push({ file: filename, ref });
