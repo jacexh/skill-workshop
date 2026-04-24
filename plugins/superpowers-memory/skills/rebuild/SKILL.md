@@ -52,6 +52,38 @@ Prioritize reading:
 
 Do NOT read: test files, generated code, vendor/node_modules, migration files, or single-module implementation details.
 
+### 2a. Exclusion Gate + Single-Owner (before generating files)
+
+Before writing any file:
+
+1. **Exclusion Gate** — for each fact harvested in Phase 2, check against the Exclusion List in `content-rules.md`:
+   - No struct / class field lists
+   - No enum / constant value catalogs
+   - No method signatures (unless the signature IS the cross-cutting invariant)
+   - No single-module implementation details
+   - No information derivable from git log / git blame (commit SHAs, timestamps, author names)
+   - No test counts or test paths in features.md
+
+2. **Single-Owner Principle** — for each fact, pick ONE owner file per the Ownership Matrix:
+
+   | Info type | Owner |
+   |-----------|-------|
+   | Structure / wiring / data flow | architecture.md |
+   | Capability / current behavior | features.md |
+   | Decision rationale (WHY) | decisions.md |
+   | Dep version + pick rationale | tech-stack.md |
+   | Coding / workflow rules | conventions.md |
+   | Term definition | glossary.md |
+   | Delivery timeline | plan files (NOT KB) |
+
+   Other files get ≤1-line pointers only.
+
+3. **Per-file format rules** (from `content-rules.md`):
+   - `decisions.md`: default NORMAL 3-line; CRITICAL only when ≥2 rejected alts AND each has substantive analysis. Supersede entries collapse to 2 lines.
+   - `glossary.md`: ≤2 lines per term, one-line definition, 1 path.
+   - `features.md`: capability view — current state in 3–6 lines + ADR ref. No SHAs, no test counts, no changelog narrative.
+   - `architecture.md`: structure view — modules, wiring, data flow. Not capabilities.
+
 ### 3. Generate knowledge files
 
 Create `docs/project-knowledge/` directory if it doesn't exist.
