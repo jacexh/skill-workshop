@@ -107,6 +107,97 @@ function ssotCheckKnowledgeBase(files) {
   return violations;
 }
 
+const SHA_PATTERN = /\b[0-9a-f]{7,40}\b/;
+const TEST_COUNT_PATTERN = /\b\d+\s+(?:unit|integration|e2e|end-to-end|smoke)?\s*tests?\b/i;
+const METHOD_SIG_PATTERN = /\b\w+\s*\(\s*ctx\b/;
+
+function lintFeatures(content) {
+  const findings = [];
+  const lines = content.split("\n");
+  lines.forEach((line, i) => {
+    if (SHA_PATTERN.test(line)) {
+      findings.push({ line: i + 1, kind: "commit_sha", sample: line.trim().slice(0, 120) });
+    }
+    if (TEST_COUNT_PATTERN.test(line)) {
+      findings.push({ line: i + 1, kind: "test_count", sample: line.trim().slice(0, 120) });
+    }
+  });
+  return findings;
+}
+
+function lintGlossary(content) {
+  const findings = [];
+  const lines = content.split("\n");
+
+  // Detect entries > 2 lines. A glossary entry starts with **Term** — ...
+  let entryStart = -1;
+  let entryLineCount = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    const isEntryStart = /^\*\*[^*]+\*\*\s+—/.test(trimmed);
+    const isBlank = trimmed === "";
+
+    if (isEntryStart) {
+      if (entryStart >= 0 && entryLineCount > 2) {
+        findings.push({
+          line: entryStart + 1,
+          kind: "glossary_entry_too_long",
+          sample: lines[entryStart].trim().slice(0, 120),
+        });
+      }
+      entryStart = i;
+      entryLineCount = 1;
+    } else if (entryStart >= 0 && !isBlank) {
+      entryLineCount++;
+    } else if (entryStart >= 0 && isBlank) {
+      if (entryLineCount > 2) {
+        findings.push({
+          line: entryStart + 1,
+          kind: "glossary_entry_too_long",
+          sample: lines[entryStart].trim().slice(0, 120),
+        });
+      }
+      entryStart = -1;
+      entryLineCount = 0;
+    }
+
+    if (METHOD_SIG_PATTERN.test(line)) {
+      findings.push({ line: i + 1, kind: "method_signature", sample: trimmed.slice(0, 120) });
+    }
+  }
+  // tail
+  if (entryStart >= 0 && entryLineCount > 2) {
+    findings.push({
+      line: entryStart + 1,
+      kind: "glossary_entry_too_long",
+      sample: lines[entryStart].trim().slice(0, 120),
+    });
+  }
+  return findings;
+}
+
+function contentShapeLintKnowledgeBase(files) {
+  const violations = [];
+  for (const [filename, content] of files) {
+    let findings = [];
+    if (filename === "features.md") findings = lintFeatures(content);
+    else if (filename === "glossary.md") findings = lintGlossary(content);
+    // Other files: only method signature lint
+    else {
+      content.split("\n").forEach((line, i) => {
+        if (METHOD_SIG_PATTERN.test(line)) {
+          findings.push({ line: i + 1, kind: "method_signature", sample: line.trim().slice(0, 120) });
+        }
+      });
+    }
+    for (const f of findings) {
+      violations.push({ file: filename, ...f });
+    }
+  }
+  return violations;
+}
+
 // Hook output formats per Claude Code protocol:
 // - Advisory (SessionStart/PreToolUse): hookSpecificOutput wrapper (plugin env) or flat additional_context
 // - Blocking (PreToolUse only): { decision: "block", reason }
@@ -269,6 +360,7 @@ function buildVerifyOutput() {
     }
   }
   const ssotViolations = ssotCheckKnowledgeBase(fileContents);
+  const shapeViolations = contentShapeLintKnowledgeBase(fileContents);
 
   // Git commit readiness — resolve actual git dir to support worktrees
   let committable = false;
@@ -285,10 +377,11 @@ function buildVerifyOutput() {
   }
 
   return {
-    ok: staleRefs.length === 0 && sizeWarnings.length === 0 && ssotViolations.length === 0,
+    ok: staleRefs.length === 0 && sizeWarnings.length === 0 && ssotViolations.length === 0 && shapeViolations.length === 0,
     sizeWarnings,
     staleRefs,
     ssotViolations,
+    shapeViolations,
     committable,
   };
 }
