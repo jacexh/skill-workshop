@@ -4,37 +4,46 @@ updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
 ---
 
-<!-- OWNER: Feature list, implementation status, roadmap.
-     "Not yet implemented" items (Redis cache, S3 archival, etc.) belong here, not in tech-stack.md.
+<!-- OWNER: Current capabilities of the system — what it can DO.
+     This is the capability view. Structure (how modules are wired) lives in architecture.md.
 
-     CONTENT EXCLUSION: Only list features that are non-obvious from codebase structure.
-     If the feature is evident from a top-level directory name, it doesn't need a separate entry. -->
+     EACH ENTRY describes the CURRENT state (3–6 lines) + ADR reference.
+     Do NOT write evolution history here (that lives in decisions.md supersede chains).
+     Do NOT write delivery timestamps (those live in docs/superpowers/plans/).
+
+     EXCLUSIONS (strict — checked by `verify contentShapeLint`):
+     - Commit SHAs or commit ranges (e.g., abc1234, bfb1dc1..HEAD)
+     - Test counts (e.g., "18 unit tests", "3 integration tests")
+     - Scope-boundary blocks ("Not in scope: ...")
+     - Per-iteration changelog narrative
+     - "Shipped 2026-MM-DD" dates — put in plan filename reference only
+
+     INCLUDE:
+     - Capability name (what the system does from outside)
+     - One-paragraph description of current state
+     - Entry point / relevant path
+     - Invariants or constraints shaping usage
+     - ADR reference(s) gating the capability -->
 
 # Features
 
-## Implemented
+## Current Capabilities
 
-<!-- Group by plan/iteration. Each feature: one line + spec/plan link.
-     Only list features non-obvious from codebase structure. -->
+<!-- One section per capability. Group by domain if there are many.
 
-### [Plan/Iteration Name]
-<!-- [spec](../superpowers/specs/xxx.md) | [plan](../superpowers/plans/xxx.md) -->
-- [Feature description]
+### [Capability Name]
+
+[3–6 lines: what the system can do now, entry point or relevant code path,
+key invariants, ADR references. No history, no timestamps, no SHAs, no test counts.]
+
+See also: [ADR-NNN](#), [plan](../superpowers/plans/YYYY-MM-DD-name.md) -->
 
 ## In Progress
 
-<!-- Features currently being implemented. -->
-
-### [Plan Name]
-<!-- [plan](../superpowers/plans/xxx.md) -->
-- [Feature description]
+<!-- Capabilities currently being built. Remove once they land in Current Capabilities. -->
 
 ## Planned
 
-<!-- Features with specs but not yet started. -->
+<!-- Capabilities with a spec but not yet started. -->
 
-- [Feature description] — [spec](../superpowers/specs/xxx.md)
-
-<!-- Cleanup rule: During update, AI identifies plans that appear abandoned
-     (no corresponding commits, superseded by newer plans) and asks the user
-     to confirm removal. Abandoned plans are removed only after user confirmation. -->
+- [Capability name] — [spec](../superpowers/specs/YYYY-MM-DD-name.md)
