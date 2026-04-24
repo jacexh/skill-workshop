@@ -65,6 +65,48 @@ function relativePath(filePath) {
   return path.relative(repoRoot, filePath).replace(/\\/g, "/");
 }
 
+function normalizeLine(line) {
+  return line
+    .toLowerCase()
+    .replace(/[`*_#>-]/g, "")        // strip common markdown markers
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // link text only
+    .replace(/https?:\/\/\S+/g, "")  // strip URLs
+    .replace(/\s+/g, " ")            // collapse whitespace
+    .trim();
+}
+
+function ssotCheckKnowledgeBase(files) {
+  const WINDOW = 3;
+  const MIN_LINE_LEN = 40;
+  const windowMap = new Map();
+
+  for (const [filename, content] of files) {
+    const lines = content.split("\n")
+      .map(normalizeLine)
+      .filter((l) => l.length >= MIN_LINE_LEN);
+
+    for (let i = 0; i + WINDOW <= lines.length; i++) {
+      const window = lines.slice(i, i + WINDOW).join("\n");
+      if (!windowMap.has(window)) {
+        windowMap.set(window, new Set());
+      }
+      windowMap.get(window).add(filename);
+    }
+  }
+
+  const violations = [];
+  for (const [window, fileSet] of windowMap) {
+    if (fileSet.size >= 2) {
+      violations.push({
+        files: [...fileSet].sort(),
+        sample: window.split("\n")[0].slice(0, 120),
+      });
+    }
+  }
+
+  return violations;
+}
+
 // Hook output formats per Claude Code protocol:
 // - Advisory (SessionStart/PreToolUse): hookSpecificOutput wrapper (plugin env) or flat additional_context
 // - Blocking (PreToolUse only): { decision: "block", reason }
@@ -218,6 +260,16 @@ function buildVerifyOutput() {
     }
   }
 
+  // SSOT check — detect near-duplicate 3-line blocks across KB files
+  const fileContents = [];
+  for (const filename of Object.keys(sizeThresholds)) {
+    const filePath = path.join(knowledgeDir, filename);
+    if (fs.existsSync(filePath)) {
+      fileContents.push([filename, fs.readFileSync(filePath, "utf8")]);
+    }
+  }
+  const ssotViolations = ssotCheckKnowledgeBase(fileContents);
+
   // Git commit readiness — resolve actual git dir to support worktrees
   let committable = false;
   if (isGitRepo()) {
@@ -233,9 +285,10 @@ function buildVerifyOutput() {
   }
 
   return {
-    ok: staleRefs.length === 0 && sizeWarnings.length === 0,
+    ok: staleRefs.length === 0 && sizeWarnings.length === 0 && ssotViolations.length === 0,
     sizeWarnings,
     staleRefs,
+    ssotViolations,
     committable,
   };
 }
