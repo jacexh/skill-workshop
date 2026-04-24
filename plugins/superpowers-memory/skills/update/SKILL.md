@@ -44,7 +44,7 @@ Check for architecture-level changes beyond `git diff --stat`:
 
   | Code change | architecture.md section to update |
   |-------------|-----------------------------------|
-  | New / deleted / renamed BC or service directory (under `cmd/`, `apps/`, `internal/<bc>/`, or equivalent) | §Layering |
+  | New / deleted / renamed top-level module, service, or bounded-context directory (by the project's own layout convention — e.g., Go `cmd/`+`internal/`, Java `src/main/java/<pkg>/`, Python top-level package, JS/TS `apps/` or `packages/`) | §Layering |
   | New / changed cross-module call path or event publish-subscribe edge | §Scenario Sequences (revise existing diagram or add a new one) |
   | Aggregate FSM gains / loses a state, or a transition changes which cross-BC event it emits | §Key Object FSMs |
   | New / replaced external infrastructure dependency (database, MQ, cache, external service) | §System Context |

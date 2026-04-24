@@ -30,16 +30,29 @@ Scoped mode deliberately re-reads the code relevant to the target file (not just
 
 ## Scope Routing (scoped mode only)
 
-When a target file is provided, validate it against this table and read only the sources listed. If the argument is not a valid target, stop and list the valid options.
+When a target file is provided, validate it against the abstract-category table below and locate the concrete sources using the project's actual conventions. If the argument is not a valid target, stop and list the valid options.
 
-| Target file | Read these sources |
+**Detect first, then read.** Before applying the table, run `ls` at the repo root and inspect the root manifests to identify the language(s) and layout convention. Common patterns — not exhaustive:
+
+- **Go**: `go.mod` + `cmd/` + `internal/` + `pkg/`; lint `.golangci*`; DI via `fx.Provide` / `wire.Build`
+- **Java**: `pom.xml` or `build.gradle[.kts]` + `src/main/java/<pkg>/`; lint `checkstyle.xml` / Spotless; entry via `@SpringBootApplication`
+- **Python**: `pyproject.toml` / `setup.py` / `requirements*.txt` + `src/<pkg>/` or flat `<pkg>/`; lint `ruff.toml` / `.flake8` / `[tool.*]`; entry via `manage.py` (Django) or `app.py` (FastAPI/Flask)
+- **JS/TS**: `package.json` (+ `pnpm-workspace.yaml` / `yarn.lock` if monorepo) + `apps/` / `packages/` / `src/`; lint `.eslintrc*` / `biome.json`
+- **Rust**: `Cargo.toml` (+ workspace) + `src/` / `crates/`; lint `rustfmt.toml` / `clippy.toml`
+- **Other** (Ruby, .NET, PHP, Elixir, …): infer from the manifest + top-level directory listing; apply the same abstract categories
+
+Multi-language monorepos (e.g., Go backend + TS frontend) are common — detect all stacks present and apply the table to each relevant slice.
+
+Then map abstract source categories to concrete paths:
+
+| Target file | Abstract source categories to read |
 |-------------|---------------------|
-| `architecture.md` | Top-level source dirs (`cmd/`, `apps/`, `internal/<bc>/`, `pkg/`); module entry points and DI / fx wiring files; aggregate root files with FSM construction (`fsm.StateMachine` or equivalent); proto `service` definitions under `api/`; `docker-compose*.yml` + K8s manifests for deployed units; `README.md` + `CLAUDE.md` |
-| `features.md` | `README.md`; `docs/design/`; `docs/superpowers/plans/` (for in-progress + planned); module entry points for implemented capabilities |
-| `tech-stack.md` | Language manifests (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`); `Dockerfile` + `docker-compose*.yml`; `Makefile`; `scripts/setup-*.sh` (toolchain installers) |
-| `conventions.md` | Lint/format configs (`.eslintrc*`, `.golangci*`, `.prettierrc*`); `Makefile`; CI configs (`.github/workflows/`); `CLAUDE.md`; `docs/design/` (for stable cross-cutting rules) |
-| `decisions.md` + `adr/` | Existing `decisions.md` + `adr/*.md` (format-compliance pass); `git log --oneline` for significant recent changes (granularity gate); `docs/design/` and `docs/superpowers/specs/` for decision sources |
-| `glossary.md` | Aggregate and domain-object names under `internal/<bc>/domain/` (or equivalent); proto `service` + top-level `message` names; `README.md` + `CLAUDE.md` for project-specific vocabulary |
+| `architecture.md` | (1) Top-level module/service directories per the detected layout; (2) service entry points (main/application classes, WSGI/ASGI entry, etc.); (3) aggregate root / domain-model files, however the project organizes them; (4) FSM construction code where applicable; (5) API / contract definitions (proto, OpenAPI, GraphQL SDL, REST controllers); (6) deployment manifests (`docker-compose*.yml`, `deploy/`, `k8s/`, `helm/`, `terraform/`); (7) `README.md` + `CLAUDE.md` + `AGENTS.md` |
+| `features.md` | `README.md`; `docs/design/`; `docs/superpowers/plans/` (in-progress + planned); module/service entry points for implemented capabilities |
+| `tech-stack.md` | Root language manifests (per detection above); containerization (`Dockerfile`, `docker-compose*.yml`); build orchestration (`Makefile`, `Taskfile.yml`, `justfile`, or equivalent); toolchain installers (`scripts/setup-*.sh` or equivalent) |
+| `conventions.md` | Lint/format configs (per the languages present); build orchestration; CI configs (`.github/workflows/`, `.gitlab-ci.yml`, `.circleci/`); `CLAUDE.md`; `docs/design/` (stable cross-cutting rules) |
+| `decisions.md` + `adr/` | Existing `decisions.md` + `adr/*.md` (format-compliance pass); `git log --oneline` for significant recent changes (granularity gate); `docs/design/` + `docs/superpowers/specs/` for decision sources |
+| `glossary.md` | Aggregate and domain-object names (per the project's domain-code organization — packages, model classes, ORM entities, proto `message` definitions); API contract type names (proto `service`, OpenAPI schema names, GraphQL types); `README.md` + `CLAUDE.md` for project-specific vocabulary |
 
 Files outside the mapping are out of scope — for example, `adr/ADR-NNN-<slug>.md` detail files are not scoped targets (they're rebuilt as part of `decisions.md` rebuild, or authored directly during `update`).
 
