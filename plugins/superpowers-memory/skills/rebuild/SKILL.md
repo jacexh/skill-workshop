@@ -1,23 +1,53 @@
 ---
 name: rebuild
-description: Use when initializing project knowledge for the first time or when knowledge has drifted too far from reality — full codebase scan and knowledge regeneration
+description: Use when initializing project knowledge, when knowledge has drifted too far from reality, or when a specific KB file needs to be rebuilt against current content rules — reads codebase and regenerates
 ---
 
 # Rebuild Project Knowledge
 
-Scan the entire codebase and generate a complete project knowledge base from scratch.
+Scan the codebase and regenerate the project knowledge base. Two modes:
 
-**Announce at start:** "I'm rebuilding the project knowledge base from the codebase."
+- **Full mode** (no argument): rebuild the entire KB from scratch.
+- **Scoped mode** (target file as argument, e.g., `architecture.md`): rebuild only that file against current `content-rules.md` by reading the code relevant to it; leave other KB files untouched (except for content that gets routed to them and for `index.md`, which is always regenerated).
+
+**Announce at start:**
+- Full mode: `I'm rebuilding the project knowledge base from the codebase.`
+- Scoped mode: `I'm rebuilding <filename> against current content rules.`
 
 ## When to Use
 
+**Full mode:**
 - First time setting up the knowledge base for a project
 - Knowledge base has drifted significantly from reality
 - User explicitly requests a full rebuild
 
+**Scoped mode:**
+- `content-rules.md` has changed and an existing KB file needs reshaping to comply
+- One specific KB file looks drifted from reality but the rest of the KB is trusted
+- User wants to apply the current template structure to an existing file without redoing the whole KB
+
+Scoped mode deliberately re-reads the code relevant to the target file (not just reformat existing prose) — reformatting without re-verification risks dressing up stale content in a compliant shape.
+
+## Scope Routing (scoped mode only)
+
+When a target file is provided, validate it against this table and read only the sources listed. If the argument is not a valid target, stop and list the valid options.
+
+| Target file | Read these sources |
+|-------------|---------------------|
+| `architecture.md` | Top-level source dirs (`cmd/`, `apps/`, `internal/<bc>/`, `pkg/`); module entry points and DI / fx wiring files; aggregate root files with FSM construction (`fsm.StateMachine` or equivalent); proto `service` definitions under `api/`; `docker-compose*.yml` + K8s manifests for deployed units; `README.md` + `CLAUDE.md` |
+| `features.md` | `README.md`; `docs/design/`; `docs/superpowers/plans/` (for in-progress + planned); module entry points for implemented capabilities |
+| `tech-stack.md` | Language manifests (`package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`); `Dockerfile` + `docker-compose*.yml`; `Makefile`; `scripts/setup-*.sh` (toolchain installers) |
+| `conventions.md` | Lint/format configs (`.eslintrc*`, `.golangci*`, `.prettierrc*`); `Makefile`; CI configs (`.github/workflows/`); `CLAUDE.md`; `docs/design/` (for stable cross-cutting rules) |
+| `decisions.md` + `adr/` | Existing `decisions.md` + `adr/*.md` (format-compliance pass); `git log --oneline` for significant recent changes (granularity gate); `docs/design/` and `docs/superpowers/specs/` for decision sources |
+| `glossary.md` | Aggregate and domain-object names under `internal/<bc>/domain/` (or equivalent); proto `service` + top-level `message` names; `README.md` + `CLAUDE.md` for project-specific vocabulary |
+
+Files outside the mapping are out of scope — for example, `adr/ADR-NNN-<slug>.md` detail files are not scoped targets (they're rebuilt as part of `decisions.md` rebuild, or authored directly during `update`).
+
 ## Pre-check
 
-If `docs/project-knowledge/` already exists:
+**Scoped mode: skip this step entirely.** Scoped rebuilds are cheap and user-intent-driven; the commit-count gate only applies to full rebuilds.
+
+**Full mode:** if `docs/project-knowledge/` already exists:
 - Read `last_updated` from any knowledge file
 - Count commits since last update using two-tier detection (excluding the KB directory itself):
   - Tier 1: `git log --oneline --since="<last_updated>" -E -i --grep="^(feat|refactor)" --no-merges -- . ':!docs/project-knowledge' | wc -l`
@@ -33,6 +63,9 @@ If `docs/project-knowledge/` already exists:
 
 ### 1. Phase 1 — General scan
 
+**Scoped mode: skip.** Go directly to Phase 2 and read only the sources listed in the Scope Routing table for the target file.
+
+**Full mode:**
 - Read project structure: `ls`, key directories
 - Read configuration files: `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`, `Makefile`, `docker-compose.yml`, etc.
 - Read existing documentation: `README.md`, `CLAUDE.md`, `docs/` directory
@@ -41,7 +74,9 @@ If `docs/project-knowledge/` already exists:
 
 ### 2. Phase 2 — Deep scan
 
-Based on Phase 1 findings, identify the project's top-level modules (directories representing independent functional units). For each module:
+**Scoped mode:** read only the sources in the Scope Routing table for the target file. Also read the current content of the target KB file itself — it is the prior belief, to be reconciled with the code you're reading. When the code and the prior belief agree, keep the existing entry (just reformat if it violates current rules). When they disagree, prefer the code; note the divergence in the post-rebuild report (Step 7).
+
+**Full mode:** based on Phase 1 findings, identify the project's top-level modules (directories representing independent functional units). For each module:
 - Read the core abstraction file (primary types, interfaces, or entry point)
 - Read 2-3 cross-module integration points, prioritizing flows that span 3+ components
 
@@ -87,9 +122,11 @@ Before writing any file:
 
 ### 3. Generate knowledge files
 
-Create `docs/project-knowledge/` directory if it doesn't exist.
+**Scoped mode:** generate ONLY the target file per its per-file format rule below. Do NOT rewrite other KB files. If Step 2a's Single-Owner check routes content out of the target (e.g., impl constants from `architecture.md` that belong in `tech-stack.md`), **append** the displaced entry to the correct destination file — do not overwrite the destination. In the target file, leave a ≤1-line pointer per the Ownership Matrix. Record both the target rewrite and every destination append in Step 7's diff summary.
 
-For each of the 6 knowledge files, use the plugin template as the structural basis and fill in concrete content from the codebase analysis:
+**Full mode:** create `docs/project-knowledge/` directory if it doesn't exist.
+
+For each of the 6 knowledge files (full mode) or the single target file (scoped mode), use the plugin template as the structural basis and fill in concrete content from the codebase analysis:
 
 - **architecture.md** — Pattern Overview (paradigm + 2–3 key characteristics, 1 paragraph); System Context (external actors + external systems, list form, ≤10 lines); Layering (bounded contexts or layers; each entry is name + one-sentence responsibility + path + key abstraction names; declare call-direction rules at the end); Scenario Sequences (2–3 Mermaid `sequenceDiagram` for cross-module flows of 3+ components; single-module internal flows do NOT belong here); Key Object FSMs (Mermaid `stateDiagram-v2` for aggregates whose transitions cross module boundaries, with trigger + emitted-event labels — bullet-list state enumerations are Exclusion List violations); Key Design Decisions (pointer list, 3–5 entries as `**[title]** — see ADR-NNN`). Skip §Key Object FSMs only if the project genuinely has no aggregates with cross-BC state transitions — and declare this explicitly rather than silently omitting the section.
 - **tech-stack.md** — Languages and frameworks (from config files), key dependencies (from package manifests), build tools (from scripts/Makefile). Organize by technology category or system boundary — whichever fits better.
@@ -100,17 +137,26 @@ For each of the 6 knowledge files, use the plugin template as the structural bas
 
 ### 4. Set frontmatter
 
-For every generated file:
+**Full mode** — for every generated file:
 - `last_updated`: today's date (YYYY-MM-DD)
 - `updated_by`: `superpowers-memory:rebuild`
 - `triggered_by_plan`: `null`
 
+**Scoped mode** — for the target file and any destination files that received routed content:
+- `last_updated`: today's date (YYYY-MM-DD)
+- `updated_by`: `superpowers-memory:rebuild`
+- `triggered_by_plan`: **preserve the existing value** — do not overwrite with `null` or `"none"`. Scoped rebuild is not plan-triggered, but the previous plan attribution remains valid for content that was not changed by this rebuild.
+
 ### 5. Generate index.md
 
-After writing the 6 knowledge files, generate `docs/project-knowledge/index.md`:
+Always regenerate `docs/project-knowledge/index.md` — in both modes — since key points for any touched file may have changed.
 
-- For each of the 6 files, extract 1-2 key points that help AI decide whether to load the file in full (e.g., specific pattern names, version numbers, counts — not generic descriptions)
-- Write the file following the format in `templates/index.md`, setting `updated_by: superpowers-memory:rebuild`, `triggered_by_plan: null`, and `covers_branch: <current-branch>` (the output of `git branch --show-current`)
+- Re-read all existing knowledge files (including the one(s) just rewritten)
+- For each file, extract 1-2 key points that help AI decide whether to load the file in full (e.g., specific pattern names, version numbers, counts — not generic descriptions)
+- Write the file following the format in `templates/index.md`, setting `updated_by: superpowers-memory:rebuild` and `covers_branch: <current-branch>` (the output of `git branch --show-current`).
+- `triggered_by_plan`:
+  - **Full mode**: `null` (fresh KB, no plan attribution)
+  - **Scoped mode**: preserve the existing value from the prior `index.md` — scoped rebuild is not plan-triggered and should not overwrite the attribution with `null`
 
 **Size constraint:** Keep index.md under 50 lines total.
 
@@ -135,7 +181,7 @@ Compare version numbers in tech-stack.md against actual manifests:
 - Key deps: spot-check 2-3 against go.mod / package.json
 
 **6b. Module coverage:**
-List actual top-level source directories. Confirm each appears in architecture.md Components section. Flag modules in code but missing from knowledge, or vice versa.
+List actual top-level source directories. Confirm each appears in `architecture.md` §Layering. Flag modules in code but missing from knowledge, or vice versa. (Scoped mode: only run this check if the target file is `architecture.md`.)
 
 **6c. SSOT spot-check:**
 Pick 2-3 concepts appearing in multiple files. Confirm full description only in designated owner file; other files use references only.
@@ -150,9 +196,16 @@ If previous knowledge files existed:
 
 Check the `committable` field from the step 6 verify output. If `false`, skip the commit — leave files uncommitted and tell the user why (mid-rebase, mid-merge, or detached HEAD).
 
+**Full mode:**
 ```bash
 git add docs/project-knowledge/ docs/project-knowledge/adr/
 git commit -m "docs: rebuild project knowledge base from codebase"
+```
+
+**Scoped mode:** add only the files that were touched (target file + any destinations that received routed content + `index.md`), and use a scope-specific message:
+```bash
+git add docs/project-knowledge/<target-file> [docs/project-knowledge/<other-destinations>...] docs/project-knowledge/index.md
+git commit -m "docs: rebuild <target-file> against current content rules"
 ```
 
 If the commit fails (e.g., pre-commit hook), report the error to the user. Do not retry with `--no-verify`.
