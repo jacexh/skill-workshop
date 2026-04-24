@@ -316,12 +316,14 @@ function buildVerifyOutput() {
   const sizeThresholds = {
     "architecture.md": 200,
     "conventions.md": 150,
-    "decisions.md": 150,
+    "decisions.md": 300,
     "tech-stack.md": 120,
     "features.md": 100,
     "glossary.md": 80,
     "index.md": 50,
   };
+
+  const TOKEN_BUDGET = 20000;
 
   const sizeWarnings = [];
   const staleRefs = [];
@@ -362,6 +364,16 @@ function buildVerifyOutput() {
   const ssotViolations = ssotCheckKnowledgeBase(fileContents);
   const shapeViolations = contentShapeLintKnowledgeBase(fileContents);
 
+  const totalBytes = fileContents.reduce((sum, [, content]) => sum + Buffer.byteLength(content, "utf8"), 0);
+  const estimatedTokens = Math.ceil(totalBytes / 4);
+  const perFileTokens = fileContents.map(([filename, content]) => ({
+    file: filename,
+    tokens: Math.ceil(Buffer.byteLength(content, "utf8") / 4),
+  }));
+  const tokenBudgetViolation = estimatedTokens > TOKEN_BUDGET
+    ? { estimatedTokens, budget: TOKEN_BUDGET, bytes: totalBytes, perFile: perFileTokens }
+    : null;
+
   // Git commit readiness — resolve actual git dir to support worktrees
   let committable = false;
   if (isGitRepo()) {
@@ -377,11 +389,17 @@ function buildVerifyOutput() {
   }
 
   return {
-    ok: staleRefs.length === 0 && sizeWarnings.length === 0 && ssotViolations.length === 0 && shapeViolations.length === 0,
+    ok:
+      staleRefs.length === 0 &&
+      sizeWarnings.length === 0 &&
+      ssotViolations.length === 0 &&
+      shapeViolations.length === 0 &&
+      !tokenBudgetViolation,
     sizeWarnings,
     staleRefs,
     ssotViolations,
     shapeViolations,
+    tokenBudgetViolation,
     committable,
   };
 }
