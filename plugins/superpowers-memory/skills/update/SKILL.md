@@ -46,6 +46,35 @@ Check for architecture-level changes beyond `git diff --stat`:
 - Significant design decisions made? → add ADR to `decisions.md` (Normal 3-line by default; CRITICAL if the decision has a seemingly reasonable but rejected alternative)
 - New domain terms introduced? → update `glossary.md`
 
+### 3a. Exclusion Gate (before writing any new entry)
+
+For EACH new entry about to be written, run this checklist against the entry's content shape:
+
+- [ ] Does the entry pass the Exclusion List in `content-rules.md`? (no struct fields, no enum value catalogs, no method signatures, no single-module implementation detail, nothing derivable from git log)
+- [ ] Does the entry fit its per-file format rule?
+  - `glossary.md` entry: ≤2 lines, one-line definition, 1 path (+ ADR if applicable)
+  - `features.md` entry: capability view (current state, ≤6 lines, ADR-referenced). NO commit SHAs, NO test counts, NO timestamps, NO changelog narrative.
+  - New ADR: passes the granularity gate (would a reader without this record re-propose the opposite?). If yes, default to NORMAL 3-line format. CRITICAL only when ≥2 rejected alts AND each has substantive analysis.
+  - `architecture.md` entry: structure view (components, wiring, data flow). NOT capability description (that's features.md).
+
+If ANY checklist item fails, either compress the entry to comply OR redirect it to the correct owner file per the Ownership Matrix.
+
+### 3b. Single-Owner Principle
+
+For every piece of information being added, pick ONE owner file per the Ownership Matrix in `content-rules.md`:
+
+| Info type | Owner |
+|-----------|-------|
+| Structure / wiring / data flow | architecture.md |
+| Capability / current behavior | features.md |
+| Decision rationale (WHY) | decisions.md |
+| Dep version + pick rationale | tech-stack.md |
+| Coding / workflow rules | conventions.md |
+| Term definition | glossary.md |
+| Delivery timeline | plan files (NOT KB) |
+
+Other files that need to reference this information get a ≤1-line pointer ("see ADR-NNN", "see architecture.md §Components"). Never duplicate the expansion.
+
 ### 4. Apply updates
 
 - Only modify files that need changes — do not rewrite unchanged files
