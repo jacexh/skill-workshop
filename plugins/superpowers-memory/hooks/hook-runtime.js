@@ -481,20 +481,11 @@ const skillAdvisory = {
 
 // Shared classifier for finishing-a-development-branch, used by both
 // PreToolUse (Skill tool invocation) and UserPromptExpansion (slash-command path).
-// Handles the KB-missing block and the 4-way staleness classifier.
+// Handles the 4-way staleness classifier only (base-branch no-op, SHA-match soft
+// reminder, KB-only-commits soft reminder, rich injection fallback).
 // eventName must be "PreToolUse" or "UserPromptExpansion".
+// Caller must verify KB is ready before invoking this.
 function classifyFinishingState(eventName) {
-  const kbExists = hasKnowledgeBase();
-  const indexPath = findIndexPath();
-  const kbReady = kbExists && indexPath;
-
-  if (!kbReady) {
-    const reason = kbExists
-      ? "Project knowledge base exists but the index file is missing. You MUST run superpowers-memory:rebuild before using this workflow."
-      : "Project knowledge base not initialized. You MUST run superpowers-memory:rebuild before using this workflow.";
-    return { decision: "block", reason };
-  }
-
   const currentBranch = getCurrentBranch();
   const baseBranch = getBaseBranch();
 
@@ -560,10 +551,6 @@ function buildPreToolUseOutput(input) {
   const advisory = skillAdvisory[skill];
   if (!advisory) return {};
 
-  if (skill === "superpowers:finishing-a-development-branch") {
-    return classifyFinishingState("PreToolUse");
-  }
-
   const kbExists = hasKnowledgeBase();
   const indexPath = findIndexPath();
   const kbReady = kbExists && indexPath;
@@ -573,6 +560,10 @@ function buildPreToolUseOutput(input) {
       ? "Project knowledge base exists but the index file is missing. You MUST run superpowers-memory:rebuild before using this workflow."
       : "Project knowledge base not initialized. You MUST run superpowers-memory:rebuild before using this workflow.";
     return { decision: "block", reason };
+  }
+
+  if (skill === "superpowers:finishing-a-development-branch") {
+    return classifyFinishingState("PreToolUse");
   }
 
   return hookPayload("PreToolUse", advisory);
@@ -587,11 +578,20 @@ function buildUserPromptExpansionOutput(input) {
   }
   // The hook matcher targets command_name. Defensively double-check here in case
   // the matcher pattern is broader than expected — only act on the finishing skill.
+  // endsWith() handles all plausible formats: bare, namespaced, with leading slash.
   const commandName = parsed.command_name || "";
-  if (commandName !== "superpowers:finishing-a-development-branch" &&
-      commandName !== "finishing-a-development-branch") {
-    return {};
+  if (!commandName.endsWith("finishing-a-development-branch")) return {};
+
+  const kbExists = hasKnowledgeBase();
+  const indexPath = findIndexPath();
+  const kbReady = kbExists && indexPath;
+  if (!kbReady) {
+    const reason = kbExists
+      ? "Project knowledge base exists but the index file is missing. You MUST run superpowers-memory:rebuild before using this workflow."
+      : "Project knowledge base not initialized. You MUST run superpowers-memory:rebuild before using this workflow.";
+    return { decision: "block", reason };
   }
+
   return classifyFinishingState("UserPromptExpansion");
 }
 
