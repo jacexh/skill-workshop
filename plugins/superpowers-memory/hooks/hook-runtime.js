@@ -472,8 +472,11 @@ const skillAdvisory = {
     "Run superpowers-memory:load before executing this plan to understand the project context.",
   "superpowers:subagent-driven-development":
     "Run superpowers-memory:load before dispatching subagents to understand the project context.",
+  // Sentinel: actual content is built by buildFinishingRichContext() inside
+  // buildPreToolUseOutput when KB does not cover HEAD. When KB does cover,
+  // this string is used as the soft reminder.
   "superpowers:finishing-a-development-branch":
-    "IMPORTANT: You MUST run superpowers-memory:update for this branch before finishing it.",
+    "Knowledge base already covers this branch. You may proceed with finishing.",
 };
 
 function buildPreToolUseOutput(input) {
@@ -510,7 +513,7 @@ function buildPreToolUseOutput(input) {
     const currentBranch = getCurrentBranch();
     const baseBranch = getBaseBranch();
 
-    // On base branch or detached HEAD — no guard needed
+    // On base branch or detached HEAD — finishing is meaningless; pass through.
     if (!currentBranch || currentBranch === baseBranch) {
       return hookPayload("PreToolUse", advisory);
     }
@@ -521,24 +524,23 @@ function buildPreToolUseOutput(input) {
     const branchMatches = covered && covered.branch === currentBranch;
     const shaMatches = resolvedStoredSHA && currentSHA && resolvedStoredSHA === currentSHA;
 
-    if (!branchMatches || !shaMatches) {
-      const storedRepr = covered
-        ? (covered.sha ? covered.branch + "@" + covered.sha : covered.branch + " (legacy: no SHA recorded)")
-        : "null";
-      const currentRepr = currentSHA ? currentBranch + "@" + currentSHA : currentBranch;
-      let detail;
-      if (!covered) detail = "Knowledge base has no covers_branch recorded.";
-      else if (!branchMatches) detail = "Knowledge base does not cover this branch.";
-      else if (!covered.sha) detail = "Legacy covers_branch format (no SHA). Re-run update to record current HEAD.";
-      else if (!resolvedStoredSHA) detail = "Stored SHA is unresolvable (amended or garbage-collected).";
-      else detail = "New commits since last update on this branch.";
-      return {
-        decision: "block",
-        reason:
-          detail + " Run superpowers-memory:update before finishing the branch. " +
-          "(covers_branch: " + storedRepr + ", current: " + currentRepr + ")",
-      };
+    if (branchMatches && shaMatches) {
+      // KB is current — soft reminder is enough.
+      return hookPayload("PreToolUse", advisory);
     }
+
+    // Stale or never-covered — inject rich context.
+    let reasonDetail;
+    if (!covered) reasonDetail = "Knowledge base has no covers_branch recorded.";
+    else if (!branchMatches) reasonDetail = "Knowledge base covers a different branch.";
+    else if (!covered.sha) reasonDetail = "Legacy covers_branch format (no SHA recorded).";
+    else if (!resolvedStoredSHA) reasonDetail = "Stored SHA is unresolvable (amended or garbage-collected).";
+    else reasonDetail = "New commits on this branch since last KB update.";
+
+    const richContext = buildFinishingRichContext({
+      currentBranch, currentSHA, covered, resolvedStoredSHA, reasonDetail,
+    });
+    return hookPayload("PreToolUse", richContext);
   }
 
   return hookPayload("PreToolUse", advisory);
