@@ -148,11 +148,11 @@ function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolve
   let fileLines = [];
   if (resolvedStoredSHA) {
     const range = resolvedStoredSHA + "..HEAD";
-    const logResult = run("git", ["log", "--oneline", "--no-merges", "-n", "20", range]);
+    const logResult = run("git", ["log", "--oneline", "--no-merges", "-n", "20", range, "--", ".", ":!docs/project-knowledge"]);
     if (logResult.code === 0 && logResult.stdout.trim()) {
       commitLines = logResult.stdout.trim().split("\n");
     }
-    const diffResult = run("git", ["diff", "--name-only", range]);
+    const diffResult = run("git", ["diff", "--name-only", range, "--", ".", ":!docs/project-knowledge"]);
     if (diffResult.code === 0 && diffResult.stdout.trim()) {
       fileLines = diffResult.stdout.trim().split("\n").slice(0, 30);
     }
@@ -528,6 +528,17 @@ function buildPreToolUseOutput(input) {
     if (branchMatches && shaMatches) {
       // KB is current — soft reminder is enough.
       return hookPayload("PreToolUse", advisory);
+    }
+
+    // KB-only commits don't count as staleness — if the only changes since
+    // covers_branch@SHA are inside docs/project-knowledge/ (e.g., the KB-update
+    // commit itself), treat as covered. Mirrors ADR-008's stop-hook exclusion.
+    if (resolvedStoredSHA) {
+      const nonKBCheck = run("git", ["log", "--oneline", "--no-merges", "-n", "1",
+        resolvedStoredSHA + "..HEAD", "--", ".", ":!docs/project-knowledge"]);
+      if (nonKBCheck.code === 0 && !nonKBCheck.stdout.trim()) {
+        return hookPayload("PreToolUse", advisory);
+      }
     }
 
     // Stale or never-covered — inject rich context.
