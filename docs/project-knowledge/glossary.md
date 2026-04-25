@@ -1,7 +1,7 @@
 ---
 last_updated: 2026-04-25
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-25-kb-write-lock.md"
+triggered_by_plan: "2026-04-25-finishing-rich-injection.md"
 ---
 
 # Glossary
@@ -17,3 +17,5 @@ triggered_by_plan: "2026-04-25-kb-write-lock.md"
 **Trigger Skills** — The specific superpowers skills that each plugin's PreToolUse hook intercepts. Memory plugin: 5 skills (brainstorming, writing-plans, executing-plans, subagent-driven-development, finishing-a-development-branch). Architect plugin: 5 skills (writing-plans, executing-plans, subagent-driven-development, requesting-code-review, receiving-code-review). → `plugins/*/hooks/`
 
 **KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/project-knowledge/`; acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild`. → ADR-010
+
+**Rich Injection** — Hook output pattern: a multi-section `additionalContext` block (diff scope + imperative MUST language + numbered checklist + escape hatch) used in place of `decision: "block"`; designed to make compliance the path of least resistance without forcing a halt. → ADR-011
