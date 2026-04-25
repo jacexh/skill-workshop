@@ -15,13 +15,14 @@ triggered_by_plan: "2026-04-25-finishing-rich-injection.md"
 | Plugin marketplace catalog | `.claude-plugin/marketplace.json` — 3 plugins discoverable via `/plugin marketplace add jacexh/skill-workshop` |
 | GitHub Actions release | Automated `workflow_dispatch` for version bumping, tagging, and GitHub Release per plugin |
 
-### superpowers-memory (v1.10.1)
+### superpowers-memory (v1.11.0)
 
 | Feature | Description |
 |---------|------------|
 | Node.js hook runtime | `hook-runtime.js` — unified runtime for all hooks + `verify` + `analyze` + `lock` / `unlock` / `lock-status` modes; thin bash wrappers delegate to it |
 | SessionStart hook | Reads `index.md` or `MEMORY.md` (backward compat) from `docs/project-knowledge/`; injects index as additionalContext; prompts rebuild if KB missing |
-| PreToolUse hook (Skill) | Intercepts 5 skills with per-skill dispatch. The 4 planning/execution skills get a 1-line advisory; `finishing-a-development-branch` uses a 4-way classifier — block on KB-missing, no-op on base branch, architect-style rich injection on stale, soft reminder when KB covers HEAD (ADR-011) |
+| PreToolUse hook (Skill) | Intercepts 5 skills with per-skill dispatch. The 4 planning/execution skills get a 1-line advisory; `finishing-a-development-branch` delegates to the shared 4-way classifier (`classifyFinishingState`) (ADR-011) |
+| UserPromptExpansion hook | Covers the slash-command path (`/superpowers:finishing-a-development-branch` typed by user) which bypasses `PreToolUse:Skill`; runs the same `classifyFinishingState` classifier so both paths produce identical behavior (ADR-012) |
 | PreToolUse hook (Write/Edit) | Intercepts `Write` / `Edit` / `MultiEdit` / `NotebookEdit` on paths under `docs/project-knowledge/`; blocks unless a write-lock is held; lock is acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild` (ADR-010) |
 | KB write-lock | `.git/superpowers-memory.lock` with 60-min TTL gates all KB edits; auto-cleaned when stale; no escape hatch — manual edits also go through `superpowers-memory:update` (ADR-010) |
 | Stop hook | Evidence-based staleness: detects file-level changes outside `docs/project-knowledge/` via git diff (committed, staged, unstaged, untracked); emits systemMessage reminder if changes found |
