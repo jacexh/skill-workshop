@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-04-13
-updated_by: superpowers-memory:rebuild
-triggered_by_plan: null
+last_updated: 2026-04-25
+updated_by: superpowers-memory:update
+triggered_by_plan: "2026-04-25-kb-write-lock.md"
 ---
 
 # Glossary
@@ -15,3 +15,5 @@ triggered_by_plan: null
 **Evidence Paths** — File paths detected by the stop hook as changed outside `docs/project-knowledge/`. Used to determine whether KB might be stale, replacing the earlier commit-message-pattern approach. → ADR-008
 
 **Trigger Skills** — The specific superpowers skills that each plugin's PreToolUse hook intercepts. Memory plugin: 5 skills (brainstorming, writing-plans, executing-plans, subagent-driven-development, finishing-a-development-branch). Architect plugin: 5 skills (writing-plans, executing-plans, subagent-driven-development, requesting-code-review, receiving-code-review). → `plugins/*/hooks/`
+
+**KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/project-knowledge/`; acquired/released only by `:update` and `:rebuild`. → ADR-010

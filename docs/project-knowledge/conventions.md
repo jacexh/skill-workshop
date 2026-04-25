@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-04-24
+last_updated: 2026-04-25
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-24-memory-rules-refinement.md"
+triggered_by_plan: "2026-04-25-kb-write-lock.md"
 ---
 
 # Conventions
@@ -44,3 +44,4 @@ triggered_by_plan: "2026-04-24-memory-rules-refinement.md"
 - **`glossary.md` entries ≤2 lines** — one-line business definition + 1 path.
 - **Exclusion Gate** in `update` / `rebuild` skills checks every new entry against the content-shape rules before write.
 - **`verify` surfaces** `ssotViolations`, `shapeViolations`, `tokenBudgetViolation` (20K default), and `sizeWarnings`. All warn-only — commits are not blocked (hard gate rejected 2026-04-24 per D6). `committable` reflects git state only.
+- **KB writes go through `:update` / `:rebuild` only** (ADR-010). The PreToolUse hook blocks `Write` / `Edit` / `MultiEdit` / `NotebookEdit` on any path under `docs/project-knowledge/` unless a write-lock (`.git/superpowers-memory.lock`, 60-min TTL) is held. There is no escape hatch — manual typo fixes also go through `:update`.

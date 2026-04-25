@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-04-16
+last_updated: 2026-04-25
 updated_by: superpowers-memory:update
-triggered_by_plan: null
+triggered_by_plan: "2026-04-25-kb-write-lock.md"
 ---
 
 # Architecture
@@ -16,7 +16,7 @@ Skill Workshop is a Claude Code plugin marketplace — a curated collection of p
 |--------|---------------|----------------|--------------|
 | `.claude-plugin/` | Marketplace catalog definition | `marketplace.json` — lists available plugins and their locations | None |
 | `plugins/superpowers-memory/` | Plugin: cross-session project knowledge persistence and plan checkpoint tracking | Skills (`load`, `update`, `rebuild`), Hooks (`session-start`, `pre-tool-use`, `stop`) | Claude Code plugin runtime, Node.js |
-| `plugins/superpowers-memory/hooks/` | Hook scripts — thin bash wrappers delegating to `hook-runtime.js` | `hooks.json` declares event bindings; `hook-runtime.js` is the Node.js runtime handling all 3 hooks + `verify` + `analyze` modes | Node.js, git |
+| `plugins/superpowers-memory/hooks/` | Hook scripts — thin bash wrappers delegating to `hook-runtime.js` | `hooks.json` declares event bindings; `hook-runtime.js` is the Node.js runtime handling `session-start` / `pre-tool-use` / `stop` / `verify` / `analyze` / `lock` / `unlock` / `lock-status` modes | Node.js, git |
 | `plugins/superpowers-memory/skills/` | Three skills for managing the project knowledge base | load, update, rebuild (each in its own subdirectory with `SKILL.md`) | Read by Claude Code skill system |
 | `plugins/superpowers-memory/templates/` | Structural templates for the 7 knowledge base file types | `architecture.md`, `tech-stack.md`, `features.md`, `conventions.md`, `decisions.md`, `glossary.md`, `index.md` | None |
 | `plugins/superpowers-memory/content-rules.md` | Shared content generation rules for `rebuild` and `update` skills | Language, inclusion/exclusion, SSOT, quality, size guard thresholds | None |
@@ -32,7 +32,7 @@ Skill Workshop is a Claude Code plugin marketplace — a curated collection of p
 1. **Install:** User runs `/plugin marketplace add jacexh/skill-workshop` → Claude Code reads `.claude-plugin/marketplace.json` → user installs desired plugin
 2. **Session start:** Claude Code fires `SessionStart` hook → bash wrapper calls `hook-runtime.js session-start` → if KB missing: "not initialized" prompt; if `index.md` or `MEMORY.md` exists: reads and injects index content as additionalContext; if KB exists but no index: "run rebuild" prompt
 3. **Knowledge management:** User or agent invokes `superpowers-memory:rebuild` / `:update` / `:load` → agent reads codebase / existing knowledge files → agent writes/updates `docs/project-knowledge/*.md` in the target project
-4. **Skill interception (memory):** Claude Code fires `PreToolUse` on `Skill` tool calls → `hook-runtime.js pre-tool-use` → parses stdin JSON to extract `tool_input.skill` → if skill matches one of 5 triggers (`brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`), checks KB state and injects advisory or blocks if KB not ready
+4. **PreToolUse interception (memory):** Claude Code fires `PreToolUse` → `hook-runtime.js pre-tool-use` parses stdin JSON and dispatches by `tool_name`. For `Skill`: if skill matches one of 5 triggers (`brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`), checks KB state and injects advisory or blocks if KB not ready. For `Write` / `Edit` / `MultiEdit` / `NotebookEdit`: if `tool_input.file_path` resolves under `docs/project-knowledge/`, blocks unless `.git/superpowers-memory.lock` is held (60-min TTL; acquired/released only by `:update` and `:rebuild`) (ADR-010)
 5. **Session end:** Claude Code fires `Stop` → `hook-runtime.js stop` → detects file-level changes outside `docs/project-knowledge/` using git diff (committed since last KB update, staged, unstaged, untracked) → if changes found, emits systemMessage reminder to run `:update`
 6. **Skill interception (designing-tests):** Claude Code fires `PreToolUse` on `Skill` tool calls → `pre-tool-use` bash script → three tiers: `writing-plans` gets brief TDD planning reminder; `executing-plans`/`subagent-driven-development` get condensed test design principles (intent-first, test list, intent comments, boundary selection, quality labels); `test-driven-development` gets full `SKILL.md` body + reference file index
 7. **Skill interception (architect):** Claude Code fires `PreToolUse` on `Skill` tool calls → `pre-tool-use` bash script → if skill matches one of 5 triggers (`writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, `receiving-code-review`), scans `$SP_ARCHITECT_DIR` (global) + project-level pattern directory (overrides by filename) → builds compact index (name + description + path) → injects as additionalContext with plan or review wording
@@ -46,3 +46,4 @@ Skill Workshop is a Claude Code plugin marketplace — a curated collection of p
 - **Index-first progressive loading:** Both memory and architect plugins inject lightweight indexes; full content loaded on demand (ADR-005, ADR-006)
 - **Node.js hook runtime:** Replaced bash+python3 with a single `hook-runtime.js` for all superpowers-memory hooks (ADR-007)
 - **Evidence-based staleness:** Stop hook uses file-level change detection instead of commit message patterns (ADR-008)
+- **KB write-lock:** PreToolUse hook blocks Write/Edit on `docs/project-knowledge/` unless `:update` or `:rebuild` holds the lock (ADR-010)

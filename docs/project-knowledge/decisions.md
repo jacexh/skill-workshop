@@ -1,10 +1,15 @@
 ---
-last_updated: 2026-04-24
+last_updated: 2026-04-25
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-24-memory-rules-refinement.md"
+triggered_by_plan: "2026-04-25-kb-write-lock.md"
 ---
 
 # Decisions
+
+## ADR-010: KB write-lock enforced by PreToolUse hook
+**Decision:** Extend the superpowers-memory PreToolUse hook to block `Write|Edit|MultiEdit|NotebookEdit` on any path under `docs/project-knowledge/` unless a write-lock (`.git/superpowers-memory.lock`, 60-min TTL) is held; only `:update` and `:rebuild` acquire/release the lock via new `hook-runtime.js` `lock`/`unlock`/`lock-status` modes.
+**Trade-off:** Breaking change for users on prior versions — manual KB edits (including typo fixes) and ad-hoc ADR commits become impossible without invoking `:update`. No env-var escape hatch by design.
+→ [adr/ADR-010-kb-write-lock.md](adr/ADR-010-kb-write-lock.md)
 
 ## ADR-009: Plugin-level enforcement of KB content discipline
 
