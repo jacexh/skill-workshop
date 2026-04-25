@@ -134,6 +134,69 @@ function getBaseBranch() {
   return "main";
 }
 
+// Builds an architect-style rich-context block telling the model it MUST
+// invoke `superpowers-memory:update` as its very next tool call.
+// Used by finishing-a-development-branch when KB does not yet cover HEAD.
+function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolvedStoredSHA, reasonDetail }) {
+  const shortCurrent = currentSHA ? currentSHA.slice(0, 12) : "(unknown)";
+  const coveredRepr = covered
+    ? (covered.sha ? covered.branch + "@" + covered.sha.slice(0, 12) : covered.branch + " (legacy: no SHA)")
+    : "(none recorded)";
+
+  // Compute commits + files since covered SHA; fall back gracefully when SHA unresolvable.
+  let commitLines = [];
+  let fileLines = [];
+  if (resolvedStoredSHA) {
+    const range = resolvedStoredSHA + "..HEAD";
+    const logResult = run("git", ["log", "--oneline", "--no-merges", "-n", "20", range, "--", ".", ":!docs/project-knowledge"]);
+    if (logResult.code === 0 && logResult.stdout.trim()) {
+      commitLines = logResult.stdout.trim().split("\n");
+    }
+    const diffResult = run("git", ["diff", "--name-only", range, "--", ".", ":!docs/project-knowledge"]);
+    if (diffResult.code === 0 && diffResult.stdout.trim()) {
+      fileLines = diffResult.stdout.trim().split("\n").slice(0, 30);
+    }
+  }
+
+  const sections = [
+    "====== Memory: Finishing-Branch Update Required ======",
+    "Your project knowledge base does not yet cover the latest commits on this branch.",
+    "You MUST invoke `superpowers-memory:update` as your VERY NEXT tool call.",
+    "Do not call `superpowers:finishing-a-development-branch` again until the update completes.",
+    "",
+    "Context:",
+    "- Current branch: " + (currentBranch || "(unknown)") + "@" + shortCurrent,
+    "- Knowledge base covers: " + coveredRepr,
+    "- Reason: " + reasonDetail,
+  ];
+
+  if (commitLines.length > 0) {
+    sections.push("");
+    sections.push("Commits since last KB update (max 20):");
+    for (const line of commitLines) sections.push("  " + line);
+  }
+
+  if (fileLines.length > 0) {
+    sections.push("");
+    sections.push("Files changed since last KB update (max 30):");
+    for (const line of fileLines) sections.push("  " + line);
+  }
+
+  sections.push("");
+  sections.push("Required workflow:");
+  sections.push("  1. Invoke `superpowers-memory:update` (it will read the diff above and refresh docs/project-knowledge/).");
+  sections.push("  2. Wait for it to complete (the KB write-lock will be released automatically).");
+  sections.push("  3. Re-invoke `superpowers:finishing-a-development-branch` to continue.");
+  sections.push("");
+  sections.push("Escape hatch:");
+  sections.push("  If you have inspected the diff above and are confident none of it changes architecture, conventions,");
+  sections.push("  features, dependencies, decisions, or glossary terms (e.g., pure formatting, comment-only edits),");
+  sections.push("  state that explicitly in your next message and proceed. Otherwise, run update first.");
+  sections.push("======================================================");
+
+  return sections.join("\n");
+}
+
 function hasKnowledgeBase() {
   return fs.existsSync(knowledgeDir);
 }
@@ -409,9 +472,65 @@ const skillAdvisory = {
     "Run superpowers-memory:load before executing this plan to understand the project context.",
   "superpowers:subagent-driven-development":
     "Run superpowers-memory:load before dispatching subagents to understand the project context.",
+  // Sentinel: actual content is built by buildFinishingRichContext() inside
+  // buildPreToolUseOutput when KB does not cover HEAD. When KB does cover,
+  // this string is used as the soft reminder.
   "superpowers:finishing-a-development-branch":
-    "IMPORTANT: You MUST run superpowers-memory:update for this branch before finishing it.",
+    "Knowledge base already covers this branch. You may proceed with finishing.",
 };
+
+// Shared classifier for finishing-a-development-branch, used by both
+// PreToolUse (Skill tool invocation) and UserPromptExpansion (slash-command path).
+// Handles the 4-way staleness classifier only (base-branch no-op, SHA-match soft
+// reminder, KB-only-commits soft reminder, rich injection fallback).
+// eventName must be "PreToolUse" or "UserPromptExpansion".
+// Caller must verify KB is ready before invoking this.
+function classifyFinishingState(eventName) {
+  const currentBranch = getCurrentBranch();
+  const baseBranch = getBaseBranch();
+
+  // On base branch or detached HEAD — finishing-a-development-branch does not
+  // apply; no KB-coverage check possible. Skip the advisory entirely.
+  if (!currentBranch || currentBranch === baseBranch) {
+    return {};
+  }
+
+  const advisory = skillAdvisory["superpowers:finishing-a-development-branch"];
+  const covered = readCoversBranch();
+  const currentSHA = getCurrentSHA();
+  const resolvedStoredSHA = covered && covered.sha ? resolveStoredSHA(covered.sha) : null;
+  const branchMatches = covered && covered.branch === currentBranch;
+  const shaMatches = resolvedStoredSHA && currentSHA && resolvedStoredSHA === currentSHA;
+
+  if (branchMatches && shaMatches) {
+    // KB is current — soft reminder is enough.
+    return hookPayload(eventName, advisory);
+  }
+
+  // KB-only commits don't count as staleness — if the only changes since
+  // covers_branch@SHA are inside docs/project-knowledge/ (e.g., the KB-update
+  // commit itself), treat as covered. Mirrors ADR-008's stop-hook exclusion.
+  if (resolvedStoredSHA) {
+    const nonKBCheck = run("git", ["log", "--oneline", "--no-merges", "-n", "1",
+      resolvedStoredSHA + "..HEAD", "--", ".", ":!docs/project-knowledge"]);
+    if (nonKBCheck.code === 0 && !nonKBCheck.stdout.trim()) {
+      return hookPayload(eventName, advisory);
+    }
+  }
+
+  // Stale or never-covered — inject rich context.
+  let reasonDetail;
+  if (!covered) reasonDetail = "Knowledge base has no covers_branch recorded.";
+  else if (!branchMatches) reasonDetail = "Knowledge base covers a different branch.";
+  else if (!covered.sha) reasonDetail = "Legacy covers_branch format (no SHA recorded).";
+  else if (!resolvedStoredSHA) reasonDetail = "Stored SHA is unresolvable (amended or garbage-collected).";
+  else reasonDetail = "New commits on this branch since last KB update.";
+
+  const richContext = buildFinishingRichContext({
+    currentBranch, currentSHA, covered, resolvedStoredSHA, reasonDetail,
+  });
+  return hookPayload(eventName, richContext);
+}
 
 function buildPreToolUseOutput(input) {
   let parsed = {};
@@ -444,41 +563,36 @@ function buildPreToolUseOutput(input) {
   }
 
   if (skill === "superpowers:finishing-a-development-branch") {
-    const currentBranch = getCurrentBranch();
-    const baseBranch = getBaseBranch();
-
-    // On base branch or detached HEAD — no guard needed
-    if (!currentBranch || currentBranch === baseBranch) {
-      return hookPayload("PreToolUse", advisory);
-    }
-
-    const covered = readCoversBranch();
-    const currentSHA = getCurrentSHA();
-    const resolvedStoredSHA = covered && covered.sha ? resolveStoredSHA(covered.sha) : null;
-    const branchMatches = covered && covered.branch === currentBranch;
-    const shaMatches = resolvedStoredSHA && currentSHA && resolvedStoredSHA === currentSHA;
-
-    if (!branchMatches || !shaMatches) {
-      const storedRepr = covered
-        ? (covered.sha ? covered.branch + "@" + covered.sha : covered.branch + " (legacy: no SHA recorded)")
-        : "null";
-      const currentRepr = currentSHA ? currentBranch + "@" + currentSHA : currentBranch;
-      let detail;
-      if (!covered) detail = "Knowledge base has no covers_branch recorded.";
-      else if (!branchMatches) detail = "Knowledge base does not cover this branch.";
-      else if (!covered.sha) detail = "Legacy covers_branch format (no SHA). Re-run update to record current HEAD.";
-      else if (!resolvedStoredSHA) detail = "Stored SHA is unresolvable (amended or garbage-collected).";
-      else detail = "New commits since last update on this branch.";
-      return {
-        decision: "block",
-        reason:
-          detail + " Run superpowers-memory:update before finishing the branch. " +
-          "(covers_branch: " + storedRepr + ", current: " + currentRepr + ")",
-      };
-    }
+    return classifyFinishingState("PreToolUse");
   }
 
   return hookPayload("PreToolUse", advisory);
+}
+
+function buildUserPromptExpansionOutput(input) {
+  let parsed = {};
+  try {
+    parsed = JSON.parse(input || "{}");
+  } catch {
+    parsed = {};
+  }
+  // The hook matcher targets command_name. Defensively double-check here in case
+  // the matcher pattern is broader than expected — only act on the finishing skill.
+  // endsWith() handles all plausible formats: bare, namespaced, with leading slash.
+  const commandName = parsed.command_name || "";
+  if (!commandName.endsWith("finishing-a-development-branch")) return {};
+
+  const kbExists = hasKnowledgeBase();
+  const indexPath = findIndexPath();
+  const kbReady = kbExists && indexPath;
+  if (!kbReady) {
+    const reason = kbExists
+      ? "Project knowledge base exists but the index file is missing. You MUST run superpowers-memory:rebuild before using this workflow."
+      : "Project knowledge base not initialized. You MUST run superpowers-memory:rebuild before using this workflow.";
+    return { decision: "block", reason };
+  }
+
+  return classifyFinishingState("UserPromptExpansion");
 }
 
 function buildVerifyOutput() {
@@ -632,6 +746,12 @@ async function main() {
   if (mode === "pre-tool-use") {
     const input = await readStdin();
     process.stdout.write(JSON.stringify(buildPreToolUseOutput(input), null, 2) + "\n");
+    return;
+  }
+
+  if (mode === "user-prompt-expansion") {
+    const input = await readStdin();
+    process.stdout.write(JSON.stringify(buildUserPromptExpansionOutput(input), null, 2) + "\n");
     return;
   }
 

@@ -23,6 +23,18 @@
           }
         ]
       }
+    ],
+    "UserPromptExpansion": [
+      {
+        "matcher": "finishing-a-development-branch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" user-prompt-expansion",
+            "async": false
+          }
+        ]
+      }
     ]
   }
 }
