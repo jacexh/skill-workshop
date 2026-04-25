@@ -14,7 +14,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Skill",
+        "matcher": "Skill|Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
