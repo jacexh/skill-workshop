@@ -2,7 +2,7 @@
 last_updated: 2026-04-25
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-25-finishing-rich-injection.md"
-covers_branch: hotfix/update-trigger-opt@f71fe11
+covers_branch: hotfix/update-trigger-opt@433b4a8
 ---
 
 # Project Knowledge Index
@@ -14,7 +14,7 @@ covers_branch: hotfix/update-trigger-opt@f71fe11
   Key points: Node.js + Bash + Markdown + JSON; GitHub Actions release workflow; no external dependencies beyond Node + git
 
 - [features.md](features.md) — Implemented features, in-progress work
-  Key points: superpowers-memory v1.10.0 (rich-context injection on finishing staleness); superpowers-architect v1.6.2; designing-tests v1.6.0
+  Key points: superpowers-memory v1.10.1 (rich-context injection on finishing staleness, KB-only commits excluded); superpowers-architect v1.6.2; designing-tests v1.6.0
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
   Key points: hook-runtime.js for superpowers-memory hooks; content-rules.md as SSOT; KB writes go through `superpowers-memory:update` / `superpowers-memory:rebuild` only (no escape hatch)

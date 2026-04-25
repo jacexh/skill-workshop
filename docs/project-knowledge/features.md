@@ -15,7 +15,7 @@ triggered_by_plan: "2026-04-25-finishing-rich-injection.md"
 | Plugin marketplace catalog | `.claude-plugin/marketplace.json` — 3 plugins discoverable via `/plugin marketplace add jacexh/skill-workshop` |
 | GitHub Actions release | Automated `workflow_dispatch` for version bumping, tagging, and GitHub Release per plugin |
 
-### superpowers-memory (v1.10.0)
+### superpowers-memory (v1.10.1)
 
 | Feature | Description |
 |---------|------------|
