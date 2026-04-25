@@ -134,6 +134,69 @@ function getBaseBranch() {
   return "main";
 }
 
+// Builds an architect-style rich-context block telling the model it MUST
+// invoke `superpowers-memory:update` as its very next tool call.
+// Used by finishing-a-development-branch when KB does not yet cover HEAD.
+function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolvedStoredSHA, reasonDetail }) {
+  const shortCurrent = currentSHA ? currentSHA.slice(0, 12) : "(unknown)";
+  const coveredRepr = covered
+    ? (covered.sha ? covered.branch + "@" + covered.sha.slice(0, 12) : covered.branch + " (legacy: no SHA)")
+    : "(none recorded)";
+
+  // Compute commits + files since covered SHA; fall back gracefully when SHA unresolvable.
+  let commitLines = [];
+  let fileLines = [];
+  if (resolvedStoredSHA) {
+    const range = resolvedStoredSHA + "..HEAD";
+    const logResult = run("git", ["log", "--oneline", "--no-merges", "-n", "20", range]);
+    if (logResult.code === 0 && logResult.stdout.trim()) {
+      commitLines = logResult.stdout.trim().split("\n");
+    }
+    const diffResult = run("git", ["diff", "--name-only", range]);
+    if (diffResult.code === 0 && diffResult.stdout.trim()) {
+      fileLines = diffResult.stdout.trim().split("\n").slice(0, 30);
+    }
+  }
+
+  const sections = [
+    "====== Memory: Finishing-Branch Update Required ======",
+    "Your project knowledge base does not yet cover the latest commits on this branch.",
+    "You MUST invoke `superpowers-memory:update` as your VERY NEXT tool call.",
+    "Do not call `superpowers:finishing-a-development-branch` again until the update completes.",
+    "",
+    "Context:",
+    "- Current branch: " + (currentBranch || "(unknown)") + "@" + shortCurrent,
+    "- Knowledge base covers: " + coveredRepr,
+    "- Reason: " + reasonDetail,
+  ];
+
+  if (commitLines.length > 0) {
+    sections.push("");
+    sections.push("Commits since last KB update (max 20):");
+    for (const line of commitLines) sections.push("  " + line);
+  }
+
+  if (fileLines.length > 0) {
+    sections.push("");
+    sections.push("Files changed since last KB update (max 30):");
+    for (const line of fileLines) sections.push("  " + line);
+  }
+
+  sections.push("");
+  sections.push("Required workflow:");
+  sections.push("  1. Invoke `superpowers-memory:update` (it will read the diff above and refresh docs/project-knowledge/).");
+  sections.push("  2. Wait for it to complete (the KB write-lock will be released automatically).");
+  sections.push("  3. Re-invoke `superpowers:finishing-a-development-branch` to continue.");
+  sections.push("");
+  sections.push("Escape hatch:");
+  sections.push("  If you have inspected the diff above and are confident none of it changes architecture, conventions,");
+  sections.push("  features, dependencies, decisions, or glossary terms (e.g., pure formatting, comment-only edits),");
+  sections.push("  state that explicitly in your next message and proceed. Otherwise, run update first.");
+  sections.push("======================================================");
+
+  return sections.join("\n");
+}
+
 function hasKnowledgeBase() {
   return fs.existsSync(knowledgeDir);
 }
