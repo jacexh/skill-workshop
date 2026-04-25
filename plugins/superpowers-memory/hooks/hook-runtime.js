@@ -513,9 +513,10 @@ function buildPreToolUseOutput(input) {
     const currentBranch = getCurrentBranch();
     const baseBranch = getBaseBranch();
 
-    // On base branch or detached HEAD — finishing is meaningless; pass through.
+    // On base branch or detached HEAD — finishing-a-development-branch does not
+    // apply; no KB-coverage check possible. Skip the advisory entirely.
     if (!currentBranch || currentBranch === baseBranch) {
-      return hookPayload("PreToolUse", advisory);
+      return {};
     }
 
     const covered = readCoversBranch();
