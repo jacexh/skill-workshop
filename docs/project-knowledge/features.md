@@ -22,8 +22,8 @@ triggered_by_plan: "2026-04-25-kb-write-lock.md"
 | Node.js hook runtime | `hook-runtime.js` — unified runtime for all hooks + `verify` + `analyze` + `lock` / `unlock` / `lock-status` modes; thin bash wrappers delegate to it |
 | SessionStart hook | Reads `index.md` or `MEMORY.md` (backward compat) from `docs/project-knowledge/`; injects index as additionalContext; prompts rebuild if KB missing |
 | PreToolUse hook (Skill) | Intercepts 5 skills: `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; blocks if KB not ready, otherwise injects advisory |
-| PreToolUse hook (Write/Edit) | Intercepts `Write` / `Edit` / `MultiEdit` / `NotebookEdit` on paths under `docs/project-knowledge/`; blocks unless a write-lock is held; lock is acquired/released only by `:update` and `:rebuild` (ADR-010) |
-| KB write-lock | `.git/superpowers-memory.lock` with 60-min TTL gates all KB edits; auto-cleaned when stale; no escape hatch — manual edits also go through `:update` (ADR-010) |
+| PreToolUse hook (Write/Edit) | Intercepts `Write` / `Edit` / `MultiEdit` / `NotebookEdit` on paths under `docs/project-knowledge/`; blocks unless a write-lock is held; lock is acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild` (ADR-010) |
+| KB write-lock | `.git/superpowers-memory.lock` with 60-min TTL gates all KB edits; auto-cleaned when stale; no escape hatch — manual edits also go through `superpowers-memory:update` (ADR-010) |
 | Stop hook | Evidence-based staleness: detects file-level changes outside `docs/project-knowledge/` via git diff (committed, staged, unstaged, untracked); emits systemMessage reminder if changes found |
 | Verify command | Checks file size thresholds, stale path references, and git commit readiness; used by `rebuild` and `update` skills before commit |
 | `load` skill | Two-phase: reads index first, then offers on-demand detail file loading |

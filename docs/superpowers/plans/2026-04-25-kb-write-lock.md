@@ -1,6 +1,6 @@
 # superpowers-memory KB 写保护实施计划
 
-**Goal:** 阻止 `superpowers-memory:update` / `:rebuild` 之外的任何工具（含 AI 自身的 Write/Edit/MultiEdit/NotebookEdit）修改 `docs/project-knowledge/` 下的文件。根因：现有 `pre-tool-use` hook 仅匹配 `Skill` 工具，文件级写入完全无门槛，导致出现 talgent 中观察到的"AI 在实现任务里随手写 ADR、之后被 update 重写覆盖"的问题。
+**Goal:** 阻止 `superpowers-memory:update` / `superpowers-memory:rebuild` 之外的任何工具（含 AI 自身的 Write/Edit/MultiEdit/NotebookEdit）修改 `docs/project-knowledge/` 下的文件。根因：现有 `pre-tool-use` hook 仅匹配 `Skill` 工具，文件级写入完全无门槛，导致出现 talgent 中观察到的"AI 在实现任务里随手写 ADR、之后被 update 重写覆盖"的问题。
 
 **Architecture:** 在 `hooks/hook-runtime.js` 增加 `lock` / `unlock` 子命令（基于 `.git/superpowers-memory.lock` 文件 + 60 分钟 TTL）。扩展 `pre-tool-use` 模式分发：当工具是 `Write|Edit|MultiEdit|NotebookEdit`、且目标路径落在 `docs/project-knowledge/` 内时，校验锁是否存在且未过期，否则返回 `decision: "block"` + 修复指引。`hooks.json` 增加对应 PreToolUse matcher。两个 skill（update / rebuild）在流程首尾加显式 lock / unlock Bash 步骤。
 

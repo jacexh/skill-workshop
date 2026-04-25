@@ -17,7 +17,7 @@ covers_branch: hotfix/update-trigger@6afb00d
   Key points: superpowers-memory v1.9.0 (adds KB write-lock + Write/Edit interception); superpowers-architect v1.6.2; designing-tests v1.6.0
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: hook-runtime.js for superpowers-memory hooks; content-rules.md as SSOT; KB writes go through `:update` / `:rebuild` only (no escape hatch)
+  Key points: hook-runtime.js for superpowers-memory hooks; content-rules.md as SSOT; KB writes go through `superpowers-memory:update` / `superpowers-memory:rebuild` only (no escape hatch)
 
 - [decisions.md](decisions.md) — ADR summary log (10 ADRs, 0 superseded)
   Key points: ADR-010 KB write-lock via PreToolUse hook; ADR-009 plugin-level KB content discipline; ADR-008 evidence-based staleness

@@ -16,4 +16,4 @@ triggered_by_plan: "2026-04-25-kb-write-lock.md"
 
 **Trigger Skills** — The specific superpowers skills that each plugin's PreToolUse hook intercepts. Memory plugin: 5 skills (brainstorming, writing-plans, executing-plans, subagent-driven-development, finishing-a-development-branch). Architect plugin: 5 skills (writing-plans, executing-plans, subagent-driven-development, requesting-code-review, receiving-code-review). → `plugins/*/hooks/`
 
-**KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/project-knowledge/`; acquired/released only by `:update` and `:rebuild`. → ADR-010
+**KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/project-knowledge/`; acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild`. → ADR-010
