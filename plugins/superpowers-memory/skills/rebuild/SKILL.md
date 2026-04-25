@@ -74,6 +74,16 @@ Files outside the mapping are out of scope — for example, `adr/ADR-NNN-<slug>.
 
 ## Process
 
+### 0. Acquire write lock
+
+`docs/project-knowledge/` is write-protected by a PreToolUse hook. Acquire the lock before any KB edit, otherwise every Write/Edit/MultiEdit on a KB file will be blocked:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" lock superpowers-memory:rebuild
+```
+
+Lock has a 60-minute TTL — if this skill aborts midway, the lock auto-expires and writes are blocked again.
+
 ### 1. Phase 1 — General scan
 
 **Scoped mode: skip.** Go directly to Phase 2 and read only the sources listed in the Scope Routing table for the target file.
@@ -230,6 +240,14 @@ If the commit fails (e.g., pre-commit hook), report the error to the user. Do no
 - Summarize what was generated
 - Note any areas where information was sparse or uncertain
 - Suggest running `superpowers-memory:update` after the next iteration to keep knowledge fresh
+
+### 10. Release write lock
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" unlock
+```
+
+Always run this — even if the commit in Step 8 failed or earlier steps surfaced errors. Releasing the lock is courtesy cleanup; the 60-minute TTL is the safety net if the skill aborts before reaching this step.
 
 ## Content Rules
 

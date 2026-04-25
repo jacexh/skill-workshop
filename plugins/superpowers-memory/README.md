@@ -12,7 +12,7 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading all 6 files.
 
-3. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `:load` before planning/execution, and to run `:update` after execution completes or when finishing a development branch.
+3. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `superpowers-memory:load` before planning/execution, and to run `superpowers-memory:update` after execution completes or when finishing a development branch.
 
 4. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
 
@@ -37,8 +37,23 @@ Install via the Skill Workshop marketplace:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| SessionStart | startup, clear, compact | Injects the KB index when it exists, or prompts the user to run `:rebuild` when the KB is missing |
-| PreToolUse | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `:load` before work and `:update` before finishing a branch; blocks when the KB does not exist, or when finishing a branch whose `covers_branch` (branch name + HEAD SHA) does not match current `HEAD` |
+| SessionStart | startup, clear, compact | Injects the KB index when it exists, or prompts the user to run `superpowers-memory:rebuild` when the KB is missing |
+| PreToolUse (Skill) | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `superpowers-memory:load` before work and `superpowers-memory:update` before finishing a branch; blocks when the KB does not exist, or when finishing a branch whose `covers_branch` (branch name + HEAD SHA) does not match current `HEAD` |
+| PreToolUse (Write/Edit/MultiEdit/NotebookEdit) | any file write under `docs/project-knowledge/` | Blocks the write unless a write-lock is held. The lock is acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild`, so KB content can never drift from the canonical update flow (no ad-hoc ADR commits, no manual edits). Lock has a 60-min TTL to prevent permanent lockout if a skill aborts midway. |
+
+### KB Write Lock
+
+`docs/project-knowledge/` is owned by `superpowers-memory:update` (incremental) and `superpowers-memory:rebuild` (full). Direct edits via Write/Edit/MultiEdit/NotebookEdit are blocked unless a lock file (`.git/superpowers-memory.lock`) is present. Both skills acquire the lock at the start of their `Process` and release it at the end:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/hooks/hook-runtime.js" lock <skill-name>
+# … skill does its work …
+node "${CLAUDE_PLUGIN_ROOT}/hooks/hook-runtime.js" unlock
+```
+
+The lock auto-expires after 60 minutes, so an aborted run can't leave the KB permanently writable. To inspect lock state: `node hook-runtime.js lock-status`.
+
+There is **no escape hatch** — even one-line typo fixes go through `superpowers-memory:update`. This is intentional: the update skill re-applies the Exclusion Gate and Single-Owner Principle, so manual edits would just be silently re-shaped (or overwritten) on the next run.
 
 ## Knowledge Base Structure
 

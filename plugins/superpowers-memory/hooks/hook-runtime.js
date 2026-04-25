@@ -22,6 +22,55 @@ function resolveRepoRoot() {
 const repoRoot = resolveRepoRoot();
 const knowledgeDir = path.join(repoRoot, "docs", "project-knowledge");
 
+// Lock file lives in .git/ so it's per-repo, never tracked, and survives across
+// hook invocations within a single update/rebuild run. 60-min TTL prevents
+// permanent lockout if the skill aborts before calling unlock.
+function resolveGitDir() {
+  const result = cp.spawnSync("git", ["rev-parse", "--git-dir"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    timeout: 5000,
+  });
+  if (result.status === 0 && result.stdout.trim()) {
+    return path.resolve(repoRoot, result.stdout.trim());
+  }
+  return null;
+}
+const gitDir = resolveGitDir();
+const lockFile = gitDir ? path.join(gitDir, "superpowers-memory.lock") : null;
+const LOCK_TTL_MS = 60 * 60 * 1000;
+
+function acquireLock(skill) {
+  if (!lockFile) return { ok: false, reason: "Not a git repo (no .git dir resolved)" };
+  const payload = { acquired_at: new Date().toISOString(), skill: skill || "unknown" };
+  fs.writeFileSync(lockFile, JSON.stringify(payload, null, 2));
+  return { ok: true, lockFile, skill: payload.skill };
+}
+
+function releaseLock() {
+  if (!lockFile) return { ok: true };
+  if (fs.existsSync(lockFile)) {
+    try { fs.unlinkSync(lockFile); } catch (e) { return { ok: false, reason: e.message }; }
+  }
+  return { ok: true };
+}
+
+function readLock() {
+  if (!lockFile || !fs.existsSync(lockFile)) return null;
+  const stat = fs.statSync(lockFile);
+  if (Date.now() - stat.mtimeMs > LOCK_TTL_MS) {
+    try { fs.unlinkSync(lockFile); } catch {}
+    return null;
+  }
+  let payload = {};
+  try { payload = JSON.parse(fs.readFileSync(lockFile, "utf8")); } catch {}
+  return { ...payload, mtime: stat.mtime.toISOString() };
+}
+
+function isLockHeld() {
+  return readLock() !== null;
+}
+
 function run(command, args) {
   const result = cp.spawnSync(command, args, {
     cwd: repoRoot,
@@ -365,13 +414,21 @@ const skillAdvisory = {
 };
 
 function buildPreToolUseOutput(input) {
-  let skill = "";
+  let parsed = {};
   try {
-    skill = JSON.parse(input || "{}")?.tool_input?.skill || "";
+    parsed = JSON.parse(input || "{}");
   } catch {
-    skill = "";
+    parsed = {};
+  }
+  const toolName = parsed.tool_name || "";
+  const toolInput = parsed.tool_input || {};
+
+  if (["Write", "Edit", "MultiEdit", "NotebookEdit"].includes(toolName)) {
+    return handleWritePreToolUse(toolName, toolInput);
   }
 
+  // Skill tool: existing per-skill advisory + finishing-branch guard.
+  const skill = toolInput.skill || "";
   const advisory = skillAdvisory[skill];
   if (!advisory) return {};
 
@@ -539,6 +596,33 @@ function buildVerifyOutput() {
   };
 }
 
+function handleWritePreToolUse(toolName, toolInput) {
+  const targetPath = toolInput.file_path || toolInput.notebook_path;
+  if (!targetPath) return {};
+
+  const absTarget = path.isAbsolute(targetPath)
+    ? targetPath
+    : path.resolve(repoRoot, targetPath);
+  const rel = path.relative(knowledgeDir, absTarget);
+  const insideKB = rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
+  if (!insideKB) return {};
+
+  if (isLockHeld()) return {};
+
+  const relFromRepo = path.relative(repoRoot, absTarget).replace(/\\/g, "/");
+  return {
+    decision: "block",
+    reason:
+      "Direct edits to docs/project-knowledge/ are forbidden. " +
+      "This directory is owned by superpowers-memory:update " +
+      "(or superpowers-memory:rebuild for full regeneration). " +
+      "To record an architectural decision: document it in your plan/spec under " +
+      "docs/superpowers/plans/, then run superpowers-memory:update to materialize " +
+      "the entry per content-rules.md. " +
+      "(blocked tool=" + toolName + ", path=" + relFromRepo + ")",
+  };
+}
+
 async function main() {
   if (mode === "session-start") {
     process.stdout.write(JSON.stringify(buildSessionStartOutput(), null, 2) + "\n");
@@ -553,6 +637,23 @@ async function main() {
 
   if (mode === "verify") {
     process.stdout.write(JSON.stringify(buildVerifyOutput(), null, 2) + "\n");
+    return;
+  }
+
+  if (mode === "lock") {
+    const skill = process.argv[3] || process.env.CLAUDE_SKILL_NAME || "unknown";
+    process.stdout.write(JSON.stringify(acquireLock(skill), null, 2) + "\n");
+    return;
+  }
+
+  if (mode === "unlock") {
+    process.stdout.write(JSON.stringify(releaseLock(), null, 2) + "\n");
+    return;
+  }
+
+  if (mode === "lock-status") {
+    const lock = readLock();
+    process.stdout.write(JSON.stringify({ held: lock !== null, lock, lockFile }, null, 2) + "\n");
     return;
   }
 
