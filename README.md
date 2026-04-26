@@ -106,6 +106,26 @@ plugins/<plugin-name>/
 └── ...                       # Plugin-specific files
 ```
 
+## Codex Marketplace (Experimental)
+
+This repository also publishes Codex-compatible variants of the three plugins under `codex-plugins/`. The Codex marketplace catalog lives at `.agents/plugins/marketplace.json` (object-form `source` + `policy` + `category`, distinct from Claude's `.claude-plugin/marketplace.json` schema).
+
+```bash
+codex plugin marketplace add jacexh/skill-workshop
+```
+
+Then in Codex, register each plugin's hooks into `~/.codex/hooks.json`:
+
+```
+$superpowers-memory:setup
+$superpowers-architect:setup
+$designing-tests:setup
+```
+
+Restart Codex. Each plugin has its own README under `codex-plugins/<name>/README.md` with capabilities, upgrade flow, and known protocol gaps relative to the Claude Code variant.
+
+The Claude Code variants under `plugins/` and the marketplace at `.claude-plugin/marketplace.json` are unchanged and remain the primary supported track.
+
 ## License
 
 Plugins in this marketplace are individually licensed. See each plugin's `plugin.json` for license information.
