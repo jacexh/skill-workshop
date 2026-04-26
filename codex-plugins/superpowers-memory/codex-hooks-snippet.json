@@ -1,0 +1,37 @@
+{
+  "version": "1.11.0",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/hooks/codex-runtime.js\" session-start"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/hooks/codex-runtime.js\" user-prompt-submit"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|mcp__filesystem__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/hooks/codex-runtime.js\" pre-tool-use"
+          }
+        ]
+      }
+    ]
+  }
+}
