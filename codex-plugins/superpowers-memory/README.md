@@ -23,9 +23,9 @@ Restart Codex. Hooks become active.
 codex plugin marketplace upgrade jacexh/skill-workshop
 ```
 
-In Codex, re-run `$superpowers-memory:setup`. The setup skill detects the new version marker and replaces the old block. Restart Codex.
+In Codex, re-run `$superpowers-memory:setup`. The setup installer updates this plugin's hook entries and preserves unrelated hooks. Restart Codex.
 
-Manual hook config (alternative to setup skill): copy the contents of `codex-hooks-snippet.json` into `~/.codex/hooks.json` under `hooks.*` arrays.
+Manual hook config is not recommended. `codex-hooks-snippet.json` contains a `${PLUGIN_ROOT}` placeholder that the setup installer resolves to the actual installed plugin path.
 
 ## Capabilities
 

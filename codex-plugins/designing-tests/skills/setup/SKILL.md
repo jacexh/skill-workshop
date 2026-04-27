@@ -1,44 +1,42 @@
 ---
 name: setup
-description: Use after installing or upgrading designing-tests in Codex to register the plugin's SessionStart hook into ~/.codex/hooks.json. Re-run after every codex plugin marketplace upgrade. Idempotent via version markers.
+description: Use after installing or upgrading designing-tests in Codex to register the plugin's SessionStart hook into ~/.codex/hooks.json. Re-run after every codex plugin marketplace upgrade.
 ---
 
 # Setup designing-tests hooks for Codex
 
-Use this skill to register designing-tests' SessionStart hook into `~/.codex/hooks.json`.
+Use this skill to register designing-tests' SessionStart hook into `~/.codex/hooks.json`. Re-runnable and idempotent via the plugin's installer script.
 
 ## Procedure
 
-### 1. Read current `~/.codex/hooks.json`
+### 1. Locate the installed plugin root
 
-Treat absent file as `{}`.
+This skill file lives at:
 
-### 2. Read plugin snippet
-
-Read `codex-plugins/designing-tests/codex-hooks-snippet.json`. Note `version` as `SNIPPET_VERSION`.
-
-### 3. Locate existing marker
-
-Search for:
-
-```
-// BEGIN designing-tests:hooks-v<X.Y.Z>
-... block ...
-// END designing-tests:hooks
+```text
+<plugin-root>/skills/setup/SKILL.md
 ```
 
-### 4. Decision
+Resolve `<plugin-root>` from the loaded skill path. Do not assume a fixed install directory; Codex marketplace installs commonly live under `~/.codex/plugins/cache/...`.
 
-| Existing marker | Action |
-|---|---|
-| Not found | Fresh install: merge `hooks.SessionStart` entries; insert markers |
-| Version matches | Up-to-date; report and stop |
-| Version differs | Replace block with new version |
+### 2. Run the installer
 
-### 5. Backup, write, report
+Run:
 
-Backup → write → report changes → suggest Codex restart.
+```bash
+node "<plugin-root>/scripts/install-codex-hooks.js"
+```
+
+### 3. Report the result
+
+Report the installer output, including backup path, entries removed/added, and whether legacy marker comments were removed.
+
+### 4. Tell the user to restart Codex
+
+Hook config is loaded at Codex startup. Suggest the user exit and restart their Codex session.
 
 ## Constraints
 
-Same as superpowers-memory and superpowers-architect setup skills.
+- Do not manually edit `~/.codex/hooks.json`; run the installer script.
+- Do not write `//` comments into `hooks.json`; Codex parses it as strict JSON.
+- Do not copy `codex-hooks-snippet.json` directly into `hooks.json`; it contains a `${PLUGIN_ROOT}` placeholder for the installer.

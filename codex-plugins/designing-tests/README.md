@@ -25,6 +25,8 @@ codex plugin marketplace upgrade jacexh/skill-workshop
 
 In Codex: `$designing-tests:setup`. Restart.
 
+Manual hook config is not recommended. `codex-hooks-snippet.json` contains a `${PLUGIN_ROOT}` placeholder that the setup installer resolves to the actual installed plugin path.
+
 ## Capabilities
 
 - **SessionStart hook** — injects execution-tier test design principles (intent-first, intent comments, boundary selection, quality labels, layer selection) plus 4 reference file indexes

@@ -25,6 +25,8 @@ codex plugin marketplace upgrade jacexh/skill-workshop
 
 In Codex, re-run `$superpowers-architect:setup`. Restart.
 
+Manual hook config is not recommended. `codex-hooks-snippet.json` contains a `${PLUGIN_ROOT}` placeholder that the setup installer resolves to the actual installed plugin path.
+
 ## Capabilities
 
 - **SessionStart hook** — injects design pattern indexes (name + description + absolute path) plus a fused meta-rule covering both planning ("apply") and review ("verify") modes
