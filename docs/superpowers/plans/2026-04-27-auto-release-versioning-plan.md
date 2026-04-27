@@ -1116,23 +1116,17 @@ git tag --sort=version:refname
 jq -r .metadata.version .claude-plugin/marketplace.json
 ```
 
-Expected(由本 PR 同时携带上轮 Codex 双轨 9 个 commit 进 main 决定的实际行为):
+Expected:
 - `git log` 顶部:`chore: bump versions to v1.12.1` (bot 提交) → 上一行是 PR merge commit
 - `git tag --sort=version:refname` 输出 2 行(从旧到新):
   - `v1.12.0`(T9 种下的 baseline,保留)
   - `v1.12.1`(本次自动 release)
 - `metadata.version`:`1.11.0` → `1.12.1`
-- **CLAUDE_PLUGINS 检测命中** `superpowers-memory`(bc13762 KB 更新触及该 plugin 文件):
-  - marketplace.json `plugins[name=superpowers-memory].version`:`1.11.0` → `1.12.1`
-  - `plugins/superpowers-memory/.claude-plugin/plugin.json` `.version`:`1.11.0` → `1.12.1`
-- **CODEX_PLUGINS 检测命中** 三个 plugin(本 PR 把整个 codex-plugins/ 树首次合进 main):
-  - `codex-plugins/designing-tests/.codex-plugin/plugin.json` `.version`:`1.6.0` → `1.12.1`
-  - `codex-plugins/superpowers-architect/.codex-plugin/plugin.json` `.version`:`1.6.2` → `1.12.1`
-  - `codex-plugins/superpowers-memory/.codex-plugin/plugin.json` `.version`:`1.11.0` → `1.12.1`
-- 其他 Claude plugin(`superpowers-architect`、`designing-tests`)的 #2/#3 字段保持原值(R-X:本 PR 未触及 `plugins/<这两个>/`)
+- 所有 plugin 的 #2/#3/#4 字段保持原值。
 
-预测命令:`bash scripts/release/detect-changed-plugins.sh origin/main` 已确认输出
-`CLAUDE_PLUGINS=superpowers-memory` 与 `CODEX_PLUGINS=designing-tests superpowers-architect superpowers-memory`。
+  **原因**:`v1.12.0` 是 T9 在 README commit `a54ca37` 上种下的 —— 该 commit 在 hotfix/codex 历史中**晚于**所有 codex-plugins 引入 commit。`v1.12.0..HEAD` 只覆盖 spec + plan 这两个 docs commit,不触及任何 plugin 路径,因此 `detect-changed-plugins.sh` 输出空列表,bump 仅作用于 #1 metadata.version。验证命令:`bash scripts/release/detect-changed-plugins.sh v1.12.0` 输出 `CLAUDE_PLUGINS=` 与 `CODEX_PLUGINS=`(均空)。
+
+  注意:用 `origin/main` 作为 PREV 时输出会不同(会看到上轮 Codex 双轨工作),但 workflow 实际走 `v1.12.0`(最新 v* tag),不走 main —— 不要把这两种预测混为一谈。
 - 所有 `plugins/*/.claude-plugin/plugin.json` 与 `codex-plugins/*/.codex-plugin/plugin.json` 中的 `version` **保持原值**(本 PR 没改 plugin 内容)。
 
 - [ ] **Step 4:验证 GitHub Release 页**
