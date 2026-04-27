@@ -126,6 +126,26 @@ Restart Codex. Each plugin has its own README under `codex-plugins/<name>/README
 
 The Claude Code variants under `plugins/` and the marketplace at `.claude-plugin/marketplace.json` are unchanged and remain the primary supported track.
 
+## Releases
+
+This repo uses an automated release pipeline triggered when a pull request merges into `main`. The pipeline:
+
+1. Computes the next version (`vX.Y.Z`) by reading the latest `v*` tag and bumping based on the **PR source branch prefix**:
+
+   | Prefix (`/` or `-` separator) | Bump |
+   |---|---|
+   | `release/...` | minor |
+   | `breaking/...`, `major/...` | major |
+   | `fix/`, `hotfix/`, `bugfix/`, `feat/`, `feature/`, anything else | patch |
+
+2. Detects which plugins changed under `plugins/<name>/` and `codex-plugins/<name>/` (the two tracks are **independent** — same-named plugins on both sides may have divergent versions).
+3. Bumps the matching `version` fields in `marketplace.json` and each affected `plugin.json`. The marketplace's `metadata.version` always advances.
+4. Commits the bump as `github-actions[bot]`, tags the new commit `vX.Y.Z`, and publishes a GitHub Release with auto-generated notes.
+
+> **Tag naming convention:** only `vX.Y.Z` semver tags should ever be created in this repo. Other tag patterns will confuse the auto-release pipeline's "latest tag" lookup.
+
+The pipeline lives in `.github/workflows/auto-release.yml` and delegates its core logic to `scripts/release/*.sh` (each independently unit-tested via `scripts/release/test/run-tests.sh`).
+
 ## License
 
 Plugins in this marketplace are individually licensed. See each plugin's `plugin.json` for license information.
