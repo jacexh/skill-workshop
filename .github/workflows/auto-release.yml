@@ -1,0 +1,85 @@
+name: Auto Release
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: preview
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          out=$(bash scripts/release/compute-next-version.sh)
+          echo "$out"
+          {
+            echo "next=$(echo "$out" | grep ^NEXT= | cut -d= -f2)"
+            echo "prev_tag=$(echo "$out" | grep ^PREV_TAG= | cut -d= -f2)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Detect changed plugins
+        id: changed
+        run: |
+          set -euo pipefail
+          out=$(bash scripts/release/detect-changed-plugins.sh "${{ steps.preview.outputs.prev_tag }}")
+          echo "$out"
+          {
+            echo "claude=$(echo "$out" | grep ^CLAUDE_PLUGINS= | cut -d= -f2-)"
+            echo "codex=$(echo "$out"  | grep ^CODEX_PLUGINS=  | cut -d= -f2-)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Bump version fields
+        env:
+          NEXT: ${{ steps.preview.outputs.next }}
+          CLAUDE_PLUGINS: ${{ steps.changed.outputs.claude }}
+          CODEX_PLUGINS: ${{ steps.changed.outputs.codex }}
+        run: bash scripts/release/bump-versions.sh
+
+      - name: Commit and push bump
+        id: bump
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no-op release: nothing to bump"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "chore: bump versions to v${{ steps.preview.outputs.next }}"
+          git push origin main
+          echo "bumped=true" >> "$GITHUB_OUTPUT"
+
+      - name: Auto Tag
+        id: autotag
+        if: steps.bump.outputs.bumped == 'true'
+        uses: jacexh/action-autotag@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+
+      - name: Create GitHub Release
+        if: steps.bump.outputs.bumped == 'true' && steps.autotag.outputs.new_tag != ''
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.autotag.outputs.new_tag }}
+          name: ${{ steps.autotag.outputs.new_tag }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
