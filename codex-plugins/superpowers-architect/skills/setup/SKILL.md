@@ -1,44 +1,42 @@
 ---
 name: setup
-description: Use after installing or upgrading superpowers-architect in Codex to register the plugin's SessionStart hook into ~/.codex/hooks.json. Re-run after every codex plugin marketplace upgrade. Idempotent via version markers.
+description: Use after installing or upgrading superpowers-architect in Codex to register the plugin's SessionStart hook into ~/.codex/hooks.json. Re-run after every codex plugin marketplace upgrade.
 ---
 
 # Setup superpowers-architect hooks for Codex
 
-Use this skill to register superpowers-architect's SessionStart hook into `~/.codex/hooks.json`. Re-runnable; idempotent via version markers.
+Use this skill to register superpowers-architect's SessionStart hook into `~/.codex/hooks.json`. Re-runnable and idempotent via the plugin's installer script.
 
 ## Procedure
 
-### 1. Read the current hook config
+### 1. Locate the installed plugin root
 
-Read `~/.codex/hooks.json`. If the file does not exist, treat as `{}`.
+This skill file lives at:
 
-### 2. Read the plugin's snippet
-
-Read `codex-plugins/superpowers-architect/codex-hooks-snippet.json` (typically under `~/.codex/plugins/skill-workshop-codex/...`). Note the `version` field — call it `SNIPPET_VERSION`.
-
-### 3. Locate the existing block
-
-Search for marker:
-
-```
-// BEGIN superpowers-architect:hooks-v<X.Y.Z>
-... block ...
-// END superpowers-architect:hooks
+```text
+<plugin-root>/skills/setup/SKILL.md
 ```
 
-### 4. Decision
+Resolve `<plugin-root>` from the loaded skill path. Do not assume a fixed install directory; Codex marketplace installs commonly live under `~/.codex/plugins/cache/...`.
 
-| Existing marker | Action |
-|---|---|
-| Not found | Fresh install: append snippet's `hooks.SessionStart` entries; insert markers |
-| Version matches | Up-to-date; report and stop |
-| Version differs | Replace block with new version |
+### 2. Run the installer
 
-### 5. Backup, write, report
+Run:
 
-Same as superpowers-memory's setup skill. Backup `~/.codex/hooks.json.bak.<timestamp>` first; write merged config; report changes; suggest Codex restart.
+```bash
+node "<plugin-root>/scripts/install-codex-hooks.js"
+```
+
+### 3. Report the result
+
+Report the installer output, including backup path, entries removed/added, and whether legacy marker comments were removed.
+
+### 4. Tell the user to restart Codex
+
+Hook config is loaded at Codex startup. Suggest the user exit and restart their Codex session.
 
 ## Constraints
 
-Same as superpowers-memory: never touch entries outside markers, never write without backup, never repair user's malformed JSON — abort and report instead.
+- Do not manually edit `~/.codex/hooks.json`; run the installer script.
+- Do not write `//` comments into `hooks.json`; Codex parses it as strict JSON.
+- Do not copy `codex-hooks-snippet.json` directly into `hooks.json`; it contains a `${PLUGIN_ROOT}` placeholder for the installer.

@@ -1,5 +1,5 @@
 {
-  "version": "1.11.0",
+  "version": "1.12.3",
   "hooks": {
     "SessionStart": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/hooks/codex-runtime.js\" session-start"
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" session-start"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/hooks/codex-runtime.js\" user-prompt-submit"
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" user-prompt-submit"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/hooks/codex-runtime.js\" pre-tool-use"
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" pre-tool-use"
           }
         ]
       }

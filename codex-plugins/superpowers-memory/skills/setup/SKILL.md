@@ -1,60 +1,55 @@
 ---
 name: setup
-description: Use after installing or upgrading superpowers-memory in Codex to register the plugin's hooks into ~/.codex/hooks.json. Re-run after every codex plugin marketplace upgrade. Detects existing version markers and skips if up-to-date, replaces if outdated, or adds fresh if missing.
+description: Use after installing or upgrading superpowers-memory in Codex to register the plugin's hooks into ~/.codex/hooks.json. Re-run after every codex plugin marketplace upgrade.
 ---
 
 # Setup superpowers-memory hooks for Codex
 
-Use this skill to register superpowers-memory's SessionStart, UserPromptSubmit, and PreToolUse hooks into the user's `~/.codex/hooks.json`. Re-runnable; idempotent via version markers.
+Use this skill to register superpowers-memory's SessionStart, UserPromptSubmit, and PreToolUse hooks into the user's `~/.codex/hooks.json`. Re-runnable and idempotent via the plugin's installer script.
 
 ## Procedure
 
-### 1. Read the current hook config
+### 1. Locate the installed plugin root
 
-Read `~/.codex/hooks.json`. If the file does not exist, treat the current config as `{}` (no hooks installed yet).
+This skill file lives at:
 
-### 2. Read the plugin's snippet
-
-Read `codex-plugins/superpowers-memory/codex-hooks-snippet.json` from the installed plugin root (typically under `~/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/`). Note the `version` field — call it `SNIPPET_VERSION`.
-
-### 3. Locate the existing block (if any)
-
-Within `~/.codex/hooks.json`, search for a JSON-comment-style marker pair:
-
-```
-// BEGIN superpowers-memory:hooks-v<X.Y.Z>
-... block ...
-// END superpowers-memory:hooks
+```text
+<plugin-root>/skills/setup/SKILL.md
 ```
 
-(Codex's hook config supports JSON5-style comments — confirm at runtime; if comments are stripped, fall back to a sentinel key like `"_marker_superpowers_memory_version": "<X.Y.Z>"` placed inside the merged block.)
+Resolve `<plugin-root>` from the loaded skill path. Do not assume a fixed install directory; Codex marketplace installs commonly live under `~/.codex/plugins/cache/...`.
 
-### 4. Decision
+### 2. Run the installer
 
-| Existing marker | Action |
-|---|---|
-| Not found | **Fresh install** — merge snippet's `hooks.*` arrays into `~/.codex/hooks.json` `hooks.*`; insert BEGIN/END markers around the appended entries |
-| Found, version equals `SNIPPET_VERSION` | **Up-to-date** — report and stop |
-| Found, version differs | **Update** — remove the old block (between BEGIN and END), then perform fresh install with new version |
+Run:
 
-### 5. Backup
+```bash
+node "<plugin-root>/scripts/install-codex-hooks.js"
+```
 
-Before writing, copy `~/.codex/hooks.json` to `~/.codex/hooks.json.bak.<timestamp>` (timestamp = `YYYYMMDD-HHMMSS`).
+### 3. Report the result
 
-### 6. Write and report
+Report the installer output, including:
 
-Write the merged config back. Report exactly what changed:
+- Backup file path, if one was created
+- Entries removed/added
+- Whether legacy JSON comment markers were removed
 
-- Backup file path created
-- Old version → new version (or "fresh install" / "no change")
-- Number of hook entries added/replaced
-
-### 7. Tell the user to restart Codex
+### 4. Tell the user to restart Codex
 
 Hook config is loaded at Codex startup. Suggest the user exit and restart their Codex session.
 
+## Installer Behavior
+
+- Reads this plugin's `codex-hooks-snippet.json`
+- Replaces `${PLUGIN_ROOT}` with the actual installed plugin root
+- Writes strict JSON only; it never writes `//` comments into `hooks.json`
+- Migrates legacy `// BEGIN ...` / `// END ...` marker comments created by older setup instructions for the three skill-workshop Codex plugins
+- Preserves unrelated user or plugin hook entries
+- Creates `~/.codex/hooks.json.bak.<timestamp>` before changing an existing file
+- Aborts on malformed JSON that is not caused by those managed legacy marker comments
+
 ## Constraints
 
-- Never modify hook entries that are NOT inside the BEGIN/END markers (these belong to the user or other plugins).
-- Never overwrite without backup.
-- If JSON parsing fails, abort and report; do NOT attempt to repair user's hook config.
+- Do not manually edit `~/.codex/hooks.json`; run the installer script.
+- Do not copy `codex-hooks-snippet.json` directly into `hooks.json`; it contains a `${PLUGIN_ROOT}` placeholder for the installer.
