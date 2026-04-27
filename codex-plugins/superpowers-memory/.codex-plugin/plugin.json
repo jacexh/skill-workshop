@@ -1,0 +1,31 @@
+{
+  "name": "superpowers-memory",
+  "version": "1.11.0",
+  "description": "Project knowledge persistence and KB write-lock for Codex superpowers workflows",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "superpowers",
+    "memory",
+    "project-knowledge",
+    "kb",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Superpowers Memory",
+    "shortDescription": "Project KB persistence + write-lock for Codex",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ]
+  },
+  "skills": [
+    "./skills/load",
+    "./skills/update",
+    "./skills/rebuild",
+    "./skills/setup"
+  ]
+}

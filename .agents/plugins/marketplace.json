@@ -1,0 +1,26 @@
+{
+  "name": "skill-workshop-codex",
+  "interface": {
+    "displayName": "Skill Workshop (Codex)"
+  },
+  "plugins": [
+    {
+      "name": "superpowers-memory",
+      "source": { "source": "local", "path": "./codex-plugins/superpowers-memory" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    },
+    {
+      "name": "superpowers-architect",
+      "source": { "source": "local", "path": "./codex-plugins/superpowers-architect" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    },
+    {
+      "name": "designing-tests",
+      "source": { "source": "local", "path": "./codex-plugins/designing-tests" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    }
+  ]
+}

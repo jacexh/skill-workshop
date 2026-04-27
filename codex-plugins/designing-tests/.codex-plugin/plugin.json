@@ -1,0 +1,28 @@
+{
+  "name": "designing-tests",
+  "version": "1.6.0",
+  "description": "Risk-driven test design guidance for Codex",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "testing",
+    "test-design",
+    "quality",
+    "regression",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Designing Tests",
+    "shortDescription": "Risk-driven test design for Codex",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ]
+  },
+  "skills": [
+    "./skills/designing-tests",
+    "./skills/setup"
+  ]
+}

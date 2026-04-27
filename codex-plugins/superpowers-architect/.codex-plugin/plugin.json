@@ -1,0 +1,26 @@
+{
+  "name": "superpowers-architect",
+  "version": "1.6.2",
+  "description": "Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows (Codex port)",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "superpowers",
+    "architect",
+    "design-patterns",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "Superpowers Architect",
+    "shortDescription": "Design pattern standards for Codex",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ]
+  },
+  "skills": [
+    "./skills/setup"
+  ]
+}
