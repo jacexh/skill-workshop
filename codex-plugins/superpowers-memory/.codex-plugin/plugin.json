@@ -22,10 +22,5 @@
       "Write"
     ]
   },
-  "skills": [
-    "./skills/load",
-    "./skills/update",
-    "./skills/rebuild",
-    "./skills/setup"
-  ]
+  "skills": "./skills/"
 }
