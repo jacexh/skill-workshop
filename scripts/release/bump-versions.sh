@@ -12,6 +12,7 @@
 #      (skip with stderr warning if directory absent)
 #   3) for each name N in CODEX_PLUGINS:
 #        - codex-plugins/N/.codex-plugin/plugin.json .version = $NEXT
+#        - codex-plugins/N/codex-hooks-snippet.json .version = $NEXT when present
 #      (skip with stderr warning if directory absent)
 #   .agents/plugins/marketplace.json is never touched.
 set -euo pipefail
@@ -67,4 +68,8 @@ for N in $CODEX_PLUGINS; do
     continue
   fi
   write_jq "$PJ" --arg v "$NEXT" '.version = $v'
+  HS="codex-plugins/$N/codex-hooks-snippet.json"
+  if [ -f "$HS" ]; then
+    write_jq "$HS" --arg v "$NEXT" '.version = $v'
+  fi
 done
