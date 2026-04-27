@@ -140,6 +140,7 @@ for (const entries of Object.values(cfg.hooks)) {
 const expected = [
   `node "${installRoot}/designing-tests/1.12.4/hooks/codex-runtime.js" session-start`,
   `node "${installRoot}/superpowers-architect/1.12.4/hooks/codex-runtime.js" session-start`,
+  `node "${installRoot}/superpowers-architect/1.12.4/hooks/codex-runtime.js" user-prompt-submit`,
   `node "${installRoot}/superpowers-memory/1.12.4/hooks/codex-runtime.js" session-start`,
   `node "${installRoot}/superpowers-memory/1.12.4/hooks/codex-runtime.js" user-prompt-submit`,
   `node "${installRoot}/superpowers-memory/1.12.4/hooks/codex-runtime.js" pre-tool-use`,
@@ -154,7 +155,7 @@ for (const command of expected) {
 
 for (const plugin of ["designing-tests", "superpowers-architect", "superpowers-memory"]) {
   const matches = commands.filter((command) => command.includes(`/${plugin}/1.12.4/hooks/codex-runtime.js`));
-  const want = plugin === "superpowers-memory" ? 3 : 1;
+  const want = plugin === "superpowers-memory" ? 3 : plugin === "superpowers-architect" ? 2 : 1;
   if (matches.length !== want) {
     fail(`${plugin} command count ${matches.length}, want ${want}`);
   }

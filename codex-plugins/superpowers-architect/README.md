@@ -30,9 +30,33 @@ Manual hook config is not recommended. `codex-hooks-snippet.json` contains a `${
 ## Capabilities
 
 - **SessionStart hook** — injects design pattern indexes (name + description + absolute path) plus a fused meta-rule covering both planning ("apply") and review ("verify") modes
-- Two-layer pattern dirs: global (`$SP_ARCHITECT_DIR`) + project-local (`./design-patterns/`); project overrides global by filename
-- 8+ bundled patterns: browser-qa, database, ddd-core, ddd-golang, ddd-modeling, ddd-python, ddd-typescript, frontend-patterns, rest-api
+- **UserPromptSubmit hook** — detects architecture/API/database/backend/frontend/review prompts and injects focused just-in-time pattern guidance
+- **`$superpowers-architect:standards` skill** — explicit standards workflow for designing, implementing, refactoring, or reviewing architecture-sensitive work
+- Pattern dirs: bundled defaults + Claude global defaults (`~/.claude/superpowers-architect/design-patterns/`) + global (`$SP_ARCHITECT_DIR` or `$SPA_GLOBAL`) + project-local (`design-patterns/` for compatibility, then `docs/design-patterns/`); higher-priority dirs override lower-priority dirs by filename
+- 8 bundled patterns: database, ddd-core, ddd-golang, ddd-modeling, ddd-python, ddd-typescript, frontend-patterns, rest-api. A Claude global directory may add more, such as browser-qa.
+
+## Project-specific patterns
+
+Place `.md` files in `docs/design-patterns/` at your project root. Files with the same name as a bundled or global pattern override it for that project.
+
+Global pattern directories can be configured with either:
+
+```bash
+export SPA_GLOBAL="$HOME/my-team-standards/design-patterns"
+```
+
+or the earlier Codex-port name:
+
+```bash
+export SP_ARCHITECT_DIR="$HOME/my-team-standards/design-patterns"
+```
+
+To disable bundled defaults:
+
+```bash
+export SPA_DEFAULTS=false
+```
 
 ## Known Codex protocol gap (vs Claude Code)
 
-Claude Code's PreToolUse:Skill hook intercepts the 5 trigger skills (writing-plans / executing-plans / subagent-driven-development / requesting-code-review / receiving-code-review) and injects different wording for plan vs review. Codex's PreToolUse matcher does not support skill names, so all wording is fused into the SessionStart primer (always present, never per-skill targeted). The agent self-disambiguates based on its current task.
+Claude Code's PreToolUse:Skill hook intercepts trigger skills and injects different wording for plan vs review. Codex's PreToolUse matcher does not support skill names, so the Codex port uses three weaker signals instead: SessionStart standing context, UserPromptSubmit prompt heuristics, and the explicit `$superpowers-architect:standards` skill.

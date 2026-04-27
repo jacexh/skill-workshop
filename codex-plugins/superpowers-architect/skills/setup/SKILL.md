@@ -1,11 +1,11 @@
 ---
 name: setup
-description: Use after installing or upgrading superpowers-architect in Codex to register the plugin's SessionStart hook into ~/.codex/hooks.json. Re-run after every codex plugin marketplace upgrade.
+description: Use after installing or upgrading superpowers-architect in Codex to register the plugin's SessionStart and UserPromptSubmit hooks into ~/.codex/hooks.json. Re-run after every codex plugin marketplace upgrade.
 ---
 
 # Setup superpowers-architect hooks for Codex
 
-Use this skill to register superpowers-architect's SessionStart hook into `~/.codex/hooks.json`. Re-runnable and idempotent via the plugin's installer script.
+Use this skill to register superpowers-architect's SessionStart and UserPromptSubmit hooks into `~/.codex/hooks.json`. Re-runnable and idempotent via the plugin's installer script.
 
 ## Procedure
 
