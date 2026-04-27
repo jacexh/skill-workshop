@@ -12,12 +12,21 @@ const MANAGED_PLUGINS = [
 ];
 
 const pluginRoot = path.resolve(__dirname, "..");
-const pluginName = path.basename(pluginRoot);
+const pluginName = inferPluginName(pluginRoot);
 const codexHome = process.env.CODEX_HOME
   ? path.resolve(process.env.CODEX_HOME)
   : path.join(os.homedir(), ".codex");
 const hooksPath = path.join(codexHome, "hooks.json");
 const snippetPath = path.join(pluginRoot, "codex-hooks-snippet.json");
+
+function inferPluginName(root) {
+  const basename = path.basename(root);
+  const parentName = path.basename(path.dirname(root));
+  if (/^\d+\.\d+\.\d+(?:[-+].*)?$/.test(basename) && MANAGED_PLUGINS.includes(parentName)) {
+    return parentName;
+  }
+  return basename;
+}
 
 function readJson(filePath, label) {
   try {

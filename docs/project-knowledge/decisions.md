@@ -1,13 +1,13 @@
 ---
-last_updated: 2026-04-26
+last_updated: 2026-04-27
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
+triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
 
 # Decisions
 
 ## ADR-013: Strategy A — parallel codex-plugins/ tree for Codex marketplace compatibility
-**Decision:** Ship Codex-compatible variants of the three plugins under a new `codex-plugins/` tree (full duplication; Claude `plugins/` tree untouched). New marketplace catalog `.agents/plugins/marketplace.json` with Codex object-form `source` + `policy` + `category`. Each Codex plugin ships a setup skill (e.g., `codex-plugins/superpowers-memory/skills/setup/SKILL.md`) for marker-versioned idempotent merge of `codex-hooks-snippet.json` into `~/.codex/hooks.json`. Coverage maps to Codex primitives: SessionStart primer for auto-triggered upstream skills, UserPromptSubmit regex for manually-typed (`$superpowers:brainstorming`, `$superpowers:finishing-a-development-branch`), PreToolUse with matcher `apply_patch|mcp__filesystem__.*` for KB write-lock.
+**Decision:** Ship Codex-compatible variants under `codex-plugins/` plus `.agents/plugins/marketplace.json`. Each Codex plugin ships a setup skill that runs a strict-JSON installer for `~/.codex/hooks.json`; coverage maps to Codex primitives: SessionStart primer, UserPromptSubmit regex for manually typed skills, and PreToolUse `apply_patch|mcp__filesystem__.*` for KB write-lock.
 **Trade-off:** ~2,000 lines of asset content + ~700 lines of runtime logic exist twice — drift risk accepted because Codex track is experimental. Three Codex protocol gaps documented and accepted: auto-triggered planning skills get only standing primer (no JIT); agent-self-decided finishing invocation gets no diff evidence; architect plan/review wording collapses to fused meta-rule. Setup-skill UX requires explicit user invocation after install/upgrade.
 → [adr/ADR-013-codex-marketplace-compat.md](adr/ADR-013-codex-marketplace-compat.md)
 

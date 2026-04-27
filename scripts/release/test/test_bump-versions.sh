@@ -22,6 +22,7 @@ JSON
   echo '{"name":"bar","version":"1.0.0"}' > "$dir/plugins/bar/.claude-plugin/plugin.json"
   mkdir -p "$dir/codex-plugins/foo/.codex-plugin"
   echo '{"name":"foo","version":"1.0.0"}' > "$dir/codex-plugins/foo/.codex-plugin/plugin.json"
+  echo '{"version":"1.0.0","hooks":{}}' > "$dir/codex-plugins/foo/codex-hooks-snippet.json"
   mkdir -p "$dir/.agents/plugins"
   echo '{"name":"skill-workshop-codex"}' > "$dir/.agents/plugins/marketplace.json"
   echo "$dir"
@@ -43,6 +44,7 @@ assert_eq "$(jq -r '.plugins[]|select(.name=="bar").version' "$dir/.claude-plugi
 assert_eq "$(jq -r .version "$dir/plugins/foo/.claude-plugin/plugin.json")" "1.2.3"
 assert_eq "$(jq -r .version "$dir/plugins/bar/.claude-plugin/plugin.json")" "1.0.0"
 assert_eq "$(jq -r .version "$dir/codex-plugins/foo/.codex-plugin/plugin.json")" "1.2.3"
+assert_eq "$(jq -r .version "$dir/codex-plugins/foo/codex-hooks-snippet.json")" "1.2.3"
 # .agents/plugins/marketplace.json must remain untouched
 assert_eq "$(cat "$dir/.agents/plugins/marketplace.json")" '{"name":"skill-workshop-codex"}'
 
@@ -53,6 +55,7 @@ assert_eq "$(jq -r .metadata.version "$dir/.claude-plugin/marketplace.json")" "2
 assert_eq "$(jq -r '.plugins[]|select(.name=="foo").version' "$dir/.claude-plugin/marketplace.json")" "1.0.0"
 assert_eq "$(jq -r .version "$dir/plugins/foo/.claude-plugin/plugin.json")" "1.0.0"
 assert_eq "$(jq -r .version "$dir/codex-plugins/foo/.codex-plugin/plugin.json")" "1.0.0"
+assert_eq "$(jq -r .version "$dir/codex-plugins/foo/codex-hooks-snippet.json")" "1.0.0"
 
 # Case 3: multiple plugins on Claude side
 dir=$(setup_repo)

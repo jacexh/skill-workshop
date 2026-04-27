@@ -7,7 +7,12 @@ TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
 export CODEX_HOME="$TMP/codex"
+INSTALL_ROOT="$TMP/cache/skill-workshop-codex"
 mkdir -p "$CODEX_HOME"
+for plugin in designing-tests superpowers-architect superpowers-memory; do
+  mkdir -p "$INSTALL_ROOT/$plugin"
+  cp -R "$ROOT/codex-plugins/$plugin" "$INSTALL_ROOT/$plugin/1.12.4"
+done
 
 cat > "$CODEX_HOME/hooks.json" <<'JSON'
 {
@@ -19,7 +24,7 @@ cat > "$CODEX_HOME/hooks.json" <<'JSON'
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/designing-tests/hooks/codex-runtime.js\" session-start"
+            "command": "node \"$HOME/.codex/plugins/cache/skill-workshop-codex/designing-tests/1.12.3/hooks/codex-runtime.js\" session-start"
           }
         ]
       }
@@ -31,7 +36,7 @@ cat > "$CODEX_HOME/hooks.json" <<'JSON'
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-architect/hooks/codex-runtime.js\" session-start"
+            "command": "node \"$HOME/.codex/plugins/cache/skill-workshop-codex/superpowers-architect/1.12.3/hooks/codex-runtime.js\" session-start"
           }
         ]
       }
@@ -43,7 +48,7 @@ cat > "$CODEX_HOME/hooks.json" <<'JSON'
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/hooks/codex-runtime.js\" session-start"
+            "command": "node \"$HOME/.codex/plugins/cache/skill-workshop-codex/superpowers-memory/1.12.3/hooks/codex-runtime.js\" session-start"
           }
         ]
       }
@@ -55,7 +60,7 @@ cat > "$CODEX_HOME/hooks.json" <<'JSON'
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/hooks/codex-runtime.js\" user-prompt-submit"
+            "command": "node \"$HOME/.codex/plugins/cache/skill-workshop-codex/superpowers-memory/1.12.3/hooks/codex-runtime.js\" user-prompt-submit"
           }
         ]
       }
@@ -68,7 +73,7 @@ cat > "$CODEX_HOME/hooks.json" <<'JSON'
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$HOME/.codex/plugins/skill-workshop-codex/codex-plugins/superpowers-memory/hooks/codex-runtime.js\" pre-tool-use"
+            "command": "node \"$HOME/.codex/plugins/cache/skill-workshop-codex/superpowers-memory/1.12.3/hooks/codex-runtime.js\" pre-tool-use"
           }
         ]
       }
@@ -88,22 +93,22 @@ cat > "$CODEX_HOME/hooks.json" <<'JSON'
 }
 JSON
 
-node "$ROOT/codex-plugins/designing-tests/scripts/install-codex-hooks.js" >/dev/null
-node "$ROOT/codex-plugins/superpowers-architect/scripts/install-codex-hooks.js" >/dev/null
-node "$ROOT/codex-plugins/superpowers-memory/scripts/install-codex-hooks.js" >/dev/null
+node "$INSTALL_ROOT/designing-tests/1.12.4/scripts/install-codex-hooks.js" >/dev/null
+node "$INSTALL_ROOT/superpowers-architect/1.12.4/scripts/install-codex-hooks.js" >/dev/null
+node "$INSTALL_ROOT/superpowers-memory/1.12.4/scripts/install-codex-hooks.js" >/dev/null
 
 before="$(cat "$CODEX_HOME/hooks.json")"
-node "$ROOT/codex-plugins/designing-tests/scripts/install-codex-hooks.js" >/dev/null
-node "$ROOT/codex-plugins/superpowers-architect/scripts/install-codex-hooks.js" >/dev/null
-node "$ROOT/codex-plugins/superpowers-memory/scripts/install-codex-hooks.js" >/dev/null
+node "$INSTALL_ROOT/designing-tests/1.12.4/scripts/install-codex-hooks.js" >/dev/null
+node "$INSTALL_ROOT/superpowers-architect/1.12.4/scripts/install-codex-hooks.js" >/dev/null
+node "$INSTALL_ROOT/superpowers-memory/1.12.4/scripts/install-codex-hooks.js" >/dev/null
 after="$(cat "$CODEX_HOME/hooks.json")"
 [ "$before" = "$after" ] || { echo "FAIL setup installers are not idempotent"; exit 1; }
 
-ROOT="$ROOT" node <<'NODE'
+INSTALL_ROOT="$INSTALL_ROOT" node <<'NODE'
 const fs = require("fs");
 const path = require("path");
 
-const root = process.env.ROOT;
+const installRoot = process.env.INSTALL_ROOT;
 const hooksPath = path.join(process.env.CODEX_HOME, "hooks.json");
 const raw = fs.readFileSync(hooksPath, "utf8");
 const cfg = JSON.parse(raw);
@@ -119,6 +124,9 @@ if (raw.includes("// BEGIN") || raw.includes("// END")) {
 if (raw.includes(".codex/plugins/skill-workshop-codex/codex-plugins")) {
   fail("legacy runtime path remained in hooks.json");
 }
+if (raw.includes("/1.12.3/")) {
+  fail("stale cache runtime path remained in hooks.json");
+}
 
 const commands = [];
 for (const entries of Object.values(cfg.hooks)) {
@@ -130,11 +138,11 @@ for (const entries of Object.values(cfg.hooks)) {
 }
 
 const expected = [
-  `node "${root}/codex-plugins/designing-tests/hooks/codex-runtime.js" session-start`,
-  `node "${root}/codex-plugins/superpowers-architect/hooks/codex-runtime.js" session-start`,
-  `node "${root}/codex-plugins/superpowers-memory/hooks/codex-runtime.js" session-start`,
-  `node "${root}/codex-plugins/superpowers-memory/hooks/codex-runtime.js" user-prompt-submit`,
-  `node "${root}/codex-plugins/superpowers-memory/hooks/codex-runtime.js" pre-tool-use`,
+  `node "${installRoot}/designing-tests/1.12.4/hooks/codex-runtime.js" session-start`,
+  `node "${installRoot}/superpowers-architect/1.12.4/hooks/codex-runtime.js" session-start`,
+  `node "${installRoot}/superpowers-memory/1.12.4/hooks/codex-runtime.js" session-start`,
+  `node "${installRoot}/superpowers-memory/1.12.4/hooks/codex-runtime.js" user-prompt-submit`,
+  `node "${installRoot}/superpowers-memory/1.12.4/hooks/codex-runtime.js" pre-tool-use`,
   "echo keep-user-hook",
 ];
 
@@ -145,7 +153,7 @@ for (const command of expected) {
 }
 
 for (const plugin of ["designing-tests", "superpowers-architect", "superpowers-memory"]) {
-  const matches = commands.filter((command) => command.includes(`/${plugin}/hooks/codex-runtime.js`));
+  const matches = commands.filter((command) => command.includes(`/${plugin}/1.12.4/hooks/codex-runtime.js`));
   const want = plugin === "superpowers-memory" ? 3 : 1;
   if (matches.length !== want) {
     fail(`${plugin} command count ${matches.length}, want ${want}`);

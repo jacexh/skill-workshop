@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-04-26
+last_updated: 2026-04-27
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
+triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
 
 # Features
@@ -14,7 +14,7 @@ triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
 |---------|------------|
 | Claude marketplace | `.claude-plugin/marketplace.json` — 3 plugins, discoverable via `/plugin marketplace add jacexh/skill-workshop` |
 | Codex marketplace (experimental) | `.agents/plugins/marketplace.json` — 3 codex-plugins, object-form `source` + `policy` + `category`; discoverable via `codex plugin marketplace add jacexh/skill-workshop` (ADR-013) |
-| GitHub Actions release | Automated `workflow_dispatch` for version bump, tag, GitHub Release per plugin |
+| GitHub Actions release | PR-merge auto release: computes repository tag, detects changed plugin paths, bumps matching manifests/snippets, commits the bump, tags, and publishes a GitHub Release |
 
 ### superpowers-memory (Claude track v1.11.0)
 
@@ -53,10 +53,10 @@ triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
 
 | Feature | Description |
 |---------|------------|
-| codex-plugins/superpowers-memory v1.11.0 | SessionStart (KB index + standing primer) + UserPromptSubmit (regex on `$superpowers:brainstorming` / `$superpowers:finishing-a-development-branch`) + PreToolUse (matcher `apply_patch\|mcp__filesystem__.*` for KB write-lock); same skills/templates/content-rules as Claude track |
-| codex-plugins/superpowers-architect v1.6.2 | Single SessionStart hook: 8 pattern index + fused plan-apply / review-verify meta-rule (no JIT skill dispatch on Codex) |
-| codex-plugins/designing-tests v1.6.0 | Single SessionStart hook: 5 execution-tier principles + 4 reference path index; full SKILL.md on demand via `$designing-tests:designing-tests` |
-| `setup` skill (per plugin) | Marker-versioned idempotent merge of `codex-hooks-snippet.json` into `~/.codex/hooks.json`; re-runnable after marketplace upgrade |
+| codex-plugins/superpowers-memory | SessionStart (KB index + standing primer) + UserPromptSubmit (regex on `$superpowers:brainstorming` / `$superpowers:finishing-a-development-branch`) + PreToolUse (matcher `apply_patch\|mcp__filesystem__.*` for KB write-lock); same skills/templates/content-rules as Claude track |
+| codex-plugins/superpowers-architect | Single SessionStart hook: 8 pattern index + fused plan-apply / review-verify meta-rule (no JIT skill dispatch on Codex) |
+| codex-plugins/designing-tests | Single SessionStart hook: 5 execution-tier principles + 4 reference path index; full SKILL.md on demand via `$designing-tests:designing-tests` |
+| `setup` skill (per plugin) | Runs a Node installer that resolves the real installed plugin root, rewrites `~/.codex/hooks.json` as strict JSON, removes stale runtime paths for that plugin, and preserves unrelated hooks |
 | Known protocol gaps | Auto-triggered upstream skills get only standing primer (no JIT advisory); agent-self-decided `finishing-a-development-branch` gets no diff evidence; architect plan/review wording fused; designing-tests three-tier collapsed to execution tier |
 
 ## In Progress

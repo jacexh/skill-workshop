@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-04-26
+last_updated: 2026-04-27
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
+triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
 
 # Conventions
@@ -15,7 +15,7 @@ triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
 - **Markdown files:** Skills use YAML frontmatter with `name` and `description`. Knowledge base files use `last_updated` (YYYY-MM-DD), `updated_by`, `triggered_by_plan`.
 - **`triggered_by_plan` rule:** Only update this field when a concrete plan filename can be identified as the trigger. If no plan triggered the update, **preserve the existing value — never overwrite with `null`**.
 - **Content rules (KB):** `content-rules.md` is the shared SSOT for `rebuild` and `update` skills. Defines language, inclusion/exclusion criteria, ownership matrix, quality standards, size guards.
-- **JSON manifests:** `plugin.json`, `hooks.json`, `marketplace.json`, `codex-hooks-snippet.json` use 2-space indentation. Arrays/objects expand multi-line (one element per line) — both Claude and Codex tracks aligned.
+- **JSON manifests:** `plugin.json`, `hooks.json`, `marketplace.json`, `codex-hooks-snippet.json` use 2-space indentation. Arrays/objects expand multi-line (one element per line) — both Claude and Codex tracks aligned. `~/.codex/hooks.json` must remain strict JSON; never write JSON comments into it.
 - **No linter configs present** — conventions followed by practice.
 
 ## Architecture Rules
@@ -36,7 +36,7 @@ triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
 
 - **Commit message format:** `<type>: <description>` or `<type>(<scope>): <description>` (e.g., `feat(codex):`, `fix:`, `docs:`, `chore:`, `refactor:`, `style(codex):`).
 - **Branch:** Feature work on `hotfix/<topic>` branches; merged to `main` via PR.
-- **Versioning:** Bumped via GitHub Actions release workflow (`workflow_dispatch`) or manual commit. Version tracked in `plugin.json` (Claude `.claude-plugin/`, Codex `.codex-plugin/`) and `marketplace.json`. Codex plugin versions piggyback on Claude versions.
+- **Versioning:** Bumped by `.github/workflows/auto-release.yml` after PR merge. `scripts/release/bump-versions.sh` always bumps `.claude-plugin/marketplace.json` metadata; changed Claude plugin paths bump Claude marketplace entries + `.claude-plugin/plugin.json`; changed Codex plugin paths bump `.codex-plugin/plugin.json` and `codex-hooks-snippet.json`.
 - **Specs before plans:** Design specs (`docs/superpowers/specs/`), then implementation plans (`docs/superpowers/plans/`). Plans reference specs.
 - **Plan checkboxes:** Implementation plan steps use `- [x]` / `- [ ]` syntax.
 
@@ -52,7 +52,7 @@ triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
 
 ## Codex-track-specific conventions (ADR-013)
 
-- **`codex-hooks-snippet.json` contract:** Each Codex plugin declares its hook config in this file at the plugin root. Schema: `{ "version": "<semver>", "hooks": { "<EventName>": [{ "matcher": "<regex>", "hooks": [{ "type": "command", "command": "node <abs-path>" }] }] } }`. Consumed by the plugin's `setup` skill.
-- **Setup-skill marker protocol:** Each Codex plugin ships `codex-plugins/superpowers-memory/skills/setup/SKILL.md` with agent instructions to merge the snippet into `~/.codex/hooks.json` between markers `// BEGIN <plugin-name>:hooks-v<version>` ... `// END <plugin-name>:hooks`. Idempotent: same version → no-op; different version → replace block; missing → fresh install.
-- **Marketplace upgrade flow:** Codex `plugin marketplace upgrade` updates plugin files but does NOT touch `~/.codex/hooks.json`. Users must rerun `$<plugin>:setup` after upgrade. README of each Codex plugin documents this.
+- **`codex-hooks-snippet.json` contract:** Each Codex plugin declares hook data as `{ "version": "<semver>", "hooks": { ... } }`. Hook commands use `node "${PLUGIN_ROOT}/hooks/codex-runtime.js" ...`; the setup installer replaces `${PLUGIN_ROOT}` with the actual installed path.
+- **Setup installer protocol:** Each Codex plugin ships an installer; representative path: `codex-plugins/superpowers-memory/scripts/install-codex-hooks.js`. The setup skill runs it instead of manually editing JSON. The installer infers the plugin name from both source-tree and versioned cache layouts, removes stale entries for that plugin by runtime command path, writes strict JSON, and backs up `~/.codex/hooks.json`.
+- **Marketplace upgrade flow:** Codex `plugin marketplace upgrade` updates plugin files but does NOT touch `~/.codex/hooks.json`. Users must rerun `$<plugin>:setup` after upgrade so the installer replaces stale cache paths. README of each Codex plugin documents this.
 - **Skill mention syntax:** Codex uses `$plugin:skill-name` (not `/`); UserPromptSubmit hook regex matches accordingly.
