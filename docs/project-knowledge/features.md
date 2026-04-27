@@ -54,10 +54,10 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 | Feature | Description |
 |---------|------------|
 | codex-plugins/superpowers-memory | SessionStart (KB index + standing primer) + UserPromptSubmit (regex on `$superpowers:brainstorming` / `$superpowers:finishing-a-development-branch`) + PreToolUse (matcher `apply_patch\|mcp__filesystem__.*` for KB write-lock); same skills/templates/content-rules as Claude track |
-| codex-plugins/superpowers-architect | SessionStart pattern index + fused meta-rule; UserPromptSubmit heuristic router for architecture/API/database/backend/frontend/review prompts (English + Chinese); `$superpowers-architect:standards` explicit workflow; project design-pattern directories override globals/defaults |
+| codex-plugins/superpowers-architect | SessionStart pattern index + fused meta-rule; UserPromptSubmit router for explicit upstream `superpowers` workflow skill mentions; `$superpowers-architect:standards` explicit workflow; project design-pattern directories override globals/defaults |
 | codex-plugins/designing-tests | Single SessionStart hook: 5 execution-tier principles + 4 reference path index; full SKILL.md on demand via `$designing-tests:designing-tests` |
 | `setup` skill (per plugin) | Runs a Node installer that resolves the real installed plugin root, rewrites `~/.codex/hooks.json` as strict JSON, removes stale runtime paths for that plugin, and preserves unrelated hooks |
-| Known protocol gaps | Auto-triggered upstream skills still lack true PreToolUse:Skill JIT; architect compensates with prompt heuristics + explicit skill, but plan/review wording remains fused; designing-tests three-tier collapsed to execution tier; agent-self-decided `finishing-a-development-branch` gets no diff evidence |
+| Known protocol gaps | Auto-triggered upstream skills still lack true PreToolUse:Skill JIT; architect compensates for user-typed skill mentions + explicit skill, but plan/review wording remains fused; designing-tests three-tier collapsed to execution tier; agent-self-decided `finishing-a-development-branch` gets no diff evidence |
 
 ## In Progress
 
