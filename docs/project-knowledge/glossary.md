@@ -23,3 +23,5 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Auto Release Pipeline** — GitHub Actions flow that runs after PR merge, bumps path-affected plugin manifests/snippets, pushes a bump commit, tags it, and publishes a release. → `.github/workflows/auto-release.yml`
 
 **Standing Primer** — Always-present text injected at SessionStart by Codex-side hooks to compensate for Codex's lack of per-skill JIT injection. Carries decay-tolerant standing rules ("before X, do Y") instead of just-in-time advisories. → ADR-013
+
+**Prompt Router** — Codex UserPromptSubmit hook path that inspects raw user text and injects focused context for matching workflows; used by memory and architect where skill-call hooks are unavailable. → `codex-plugins/*/hooks/codex-runtime.js`
