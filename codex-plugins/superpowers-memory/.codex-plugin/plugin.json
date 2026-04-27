@@ -1,6 +1,6 @@
 {
   "name": "superpowers-memory",
-  "version": "0.0.0",
+  "version": "1.12.2",
   "description": "Project knowledge persistence and KB write-lock for Codex superpowers workflows",
   "author": {
     "name": "xuhao"
