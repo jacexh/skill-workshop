@@ -30,7 +30,7 @@ Manual hook config is not recommended. `codex-hooks-snippet.json` contains a `${
 ## Capabilities
 
 - **SessionStart hook** — injects design pattern indexes (name + description + absolute path) plus a fused meta-rule covering both planning ("apply") and review ("verify") modes
-- **UserPromptSubmit hook** — detects architecture/API/database/backend/frontend/review prompts and injects focused just-in-time pattern guidance
+- **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions (`$superpowers:brainstorming`, `$superpowers:writing-plans`, `$superpowers:executing-plans`, `$superpowers:subagent-driven-development`, `$superpowers:requesting-code-review`, `$superpowers:receiving-code-review`) and injects the dynamic pattern index
 - **`$superpowers-architect:standards` skill** — explicit standards workflow for designing, implementing, refactoring, or reviewing architecture-sensitive work
 - Pattern dirs: bundled defaults + Claude global defaults (`~/.claude/superpowers-architect/design-patterns/`) + global (`$SP_ARCHITECT_DIR` or `$SPA_GLOBAL`) + project-local (`design-patterns/` for compatibility, then `docs/design-patterns/`); higher-priority dirs override lower-priority dirs by filename
 - 8 bundled patterns: database, ddd-core, ddd-golang, ddd-modeling, ddd-python, ddd-typescript, frontend-patterns, rest-api. A Claude global directory may add more, such as browser-qa.
@@ -59,4 +59,4 @@ export SPA_DEFAULTS=false
 
 ## Known Codex protocol gap (vs Claude Code)
 
-Claude Code's PreToolUse:Skill hook intercepts trigger skills and injects different wording for plan vs review. Codex's PreToolUse matcher does not support skill names, so the Codex port uses three weaker signals instead: SessionStart standing context, UserPromptSubmit prompt heuristics, and the explicit `$superpowers-architect:standards` skill.
+Claude Code's PreToolUse:Skill hook intercepts trigger skills and injects different wording for plan vs review. Codex's PreToolUse matcher does not support skill names, so the Codex port uses three weaker signals instead: SessionStart standing context, UserPromptSubmit matching for explicit upstream `superpowers` skill mentions, and the explicit `$superpowers-architect:standards` skill.

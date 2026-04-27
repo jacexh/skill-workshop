@@ -15,8 +15,7 @@ const FUSED_HEADER =
 
 const PROMPT_HEADER =
   "====== Architect Standards ======\n" +
-  "The current user request appears to involve architecture, API, database, backend, frontend, " +
-  "implementation planning, refactoring, or code review work.\n\n" +
+  "The current user request explicitly invokes a superpowers workflow skill that should apply architecture standards.\n\n" +
   "You MUST identify and read the relevant patterns below before proceeding. In your response, state:\n" +
   "- which patterns apply,\n" +
   "- which important constraints from those patterns affect your plan, code, or review,\n" +
@@ -131,21 +130,7 @@ function buildSessionStartOutput() {
 
 const PROMPT_TRIGGERS = [
   /\$superpowers:(?:brainstorming|writing-plans|executing-plans|subagent-driven-development|requesting-code-review|receiving-code-review)\b/i,
-  /\b(architecture|architectural|design|refactor|review|api|endpoint|route|http|rest|database|schema|migration|table|index|ddd|domain|aggregate|bounded context|repository|cqrs|backend|frontend|react|next\.?js|component|state management|browser qa|playwright)\b/i,
-  /(架构|设计|重构|评审|审查|接口|数据库|表结构|数据表|迁移|索引|领域|聚合|边界上下文|仓储|后端|前端|组件|状态管理|浏览器测试|端到端)/,
 ];
-
-const PATTERN_KEYWORDS = new Map([
-  ["database.md", /\b(database|db|schema|migration|table|index|mysql|postgres|sql|soft delete|optimistic lock)\b|数据库|表结构|数据表|迁移|索引/i],
-  ["rest-api.md", /\b(api|endpoint|route|http|rest|status code|pagination|filtering|idempotency|rate limit)\b|接口|路由|状态码|分页|幂等|限流/i],
-  ["frontend-patterns.md", /\b(frontend|react|next\.?js|component|state management|zustand|context|form|ui|accessib|responsive)\b|前端|组件|状态管理|表单|响应式/i],
-  ["browser-qa.md", /\b(browser qa|browser automation|playwright|visual test|screenshot|canvas|e2e)\b|浏览器测试|自动化测试|截图|端到端/i],
-  ["ddd-modeling.md", /\b(ddd|domain model|domain modeling|bounded context|business capability|aggregate)\b|领域建模|领域模型|边界上下文|业务能力|聚合/i],
-  ["ddd-core.md", /\b(ddd|clean architecture|domain event|aggregate|repository|cqrs|bounded context|backend service)\b|领域|领域事件|聚合|仓储|后端|清洁架构/i],
-  ["ddd-golang.md", /\b(go|golang|fx|grpc)\b/i],
-  ["ddd-python.md", /\b(python|dependency-injector|fastapi|django)\b|派森/i],
-  ["ddd-typescript.md", /\b(typescript|node|nestjs|ts)\b/i],
-]);
 
 function parsePrompt(input) {
   try {
@@ -160,24 +145,13 @@ function shouldTriggerForPrompt(prompt) {
   return PROMPT_TRIGGERS.some((pattern) => pattern.test(prompt));
 }
 
-function filterRelevantPatterns(files, prompt) {
-  const selected = new Map();
-  for (const [filename, absPath] of files) {
-    const keywordPattern = PATTERN_KEYWORDS.get(filename);
-    if (keywordPattern && keywordPattern.test(prompt)) {
-      selected.set(filename, absPath);
-    }
-  }
-  return selected.size > 0 ? selected : files;
-}
-
 function buildUserPromptSubmitOutput(input) {
   const prompt = parsePrompt(input);
   if (!prompt || !shouldTriggerForPrompt(prompt)) {
     return {};
   }
 
-  const files = filterRelevantPatterns(listPatternFiles(), prompt);
+  const files = listPatternFiles();
   const body = renderPatternIndex(files, PROMPT_HEADER);
   if (!body) return {};
 

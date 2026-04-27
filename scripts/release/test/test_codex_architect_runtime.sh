@@ -80,34 +80,42 @@ empty_context="$(
 # Intent: without any configured patterns, the runtime should not inject stale bundled guidance.
 [ -z "$empty_context" ] || fail "empty pattern set should inject empty context"
 
-architect_context="$(
+writing_plans_context="$(
+  printf '{"prompt":"Please use $superpowers:writing-plans for this REST API and database schema change"}' |
+    HOME="$TMP/home" node "$RUNTIME" user-prompt-submit |
+    extract_context
+)"
+
+# Intent: explicit superpowers planning skill mentions should receive just-in-time architect guidance.
+grep -q "Architect Standards" <<<"$writing_plans_context" || fail "writing-plans prompt did not trigger context"
+grep -q "REST API Design Standards" <<<"$writing_plans_context" || fail "REST API pattern missing from writing-plans context"
+grep -q "Project Database" <<<"$writing_plans_context" || fail "project database pattern missing from writing-plans context"
+grep -q "Project Only" <<<"$writing_plans_context" || fail "dynamic project-only pattern missing from writing-plans context"
+
+review_context="$(
+  printf '{"prompt":"Please run $superpowers:requesting-code-review on this branch"}' |
+    HOME="$TMP/home" node "$RUNTIME" user-prompt-submit |
+    extract_context
+)"
+
+# Intent: explicit superpowers review skill mentions should receive review-time architect guidance.
+grep -q "Architect Standards" <<<"$review_context" || fail "requesting-code-review prompt did not trigger context"
+grep -q "Project Only" <<<"$review_context" || fail "dynamic project-only pattern missing from review context"
+
+natural_language_architecture="$(
   printf '{"prompt":"Please design the REST API and database schema for orders"}' |
-    HOME="$TMP/home" node "$RUNTIME" user-prompt-submit |
-    extract_context
+    HOME="$TMP/home" node "$RUNTIME" user-prompt-submit
 )"
 
-# Intent: architecture-shaped user prompts should receive just-in-time architect guidance.
-grep -q "Architect Standards" <<<"$architect_context" || fail "architect prompt did not trigger context"
-grep -q "REST API Design Standards" <<<"$architect_context" || fail "REST API pattern missing from prompt context"
-grep -q "database" <<<"$architect_context" || fail "database pattern missing from prompt context"
-
-chinese_architect_context="$(
-  printf '{"prompt":"请设计订单接口和数据库表结构"}' |
-    HOME="$TMP/home" node "$RUNTIME" user-prompt-submit |
-    extract_context
-)"
-
-# Intent: Chinese architecture-shaped prompts should receive the same just-in-time guidance.
-grep -q "Architect Standards" <<<"$chinese_architect_context" || fail "Chinese architect prompt did not trigger context"
-grep -q "REST API Design Standards" <<<"$chinese_architect_context" || fail "REST API pattern missing from Chinese prompt context"
-grep -q "database" <<<"$chinese_architect_context" || fail "database pattern missing from Chinese prompt context"
+# Intent: natural-language architecture discussion without a superpowers skill mention should stay quiet.
+[ "$natural_language_architecture" = "{}" ] || fail "natural-language architecture prompt should return {}"
 
 unrelated="$(
   printf '{"prompt":"hello, summarize this plain text"}' |
     HOME="$TMP/home" node "$RUNTIME" user-prompt-submit
 )"
 
-# Intent: unrelated prompts should stay quiet to avoid hook noise.
+# Intent: unrelated prompts should also stay quiet to avoid hook noise.
 [ "$unrelated" = "{}" ] || fail "unrelated prompt should return {}"
 
 SNIPPET="$SNIPPET" node <<'NODE'
