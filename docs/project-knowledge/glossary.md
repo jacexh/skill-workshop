@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-04-26
+last_updated: 2026-04-27
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
+triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
 
 # Glossary
@@ -18,6 +18,8 @@ triggered_by_plan: "2026-04-26-codex-marketplace-compat-plan.md"
 
 **Rich Injection** — Hook output pattern: a multi-section `additionalContext` block (diff scope + imperative MUST language + numbered checklist) used in place of `decision: "block"`; designed to make compliance the path of least resistance without forcing a halt. → ADR-011
 
-**Codex Setup Skill** — Per-Codex-plugin skill containing agent instructions to merge `codex-hooks-snippet.json` into `~/.codex/hooks.json` with version marker; idempotent and re-runnable after marketplace upgrade. → `codex-plugins/superpowers-memory/skills/setup/SKILL.md`, ADR-013
+**Codex Setup Skill** — Per-Codex-plugin skill that runs an installer to register strict-JSON hook entries in `~/.codex/hooks.json`; re-runnable after marketplace upgrade. → `codex-plugins/superpowers-memory/skills/setup/SKILL.md`, ADR-013
+
+**Auto Release Pipeline** — GitHub Actions flow that runs after PR merge, bumps path-affected plugin manifests/snippets, pushes a bump commit, tags it, and publishes a release. → `.github/workflows/auto-release.yml`
 
 **Standing Primer** — Always-present text injected at SessionStart by Codex-side hooks to compensate for Codex's lack of per-skill JIT injection. Carries decay-tolerant standing rules ("before X, do Y") instead of just-in-time advisories. → ADR-013
