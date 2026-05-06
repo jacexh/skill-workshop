@@ -28,6 +28,16 @@ Scan the codebase and regenerate the project knowledge base. Two modes:
 
 Scoped mode deliberately re-reads the code relevant to the target file (not just reformat existing prose) — reformatting without re-verification risks dressing up stale content in a compliant shape.
 
+## Prerequisites
+
+- Resolve `<plugin-root>` from this loaded skill path:
+
+```text
+<plugin-root>/skills/rebuild/SKILL.md
+```
+
+Do not assume a fixed install directory; Codex marketplace installs commonly live under `~/.codex/plugins/cache/...`.
+
 ## Scope Routing (scoped mode only)
 
 When a target file is provided, validate it against the abstract-category table below and locate the concrete sources using the project's actual conventions. If the argument is not a valid target, stop and list the valid options.
@@ -79,7 +89,7 @@ Files outside the mapping are out of scope — for example, `adr/ADR-NNN-<slug>.
 `docs/project-knowledge/` is write-protected by a PreToolUse hook. Acquire the lock before any KB edit, otherwise every Write/Edit/MultiEdit on a KB file will be blocked:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" lock superpowers-memory:rebuild
+node "<plugin-root>/hooks/codex-runtime.js" lock superpowers-memory:rebuild
 ```
 
 Lock has a 60-minute TTL — if this skill aborts midway, the lock auto-expires and writes are blocked again.
@@ -190,7 +200,7 @@ Always regenerate `docs/project-knowledge/index.md` — in both modes — since 
 Run the automated verification script first, then do manual spot-checks:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
+node "<plugin-root>/hooks/codex-runtime.js" verify
 ```
 
 The script checks: file size thresholds, stale path references, content-shape violations, and git commit readiness. Fix any `staleRefs`, `sizeWarnings`, or `shapeViolations` it reports before proceeding.
@@ -244,7 +254,7 @@ If the commit fails (e.g., pre-commit hook), report the error to the user. Do no
 ### 10. Release write lock
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" unlock
+node "<plugin-root>/hooks/codex-runtime.js" unlock
 ```
 
 Always run this — even if the commit in Step 8 failed or earlier steps surfaced errors. Releasing the lock is courtesy cleanup; the 60-minute TTL is the safety net if the skill aborts before reaching this step.

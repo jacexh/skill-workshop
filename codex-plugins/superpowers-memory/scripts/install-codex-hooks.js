@@ -17,7 +17,9 @@ const codexHome = process.env.CODEX_HOME
   ? path.resolve(process.env.CODEX_HOME)
   : path.join(os.homedir(), ".codex");
 const hooksPath = path.join(codexHome, "hooks.json");
+const nativeHooksPath = path.join(pluginRoot, "hooks", "hooks.json");
 const snippetPath = path.join(pluginRoot, "codex-hooks-snippet.json");
+const manifestPath = path.join(pluginRoot, ".codex-plugin", "plugin.json");
 
 function inferPluginName(root) {
   const basename = path.basename(root);
@@ -157,6 +159,27 @@ function buildNextConfig(config, desiredHooks) {
   return { config: next, removed, added };
 }
 
+function readHookSource() {
+  if (fs.existsSync(nativeHooksPath)) {
+    const native = readJson(nativeHooksPath, "native hooks");
+    if (!native.hooks || typeof native.hooks !== "object") {
+      throw new Error(`${nativeHooksPath} must contain a hooks field`);
+    }
+    let version = "native";
+    if (fs.existsSync(manifestPath)) {
+      const manifest = readJson(manifestPath, "plugin manifest");
+      version = manifest.version || version;
+    }
+    return { version, hooks: native.hooks };
+  }
+
+  const snippet = readJson(snippetPath, "hook snippet");
+  if (!snippet.version || !snippet.hooks || typeof snippet.hooks !== "object") {
+    throw new Error(`${snippetPath} must contain version and hooks fields`);
+  }
+  return { version: snippet.version, hooks: snippet.hooks };
+}
+
 function backupCurrentFile(raw) {
   if (raw === null) {
     return null;
@@ -177,12 +200,8 @@ function backupCurrentFile(raw) {
 }
 
 function main() {
-  const snippet = readJson(snippetPath, "hook snippet");
-  if (!snippet.version || !snippet.hooks || typeof snippet.hooks !== "object") {
-    throw new Error(`${snippetPath} must contain version and hooks fields`);
-  }
-
-  const desiredHooks = cloneWithPluginRoot(snippet.hooks);
+  const hookSource = readHookSource();
+  const desiredHooks = cloneWithPluginRoot(hookSource.hooks);
   const current = readCurrentConfig();
   const next = buildNextConfig(current.config, desiredHooks);
   const nextRaw = `${JSON.stringify(next.config, null, 2)}\n`;
@@ -191,7 +210,7 @@ function main() {
     : `${JSON.stringify(current.config, null, 2)}\n`;
 
   if (current.raw !== null && nextRaw === currentComparableRaw && !current.cleanedLegacyMarkers) {
-    console.log(`${pluginName} hooks already up to date (${snippet.version})`);
+    console.log(`${pluginName} hooks already up to date (${hookSource.version})`);
     return;
   }
 
@@ -199,7 +218,7 @@ function main() {
   const backupPath = backupCurrentFile(current.raw);
   fs.writeFileSync(hooksPath, nextRaw);
 
-  console.log(`${pluginName} hooks installed (${snippet.version})`);
+  console.log(`${pluginName} hooks installed (${hookSource.version})`);
   console.log(`hooks file: ${hooksPath}`);
   console.log(`backup: ${backupPath || "not created (new hooks file)"}`);
   console.log(`entries removed: ${next.removed}`);

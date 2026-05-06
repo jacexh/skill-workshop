@@ -1,10 +1,15 @@
 ---
-last_updated: 2026-04-27
+last_updated: 2026-05-06
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
 
 # Decisions
+
+## ADR-014: Native Codex plugin lifecycle hooks with setup fallback
+**Decision:** Codex plugins now declare native `"hooks": "./hooks/hooks.json"` in `.codex-plugin/plugin.json`; setup installers remain as compatibility fallback and prefer the same native hook source before falling back to `codex-hooks-snippet.json`.
+**Trade-off:** Hook config is duplicated while fallback support remains, so tests must guard version/schema drift. Native hooks simplify install/upgrade but require `[features] codex_hooks = true` and a Codex restart.
+→ [adr/ADR-014-native-codex-plugin-hooks.md](adr/ADR-014-native-codex-plugin-hooks.md)
 
 ## ADR-013: Strategy A — parallel codex-plugins/ tree for Codex marketplace compatibility
 **Decision:** Ship Codex-compatible variants under `codex-plugins/` plus `.agents/plugins/marketplace.json`. Each Codex plugin ships a setup skill that runs a strict-JSON installer for `~/.codex/hooks.json`; coverage maps to Codex primitives: SessionStart primer, UserPromptSubmit regex for manually typed skills, and PreToolUse `apply_patch|mcp__filesystem__.*` for KB write-lock.

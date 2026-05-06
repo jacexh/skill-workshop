@@ -1,5 +1,4 @@
 {
-  "version": "1.12.6",
   "hooks": {
     "SessionStart": [
       {
@@ -22,12 +21,13 @@
         ]
       }
     ],
-    "Stop": [
+    "PreToolUse": [
       {
+        "matcher": "apply_patch|mcp__filesystem__.*",
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" stop"
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" pre-tool-use"
           }
         ]
       }

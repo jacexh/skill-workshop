@@ -4,18 +4,21 @@ Project knowledge persistence + KB write-lock for Codex superpowers workflows.
 
 ## Installation
 
+Codex hooks require this feature flag in `~/.codex/config.toml`:
+
+```toml
+[features]
+codex_hooks = true
+```
+
 ```bash
 codex plugin marketplace add jacexh/skill-workshop
 codex plugin install superpowers-memory
 ```
 
-Then in Codex, register the hooks:
+Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.
 
-```
-$superpowers-memory:setup
-```
-
-Restart Codex. Hooks become active.
+If hooks do not appear after restart on an older Codex build, run `$superpowers-memory:setup` as a compatibility fallback. The setup skill writes equivalent entries to `~/.codex/hooks.json`.
 
 ## Upgrade
 
@@ -23,9 +26,9 @@ Restart Codex. Hooks become active.
 codex plugin marketplace upgrade jacexh/skill-workshop
 ```
 
-In Codex, re-run `$superpowers-memory:setup`. The setup installer updates this plugin's hook entries and preserves unrelated hooks. Restart Codex.
+Restart Codex. Re-run `$superpowers-memory:setup` only if you are using the fallback `~/.codex/hooks.json` installer path.
 
-Manual hook config is not recommended. `codex-hooks-snippet.json` contains a `${PLUGIN_ROOT}` placeholder that the setup installer resolves to the actual installed plugin path.
+Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`; the setup fallback resolves `${PLUGIN_ROOT}` to the actual installed plugin path and preserves unrelated hooks.
 
 ## Capabilities
 
