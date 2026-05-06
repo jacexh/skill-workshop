@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Compatibility fallback for older Codex builds: register designing-tests' SessionStart hook into ~/.codex/hooks.json when native plugin hooks do not load.
+description: "Compatibility fallback for older Codex builds: register designing-tests' SessionStart hook into ~/.codex/hooks.json when native plugin hooks do not load."
 ---
 
 # Setup designing-tests hooks for Codex
