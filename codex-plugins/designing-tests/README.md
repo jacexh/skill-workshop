@@ -4,18 +4,21 @@ Risk-driven test design guidance.
 
 ## Installation
 
+Codex hooks require this feature flag in `~/.codex/config.toml`:
+
+```toml
+[features]
+codex_hooks = true
+```
+
 ```bash
 codex plugin marketplace add jacexh/skill-workshop
 codex plugin install designing-tests
 ```
 
-In Codex:
+Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.
 
-```
-$designing-tests:setup
-```
-
-Restart Codex.
+If hooks do not appear after restart on an older Codex build, run `$designing-tests:setup` as a compatibility fallback. The setup skill writes equivalent entries to `~/.codex/hooks.json`.
 
 ## Upgrade
 
@@ -23,9 +26,9 @@ Restart Codex.
 codex plugin marketplace upgrade jacexh/skill-workshop
 ```
 
-In Codex: `$designing-tests:setup`. Restart.
+Restart Codex. Re-run `$designing-tests:setup` only if you are using the fallback `~/.codex/hooks.json` installer path.
 
-Manual hook config is not recommended. `codex-hooks-snippet.json` contains a `${PLUGIN_ROOT}` placeholder that the setup installer resolves to the actual installed plugin path.
+Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`; the setup fallback resolves `${PLUGIN_ROOT}` to the actual installed plugin path.
 
 ## Capabilities
 

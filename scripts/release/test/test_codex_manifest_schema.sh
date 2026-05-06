@@ -35,6 +35,33 @@ for i in $(seq 0 $((count - 1))); do
     echo "FAIL $name .skills path does not exist: $skills_path"
     exit 1
   }
+
+  hooks_type=$(jq -r '.hooks | type' "$manifest")
+  [ "$hooks_type" = "string" ] || {
+    echo "FAIL $name .hooks must be a string path, got $hooks_type"
+    exit 1
+  }
+
+  hooks_path=$(jq -r '.hooks' "$manifest")
+  hooks_file="$(dirname "$manifest")/../${hooks_path#./}"
+  [ -f "$hooks_file" ] || {
+    echo "FAIL $name .hooks path does not exist: $hooks_path"
+    exit 1
+  }
+
+  hooks_shape=$(jq -r '.hooks | type' "$hooks_file")
+  [ "$hooks_shape" = "object" ] || {
+    echo "FAIL $name lifecycle config must contain a hooks object, got $hooks_shape"
+    exit 1
+  }
+
+  snippet="$ROOT/${path#./}/codex-hooks-snippet.json"
+  if [ -f "$snippet" ]; then
+    diff -u <(jq -S '.hooks' "$hooks_file") <(jq -S '.hooks' "$snippet") >/dev/null || {
+      echo "FAIL $name native hooks/hooks.json drifted from codex-hooks-snippet.json fallback"
+      exit 1
+    }
+  fi
 done
 
 echo "  codex manifests: schema-compatible"

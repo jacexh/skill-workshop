@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-04-27
+last_updated: 2026-05-06
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -18,7 +18,9 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Rich Injection** — Hook output pattern: a multi-section `additionalContext` block (diff scope + imperative MUST language + numbered checklist) used in place of `decision: "block"`; designed to make compliance the path of least resistance without forcing a halt. → ADR-011
 
-**Codex Setup Skill** — Per-Codex-plugin skill that runs an installer to register strict-JSON hook entries in `~/.codex/hooks.json`; re-runnable after marketplace upgrade. → `codex-plugins/superpowers-memory/skills/setup/SKILL.md`, ADR-013
+**Codex Native Hooks** — Manifest-declared lifecycle hooks loaded from each Codex plugin root when `codex_hooks` is enabled. → `codex-plugins/superpowers-memory/hooks/hooks.json`, ADR-014
+
+**Codex Setup Skill** — Per-Codex-plugin compatibility fallback that writes strict-JSON hook entries to `~/.codex/hooks.json` when native Codex hooks are unavailable or fail to load. → `codex-plugins/superpowers-memory/skills/setup/SKILL.md`, ADR-014
 
 **Auto Release Pipeline** — GitHub Actions flow that runs after PR merge, bumps path-affected plugin manifests/snippets, pushes a bump commit, tags it, and publishes a release. → `.github/workflows/auto-release.yml`
 
