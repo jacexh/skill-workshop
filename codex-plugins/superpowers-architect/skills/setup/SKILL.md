@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Compatibility fallback for older Codex builds: register superpowers-architect hooks into ~/.codex/hooks.json when native plugin hooks do not load.
+description: "Compatibility fallback for older Codex builds: register superpowers-architect hooks into ~/.codex/hooks.json when native plugin hooks do not load."
 ---
 
 # Setup superpowers-architect hooks for Codex
