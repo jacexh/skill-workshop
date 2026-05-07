@@ -6,8 +6,16 @@ triggered_by_plan: null
 
 # Features
 
-## Current Capabilities
+## Implemented
 
-### HTTP API
+### Product Capabilities
 
-Serves JSON requests on port 8080. Entry point `cmd/server/main.go`. See ADR-001.
+#### HTTP API
+
+**Enables** — Serves JSON requests for the application.
+
+**Actors / Entry Points** — External clients call the service through `cmd/server/main.go`.
+
+**Capability Boundary** — Request routing and module wiring live in `architecture.md`.
+
+**References** — ADR-001.

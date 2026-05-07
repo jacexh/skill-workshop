@@ -257,11 +257,47 @@ const METHOD_SIG_PATTERN = /\b\w+\s*\(\s*ctx\b/;
 const SHIPPED_NARRATIVE_PATTERN = /\bshipped\s+\d{4}-\d{2}-\d{2}\b/i;
 const COMMITS_RANGE_PATTERN = /\bcommits on [\w\/-]+|\b[0-9a-f]{7,40}\.\.(?:HEAD|[\w\/-]+)/i;
 const GLOSSARY_WIDTH_THRESHOLD = 400;
+const FEATURE_DENSE_PARAGRAPH_THRESHOLD = 500;
 
 function lintFeatures(content) {
   const findings = [];
   const lines = content.split("\n");
+  let paragraphStart = -1;
+  let paragraphText = "";
+  let awaitingFeatureParagraph = false;
+
+  function flushFeatureParagraph() {
+    if (paragraphStart < 0) return;
+    if (paragraphText.length > FEATURE_DENSE_PARAGRAPH_THRESHOLD) {
+      findings.push({
+        line: paragraphStart + 1,
+        kind: "feature_entry_too_dense",
+        sample: paragraphText.trim().slice(0, 120),
+      });
+    }
+    paragraphStart = -1;
+    paragraphText = "";
+  }
+
   lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    const isHeading = /^#{1,6}\s+/.test(trimmed);
+    const isFeatureHeading = /^#{3,4}\s+/.test(trimmed);
+    const isBlank = trimmed === "";
+    const isStructuredField = /^\*\*[^*]+\*\*\s+—/.test(trimmed);
+
+    if (isHeading || isBlank || isStructuredField) {
+      flushFeatureParagraph();
+      if (isFeatureHeading) awaitingFeatureParagraph = true;
+      else if (isHeading || isStructuredField) awaitingFeatureParagraph = false;
+    } else if (paragraphStart >= 0) {
+      paragraphText += ` ${trimmed}`;
+    } else if (awaitingFeatureParagraph) {
+      paragraphStart = i;
+      paragraphText = trimmed;
+      awaitingFeatureParagraph = false;
+    }
+
     if (SHA_PATTERN.test(line)) {
       findings.push({ line: i + 1, kind: "commit_sha", sample: line.trim().slice(0, 120) });
     }
@@ -275,6 +311,7 @@ function lintFeatures(content) {
       findings.push({ line: i + 1, kind: "commits_range", sample: line.trim().slice(0, 120) });
     }
   });
+  flushFeatureParagraph();
   return findings;
 }
 
@@ -605,7 +642,7 @@ function buildVerifyOutput() {
     "conventions.md": 150,
     "decisions.md": 300,
     "tech-stack.md": 120,
-    "features.md": 100,
+    "features.md": 180,
     "glossary.md": 80,
     "index.md": 50,
   };

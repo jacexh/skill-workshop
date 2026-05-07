@@ -72,7 +72,7 @@ For EACH new entry about to be written, run this checklist against the entry's c
 - [ ] Does the entry pass the Exclusion List in `content-rules.md`? (no struct fields, no enum value catalogs, no method signatures, no single-module implementation detail, nothing derivable from git log)
 - [ ] Does the entry fit its per-file format rule?
   - `glossary.md` entry: ≤2 lines, one-line definition, 1 path (+ ADR if applicable)
-  - `features.md` entry: capability view (current state, ≤6 lines, ADR-referenced). NO commit SHAs, NO test counts, NO timestamps, NO changelog narrative.
+  - `features.md` entry: current capability map. Use `###` capability groups and `####` capability entries with fixed fields (`Enables`, `Actors / Entry Points`, `Capability Boundary`, `References`). NO long single-paragraph entries, commit SHAs, test counts, timestamps, or changelog narrative.
   - New ADR: passes the granularity gate (would a reader without this record re-propose the opposite?). If yes, default to NORMAL 3-line format. CRITICAL only when ≥2 rejected alts AND each has substantive analysis.
   - `architecture.md` entry: structure view (components, wiring, data flow). NOT capability description (that's features.md).
 
@@ -99,7 +99,7 @@ Other files that need to reference this information get a ≤1-line pointer ("se
 
 Before writing any new entry, spot-check 2-3 existing entries in each file you will touch against the per-file format rule. If any are in a format forbidden by current `content-rules.md`, list them and rewrite them in Step 4 alongside the new entries. Common patterns to flag:
 
-- **features.md**: entries with commit SHAs, test counts, "shipped YYYY-MM-DD" narrative, "Commits on hotfix/…" blocks, scope-boundary sections
+- **features.md**: entries with commit SHAs, test counts, "shipped YYYY-MM-DD" narrative, "Commits on hotfix/…" blocks, scope-boundary sections, or dense single-paragraph capability entries that should be split into `####` entries with fixed fields
 - **decisions.md**: ADRs with full body (Context / Alternatives / Consequences sections) still inline — these should be split so the summary is 4-6 lines and the detail lives in `adr/ADR-NNN-*.md`. ADRs that fail the 3-criteria granularity gate (tool picks, single-rationale convention rules) — route to `tech-stack.md` / `conventions.md`. ADRs marked `Superseded by` but still carrying body content — collapse to the 1-line supersede heading.
 - **glossary.md**: entries longer than 2 lines, paragraph-style explanations, method signatures, enum value catalogs
 - **conventions.md**: sections describing data flow, component wiring, or sequences of runtime steps (those belong in `architecture.md`)
@@ -196,7 +196,7 @@ Knowledge files follow the structure defined in the plugin templates:
 
 - `architecture.md` → Pattern Overview (paradigm + 2–3 key characteristics, 1 paragraph), System Context (external actors + external systems, ≤10 lines), Layering (BCs/layers with responsibility + path + key abstractions, call-direction rules), Scenario Sequences (2–3 Mermaid `sequenceDiagram` for cross-module flows), Key Object FSMs (Mermaid `stateDiagram-v2` with trigger + emitted-event labels), Key Design Decisions (pointer list to ADRs only). No implementation constants (ports, timeouts, TTLs), no env var names, no HTTP header names, no prose FSM state lists, no capability descriptions (those belong in `features.md`).
 - `tech-stack.md` → Flexible: by technology category or system boundary
-- `features.md` → Implemented (**capability-grouped, current state only**), In Progress, Planned. Each capability = one entry describing what the system can do now. Do NOT group by plan/branch/iteration; do NOT include commit SHAs, test counts, "shipped YYYY-MM-DD" timestamps, or scope-boundary blocks.
+- `features.md` → Current capability map. Use `## Implemented` / `## In Progress` / `## Planned`; `###` reader-facing capability groups; `####` individual capabilities. Implemented capabilities use fixed fields: `Enables`, `Actors / Entry Points`, `Capability Boundary`, `References`. Do NOT group by plan/branch/iteration; do NOT include commit SHAs, test counts, "shipped YYYY-MM-DD" timestamps, scope-boundary blocks, or long single-paragraph entries.
 - `conventions.md` → Naming, Code Style, Error Handling, Architecture Rules, Testing, Git & Workflow, + optional Domain-Specific. Rules only. If a section describes data flow, component wiring, or a sequence of runtime steps, it belongs in `architecture.md`.
 - `decisions.md` → **summary only, 4 lines per ADR** (heading + Decision + Trade-off + pointer to detail file). Max 6 non-blank lines per entry. The 3-criteria granularity gate governs what qualifies as an ADR — failing any criterion routes the fact elsewhere. Superseded ADRs collapse to a 1-line heading (no body in the summary).
 - `adr/ADR-NNN-<slug>.md` → **full rationale** loaded on demand. One file per ADR: Context / Decision / Alternatives Rejected (paragraph per alt) / Consequences. Target ~100 lines.

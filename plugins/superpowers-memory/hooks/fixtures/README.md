@@ -15,6 +15,7 @@ No git init required — the `committable` field is only meaningful in a real re
 ## Scenarios
 
 - **clean/** — minimal valid KB; all checks return empty violations. Includes `cmd/server/main.go` stub so staleRef check is quiet.
+- **dense-features/** — `features.md` capability compressed into one oversized paragraph; triggers `feature_entry_too_dense`.
 - **ssot-violation/** — three identical lines span architecture.md + features.md; triggers `ssotViolations`.
 - **shape-violation/** — exercises all `shapeViolations` kinds: commit SHA + test count + shipped-narrative + commits-range in features.md; multi-line term + method signatures + over-wide single-line entry in glossary.md; summary-format ADR whose body exceeds 6 lines (`unsplit_adr_detail`) + superseded ADR with residual body content (`unresolved_supersede`) in decisions.md.
 

@@ -45,7 +45,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 - **Ownership matrix** — see `plugins/superpowers-memory/content-rules.md`. Each fact has ONE owner file; others reference by pointer (≤1 line).
 - **ADR granularity gate** — new ADRs only when a future reader without this record would re-propose the opposite (NORMAL 3-line default; CRITICAL only when ≥2 rejected alts with substantive analysis).
-- **`features.md` is capability view** — current state in 3-6 lines + ADR ref. No commit SHAs, test counts, timestamps, changelog narrative.
+- **`features.md` is current capability map** — use `##` lifecycle states, `###` capability groups, and `####` capability entries with `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`. No dense single-paragraph entries, commit SHAs, test counts, timestamps, or changelog narrative.
 - **`glossary.md` entries ≤2 lines** — one-line business definition + 1 path.
 - **Exclusion Gate** in `update` / `rebuild` skills checks every new entry against content-shape rules before write.
 - **`verify` surfaces** `ssotViolations`, `shapeViolations`, `tokenBudgetViolation` (20K default), `sizeWarnings`. All warn-only — commits not blocked. `committable` reflects git state only.

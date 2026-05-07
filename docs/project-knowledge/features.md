@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-06
+last_updated: 2026-05-07
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -8,58 +8,140 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 ## Implemented
 
-### Marketplace catalogs
+### Marketplace Capabilities
 
-| Feature | Description |
-|---------|------------|
-| Claude marketplace | `.claude-plugin/marketplace.json` — 3 plugins, discoverable via `/plugin marketplace add jacexh/skill-workshop` |
-| Codex marketplace (experimental) | `.agents/plugins/marketplace.json` — 3 codex-plugins, object-form `source` + `policy` + `category`; discoverable via `codex plugin marketplace add jacexh/skill-workshop` (ADR-013) |
-| GitHub Actions release | PR-merge auto release: computes repository tag, detects changed plugin paths, bumps matching manifests/native hooks/fallback snippets, commits the bump, tags, and publishes a GitHub Release |
+#### Claude Marketplace
 
-### superpowers-memory (Claude track v1.11.0)
+**Enables** — Claude Code users can install the workshop plugins from `.claude-plugin/marketplace.json`.
 
-| Feature | Description |
-|---------|------------|
-| Node.js hook runtime | `hook-runtime.js` — unified runtime; modes: `session-start` / `pre-tool-use` / `user-prompt-expansion` / `verify` / `lock` / `unlock` / `lock-status` / `analyze` |
-| SessionStart hook | Reads `index.md` (or legacy `MEMORY.md`); injects index as `additionalContext` |
-| PreToolUse hook (Skill) | Per-skill dispatch on 5 trigger skills; `finishing-a-development-branch` runs shared `classifyFinishingState()` 4-way classifier (ADR-011) |
-| UserPromptExpansion hook | Covers slash-typed `/superpowers:finishing-a-development-branch` path; same classifier (ADR-012) |
-| PreToolUse hook (Write/Edit) | Intercepts `Write` / `Edit` / `MultiEdit` / `NotebookEdit` on `docs/project-knowledge/` paths; blocks unless write-lock held (ADR-010) |
-| KB write-lock | `.git/superpowers-memory.lock` with 60-min TTL gates KB edits (ADR-010) |
-| Verify command | Size thresholds, stale path refs, content-shape lint, total token budget |
-| `load` / `update` / `rebuild` skills | KB management |
-| 7 templates + content-rules.md | Content generation SSOT |
-| Cross-platform dispatcher | `run-hook.cmd` polyglot bash/batch wrapper |
+**Actors / Entry Points** — Users install via `/plugin marketplace add jacexh/skill-workshop`; Claude plugin code lives under `plugins/`.
 
-### superpowers-architect (Claude track v1.6.2)
+**Capability Boundary** — The Claude track remains the primary supported marketplace track.
 
-| Feature | Description |
-|---------|------------|
-| PreToolUse hook | Intercepts 5 trigger skills with plan-vs-review wording fork |
-| Progressive pattern loading | Index-only injection (name + description + path); full content via Read |
-| Two-layer pattern dirs | Global `$SP_ARCHITECT_DIR` + project-local; project overrides global by filename |
-| 8 reference design patterns | `database`, `rest-api`, `ddd-core`, `ddd-modeling`, `ddd-golang`, `ddd-python`, `ddd-typescript`, `frontend-patterns` |
+**References** — See `architecture.md` for dual-track layout and ADR-013 for Codex compatibility.
 
-### designing-tests (Claude track v1.6.0)
+#### Codex Marketplace
 
-| Feature | Description |
-|---------|------------|
-| `designing-tests` skill | Intent-first test design, test list as planning step, intent comments, boundary selection, quality labels |
-| PreToolUse three-tier hook | `writing-plans` (planning tier) / `executing-plans` + `subagent-driven-development` (execution tier) / `test-driven-development` (full tier) |
-| 4 reference files | `layer-selection`, `risk-catalog`, `test-case-patterns`, `test-quality-review` |
-| Cross-platform dispatcher | `run-hook.cmd` polyglot wrapper |
+**Enables** — Codex users can install the experimental Codex plugin track from `.agents/plugins/marketplace.json`.
 
-### Codex track (experimental — ADR-013)
+**Actors / Entry Points** — Users install via `codex plugin marketplace add jacexh/skill-workshop`; Codex plugin code lives under `codex-plugins/`.
 
-| Feature | Description |
-|---------|------------|
-| Native Codex hooks | Each Codex plugin manifest declares a plugin-local lifecycle hook file; Codex loads it from the plugin root after restart when `[features] codex_hooks = true` (ADR-014) |
-| codex-plugins/superpowers-memory | SessionStart (KB index + standing primer) + UserPromptSubmit (regex on `$superpowers:brainstorming` / `$superpowers:finishing-a-development-branch`) + PreToolUse (matcher `apply_patch\|mcp__filesystem__.*` for KB write-lock); same skills/templates/content-rules as Claude track |
-| codex-plugins/superpowers-architect | SessionStart pattern index + fused meta-rule; UserPromptSubmit router for explicit upstream `superpowers` workflow skill mentions; narrow Stop continuation gate for obvious plan/implementation/review answers missing a standards judgment; `$superpowers-architect:standards` explicit workflow; project design-pattern directories override globals/defaults |
-| codex-plugins/designing-tests | Single SessionStart hook: 5 execution-tier principles + 4 reference path index; full SKILL.md on demand via `$designing-tests:designing-tests` |
-| `setup` skill (per plugin) | Compatibility fallback for older Codex builds or failed native hook loading; installer prefers the native hook file, writes strict `~/.codex/hooks.json`, removes stale runtime paths for that plugin, and preserves unrelated hooks |
-| Known protocol gaps | Auto-triggered upstream skills still lack true PreToolUse:Skill JIT; architect compensates with native SessionStart, explicit skill mentions, explicit standards skill, and narrow Stop continuation; designing-tests three-tier collapsed to execution tier; agent-self-decided `finishing-a-development-branch` gets no diff evidence |
+**Capability Boundary** — Codex entries use object-form `source`, `policy`, and `category`; native hooks require restart and `codex_hooks`.
+
+**References** — ADR-013, ADR-014; see `conventions.md` for Codex hook and setup fallback rules.
+
+#### Auto Release
+
+**Enables** — PR merges can publish versioned plugin releases without hand-editing manifests.
+
+**Actors / Entry Points** — `.github/workflows/auto-release.yml` calls release scripts under `scripts/release/`.
+
+**Capability Boundary** — Release detection is path-scoped so Claude and Codex plugin version bumps stay aligned with changed files.
+
+**References** — See `conventions.md` for versioning workflow and release script rules.
+
+### Knowledge Memory Capabilities
+
+#### Project Knowledge Loading
+
+**Enables** — Agents can load a lightweight project knowledge index before code exploration, planning, or architectural work.
+
+**Actors / Entry Points** — `superpowers-memory:load`, SessionStart hooks, and `docs/project-knowledge/index.md`.
+
+**Capability Boundary** — The index is the default context; full KB files are loaded on demand to avoid unnecessary token use.
+
+**References** — `plugins/superpowers-memory/skills/load/`, `codex-plugins/superpowers-memory/skills/load/`, ADR-005, ADR-006.
+
+#### Project Knowledge Update And Rebuild
+
+**Enables** — Agents can incrementally update or fully/scoped rebuild `docs/project-knowledge/` from code, plans, specs, and ADRs.
+
+**Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, templates, and `content-rules.md`.
+
+**Capability Boundary** — `content-rules.md` is the SSOT for ownership, exclusion rules, per-file structure, size guards, and `features.md` readability.
+
+**References** — `plugins/superpowers-memory/content-rules.md`, `templates/`, ADR-003.
+
+#### Knowledge Base Write Lock
+
+**Enables** — KB edits are gated so agents update project knowledge through memory skills instead of ad hoc file writes.
+
+**Actors / Entry Points** — Claude `PreToolUse` intercepts Write/Edit tools; Codex `PreToolUse` intercepts `apply_patch` and filesystem tool writes.
+
+**Capability Boundary** — The lock is stored at `.git/superpowers-memory.lock` with a 60-minute TTL; manual fixes also go through update/rebuild.
+
+**References** — ADR-010; see `conventions.md` for hook runtime rules.
+
+#### Knowledge Verification
+
+**Enables** — Operators can check KB shape, stale path references, size thresholds, token budget, and commit readiness before committing.
+
+**Actors / Entry Points** — `node plugins/superpowers-memory/hooks/hook-runtime.js verify` and the Codex equivalent.
+
+**Capability Boundary** — Verify is advisory except for git commit readiness; it now flags dense single-paragraph `features.md` entries so capability maps stay readable.
+
+**References** — `plugins/superpowers-memory/hooks/fixtures/`; see `content-rules.md` for shape rules.
+
+### Architecture Guidance Capabilities
+
+#### Claude Architecture Standards Injection
+
+**Enables** — Claude agents receive project architecture pattern guidance when invoking planning, implementation, or review skills.
+
+**Actors / Entry Points** — `plugins/superpowers-architect/hooks/pre-tool-use` and bundled design-pattern files.
+
+**Capability Boundary** — Hooks inject pattern indexes only; full pattern content is read on demand.
+
+**References** — `plugins/superpowers-architect/`, ADR-002.
+
+#### Codex Architecture Standards Guidance
+
+**Enables** — Codex agents receive standing architecture pattern context plus explicit standards workflow support.
+
+**Actors / Entry Points** — Codex SessionStart, UserPromptSubmit router, Stop continuation gate, and `$superpowers-architect:standards`.
+
+**Capability Boundary** — The Stop gate stays narrow and only requests a missing standards judgment for obvious plan/review/implementation answers.
+
+**References** — `codex-plugins/superpowers-architect/`, ADR-013, ADR-014.
+
+### Test Design Capabilities
+
+#### Test Design Skill
+
+**Enables** — Agents can design tests from intent before implementation, including test lists, intent comments, boundary selection, and quality labels.
+
+**Actors / Entry Points** — `designing-tests` skill and reference files for layer selection, risk catalog, test-case patterns, and test-quality review.
+
+**Capability Boundary** — Claude has tiered PreToolUse injection; Codex uses SessionStart guidance and the full skill on demand.
+
+**References** — `plugins/designing-tests/`, `codex-plugins/designing-tests/`, ADR-013.
+
+### Codex Compatibility Capabilities
+
+#### Native Codex Hooks
+
+**Enables** — Codex plugins can declare plugin-local lifecycle hooks in native manifests.
+
+**Actors / Entry Points** — `.codex-plugin/plugin.json`, `codex-plugins/superpowers-memory/hooks/hooks.json`, and `codex-plugins/superpowers-memory/hooks/codex-runtime.js` represent the per-plugin pattern.
+
+**Capability Boundary** — Native hooks are primary when supported; users restart Codex after install or upgrade.
+
+**References** — ADR-014; see `conventions.md` for native hook contract.
+
+#### Codex Setup Fallback
+
+**Enables** — Older Codex builds or failed native hook loading can still install compatibility hooks.
+
+**Actors / Entry Points** — `$<plugin>:setup`, `codex-plugins/superpowers-memory/scripts/install-codex-hooks.js`, and `codex-hooks-snippet.json` represent the fallback pattern.
+
+**Capability Boundary** — The setup skill writes strict `~/.codex/hooks.json`, removes stale runtime paths for the same plugin, and preserves unrelated hooks.
+
+**References** — ADR-014; see `conventions.md` for setup installer protocol.
 
 ## In Progress
 
-No features currently in progress.
+No capabilities currently in progress.
+
+## Planned
+
+No planned capabilities are tracked in this file.
