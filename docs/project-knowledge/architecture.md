@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-06
+last_updated: 2026-05-07
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -26,15 +26,15 @@ Skill Workshop is a dual-track plugin marketplace. Each track exposes the same t
 | `plugins/superpowers-architect/design-patterns/` | 8 reference design pattern files | `database.md`, `rest-api.md`, `ddd-core.md`, `ddd-modeling.md`, `ddd-golang.md`, `ddd-python.md`, `ddd-typescript.md`, `frontend-patterns.md` | None |
 | `plugins/designing-tests/` | Claude track: intent-first test design guidance | Skill (`designing-tests`), Hook (`pre-tool-use`), 4 reference files | Claude Code plugin runtime, Node.js |
 | `plugins/designing-tests/hooks/pre-tool-use` | Three-tier injection across 4 skills: planning / execution / full | Targets `writing-plans` / `executing-plans` / `subagent-driven-development` / `test-driven-development` | Node.js, bash |
-| `codex-plugins/superpowers-memory/` | Codex track: equivalent KB persistence + write-lock | Skills (`load`, `update`, `rebuild`, `setup`), Hooks (`session-start`, `user-prompt-submit`, `pre-tool-use`) | Codex CLI plugin runtime, Node.js, git |
+| `codex-plugins/superpowers-memory/` | Codex track: equivalent KB persistence + write-lock | Skills (`load`, `update`, `rebuild`, `setup`, `cleanup`), Hooks (`session-start`, `user-prompt-submit`, `pre-tool-use`) | Codex CLI plugin runtime, Node.js, git |
 | `codex-plugins/superpowers-memory/hooks/codex-runtime.js` | Codex-side runtime: same business logic as Claude `hook-runtime.js`, platform-adapted (no `${CLAUDE_PLUGIN_ROOT}`, `user-prompt-submit` mode replaces `user-prompt-expansion`, PreToolUse matcher checks `apply_patch` and `mcp__filesystem__.*` instead of `Write`/`Edit`/…) | Same JSON protocol, output via `hookSpecificOutput` | Node.js, git |
 | `codex-plugins/<name>/.codex-plugin/plugin.json` | Codex plugin manifest | Declares skills and a plugin-local native lifecycle hook config (ADR-014) | Codex CLI plugin runtime |
 | `codex-plugins/<name>/hooks/hooks.json` | Primary Codex native lifecycle hook config | `${PLUGIN_ROOT}` placeholder + strict JSON hook entries loaded by Codex when `codex_hooks` is enabled (ADR-014) | None |
 | `codex-plugins/<name>/codex-hooks-snippet.json` | Compatibility hook config consumed by the fallback setup installer | Mirrors the native hook file until `$<plugin>:setup` support can be retired (ADR-014) | None |
-| `codex-plugins/<name>/scripts/install-codex-hooks.js` | Codex setup fallback installer; resolves the installed plugin root, prefers the native hook file, removes stale entries for the same plugin, backs up and rewrites `~/.codex/hooks.json` as strict JSON | Invoked by `$<plugin>:setup` only for older Codex builds or failed native hook loading | Node.js |
-| `codex-plugins/superpowers-architect/` | Codex track: design patterns via SessionStart, prompt-time routing, and explicit standards skill | Hooks + `setup` / `standards` skills | Codex CLI plugin runtime, Node.js |
+| `codex-plugins/<name>/scripts/install-codex-hooks.js` | Codex setup fallback installer and cleanup tool; resolves the installed plugin root, prefers the native hook file, removes stale entries for the same plugin, backs up and rewrites `~/.codex/hooks.json` as strict JSON | Invoked by `$<plugin>:setup` for older Codex builds or `$<plugin>:cleanup` to remove stale fallback entries | Node.js |
+| `codex-plugins/superpowers-architect/` | Codex track: design patterns via SessionStart, prompt-time routing, and explicit standards skill | Hooks + `setup` / `cleanup` / `standards` skills | Codex CLI plugin runtime, Node.js |
 | `codex-plugins/superpowers-architect/hooks/codex-runtime.js` | Modes: `session-start` emits standing pattern index; `user-prompt-submit` matches explicit upstream `superpowers` workflow skill mentions; legacy `stop` mode returns `{}` for older installed configs. Pattern dirs resolve bundled, global, and project design-pattern directories with later dirs overriding by filename | Output via `hookSpecificOutput.additionalContext`; no Stop hook is registered | Node.js, git |
-| `codex-plugins/designing-tests/` | Codex track: execution-tier test principles + reference index | Skill (`designing-tests`, copied) + `setup` skill | Codex CLI plugin runtime, Node.js |
+| `codex-plugins/designing-tests/` | Codex track: execution-tier test principles + reference index | Skill (`designing-tests`, copied) + `setup` / `cleanup` skills | Codex CLI plugin runtime, Node.js |
 | `codex-plugins/designing-tests/hooks/codex-runtime.js` | Single `session-start` mode; emits 5 numbered execution-tier principles + 4 reference path index; full SKILL.md available on demand via `$designing-tests:designing-tests` | Three Claude tiers collapse to execution tier baseline (ADR-013) | Node.js |
 | `scripts/release/` | Release automation helpers for PR-merge auto release | `compute-next-version.sh`, `detect-changed-plugins.sh`, `bump-versions.sh`, `scripts/release/test/run-tests.sh` | bash, git, jq |
 | `.github/workflows/auto-release.yml` | PR-merge release orchestrator | Computes next version, bumps manifests, pushes bump commit, creates tag/release | GitHub Actions, `jacexh/action-autotag`, `softprops/action-gh-release` |
@@ -44,7 +44,7 @@ Skill Workshop is a dual-track plugin marketplace. Each track exposes the same t
 
 1. **Install (Claude):** `/plugin marketplace add jacexh/skill-workshop` → reads `.claude-plugin/marketplace.json` → user installs plugin → hooks auto-active.
 2. **Install (Codex):** `codex plugin marketplace add jacexh/skill-workshop` → reads `.agents/plugins/marketplace.json` → user installs plugin → Codex loads each manifest's native lifecycle hook file after restart when `[features] codex_hooks = true`. `$<plugin>:setup` remains a compatibility fallback that writes strict `~/.codex/hooks.json` only when native hooks are unavailable.
-3. **Codex upgrade flow:** `codex plugin marketplace upgrade` updates plugin files → user restarts Codex → native lifecycle hooks resolve the upgraded plugin root from the manifest. Rerun `$<plugin>:setup` only for older Codex builds or when hooks do not appear after restart.
+3. **Codex upgrade flow:** `codex plugin marketplace upgrade` updates plugin files → user restarts Codex → native lifecycle hooks resolve the upgraded plugin root from the manifest. Current Codex users do not run setup after every upgrade; users with old fallback entries run `$<plugin>:cleanup` once to remove stale cache-path hooks from `~/.codex/hooks.json`.
 4. **Session start (Claude):** SessionStart hook → reads `index.md`, injects via `additionalContext`.
 5. **Session start (Codex memory):** SessionStart hook → injects KB index + standing primer (4 rules covering KB workflow). Standing primer compensates for absence of per-skill JIT (ADR-013).
 6. **Knowledge management:** `superpowers-memory:rebuild` / `update` / `load` agent reads codebase / existing KB → writes/updates `docs/project-knowledge/*.md`. Same skill content on both tracks.

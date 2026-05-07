@@ -20,15 +20,17 @@ Restart Codex. Current Codex versions load this plugin's lifecycle config from `
 
 If hooks do not appear after restart on an older Codex build, run `$designing-tests:setup` as a compatibility fallback. The setup skill writes equivalent entries to `~/.codex/hooks.json`.
 
+If you previously used that fallback and have now enabled native plugin hooks, run `$designing-tests:cleanup` once to remove the old fallback entries from `~/.codex/hooks.json`.
+
 ## Upgrade
 
 ```bash
 codex plugin marketplace upgrade jacexh/skill-workshop
 ```
 
-Restart Codex. Re-run `$designing-tests:setup` only if you are using the fallback `~/.codex/hooks.json` installer path.
+Restart Codex. Current Codex versions do not require running `setup` after every upgrade.
 
-Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`; the setup fallback resolves `${PLUGIN_ROOT}` to the actual installed plugin path.
+Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`; the setup fallback resolves `${PLUGIN_ROOT}` to the actual installed plugin path. If stale fallback entries point at an old deleted cache version and cause `SessionStart hook (failed)`, run `$designing-tests:cleanup` and restart Codex.
 
 ## Capabilities
 

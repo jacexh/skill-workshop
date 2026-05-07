@@ -20,6 +20,7 @@ const hooksPath = path.join(codexHome, "hooks.json");
 const nativeHooksPath = path.join(pluginRoot, "hooks", "hooks.json");
 const snippetPath = path.join(pluginRoot, "codex-hooks-snippet.json");
 const manifestPath = path.join(pluginRoot, ".codex-plugin", "plugin.json");
+const mode = process.argv[2] || "install";
 
 function inferPluginName(root) {
   const basename = path.basename(root);
@@ -159,6 +160,30 @@ function buildNextConfig(config, desiredHooks) {
   return { config: next, removed, added };
 }
 
+function buildRemoveConfig(config) {
+  const next = {
+    ...config,
+    hooks: config.hooks && typeof config.hooks === "object" ? { ...config.hooks } : {},
+  };
+
+  const currentPluginEntries = pluginEntriesByEvent(next.hooks);
+  const removed = countEntries(currentPluginEntries);
+
+  for (const [eventName, entries] of Object.entries(next.hooks)) {
+    if (!Array.isArray(entries)) {
+      continue;
+    }
+    const kept = entries.filter((entry) => !entryTargetsPlugin(entry));
+    if (kept.length > 0) {
+      next.hooks[eventName] = kept;
+    } else {
+      delete next.hooks[eventName];
+    }
+  }
+
+  return { config: next, removed, added: 0 };
+}
+
 function readHookSource() {
   if (fs.existsSync(nativeHooksPath)) {
     const native = readJson(nativeHooksPath, "native hooks");
@@ -200,17 +225,28 @@ function backupCurrentFile(raw) {
 }
 
 function main() {
-  const hookSource = readHookSource();
-  const desiredHooks = cloneWithPluginRoot(hookSource.hooks);
+  if (!["install", "remove"].includes(mode)) {
+    throw new Error(`Usage: install-codex-hooks.js [install|remove]`);
+  }
+
   const current = readCurrentConfig();
-  const next = buildNextConfig(current.config, desiredHooks);
+  const hookSource = mode === "remove"
+    ? { version: "fallback", hooks: {} }
+    : readHookSource();
+  const desiredHooks = mode === "remove"
+    ? {}
+    : cloneWithPluginRoot(hookSource.hooks);
+  const next = mode === "remove"
+    ? buildRemoveConfig(current.config)
+    : buildNextConfig(current.config, desiredHooks);
   const nextRaw = `${JSON.stringify(next.config, null, 2)}\n`;
   const currentComparableRaw = current.raw === null
     ? null
     : `${JSON.stringify(current.config, null, 2)}\n`;
 
   if (current.raw !== null && nextRaw === currentComparableRaw && !current.cleanedLegacyMarkers) {
-    console.log(`${pluginName} hooks already up to date (${hookSource.version})`);
+    const action = mode === "remove" ? "already removed" : "already up to date";
+    console.log(`${pluginName} hooks ${action} (${hookSource.version})`);
     return;
   }
 
@@ -218,7 +254,8 @@ function main() {
   const backupPath = backupCurrentFile(current.raw);
   fs.writeFileSync(hooksPath, nextRaw);
 
-  console.log(`${pluginName} hooks installed (${hookSource.version})`);
+  const verb = mode === "remove" ? "removed" : "installed";
+  console.log(`${pluginName} hooks ${verb} (${hookSource.version})`);
   console.log(`hooks file: ${hooksPath}`);
   console.log(`backup: ${backupPath || "not created (new hooks file)"}`);
   console.log(`entries removed: ${next.removed}`);

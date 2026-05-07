@@ -20,22 +20,24 @@ Restart Codex. Current Codex versions load this plugin's lifecycle config from `
 
 If hooks do not appear after restart on an older Codex build, run `$superpowers-memory:setup` as a compatibility fallback. The setup skill writes equivalent entries to `~/.codex/hooks.json`.
 
+If you previously used that fallback and have now enabled native plugin hooks, run `$superpowers-memory:cleanup` once to remove the old fallback entries from `~/.codex/hooks.json`.
+
 ## Upgrade
 
 ```bash
 codex plugin marketplace upgrade jacexh/skill-workshop
 ```
 
-Restart Codex. Re-run `$superpowers-memory:setup` only if you are using the fallback `~/.codex/hooks.json` installer path.
+Restart Codex. Current Codex versions do not require running `setup` after every upgrade.
 
-Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`; the setup fallback resolves `${PLUGIN_ROOT}` to the actual installed plugin path and preserves unrelated hooks.
+Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`; the setup fallback resolves `${PLUGIN_ROOT}` to the actual installed plugin path and preserves unrelated hooks. If stale fallback entries point at an old deleted cache version and cause `SessionStart hook (failed)`, run `$superpowers-memory:cleanup` and restart Codex.
 
 ## Capabilities
 
 - **SessionStart hook** — injects KB index from `docs/project-knowledge/index.md` plus standing primer for KB workflow
 - **UserPromptSubmit hook** — when user types `$superpowers:brainstorming` or `$superpowers:finishing-a-development-branch`, JIT-injects relevant context (load advisory or finishing-readiness rich injection)
 - **PreToolUse hook** — blocks `apply_patch` and `mcp__filesystem__.*` writes to `docs/project-knowledge/` unless write-lock is held by `$superpowers-memory:update` or `$superpowers-memory:rebuild`
-- **Skills:** `load`, `update`, `rebuild`, `setup`
+- **Skills:** `load`, `update`, `rebuild`, `setup`, `cleanup`
 
 ## Known Codex protocol gaps
 

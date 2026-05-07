@@ -134,9 +134,19 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Actors / Entry Points** — `$<plugin>:setup`, `codex-plugins/superpowers-memory/scripts/install-codex-hooks.js`, and `codex-hooks-snippet.json` represent the fallback pattern.
 
-**Capability Boundary** — The setup skill writes strict `~/.codex/hooks.json`, removes stale runtime paths for the same plugin, and preserves unrelated hooks.
+**Capability Boundary** — The setup skill is not a routine upgrade step when native hooks work. It writes strict `~/.codex/hooks.json`, removes stale runtime paths for the same plugin, and preserves unrelated hooks.
 
 **References** — ADR-014; see `conventions.md` for setup installer protocol.
+
+#### Codex Fallback Cleanup
+
+**Enables** — Users who previously installed fallback hooks can migrate back to native Codex hooks and remove stale cache-path entries that break after plugin upgrades.
+
+**Actors / Entry Points** — `$<plugin>:cleanup` calls `codex-plugins/<name>/scripts/install-codex-hooks.js remove` for that plugin.
+
+**Capability Boundary** — Cleanup removes only matching skill-workshop fallback hook commands from `~/.codex/hooks.json`, deletes empty hook-event arrays, preserves unrelated user hooks, and requires a Codex restart.
+
+**References** — `codex-plugins/*/skills/cleanup/SKILL.md`; see `conventions.md` for installer `remove` mode.
 
 ## In Progress
 

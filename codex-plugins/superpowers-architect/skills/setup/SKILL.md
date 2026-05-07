@@ -7,6 +7,8 @@ description: "Compatibility fallback for older Codex builds: register superpower
 
 Current Codex versions load this plugin's native lifecycle config from `hooks/hooks.json`. Use this fallback skill only when hooks do not appear after plugin install/upgrade and restart.
 
+Do not run this skill for regular upgrades when native plugin hooks work. If this fallback was used previously and native hooks are now enabled, use `$superpowers-architect:cleanup` once to remove stale fallback entries from `~/.codex/hooks.json`.
+
 This skill registers superpowers-architect's SessionStart and UserPromptSubmit hooks into `~/.codex/hooks.json`. Re-runnable and idempotent via the plugin's installer script.
 
 ## Procedure
@@ -42,3 +44,4 @@ Hook config is loaded at Codex startup. Suggest the user exit and restart their 
 - Do not manually edit `~/.codex/hooks.json`; run the installer script.
 - Do not write `//` comments into `hooks.json`; Codex parses it as strict JSON.
 - Do not copy `hooks/hooks.json` or `codex-hooks-snippet.json` directly into `~/.codex/hooks.json`; they contain a `${PLUGIN_ROOT}` placeholder for the installer.
+- Do not use setup as a routine upgrade step on current Codex builds; prefer native hooks plus `$superpowers-architect:cleanup` for migration off fallback entries.
