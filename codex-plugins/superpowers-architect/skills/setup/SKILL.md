@@ -7,7 +7,7 @@ description: "Compatibility fallback for older Codex builds: register superpower
 
 Current Codex versions load this plugin's native lifecycle config from `hooks/hooks.json`. Use this fallback skill only when hooks do not appear after plugin install/upgrade and restart.
 
-This skill registers superpowers-architect's SessionStart, UserPromptSubmit, and Stop hooks into `~/.codex/hooks.json`. Re-runnable and idempotent via the plugin's installer script.
+This skill registers superpowers-architect's SessionStart and UserPromptSubmit hooks into `~/.codex/hooks.json`. Re-runnable and idempotent via the plugin's installer script.
 
 ## Procedure
 

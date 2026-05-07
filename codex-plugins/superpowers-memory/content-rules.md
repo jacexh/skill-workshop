@@ -48,9 +48,63 @@ Describes how modules/services are wired, how they interact over time, and how c
 | Capability descriptions (what a component does for a user) | `features.md`; here use `"see features.md §..."` pointer |
 | Full ADR rationale (Context / Alternatives / Consequences) | `decisions.md` summary + `adr/ADR-NNN-*.md` |
 
-### features.md — capability view
+### features.md — current capability map
 
-Describes **current** capabilities of the system. Each entry = system's current state in 3–6 lines + ADR reference. Past versions are NOT documented (evolution lives in ADR supersede chains).
+Describes **what the system can do now**. It is the current capability map for humans and agents: readers should understand the implemented capabilities, who or what uses them, where to enter the system, and which owner file to load next. Past versions are NOT documented (evolution lives in ADR supersede chains and plan files).
+
+**Relationship to other KB files:**
+
+| Question | Owner |
+|----------|-------|
+| What can the system do now? | `features.md` |
+| How are modules wired and how do flows cross components? | `architecture.md` |
+| Why was the design chosen? | `decisions.md` + `adr/` |
+| Which technologies and versions are used? | `tech-stack.md` |
+| Which contribution/runtime rules must be followed? | `conventions.md` |
+| What does a domain term mean? | `glossary.md` |
+
+**Required structure:**
+
+```markdown
+## Implemented
+
+### [Capability Group]
+
+#### [Capability Name]
+
+**Enables** — [1-2 sentences: externally meaningful current capability.]
+
+**Actors / Entry Points** — [users, services, routes, RPCs, CLIs, or code paths.]
+
+**Capability Boundary** — [what this capability covers from a user/system perspective; point implementation structure to architecture.md.]
+
+**References** — [architecture section, ADRs, specs/plans if useful.]
+
+## In Progress
+
+### [Capability Group]
+
+#### [Capability Name]
+
+**Intent** — [1 sentence.]
+**Source** — [plan/spec pointer.]
+
+## Planned
+```
+
+**Grouping rules:**
+
+- Use `##` only for lifecycle state: `Implemented`, `In Progress`, `Planned`.
+- Use `###` for reader-facing capability groups, such as `Product Capabilities`, `Agent Execution Capabilities`, `Platform Capabilities`, or `Operational Capabilities`.
+- Use `####` for individual capabilities.
+- Prefer business capability / bounded-context language for product groups. Technical platform groups are allowed, but must not be presented as business bounded contexts.
+- Do not use `#####` unless the user explicitly asks for deeper local detail.
+
+**Entry rules:**
+
+- Each implemented capability should use the fixed fields above. Keep each field to 1–3 lines.
+- Long single-paragraph entries are forbidden. If a capability needs more than one short paragraph, split it into the fixed fields.
+- `features.md` may mention key constraints that shape use of the capability, but detailed wiring, FSM diagrams, event flows, schema details, and implementation constants belong in owner files.
 
 **Exclusions** (strict):
 - Commit SHAs, commit ranges like `abc1234..HEAD`
@@ -60,9 +114,10 @@ Describes **current** capabilities of the system. Each entry = system's current 
 - Delivery timestamps ("shipped 2026-04-22")
 
 **Include**:
-- What the system can do now (capability name + one-paragraph description)
-- Entry point / relevant path
-- Key invariants or constraints that shape how it's used
+- What the system can do now
+- Actor / entry point / relevant path
+- Capability boundary and externally meaningful constraints
+- Pointers to owner files for structure, decisions, technology, conventions, or terminology
 - ADR reference(s) that gate the capability
 
 ### decisions.md — ADR summary log (always loaded)
@@ -196,7 +251,7 @@ Per-file line thresholds (enforced by `verify sizeWarnings` — warn-only, does 
 | conventions.md | 150 |
 | decisions.md | 300 |
 | tech-stack.md | 120 |
-| features.md | 100 |
+| features.md | 180 |
 | glossary.md | 80 |
 | index.md | 50 |
 
@@ -223,7 +278,7 @@ Per-file caps don't compose. Aggregate check: sum of the seven canonical KB file
 When size guard / content-shape warnings fire, suggest specific compression actions:
 
 - `decisions.md` over cap → (1) run every ADR through the 3-criteria granularity gate — downgrade tool/library picks to `tech-stack.md`, convention-shaped rules to `conventions.md`; (2) collapse superseded ADRs to 1-line supersede format; (3) move any remaining rationale detail from `decisions.md` into `adr/ADR-NNN-*.md` so the summary file carries only 4-6 lines per ADR.
-- `features.md` over cap → strip changelog blocks, commit SHAs, test counts; reduce each capability to its current-state description.
+- `features.md` over cap → strip changelog blocks, commit SHAs, test counts; merge redundant capability groups; keep fixed fields short; move wiring/flow detail to `architecture.md` and rationale to ADRs.
 - `glossary.md` over cap → compress each entry to ≤2 lines; move context to owner file per Matrix.
 - `architecture.md` over cap → remove implementation details; keep module-level wiring only.
 - `conventions.md` over cap → remove rules already enforced by formatter/linter; remove rules duplicated from design patterns.

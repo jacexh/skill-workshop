@@ -1,23 +1,23 @@
 ---
-last_updated: 2026-05-06
+last_updated: 2026-05-07
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
-covers_branch: hotfix/enhancement@bc6770d
+covers_branch: hotfix/features@2cb7e8a
 ---
 
 # Project Knowledge Index
 
 - [architecture.md](architecture.md) — System boundaries, components, data flows
-  Key points: dual-track marketplace; Codex plugins now use native manifest hooks with setup fallback; Codex architect combines SessionStart, explicit skill routing, standards skill, and narrow Stop continuation
+  Key points: dual-track marketplace; Codex plugins now use native manifest hooks with setup fallback; Codex architect combines SessionStart, explicit skill routing, and standards skill without Stop interception
 
 - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
   Key points: Node.js + Bash + Markdown + JSON; release scripts use git + jq; Codex native hooks require `codex_hooks` and restart
 
-- [features.md](features.md) — Implemented features
-  Key points: 3 plugins on each track; Codex native hooks are primary; architect Stop gate requests missing standards judgment only for obvious plan/review/implementation answers
+- [features.md](features.md) — Current capability map
+  Key points: marketplace install paths; memory load/update/rebuild/write-lock/verify; architecture standards guidance; test design guidance; Codex native hooks and setup fallback
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; native Codex hook files mirror fallback snippets while setup fallback remains
+  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; features.md now uses grouped `####` capability entries; native Codex hook files mirror fallback snippets
 
 - [decisions.md](decisions.md) — ADR summary log (14 ADRs, 0 superseded)
   Key points: ADR-014 native Codex hooks with setup fallback; ADR-013 Codex marketplace compat; ADR-012 UserPromptExpansion slash hook; ADR-010 KB write-lock
