@@ -118,6 +118,14 @@ unrelated="$(
 # Intent: unrelated prompts should also stay quiet to avoid hook noise.
 [ "$unrelated" = "{}" ] || fail "unrelated prompt should return {}"
 
+legacy_stop="$(
+  printf '{"last_assistant_message":"## Implementation\nChanged codex-plugins/superpowers-architect/hooks/codex-runtime.js and verified node --check passes. This intentionally looks like an implementation artifact that the old Stop gate would have blocked when no standards note was present."}' |
+    HOME="$TMP/home" node "$RUNTIME" stop
+)"
+
+# Intent: Stop mode is kept only as a compatibility no-op; it must never block turns.
+[ "$legacy_stop" = "{}" ] || fail "architect stop mode should be a no-op"
+
 SNIPPET="$SNIPPET" node <<'NODE'
 const fs = require("fs");
 const snippet = JSON.parse(fs.readFileSync(process.env.SNIPPET, "utf8"));
@@ -131,11 +139,17 @@ if (!snippet.hooks || !Array.isArray(snippet.hooks.SessionStart)) {
 if (!Array.isArray(snippet.hooks.UserPromptSubmit)) {
   fail("missing UserPromptSubmit hook");
 }
+if (snippet.hooks.Stop) {
+  fail("architect snippet should not register a Stop hook");
+}
 const commands = Object.values(snippet.hooks).flat().flatMap((entry) =>
   (entry.hooks || []).map((hook) => hook.command)
 );
 if (!commands.includes('node "${PLUGIN_ROOT}/hooks/codex-runtime.js" user-prompt-submit')) {
   fail("missing architect user-prompt-submit command");
+}
+if (commands.some((command) => command.endsWith(" stop"))) {
+  fail("architect snippet should not install a stop command");
 }
 NODE
 

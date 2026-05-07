@@ -98,9 +98,9 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Enables** — Codex agents receive standing architecture pattern context plus explicit standards workflow support.
 
-**Actors / Entry Points** — Codex SessionStart, UserPromptSubmit router, Stop continuation gate, and `$superpowers-architect:standards`.
+**Actors / Entry Points** — Codex SessionStart, UserPromptSubmit router, and `$superpowers-architect:standards`.
 
-**Capability Boundary** — The Stop gate stays narrow and only requests a missing standards judgment for obvious plan/review/implementation answers.
+**Capability Boundary** — The Codex architect plugin intentionally does not register Stop hooks; legacy stop mode is a no-op for older installed configs.
 
 **References** — `codex-plugins/superpowers-architect/`, ADR-013, ADR-014.
 

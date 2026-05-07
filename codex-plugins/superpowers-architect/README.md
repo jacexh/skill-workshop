@@ -34,7 +34,6 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 
 - **SessionStart hook** — injects design pattern indexes (name + description + absolute path) plus a fused meta-rule covering both planning ("apply") and review ("verify") modes
 - **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions (`$superpowers:brainstorming`, `$superpowers:writing-plans`, `$superpowers:executing-plans`, `$superpowers:subagent-driven-development`, `$superpowers:requesting-code-review`, `$superpowers:receiving-code-review`) and injects the dynamic pattern index
-- **Stop hook** — narrow one-shot gate for obvious plan/review/implementation artifacts that end without a standards acknowledgement; skips continuation turns, short replies, and replies that already state applies/not relevant/conflicts
 - **`$superpowers-architect:standards` skill** — explicit standards workflow for designing, implementing, refactoring, or reviewing architecture-sensitive work
 - Pattern dirs: bundled defaults + Claude global defaults (`~/.claude/superpowers-architect/design-patterns/`) + global (`$SP_ARCHITECT_DIR` or `$SPA_GLOBAL`) + project-local (`design-patterns/` for compatibility, then `docs/design-patterns/`); higher-priority dirs override lower-priority dirs by filename
 - 8 bundled patterns: database, ddd-core, ddd-golang, ddd-modeling, ddd-python, ddd-typescript, frontend-patterns, rest-api. A Claude global directory may add more, such as browser-qa.
@@ -63,4 +62,4 @@ export SPA_DEFAULTS=false
 
 ## Known Codex protocol gap (vs Claude Code)
 
-Claude Code's PreToolUse:Skill hook intercepts trigger skills and injects different wording for plan vs review. Codex's PreToolUse matcher does not support skill names, so the Codex port uses weaker signals instead: SessionStart standing context, UserPromptSubmit matching for explicit upstream `superpowers` skill mentions, a narrow Stop gate for missing standards acknowledgements, and the explicit `$superpowers-architect:standards` skill.
+Claude Code's PreToolUse:Skill hook intercepts trigger skills and injects different wording for plan vs review. Codex's PreToolUse matcher does not support skill names, so the Codex port uses weaker signals instead: SessionStart standing context, UserPromptSubmit matching for explicit upstream `superpowers` skill mentions, and the explicit `$superpowers-architect:standards` skill. The Codex port intentionally does not register a Stop hook because Stop fires after each assistant turn and feels intrusive in normal conversation.

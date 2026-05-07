@@ -2,13 +2,13 @@
 last_updated: 2026-05-07
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
-covers_branch: hotfix/features@6ff9a01
+covers_branch: hotfix/features@539ed4d
 ---
 
 # Project Knowledge Index
 
 - [architecture.md](architecture.md) — System boundaries, components, data flows
-  Key points: dual-track marketplace; Codex plugins now use native manifest hooks with setup fallback; Codex architect combines SessionStart, explicit skill routing, standards skill, and narrow Stop continuation
+  Key points: dual-track marketplace; Codex plugins now use native manifest hooks with setup fallback; Codex architect combines SessionStart, explicit skill routing, and standards skill without Stop interception
 
 - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
   Key points: Node.js + Bash + Markdown + JSON; release scripts use git + jq; Codex native hooks require `codex_hooks` and restart
