@@ -18,7 +18,7 @@ codex plugin install superpowers-architect
 
 Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.
 
-If hooks do not appear after restart on an older Codex build, run `$superpowers-architect:setup` as a compatibility fallback. The setup skill writes equivalent entries to `~/.codex/hooks.json`.
+If hooks do not appear after restart, confirm `codex_hooks` is enabled and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$superpowers-architect:cleanup` once to remove the old entries.
 
 ## Upgrade
 
@@ -26,9 +26,9 @@ If hooks do not appear after restart on an older Codex build, run `$superpowers-
 codex plugin marketplace upgrade jacexh/skill-workshop
 ```
 
-Restart Codex. Re-run `$superpowers-architect:setup` only if you are using the fallback `~/.codex/hooks.json` installer path.
+Restart Codex. Current Codex versions do not require any setup step after upgrade.
 
-Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`; the setup fallback resolves `${PLUGIN_ROOT}` to the actual installed plugin path.
+Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`. If stale fallback entries point at an old deleted cache version and cause `SessionStart hook (failed)`, run `$superpowers-architect:cleanup` and restart Codex.
 
 ## Capabilities
 

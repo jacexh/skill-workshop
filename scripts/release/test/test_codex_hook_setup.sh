@@ -169,3 +169,47 @@ for (const plugin of ["designing-tests", "superpowers-architect", "superpowers-m
 
 console.log("  codex hook setup: strict JSON migration correct");
 NODE
+
+for plugin in designing-tests superpowers-architect superpowers-memory; do
+  printf '{broken native hook source\n' > "$INSTALL_ROOT/$plugin/1.12.4/hooks/hooks.json"
+done
+
+node "$INSTALL_ROOT/designing-tests/1.12.4/scripts/install-codex-hooks.js" remove >/dev/null
+node "$INSTALL_ROOT/superpowers-architect/1.12.4/scripts/install-codex-hooks.js" remove >/dev/null
+node "$INSTALL_ROOT/superpowers-memory/1.12.4/scripts/install-codex-hooks.js" remove >/dev/null
+
+INSTALL_ROOT="$INSTALL_ROOT" node <<'NODE'
+const fs = require("fs");
+const path = require("path");
+
+const hooksPath = path.join(process.env.CODEX_HOME, "hooks.json");
+const cfg = JSON.parse(fs.readFileSync(hooksPath, "utf8"));
+
+function fail(message) {
+  console.error(`FAIL ${message}`);
+  process.exit(1);
+}
+
+const commands = [];
+for (const entries of Object.values(cfg.hooks || {})) {
+  for (const entry of entries) {
+    for (const hook of entry.hooks || []) {
+      commands.push(hook.command);
+    }
+  }
+}
+
+if (commands.some((command) => command.includes("/skill-workshop-codex/"))) {
+  fail("skill-workshop fallback hooks remained after remove");
+}
+if (!commands.includes("echo keep-user-hook")) {
+  fail("user hook was removed by fallback cleanup");
+}
+for (const [eventName, entries] of Object.entries(cfg.hooks || {})) {
+  if (Array.isArray(entries) && entries.length === 0) {
+    fail(`empty hook event remained after cleanup: ${eventName}`);
+  }
+}
+
+console.log("  codex hook setup: fallback cleanup correct");
+NODE
