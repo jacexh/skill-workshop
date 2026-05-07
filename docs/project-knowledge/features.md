@@ -28,7 +28,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Capability Boundary** — Codex entries use object-form `source`, `policy`, and `category`; native hooks require restart and `codex_hooks`.
 
-**References** — ADR-013, ADR-014; see `conventions.md` for Codex hook and setup fallback rules.
+**References** — ADR-013, ADR-014; see `conventions.md` for Codex hook and fallback cleanup rules.
 
 #### Auto Release
 
@@ -127,16 +127,6 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Capability Boundary** — Native hooks are primary when supported; users restart Codex after install or upgrade.
 
 **References** — ADR-014; see `conventions.md` for native hook contract.
-
-#### Codex Setup Fallback
-
-**Enables** — Older Codex builds or failed native hook loading can still install compatibility hooks.
-
-**Actors / Entry Points** — `$<plugin>:setup`, `codex-plugins/superpowers-memory/scripts/install-codex-hooks.js`, and `codex-hooks-snippet.json` represent the fallback pattern.
-
-**Capability Boundary** — The setup skill is not a routine upgrade step when native hooks work. It writes strict `~/.codex/hooks.json`, removes stale runtime paths for the same plugin, and preserves unrelated hooks.
-
-**References** — ADR-014; see `conventions.md` for setup installer protocol.
 
 #### Codex Fallback Cleanup
 
