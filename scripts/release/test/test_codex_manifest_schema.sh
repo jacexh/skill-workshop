@@ -31,10 +31,21 @@ for i in $(seq 0 $((count - 1))); do
   }
 
   skills_path=$(jq -r '.skills' "$manifest")
-  [ -d "$(dirname "$manifest")/../${skills_path#./}" ] || {
+  skills_dir="$(dirname "$manifest")/../${skills_path#./}"
+  [ -d "$skills_dir" ] || {
     echo "FAIL $name .skills path does not exist: $skills_path"
     exit 1
   }
+  [ ! -f "$skills_dir/setup/SKILL.md" ] || {
+    echo "FAIL $name must not expose fallback setup skill"
+    exit 1
+  }
+
+  readme="$ROOT/${path#./}/README.md"
+  if [ -f "$readme" ] && grep -Fq "\$${name}:setup" "$readme"; then
+    echo "FAIL $name README must not tell users to run setup"
+    exit 1
+  fi
 
   hooks_type=$(jq -r '.hooks | type' "$manifest")
   [ "$hooks_type" = "string" ] || {

@@ -1,19 +1,19 @@
 ---
-last_updated: 2026-05-06
+last_updated: 2026-05-07
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
 
 # Decisions
 
-## ADR-014: Native Codex plugin lifecycle hooks with setup fallback
-**Decision:** Codex plugins now declare native `"hooks": "./hooks/hooks.json"` in `.codex-plugin/plugin.json`; setup installers remain as compatibility fallback and prefer the same native hook source before falling back to `codex-hooks-snippet.json`.
-**Trade-off:** Hook config is duplicated while fallback support remains, so tests must guard version/schema drift. Native hooks simplify install/upgrade but require `[features] codex_hooks = true` and a Codex restart.
+## ADR-014: Native Codex plugin lifecycle hooks with cleanup migration
+**Decision:** Codex plugins declare native `"hooks": "./hooks/hooks.json"` in `.codex-plugin/plugin.json`; public setup skills are removed, and cleanup skills remove stale fallback entries from `~/.codex/hooks.json`.
+**Trade-off:** Older Codex builds without native plugin hooks lose the setup-skill fallback. This is accepted to avoid stale cache-path hook failures and repeated setup confusion.
 → [adr/ADR-014-native-codex-plugin-hooks.md](adr/ADR-014-native-codex-plugin-hooks.md)
 
 ## ADR-013: Strategy A — parallel codex-plugins/ tree for Codex marketplace compatibility
-**Decision:** Ship Codex-compatible variants under `codex-plugins/` plus `.agents/plugins/marketplace.json`. Each Codex plugin ships a setup skill that runs a strict-JSON installer for `~/.codex/hooks.json`; coverage maps to Codex primitives: SessionStart primer, UserPromptSubmit regex for manually typed skills, and PreToolUse `apply_patch|mcp__filesystem__.*` for KB write-lock.
-**Trade-off:** ~2,000 lines of asset content + ~700 lines of runtime logic exist twice — drift risk accepted because Codex track is experimental. Three Codex protocol gaps documented and accepted: auto-triggered planning skills get only standing primer (no JIT); agent-self-decided finishing invocation gets no diff evidence; architect plan/review wording collapses to fused meta-rule. Setup-skill UX requires explicit user invocation after install/upgrade.
+**Decision:** Ship Codex-compatible variants under `codex-plugins/` plus `.agents/plugins/marketplace.json`. Current Codex plugins rely on native manifest hooks; cleanup skills remove old fallback entries from `~/.codex/hooks.json`. Coverage maps to Codex primitives: SessionStart primer, UserPromptSubmit regex for manually typed skills, and PreToolUse `apply_patch|mcp__filesystem__.*` for KB write-lock.
+**Trade-off:** ~2,000 lines of asset content + ~700 lines of runtime logic exist twice — drift risk accepted because Codex track is experimental. Three Codex protocol gaps documented and accepted: auto-triggered planning skills get only standing primer (no JIT); agent-self-decided finishing invocation gets no diff evidence; architect plan/review wording collapses to fused meta-rule.
 → [adr/ADR-013-codex-marketplace-compat.md](adr/ADR-013-codex-marketplace-compat.md)
 
 ## ADR-012: UserPromptExpansion hook for slash-command coverage of finishing-a-development-branch

@@ -23,7 +23,7 @@ Skill triggering also differs: Codex agents auto-trigger most upstream skills (`
 Concretely:
 - A new `codex-plugins/` directory at repo root parallels `plugins/`. Each Codex plugin is a self-contained subtree mirroring the Claude layout, with platform-specific changes only.
 - A new Codex marketplace catalog at `.agents/plugins/marketplace.json` (object-form `source`, `policy`, `category` per Codex schema) coexists with `.claude-plugin/marketplace.json`.
-- Each Codex plugin ships `skills/setup/SKILL.md` plus `scripts/install-codex-hooks.js`. The setup skill runs the installer, which reads `codex-hooks-snippet.json`, resolves `${PLUGIN_ROOT}` to the actual installed path, removes stale hook entries for that plugin, backs up `~/.codex/hooks.json`, and writes strict JSON. Re-running setup is the upgrade path (Codex marketplace upgrade does **not** modify hook config).
+- Superseded by ADR-014: Codex plugins originally shipped `skills/setup/SKILL.md` plus `scripts/install-codex-hooks.js`; current builds rely on native manifest hooks and expose cleanup instead of setup.
 - Coverage strategy maps to Codex's actual primitives:
   - Auto-triggered upstream skills → `SessionStart` primer (always present, decay-tolerant standing rules)
   - Manually-typed upstream skills → `UserPromptSubmit` regex on `prompt` field (`$superpowers:brainstorming`, `$superpowers:finishing-a-development-branch`)
@@ -41,7 +41,7 @@ Concretely:
 - ~2,000 lines of asset content + ~700 lines of runtime logic exist twice. Drift is now possible and must be detected by other means (a future shared-source extraction can reverse this if the Codex track graduates from experimental).
 - Three Codex protocol gaps are documented and accepted: (1) auto-triggered planning skills get only standing primer, no JIT advisory; (2) agent-self-decided `finishing-a-development-branch` invocation gets no diff evidence; (3) architect's plan/review wording fork collapses to a fused meta-rule in SessionStart.
 - Codex `Stop` hook is per-turn, not per-session — would create reminder spam if implemented. Memory plugin's Codex variant ships **without** a Stop hook (Claude side already removed it in commit `e6153b8` for the same reason).
-- Setup UX requires user to invoke `$plugin:setup` explicitly after install/upgrade. There is no auto-injection into `~/.codex/hooks.json`.
+- Superseded by ADR-014: setup UX is retired. Current Codex users enable native hooks and restart; users with old fallback entries run `$plugin:cleanup` once.
 - `~/.codex/hooks.json` is strict JSON. Setup installers must never write JSON comments; older marker-comment installs are migrated by removing managed marker lines and replacing stale runtime paths.
 
 **Validated by source inspection of `openai/codex@main`:**
