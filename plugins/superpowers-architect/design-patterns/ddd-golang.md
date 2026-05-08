@@ -207,18 +207,21 @@ internal/business/user/          # User bounded context
 
 When a type is needed by multiple modules, first decide what it represents:
 
-1. **Domain concept owned by one bounded context**: keep it in the owning bounded context. Other contexts must not import it directly; exchange through domain events, queries, ACL, or protocol contracts.
+1. **Domain concept owned by one bounded context**: keep it in the owning bounded context. Other contexts must not import it directly; exchange through domain events, queries, ACL, or protocol contracts (see §5).
 2. **Cross-context / cross-service data contract**: define it in `proto/<capability>/v1/*.proto` and consume generated code from `pkg/gen/proto/...`. Keep business derivation rules in the owning context.
-3. **Shared technical capability**: place it in `internal/pkg/<capability>`. Examples: `mysql`, `redis`, `kafka`, `activitystore`, `activitystream`.
+3. **Shared technical capability** (storage adapter, streaming adapter, message-bus adapter, observability client): place it in `internal/pkg/<capability>`. Common examples: `mysql`, `redis`, `kafka`.
 4. **General-purpose library intended for external reuse**: only then place hand-written code in root `pkg/`.
 
 Use protobuf for cross-boundary contracts, not for internal Domain models. Generated proto types may be used by Interface/Application boundary code, Infrastructure adapters, message publishers/consumers, and read-model contracts. Domain layer must not depend on generated proto packages; if Domain logic needs an internal representation, define a Domain type and convert at the boundary.
 
-Example: Activity read model
-- Preferred: `proto/activity/v1/activity.proto` defines `ExecutionActivity`, activity type/status, and cursor fields; `pkg/gen/proto/activity/v1` contains generated code.
-- `internal/dispatcher/domain/activityprojection` owns derivation, classification, and state semantics.
-- `internal/pkg/activitystore` and `internal/pkg/activitystream` adapt the generated contract to storage and streaming.
-- Avoid `pkg/activity` as a hand-written internal shared model package.
+**Worked example — a cross-context read model**
+
+Suppose a `producer` context emits a stream of records, and one or more `consumer` contexts need to query and stream them. The placement falls out of the four buckets above:
+
+- **Contract** — `proto/<capability>/v1/<capability>.proto` defines the record type, its enums, and pagination/cursor fields; `pkg/gen/proto/<capability>/v1` contains generated code.
+- **Owning context** — `internal/business/<producer>/domain/<projection>` owns derivation, classification, and state semantics; it converts to the contract shape at its boundary.
+- **Shared technical adapters** — `internal/pkg/<capability>store` and `internal/pkg/<capability>stream` adapt the generated contract to storage and streaming infrastructure. They are technical, reusable across consuming contexts, and import the contract — never the producer's Domain.
+- **Avoid** — a hand-written `pkg/<capability>` package that re-declares the record type as an "internal shared model"; that collapses the boundary between Domain ownership, contract, and infrastructure adapter.
 
 ---
 
@@ -784,22 +787,26 @@ func convertToDO(user *domain.User) *UserDO {
 
 ## 5. Cross-Context Communication
 
-### 5.1 Direct Calls Are Prohibited
+> For the full specification (four legitimate mechanisms, ACL, payload rules), see [ddd-core.md §5](ddd-core.md). This section captures the Go forms.
 
-Bounded contexts must **never** directly call another context's Application Service or Repository.
+### 5.1 Direct Domain Coupling Is Prohibited
+
+Bounded contexts must not import another context's Domain model or call its Application Service / Repository directly:
 
 ```go
-// ❌ Wrong: Order context directly calls User context
+// ❌ Wrong: Order context imports User's Domain or calls its Application directly
+import userdomain "github.com/example/project/internal/business/user/domain"
+
 func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderCommand) error {
-    // Prohibited!
+    // Prohibited — Order is now coupled to User's Domain shape
     user, err := s.userApp.GetUser(ctx, cmd.UserID)
     ...
 }
 ```
 
-### 5.2 Communicate via Domain Events
+### 5.2 Domain Events (default for state propagation)
 
-Producer side: nothing special — after `Save()`, the producing context's Application Service calls `order.Events.Raise(mediator.Default())` (canonical 4-step flow, §3.2). Consumer side lives in the **subscribing** context's `application/handler.go`:
+Producer side: after `Save()`, the producing context's Application Service calls `order.Events.Raise(mediator.Default())` (canonical 4-step flow, §3.2). Consumer side lives in the **subscribing** context's `application/handler.go`:
 
 ```go
 // internal/business/user/application/handler.go — User context subscribes to Order's event
@@ -816,6 +823,39 @@ func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
 
 // Wire in the module's NewApplication: ev.Subscribe(NewUserPointsHandler(repo))
 ```
+
+### 5.3 Cross-Context Queries
+
+When a context needs a current snapshot of data owned elsewhere, depend on a **port the owning context exports** (see [ddd-core.md §5.5](ddd-core.md)) — not on its internal `QueryRepository` class:
+
+```go
+// Owning context publishes a small read-side port that returns DTOs:
+// internal/business/user/api/queries.go
+package userapi
+
+type UserSummary struct {
+    ID     string
+    Name   string
+    Active bool
+}
+
+type Reader interface {
+    FindUserSummary(ctx context.Context, id string) (UserSummary, error)
+}
+
+// Consuming context depends on the port, not on user's QueryRepository:
+type OrderAppService struct {
+    users userapi.Reader
+}
+```
+
+For cross-process consumers, define the contract in `proto/<capability>/v1/*.proto` and consume generated code from `pkg/gen/proto/...`; never import the producing service's Domain types.
+
+### 5.4 ACL and Protocol Contracts
+
+For external / legacy integrations, place the Anti-Corruption Layer in `internal/business/<context>/infrastructure/` and translate at the boundary; Domain remains unaware of the external shape (see [ddd-core.md §5.6](ddd-core.md)).
+
+For cross-service / cross-repository structured contracts, define schemas under `proto/`; generated code lives in `pkg/gen/proto/...` and is consumed by Interface, Application, or Infrastructure code (see [ddd-core.md §5.7](ddd-core.md)). Domain layers must not import `pkg/gen/...`.
 
 ---
 

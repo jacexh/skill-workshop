@@ -454,12 +454,18 @@ Embedding full objects couples the consumer to the publisher's internal domain m
 
 ### 5.5 Cross-Context Queries
 
-When a bounded context needs a current snapshot of data owned by another context (display a user's name on an order receipt; show product info during cart construction), it may use a **read-only query interface** exposed by the owning context.
+When a bounded context needs a current snapshot of data owned by another context (display a user's name on an order receipt; show product info during cart construction), it may read through a **port the owning context explicitly publishes** — never by reaching into another context's internal Domain model, repository, or `QueryRepository` class.
 
-Rules:
+Two transport variants:
 
-- The query crosses through the owning context's Application layer (a QueryRepository or query handler that returns DTOs), never through its Domain model directly
-- The consumer treats the response as a snapshot DTO — it does not reconstruct the source context's Domain objects
+| Deployment | Mechanism |
+|------------|-----------|
+| **Same-process modular monolith** | The owning context exports a query port / facade (a small read-side interface) that returns DTOs / read models. Consumers depend on the port; the implementation lives in the owning context's Application or Infrastructure layer |
+| **Cross-process / cross-service** | The contract is expressed as an API or protocol contract (REST, gRPC/Protobuf, GraphQL); both sides depend on the schema, neither side imports the other's Domain |
+
+Rules that apply to both variants:
+
+- Responses are DTOs / read models — Domain objects are never returned across the boundary
 - Queries must not produce side effects in the source context; for state changes, use Domain Events
 - Avoid query chains across more than two contexts; if you find yourself doing this, the bounded context boundaries are likely wrong
 
@@ -485,6 +491,16 @@ Rules:
 - Domain layers must not depend on generated protocol packages; if Domain logic needs an internal representation, define a Domain type and convert at the boundary (in Application or Infrastructure)
 - Schema evolution follows additive rules — no breaking field changes; deprecate before removing
 - Protocol contracts complement Domain Events and Cross-Context Queries (one for sync structured data; the others for state propagation and ad-hoc reads), they do not replace them
+
+**Placement**: generated code lives in a single language-conventional location, isolated from Domain. Each language guide names its concrete directory; the abstract rule is "one place, never inside a Domain package, never co-mingled with hand-written business types". Examples:
+
+| Language | Generated-code location |
+|----------|------------------------|
+| Go | `pkg/gen/` |
+| Python | `packages/contracts/` or `src/contracts/gen/` |
+| TypeScript | `packages/contracts/` |
+
+Hand-written shared event payload types (used to type domain events crossing context boundaries within the same repository) are a different artifact from generated protocol code and should not be placed in the same directory.
 
 ---
 
@@ -586,7 +602,7 @@ Interface layer:
 
 | Layer | Test Type | Dependencies | Goal |
 |-------|-----------|--------------|------|
-| **Domain** | Pure unit tests | Language standard library only | Verify business rules, invariants, domain event emission |
+| **Domain** | Pure unit tests | Language runtime + the same implementation-independent libraries Domain itself depends on (see §3.1 Constraints) | Verify business rules, invariants, domain event emission |
 | **Application** | Unit tests + mocks | Mocked Repository / QueryRepository | Verify use-case orchestration logic |
 | **Infrastructure** | Integration tests | Real database (test containers) | Verify SQL correctness, optimistic locking, soft deletes |
 | **Interface** | End-to-end tests | Simulated HTTP / gRPC requests | Verify protocol transformation and error code mapping |
@@ -643,6 +659,7 @@ This document covers language-agnostic architecture principles only. For technol
 |----------|----------|
 | Go | [`ddd-golang.md`](ddd-golang.md) |
 | Python | [`ddd-python.md`](ddd-python.md) |
+| TypeScript | [`ddd-typescript.md`](ddd-typescript.md) |
 
 ---
 
