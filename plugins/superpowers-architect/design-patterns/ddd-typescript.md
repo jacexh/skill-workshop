@@ -16,7 +16,44 @@ description: TypeScript implementation guide for DDD + Clean Architecture. Use w
 **Runtime**: Node.js 22+  
 **TypeScript**: 5.6+
 
-> **Cross-reference convention**: every section number below mirrors the corresponding `ddd-core.md` section (e.g., §3.2 here ↔ ddd-core.md §3.2). The TypeScript guide adds only what is implementation-specific; for the full language-agnostic rationale, jump to the matching `ddd-core` section.
+> **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. This guide adds only what is implementation-specific.
+
+---
+
+## 0. TypeScript DDD Planning Workflow
+
+Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **TypeScript-specific** items.
+
+### Level 1 (Local Change)
+
+Plan must additionally state:
+
+- the TypeScript module being changed (e.g., `apps/api/src/modules/user/domain/`)
+- whether tests live alongside the module (`*.spec.ts`) or in a separate `test/` tree (§9)
+
+### Level 2 (New Use Case)
+
+Plan must additionally state:
+
+- file placement under the bounded context (`commands/`, `queries/`, `subscribers/`, `query-repository.ts` — see §6)
+- new DTOs / zod schemas required (§3.2)
+- composition-root wiring changes (§10)
+
+### Level 3 (New Bounded Context or Aggregate)
+
+Spec must additionally state:
+
+- planned package layout under `apps/api/src/modules/<context>/` (§2.2)
+- shared object placement decisions — what stays in the owning context, what goes in `shared/`, what goes in `packages/contracts/` or `packages/shared-kernel/`
+- shared infrastructure provider ownership (DB pool, event bus, cache client — see §10)
+
+### Cross-Context Change Without a New Context
+
+Follow the multi-side planning rule in [ddd-modeling.md §7.4](ddd-modeling.md). The TypeScript-side plan must list:
+
+- producing context's subscriber / event publisher path
+- consuming context's subscriber and its idempotency strategy
+- shared event payload definitions or `packages/contracts/` updates if a protocol contract is involved
 
 ---
 
@@ -200,6 +237,14 @@ Start with flat files when the module is small. When handlers grow numerous, pro
 - Domain methods append events; they never dispatch directly
 - Application calls `collectEvents()` after successful persistence
 - `collectEvents()` drains the list; a second call returns an empty array
+
+**Validation Contract** — implements [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). TypeScript-specific notes:
+
+- `validate(): void` (throwing a `DomainError` subclass) is the canonical method signature
+- Inside `validate()`, you may use `zod`, `valibot`, or hand-written checks — these are an implementation detail. The Aggregate Root / Entity itself must not extend a zod schema or be a `class-validator`-decorated DTO; external layers must never call `Schema.parse(domainObj)` to validate a Domain object
+- Use explicit code for cross-field rules and state-transition invariants that cannot be expressed cleanly with declarative schemas
+
+**Domain Rules in Technical Capabilities** — see [ddd-core.md §3.1 "Domain Rules in Technical Capabilities"](ddd-core.md). The rule applies to TypeScript projects exactly as written.
 
 **TypeScript-specific guidance**:
 - Prefer `readonly` and private fields to preserve invariants
@@ -677,32 +722,22 @@ export class KyselyUserRepository implements UserRepository {
 
 ## 5. Cross-Context Communication
 
-### 5.1 Direct Boundary Bypass Is Prohibited
+> For the full specification (four legitimate mechanisms and Rich Event payload rules), see [ddd-core.md §5](ddd-core.md). This section captures the TypeScript decision points.
 
-Different bounded contexts should not bypass boundaries by directly reaching into another context's Repository or Domain objects.
+### 5.1 Direct Domain Coupling Is Prohibited
 
-Preferred integration styles:
-- Domain events for asynchronous workflows and eventual consistency
-- Anti-corruption layer / client abstraction for necessary synchronous integration
-- Dedicated read model or public query API when another context needs data
+Bounded contexts must not import another context's Domain model or call its Application Service / Domain Service / Repository directly. Cross-module imports between `modules/<a>/domain/` and `modules/<b>/domain/` are a hard error.
 
-### 5.2 When to Use Events
+### 5.2 Choosing the Mechanism
 
-Use domain events when:
-- the consumer does not need to block the producer
-- eventual consistency is acceptable
-- multiple consumers may react independently
-- the producer should remain unaware of downstream workflows
+Use [ddd-core.md §5.2](ddd-core.md)'s four-mechanism table to pick the right tool:
 
-### 5.3 When Synchronous Calls Are Acceptable
+- **Domain events** — default for asynchronous state propagation; loose coupling, eventual consistency
+- **Cross-context queries** — read-only DTOs through an exposed query interface (`UserQueryRepository`, etc.); appropriate when the consumer needs a current snapshot and event-driven projection is not viable
+- **Anti-Corruption Layer** — when integrating with external/legacy systems; lives in `infrastructure/` and is transparent to Domain
+- **Protocol contracts** — for cross-service / cross-package data contracts; generated code lives in `packages/contracts/`, never imported by Domain
 
-Synchronous cross-context calls are acceptable when:
-- the use case is read-heavy and requires immediate data
-- the dependency is explicit and stable
-- you place the integration behind an application-facing interface or anti-corruption layer
-- failure semantics and timeout behavior are designed explicitly
-
-Do not turn every cross-context interaction into asynchronous messaging by default. Choose the simplest consistency model that satisfies the business requirement.
+Do not default every cross-context interaction to asynchronous messaging — pick the simplest consistency model that satisfies the business requirement, but never bypass the boundary by reaching into another context's Domain layer.
 
 ---
 

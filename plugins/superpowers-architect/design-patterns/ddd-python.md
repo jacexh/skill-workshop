@@ -17,6 +17,43 @@ description: Python implementation guide for DDD + Clean Architecture. Use when 
 
 ---
 
+## 0. Python DDD Planning Workflow
+
+Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Python-specific** items.
+
+### Level 1 (Local Change)
+
+Plan must additionally state:
+
+- the Python module being changed (e.g., `src/<project>/user/domain/`)
+- whether tests live alongside the module or in a separate `tests/` tree (§11)
+
+### Level 2 (New Use Case)
+
+Plan must additionally state:
+
+- file placement under the bounded context (`command.py`, `query.py`, `subscriber.py`, `query_repository.py` — see §6.2)
+- new Pydantic DTOs and assemblers required (§3.2)
+- dependency-injector container wiring changes (§9)
+
+### Level 3 (New Bounded Context or Aggregate)
+
+Spec must additionally state:
+
+- planned package layout under `src/<project>/<context>/` (§2.2)
+- shared object placement decisions — what stays in the owning context, what goes in `shared/`, what goes in a separate distributable package
+- shared infrastructure provider ownership (DB session factory, event bus, cache client — see §9)
+
+### Cross-Context Change Without a New Context
+
+Follow the multi-side planning rule in [ddd-modeling.md §7.4](ddd-modeling.md). The Python-side plan must list:
+
+- producing context's `subscriber.py` or event publisher path
+- consuming context's `subscriber.py` and its idempotency strategy
+- shared event payload definitions (e.g., in `shared/events/`) if used cross-context
+
+---
+
 ## 1. Architecture Principles
 
 ### 1.1 Core Philosophy
@@ -75,7 +112,7 @@ Four layers with the **Domain Layer as the core** (innermost):
 
 - Interface Layer depends on Application and Domain layers
 - Application Layer depends only on Domain Layer
-- Domain Layer has zero dependencies (no `import` of infrastructure, database, or HTTP packages)
+- Domain Layer has no concrete implementation dependencies (no `import` of SQLAlchemy, FastAPI, HTTP clients, message queue clients, or generated protocol packages). Pydantic, when used inside Domain, must be confined to internal validation helpers — its tags must not become a public contract; standard library, `uuid`, `dataclasses`, and similar implementation-independent libraries are allowed
 - Infrastructure Layer depends on Domain Layer (implements Repository interfaces) and Application Layer (implements QueryRepository interfaces)
 
 > For full dependency rules and common violations, see [ddd-core.md §1.3](ddd-core.md).
@@ -157,7 +194,7 @@ project/
 ```
 src/<project_name>/user/               # User bounded context
 ├── __init__.py
-├── domain/                            # Domain layer - PURE, zero external dependencies
+├── domain/                            # Domain layer - pure business logic, no implementation deps
 │   ├── __init__.py
 │   ├── user.py                        # Aggregate Root + Entity
 │   ├── value_object.py                # Value Objects (Email, Password, etc.)
@@ -212,8 +249,9 @@ src/<project_name>/user/               # User bounded context
 - **Domain Event**: Records significant domain occurrences
 
 **Constraints**:
-- Zero external dependencies (only Python standard library + `uuid` module)
-- Must not depend on other bounded contexts' domain layers (communicate via events)
+- No concrete implementation dependencies (no `import` of SQLAlchemy, FastAPI, HTTP clients, message queue clients, or generated protocol packages)
+- Implementation-independent libraries (Python standard library, `uuid`, `dataclasses`, `typing`, Pydantic when used as an internal validation helper) are allowed; they must not couple Domain to a specific external system
+- Must not depend on other bounded contexts' domain layers (communicate via events / queries / ACL / protocol contracts — see §5)
 - All state changes go through domain methods — direct attribute mutation from outside is prohibited
 - **Version is a read-only concurrency token** — Domain does not increment Version; Infrastructure increments it via SQL
 - **IDs are generated in the Domain layer** (inside Factory Methods) using `uuid.uuid7()` (Python 3.12+ native) — database auto-increment IDs are prohibited
@@ -229,6 +267,14 @@ src/<project_name>/user/               # User bounded context
 - `collect_events()` returns the event list and clears it — calling it twice in a row returns an empty list on the second call
 
 > This is the Python implementation of the language-agnostic event collection pattern described in [ddd-core.md §3.1 "Domain Event Collection"](ddd-core.md).
+
+**Validation Contract** — implements [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). Python-specific notes:
+
+- `def validate(self) -> None: ...` (raising `DomainError` subclasses) is the canonical method signature
+- Inside `validate()`, you may use Pydantic models for declarative field rules, hand-written checks, or a mix. Pydantic models used as Domain helpers must stay **inside** `validate()` — the Aggregate Root / Entity must not itself be a `BaseModel`, and external layers must never call `Model.model_validate(domain_obj.__dict__)` to validate a Domain object
+- Use explicit code for cross-field rules, state transitions, and invariants that cannot be expressed cleanly with Pydantic field validators
+
+**Domain Rules in Technical Capabilities** — see [ddd-core.md §3.1 "Domain Rules in Technical Capabilities"](ddd-core.md). The rule applies to Python projects exactly as written.
 
 **Enforcing attribute encapsulation**:
 - Use `__slots__` to explicitly declare allowed attributes
@@ -1200,26 +1246,45 @@ class UserQueryRepository(QueryRepository):
 
 ## 5. Cross-Context Communication
 
-> For the full specification, see [ddd-core.md §5](ddd-core.md).
+> For the full specification (four legitimate mechanisms, payload rules, ACL), see [ddd-core.md §5](ddd-core.md). This section shows the Python forms.
 
-### 5.1 Direct Calls Are Prohibited
+### 5.1 Direct Domain Coupling Is Prohibited
 
-Bounded contexts must **never** directly call another context's handler or repository.
+Bounded contexts must not import another context's Domain model or call its Application Service / Domain Service / Repository directly:
 
 ```python
-# ❌ Wrong: Order context directly calls User context
+# ❌ Wrong: Order context imports User's Domain model
+from src.modules.user.domain.user import User
+
 class CreateOrderHandler:
-    async def handle(self, cmd: CreateOrderCommand) -> None:
-        # Prohibited!
-        user = await self._user_query_repo.find_by_id(cmd.user_id)
+    async def handle(self, cmd: CreateOrderCommand) -> User:
+        # Prohibited — Order is now coupled to User's Domain shape
         ...
 ```
 
-### 5.2 Communicate via Domain Events
+Cross-context queries through an explicit query interface that returns DTOs **are** allowed (see [ddd-core.md §5.5](ddd-core.md)):
 
 ```python
-# ✅ Correct: Decoupled via event bus
+# ✅ Correct: Order context queries User context via its exposed query interface
+class CreateOrderHandler:
+    def __init__(
+        self,
+        repo: OrderRepository,
+        user_query: UserQueryRepository,   # exposed by User context, returns DTOs
+        event_bus: EventBus,
+    ) -> None:
+        ...
 
+    async def handle(self, cmd: CreateOrderCommand) -> str:
+        snapshot = await self._user_query.find_by_id(cmd.user_id)  # read-only DTO
+        if snapshot is None or not snapshot.is_active:
+            raise UserNotFoundError(cmd.user_id)
+        ...
+```
+
+### 5.2 Communicate via Domain Events (default for state propagation)
+
+```python
 # Order context publishes event
 class CreateOrderHandler:
     def __init__(self, repo: OrderRepository, event_bus: EventBus) -> None:
@@ -1244,6 +1309,10 @@ class UserPointsSubscriber:
         user.add_points(event.total_amount // 10)
         await self._repo.save(user)
 ```
+
+### 5.3 ACL and Protocol Contracts
+
+For external/legacy integrations use an Anti-Corruption Layer ([ddd-core.md §5.6](ddd-core.md)); for cross-service structured contracts use Protobuf / OpenAPI generated code ([ddd-core.md §5.7](ddd-core.md)). Python bindings live under `shared/` or a dedicated `packages/contracts/`-style location; Domain layers must not import generated types directly.
 
 ---
 
@@ -1889,13 +1958,13 @@ dev = [
 
 > These are the Python-specific implementations of the principles defined in [ddd-core.md §10](ddd-core.md).
 
-1. **Domain layer has zero dependencies** — only Python standard library; no `import` of SQLAlchemy, FastAPI, Pydantic, or any third-party package
+1. **Domain layer has no concrete implementation dependencies** — no `import` of SQLAlchemy, FastAPI, HTTP/MQ clients, or generated protocol packages; standard library, `uuid`, `dataclasses`, and Pydantic-as-internal-validation-helper are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context, not by technical layer
 3. **Dependency inversion** — Domain defines write Repository interfaces (`ABC`); Application defines read QueryRepository interfaces (`ABC`); Infrastructure implements both
 4. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
 5. **State encapsulation** — all state changes go through domain methods; use `__slots__` and `@property` to prevent external mutation
 6. **ID generation in Domain** — use `uuid.uuid7()` (Python 3.12+); database auto-increment IDs are prohibited
-7. **Event-driven cross-context communication** — via domain events; direct calls prohibited; Rich Event style (ID + minimum necessary fields)
+7. **Disciplined cross-context communication** — domain events (default for state propagation), cross-context queries (read-only DTOs), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; events use Rich Event style (ID + minimum necessary fields)
 8. **Event collection** — aggregates collect events in `_events` list; Application calls `collect_events()` after successful `save()` to drain and dispatch
 9. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return Pydantic DTOs
 10. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
