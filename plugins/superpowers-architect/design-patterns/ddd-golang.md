@@ -14,7 +14,7 @@ description: Go implementation guide for DDD + Clean Architecture. Use when impl
 - **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the consolidated principles checklist lives at [ddd-core.md §10](ddd-core.md).
 - This document is the Go implementation guide that builds on both.
 
-> **Cross-reference convention**: every section number below mirrors the corresponding `ddd-core.md` section (e.g., §3.2 here ↔ ddd-core.md §3.2). The Go guide adds only what is implementation-specific; for the full language-agnostic rationale, jump to the matching ddd-core section.
+> **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. The Go guide also adds Go-specific workflow, placement, configuration, and runtime sections.
 
 ---
 
@@ -99,7 +99,7 @@ Three or four layers with the **Domain Layer as the core** (innermost):
           └──────────────────┬──────────────────────────┘
                              │ depends on
           ┌──────────────────▼──────────────────────────┐
-          │      Domain Layer ◄─── Core. Zero external deps.
+          │      Domain Layer ◄─── Core. No implementation deps.
           │  Entities, VOs, Domain Services,            │
           │  Write Repository interfaces, Events        │
           └─────────────────────────────────────────────┘
@@ -117,7 +117,7 @@ Three or four layers with the **Domain Layer as the core** (innermost):
 
 - Interface Layer (if present) depends on Application and Domain layers
 - Application Layer depends only on Domain Layer (and implements generated RPC stubs when applicable)
-- Domain Layer has zero dependencies (no `import` of infrastructure, database, or HTTP packages)
+- Domain Layer has no concrete implementation dependencies (no `import` of Infrastructure packages, ORM/database drivers, HTTP clients/servers, message queue clients, or generated protocol packages)
 - Infrastructure Layer depends on Domain Layer (implements Repository interfaces) and Application Layer (implements QueryRepository interfaces)
 
 > For full dependency rules and common violations, see [ddd-core.md §1.3](ddd-core.md). Concrete Go code shown in §3.1 / §3.2 / §3.4.
@@ -145,7 +145,7 @@ project/
 │   │       ├── application/     # Application layer - use-case orchestration
 │   │       ├── interfaces/      # Interface layer (optional, see §3.3)
 │   │       ├── infrastructure/  # Infrastructure layer - external system integrations ONLY
-│   │       ├── pkg/             # Domain-scoped utilities (if needed)
+│   │       ├── pkg/             # Bounded-context private utilities (if needed)
 │   │       └── <module>.go      # Module assembly (fx Module)
 │   └── pkg/                     # Infrastructure adapters — third-party libs wrapped + fx providers
 │       ├── eventbus/            # mediator wrapper + lifecycle hooks
@@ -170,7 +170,7 @@ Root `pkg/` is not an internal shared/common directory. Do not place internal cr
 
 ```
 internal/business/user/          # User bounded context
-├── domain/                      # Domain layer - PURE, zero external dependencies
+├── domain/                      # Domain layer - pure business logic, no implementation deps
 │   ├── user.go                  # Aggregate Root + Entity
 │   ├── user_test.go             # Aggregate behavior tests
 │   ├── valueobject.go           # Value Objects (Email, Password, etc.)
@@ -210,7 +210,7 @@ internal/business/user/          # User bounded context
 │   └── messaging/
 │       └── publisher.go         # Event publisher implementation
 │
-├── pkg/                         # Domain-scoped utilities (non-infrastructure tools)
+├── pkg/                         # Bounded-context private utilities (not imported by other contexts)
 │
 └── user.go                      # Module assembly (fx Module)
 ```
@@ -250,7 +250,8 @@ Example: Activity read model
 - **Domain Event**: Records significant domain occurrences
 
 **Constraints**:
-- Zero external dependencies (no `import` of infrastructure, database, or HTTP packages)
+- No concrete implementation dependencies (no `import` of Infrastructure packages, ORM/database drivers, HTTP clients/servers, message queue clients, or generated protocol packages)
+- General-purpose, implementation-independent libraries are allowed when they do not couple Domain to an external system
 - Must not depend on other bounded contexts' domain layers (communicate via events)
 - All state changes go through domain methods — direct field mutation is prohibited
 - **Version is a read-only concurrency token** — Domain does not increment Version; Infrastructure increments it via SQL
@@ -654,7 +655,7 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 - Place them according to scope:
   - `internal/pkg/` — cross-domain shared infrastructure adapters
   - `pkg/` — generated protocol code or stable public libraries consumable by external projects; not internal shared DTOs/read models
-  - `internal/business/<domain>/pkg/` — utilities scoped to a single domain
+  - `internal/business/<domain>/pkg/` — utilities scoped to a single bounded context; must not be imported by other contexts or hold shared DTOs/read models/domain concepts
 
 **Constraints**:
 - Implements Repository interfaces (Domain layer) and QueryRepository interfaces (Application layer)
@@ -817,7 +818,7 @@ func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderComman
 
 ### 5.2 Communicate via Domain Events
 
-Producer side: nothing special — after `Save()`, the producing context's Application Service calls `order.Events.Raise(mediator.Default())` (canonical 4-step flow, §3.3). Consumer side lives in the **subscribing** context's `application/handler.go`:
+Producer side: nothing special — after `Save()`, the producing context's Application Service calls `order.Events.Raise(mediator.Default())` (canonical 4-step flow, §3.2). Consumer side lives in the **subscribing** context's `application/handler.go`:
 
 ```go
 // internal/business/user/application/handler.go — User context subscribes to Order's event
@@ -1131,7 +1132,7 @@ app.Run()
 
 ### 10.2 Lifecycle Hooks
 
-Components that have **in-flight work** at shutdown time must register `fx.Lifecycle` hooks to drain gracefully. Components that are pure connection pools do not need them — the OS reclaims connections on process exit.
+Components that have **in-flight work** at shutdown time must register `fx.Lifecycle` hooks to drain gracefully. Pure connection clients do not need drain-style hooks, but they may register `Close` hooks for cleanup when the library exposes one.
 
 **Needs OnStop** (has in-flight work):
 
@@ -1142,7 +1143,7 @@ Components that have **in-flight work** at shutdown time must register `fx.Lifec
 | EventBus (Mediator) | Event handler goroutines running | `GracefulShutdown(ctx)` — reject new events, wait for handlers |
 | Message queue consumer | Messages being processed | Stop consuming, finish current batch |
 
-Pure connection clients (MySQL, Redis, HTTP Client) do not need OnStop — they have no in-flight work of their own, and the OS reclaims connections on process exit.
+Pure connection clients (MySQL, Redis, HTTP Client) do not need drain-style OnStop hooks — they have no in-flight work of their own. They may still register cleanup hooks such as `client.Close()`.
 
 #### Server: Listen/Serve Separation
 
@@ -1195,17 +1196,17 @@ func NewMediator(lc fx.Lifecycle, opt mediator.Options) mediator.Mediator {
 
 ```
 Start order (determined by dependency graph):
-  EventBus → Database → Application → Server
+  EventBus → MySQL → Application → Server
 
 Stop order (automatic reverse):
   Server.OnStop        → drain in-flight requests
                           (last requests may call Events.Raise(), dispatching final events)
   EventBus.OnStop      → drain in-flight handler goroutines
-                          (handlers can still access Database — it has no OnStop)
+                          (handlers can still access MySQL)
   Process exits        → OS reclaims all connections
 ```
 
-Database has no OnStop hook, so it remains available throughout the entire shutdown sequence. This is by design — as long as all consumers (Server, EventBus handlers) finish their work before the process exits, the database connection pool does not need explicit cleanup.
+MySQL has no in-flight work to drain, so it remains available while Server and EventBus handlers finish. If the MySQL package registers a `Close` cleanup hook, it must run after consumers have stopped.
 
 ### 10.4 Kubernetes Deployment
 
