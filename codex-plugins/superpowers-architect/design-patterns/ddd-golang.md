@@ -20,63 +20,38 @@ description: Go implementation guide for DDD + Clean Architecture. Use when impl
 
 ## 0. Go DDD Planning Workflow
 
-Use this workflow before writing an implementation plan. It connects `ddd-modeling.md` strategic modeling, `ddd-core.md` tactical rules, and this Go implementation guide.
+Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Go-specific** items.
 
-Choose the smallest gate that fits the change.
+### Level 1 (Local Change)
 
-### Level 1 — Local Change
+Plan must additionally state:
 
-Use for changes inside an existing bounded context that do not add a new aggregate, repository, QueryRepository, domain event, or external integration.
+- the Go package being changed (e.g., `internal/business/user/domain`)
+- whether tests are co-located with the package or in a separate suite (§6.3)
 
-Plan must state:
-- bounded context and layer changed
-- aggregate or use case affected
-- write path or read path
-- tests for the changed layer
+### Level 2 (New Use Case)
 
-Check against the relevant rules in §3: Domain keeps business rules, Application only orchestrates, Infrastructure stays technical, and Repository / QueryRepository responsibilities remain separate.
+Plan must additionally state:
 
-### Level 2 — New Use Case
+- file placement under the bounded context (`command.go`, `query.go`, `handler.go`, `query_repository.go`, etc. — see §6.2)
+- new mock generation requirements (§6.3 "Generated mocks")
+- fx wiring changes (which `Module` aggregates the new constructor)
 
-Use for a new command, query, event handler, repository method, QueryRepository, DTO, assembler, or external integration inside an existing bounded context.
+### Level 3 (New Bounded Context or Aggregate)
 
-Plan must state:
-- use case kind: Command, Query, or Event Handler
-- aggregate root and invariants involved
-- Repository / QueryRepository interfaces needed
-- DTO and assembler changes
-- external integration boundary, if any
-- Infrastructure implementation
-- domain events produced or consumed
-- transaction boundary and event dispatch timing
+Spec must additionally state:
 
-Check against §3.1-§3.4, §5, and §6 before implementation.
-
-### Level 3 — New Bounded Context or Aggregate
-
-Use for a new bounded context, aggregate root, domain event family, repository, or cross-context communication.
-
-Spec must include:
-- bounded context, business capability, ubiquitous language, and data authority
-- aggregate root, entities, value objects, and guarded invariants
-- domain events and minimum required payload fields
-- cross-context communication mechanism (domain events, queries, ACL, or protocol contracts — see §2.3)
-- planned Go packages under `internal/business/<module>/...`
-
-Check aggregate boundaries against `ddd-modeling.md §3`, tactical rules against `ddd-core.md`, and Go placement rules against §2-§11 of this guide.
+- planned package layout under `internal/business/<module>/...` (§2.2)
+- shared object placement decisions (§2.3) — what goes in `proto/`, `internal/pkg/`, the owning context, or root `pkg/`
+- shared middleware client ownership (§9 "Shared Middleware Client Ownership")
 
 ### Cross-Context Change Without a New Context
 
-If a change adds or modifies cross-context communication (a new domain event with new subscribers in another context, a new query exposed across contexts, an ACL adapter, etc.) but does not introduce a new bounded context or aggregate, treat it as **Level 2 on each affected side** and produce one plan per side:
+Follow the multi-side planning rule in [ddd-modeling.md §7.4](ddd-modeling.md). The Go-side plan must list:
 
-- Producing side: the new domain event, its payload contract, and dispatch timing
-- Consuming side: the event handler, idempotency strategy, and transaction boundary
-
-If the change crosses three or more contexts, or if the contract itself is unstable, escalate to Level 3 and treat the contract as a first-class design artifact.
-
-Do not treat existing code as precedent when it conflicts with the dependency rules in §1.3 and §3.
-
-If the plan cannot answer the required items for its level, stop and complete the missing DDD design before writing code.
+- producing context's `application/handler.go` or event publisher path
+- consuming context's `application/handler.go` and its idempotency strategy
+- `proto/` files and `pkg/gen/` regeneration if a new protocol contract is introduced
 
 ---
 
@@ -270,20 +245,13 @@ Example: Activity read model
 - **Version is a read-only concurrency token** — Domain does not increment Version; Infrastructure increments it via SQL
 - **IDs are generated in the Domain layer** (inside Factory Methods) using UUID/ULID — database auto-increment IDs are prohibited
 
-**Business Field Validation**:
-- Every Domain type with validation requirements (Aggregate Root, Entity, Value Object) exposes them through a domain method — typically `Validate() error`. Validation is part of the type's own behavior contract
-- External layers (Application, Interface, Infrastructure) call `obj.Validate()`. They must never call `validator.Struct(obj)` on a Domain type from outside — reflection-based validation is an implementation detail of `Validate()`, not part of the public API
-- Constructors and factory functions call `Validate()` before returning, so a Domain object is never observed in an invalid state
-- Domain mutation methods call or preserve `Validate()` before persisting state changes
-- Inside `Validate()`, the implementation may use `github.com/go-playground/validator/v10` (reflecting over tags on the type's own fields), hand-written checks, or a mix. Tags on Domain fields are an implementation choice of `Validate()`, not a contract
-- Use explicit code for cross-field rules, state transitions, and invariants that cannot be expressed cleanly with validator tags
-- Application layer constructs Domain inputs, invokes Domain constructors / methods / `Validate()`, and maps domain errors outward — it does not implement validation logic itself
+**Business Field Validation** — implements the Validation Contract defined in [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). Go-specific notes:
 
-**Domain Rules in Technical Capabilities**:
-- A bounded context may own technical-facing capabilities such as runtime coordination, routing, scheduling, delivery, or observability. These are still domain concerns when they have stable ubiquitous language, state transitions, errors, or invariants
-- Do not assume a capability is Infrastructure merely because it is technical or not directly visible to end users
-- State transition rules, admission policies, semantic naming, and domain-visible derivation rules belong in Domain methods, Value Objects, or Domain Services
-- Infrastructure may enforce these rules mechanically through storage constraints, locks, leases, CAS, or external APIs, but the rule itself must be named and testable outside Infrastructure
+- `Type.Validate() error` is the canonical method signature
+- Inside `Validate()`, `github.com/go-playground/validator/v10` may be used (reflecting over tags on the type's own fields), hand-written checks, or a mix. Tags on Domain fields are an implementation choice of `Validate()`, not a public contract
+- Use explicit code for cross-field rules, state transitions, and invariants that cannot be expressed cleanly with validator tags
+
+**Domain Rules in Technical Capabilities** — see [ddd-core.md §3.1 "Domain Rules in Technical Capabilities"](ddd-core.md). The rule applies to Go projects exactly as written.
 
 **Factory Design**:
 - Simple cases: use the Aggregate Root's own constructor (`NewXxx`)
@@ -526,10 +494,9 @@ type Repository interface {
 - **DTO**: Data Transfer Objects, decoupling internal and external models
 - **Assembler**: DTO ↔ Domain object conversion
 
-**Constraints**:
+**Constraints** (see [ddd-core.md §3.2](ddd-core.md) for the full list, including the prohibition on implementing validation or owning technical-capability domain rules):
+
 - No business rules (those belong in the Domain layer)
-- Application must not implement business field validation; it constructs domain inputs, calls domain constructors/methods/`Validate()`, and maps domain errors outward
-- Application must not become the owner of domain rules for technical-facing capabilities; it orchestrates Domain methods/services and Infrastructure implementations
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
 - **One transaction modifies one aggregate only.** To modify multiple aggregates, use domain events to trigger subsequent aggregate modifications (eventual consistency)
