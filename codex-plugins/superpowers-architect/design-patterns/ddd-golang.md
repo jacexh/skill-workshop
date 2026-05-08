@@ -149,18 +149,22 @@ project/
 │   │       └── <module>.go      # Module assembly (fx Module)
 │   └── pkg/                     # Infrastructure adapters — third-party libs wrapped + fx providers
 │       ├── eventbus/            # mediator wrapper + lifecycle hooks
-│       ├── database/            # XORM driver wrapper + config
+│       ├── mysql/               # MySQL / XORM client wrapper + config
+│       ├── redis/               # Redis client wrapper + config
+│       ├── kafka/               # Kafka producer/consumer wrapper + config
 │       ├── httpsrv/             # HTTP server wrapper + lifecycle hooks
 │       ├── grpcsrv/             # gRPC server wrapper + lifecycle hooks
 │       └── module.go            # Aggregates the above into a single fx.Module("internal.pkg")
-├── pkg/                         # Public utilities (consumable by external projects)
-│   └── gen/                     # Generated code (proto, etc.)
+├── pkg/                         # External public API only
+│   └── gen/                     # Generated protocol code (proto, etc.)
 ├── proto/                       # Protobuf definitions
 └── scripts/
     └── sql/                     # Database migration scripts
 ```
 
-**`internal/business/` vs `internal/pkg/`** — `business/` holds bounded contexts (the DDD four-layer structure); `pkg/` holds infrastructure adapters (DB, HTTP/gRPC server, event bus, validator …). Business may depend on `pkg/`; `pkg/` must never import `internal/business/*`.
+**`internal/business/` vs `internal/pkg/`** — `business/` holds bounded contexts (the DDD four-layer structure); `internal/pkg/` holds shared technical adapters (DB, HTTP/gRPC server, event bus, validator …). Business may depend on `internal/pkg/`; `internal/pkg/` must never import `internal/business/*`.
+
+Root `pkg/` is not an internal shared/common directory. Do not place internal cross-context DTOs, read models, domain concepts, or business constants there merely because multiple internal modules use them. Use root `pkg/` only for generated protocol code or stable general-purpose libraries intended for other repositories.
 
 ### 2.2 Bounded Context Internal Structure
 
@@ -168,7 +172,9 @@ project/
 internal/business/user/          # User bounded context
 ├── domain/                      # Domain layer - PURE, zero external dependencies
 │   ├── user.go                  # Aggregate Root + Entity
+│   ├── user_test.go             # Aggregate behavior tests
 │   ├── valueobject.go           # Value Objects (Email, Password, etc.)
+│   ├── valueobject_test.go      # Value Object validation tests
 │   ├── event.go                 # Domain event definitions
 │   ├── repository.go            # Write repository interface
 │   └── service.go               # Domain service (if needed)
@@ -176,7 +182,9 @@ internal/business/user/          # User bounded context
 ├── application/                 # Application layer - orchestrates domain objects
 │   ├── application.go           # App Service constructor + gRPC/ConnectRPC stub
 │   ├── command.go               # Command definitions + Command Handlers
+│   ├── command_test.go          # Command Handler orchestration tests
 │   ├── query.go                 # Query definitions + Query Handlers
+│   ├── query_test.go            # Query Handler orchestration tests
 │   ├── query_repository.go      # Read repository interface (CQRS, returns DTOs)
 │   ├── handler.go               # Event Handlers (domain event consumers)
 │   ├── dto.go                   # DTO definitions
@@ -190,11 +198,13 @@ internal/business/user/          # User bounded context
 │
 ├── interfaces/                  # Interface layer (OPTIONAL — only for hand-written protocols)
 │   └── http/
-│       └── handler.go           # REST Handler (manual routing, request/response mapping)
+│       ├── handler.go           # REST Handler (manual routing, request/response mapping)
+│       └── handler_test.go      # Protocol mapping tests
 │
 ├── infrastructure/              # Infrastructure layer - external system integrations ONLY
 │   ├── persistence/
 │   │   ├── repository.go        # Repository implementation
+│   │   ├── repository_test.go   # Repository integration tests
 │   │   ├── do.go                # Database models (XORM/GORM)
 │   │   └── converter.go         # DO <-> Entity conversion
 │   └── messaging/
@@ -204,6 +214,23 @@ internal/business/user/          # User bounded context
 │
 └── user.go                      # Module assembly (fx Module)
 ```
+
+### 2.3 Shared Object Placement
+
+When a type is needed by multiple modules, first decide what it represents:
+
+1. **Domain concept owned by one bounded context**: keep it in the owning bounded context. Other contexts must not import it directly; exchange through domain events, queries, ACL, or protocol contracts.
+2. **Cross-context / cross-service data contract**: define it in `proto/<capability>/v1/*.proto` and consume generated code from `pkg/gen/proto/...`. Keep business derivation rules in the owning context.
+3. **Shared technical capability**: place it in `internal/pkg/<capability>`. Examples: `mysql`, `redis`, `kafka`, `activitystore`, `activitystream`.
+4. **General-purpose library intended for external reuse**: only then place hand-written code in root `pkg/`.
+
+Use protobuf for cross-boundary contracts, not for internal Domain models. Generated proto types may be used by Interface/Application boundary code, Infrastructure adapters, message publishers/consumers, and read-model contracts. Domain layer must not depend on generated proto packages; if Domain logic needs an internal representation, define a Domain type and convert at the boundary.
+
+Example: Activity read model
+- Preferred: `proto/activity/v1/activity.proto` defines `ExecutionActivity`, activity type/status, and cursor fields; `pkg/gen/proto/activity/v1` contains generated code.
+- `internal/dispatcher/domain/activityprojection` owns derivation, classification, and state semantics.
+- `internal/pkg/activitystore` and `internal/pkg/activitystream` adapt the generated contract to storage and streaming.
+- Avoid `pkg/activity` as a hand-written internal shared model package.
 
 ---
 
@@ -228,6 +255,20 @@ internal/business/user/          # User bounded context
 - All state changes go through domain methods — direct field mutation is prohibited
 - **Version is a read-only concurrency token** — Domain does not increment Version; Infrastructure increments it via SQL
 - **IDs are generated in the Domain layer** (inside Factory Methods) using UUID/ULID — database auto-increment IDs are prohibited
+
+**Business Field Validation**:
+- Business-validity checks for aggregate fields belong in the Domain layer, not the Application layer
+- Value Objects validate their own fields during construction
+- Aggregate Roots should provide `Validate()` when creation or update requires whole-aggregate validation
+- Domain methods must call or preserve these validations before mutating state
+- Prefer `github.com/go-playground/validator/v10` for declarative field rules inside Domain types when it improves consistency
+- Use explicit domain code for cross-field rules, state transitions, and invariants that cannot be expressed cleanly with validator tags
+
+**Domain Rules in Technical Capabilities**:
+- A bounded context may own technical-facing capabilities such as runtime coordination, routing, scheduling, delivery, or observability. These are still domain concerns when they have stable ubiquitous language, state transitions, errors, or invariants
+- Do not assume a capability is Infrastructure merely because it is technical or not directly visible to end users
+- State transition rules, admission policies, semantic naming, and domain-visible derivation rules belong in Domain methods, Value Objects, or Domain Services
+- Infrastructure may enforce these rules mechanically through storage constraints, locks, leases, CAS, or external APIs, but the rule itself must be named and testable outside Infrastructure
 
 **Factory Design**:
 - Simple cases: use the Aggregate Root's own constructor (`NewXxx`)
@@ -448,7 +489,8 @@ func (u *User) ChangePassword(oldRaw, newRaw string) error {
     return nil
 }
 
-// Repository Interface (write repository, defined in Domain layer)
+// Repository Interface (write repository, defined in Domain layer).
+// Generated mocks are test support only; production code must not import them.
 //go:generate mockery --name=Repository --case=snake
 type Repository interface {
     Get(ctx context.Context, id string) (*User, error)
@@ -471,6 +513,8 @@ type Repository interface {
 
 **Constraints**:
 - No business rules (those belong in the Domain layer)
+- Application must not implement business field validation; it constructs domain inputs, calls domain constructors/methods/`Validate()`, and maps domain errors outward
+- Application must not become the owner of domain rules for technical-facing capabilities; it orchestrates Domain methods/services and Infrastructure implementations
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
 - **One transaction modifies one aggregate only.** To modify multiple aggregates, use domain events to trigger subsequent aggregate modifications (eventual consistency)
@@ -609,7 +653,7 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 - Utility/tool packages (CLI wrappers, parsers, helpers) — these are not external system integrations
 - Place them according to scope:
   - `internal/pkg/` — cross-domain shared infrastructure adapters
-  - `pkg/` — public utilities consumable by external projects
+  - `pkg/` — generated protocol code or stable public libraries consumable by external projects; not internal shared DTOs/read models
   - `internal/business/<domain>/pkg/` — utilities scoped to a single domain
 
 **Constraints**:
@@ -617,6 +661,8 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 - No business logic
 - Handles technical details (SQL, caching, retries, etc.)
 - **Version is incremented by SQL** (`version = version + 1`) — Domain layer does not increment it
+- Infrastructure implements technical mechanisms for domain rules, but it must not be the only place where those rules are expressed
+- Shared middleware clients are initialized in `internal/pkg/<middleware>`; bounded-context Infrastructure receives already constructed clients
 
 **Soft Delete**:
 - **Business-driven logical deletion**: Domain has a status field (e.g., `Status = Cancelled`); `Save()` internally sets `deleted_at` based on the status
@@ -631,7 +677,7 @@ package persistence
 
 import (
     "xorm.io/xorm"
-    "github.com/example/project/internal/pkg/database"
+    "github.com/example/project/internal/pkg/mysql"
 )
 
 // Data Object - XORM model
@@ -642,9 +688,9 @@ type UserDO struct {
     Email     string             `xorm:"email"`
     Status    int                `xorm:"status"`
     Version   int                `xorm:"version"`
-    CreatedAt database.Timestamp `xorm:"created_at"`
-    UpdatedAt database.Timestamp `xorm:"updated_at"`
-    DeletedAt database.Timestamp `xorm:"deleted_at deleted"`
+    CreatedAt mysql.Timestamp `xorm:"created_at"`
+    UpdatedAt mysql.Timestamp `xorm:"updated_at"`
+    DeletedAt mysql.Timestamp `xorm:"deleted_at deleted"`
 }
 
 func (u UserDO) TableName() string {
@@ -671,7 +717,8 @@ type userRepository struct {
     db *xorm.Engine
 }
 
-// Constructor returns interface
+// Constructor returns interface. The MySQL client is constructed in internal/pkg/mysql
+// and injected here; this package does not read config or open connections.
 func NewRepository(db *xorm.Engine) domain.Repository {
     return &userRepository{db: db}
 }
@@ -815,21 +862,45 @@ func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
 | File | Contents |
 |------|----------|
 | `domain/<entity>.go` | Aggregate Root + Entity |
+| `domain/<entity>_test.go` | Aggregate behavior tests |
 | `domain/valueobject.go` | Value Object definitions |
+| `domain/valueobject_test.go` | Value Object validation tests |
 | `domain/event.go` | Domain event definitions |
 | `domain/repository.go` | Write repository interface |
 | `domain/service.go` | Domain service |
 | `application/application.go` | App Service constructor + gRPC/ConnectRPC stub implementation |
 | `application/command.go` | Command definitions + Command Handlers |
+| `application/command_test.go` | Command Handler orchestration tests |
 | `application/query.go` | Query definitions + Query Handlers |
+| `application/query_test.go` | Query Handler orchestration tests |
 | `application/query_repository.go` | Read repository interface (returns DTOs) |
 | `application/handler.go` | Event Handlers (domain event consumers) |
 | `application/dto.go` | DTO definitions |
 | `application/assembler.go` | Object conversion (DTO ↔ Domain, Proto ↔ Domain) |
 | `interfaces/http/handler.go` | REST handler (optional, hand-written protocols only) |
+| `interfaces/http/handler_test.go` | Protocol transformation and error mapping tests |
 | `infrastructure/persistence/do.go` | Database models |
 | `infrastructure/persistence/repository.go` | Repository implementation |
+| `infrastructure/persistence/repository_test.go` | Repository integration tests |
 | `infrastructure/persistence/converter.go` | Conversion functions |
+
+### 6.3 Test File Organization
+
+Go test cases must live in `*_test.go` files. Do not place test-only code, fixtures, fakes, mocks, or assertions in production files.
+
+Do not collect all tests into a separate top-level test module by default. Keep tests beside the package under test; use a separate test suite directory only for service-level integration or end-to-end tests that span multiple bounded contexts.
+
+Prefer external test packages (`package <name>_test`) when testing public behavior through the package API. Same-package tests (`package <name>`) are allowed when the test must exercise unexported domain helpers or package-private edge cases, but they must still test behavior rather than implementation trivia.
+
+Test helpers and generated mocks must be test-only:
+- keep them in `*_test.go`, or
+- place them in a clearly named test-support package that production code never imports.
+
+Layer-specific placement:
+- Domain tests live beside the Domain package and instantiate aggregates/value objects directly.
+- Application tests live beside the Application package and mock only Repository / QueryRepository / external boundary interfaces.
+- Infrastructure tests live beside Infrastructure implementations and may use real external dependencies or test containers.
+- Interface tests live beside Interface handlers and verify protocol transformation and error mapping.
 
 ---
 
@@ -893,6 +964,13 @@ Each component owns its `Option`; the top-level `main` only aggregates and distr
 
 **Business modules follow the same rule.** If a bounded context needs runtime config (e.g., `user.MaxLoginAttempts`), declare `user.Option` in `internal/business/user/option.go` and add a `User user.Option` field to the top-level `Option`.
 
+**Shared Middleware Client Ownership**:
+- Initialize shared middleware clients in `internal/pkg/<middleware>`: `internal/pkg/mysql`, `internal/pkg/redis`, `internal/pkg/kafka`, etc.
+- Each middleware package owns its `Option`, constructor, health/lifecycle hooks, and fx provider.
+- Bounded-context Infrastructure packages must not read shared middleware config, open connections, or close clients.
+- Repository / QueryRepository / Publisher / Consumer constructors receive initialized clients and adapt them to Domain/Application interfaces.
+- Example: `internal/pkg/mysql.NewClient(...) -> *xorm.Engine`, then `internal/business/user/infrastructure/persistence.NewRepository(db *xorm.Engine)`.
+
 **Example — adding a Redis client.** Declare `Option` next to the constructor:
 
 ```go
@@ -940,9 +1018,9 @@ import (
     "github.com/go-jimu/components/config/loader"
     "github.com/go-jimu/components/mediator"
     "github.com/go-jimu/components/sloghelper"
-    "github.com/example/project/internal/pkg/database"
     "github.com/example/project/internal/pkg/grpcsrv"
     "github.com/example/project/internal/pkg/httpsrv"
+    "github.com/example/project/internal/pkg/mysql"
     "go.uber.org/fx"
 )
 
@@ -952,7 +1030,7 @@ import (
 type Option struct {
     fx.Out
     Logger     sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
-    MySQL      database.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
+    MySQL      mysql.Option       `json:"mysql" toml:"mysql" yaml:"mysql"`
     HTTPServer httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
     GRPCServer grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
     Eventbus   mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
@@ -1064,7 +1142,7 @@ Components that have **in-flight work** at shutdown time must register `fx.Lifec
 | EventBus (Mediator) | Event handler goroutines running | `GracefulShutdown(ctx)` — reject new events, wait for handlers |
 | Message queue consumer | Messages being processed | Stop consuming, finish current batch |
 
-Pure connection pools (Database, Redis, HTTP Client) do not need OnStop — they have no in-flight work of their own, and the OS reclaims connections on process exit.
+Pure connection clients (MySQL, Redis, HTTP Client) do not need OnStop — they have no in-flight work of their own, and the OS reclaims connections on process exit.
 
 #### Server: Listen/Serve Separation
 
