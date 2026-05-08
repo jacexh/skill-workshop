@@ -635,7 +635,7 @@ Domain tests should cover:
 8. **Event collection** — aggregates collect events internally; Application drains via `collect_events()` after persist and dispatches
 9. **CQRS** — Commands go through the domain model; Queries go directly to the database via QueryRepository and return DTOs
 10. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
-11. **Repository collection semantics** — `Save()` covers create, update, and state-driven soclauft delete; never split by database operation type
+11. **Repository collection semantics** — `Save()` covers create, update, and state-driven soft delete; never split by database operation type
 12. **Soft delete** — business-driven deletion is modeled as domain state; `deleted_at` is always an Infrastructure concern
 13. **Optimistic locking** — Infrastructure increments `version` via SQL; domain holds `Version` as a read-only token; always reload after `Save()` before further operations
 14. **Event dispatch timing** — dispatch events after a successful persist, never before

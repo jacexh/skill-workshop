@@ -9,7 +9,7 @@ description: Strategic domain modeling guide for DDD. Use BEFORE writing impleme
 **Version**: v1.0
 **Date**: 2026-04-15
 **Scope**: All backend services using DDD
-**Usage**: Complete this modeling phase BEFORE writing implementation plans. The output feeds into [`ddd-core.md`](ddd-core.md) and language-specific guides ([`ddd-golang.md`](ddd-golang.md), [`ddd-python.md`](ddd-python.md)).
+**Usage**: Complete this modeling phase BEFORE writing implementation plans. The output feeds into [`ddd-core.md`](ddd-core.md) and language-specific guides ([`ddd-golang.md`](ddd-golang.md), [`ddd-python.md`](ddd-python.md), [`ddd-typescript.md`](ddd-typescript.md)).
 
 ---
 

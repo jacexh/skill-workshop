@@ -733,7 +733,7 @@ Bounded contexts must not import another context's Domain model or call its Appl
 Use [ddd-core.md §5.2](ddd-core.md)'s four-mechanism table to pick the right tool:
 
 - **Domain events** — default for asynchronous state propagation; loose coupling, eventual consistency
-- **Cross-context queries** — read-only DTOs through an exposed query interface (`UserQueryRepository`, etc.); appropriate when the consumer needs a current snapshot and event-driven projection is not viable
+- **Cross-context queries** — read-only DTOs through a port the owning context **explicitly exports** (e.g., `UserReader` / `UserSummaryPort`, a small read-side facade — *not* the context's internal `UserQueryRepository`, which is a CQRS read-side concern within the User context itself). Appropriate when the consumer needs a current snapshot and event-driven projection is not viable
 - **Anti-Corruption Layer** — when integrating with external/legacy systems; lives in `infrastructure/` and is transparent to Domain
 - **Protocol contracts** — for cross-service / cross-package data contracts; generated code lives in `packages/contracts/`, never imported by Domain
 

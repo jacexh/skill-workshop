@@ -243,7 +243,7 @@ Suppose a `producer` context emits a stream of records, and one or more `consume
 **Constraints**:
 - No concrete implementation dependencies (no `import` of Infrastructure packages, ORM/database drivers, HTTP clients/servers, message queue clients, or generated protocol packages)
 - General-purpose, implementation-independent libraries are allowed when they do not couple Domain to an external system
-- Must not depend on other bounded contexts' domain layers (communicate via events)
+- Must not depend on other bounded contexts' domain layers (communicate via domain events, cross-context queries, ACL, or protocol contracts — see §5)
 - All state changes go through domain methods — direct field mutation is prohibited
 - **Version is a read-only concurrency token** — Domain does not increment Version; Infrastructure increments it via SQL
 - **IDs are generated in the Domain layer** (inside Factory Methods) using UUID/ULID — database auto-increment IDs are prohibited

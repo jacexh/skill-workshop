@@ -89,7 +89,7 @@ Four layers with the **Domain Layer as the core** (innermost):
                     └───────────────┬─────────────────────┘
                                     │ depends on
                     ┌───────────────▼─────────────────────┐
-                    │        Domain Layer ◄───────────────┼── Core. Zero external deps.
+                    │        Domain Layer ◄───────────────┼── Core. No implementation deps.
                     │  - Entities, Value Objects,         │
                     │    Domain Services                  │
                     │  - Write Repository interfaces,     │
@@ -254,7 +254,7 @@ src/<project_name>/user/               # User bounded context
 - Must not depend on other bounded contexts' domain layers (communicate via events / queries / ACL / protocol contracts — see §5)
 - All state changes go through domain methods — direct attribute mutation from outside is prohibited
 - **Version is a read-only concurrency token** — Domain does not increment Version; Infrastructure increments it via SQL
-- **IDs are generated in the Domain layer** (inside Factory Methods) using `uuid.uuid7()` (Python 3.12+ native) — database auto-increment IDs are prohibited
+- **IDs are generated in the Domain layer** (inside Factory Methods) using a time-sortable identifier — database auto-increment IDs are prohibited. On Python 3.12 / 3.13 use a third-party UUIDv7 / ULID library (e.g., `uuid7`, `python-ulid`) or fall back to `uuid.uuid4()`; on Python 3.14+ use the stdlib `uuid.uuid7()`
 
 **Factory Design**:
 - Simple cases: use the Aggregate Root's own class method (`User.create(...)`)
@@ -540,7 +540,9 @@ class User:
         now = datetime.now(UTC)
 
         user = cls(
-            id=str(uuid.uuid7()),
+            # ID generator: stdlib uuid.uuid7() on 3.14+; on 3.12/3.13 use a third-party
+            # UUIDv7/ULID library (e.g. `uuid7`, `python-ulid`) or fall back to uuid.uuid4().
+            id=str(uuid.uuid4()),
             name=name,
             email=email,
             hashed_password=hashed,
@@ -1641,7 +1643,7 @@ class InMemoryEventBus:
 
 | Layer | Test Type | Dependencies | Tool |
 |-------|-----------|--------------|------|
-| **Domain** | Pure unit tests | Standard library only | `pytest` |
+| **Domain** | Pure unit tests | Language runtime + the same implementation-independent libraries Domain depends on (see §3.1 Constraints) | `pytest` |
 | **Application** | Unit tests + mocks | Mocked Repository / QueryRepository | `pytest` + `unittest.mock` |
 | **Infrastructure** | Integration tests | Real database (test containers) | `pytest-asyncio` + `testcontainers` |
 | **Interface** | End-to-end tests | FastAPI test client | `httpx` + `pytest-asyncio` |
@@ -1963,7 +1965,7 @@ dev = [
 3. **Dependency inversion** — Domain defines write Repository interfaces (`ABC`); Application defines read QueryRepository interfaces (`ABC`); Infrastructure implements both
 4. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
 5. **State encapsulation** — all state changes go through domain methods; use `__slots__` and `@property` to prevent external mutation
-6. **ID generation in Domain** — use `uuid.uuid7()` (Python 3.12+); database auto-increment IDs are prohibited
+6. **ID generation in Domain** — use a time-sortable identifier (stdlib `uuid.uuid7()` on Python 3.14+; third-party UUIDv7 / ULID library or `uuid.uuid4()` on 3.12 / 3.13); database auto-increment IDs are prohibited
 7. **Disciplined cross-context communication** — domain events (default for state propagation), cross-context queries (read-only DTOs), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; events use Rich Event style (ID + minimum necessary fields)
 8. **Event collection** — aggregates collect events in `_events` list; Application calls `collect_events()` after successful `save()` to drain and dispatch
 9. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return Pydantic DTOs
