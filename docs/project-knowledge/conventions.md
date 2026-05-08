@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-07
+last_updated: 2026-05-08
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -26,6 +26,8 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 - **No external dependencies beyond Node.js and git:** Hook scripts may only use tools present in standard Claude Code / Codex environments.
 - **Cross-platform hooks:** Any new hook must work on Unix and Windows. The `run-hook.cmd` polyglot wrapper handles dispatch on Claude side. Codex side uses direct Node.js (no shell wrapper needed).
 - **Strategy A for Codex track (ADR-013):** `codex-plugins/` is a parallel tree; never modify `plugins/` from Codex-side work. The only allowed cross-tree addition is shared test fixtures under `plugins/superpowers-memory/hooks/fixtures/`.
+- **Design-pattern track parity:** Shared standards in `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/` should stay semantically aligned unless a change is intentionally host-specific.
+- **DDD pattern ownership:** `ddd-modeling.md` owns strategic modeling and planning gates, `ddd-core.md` owns language-neutral tactical rules, and `ddd-<language>.md` files only add implementation-specific placement, validation, testing, and wiring guidance.
 
 ## Testing Conventions
 

@@ -1,8 +1,8 @@
 ---
-last_updated: 2026-05-07
+last_updated: 2026-05-08
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
-covers_branch: hotfix/features@0c3f497
+covers_branch: hotfix/ddd@0f86cf4
 ---
 
 # Project Knowledge Index
@@ -14,10 +14,10 @@ covers_branch: hotfix/features@0c3f497
   Key points: Node.js + Bash + Markdown + JSON; release scripts use git + jq; Codex native hooks require `codex_hooks` and restart
 
 - [features.md](features.md) — Current capability map
-  Key points: marketplace install paths; memory load/update/rebuild/write-lock/verify; architecture standards guidance; test design guidance; Codex native hooks and fallback cleanup
+  Key points: marketplace install paths; memory load/update/rebuild/write-lock/verify; DDD design-pattern guidance; test design guidance; Codex native hooks and fallback cleanup
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; features.md uses grouped `####` capability entries; Codex cleanup removes old fallback hooks
+  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; DDD pattern docs split modeling/core/language ownership; Codex cleanup removes old fallback hooks
 
 - [decisions.md](decisions.md) — ADR summary log (14 ADRs, 0 superseded)
   Key points: ADR-014 native Codex hooks with cleanup migration; ADR-013 Codex marketplace compat; ADR-012 UserPromptExpansion slash hook; ADR-010 KB write-lock
