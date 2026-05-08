@@ -60,10 +60,19 @@ Spec must include:
 - bounded context, business capability, ubiquitous language, and data authority
 - aggregate root, entities, value objects, and guarded invariants
 - domain events and minimum required payload fields
-- cross-context communication by domain events
+- cross-context communication mechanism (domain events, queries, ACL, or protocol contracts — see §2.3)
 - planned Go packages under `internal/business/<module>/...`
 
 Check aggregate boundaries against `ddd-modeling.md §3`, tactical rules against `ddd-core.md`, and Go placement rules against §2-§11 of this guide.
+
+### Cross-Context Change Without a New Context
+
+If a change adds or modifies cross-context communication (a new domain event with new subscribers in another context, a new query exposed across contexts, an ACL adapter, etc.) but does not introduce a new bounded context or aggregate, treat it as **Level 2 on each affected side** and produce one plan per side:
+
+- Producing side: the new domain event, its payload contract, and dispatch timing
+- Consuming side: the event handler, idempotency strategy, and transaction boundary
+
+If the change crosses three or more contexts, or if the contract itself is unstable, escalate to Level 3 and treat the contract as a first-class design artifact.
 
 Do not treat existing code as precedent when it conflicts with the dependency rules in §1.3 and §3.
 
@@ -155,7 +164,7 @@ project/
 │       ├── httpsrv/             # HTTP server wrapper + lifecycle hooks
 │       ├── grpcsrv/             # gRPC server wrapper + lifecycle hooks
 │       └── module.go            # Aggregates the above into a single fx.Module("internal.pkg")
-├── pkg/                         # External public API only
+├── pkg/                         # Generated code + stable libraries for external consumers
 │   └── gen/                     # Generated protocol code (proto, etc.)
 ├── proto/                       # Protobuf definitions
 └── scripts/
@@ -164,7 +173,11 @@ project/
 
 **`internal/business/` vs `internal/pkg/`** — `business/` holds bounded contexts (the DDD four-layer structure); `internal/pkg/` holds shared technical adapters (DB, HTTP/gRPC server, event bus, validator …). Business may depend on `internal/pkg/`; `internal/pkg/` must never import `internal/business/*`.
 
-Root `pkg/` is not an internal shared/common directory. Do not place internal cross-context DTOs, read models, domain concepts, or business constants there merely because multiple internal modules use them. Use root `pkg/` only for generated protocol code or stable general-purpose libraries intended for other repositories.
+Root `pkg/` has only two valid uses:
+1. `pkg/gen/` — code generated from `proto/` or other schemas
+2. Stable, hand-written libraries intended to be imported by repositories outside this one
+
+Root `pkg/` is **not** an internal shared/common directory. Do not place internal cross-context DTOs, read models, domain concepts, or business constants there merely because multiple internal modules use them. If multiple internal contexts need to share a type, follow §2.3.
 
 ### 2.2 Bounded Context Internal Structure
 
@@ -258,12 +271,13 @@ Example: Activity read model
 - **IDs are generated in the Domain layer** (inside Factory Methods) using UUID/ULID — database auto-increment IDs are prohibited
 
 **Business Field Validation**:
-- Business-validity checks for aggregate fields belong in the Domain layer, not the Application layer
-- Value Objects validate their own fields during construction
-- Aggregate Roots should provide `Validate()` when creation or update requires whole-aggregate validation
-- Domain methods must call or preserve these validations before mutating state
-- Prefer `github.com/go-playground/validator/v10` for declarative field rules inside Domain types when it improves consistency
-- Use explicit domain code for cross-field rules, state transitions, and invariants that cannot be expressed cleanly with validator tags
+- Every Domain type with validation requirements (Aggregate Root, Entity, Value Object) exposes them through a domain method — typically `Validate() error`. Validation is part of the type's own behavior contract
+- External layers (Application, Interface, Infrastructure) call `obj.Validate()`. They must never call `validator.Struct(obj)` on a Domain type from outside — reflection-based validation is an implementation detail of `Validate()`, not part of the public API
+- Constructors and factory functions call `Validate()` before returning, so a Domain object is never observed in an invalid state
+- Domain mutation methods call or preserve `Validate()` before persisting state changes
+- Inside `Validate()`, the implementation may use `github.com/go-playground/validator/v10` (reflecting over tags on the type's own fields), hand-written checks, or a mix. Tags on Domain fields are an implementation choice of `Validate()`, not a contract
+- Use explicit code for cross-field rules, state transitions, and invariants that cannot be expressed cleanly with validator tags
+- Application layer constructs Domain inputs, invokes Domain constructors / methods / `Validate()`, and maps domain errors outward — it does not implement validation logic itself
 
 **Domain Rules in Technical Capabilities**:
 - A bounded context may own technical-facing capabilities such as runtime coordination, routing, scheduling, delivery, or observability. These are still domain concerns when they have stable ubiquitous language, state transitions, errors, or invariants
@@ -491,7 +505,7 @@ func (u *User) ChangePassword(oldRaw, newRaw string) error {
 }
 
 // Repository Interface (write repository, defined in Domain layer).
-// Generated mocks are test support only; production code must not import them.
+// Generated mocks are test-only; see §6.3 "Generated mocks" for placement rules.
 //go:generate mockery --name=Repository --case=snake
 type Repository interface {
     Get(ctx context.Context, id string) (*User, error)
@@ -860,29 +874,25 @@ func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
 
 ### 6.2 File Organization
 
+Production files only. Test file placement is governed by §6.3 and is not required to mirror this table 1:1.
+
 | File | Contents |
 |------|----------|
 | `domain/<entity>.go` | Aggregate Root + Entity |
-| `domain/<entity>_test.go` | Aggregate behavior tests |
 | `domain/valueobject.go` | Value Object definitions |
-| `domain/valueobject_test.go` | Value Object validation tests |
 | `domain/event.go` | Domain event definitions |
 | `domain/repository.go` | Write repository interface |
 | `domain/service.go` | Domain service |
 | `application/application.go` | App Service constructor + gRPC/ConnectRPC stub implementation |
 | `application/command.go` | Command definitions + Command Handlers |
-| `application/command_test.go` | Command Handler orchestration tests |
 | `application/query.go` | Query definitions + Query Handlers |
-| `application/query_test.go` | Query Handler orchestration tests |
 | `application/query_repository.go` | Read repository interface (returns DTOs) |
 | `application/handler.go` | Event Handlers (domain event consumers) |
 | `application/dto.go` | DTO definitions |
 | `application/assembler.go` | Object conversion (DTO ↔ Domain, Proto ↔ Domain) |
 | `interfaces/http/handler.go` | REST handler (optional, hand-written protocols only) |
-| `interfaces/http/handler_test.go` | Protocol transformation and error mapping tests |
 | `infrastructure/persistence/do.go` | Database models |
 | `infrastructure/persistence/repository.go` | Repository implementation |
-| `infrastructure/persistence/repository_test.go` | Repository integration tests |
 | `infrastructure/persistence/converter.go` | Conversion functions |
 
 ### 6.3 Test File Organization
@@ -891,7 +901,7 @@ Go test cases must live in `*_test.go` files. Do not place test-only code, fixtu
 
 Do not collect all tests into a separate top-level test module by default. Keep tests beside the package under test; use a separate test suite directory only for service-level integration or end-to-end tests that span multiple bounded contexts.
 
-Prefer external test packages (`package <name>_test`) when testing public behavior through the package API. Same-package tests (`package <name>`) are allowed when the test must exercise unexported domain helpers or package-private edge cases, but they must still test behavior rather than implementation trivia.
+Both same-package tests (`package <name>`) and external test packages (`package <name>_test`) are acceptable. Use the external `_test` package when you need to break an import cycle (e.g., a test that imports a sibling package which itself imports the package under test) or when you want to verify the package compiles cleanly against its public API alone. In all cases, tests must exercise behavior rather than implementation trivia.
 
 Test helpers and generated mocks must be test-only:
 - keep them in `*_test.go`, or
@@ -902,6 +912,11 @@ Layer-specific placement:
 - Application tests live beside the Application package and mock only Repository / QueryRepository / external boundary interfaces.
 - Infrastructure tests live beside Infrastructure implementations and may use real external dependencies or test containers.
 - Interface tests live beside Interface handlers and verify protocol transformation and error mapping.
+
+**Generated mocks**:
+- Prefer `mockery --inpackage --testonly` so mocks are emitted as `mock_<name>_test.go` in the same package — they are physically test-only and cannot be imported by production code
+- If using a separate output directory (e.g., `<package>/mocks/`), keep it out of production import paths and enforce the boundary with a depguard / golangci-lint rule that bans `*/mocks` imports outside `*_test.go`
+- Mock files are never the source of truth for behavior; the interface in `domain/repository.go` (or `application/query_repository.go`) is
 
 ---
 
