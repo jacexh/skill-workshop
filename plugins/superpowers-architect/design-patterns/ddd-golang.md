@@ -18,6 +18,59 @@ description: Go implementation guide for DDD + Clean Architecture. Use when impl
 
 ---
 
+## 0. Go DDD Planning Workflow
+
+Use this workflow before writing an implementation plan. It connects `ddd-modeling.md` strategic modeling, `ddd-core.md` tactical rules, and this Go implementation guide.
+
+Choose the smallest gate that fits the change.
+
+### Level 1 — Local Change
+
+Use for changes inside an existing bounded context that do not add a new aggregate, repository, QueryRepository, domain event, or external integration.
+
+Plan must state:
+- bounded context and layer changed
+- aggregate or use case affected
+- write path or read path
+- tests for the changed layer
+
+Check against the relevant rules in §3: Domain keeps business rules, Application only orchestrates, Infrastructure stays technical, and Repository / QueryRepository responsibilities remain separate.
+
+### Level 2 — New Use Case
+
+Use for a new command, query, event handler, repository method, QueryRepository, DTO, assembler, or external integration inside an existing bounded context.
+
+Plan must state:
+- use case kind: Command, Query, or Event Handler
+- aggregate root and invariants involved
+- Repository / QueryRepository interfaces needed
+- DTO and assembler changes
+- external integration boundary, if any
+- Infrastructure implementation
+- domain events produced or consumed
+- transaction boundary and event dispatch timing
+
+Check against §3.1-§3.4, §5, and §6 before implementation.
+
+### Level 3 — New Bounded Context or Aggregate
+
+Use for a new bounded context, aggregate root, domain event family, repository, or cross-context communication.
+
+Spec must include:
+- bounded context, business capability, ubiquitous language, and data authority
+- aggregate root, entities, value objects, and guarded invariants
+- domain events and minimum required payload fields
+- cross-context communication by domain events
+- planned Go packages under `internal/business/<module>/...`
+
+Check aggregate boundaries against `ddd-modeling.md §3`, tactical rules against `ddd-core.md`, and Go placement rules against §2-§11 of this guide.
+
+Do not treat existing code as precedent when it conflicts with the dependency rules in §1.3 and §3.
+
+If the plan cannot answer the required items for its level, stop and complete the missing DDD design before writing code.
+
+---
+
 ## 1. Architecture Principles
 
 ### 1.1 Core Philosophy
