@@ -45,7 +45,7 @@ Four layers, with the **Domain Layer as the core**:
         └─────────────────┬────────────────────┘
                           │ depends on
         ┌─────────────────▼────────────────────┐
-        │           Domain Layer               │  ← Core. Zero external dependencies.
+        │           Domain Layer               │  ← Core. No implementation deps.
         │   Aggregates, Entities,              │
         │   Value Objects, Domain Services,    │
         │   Write Repository interfaces,       │
@@ -67,7 +67,7 @@ Four layers, with the **Domain Layer as the core**:
 
 - Interface Layer depends on Application and Domain layers
 - Application Layer depends only on Domain Layer
-- Domain Layer has zero dependencies (no frameworks, no ORM, no HTTP)
+- Domain Layer has no concrete implementation dependencies (no frameworks, ORM, database drivers, HTTP clients/servers, message queue clients, or generated protocol packages). General-purpose, implementation-independent libraries (standard library, UUID/ULID generators, time utilities) are allowed when they do not couple Domain to an external system
 - Infrastructure Layer depends on Domain Layer (to implement Repository interfaces) and Application Layer (to implement QueryRepository interfaces); neither Domain nor Application depends on Infrastructure
 
 **Common violations to avoid:**
@@ -139,7 +139,7 @@ internal/<context>/
 
 ### 3.1 Domain Layer
 
-**Core rule: zero external dependencies. Use only the language standard library.**
+**Core rule: no concrete implementation dependencies. The standard library and general-purpose, implementation-independent libraries are allowed; frameworks, ORMs, drivers, and protocol clients are not.**
 
 #### Building Blocks
 
@@ -154,7 +154,8 @@ internal/<context>/
 
 #### Constraints
 
-- **Never** import any framework, ORM, database, or HTTP-related package
+- **Never** import any framework, ORM, database driver, HTTP client/server, message queue client, or generated protocol package
+- General-purpose, implementation-independent libraries (UUID/ULID, time, crypto primitives, validation libraries used inside `Validate()`) are permitted when they do not couple Domain to a specific external system
 - **Never** depend directly on another bounded context's domain layer
 - All state changes must go through **domain methods** — external direct field mutation is prohibited
 - Business rules (validation, invariants) live in the domain layer and must not leak into the Application or Interface layer
@@ -191,6 +192,25 @@ Aggregate Root
 - Validate on construction — an invalid value object must not be instantiable
 - Implement equality based on attribute values, not reference
 - Typical examples: `Email`, `Money`, `Address`, `PhoneNumber`
+
+#### Validation Contract
+
+Every Domain type with validation requirements (Aggregate Root, Entity, Value Object) exposes them through a domain method — typically `Validate()`. Validation is part of the type's own behavior contract.
+
+- External layers (Application, Interface, Infrastructure) call `obj.Validate()`. They must never invoke reflection-based or annotation-driven validation (e.g., `validator.Struct(obj)` in Go, Pydantic-style external validators) on a Domain type from outside — such mechanisms, when used, are an implementation detail of `Validate()`, not part of the public API
+- Constructors and factory methods call `Validate()` before returning, so a Domain object is never observed in an invalid state
+- Domain mutation methods call or preserve `Validate()` before persisting state changes
+- Inside `Validate()`, the implementation is free to use reflection-based libraries, hand-written checks, or a mix — the choice is internal to the Domain type
+- Use explicit code for cross-field rules, state transitions, and invariants that cannot be expressed cleanly with declarative annotations
+
+#### Domain Rules in Technical Capabilities
+
+A bounded context may own technical-facing capabilities such as runtime coordination, routing, scheduling, delivery, or observability. These are still Domain concerns when they have stable ubiquitous language, state transitions, errors, or invariants.
+
+- Do not assume a capability is Infrastructure merely because it is technical or not directly visible to end users
+- State transition rules, admission policies, semantic naming, and domain-visible derivation rules belong in Domain methods, Value Objects, or Domain Services
+- Infrastructure may enforce these rules mechanically through storage constraints, locks, leases, CAS, or external APIs — but the rule itself must be named and testable outside Infrastructure
+- Litmus test: can you describe the rule in business / ubiquitous-language terms and write a test for it without reaching into a database, queue, or network? If yes, it is Domain
 
 #### Domain Event Collection
 
@@ -236,6 +256,8 @@ Read path (Query):
 #### Constraints
 
 - No business rules — delegate entirely to domain methods
+- Specifically, Application must not implement business field validation; it constructs Domain inputs, calls Domain constructors / methods / `Validate()`, and maps Domain errors outward (see §3.1 Validation Contract)
+- Application must not become the owner of domain rules for technical-facing capabilities (see §3.1 Domain Rules in Technical Capabilities); it orchestrates Domain methods/services and Infrastructure implementations
 - Never access the database directly; always go through Repository / QueryRepository interfaces
 - **One transaction modifies one aggregate only.** If a use case needs to modify multiple aggregates, modify the first aggregate and persist it, then use domain events to trigger modifications to other aggregates in separate transactions (eventual consistency). Co-locating multiple aggregate mutations in a single transaction is prohibited.
 - Domain events are dispatched **after a successful persist**, never immediately after calling a domain method
@@ -378,9 +400,22 @@ Bounded contexts must **never** directly call another context's Application Serv
               └── UserService subscribes and handles asynchronously
 ```
 
-### 5.2 Communicate via Domain Events
+### 5.2 Legitimate Cross-Context Mechanisms
 
-Domain events are the only legitimate mechanism for cross-context communication:
+Cross-context interaction must use one of these four mechanisms. Anything else (importing another context's Domain model, calling its Application Service directly, sharing database tables) is prohibited.
+
+| # | Mechanism | Use when | Coupling |
+|---|-----------|----------|----------|
+| 1 | **Domain Events** (default for state propagation) | One context's state change should trigger reactions in others | Loose; eventual consistency |
+| 2 | **Cross-Context Queries** (read-only) | A context needs a current snapshot of data owned elsewhere, with no write side-effects | Loose; through explicit query interfaces, never through the source context's Domain model |
+| 3 | **Anti-Corruption Layer (ACL)** | Integrating with external / legacy systems whose model you cannot or should not adopt | Translation overhead; prevents pollution |
+| 4 | **Protocol Contracts** (Protobuf, OpenAPI, GraphQL SDL) | Cross-service / cross-repository structured data contracts; generated code shared | Schema-level only; no Domain coupling |
+
+Domain Events are the default for asynchronous state propagation. The other three exist for cases events cannot serve cleanly — they are not fallbacks for laziness.
+
+### 5.3 Domain Events
+
+Domain events are the preferred mechanism for asynchronous cross-context state propagation:
 
 ```
 Publisher (Order context):
@@ -394,7 +429,7 @@ Subscriber (User context):
   3. Never depend on the publisher's internal domain model
 ```
 
-### 5.3 Domain Event Payload Design
+### 5.4 Domain Event Payload Design
 
 Domain events use a **Rich Event** style: carry the aggregate ID plus the minimum set of fields the consumer needs to process the event — nothing more.
 
@@ -417,7 +452,26 @@ Domain events use a **Rich Event** style: carry the aggregate ID plus the minimu
 
 Embedding full objects couples the consumer to the publisher's internal domain model. Any change to the aggregate structure becomes a breaking change for all consumers.
 
-### 5.4 Anti-Corruption Layer (ACL)
+### 5.5 Cross-Context Queries
+
+When a bounded context needs a current snapshot of data owned by another context (display a user's name on an order receipt; show product info during cart construction), it may read through a **port the owning context explicitly publishes** — never by reaching into another context's internal Domain model, repository, or `QueryRepository` class.
+
+Two transport variants:
+
+| Deployment | Mechanism |
+|------------|-----------|
+| **Same-process modular monolith** | The owning context exports a query port / facade (a small read-side interface) that returns DTOs / read models. Consumers depend on the port; the implementation lives in the owning context's Application or Infrastructure layer |
+| **Cross-process / cross-service** | The contract is expressed as an API or protocol contract (REST, gRPC/Protobuf, GraphQL); both sides depend on the schema, neither side imports the other's Domain |
+
+Rules that apply to both variants:
+
+- Responses are DTOs / read models — Domain objects are never returned across the boundary
+- Queries must not produce side effects in the source context; for state changes, use Domain Events
+- Avoid query chains across more than two contexts; if you find yourself doing this, the bounded context boundaries are likely wrong
+
+Cross-context queries are appropriate when the consumer's read needs cannot be satisfied by an event-driven projection (data is too large to replicate, or freshness requirements demand a live read).
+
+### 5.6 Anti-Corruption Layer (ACL)
 
 When integrating with external systems or legacy services, always introduce an **Anti-Corruption Layer** to prevent external models from polluting the internal domain model:
 
@@ -426,6 +480,27 @@ External System → ACL (translation / adaptation) → Internal Domain Model
 ```
 
 The ACL lives in the Infrastructure layer and is transparent to the Domain layer.
+
+### 5.7 Protocol Contracts
+
+For cross-service or cross-repository communication, define data contracts in a schema language (Protobuf, OpenAPI, GraphQL SDL) and consume the generated code on both sides.
+
+Rules:
+
+- The schema is the contract — generated types are shared structurally, but neither side imports the other's Domain model
+- Domain layers must not depend on generated protocol packages; if Domain logic needs an internal representation, define a Domain type and convert at the boundary (in Application or Infrastructure)
+- Schema evolution follows additive rules — no breaking field changes; deprecate before removing
+- Protocol contracts complement Domain Events and Cross-Context Queries (one for sync structured data; the others for state propagation and ad-hoc reads), they do not replace them
+
+**Placement**: generated code lives in a single language-conventional location, isolated from Domain. Each language guide names its concrete directory; the abstract rule is "one place, never inside a Domain package, never co-mingled with hand-written business types". Examples:
+
+| Language | Generated-code location |
+|----------|------------------------|
+| Go | `pkg/gen/` |
+| Python | `packages/contracts/` or `src/contracts/gen/` |
+| TypeScript | `packages/contracts/` |
+
+Hand-written shared event payload types (used to type domain events crossing context boundaries within the same repository) are a different artifact from generated protocol code and should not be placed in the same directory.
 
 ---
 
@@ -527,7 +602,7 @@ Interface layer:
 
 | Layer | Test Type | Dependencies | Goal |
 |-------|-----------|--------------|------|
-| **Domain** | Pure unit tests | Language standard library only | Verify business rules, invariants, domain event emission |
+| **Domain** | Pure unit tests | Language runtime + the same implementation-independent libraries Domain itself depends on (see §3.1 Constraints) | Verify business rules, invariants, domain event emission |
 | **Application** | Unit tests + mocks | Mocked Repository / QueryRepository | Verify use-case orchestration logic |
 | **Infrastructure** | Integration tests | Real database (test containers) | Verify SQL correctness, optimistic locking, soft deletes |
 | **Interface** | End-to-end tests | Simulated HTTP / gRPC requests | Verify protocol transformation and error code mapping |
@@ -550,17 +625,17 @@ Domain tests should cover:
 
 ## 10. Key Principles Summary
 
-1. **Domain layer has zero dependencies** — no frameworks, no ORM, no database packages
+1. **Domain layer has no concrete implementation dependencies** — no frameworks, ORMs, drivers, or protocol clients; general-purpose libraries are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context, not by technical layer
 3. **Dependency inversion** — Domain defines write Repository interfaces; Application defines read QueryRepository interfaces; Infrastructure implements both
 4. **Aggregate boundary** — Repository operates on aggregate roots only, never on child entities directly
 5. **State encapsulation** — all state changes go through domain methods; direct field mutation from outside is prohibited
 6. **ID generation in Domain** — use infrastructure-independent ID schemes (UUID, ULID, Snowflake); never rely on database auto-increment
-7. **Event-driven cross-context communication** — use domain events; direct calls between bounded contexts are prohibited; event payloads use Rich Event style (ID + minimum necessary fields), never embed full entities or aggregate objects
+7. **Disciplined cross-context communication** — use one of: domain events (default for state propagation), cross-context queries (read-only), ACL (external/legacy), protocol contracts (cross-service schemas); direct calls into another context's Domain model or Application Service are prohibited; event payloads use Rich Event style (ID + minimum necessary fields), never embed full entities or aggregate objects
 8. **Event collection** — aggregates collect events internally; Application drains via `collect_events()` after persist and dispatches
 9. **CQRS** — Commands go through the domain model; Queries go directly to the database via QueryRepository and return DTOs
 10. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
-11. **Repository collection semantics** — `Save()` covers create, update, and state-driven soclauft delete; never split by database operation type
+11. **Repository collection semantics** — `Save()` covers create, update, and state-driven soft delete; never split by database operation type
 12. **Soft delete** — business-driven deletion is modeled as domain state; `deleted_at` is always an Infrastructure concern
 13. **Optimistic locking** — Infrastructure increments `version` via SQL; domain holds `Version` as a read-only token; always reload after `Save()` before further operations
 14. **Event dispatch timing** — dispatch events after a successful persist, never before
@@ -584,6 +659,7 @@ This document covers language-agnostic architecture principles only. For technol
 |----------|----------|
 | Go | [`ddd-golang.md`](ddd-golang.md) |
 | Python | [`ddd-python.md`](ddd-python.md) |
+| TypeScript | [`ddd-typescript.md`](ddd-typescript.md) |
 
 ---
 

@@ -9,7 +9,7 @@ description: Strategic domain modeling guide for DDD. Use BEFORE writing impleme
 **Version**: v1.0
 **Date**: 2026-04-15
 **Scope**: All backend services using DDD
-**Usage**: Complete this modeling phase BEFORE writing implementation plans. The output feeds into [`ddd-core.md`](ddd-core.md) and language-specific guides ([`ddd-golang.md`](ddd-golang.md), [`ddd-python.md`](ddd-python.md)).
+**Usage**: Complete this modeling phase BEFORE writing implementation plans. The output feeds into [`ddd-core.md`](ddd-core.md) and language-specific guides ([`ddd-golang.md`](ddd-golang.md), [`ddd-python.md`](ddd-python.md), [`ddd-typescript.md`](ddd-typescript.md)).
 
 ---
 
@@ -126,11 +126,13 @@ Once boundaries are identified, map how contexts relate:
 
 | Relationship | When to use | Risk |
 |-------------|------------|------|
-| **Domain events** (preferred) | Default for all cross-context communication | Eventual consistency |
-| **Shared Kernel** | Two contexts co-evolve and share a small, stable set of types | Coupling — keep it tiny |
-| **Anti-Corruption Layer** | Integrating with external systems or legacy services | Translation overhead |
+| **Domain events** (default for state propagation) | One context's state changes should trigger reactions in others | Eventual consistency |
+| **Cross-context queries** (read-only) | A context needs a current snapshot of data owned elsewhere, with no write side-effects | Coupling to query DTO shape; live-read latency |
+| **Protocol contracts** (Protobuf, OpenAPI, GraphQL SDL) | Cross-service / cross-repository structured data contracts | Schema-evolution discipline required |
+| **Anti-Corruption Layer** | Integrating with external / legacy systems whose model you cannot adopt | Translation overhead |
+| **Shared Kernel** | Two contexts co-evolve and share a small, stable set of types | Coupling — keep it tiny; avoid by default |
 
-> Direct calls between contexts are prohibited. See [ddd-core.md §5](ddd-core.md).
+> Direct calls into another context's Domain model or Application Service are prohibited. See [ddd-core.md §5](ddd-core.md) for the full rules of each mechanism.
 
 ### 2.5 Bounded Context Checklist
 
@@ -139,7 +141,7 @@ Before proceeding to aggregate design, verify:
 - [ ] Each context has a clear name that reflects a business capability
 - [ ] Each context has its own ubiquitous language (no term means two things within one context)
 - [ ] Data authority is clear: every key entity has exactly one owning context
-- [ ] Cross-context communication is via domain events (no direct calls)
+- [ ] Cross-context communication uses one of: domain events, queries through explicit query interfaces, ACL, or protocol contracts (no direct calls into another context's Domain model or Application Service)
 - [ ] No context is a "god context" responsible for everything
 
 ---
@@ -544,7 +546,74 @@ Cross-context communication:
 
 ---
 
-## 7. Quick Reference: Decision Summary
+## 7. Planning Gates
+
+Modeling output (§6) describes the steady-state design. **Planning gates** describe how much design rigor each new change requires before implementation begins. Apply this gating *every time* a developer is about to write or edit code, not just for the initial design.
+
+Choose the smallest gate that fits the change.
+
+### 7.1 Level 1 — Local Change
+
+Use for changes inside an existing bounded context that do not add a new aggregate, repository, QueryRepository, domain event, or external integration.
+
+Plan must state:
+
+- bounded context and layer changed
+- aggregate or use case affected
+- write path or read path
+- tests for the changed layer
+
+Verify the change against the dependency rules ([ddd-core.md §1.3](ddd-core.md)) and layer responsibilities ([ddd-core.md §3](ddd-core.md)) — Domain keeps business rules, Application only orchestrates, Infrastructure stays technical, and Repository / QueryRepository responsibilities remain separate.
+
+### 7.2 Level 2 — New Use Case
+
+Use for a new command, query, event handler, repository method, QueryRepository, DTO, assembler, or external integration inside an existing bounded context.
+
+Plan must state:
+
+- use case kind: Command, Query, or Event Handler
+- aggregate root and invariants involved
+- Repository / QueryRepository interfaces needed
+- DTO and assembler changes
+- external integration boundary, if any
+- Infrastructure implementation
+- domain events produced or consumed
+- transaction boundary and event dispatch timing
+
+Check against [ddd-core.md §3.1-§3.4](ddd-core.md), [§5](ddd-core.md), and the relevant language-specific implementation guide before implementation.
+
+### 7.3 Level 3 — New Bounded Context or Aggregate
+
+Use for a new bounded context, aggregate root, domain event family, repository, or cross-context communication channel.
+
+Spec must include:
+
+- bounded context, business capability, ubiquitous language, and data authority (see §2)
+- aggregate root, entities, value objects, and guarded invariants (see §3)
+- domain events and minimum required payload fields (see [ddd-core.md §5.4](ddd-core.md))
+- cross-context communication mechanism: domain events, queries, ACL, or protocol contracts (see [ddd-core.md §5.2](ddd-core.md))
+- language-specific package layout (see the corresponding implementation guide: [ddd-golang.md](ddd-golang.md), [ddd-python.md](ddd-python.md), [ddd-typescript.md](ddd-typescript.md))
+
+Check aggregate boundaries against §3, tactical rules against [ddd-core.md](ddd-core.md), and language-specific placement rules against the relevant implementation guide.
+
+Do not treat existing code as precedent when it conflicts with the dependency rules.
+
+### 7.4 Cross-Context Change Without a New Context
+
+If a change adds or modifies cross-context communication (a new domain event with new subscribers in another context, a new query exposed across contexts, an ACL adapter, etc.) but does not introduce a new bounded context or aggregate, treat it as **Level 2 on each affected side** and produce one plan per side:
+
+- Producing side: the new domain event / query / contract, its payload contract, and dispatch (or response) timing
+- Consuming side: the handler / consumer, idempotency strategy, and transaction boundary
+
+If the change crosses three or more contexts, or if the contract itself is unstable, escalate to Level 3 and treat the contract as a first-class design artifact.
+
+### 7.5 Gate Failure
+
+If the plan cannot answer the required items for its level, stop and complete the missing design before writing code.
+
+---
+
+## 8. Quick Reference: Decision Summary
 
 ### When two entities should be in the SAME aggregate:
 

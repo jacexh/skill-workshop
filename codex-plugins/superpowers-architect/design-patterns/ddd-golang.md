@@ -14,7 +14,44 @@ description: Go implementation guide for DDD + Clean Architecture. Use when impl
 - **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the consolidated principles checklist lives at [ddd-core.md §10](ddd-core.md).
 - This document is the Go implementation guide that builds on both.
 
-> **Cross-reference convention**: every section number below mirrors the corresponding `ddd-core.md` section (e.g., §3.2 here ↔ ddd-core.md §3.2). The Go guide adds only what is implementation-specific; for the full language-agnostic rationale, jump to the matching ddd-core section.
+> **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. The Go guide also adds Go-specific workflow, placement, configuration, and runtime sections.
+
+---
+
+## 0. Go DDD Planning Workflow
+
+Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Go-specific** items.
+
+### Level 1 (Local Change)
+
+Plan must additionally state:
+
+- the Go package being changed (e.g., `internal/business/user/domain`)
+- whether tests are co-located with the package or in a separate suite (§6.3)
+
+### Level 2 (New Use Case)
+
+Plan must additionally state:
+
+- file placement under the bounded context (`command.go`, `query.go`, `handler.go`, `query_repository.go`, etc. — see §6.2)
+- new mock generation requirements (§6.3 "Generated mocks")
+- fx wiring changes (which `Module` aggregates the new constructor)
+
+### Level 3 (New Bounded Context or Aggregate)
+
+Spec must additionally state:
+
+- planned package layout under `internal/business/<module>/...` (§2.2)
+- shared object placement decisions (§2.3) — what goes in `proto/`, `internal/pkg/`, the owning context, or root `pkg/`
+- shared middleware client ownership (§9 "Shared Middleware Client Ownership")
+
+### Cross-Context Change Without a New Context
+
+Follow the multi-side planning rule in [ddd-modeling.md §7.4](ddd-modeling.md). The Go-side plan must list:
+
+- producing context's `application/handler.go` or event publisher path
+- consuming context's `application/handler.go` and its idempotency strategy
+- `proto/` files and `pkg/gen/` regeneration if a new protocol contract is introduced
 
 ---
 
@@ -46,7 +83,7 @@ Three or four layers with the **Domain Layer as the core** (innermost):
           └──────────────────┬──────────────────────────┘
                              │ depends on
           ┌──────────────────▼──────────────────────────┐
-          │      Domain Layer ◄─── Core. Zero external deps.
+          │      Domain Layer ◄─── Core. No implementation deps.
           │  Entities, VOs, Domain Services,            │
           │  Write Repository interfaces, Events        │
           └─────────────────────────────────────────────┘
@@ -64,7 +101,7 @@ Three or four layers with the **Domain Layer as the core** (innermost):
 
 - Interface Layer (if present) depends on Application and Domain layers
 - Application Layer depends only on Domain Layer (and implements generated RPC stubs when applicable)
-- Domain Layer has zero dependencies (no `import` of infrastructure, database, or HTTP packages)
+- Domain Layer has no concrete implementation dependencies (no `import` of Infrastructure packages, ORM/database drivers, HTTP clients/servers, message queue clients, or generated protocol packages)
 - Infrastructure Layer depends on Domain Layer (implements Repository interfaces) and Application Layer (implements QueryRepository interfaces)
 
 > For full dependency rules and common violations, see [ddd-core.md §1.3](ddd-core.md). Concrete Go code shown in §3.1 / §3.2 / §3.4.
@@ -92,30 +129,40 @@ project/
 │   │       ├── application/     # Application layer - use-case orchestration
 │   │       ├── interfaces/      # Interface layer (optional, see §3.3)
 │   │       ├── infrastructure/  # Infrastructure layer - external system integrations ONLY
-│   │       ├── pkg/             # Domain-scoped utilities (if needed)
+│   │       ├── pkg/             # Bounded-context private utilities (if needed)
 │   │       └── <module>.go      # Module assembly (fx Module)
 │   └── pkg/                     # Infrastructure adapters — third-party libs wrapped + fx providers
 │       ├── eventbus/            # mediator wrapper + lifecycle hooks
-│       ├── database/            # XORM driver wrapper + config
+│       ├── mysql/               # MySQL / XORM client wrapper + config
+│       ├── redis/               # Redis client wrapper + config
+│       ├── kafka/               # Kafka producer/consumer wrapper + config
 │       ├── httpsrv/             # HTTP server wrapper + lifecycle hooks
 │       ├── grpcsrv/             # gRPC server wrapper + lifecycle hooks
 │       └── module.go            # Aggregates the above into a single fx.Module("internal.pkg")
-├── pkg/                         # Public utilities (consumable by external projects)
-│   └── gen/                     # Generated code (proto, etc.)
+├── pkg/                         # Generated code + stable libraries for external consumers
+│   └── gen/                     # Generated protocol code (proto, etc.)
 ├── proto/                       # Protobuf definitions
 └── scripts/
     └── sql/                     # Database migration scripts
 ```
 
-**`internal/business/` vs `internal/pkg/`** — `business/` holds bounded contexts (the DDD four-layer structure); `pkg/` holds infrastructure adapters (DB, HTTP/gRPC server, event bus, validator …). Business may depend on `pkg/`; `pkg/` must never import `internal/business/*`.
+**`internal/business/` vs `internal/pkg/`** — `business/` holds bounded contexts (the DDD four-layer structure); `internal/pkg/` holds shared technical adapters (DB, HTTP/gRPC server, event bus, validator …). Business may depend on `internal/pkg/`; `internal/pkg/` must never import `internal/business/*`.
+
+Root `pkg/` has only two valid uses:
+1. `pkg/gen/` — code generated from `proto/` or other schemas
+2. Stable, hand-written libraries intended to be imported by repositories outside this one
+
+Root `pkg/` is **not** an internal shared/common directory. Do not place internal cross-context DTOs, read models, domain concepts, or business constants there merely because multiple internal modules use them. If multiple internal contexts need to share a type, follow §2.3.
 
 ### 2.2 Bounded Context Internal Structure
 
 ```
 internal/business/user/          # User bounded context
-├── domain/                      # Domain layer - PURE, zero external dependencies
+├── domain/                      # Domain layer - pure business logic, no implementation deps
 │   ├── user.go                  # Aggregate Root + Entity
+│   ├── user_test.go             # Aggregate behavior tests
 │   ├── valueobject.go           # Value Objects (Email, Password, etc.)
+│   ├── valueobject_test.go      # Value Object validation tests
 │   ├── event.go                 # Domain event definitions
 │   ├── repository.go            # Write repository interface
 │   └── service.go               # Domain service (if needed)
@@ -123,7 +170,9 @@ internal/business/user/          # User bounded context
 ├── application/                 # Application layer - orchestrates domain objects
 │   ├── application.go           # App Service constructor + gRPC/ConnectRPC stub
 │   ├── command.go               # Command definitions + Command Handlers
+│   ├── command_test.go          # Command Handler orchestration tests
 │   ├── query.go                 # Query definitions + Query Handlers
+│   ├── query_test.go            # Query Handler orchestration tests
 │   ├── query_repository.go      # Read repository interface (CQRS, returns DTOs)
 │   ├── handler.go               # Event Handlers (domain event consumers)
 │   ├── dto.go                   # DTO definitions
@@ -137,20 +186,42 @@ internal/business/user/          # User bounded context
 │
 ├── interfaces/                  # Interface layer (OPTIONAL — only for hand-written protocols)
 │   └── http/
-│       └── handler.go           # REST Handler (manual routing, request/response mapping)
+│       ├── handler.go           # REST Handler (manual routing, request/response mapping)
+│       └── handler_test.go      # Protocol mapping tests
 │
 ├── infrastructure/              # Infrastructure layer - external system integrations ONLY
 │   ├── persistence/
 │   │   ├── repository.go        # Repository implementation
+│   │   ├── repository_test.go   # Repository integration tests
 │   │   ├── do.go                # Database models (XORM/GORM)
 │   │   └── converter.go         # DO <-> Entity conversion
 │   └── messaging/
 │       └── publisher.go         # Event publisher implementation
 │
-├── pkg/                         # Domain-scoped utilities (non-infrastructure tools)
+├── pkg/                         # Bounded-context private utilities (not imported by other contexts)
 │
 └── user.go                      # Module assembly (fx Module)
 ```
+
+### 2.3 Shared Object Placement
+
+When a type is needed by multiple modules, first decide what it represents:
+
+1. **Domain concept owned by one bounded context**: keep it in the owning bounded context. Other contexts must not import it directly; exchange through domain events, queries, ACL, or protocol contracts (see §5).
+2. **Cross-context / cross-service data contract**: define it in `proto/<capability>/v1/*.proto` and consume generated code from `pkg/gen/proto/...`. Keep business derivation rules in the owning context.
+3. **Shared technical capability** (storage adapter, streaming adapter, message-bus adapter, observability client): place it in `internal/pkg/<capability>`. Common examples: `mysql`, `redis`, `kafka`.
+4. **General-purpose library intended for external reuse**: only then place hand-written code in root `pkg/`.
+
+Use protobuf for cross-boundary contracts, not for internal Domain models. Generated proto types may be used by Interface/Application boundary code, Infrastructure adapters, message publishers/consumers, and read-model contracts. Domain layer must not depend on generated proto packages; if Domain logic needs an internal representation, define a Domain type and convert at the boundary.
+
+**Worked example — a cross-context read model**
+
+Suppose a `producer` context emits a stream of records, and one or more `consumer` contexts need to query and stream them. The placement falls out of the four buckets above:
+
+- **Contract** — `proto/<capability>/v1/<capability>.proto` defines the record type, its enums, and pagination/cursor fields; `pkg/gen/proto/<capability>/v1` contains generated code.
+- **Owning context** — `internal/business/<producer>/domain/<projection>` owns derivation, classification, and state semantics; it converts to the contract shape at its boundary.
+- **Shared technical adapters** — `internal/pkg/<capability>store` and `internal/pkg/<capability>stream` adapt the generated contract to storage and streaming infrastructure. They are technical, reusable across consuming contexts, and import the contract — never the producer's Domain.
+- **Avoid** — a hand-written `pkg/<capability>` package that re-declares the record type as an "internal shared model"; that collapses the boundary between Domain ownership, contract, and infrastructure adapter.
 
 ---
 
@@ -170,11 +241,20 @@ internal/business/user/          # User bounded context
 - **Domain Event**: Records significant domain occurrences
 
 **Constraints**:
-- Zero external dependencies (no `import` of infrastructure, database, or HTTP packages)
-- Must not depend on other bounded contexts' domain layers (communicate via events)
+- No concrete implementation dependencies (no `import` of Infrastructure packages, ORM/database drivers, HTTP clients/servers, message queue clients, or generated protocol packages)
+- General-purpose, implementation-independent libraries are allowed when they do not couple Domain to an external system
+- Must not depend on other bounded contexts' domain layers (communicate via domain events, cross-context queries, ACL, or protocol contracts — see §5)
 - All state changes go through domain methods — direct field mutation is prohibited
 - **Version is a read-only concurrency token** — Domain does not increment Version; Infrastructure increments it via SQL
 - **IDs are generated in the Domain layer** (inside Factory Methods) using UUID/ULID — database auto-increment IDs are prohibited
+
+**Business Field Validation** — implements the Validation Contract defined in [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). Go-specific notes:
+
+- `Type.Validate() error` is the canonical method signature
+- Inside `Validate()`, `github.com/go-playground/validator/v10` may be used (reflecting over tags on the type's own fields), hand-written checks, or a mix. Tags on Domain fields are an implementation choice of `Validate()`, not a public contract
+- Use explicit code for cross-field rules, state transitions, and invariants that cannot be expressed cleanly with validator tags
+
+**Domain Rules in Technical Capabilities** — see [ddd-core.md §3.1 "Domain Rules in Technical Capabilities"](ddd-core.md). The rule applies to Go projects exactly as written.
 
 **Factory Design**:
 - Simple cases: use the Aggregate Root's own constructor (`NewXxx`)
@@ -395,7 +475,8 @@ func (u *User) ChangePassword(oldRaw, newRaw string) error {
     return nil
 }
 
-// Repository Interface (write repository, defined in Domain layer)
+// Repository Interface (write repository, defined in Domain layer).
+// Generated mocks are test-only; see §6.3 "Generated mocks" for placement rules.
 //go:generate mockery --name=Repository --case=snake
 type Repository interface {
     Get(ctx context.Context, id string) (*User, error)
@@ -416,7 +497,8 @@ type Repository interface {
 - **DTO**: Data Transfer Objects, decoupling internal and external models
 - **Assembler**: DTO ↔ Domain object conversion
 
-**Constraints**:
+**Constraints** (see [ddd-core.md §3.2](ddd-core.md) for the full list, including the prohibition on implementing validation or owning technical-capability domain rules):
+
 - No business rules (those belong in the Domain layer)
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
@@ -556,14 +638,16 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 - Utility/tool packages (CLI wrappers, parsers, helpers) — these are not external system integrations
 - Place them according to scope:
   - `internal/pkg/` — cross-domain shared infrastructure adapters
-  - `pkg/` — public utilities consumable by external projects
-  - `internal/business/<domain>/pkg/` — utilities scoped to a single domain
+  - `pkg/` — generated protocol code or stable public libraries consumable by external projects; not internal shared DTOs/read models
+  - `internal/business/<domain>/pkg/` — utilities scoped to a single bounded context; must not be imported by other contexts or hold shared DTOs/read models/domain concepts
 
 **Constraints**:
 - Implements Repository interfaces (Domain layer) and QueryRepository interfaces (Application layer)
 - No business logic
 - Handles technical details (SQL, caching, retries, etc.)
 - **Version is incremented by SQL** (`version = version + 1`) — Domain layer does not increment it
+- Infrastructure implements technical mechanisms for domain rules, but it must not be the only place where those rules are expressed
+- Shared middleware clients are initialized in `internal/pkg/<middleware>`; bounded-context Infrastructure receives already constructed clients
 
 **Soft Delete**:
 - **Business-driven logical deletion**: Domain has a status field (e.g., `Status = Cancelled`); `Save()` internally sets `deleted_at` based on the status
@@ -578,7 +662,7 @@ package persistence
 
 import (
     "xorm.io/xorm"
-    "github.com/example/project/internal/pkg/database"
+    "github.com/example/project/internal/pkg/mysql"
 )
 
 // Data Object - XORM model
@@ -589,9 +673,9 @@ type UserDO struct {
     Email     string             `xorm:"email"`
     Status    int                `xorm:"status"`
     Version   int                `xorm:"version"`
-    CreatedAt database.Timestamp `xorm:"created_at"`
-    UpdatedAt database.Timestamp `xorm:"updated_at"`
-    DeletedAt database.Timestamp `xorm:"deleted_at deleted"`
+    CreatedAt mysql.Timestamp `xorm:"created_at"`
+    UpdatedAt mysql.Timestamp `xorm:"updated_at"`
+    DeletedAt mysql.Timestamp `xorm:"deleted_at deleted"`
 }
 
 func (u UserDO) TableName() string {
@@ -618,7 +702,8 @@ type userRepository struct {
     db *xorm.Engine
 }
 
-// Constructor returns interface
+// Constructor returns interface. The MySQL client is constructed in internal/pkg/mysql
+// and injected here; this package does not read config or open connections.
 func NewRepository(db *xorm.Engine) domain.Repository {
     return &userRepository{db: db}
 }
@@ -702,22 +787,26 @@ func convertToDO(user *domain.User) *UserDO {
 
 ## 5. Cross-Context Communication
 
-### 5.1 Direct Calls Are Prohibited
+> For the full specification (four legitimate mechanisms, ACL, payload rules), see [ddd-core.md §5](ddd-core.md). This section captures the Go forms.
 
-Bounded contexts must **never** directly call another context's Application Service or Repository.
+### 5.1 Direct Domain Coupling Is Prohibited
+
+Bounded contexts must not import another context's Domain model or call its Application Service / Repository directly:
 
 ```go
-// ❌ Wrong: Order context directly calls User context
+// ❌ Wrong: Order context imports User's Domain or calls its Application directly
+import userdomain "github.com/example/project/internal/business/user/domain"
+
 func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderCommand) error {
-    // Prohibited!
+    // Prohibited — Order is now coupled to User's Domain shape
     user, err := s.userApp.GetUser(ctx, cmd.UserID)
     ...
 }
 ```
 
-### 5.2 Communicate via Domain Events
+### 5.2 Domain Events (default for state propagation)
 
-Producer side: nothing special — after `Save()`, the producing context's Application Service calls `order.Events.Raise(mediator.Default())` (canonical 4-step flow, §3.3). Consumer side lives in the **subscribing** context's `application/handler.go`:
+Producer side: after `Save()`, the producing context's Application Service calls `order.Events.Raise(mediator.Default())` (canonical 4-step flow, §3.2). Consumer side lives in the **subscribing** context's `application/handler.go`:
 
 ```go
 // internal/business/user/application/handler.go — User context subscribes to Order's event
@@ -734,6 +823,39 @@ func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
 
 // Wire in the module's NewApplication: ev.Subscribe(NewUserPointsHandler(repo))
 ```
+
+### 5.3 Cross-Context Queries
+
+When a context needs a current snapshot of data owned elsewhere, depend on a **port the owning context exports** (see [ddd-core.md §5.5](ddd-core.md)) — not on its internal `QueryRepository` class:
+
+```go
+// Owning context publishes a small read-side port that returns DTOs:
+// internal/business/user/api/queries.go
+package userapi
+
+type UserSummary struct {
+    ID     string
+    Name   string
+    Active bool
+}
+
+type Reader interface {
+    FindUserSummary(ctx context.Context, id string) (UserSummary, error)
+}
+
+// Consuming context depends on the port, not on user's QueryRepository:
+type OrderAppService struct {
+    users userapi.Reader
+}
+```
+
+For cross-process consumers, define the contract in `proto/<capability>/v1/*.proto` and consume generated code from `pkg/gen/proto/...`; never import the producing service's Domain types.
+
+### 5.4 ACL and Protocol Contracts
+
+For external / legacy integrations, place the Anti-Corruption Layer in `internal/business/<context>/infrastructure/` and translate at the boundary; Domain remains unaware of the external shape (see [ddd-core.md §5.6](ddd-core.md)).
+
+For cross-service / cross-repository structured contracts, define schemas under `proto/`; generated code lives in `pkg/gen/proto/...` and is consumed by Interface, Application, or Infrastructure code (see [ddd-core.md §5.7](ddd-core.md)). Domain layers must not import `pkg/gen/...`.
 
 ---
 
@@ -759,6 +881,8 @@ func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
 
 ### 6.2 File Organization
 
+Production files only. Test file placement is governed by §6.3 and is not required to mirror this table 1:1.
+
 | File | Contents |
 |------|----------|
 | `domain/<entity>.go` | Aggregate Root + Entity |
@@ -777,6 +901,29 @@ func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
 | `infrastructure/persistence/do.go` | Database models |
 | `infrastructure/persistence/repository.go` | Repository implementation |
 | `infrastructure/persistence/converter.go` | Conversion functions |
+
+### 6.3 Test File Organization
+
+Go test cases must live in `*_test.go` files. Do not place test-only code, fixtures, fakes, mocks, or assertions in production files.
+
+Do not collect all tests into a separate top-level test module by default. Keep tests beside the package under test; use a separate test suite directory only for service-level integration or end-to-end tests that span multiple bounded contexts.
+
+Both same-package tests (`package <name>`) and external test packages (`package <name>_test`) are acceptable. Use the external `_test` package when you need to break an import cycle (e.g., a test that imports a sibling package which itself imports the package under test) or when you want to verify the package compiles cleanly against its public API alone. In all cases, tests must exercise behavior rather than implementation trivia.
+
+Test helpers and generated mocks must be test-only:
+- keep them in `*_test.go`, or
+- place them in a clearly named test-support package that production code never imports.
+
+Layer-specific placement:
+- Domain tests live beside the Domain package and instantiate aggregates/value objects directly.
+- Application tests live beside the Application package and mock only Repository / QueryRepository / external boundary interfaces.
+- Infrastructure tests live beside Infrastructure implementations and may use real external dependencies or test containers.
+- Interface tests live beside Interface handlers and verify protocol transformation and error mapping.
+
+**Generated mocks**:
+- Prefer `mockery --inpackage --testonly` so mocks are emitted as `mock_<name>_test.go` in the same package — they are physically test-only and cannot be imported by production code
+- If using a separate output directory (e.g., `<package>/mocks/`), keep it out of production import paths and enforce the boundary with a depguard / golangci-lint rule that bans `*/mocks` imports outside `*_test.go`
+- Mock files are never the source of truth for behavior; the interface in `domain/repository.go` (or `application/query_repository.go`) is
 
 ---
 
@@ -840,6 +987,13 @@ Each component owns its `Option`; the top-level `main` only aggregates and distr
 
 **Business modules follow the same rule.** If a bounded context needs runtime config (e.g., `user.MaxLoginAttempts`), declare `user.Option` in `internal/business/user/option.go` and add a `User user.Option` field to the top-level `Option`.
 
+**Shared Middleware Client Ownership**:
+- Initialize shared middleware clients in `internal/pkg/<middleware>`: `internal/pkg/mysql`, `internal/pkg/redis`, `internal/pkg/kafka`, etc.
+- Each middleware package owns its `Option`, constructor, health/lifecycle hooks, and fx provider.
+- Bounded-context Infrastructure packages must not read shared middleware config, open connections, or close clients.
+- Repository / QueryRepository / Publisher / Consumer constructors receive initialized clients and adapt them to Domain/Application interfaces.
+- Example: `internal/pkg/mysql.NewClient(...) -> *xorm.Engine`, then `internal/business/user/infrastructure/persistence.NewRepository(db *xorm.Engine)`.
+
 **Example — adding a Redis client.** Declare `Option` next to the constructor:
 
 ```go
@@ -887,9 +1041,9 @@ import (
     "github.com/go-jimu/components/config/loader"
     "github.com/go-jimu/components/mediator"
     "github.com/go-jimu/components/sloghelper"
-    "github.com/example/project/internal/pkg/database"
     "github.com/example/project/internal/pkg/grpcsrv"
     "github.com/example/project/internal/pkg/httpsrv"
+    "github.com/example/project/internal/pkg/mysql"
     "go.uber.org/fx"
 )
 
@@ -899,7 +1053,7 @@ import (
 type Option struct {
     fx.Out
     Logger     sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
-    MySQL      database.Option    `json:"mysql" toml:"mysql" yaml:"mysql"`
+    MySQL      mysql.Option       `json:"mysql" toml:"mysql" yaml:"mysql"`
     HTTPServer httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
     GRPCServer grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
     Eventbus   mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
@@ -1000,7 +1154,7 @@ app.Run()
 
 ### 10.2 Lifecycle Hooks
 
-Components that have **in-flight work** at shutdown time must register `fx.Lifecycle` hooks to drain gracefully. Components that are pure connection pools do not need them — the OS reclaims connections on process exit.
+Components that have **in-flight work** at shutdown time must register `fx.Lifecycle` hooks to drain gracefully. Pure connection clients do not need drain-style hooks, but they may register `Close` hooks for cleanup when the library exposes one.
 
 **Needs OnStop** (has in-flight work):
 
@@ -1011,7 +1165,7 @@ Components that have **in-flight work** at shutdown time must register `fx.Lifec
 | EventBus (Mediator) | Event handler goroutines running | `GracefulShutdown(ctx)` — reject new events, wait for handlers |
 | Message queue consumer | Messages being processed | Stop consuming, finish current batch |
 
-Pure connection pools (Database, Redis, HTTP Client) do not need OnStop — they have no in-flight work of their own, and the OS reclaims connections on process exit.
+Pure connection clients (MySQL, Redis, HTTP Client) do not need drain-style OnStop hooks — they have no in-flight work of their own. They may still register cleanup hooks such as `client.Close()`.
 
 #### Server: Listen/Serve Separation
 
@@ -1064,17 +1218,17 @@ func NewMediator(lc fx.Lifecycle, opt mediator.Options) mediator.Mediator {
 
 ```
 Start order (determined by dependency graph):
-  EventBus → Database → Application → Server
+  EventBus → MySQL → Application → Server
 
 Stop order (automatic reverse):
   Server.OnStop        → drain in-flight requests
                           (last requests may call Events.Raise(), dispatching final events)
   EventBus.OnStop      → drain in-flight handler goroutines
-                          (handlers can still access Database — it has no OnStop)
+                          (handlers can still access MySQL)
   Process exits        → OS reclaims all connections
 ```
 
-Database has no OnStop hook, so it remains available throughout the entire shutdown sequence. This is by design — as long as all consumers (Server, EventBus handlers) finish their work before the process exits, the database connection pool does not need explicit cleanup.
+MySQL has no in-flight work to drain, so it remains available while Server and EventBus handlers finish. If the MySQL package registers a `Close` cleanup hook, it must run after consumers have stopped.
 
 ### 10.4 Kubernetes Deployment
 

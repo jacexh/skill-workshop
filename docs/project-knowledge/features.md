@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-07
+last_updated: 2026-05-08
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -83,6 +83,16 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **References** — `plugins/superpowers-memory/hooks/fixtures/`; see `content-rules.md` for shape rules.
 
 ### Architecture Guidance Capabilities
+
+#### DDD Design Pattern Guidance
+
+**Enables** — Agents can apply DDD guidance from strategic modeling through tactical implementation across language-neutral and Go/Python/TypeScript guides.
+
+**Actors / Entry Points** — `superpowers-architect:standards`, architect hooks, and design-pattern files under both `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/`.
+
+**Capability Boundary** — `ddd-modeling.md` owns planning gates and model discovery, `ddd-core.md` owns language-neutral DDD/Clean Architecture rules, and language guides add implementation-specific placement, validation, test, and wiring rules.
+
+**References** — `plugins/superpowers-architect/design-patterns/ddd-modeling.md`, `plugins/superpowers-architect/design-patterns/ddd-core.md`; see `conventions.md` for design-pattern maintenance rules.
 
 #### Claude Architecture Standards Injection
 
