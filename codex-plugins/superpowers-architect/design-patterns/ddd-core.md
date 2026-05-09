@@ -212,6 +212,21 @@ A bounded context may own technical-facing capabilities such as runtime coordina
 - Infrastructure may enforce these rules mechanically through storage constraints, locks, leases, CAS, or external APIs — but the rule itself must be named and testable outside Infrastructure
 - Litmus test: can you describe the rule in business / ubiquitous-language terms and write a test for it without reaching into a database, queue, or network? If yes, it is Domain
 
+Use this decision table before placing a technical-facing module:
+
+| Question | If yes | Owner |
+|----------|--------|-------|
+| Does it define stable terms, states, lifecycle transitions, admission policy, routing policy, ownership semantics, or derivation rules? | Name the rule and model it explicitly | Domain |
+| Does it sequence a use case, choose a port, coordinate transaction boundaries, map domain errors, or dispatch already-collected events? | Keep it thin and rule-free | Application |
+| Does it adapt a database, cache, queue, lock service, generated protocol, framework lifecycle, telemetry backend, or network API? | Implement an interface or port defined inward | Infrastructure |
+
+Common anti-patterns:
+
+- Putting a dispatcher, registry, router, scheduler, or ownership manager in Infrastructure before naming its domain-visible states and policies
+- Hiding admission or routing rules inside handlers because the capability looks "technical"
+- Defining an interface in Infrastructure and importing it inward from Application or Domain
+- Duplicating the same technical-facing rule across multiple adapters instead of modeling it once
+
 #### Domain Event Collection
 
 Aggregate Root must provide a mechanism for collecting and retrieving domain events:
@@ -623,7 +638,21 @@ Domain tests should cover:
 
 ---
 
-## 10. Key Principles Summary
+## 10. Architecture Review Checklist
+
+Use this checklist when reviewing backend, DDD, refactor, or technical-capability changes:
+
+- **Modeling gate**: `ddd-modeling.md` was applied first, with a gate level and bounded context / business capability stated.
+- **Import boundaries**: Domain imports no framework, generated protocol package, storage driver, queue client, HTTP server/client, Infrastructure package, or another bounded context's Domain package.
+- **Layer ownership**: Domain owns named rules/invariants; Application owns orchestration, transaction boundaries, query interfaces, and ports needed by use cases; Infrastructure implements adapters.
+- **Technical capability classification**: dispatchers, registries, schedulers, routers, connectors, ownership managers, delivery mechanisms, projections, observability, and audit logic are classified before package placement.
+- **Interface direction**: inward layers define the interfaces they need; outer layers implement them. Infrastructure-defined interfaces must not be imported inward.
+- **Cross-context boundaries**: communication uses domain events, cross-context queries, ACL, or protocol contracts; no direct calls into another context's Domain model or Application Service.
+- **Package/path consistency**: a package path that claims `domain`, `application`, `interfaces`, or `infrastructure` follows that layer's dependency and responsibility rules.
+
+---
+
+## 11. Key Principles Summary
 
 1. **Domain layer has no concrete implementation dependencies** — no frameworks, ORMs, drivers, or protocol clients; general-purpose libraries are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context, not by technical layer
@@ -640,6 +669,7 @@ Domain tests should cover:
 13. **Optimistic locking** — Infrastructure increments `version` via SQL; domain holds `Version` as a read-only token; always reload after `Save()` before further operations
 14. **Event dispatch timing** — dispatch events after a successful persist, never before
 15. **Event reliability** — choose in-memory bus / Outbox Pattern / message queue based on reliability requirements
+16. **Technical capability classification** — technical-facing code is Domain-facing when it owns stable language, states, policies, or invariants; Infrastructure only adapts external systems and mechanisms
 
 ---
 

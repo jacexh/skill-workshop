@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 RUNTIME="$ROOT/codex-plugins/superpowers-architect/hooks/codex-runtime.js"
 SNIPPET="$ROOT/codex-plugins/superpowers-architect/codex-hooks-snippet.json"
+STANDARDS_SKILL="$ROOT/codex-plugins/superpowers-architect/skills/standards/SKILL.md"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -63,6 +64,17 @@ grep -q "Project Database" <<<"$session_context" || fail "project database patte
 ! grep -q "Global Database" <<<"$session_context" || fail "global database pattern was not overridden"
 grep -q "Project Only" <<<"$session_context" || fail "project-only pattern missing"
 
+# Intent: session-start guidance must include the architecture gate, not just a pattern index.
+grep -q "Architecture Gate" <<<"$session_context" || fail "session-start missing architecture gate"
+grep -q "Read ddd-modeling first" <<<"$session_context" || fail "session-start missing ddd-modeling-first rule"
+grep -q "technical capability classification" <<<"$session_context" || fail "session-start missing technical capability classification"
+grep -q "Proceed / Stop" <<<"$session_context" || fail "session-start missing proceed/stop gate"
+
+# Intent: when DDD addendum fires, it must point to ddd-modeling §0 as the replacement block source so
+# AI doesn't emit both the generic and DDD blocks.
+grep -q "ddd-modeling §0" <<<"$session_context" || fail "session-start missing replacement-block reference to ddd-modeling §0"
+grep -q "REPLACE the generic" <<<"$session_context" || fail "session-start missing replace-not-append instruction"
+
 no_defaults_context="$(
   HOME="$TMP/home" SPA_DEFAULTS=false node "$RUNTIME" session-start | extract_context
 )"
@@ -70,6 +82,39 @@ no_defaults_context="$(
 # Intent: disabling bundled defaults should leave only explicit global/project patterns.
 grep -q "Project Database" <<<"$no_defaults_context" || fail "project pattern missing with SPA_DEFAULTS=false"
 ! grep -q "DDD + Clean Architecture" <<<"$no_defaults_context" || fail "bundled defaults included despite SPA_DEFAULTS=false"
+! grep -q "Read ddd-modeling first" <<<"$no_defaults_context" || fail "DDD-specific gate injected without DDD patterns"
+
+# Intent: the generic Architecture Gate workflow must still fire when only non-DDD project patterns exist.
+grep -q "Architecture Gate workflow" <<<"$no_defaults_context" || fail "generic gate workflow missing when only project patterns exist"
+grep -q "Required response block" <<<"$no_defaults_context" || fail "generic response block missing when only project patterns exist"
+grep -q "Proceed / Stop" <<<"$no_defaults_context" || fail "generic proceed/stop missing when only project patterns exist"
+
+project_ddd_dir="$TMP/repo_project_ddd"
+mkdir -p "$project_ddd_dir/docs/design-patterns"
+(
+  cd "$project_ddd_dir"
+  git init -q
+)
+cat > "$project_ddd_dir/docs/design-patterns/ddd-modeling.md" <<'MD'
+---
+name: Project DDD Modeling
+description: Project-supplied DDD modeling rules. Filename matches the bundled trigger so the DDD addendum should still fire.
+---
+
+# Project DDD Modeling
+MD
+
+project_ddd_context="$(
+  cd "$project_ddd_dir"
+  HOME="$TMP/home" SPA_DEFAULTS=false node "$RUNTIME" session-start | extract_context
+)"
+
+# Intent: DDD addendum is triggered by the filename `ddd-modeling.md`, but a project-supplied
+# pattern without the bundled §0 block must not be described as having the bundled §0 contract.
+grep -q "Project DDD Modeling" <<<"$project_ddd_context" || fail "project-supplied ddd-modeling pattern missing"
+grep -q "Read ddd-modeling first" <<<"$project_ddd_context" || fail "DDD addendum missing for project-supplied ddd-modeling.md"
+grep -q "follow its own gate" <<<"$project_ddd_context" || fail "project-supplied DDD path missing own-gate instruction"
+! grep -q "ddd-modeling §0" <<<"$project_ddd_context" || fail "project-supplied DDD path should not reference missing §0"
 
 empty_context="$(
   mkdir -p "$TMP/empty"
@@ -91,6 +136,9 @@ grep -q "Architect Standards" <<<"$writing_plans_context" || fail "writing-plans
 grep -q "REST API Design Standards" <<<"$writing_plans_context" || fail "REST API pattern missing from writing-plans context"
 grep -q "Project Database" <<<"$writing_plans_context" || fail "project database pattern missing from writing-plans context"
 grep -q "Project Only" <<<"$writing_plans_context" || fail "dynamic project-only pattern missing from writing-plans context"
+grep -q "Architecture Gate" <<<"$writing_plans_context" || fail "writing-plans prompt missing architecture gate"
+grep -q "Read ddd-modeling first" <<<"$writing_plans_context" || fail "writing-plans prompt missing ddd-modeling-first rule"
+grep -q "technical capability classification" <<<"$writing_plans_context" || fail "writing-plans prompt missing technical capability classification"
 
 review_context="$(
   printf '{"prompt":"Please run $superpowers:requesting-code-review on this branch"}' |
@@ -109,6 +157,15 @@ natural_language_architecture="$(
 
 # Intent: natural-language architecture discussion without a superpowers skill mention should stay quiet.
 [ "$natural_language_architecture" = "{}" ] || fail "natural-language architecture prompt should return {}"
+
+natural_language_ddd="$(
+  printf '{"prompt":"Please design the order aggregate following DDD"}' |
+    HOME="$TMP/home" node "$RUNTIME" user-prompt-submit
+)"
+
+# Intent: natural-language DDD vocabulary alone must not widen the trigger surface — only explicit
+# superpowers skill mentions are allowed to fire user-prompt-submit context.
+[ "$natural_language_ddd" = "{}" ] || fail "natural-language DDD prompt should return {}"
 
 unrelated="$(
   printf '{"prompt":"hello, summarize this plain text"}' |
@@ -152,5 +209,10 @@ if (commands.some((command) => command.endsWith(" stop"))) {
   fail("architect snippet should not install a stop command");
 }
 NODE
+
+# Intent: the standards skill must not require ddd-modeling.md when a dynamic pattern set only
+# provides other DDD or layered-architecture standards.
+grep -q 'If `ddd-modeling.md` is present' "$STANDARDS_SKILL" || fail "standards skill should key ddd-modeling-first on ddd-modeling.md presence"
+grep -q 'If `ddd-modeling.md` is absent' "$STANDARDS_SKILL" || fail "standards skill should define fallback for DDD/layered patterns without ddd-modeling.md"
 
 echo "  codex architect runtime: routing and pattern priority correct"
