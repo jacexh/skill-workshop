@@ -155,6 +155,8 @@ project/
 
 **`modules/` vs `shared/`** — `modules/` holds bounded contexts (the DDD four-layer structure); `shared/` holds technical infrastructure adapters used across contexts. Business code may depend on `shared/`; `shared/` must never import concrete business modules.
 
+**One directory under `modules/` = one bounded context.** The directory name (`<context>`) is the bounded context's name, and its `domain/`, `application/`, `interfaces/`, `infrastructure/` sub-tree is the full DDD four-layer slice for that context. Do not split a single bounded context across sibling `modules/` directories, and do not collapse two bounded contexts into one.
+
 ### 2.2 Bounded Context Internal Structure
 
 > Corresponds to [ddd-core.md §2.2](ddd-core.md).
@@ -225,6 +227,7 @@ Start with flat files when the module is small. When handlers grow numerous, pro
 - No infrastructure dependencies
 - Must not depend on other bounded contexts' domain layers
 - All state changes go through domain methods
+- **No anemic aggregates.** An Aggregate Root that is a `type` / interface with public fields and no behavior, while the rules live in `application/handlers/`, is prohibited. Every state transition is a method on the Aggregate Root class (or Value Object). Use `private` fields + `private constructor` + static factory (`User.create(...)`); expose read-only access via getters; mutation only via named domain methods (`changePassword`, `activate`, …)
 - **Version is a read-only concurrency token** — Infrastructure increments it
 - **IDs are generated in Domain** via UUID/ULID factory methods — database auto-increment IDs are prohibited
 
@@ -408,6 +411,18 @@ export class User {
     return this.props.status;
   }
 
+  get hashedPassword(): HashedPassword {
+    return this.props.hashedPassword;
+  }
+
+  get createdAt(): Date {
+    return this.props.createdAt;
+  }
+
+  get updatedAt(): Date {
+    return this.props.updatedAt;
+  }
+
   changePassword(oldRaw: string, newRaw: string): void {
     if (this.props.status !== UserStatus.Active) {
       throw new UserNotActiveError();
@@ -464,9 +479,10 @@ export interface UserRepository {
 - No business rules
 - Depends on Domain
 - Owns transaction boundaries
-- As a default rule, one command modifies one aggregate; cross-aggregate workflows should prefer domain events and eventual consistency unless a stronger consistency requirement is explicit
+- **One transaction modifies one aggregate only.** Co-locating multiple aggregate mutations in a single transaction is prohibited. To modify multiple aggregates, persist the first and use domain events to trigger subsequent aggregate modifications in separate transactions (eventual consistency)
 - Dispatch domain events only after successful persistence
 - QueryRepository interfaces live here, return DTOs, and bypass Domain aggregates on the read side
+- After `repo.save()`, the in-memory aggregate is stale — reload via `repo.get()` before any further operation on the same aggregate
 
 ```ts
 // application/commands/change-password.command.ts
@@ -606,8 +622,10 @@ export const userRoutes = (
 **Constraints**:
 - No business rules
 - Handles technical concerns: SQL, retries, pooling, serialization, timeouts
-- Owns optimistic locking implementation
+- Owns optimistic locking implementation; Domain holds `version` as a read-only token, Infrastructure increments it via SQL
 - Must not leak ORM entities into Domain
+- `save()` is the single method covering create, update, and state-driven soft delete; never split into `insert()` / `update()` / `delete()` based on SQL operation. `version === 0` → INSERT; `version > 0` → version-guarded UPDATE. `Save()` determines the operation internally based on the aggregate's state
+- Adding a technical client (`ioredis`, `kysely`, an HTTP/MQ SDK) does not justify a new TS interface in `domain/` or `application/`. If Redis only accelerates a SQL-backed repository, compose it inside `infrastructure/persistence/`; do not introduce a separate `Cacher` interface. Add a new interface only for a named use-case capability (distributed lock, lease ownership, explicit cache invalidation, rate limiting, event publication)
 
 **Persistence Guidance**:
 - Prefer explicit mapping over active-record style domain models
@@ -677,17 +695,37 @@ export class KyselyUserRepository implements UserRepository {
   }
 
   async save(user: User): Promise<void> {
-    const values = {
-      name: user.name,
-      email: user.email.value,
-      status: user.status,
-      version: user.version + 1,
-      updated_at: new Date(),
-    };
+    if (user.version === 0) {
+      // New aggregate — INSERT, version starts at 1
+      await this.db
+        .insertInto("users")
+        .values({
+          id: user.id,
+          name: user.name,
+          email: user.email.value,
+          password_hash: user.hashedPassword.hash,
+          password_salt: user.hashedPassword.salt,
+          status: user.status,
+          version: 1,
+          created_at: user.createdAt,
+          updated_at: user.updatedAt,
+        })
+        .execute();
+      return;
+    }
 
+    // Existing aggregate — version-guarded UPDATE; SQL increments version
     const result = await this.db
       .updateTable("users")
-      .set(values)
+      .set({
+        name: user.name,
+        email: user.email.value,
+        password_hash: user.hashedPassword.hash,
+        password_salt: user.hashedPassword.salt,
+        status: user.status,
+        version: user.version + 1,
+        updated_at: new Date(),
+      })
       .where("id", "=", user.id)
       .where("version", "=", user.version)
       .executeTakeFirst();
@@ -695,6 +733,7 @@ export class KyselyUserRepository implements UserRepository {
     if (Number(result.numUpdatedRows ?? 0) === 0) {
       throw new ConcurrentModificationError(user.id);
     }
+    // After save(), the in-memory user is stale — caller must reload via get() before further operations
   }
 }
 ```
@@ -712,7 +751,7 @@ export class KyselyUserRepository implements UserRepository {
 | **Repository** | Domain + Infra | interface + implementation |
 | **Query Repository** | Application + Infra | interface + implementation |
 | **Domain Event** | Domain | immutable object with `type` + payload |
-| **Application Service** | Application | use-case orchestration |
+| **Application Service** (Command/Query Handler) | Application | use-case orchestration; concrete form is `<Action>Handler` class for commands, `Find<Target>Handler` for queries |
 | **Event Handler** | Application | subscribed handler class/function |
 | **DTO** | Application / Interface | explicit transfer `type` |
 | **Factory** | Domain | static `create()` / dedicated factory |
@@ -732,12 +771,14 @@ Bounded contexts must not import another context's Domain model or call its Appl
 
 Use [ddd-core.md §5.2](ddd-core.md)'s four-mechanism table to pick the right tool:
 
-- **Domain events** — default for asynchronous state propagation; loose coupling, eventual consistency
+- **Integration Events** — default for asynchronous cross-context state propagation; loose coupling, eventual consistency. Produce them from selected internal Domain Events after successful persistence
 - **Cross-context queries** — read-only DTOs through a port the owning context **explicitly exports** (e.g., `UserReader` / `UserSummaryPort`, a small read-side facade — *not* the context's internal `UserQueryRepository`, which is a CQRS read-side concern within the User context itself). Appropriate when the consumer needs a current snapshot and event-driven projection is not viable
 - **Anti-Corruption Layer** — when integrating with external/legacy systems; lives in `infrastructure/` and is transparent to Domain
 - **Protocol contracts** — for cross-service / cross-package data contracts; generated code lives in `packages/contracts/`, never imported by Domain
 
 Do not default every cross-context interaction to asynchronous messaging — pick the simplest consistency model that satisfies the business requirement, but never bypass the boundary by reaching into another context's Domain layer.
+
+Generated code in `packages/contracts/` is DTOs / contracts, not Domain entities. Do not place a port in `application/` just because its request/response are generated proto/OpenAPI types — decide port ownership from the semantic capability ([ddd-modeling.md §0.2](ddd-modeling.md)). When the capability is Domain-facing, keep the TS interface in `domain/` with Domain-typed signatures and map `Proto ↔ Domain` in `application/` (handler or assembler) or in an Infrastructure inbound adapter.
 
 ---
 
@@ -912,3 +953,37 @@ Guidelines:
 - Wire dependencies in `main.ts` or a bounded-context `module.ts`
 - Do not let Domain or Application instantiate concrete infrastructure
 - Keep framework bootstrapping and plugin registration at the edge
+
+---
+
+## 11. Key Principles Summary
+
+> These are the TypeScript-specific phrasings of the principles summarized in [ddd-core.md §11](ddd-core.md). For the architecture review checklist see [ddd-core.md §10](ddd-core.md).
+
+1. **Domain layer has no concrete implementation dependencies** — no `import` of Kysely / Prisma / TypeORM, Fastify / Express / Nest, HTTP/MQ clients, or generated protocol packages; `node:crypto`, `ulid`, and small in-memory helpers are allowed when they don't couple Domain to an external system
+2. **Vertical slicing** — organize by bounded context (`modules/<context>/`), not by technical layer
+3. **Dependency inversion** — Domain defines write Repository interfaces; Application defines read QueryRepository interfaces; Infrastructure implements both
+4. **Port granularity** — define interfaces by caller semantics, not implementation technology; cache/database/queue clients stay inside Infrastructure unless they are a named use-case capability ([ddd-modeling.md §0.2](ddd-modeling.md))
+5. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
+6. **State encapsulation** — all state changes go through domain methods; use `private` fields, `readonly`, and `private constructor` + static factories to prevent external mutation
+7. **ID generation in Domain** — use `ulid()` / `uuidv7()` factory inside the aggregate's `create()`; database auto-increment IDs are prohibited
+8. **Disciplined cross-context communication** — Integration Events (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port — *not* another context's internal `UserQueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; events use Rich Event style (ID + minimum necessary fields)
+9. **Event collection** — aggregates collect events in a private array; Application calls `collectEvents()` after successful `save()` to drain and dispatch
+10. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return DTO `type`s
+11. **Transaction boundary** — one Command Handler owns one transaction (typically via `UnitOfWork.runInTransaction`); one transaction modifies one aggregate only
+12. **Repository collection semantics** — `save()` is the single method covering create, update, and state-driven soft delete; `version === 0` → INSERT, `version > 0` → version-guarded UPDATE; never split into `insert()` / `update()` / `delete()` by SQL operation
+13. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
+14. **Optimistic locking** — Infrastructure increments `version` via `SET version = version + 1 WHERE version = ?`; Domain holds `version` as a read-only token; always reload via `repo.get()` after `save()` before further operations
+15. **Event dispatch timing** — dispatch after successful persist (after `runInTransaction` resolves), never before
+16. **Event reliability** — choose in-memory bus / Outbox Pattern / message queue based on reliability requirements
+17. **Technical capability classification** — technical-facing code (dispatchers, registries, schedulers, routers, projections, ownership managers) is Domain-facing when it owns stable language, states, policies, or invariants; Infrastructure only adapts external systems and mechanisms ([ddd-core.md §3.1](ddd-core.md))
+18. **Type safety** — `tsconfig` `strict: true`; never use `any` to escape type errors; prefer branded types or value objects over loose primitives at Domain boundaries
+19. **Async discipline** — Repository / QueryRepository / external clients return `Promise`; Domain methods stay synchronous unless the rule itself is asynchronous
+
+---
+
+**References:**
+- [ddd-modeling.md](ddd-modeling.md) — Strategic domain modeling (bounded context discovery, aggregate design)
+- [ddd-core.md](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification
+- [The Clean Architecture — Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+- [Domain-Driven Design Reference — Eric Evans](https://domainlanguage.com/ddd/reference/)

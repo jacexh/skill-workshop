@@ -27,7 +27,9 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 - **Cross-platform hooks:** Any new hook must work on Unix and Windows. The `run-hook.cmd` polyglot wrapper handles dispatch on Claude side. Codex side uses direct Node.js (no shell wrapper needed).
 - **Strategy A for Codex track (ADR-013):** `codex-plugins/` is a parallel tree; never modify `plugins/` from Codex-side work. The only allowed cross-tree addition is shared test fixtures under `plugins/superpowers-memory/hooks/fixtures/`.
 - **Design-pattern track parity:** Shared standards in `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/` should stay semantically aligned unless a change is intentionally host-specific. Claude and Codex architect tracks both expose a `standards` skill for explicit use.
-- **DDD pattern ownership:** `ddd-modeling.md` owns strategic modeling, architecture gates, and technical-capability classification; `ddd-core.md` owns language-neutral tactical rules and review checklist; `ddd-<language>.md` files only add implementation-specific placement, validation, testing, and wiring guidance.
+- **DDD pattern ownership:** `ddd-modeling.md` owns strategic modeling, architecture gates, technical-capability classification, and port granularity; `ddd-core.md` owns language-neutral tactical rules, Domain Event vs Integration Event boundaries, generated protocol DTO boundaries, and review checklist; `ddd-<language>.md` files only add implementation-specific placement, validation, testing, and wiring guidance.
+- **DDD port placement rule:** Port/interface ownership is decided by semantic capability, not by implementation technology or by where request/response types are defined. Generated proto structs are protocol DTOs/contracts, not Domain entities; Domain-facing ports use Domain types and map `Proto ↔ Domain` at Application/Interface/Infrastructure boundaries.
+- **DDD event boundary rule:** Domain Events are internal bounded-context facts; cross-context state propagation uses Integration Events with stable payload contracts.
 
 ## Testing Conventions
 
