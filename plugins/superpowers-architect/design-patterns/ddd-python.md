@@ -1958,7 +1958,7 @@ dev = [
 
 ## 13. Key Principles Summary
 
-> These are the Python-specific implementations of the principles defined in [ddd-core.md §10](ddd-core.md).
+> These are the Python-specific implementations of the principles summarized in [ddd-core.md §11](ddd-core.md). For the architecture review checklist see [ddd-core.md §10](ddd-core.md).
 
 1. **Domain layer has no concrete implementation dependencies** — no `import` of SQLAlchemy, FastAPI, HTTP/MQ clients, or generated protocol packages; standard library, `uuid`, `dataclasses`, and Pydantic-as-internal-validation-helper are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context, not by technical layer

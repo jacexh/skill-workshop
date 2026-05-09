@@ -22,6 +22,50 @@ const PROMPT_HEADER =
   "- which listed patterns are not relevant, if any,\n" +
   "- any conflicts between the request and an applicable pattern.\n\n";
 
+function buildGateGuidance(files) {
+  let body =
+    "Architecture Gate workflow:\n" +
+    "1. Identify the applicable pattern files from this dynamic index and read their full content before planning, editing, or reviewing.\n" +
+    "2. Use the gate, checklist, or workflow defined by those applicable patterns. Do not invent DDD-specific, REST-specific, database-specific, or frontend-specific requirements when the corresponding pattern is absent.\n" +
+    "3. Stop before implementation or approval if applicable full patterns were not read, required pattern answers are incomplete, or the request conflicts with an applicable standard.\n\n" +
+    "Required response block for relevant work (use this generic block unless an applicable pattern below prescribes a richer block, in which case use that block instead):\n" +
+    "Architecture Gate:\n" +
+    "- Applicable standards: <patterns read>\n" +
+    "- Required gate/checklist: <from applicable patterns>\n" +
+    "- Key constraints: <constraints affecting plan, code, or review>\n" +
+    "- Proceed / Stop: <...>\n\n";
+
+  if (files.has("ddd-modeling.md")) {
+    const dddModelingPath = files.get("ddd-modeling.md");
+    let hasBundledDddGate = false;
+    try {
+      const dddModelingContent = fs.readFileSync(dddModelingPath, "utf8");
+      hasBundledDddGate = /^##\s+0\.\s+Mandatory Architecture Gate\b/m.test(dddModelingContent);
+    } catch {
+      hasBundledDddGate = false;
+    }
+
+    body +=
+      "DDD-specific gate is available in this pattern set. Apply it ONLY when the work touches backend services, service boundaries, domain rules, technical-capability classification, refactor of layered code, or backend code review. For purely frontend, docs, ops, or unrelated work, skip this addendum.\n" +
+      "1. Read ddd-modeling first and follow its own gate, checklist, or workflow before tactical implementation patterns.\n";
+
+    if (hasBundledDddGate) {
+      body +=
+        "2. Choose the smallest gate level (see ddd-modeling §7 for the level definitions).\n" +
+        "3. State the bounded context / business capability, stable language / data authority, affected aggregate/policy/service, and guarded invariants required by that gate.\n" +
+        "4. Perform technical capability classification for runtime coordination, routing, scheduling, delivery, ownership, observability, projection, and audit concerns as Domain-facing, Application orchestration, or Infrastructure.\n" +
+        "5. Assign layer ownership before code: Domain owns named rules/invariants, Application owns use-case orchestration and ports, Infrastructure owns protocol/storage/runtime adapters.\n" +
+        "6. When DDD applies, REPLACE the generic Architecture Gate block above with the full DDD block defined in ddd-modeling §0 (Gate level / Bounded context / Stable language / Affected aggregate / Invariants / Technical capability classification / Layer ownership / Proceed-Stop). Do not emit both blocks.\n\n";
+    } else {
+      body +=
+        "2. Do not assume this project-supplied ddd-modeling pattern has the bundled §0/§7 structure; use only the gates and sections it actually defines.\n" +
+        "3. If it prescribes a richer Architecture Gate block, use that block instead of the generic block above. Do not emit both blocks.\n\n";
+    }
+  }
+
+  return body;
+}
+
 function resolveRepoRoot() {
   const result = cp.spawnSync("git", ["rev-parse", "--show-toplevel"], {
     cwd: process.cwd(),
@@ -111,7 +155,7 @@ function renderPatternIndex(files, header) {
     return "";
   }
 
-  let body = header;
+  let body = header + buildGateGuidance(files);
   for (const [filename, absPath] of files) {
     const { name, description } = readPatternHeader(absPath);
     body += `- **${name}** (${filename}): ${description}\n  Path: ${absPath}\n`;

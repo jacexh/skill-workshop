@@ -10,12 +10,9 @@ Use this skill whenever the task may touch architecture, APIs, databases, backen
 ## Workflow
 
 1. Identify the task area: API, database, backend domain model, language-specific DDD, frontend, browser QA, refactor, or code review.
-2. Use the injected Project Architecture Standards index if it is present. If it is not present, inspect these directories from highest to lowest priority:
+2. Use the injected Architect Standards index if it is present. If it is not present, inspect these directories from highest to lowest priority:
    - `<repo>/docs/design-patterns/`
-   - `<repo>/design-patterns/`
    - `$SPA_GLOBAL`
-   - `$SP_ARCHITECT_DIR`
-   - `~/.claude/superpowers-architect/design-patterns/`
    - `<plugin-root>/design-patterns/`
 3. Read the full content of every relevant pattern before planning, editing, or reviewing. The active pattern set is dynamic; do not assume a bundled pattern such as `ddd-modeling.md`, `ddd-core.md`, or `ddd-golang.md` exists unless it appears in the injected index or discovered directories.
 4. If `ddd-modeling.md` is present and the task is backend, DDD, service-boundary, technical-capability, Go backend, or refactor work, read it first and follow its own gate/checklist/workflow before reading tactical DDD or language-specific patterns.
@@ -27,7 +24,7 @@ Use this skill whenever the task may touch architecture, APIs, databases, backen
 
 ## Architecture Gate
 
-For architecture, implementation planning, execution, refactor, or code review work, include this gate before proposing code, applying edits, or approving a design. Use the generic block below **unless** an applicable pattern prescribes a richer block — in that case use the richer block in place of the generic one (do not emit both):
+For architecture, implementation planning, execution, refactor, or code review work, include this gate before proposing code, applying edits, or approving a design. Use the generic block below unless an applicable pattern prescribes a richer block; in that case use the richer block in place of the generic one and do not emit both.
 
 ```text
 Architecture Gate:
@@ -39,11 +36,11 @@ Architecture Gate:
 
 Stop and gather more context before implementation or approval when any required gate answer is unknown, when the applicable full pattern files have not been read, or when current code conflicts with dependency rules.
 
-When `ddd-modeling.md` is present **and** it defines a richer DDD Architecture Gate, **replace** the generic block above with that richer block. If the active `ddd-modeling.md` is the bundled pattern, this is the full DDD block defined in `ddd-modeling.md §0` (Gate level / Bounded context / business capability / Stable language / data authority / Affected aggregate, policy, or service / Invariants and rules / Technical capability classification / Layer ownership / Proceed-Stop). Do not emit both blocks.
+When `ddd-modeling.md` is present and it defines a richer DDD Architecture Gate, replace the generic block above with that richer block. If the active `ddd-modeling.md` is the bundled pattern, this is the full DDD block defined in `ddd-modeling.md §0` (Gate level / Bounded context / business capability / Stable language / data authority / Affected aggregate, policy, or service / Invariants and rules / Technical capability classification / Layer ownership / Proceed-Stop). Do not emit both blocks.
 
 ## Technical Capability Checklist
 
-**Apply this checklist only when the active pattern set includes DDD, Clean Architecture, layer-ownership, or another pattern that asks for capability classification. Otherwise skip the entire section.**
+Apply this checklist only when the active pattern set includes DDD, Clean Architecture, layer-ownership, or another pattern that asks for capability classification. Otherwise skip the entire section.
 
 When applicable, use the following questions for modules, interfaces, schedulers, registries, dispatchers, connectors, projections, and other technical-facing code:
 

@@ -11,7 +11,7 @@ description: Go implementation guide for DDD + Clean Architecture. Use when impl
 **Scope**: Team backend service architecture standard  
 **Prerequisites**:
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
-- **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the consolidated principles checklist lives at [ddd-core.md §10](ddd-core.md).
+- **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).
 - This document is the Go implementation guide that builds on both.
 
 > **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. The Go guide also adds Go-specific workflow, placement, configuration, and runtime sections.
@@ -22,11 +22,14 @@ description: Go implementation guide for DDD + Clean Architecture. Use when impl
 
 Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Go-specific** items.
 
+Every Go backend plan must also include the `Architecture Gate` block from [ddd-modeling.md §0](ddd-modeling.md). For technical-facing packages, explicitly classify the capability before choosing between `domain`, `application`, `interfaces`, `infrastructure`, `internal/pkg`, or root `pkg`.
+
 ### Level 1 (Local Change)
 
 Plan must additionally state:
 
 - the Go package being changed (e.g., `internal/business/user/domain`)
+- why the package path matches the bounded context and layer responsibility
 - whether tests are co-located with the package or in a separate suite (§6.3)
 
 ### Level 2 (New Use Case)
@@ -34,6 +37,7 @@ Plan must additionally state:
 Plan must additionally state:
 
 - file placement under the bounded context (`command.go`, `query.go`, `handler.go`, `query_repository.go`, etc. — see §6.2)
+- import-boundary impact: generated proto, ConnectRPC, storage, queue, and framework imports stay out of Domain
 - new mock generation requirements (§6.3 "Generated mocks")
 - fx wiring changes (which `Module` aggregates the new constructor)
 
@@ -42,6 +46,7 @@ Plan must additionally state:
 Spec must additionally state:
 
 - planned package layout under `internal/business/<module>/...` (§2.2)
+- package/path naming and import boundaries for each layer
 - shared object placement decisions (§2.3) — what goes in `proto/`, `internal/pkg/`, the owning context, or root `pkg/`
 - shared middleware client ownership (§9 "Shared Middleware Client Ownership")
 
@@ -222,6 +227,31 @@ Suppose a `producer` context emits a stream of records, and one or more `consume
 - **Owning context** — `internal/business/<producer>/domain/<projection>` owns derivation, classification, and state semantics; it converts to the contract shape at its boundary.
 - **Shared technical adapters** — `internal/pkg/<capability>store` and `internal/pkg/<capability>stream` adapt the generated contract to storage and streaming infrastructure. They are technical, reusable across consuming contexts, and import the contract — never the producer's Domain.
 - **Avoid** — a hand-written `pkg/<capability>` package that re-declares the record type as an "internal shared model"; that collapses the boundary between Domain ownership, contract, and infrastructure adapter.
+
+### 2.4 Go Boundary Checklist
+
+Use this checklist before accepting a package layout or import graph:
+
+- A package path ending in `/domain` contains only domain concepts: aggregates, entities, value objects, domain services, write repository interfaces, domain events, and domain errors.
+- Domain packages do not import `pkg/gen`, ConnectRPC/gRPC/HTTP packages, storage drivers, queue clients, framework packages, `internal/pkg` adapters, `internal/.../infrastructure`, or another bounded context's Domain package.
+- Application packages may import Domain and generated protocol packages when they implement generated RPC stubs or map DTOs, but they must not import concrete storage, queue, or network clients.
+- Infrastructure packages may import Domain/Application interfaces they implement, generated protocol packages, and external clients.
+- `internal/pkg/<capability>` is only for shared technical adapters. It must not import `internal/business/*` or own business/domain rules.
+- Root `pkg/` is not a dumping ground. Use it for generated code or stable libraries intended for external repository consumers.
+- Package names and directory names must agree with the bounded context and layer they represent. A `dispatcher`, `registry`, `router`, or `connector` package must still declare whether it is Domain-facing policy, Application orchestration, or Infrastructure adapter.
+
+### 2.5 Technical Coordination Placement
+
+Technical coordination code often exposes domain rules indirectly. Place it by rule ownership, not by mechanism:
+
+| Example | Place the rule | Place the mechanism |
+|---------|----------------|---------------------|
+| Connection registration with naming, ownership, admission, or lifecycle rules | `internal/business/<context>/domain` as a policy, service, value object, or aggregate behavior | Storage/lease/CAS implementation in `infrastructure` or `internal/pkg` |
+| Dispatch routing with semantic destinations, priorities, or retry eligibility | Domain policy when destinations, priorities, or retry rules are stable language and testable without a queue; Application orchestration when it merely selects among Domain-defined ports | Queue/client/server adapter in Infrastructure |
+| Scheduler with business-visible states or deadlines | Domain state/policy plus Application orchestration | Timer, worker pool, or lock backend in Infrastructure |
+| Observability or audit derivation with business meaning | Domain event or Domain-facing projection rule | Telemetry/export backend in Infrastructure |
+
+If the rule can be unit-tested without Redis, SQL, a queue, ConnectRPC, or generated protocol types, keep that rule inward and adapt the mechanism outward.
 
 ---
 

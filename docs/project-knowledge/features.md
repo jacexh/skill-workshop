@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-08
+last_updated: 2026-05-09
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -26,7 +26,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Actors / Entry Points** — Users install via `codex plugin marketplace add jacexh/skill-workshop`; Codex plugin code lives under `codex-plugins/`.
 
-**Capability Boundary** — Codex entries use object-form `source`, `policy`, and `category`; native hooks require restart and `codex_hooks`.
+**Capability Boundary** — Codex entries use object-form `source`, `policy`, and `category`; native plugin hooks require restart and both `hooks` and `plugin_hooks` feature flags.
 
 **References** — ADR-013, ADR-014; see `conventions.md` for Codex hook and fallback cleanup rules.
 
@@ -90,17 +90,17 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Actors / Entry Points** — `superpowers-architect:standards`, architect hooks, and design-pattern files under both `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/`.
 
-**Capability Boundary** — `ddd-modeling.md` owns planning gates and model discovery, `ddd-core.md` owns language-neutral DDD/Clean Architecture rules, and language guides add implementation-specific placement, validation, test, and wiring rules.
+**Capability Boundary** — `ddd-modeling.md` owns architecture gates, model discovery, and technical-capability classification; `ddd-core.md` owns language-neutral DDD/Clean Architecture rules and review checklist; language guides add implementation-specific placement, validation, test, and wiring rules.
 
 **References** — `plugins/superpowers-architect/design-patterns/ddd-modeling.md`, `plugins/superpowers-architect/design-patterns/ddd-core.md`; see `conventions.md` for design-pattern maintenance rules.
 
 #### Claude Architecture Standards Injection
 
-**Enables** — Claude agents receive project architecture pattern guidance when invoking planning, implementation, or review skills.
+**Enables** — Claude agents receive project architecture pattern guidance when invoking planning, implementation, or review skills, and can explicitly invoke the same standards workflow.
 
-**Actors / Entry Points** — `plugins/superpowers-architect/hooks/pre-tool-use` and bundled design-pattern files.
+**Actors / Entry Points** — `plugins/superpowers-architect/hooks/pre-tool-use`, `$superpowers-architect:standards`, and bundled design-pattern files.
 
-**Capability Boundary** — Hooks inject pattern indexes only; full pattern content is read on demand.
+**Capability Boundary** — Hooks inject pattern indexes only; full pattern content is read on demand. The explicit standards skill applies dynamic pattern-set gates without assuming bundled DDD files exist.
 
 **References** — `plugins/superpowers-architect/`, ADR-002.
 
@@ -110,7 +110,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Actors / Entry Points** — Codex SessionStart, UserPromptSubmit router, and `$superpowers-architect:standards`.
 
-**Capability Boundary** — The Codex architect plugin intentionally does not register Stop hooks; legacy stop mode is a no-op for older installed configs.
+**Capability Boundary** — The Codex architect plugin intentionally does not register Stop hooks; legacy stop mode is a no-op for older installed configs. Runtime guidance emits a generic Architecture Gate and adds DDD-specific instructions only when `ddd-modeling.md` is present.
 
 **References** — `codex-plugins/superpowers-architect/`, ADR-013, ADR-014.
 

@@ -16,6 +16,8 @@ When you invoke any of the following skills, the plugin scans your pattern files
 
 This is **progressive loading**: the hook only injects names + descriptions, not full content. Claude decides which patterns are relevant and loads them on demand via the `Read` tool.
 
+You can also invoke `$superpowers-architect:standards` explicitly when you want to apply the same standards workflow outside the automatic trigger path.
+
 ## Setup
 
 The plugin works out of the box — its bundled patterns load automatically when installed.
@@ -74,7 +76,9 @@ Files with the same name in a higher layer override the lower layer.
 See the `design-patterns/` directory:
 - `database.md` — schema conventions, index strategy, migrations
 - `rest-api.md` — URL naming, status codes, pagination, error format
+- `ddd-modeling.md` — strategic bounded-context, aggregate, and architecture gate guidance
 - `ddd-core.md` — dependency direction, bounded contexts, and service layer boundaries
 - `ddd-golang.md` — Go-specific implementation guidance for the DDD core standard
 - `ddd-python.md` — Python-specific implementation guidance for the DDD core standard
+- `ddd-typescript.md` — TypeScript-specific implementation guidance for the DDD core standard
 - `frontend-patterns.md` — frontend development patterns for React, Next.js, and UI architecture
