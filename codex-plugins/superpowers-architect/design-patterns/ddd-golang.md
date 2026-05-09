@@ -73,7 +73,7 @@ This guide combines **Domain-Driven Design (DDD)** with **Clean Architecture**, 
 
 ### 1.2 Layered Architecture
 
-Three or four layers with the **Domain Layer as the core** (innermost):
+Four layers with the **Domain Layer as the core** (innermost). The Interface layer is optional — in Go projects it is skipped for gRPC/ConnectRPC (the `Application` struct implements the generated handler stub directly; see §3.3). For REST/HTTP/WebSocket and other hand-written protocols, the Interface layer is present.
 
 ```
           ┌─────────────────────────────────────────────┐
@@ -153,6 +153,8 @@ project/
 
 **`internal/business/` vs `internal/pkg/`** — `business/` holds bounded contexts (the DDD four-layer structure); `internal/pkg/` holds shared technical adapters (DB, HTTP/gRPC server, event bus, validator …). Business may depend on `internal/pkg/`; `internal/pkg/` must never import `internal/business/*`.
 
+**One directory under `internal/business/` = one bounded context.** The directory name (`<module>`) is the bounded context's name, and its `domain/`, `application/`, `interfaces/`, `infrastructure/` sub-tree is the full DDD four-layer slice for that context. Do not split a single bounded context across sibling directories, and do not collapse two bounded contexts into one directory.
+
 Root `pkg/` has only two valid uses:
 1. `pkg/gen/` — code generated from `proto/` or other schemas
 2. Stable, hand-written libraries intended to be imported by repositories outside this one
@@ -219,6 +221,8 @@ When a type is needed by multiple modules, first decide what it represents:
 
 Use protobuf for cross-boundary contracts, not for internal Domain models. Generated proto types may be used by Interface/Application boundary code, Infrastructure adapters, message publishers/consumers, and read-model contracts. Domain layer must not depend on generated proto packages; if Domain logic needs an internal representation, define a Domain type and convert at the boundary.
 
+Generated proto structs are DTOs / protocol contracts, not Go Domain entities or Value Objects. Do not decide that a port belongs in Application merely because its external request/response shape is a proto message. Decide the port owner from the semantic capability; when Domain owns it, define Go domain types in `domain/` and convert `Proto ↔ Domain` in `application/assembler.go`, an Interface handler, or an Infrastructure adapter.
+
 **Worked example — a cross-context read model**
 
 Suppose a `producer` context emits a stream of records, and one or more `consumer` contexts need to query and stream them. The placement falls out of the four buckets above:
@@ -238,6 +242,7 @@ Use this checklist before accepting a package layout or import graph:
 - Infrastructure packages may import Domain/Application interfaces they implement, generated protocol packages, and external clients.
 - `internal/pkg/<capability>` is only for shared technical adapters. It must not import `internal/business/*` or own business/domain rules.
 - Root `pkg/` is not a dumping ground. Use it for generated code or stable libraries intended for external repository consumers.
+- A generated proto type in a method signature is boundary evidence, not layer-ownership evidence. If the method represents a Domain capability, keep the interface in `domain/` with Domain types and map at the boundary.
 - Package names and directory names must agree with the bounded context and layer they represent. A `dispatcher`, `registry`, `router`, or `connector` package must still declare whether it is Domain-facing policy, Application orchestration, or Infrastructure adapter.
 
 ### 2.5 Technical Coordination Placement
@@ -273,8 +278,9 @@ If the rule can be unit-tested without Redis, SQL, a queue, ConnectRPC, or gener
 **Constraints**:
 - No concrete implementation dependencies (no `import` of Infrastructure packages, ORM/database drivers, HTTP clients/servers, message queue clients, or generated protocol packages)
 - General-purpose, implementation-independent libraries are allowed when they do not couple Domain to an external system
-- Must not depend on other bounded contexts' domain layers (communicate via domain events, cross-context queries, ACL, or protocol contracts — see §5)
+- Must not depend on other bounded contexts' domain layers (communicate via Integration Events, cross-context queries, ACL, or protocol contracts — see §5)
 - All state changes go through domain methods — direct field mutation is prohibited
+- **No anemic aggregates.** An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/handler.go` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. Use unexported fields plus methods, or — when fields must be exported for ORM mapping — keep mutation methods as the only sanctioned mutation path and treat direct external mutation as a code-review failure
 - **Version is a read-only concurrency token** — Domain does not increment Version; Infrastructure increments it via SQL
 - **IDs are generated in the Domain layer** (inside Factory Methods) using UUID/ULID — database auto-increment IDs are prohibited
 
@@ -522,7 +528,7 @@ type Repository interface {
 - **Application Service**: Use-case orchestration, coordinating multiple aggregates/domain services
 - **Command + Command Handler** (`command.go`): Write operation intent and handling
 - **Query + Query Handler** (`query.go`): Read operation intent and handling
-- **Event Handler** (`handler.go`): Subscribes to domain events and executes side-effect logic (e.g., send notification, update read model, trigger cross-context workflow)
+- **Event Handler** (`handler.go`): Subscribes to Domain Events inside the same context or Integration Events from other contexts and executes side-effect logic (e.g., send notification, update read model, trigger cross-context workflow)
 - **QueryRepository Interface**: Defined in Application layer, returns DTOs, bypasses Domain model
 - **DTO**: Data Transfer Objects, decoupling internal and external models
 - **Assembler**: DTO ↔ Domain object conversion
@@ -676,6 +682,7 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 - No business logic
 - Handles technical details (SQL, caching, retries, etc.)
 - **Version is incremented by SQL** (`version = version + 1`) — Domain layer does not increment it
+- Adding a technical client does not imply adding a new Application/Domain interface. If Redis only accelerates a MySQL-backed repository, compose Redis inside the repository implementation; do not add a separate `Cacher` port. Add a separate port only for a named use-case capability such as lease ownership, distributed locking, explicit cache invalidation, rate limiting, or event publication.
 - Infrastructure implements technical mechanisms for domain rules, but it must not be the only place where those rules are expressed
 - Shared middleware clients are initialized in `internal/pkg/<middleware>`; bounded-context Infrastructure receives already constructed clients
 
@@ -807,7 +814,7 @@ func convertToDO(user *domain.User) *UserDO {
 | **Repository** | Domain (interface) + Infra (impl) | Interface + Impl |
 | **Query Repository** | Application (interface) + Infra (impl) | Interface + Impl |
 | **Domain Event** | Domain | `Event` struct implementing `mediator.Event` |
-| **Application Service** | Application | Use-case orchestration |
+| **Application Service** (Command/Query Handler) | Application | Use-case orchestration; concrete form is `CommandXxxHandler` / `QueryXxxHandler` |
 | **Event Handler** | Application | `mediator.EventHandler` impl |
 | **DTO** | Application / Interface | Data transfer struct |
 | **Factory** | Domain | Constructor / independent Factory struct |
@@ -834,16 +841,16 @@ func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderComman
 }
 ```
 
-### 5.2 Domain Events (default for state propagation)
+### 5.2 Integration Events (default for cross-context state propagation)
 
-Producer side: after `Save()`, the producing context's Application Service calls `order.Events.Raise(mediator.Default())` (canonical 4-step flow, §3.2). Consumer side lives in the **subscribing** context's `application/handler.go`:
+Producer side: after `Save()`, the producing context translates selected Domain Events into Integration Events and publishes those cross-context contracts. Consumer side lives in the **subscribing** context's `application/handler.go`:
 
 ```go
-// internal/business/user/application/handler.go — User context subscribes to Order's event
+// internal/business/user/application/handler.go — User context subscribes to Order's Integration Event
 type UserPointsHandler struct{ repo domain.Repository }
 
 func (h *UserPointsHandler) Listening() []mediator.EventKind {
-    return []mediator.EventKind{orderdomain.EventKindOrderCompleted}
+    return []mediator.EventKind{orderevents.EventKindOrderCompleted}
 }
 
 func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
@@ -851,7 +858,7 @@ func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
     // — never propagates errors back to the producer.
 }
 
-// Wire in the module's NewApplication: ev.Subscribe(NewUserPointsHandler(repo))
+// Wire in the subscribing module's NewApplication: ev.Subscribe(NewUserPointsHandler(repo))
 ```
 
 ### 5.3 Cross-Context Queries
@@ -886,6 +893,8 @@ For cross-process consumers, define the contract in `proto/<capability>/v1/*.pro
 For external / legacy integrations, place the Anti-Corruption Layer in `internal/business/<context>/infrastructure/` and translate at the boundary; Domain remains unaware of the external shape (see [ddd-core.md §5.6](ddd-core.md)).
 
 For cross-service / cross-repository structured contracts, define schemas under `proto/`; generated code lives in `pkg/gen/proto/...` and is consumed by Interface, Application, or Infrastructure code (see [ddd-core.md §5.7](ddd-core.md)). Domain layers must not import `pkg/gen/...`.
+
+If an operation records or mutates a Domain fact, the recording/mutation port remains Domain-owned even when the wire contract is generated from Protobuf. Convert generated messages into Domain entities, Value Objects, commands, or events before calling the port.
 
 ---
 
@@ -1022,6 +1031,7 @@ Each component owns its `Option`; the top-level `main` only aggregates and distr
 - Each middleware package owns its `Option`, constructor, health/lifecycle hooks, and fx provider.
 - Bounded-context Infrastructure packages must not read shared middleware config, open connections, or close clients.
 - Repository / QueryRepository / Publisher / Consumer constructors receive initialized clients and adapt them to Domain/Application interfaces.
+- Do not create technology-shaped interfaces for raw clients (`RedisClient`, `MysqlReader`, `Cacher`) when an existing Repository / QueryRepository / semantic port already expresses the caller's need. Compose those clients inside the Infrastructure implementation.
 - Example: `internal/pkg/mysql.NewClient(...) -> *xorm.Engine`, then `internal/business/user/infrastructure/persistence.NewRepository(db *xorm.Engine)`.
 
 **Example — adding a Redis client.** Declare `Option` next to the constructor:

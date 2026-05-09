@@ -2,7 +2,7 @@
 last_updated: 2026-05-09
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
-covers_branch: hotfix/patterns@8711834
+covers_branch: hotfix/port-define@0947bf4
 ---
 
 # Project Knowledge Index
@@ -17,7 +17,7 @@ covers_branch: hotfix/patterns@8711834
   Key points: marketplace install paths; memory load/update/rebuild/write-lock/verify; DDD Architecture Gate and technical-capability guidance; Claude/Codex architect standards skills; Codex native hooks and fallback cleanup
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; DDD pattern docs split modeling/core/language ownership; Codex architect DDD guidance is conditional on active pattern set
+  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; DDD pattern docs split modeling/core/language ownership, port granularity, Domain/Integration Event boundaries, and generated proto DTO boundaries
 
 - [decisions.md](decisions.md) — ADR summary log (14 ADRs, 0 superseded)
   Key points: ADR-014 native Codex hooks with cleanup migration; ADR-013 Codex marketplace compat; ADR-012 UserPromptExpansion slash hook; ADR-010 KB write-lock

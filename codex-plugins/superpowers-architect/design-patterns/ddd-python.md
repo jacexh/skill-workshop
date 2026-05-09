@@ -253,6 +253,7 @@ src/<project_name>/user/               # User bounded context
 - Implementation-independent libraries (Python standard library, `uuid`, `dataclasses`, `typing`, Pydantic when used as an internal validation helper) are allowed; they must not couple Domain to a specific external system
 - Must not depend on other bounded contexts' domain layers (communicate via events / queries / ACL / protocol contracts — see §5)
 - All state changes go through domain methods — direct attribute mutation from outside is prohibited
+- **No anemic aggregates.** An Aggregate Root that is a Pydantic `BaseModel` / dataclass with public attributes and no behavior, while the rules live in `application/handler.py`, is prohibited. Every state transition is a method on the Aggregate Root (or Value Object). Use `__slots__` + leading-underscore fields + `@property` for read access; mutation only via named domain methods (`change_password`, `activate`, …)
 - **Version is a read-only concurrency token** — Domain does not increment Version; Infrastructure increments it via SQL
 - **IDs are generated in the Domain layer** (inside Factory Methods) using a time-sortable identifier — database auto-increment IDs are prohibited. On Python 3.12 / 3.13 use a third-party UUIDv7 / ULID library (e.g., `uuid7`, `python-ulid`) or fall back to `uuid.uuid4()`; on Python 3.14+ use the stdlib `uuid.uuid7()`
 
@@ -1044,6 +1045,7 @@ def create_routes(
 - No business logic
 - Handles technical details (SQL, caching, retries, etc.)
 - **Version is incremented by SQL** — Domain layer does not increment it
+- Adding a technical client (`redis-py`, `aiocache`, `httpx`, an MQ SDK) does not justify a new ABC in `domain/` or `application/`. If Redis only accelerates a SQLAlchemy-backed repository, compose it inside `infrastructure/persistence/`; do not introduce a separate `Cacher` ABC. Define a new ABC only for a named use-case capability (distributed lock, lease ownership, explicit cache invalidation, rate limiting, event publication)
 
 **Soft Delete**:
 - **Business-driven logical deletion**: Domain has a status field (e.g., `Status = Cancelled`); `save()` internally sets `deleted_at` based on the status
@@ -1239,7 +1241,7 @@ class UserQueryRepository(QueryRepository):
 | **Repository** | Domain (ABC) + Infra (impl) | `ABC` + concrete class | Write repository, aggregate persistence |
 | **Query Repository** | Application (ABC) + Infra (impl) | `ABC` + concrete class | Read repository, returns DTOs, bypasses Domain |
 | **Domain Event** | Domain | `@dataclass(frozen=True, slots=True)` | Records significant domain occurrences |
-| **Application Service** | Application | Handler classes | Coordinates aggregates/services, owns transaction boundary |
+| **Application Service** (Command/Query Handler) | Application | Handler classes (`<Action><Target>Handler` for commands, `Find<Target>Handler` for queries) | Coordinates aggregates/services, owns transaction boundary |
 | **DTO** | Application / Interface | Pydantic `BaseModel` | Decouples internal and external models |
 | **Factory** | Domain | `@classmethod` or independent Factory class | Complex object creation logic |
 | **CQRS** | Application | Command + Query separation | Command and Query responsibility segregation |
@@ -1264,30 +1266,55 @@ class CreateOrderHandler:
         ...
 ```
 
-Cross-context queries through an explicit query interface that returns DTOs **are** allowed (see [ddd-core.md §5.5](ddd-core.md)):
+Cross-context queries through a **port the owning context explicitly publishes** **are** allowed (see [ddd-core.md §5.5](ddd-core.md)). The port is a small read-side facade that returns DTOs — *not* the User context's internal `UserQueryRepository` (which is a CQRS read-side concern within the User context itself):
 
 ```python
-# ✅ Correct: Order context queries User context via its exposed query interface
+# src/modules/user/api/reader.py — published facade exported by the User context
+from typing import Protocol
+from pydantic import BaseModel
+
+
+class UserSummary(BaseModel):
+    id: str
+    name: str
+    is_active: bool
+
+
+class UserReader(Protocol):
+    """Read-side facade for other bounded contexts.
+
+    Exposes only fields other contexts are allowed to depend on.
+    Implementation lives in the User context's application/ or infrastructure/ layer
+    and may delegate to the internal QueryRepository — but consumers depend on this
+    port, never on the internal QueryRepository class directly.
+    """
+
+    async def find_summary(self, user_id: str) -> UserSummary | None: ...
+
+
+# src/modules/order/application/handler.py — Order context depends on the port
 class CreateOrderHandler:
     def __init__(
         self,
         repo: OrderRepository,
-        user_query: UserQueryRepository,   # exposed by User context, returns DTOs
+        users: UserReader,   # ← published facade, not User's internal QueryRepository
         event_bus: EventBus,
     ) -> None:
-        ...
+        self._repo = repo
+        self._users = users
+        self._event_bus = event_bus
 
     async def handle(self, cmd: CreateOrderCommand) -> str:
-        snapshot = await self._user_query.find_by_id(cmd.user_id)  # read-only DTO
+        snapshot = await self._users.find_summary(cmd.user_id)
         if snapshot is None or not snapshot.is_active:
             raise UserNotFoundError(cmd.user_id)
         ...
 ```
 
-### 5.2 Communicate via Domain Events (default for state propagation)
+### 5.2 Communicate via Integration Events (default for cross-context state propagation)
 
 ```python
-# Order context publishes event
+# Order context publishes an Integration Event after persisting its aggregate
 class CreateOrderHandler:
     def __init__(self, repo: OrderRepository, event_bus: EventBus) -> None:
         self._repo = repo
@@ -1296,12 +1323,12 @@ class CreateOrderHandler:
     async def handle(self, cmd: CreateOrderCommand) -> str:
         order = Order.create(user_id=cmd.user_id, items=cmd.items)
         await self._repo.save(order)
-        # Dispatch events after successful persist
-        await self._event_bus.publish(order.collect_events())
+        # Translate selected Domain Events into Integration Events, then publish.
+        await self._event_bus.publish(to_integration_events(order.collect_events()))
         return order.id
 
 
-# User context subscribes to event
+# User context subscribes to the Integration Event
 class UserPointsSubscriber:
     def __init__(self, repo: UserRepository) -> None:
         self._repo = repo
@@ -1315,6 +1342,8 @@ class UserPointsSubscriber:
 ### 5.3 ACL and Protocol Contracts
 
 For external/legacy integrations use an Anti-Corruption Layer ([ddd-core.md §5.6](ddd-core.md)); for cross-service structured contracts use Protobuf / OpenAPI generated code ([ddd-core.md §5.7](ddd-core.md)). Python bindings live under `shared/` or a dedicated `packages/contracts/`-style location; Domain layers must not import generated types directly.
+
+Generated stubs are DTOs / contracts, not Domain entities. Do not place a port in `application/` just because its request/response are generated proto/OpenAPI types — decide port ownership from the semantic capability ([ddd-modeling.md §0.2](ddd-modeling.md)). When the capability is Domain-facing, keep the ABC in `domain/` with Domain-typed signatures and map `Proto ↔ Domain` in `application/` (handler or assembler module) or in an Infrastructure inbound adapter.
 
 ---
 
@@ -1963,19 +1992,22 @@ dev = [
 1. **Domain layer has no concrete implementation dependencies** — no `import` of SQLAlchemy, FastAPI, HTTP/MQ clients, or generated protocol packages; standard library, `uuid`, `dataclasses`, and Pydantic-as-internal-validation-helper are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context, not by technical layer
 3. **Dependency inversion** — Domain defines write Repository interfaces (`ABC`); Application defines read QueryRepository interfaces (`ABC`); Infrastructure implements both
-4. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
-5. **State encapsulation** — all state changes go through domain methods; use `__slots__` and `@property` to prevent external mutation
-6. **ID generation in Domain** — use a time-sortable identifier (stdlib `uuid.uuid7()` on Python 3.14+; third-party UUIDv7 / ULID library or `uuid.uuid4()` on 3.12 / 3.13); database auto-increment IDs are prohibited
-7. **Disciplined cross-context communication** — domain events (default for state propagation), cross-context queries (read-only DTOs), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; events use Rich Event style (ID + minimum necessary fields)
-8. **Event collection** — aggregates collect events in `_events` list; Application calls `collect_events()` after successful `save()` to drain and dispatch
-9. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return Pydantic DTOs
-10. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
-11. **Repository collection semantics** — `save()` covers create, update, and state-driven soft delete; never split by SQL operation type
-12. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
-13. **Optimistic locking** — Infrastructure increments `version` via SQL; Domain holds `version` as a read-only token; always reload after `save()`
-14. **Event dispatch timing** — dispatch after successful persist, never before
-15. **Type safety** — full type annotations, `mypy --strict`, Pydantic validation at boundaries
-16. **Async I/O** — all infrastructure operations are `async`; domain methods remain synchronous
+4. **Port granularity** — define ports by caller semantics, not implementation technology; cache/database/queue clients stay inside Infrastructure unless they are a named use-case capability ([ddd-modeling.md §0.2](ddd-modeling.md))
+5. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
+6. **State encapsulation** — all state changes go through domain methods; use `__slots__` and `@property` to prevent external mutation
+7. **ID generation in Domain** — use a time-sortable identifier (stdlib `uuid.uuid7()` on Python 3.14+; third-party UUIDv7 / ULID library or `uuid.uuid4()` on 3.12 / 3.13); database auto-increment IDs are prohibited
+8. **Disciplined cross-context communication** — Integration Events (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port, never another context's internal `QueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; events use Rich Event style (ID + minimum necessary fields)
+9. **Event collection** — aggregates collect events in `_events` list; Application calls `collect_events()` after successful `save()` to drain and dispatch
+10. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return Pydantic DTOs
+11. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
+12. **Repository collection semantics** — `save()` covers create, update, and state-driven soft delete; never split by SQL operation type
+13. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
+14. **Optimistic locking** — Infrastructure increments `version` via SQL; Domain holds `version` as a read-only token; always reload after `save()`
+15. **Event dispatch timing** — dispatch after successful persist, never before
+16. **Event reliability** — choose in-memory bus / Outbox Pattern / message queue based on reliability requirements
+17. **Technical capability classification** — technical-facing code (dispatchers, registries, schedulers, routers, projections, ownership managers) is Domain-facing when it owns stable language, states, policies, or invariants; Infrastructure only adapts external systems and mechanisms ([ddd-core.md §3.1](ddd-core.md))
+18. **Type safety** — full type annotations, `mypy --strict`, Pydantic validation at boundaries
+19. **Async I/O** — all infrastructure operations are `async`; domain methods remain synchronous
 
 ---
 
