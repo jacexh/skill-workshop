@@ -13,6 +13,40 @@ description: Strategic domain modeling guide for DDD. Use BEFORE writing impleme
 
 ---
 
+## 0. Mandatory Architecture Gate
+
+Use this document as the entry point for all backend, DDD, service-boundary, technical-capability, refactor, implementation planning, execution, and code review work. Do not start with tactical layer placement in `ddd-core.md` or a language guide until this gate has been answered.
+
+Choose the smallest gate level defined in §7 and emit this block before planning, editing, or approving code:
+
+```text
+Architecture Gate:
+- Gate level: <see §7 for the level definitions>
+- Bounded context / business capability: <context and capability>
+- Stable language / data authority: <terms and owning source of truth>
+- Affected aggregate, policy, or service: <domain object or explicit none>
+- Invariants and rules: <rules guarded by this change>
+- Technical capability classification: <Domain-facing | Application | Infrastructure, with reason>
+- Layer ownership: <Domain / Application / Infrastructure>
+- Proceed / Stop: <proceed only if the gate is complete>
+```
+
+Stop before implementation when any required answer is unknown. Missing gate answers are design work, not implementation details.
+
+### 0.1 Technical capability classification
+
+Technical-facing modules still require domain modeling when they own stable language, state transitions, policies, or invariants. Dispatchers, registries, schedulers, routers, connectors, projections, ownership managers, delivery engines, and observability pipelines are not automatically Infrastructure.
+
+Classify the capability before deciding package placement:
+
+| Classification | Use when (and where the rule lives) |
+|----------------|-------------------------------------|
+| **Domain-facing** | The capability has named states, admission rules, routing policy, ownership semantics, lifecycle rules, or derivation rules that can be tested without external systems. Place the rule in Domain (methods, Value Objects, Domain Services, or policies). |
+| **Application orchestration** | The capability sequences a use case, chooses ports, manages transactions, or coordinates Domain objects without owning the rule. Place the orchestration in Application handlers/services and Application-owned ports. |
+| **Infrastructure** | The capability adapts storage, network, queues, generated protocols, locks, clocks, telemetry backends, or framework lifecycle without owning the semantic rule. Place the adapter in Infrastructure or a shared technical package. |
+
+If the same rule would otherwise be duplicated across handlers or adapters, name it as Domain-facing and keep the implementation-independent rule in the Domain layer.
+
 ## 1. Purpose
 
 [`ddd-core.md`](ddd-core.md) and the language-specific guides tell you **how to implement** a domain model. This document tells you **how to discover** the domain model from business requirements.
@@ -560,6 +594,7 @@ Plan must state:
 
 - bounded context and layer changed
 - aggregate or use case affected
+- technical capability classification, when the code is a dispatcher, registry, scheduler, router, connector, projection, ownership mechanism, delivery mechanism, or observability/audit mechanism
 - write path or read path
 - tests for the changed layer
 
@@ -573,6 +608,7 @@ Plan must state:
 
 - use case kind: Command, Query, or Event Handler
 - aggregate root and invariants involved
+- technical capability classification and rule owner, if the use case coordinates a technical-facing capability
 - Repository / QueryRepository interfaces needed
 - DTO and assembler changes
 - external integration boundary, if any
@@ -590,6 +626,7 @@ Spec must include:
 
 - bounded context, business capability, ubiquitous language, and data authority (see §2)
 - aggregate root, entities, value objects, and guarded invariants (see §3)
+- technical capability classification for any runtime coordination, routing, scheduling, delivery, registry, projection, ownership, observability, or audit concern
 - domain events and minimum required payload fields (see [ddd-core.md §5.4](ddd-core.md))
 - cross-context communication mechanism: domain events, queries, ACL, or protocol contracts (see [ddd-core.md §5.2](ddd-core.md))
 - language-specific package layout (see the corresponding implementation guide: [ddd-golang.md](ddd-golang.md), [ddd-python.md](ddd-python.md), [ddd-typescript.md](ddd-typescript.md))

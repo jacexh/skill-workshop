@@ -8,7 +8,8 @@ Codex hooks require this feature flag in `~/.codex/config.toml`:
 
 ```toml
 [features]
-codex_hooks = true
+hooks = true
+plugin_hooks = true
 ```
 
 ```bash
@@ -18,7 +19,7 @@ codex plugin install superpowers-architect
 
 Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.
 
-If hooks do not appear after restart, confirm `codex_hooks` is enabled and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$superpowers-architect:cleanup` once to remove the old entries.
+If hooks do not appear after restart, confirm both `hooks = true` and `plugin_hooks = true` are enabled and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$superpowers-architect:cleanup` once to remove the old entries.
 
 ## Upgrade
 

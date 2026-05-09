@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 RUNTIME="$ROOT/codex-plugins/superpowers-architect/hooks/codex-runtime.js"
 SNIPPET="$ROOT/codex-plugins/superpowers-architect/codex-hooks-snippet.json"
 STANDARDS_SKILL="$ROOT/codex-plugins/superpowers-architect/skills/standards/SKILL.md"
+CLAUDE_STANDARDS_SKILL="$ROOT/plugins/superpowers-architect/skills/standards/SKILL.md"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
@@ -214,5 +215,10 @@ NODE
 # provides other DDD or layered-architecture standards.
 grep -q 'If `ddd-modeling.md` is present' "$STANDARDS_SKILL" || fail "standards skill should key ddd-modeling-first on ddd-modeling.md presence"
 grep -q 'If `ddd-modeling.md` is absent' "$STANDARDS_SKILL" || fail "standards skill should define fallback for DDD/layered patterns without ddd-modeling.md"
+
+# Intent: the Claude Code plugin should expose the same explicit standards skill without changing hooks.
+[ -f "$CLAUDE_STANDARDS_SKILL" ] || fail "claude architect standards skill missing"
+grep -q 'If `ddd-modeling.md` is present' "$CLAUDE_STANDARDS_SKILL" || fail "claude standards skill should key ddd-modeling-first on ddd-modeling.md presence"
+grep -q 'If `ddd-modeling.md` is absent' "$CLAUDE_STANDARDS_SKILL" || fail "claude standards skill should define fallback for DDD/layered patterns without ddd-modeling.md"
 
 echo "  codex architect runtime: routing and pattern priority correct"
