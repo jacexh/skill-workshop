@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-09
+last_updated: 2026-05-10
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -27,9 +27,11 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 - **Cross-platform hooks:** Any new hook must work on Unix and Windows. The `run-hook.cmd` polyglot wrapper handles dispatch on Claude side. Codex side uses direct Node.js (no shell wrapper needed).
 - **Strategy A for Codex track (ADR-013):** `codex-plugins/` is a parallel tree; never modify `plugins/` from Codex-side work. The only allowed cross-tree addition is shared test fixtures under `plugins/superpowers-memory/hooks/fixtures/`.
 - **Design-pattern track parity:** Shared standards in `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/` should stay semantically aligned unless a change is intentionally host-specific. Claude and Codex architect tracks both expose a `standards` skill for explicit use.
-- **DDD pattern ownership:** `ddd-modeling.md` owns strategic modeling, architecture gates, technical-capability classification, and port granularity; `ddd-core.md` owns language-neutral tactical rules, Domain Event vs Integration Event boundaries, generated protocol DTO boundaries, and review checklist; `ddd-<language>.md` files only add implementation-specific placement, validation, testing, and wiring guidance.
+- **DDD pattern ownership:** `ddd-modeling.md` owns strategic modeling, architecture gates, technical-capability classification, and port granularity; `ddd-core.md` owns language-neutral tactical rules, Domain Event vs Integration Event boundaries, generated protocol DTO boundaries, and review checklist; `ddd-<language>.md` files only add implementation-specific placement, validation, testing, observability, and wiring guidance.
 - **DDD port placement rule:** Port/interface ownership is decided by semantic capability, not by implementation technology or by where request/response types are defined. Generated proto structs are protocol DTOs/contracts, not Domain entities; Domain-facing ports use Domain types and map `Proto ↔ Domain` at Application/Interface/Infrastructure boundaries.
-- **DDD event boundary rule:** Domain Events are internal bounded-context facts; cross-context state propagation uses Integration Events with stable payload contracts.
+- **DDD technology-leak rule:** Do not create Application/Domain ports solely for MySQL transactions, outbox rows, broker publishing, retry counters, or Unit of Work plumbing. Hide those consistency mechanics behind Repository, transaction-aware event bus, or Infrastructure adapters unless the use case names and observes that capability.
+- **DDD event boundary rule:** Domain Events are internal bounded-context facts; cross-context state propagation uses Integration Events with stable payload contracts. Reliable outbox delivery reads pending Domain Events inside persistence/delivery infrastructure and clears them only after the transaction succeeds; best-effort in-process mediator dispatch remains separate.
+- **DDD Go logging rule:** Execution boundaries in generated Go guidance log one completion record for every success, failure, skip, or retry. Runtime logging uses `github.com/go-jimu/components/sloghelper`, with `sloghelper.Error(err)` for wrapped errors and request/job loggers passed through context or constructors.
 
 ## Testing Conventions
 

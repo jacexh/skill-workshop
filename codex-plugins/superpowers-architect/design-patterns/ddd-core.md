@@ -230,21 +230,24 @@ Common anti-patterns:
 
 #### Domain Event Collection
 
-Aggregate Root must provide a mechanism for collecting and retrieving domain events:
+Aggregate Root must provide a mechanism for collecting, reading, and clearing domain events:
 
 - Domain methods **append** events to an internal list; they never dispatch events directly
-- Aggregate Root exposes a **`collect_events()`** method that returns and **clears** the internal event list
-- The Application layer calls `collect_events()` after a successful `Save()` and dispatches the returned events
-- Each call to `collect_events()` drains the list — calling it twice in a row returns an empty list on the second call
+- For best-effort in-process dispatch, the Application layer may call a drain method such as **`collect_events()`** after a successful `Save()`, then dispatch the returned events
+- For reliable Outbox delivery, a Repository or transaction-aware event bus may read pending events before commit, write the outbox rows inside the same transaction, and clear the aggregate's events only after the transaction commits
+- Never clear events before the persistence / outbox transaction has succeeded; otherwise a failed `Save()` can silently drop events
+- Each drain / clear operation is one-shot — after events are cleared, a second drain returns an empty list
 
 ```
-# Typical flow in a Command Handler:
+# Best-effort in-process flow in a Command Handler:
 aggregate = repo.get(id)
 aggregate.do_something()        # events collected internally
 repo.save(aggregate)            # persist succeeds
 events = aggregate.collect_events()  # drain events
 event_bus.dispatch(events)      # dispatch after persist
 ```
+
+Reliable Outbox implementations follow the same dependency rule, but the event read/write/clear sequence is hidden behind the Repository or transaction-aware event bus implementation so atomicity does not leak upward as a technology-shaped port.
 
 ### 3.2 Application Layer
 
@@ -254,7 +257,7 @@ event_bus.dispatch(events)      # dispatch after persist
 
 - Split operations into **Commands** (writes) and **Queries** (reads) following CQRS
 - **Command Handler**: load aggregate → call domain method → persist → dispatch events
-- **Query Handler**: call QueryRepository directly → return DTO (bypasses domain model)
+- **Query Handler**: call QueryRepository directly → return DTO (bypasses domain model); the dedicated handler struct is optional for single-call delegating reads
 - **Define QueryRepository interfaces** in this layer — read models are an application concern, not a domain concern. Infrastructure implements these interfaces.
 - Define **transaction boundaries**: one Command Handler corresponds to one transaction
 - Coarse-grained authorization checks belong here
@@ -266,8 +269,22 @@ Write path (Command):
   Interface → CommandHandler → AggregateRoot (domain method) → Repository.Save() → dispatch events
 
 Read path (Query):
-  Interface → QueryHandler → QueryRepository (direct DB query) → return DTO
+  Interface → QueryHandler (optional) → QueryRepository (direct DB query) → return DTO
 ```
+
+#### Query Handler: When the Struct Is Optional
+
+The Query Handler is structurally a thin orchestration step. When its `Handle` body is a single delegating call to `QueryRepository`, the dedicated handler struct / class adds ceremony without abstraction value — the Interface or Application entry point may call `QueryRepository` directly.
+
+Keep an explicit Query Handler when the read path does at least one of:
+
+- Composes multiple `QueryRepository` calls or cross-context Reader ports
+- Filters or redacts fields based on the calling actor (read-side authorization)
+- Implements caching policy (cache-aside, TTL choice, key derivation)
+- Encodes / decodes pagination cursors or normalizes DTO shapes
+- Performs derived computation across multiple records (presentation logic only — never business rules)
+
+Otherwise collapse it. The `QueryRepository` interface itself must remain in either case — it preserves the Application ↔ Infrastructure dependency boundary regardless of whether a Query Handler wraps it.
 
 #### Constraints
 
@@ -334,7 +351,10 @@ Do **not** introduce technology-shaped ports such as `Cacher`, `RedisStore`, `My
 
 - Keep one `UserRepository` when Redis is only an acceleration layer for loading/saving `User` aggregates.
 - Keep one `UserQueryRepository` when Redis caches DTO/read-model queries but callers do not reason about cache state.
+- Keep the normal Repository / event bus interface when MySQL transaction coupling, Outbox rows, retry counters, broker adapters, or commit hooks are only reliability mechanisms behind persistence or delivery.
 - Introduce a separate port only when the use case explicitly commands cache invalidation, distributed locking, lease ownership, rate limiting, or another named technical-facing capability.
+
+Technical consistency requirements must not leak upward as dedicated ports. Do not create `OutboxWriter`, `BrokerPublisher`, `UnitOfWork`, `TransactionalEventPublisher`, or similar Application/Domain interfaces solely because the implementation needs an atomic database transaction, an outbox table, a message broker, or retry scheduling. Hide those mechanisms inside the Repository implementation, a transaction-aware event bus implementation, or an Infrastructure adapter unless the caller genuinely observes and chooses that capability as part of the use case.
 
 `Save()` is the **single method** for persisting an aggregate, covering create, update, and state-driven soft-delete scenarios. Never split it into `Insert()`, `Update()`, or `Delete()` based on underlying SQL operations — the caller must not need to know which statement executes.
 
@@ -696,7 +716,7 @@ Use this checklist when reviewing backend, DDD, refactor, or technical-capabilit
 6. **State encapsulation** — all state changes go through domain methods; direct field mutation from outside is prohibited
 7. **ID generation in Domain** — use infrastructure-independent ID schemes (UUID, ULID, Snowflake); never rely on database auto-increment
 8. **Disciplined cross-context communication** — use one of: Integration Events (default for cross-context state propagation), cross-context queries (read-only), ACL (external/legacy), protocol contracts (cross-service schemas); direct calls into another context's Domain model or Application Service are prohibited; event payloads use Rich Event style (ID + minimum necessary fields), never embed full entities or aggregate objects
-9. **Event collection** — aggregates collect events internally; Application drains via `collect_events()` after persist and dispatches
+9. **Event collection** — aggregates collect events internally; best-effort handlers may drain after persist, while reliable Outbox implementations read events inside the persistence mechanism and clear them only after commit
 10. **CQRS** — Commands go through the domain model; Queries go directly to the database via QueryRepository and return DTOs
 11. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
 12. **Repository collection semantics** — `Save()` covers create, update, and state-driven soft delete; never split by database operation type

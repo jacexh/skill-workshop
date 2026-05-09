@@ -48,7 +48,7 @@ Spec must additionally state:
 - planned package layout under `internal/business/<module>/...` (§2.2)
 - package/path naming and import boundaries for each layer
 - shared object placement decisions (§2.3) — what goes in `proto/`, `internal/pkg/`, the owning context, or root `pkg/`
-- shared middleware client ownership (§9 "Shared Middleware Client Ownership")
+- shared middleware client ownership (§9.1 "Shared Middleware Client Ownership")
 
 ### Cross-Context Change Without a New Context
 
@@ -196,6 +196,9 @@ internal/business/user/          # User bounded context
 │       ├── handler.go           # REST Handler (manual routing, request/response mapping)
 │       └── handler_test.go      # Protocol mapping tests
 │
+├── api/                         # Cross-context published ports (OPTIONAL — only when this context exposes read-side facades to other contexts; see §5.3)
+│   └── queries.go               # Reader / Facade interface + DTOs consumed by other bounded contexts
+│
 ├── infrastructure/              # Infrastructure layer - external system integrations ONLY
 │   ├── persistence/
 │   │   ├── repository.go        # Repository implementation
@@ -299,10 +302,11 @@ If the rule can be unit-tested without Redis, SQL, a queue, ConnectRPC, or gener
 **Domain Event Collection Contract** (using `mediator.EventCollection`):
 - Aggregate Root holds an `Events mediator.EventCollection` field
 - Domain methods append events via `Events.Add(event)` — they never dispatch directly
-- Application layer calls `Events.Raise(mediator)` once after a successful `Save()` to dispatch all collected events
-- `Raise` guarantees idempotency internally, preventing duplicate dispatch
+- For best-effort same-process dispatch, Application may call `Events.Raise(mediator)` once after a successful `Save()`
+- For reliable Outbox delivery, do not use `Raise` as the source of outbox writes; use a project-owned drainable event collection, repository transaction hook, or transaction-aware event bus that reads pending events before commit and clears them only after commit
+- `Raise` guarantees idempotency internally for best-effort dispatch, preventing duplicate dispatch
 
-> This is the Go-specific implementation of the language-agnostic event collection pattern described in [ddd-core.md §3.1 "Domain Event Collection"](ddd-core.md). The `mediator.EventCollection` provides `Add`/`Raise`/`AsyncRaise` with an atomic one-time-raise guarantee via `sync/atomic.CompareAndSwap`.
+> This is the Go-specific implementation of the language-agnostic event collection pattern described in [ddd-core.md §3.1 "Domain Event Collection"](ddd-core.md). The `mediator.EventCollection` provides `Add`/`Raise`/`AsyncRaise` with an atomic one-time-raise guarantee via `sync/atomic.CompareAndSwap`, but it does not expose a read/drain API or dispatch error return.
 
 **State Machine Contract** (optional, using `github.com/go-jimu/components/fsm`):
 
@@ -539,7 +543,7 @@ type Repository interface {
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
 - **One transaction modifies one aggregate only.** To modify multiple aggregates, use domain events to trigger subsequent aggregate modifications (eventual consistency)
-- Domain events are dispatched after a successful persist via `Events.Raise(mediator)`
+- Best-effort same-process events may be dispatched after a successful persist via `Events.Raise(mediator)`; reliable Outbox delivery is handled by the Repository or transaction-aware event bus and must not depend on `Raise`
 - After `Save()`, the in-memory aggregate is stale — reload via `Get()` if further operations are needed
 - **File organization**: start with flat files (`command.go`, `query.go`, `handler.go`); when handlers grow numerous, promote to sub-directories (`command/`, `query/`, `handler/`, one file per handler). `application.go` remains the single entry point that wires everything.
 
@@ -547,9 +551,31 @@ type Repository interface {
 - Implements `mediator.EventHandler` interface: `Listening() []mediator.EventKind` + `Handle(ctx, event)`
 - Lives in the **consuming** bounded context's Application layer, not the producing context
 - Each EventHandler owns its own transaction — failures do not roll back the producing side
-- Must be idempotent: the same event delivered twice must not produce duplicate side effects
 - Error handling: log and continue (or retry); never propagate errors back to the event producer
 - Registered during module initialization via `mediator.Subscribe(handler)`
+
+#### Event Handler Idempotency
+
+Idempotency is mandatory: the same event may be delivered twice. Pick one pattern based on the side-effect shape; do not rely on broker-level dedup, since at-least-once is the default in Kafka, NATS JetStream, RocketMQ, and the in-process mediator:
+
+| Pattern | When it fits | Mechanism |
+|---------|--------------|-----------|
+| **Natural idempotency** | The side effect is a set / upsert already keyed by something derivable from the event | Just write — repeated delivery converges to the same state |
+| **Idempotency key on target table** | The side effect is a single domain-side INSERT (e.g., issuing a coupon, creating a points entry) | Add a unique index on `(source_event_id)` or a deterministic business key; rely on the constraint to reject duplicates |
+| **Processed-events table** | The handler does multiple writes / external calls and you need a single dedup gate | Inside the handler's transaction, insert `(consumer, event_id)` into a processed-event table; on duplicate-key error, short-circuit the rest |
+
+MySQL schema for the processed-events pattern:
+
+```sql
+CREATE TABLE `processed_event` (
+  `consumer` varchar(128) NOT NULL DEFAULT '' COMMENT 'Consumer name',
+  `event_id` varchar(128) NOT NULL DEFAULT '' COMMENT 'Integration event ID',
+  `processed_at` bigint NOT NULL DEFAULT '0' COMMENT 'Processed timestamp in milliseconds',
+  PRIMARY KEY (`consumer`, `event_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Processed integration event deduplication';
+```
+
+Document the chosen pattern in the handler file's package comment so reviewers can confirm it on every change.
 
 ```go
 // application/command.go
@@ -585,11 +611,65 @@ func (h *CommandChangePasswordHandler) Handle(ctx context.Context, cmd *CommandC
         return err
     }
 
-    // 4. Dispatch domain events after successful persist
+    // 4. Best-effort same-process dispatch after successful persist.
+    // Reliable Outbox delivery uses the repository / transaction-aware event bus path instead.
     user.Events.Raise(mediator.Default())
     return nil
 }
 ```
+
+**Query Handler — When the Struct Is Optional** (Go form of [ddd-core.md §3.2](ddd-core.md) "Query Handler: When the Struct Is Optional"):
+
+For trivial reads, skip the dedicated `XxxHandler` struct and let the `Application` stub method (or the REST handler) call `QueryRepository` directly. The `QueryRepository` Go interface stays.
+
+```go
+// ✅ Trivial read — no separate FindUserDetailHandler. Stub method delegates directly.
+type Application struct {
+    userQueryRepo QueryRepository
+}
+
+func (app *Application) GetUserDetail(
+    ctx context.Context,
+    req *connect.Request[userv1.GetUserDetailRequest],
+) (*connect.Response[userv1.GetUserDetailResponse], error) {
+    dto, err := app.userQueryRepo.FindUserDetail(ctx, req.Msg.Id)
+    if err != nil {
+        return nil, convertError(err)
+    }
+    return connect.NewResponse(&userv1.GetUserDetailResponse{User: dto}), nil
+}
+```
+
+```go
+// ✅ Non-trivial read — keep the dedicated handler when it does real orchestration.
+type ListUsersHandler struct {
+    queryRepo QueryRepository
+    readCache UserListReadCache  // named use-case cache policy; not raw redis (see [ddd-core.md §3.4](ddd-core.md))
+}
+
+func (h *ListUsersHandler) Handle(ctx context.Context, q *QueryListUsers) (*userv1.UserListDTO, error) {
+    offset, err := decodeCursor(q.Cursor)
+    if err != nil {
+        return nil, err
+    }
+    page, total, err := h.queryRepo.List(ctx, offset, q.PageSize)
+    if err != nil {
+        return nil, err
+    }
+    if !q.Actor.IsAdmin() {
+        for i := range page {
+            page[i].Email = mask(page[i].Email)
+        }
+    }
+    return &userv1.UserListDTO{
+        Items:      page,
+        NextCursor: encodeCursor(offset + int64(len(page))),
+        Total:      total,
+    }, nil
+}
+```
+
+Litmus test: read the body of `Handle`. If it is one delegating call to `QueryRepository`, the struct is ceremony — collapse it. If it composes, filters, caches, or normalizes, keep it.
 
 ### 3.3 Interface Layer (Optional)
 
@@ -800,6 +880,275 @@ func convertToDO(user *domain.User) *UserDO {
 }
 ```
 
+#### Outbox Pattern Implementation
+
+Use the Outbox Pattern when an Integration Event must not be lost on crash between persist and publish (the second tier in [ddd-core.md §6.2](ddd-core.md)). The reliability mechanism must stay hidden behind the normal Repository or event-bus abstraction: do not add an Application/Domain port solely because MySQL, an outbox table, or a broker requires transactional coordination.
+
+Two Infrastructure pieces are required: a transaction-scoped writer that persists business data and outbox rows together, and a separate worker that drains the outbox. Domain code never publishes directly and never imports generated protocol packages.
+
+```go
+// infrastructure/persistence/outbox_do.go
+package persistence
+
+type OutboxDO struct {
+    ID          string `xorm:"id pk"`        // Integration event ID
+    AggregateID string `xorm:"aggregate_id"`
+    EventKind   string `xorm:"event_kind"`
+    Payload     []byte `xorm:"payload"`      // serialized Integration Event (proto-marshaled)
+    OccurredAt  int64  `xorm:"occurred_at"`  // milliseconds
+    DeliveredAt int64  `xorm:"delivered_at"` // 0 = pending
+    Attempts    int    `xorm:"attempts"`
+}
+
+func (OutboxDO) TableName() string { return "outbox" }
+```
+
+```go
+// infrastructure/persistence/outbox_translator.go
+package persistence
+
+import (
+    "github.com/go-jimu/components/mediator"
+    "github.com/google/uuid"
+    "github.com/samber/oops"
+    "google.golang.org/protobuf/proto"
+    "google.golang.org/protobuf/types/known/timestamppb"
+
+    "github.com/example/project/internal/business/user/domain"
+    userv1 "github.com/example/project/pkg/gen/proto/user/v1"
+)
+
+func outboxRowsFromDomainEvents(events []mediator.Event) ([]OutboxDO, error) {
+    rows := make([]OutboxDO, 0, len(events))
+    for _, ev := range events {
+        switch e := ev.(type) {
+        case domain.EventUserRegistered:
+            msg := &userv1.UserRegisteredV1{
+                UserId:     e.UserID,
+                Email:      e.Email,
+                OccurredAt: timestamppb.New(e.OccurredAt),
+            }
+            payload, err := proto.Marshal(msg)
+            if err != nil {
+                return nil, oops.Wrap(err)
+            }
+            rows = append(rows, OutboxDO{
+                ID:          uuid.NewString(),
+                AggregateID: e.UserID,
+                EventKind:   "user.registered.v1",
+                Payload:     payload,
+                OccurredAt:  e.OccurredAt.UnixMilli(),
+            })
+        }
+    }
+    return rows, nil
+}
+```
+
+```go
+// infrastructure/persistence/repository.go (repository hides transactional outbox)
+package persistence
+
+import (
+    "context"
+
+    "github.com/samber/oops"
+    "xorm.io/xorm"
+
+    "github.com/example/project/internal/business/user/domain"
+)
+
+type userRepository struct {
+    db *xorm.Engine
+}
+
+func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
+    do := convertToDO(user)
+    events := user.PendingEvents() // Project-owned read API; see note below.
+    outboxRows, err := outboxRowsFromDomainEvents(events)
+    if err != nil {
+        return err
+    }
+
+    _, err = r.db.Transaction(func(tx *xorm.Session) (interface{}, error) {
+        tx = tx.Context(ctx)
+        if user.Version == 0 {
+            do.Version = 1
+            if _, err := tx.Insert(do); err != nil {
+                return nil, oops.Wrap(err)
+            }
+        } else {
+            do.Version = user.Version + 1
+            affected, err := tx.Where("version = ?", user.Version).ID(user.ID).Update(do)
+            if err != nil {
+                return nil, oops.Wrap(err)
+            }
+            if affected == 0 {
+                return nil, domain.ErrConcurrentModification
+            }
+        }
+        if len(outboxRows) > 0 {
+            if _, err := tx.Insert(&outboxRows); err != nil {
+                return nil, oops.Wrap(err)
+            }
+        }
+        return nil, nil
+    })
+    if err != nil {
+        return err
+    }
+    user.ClearEvents()
+    return nil
+}
+```
+
+The `PendingEvents()` / `ClearEvents()` split above is deliberate: a reliable Outbox implementation needs to read collected Domain Events before commit, write outbox rows in the same transaction, and clear events only after the transaction succeeds. The stock `github.com/go-jimu/components/mediator.EventCollection.Raise(mediator)` is not sufficient for reliable outbox writes because `Raise` does not expose a read/drain API and does not return dispatch errors. If a project uses that collection for same-process handlers, add a project-owned drainable wrapper or keep a separate transaction-aware event collector inside Infrastructure; do not expose `OutboxWriter`, `UnitOfWork`, or a MySQL-shaped port upward to compensate for this technical limitation.
+
+```go
+// infrastructure/messaging/outbox_worker.go
+package messaging
+
+import (
+    "context"
+    "log/slog"
+    "time"
+
+    "github.com/go-jimu/components/sloghelper"
+    "github.com/samber/oops"
+    "go.uber.org/fx"
+    "xorm.io/xorm"
+
+    "github.com/example/project/internal/business/user/infrastructure/persistence"
+)
+
+// MessagePublisher adapts Kafka / NATS / SQS / etc. It is an Infrastructure
+// adapter interface local to the worker, not an inward Domain/Application port.
+type MessagePublisher interface {
+    Publish(ctx context.Context, eventKind string, payload []byte) error
+}
+
+type OutboxOption struct {
+    Interval time.Duration
+    Batch    int
+}
+
+type OutboxWorker struct {
+    db        *xorm.Engine
+    logger    *slog.Logger
+    publisher MessagePublisher
+    interval  time.Duration
+    batch     int
+    done      chan struct{}
+}
+
+func NewOutboxWorker(
+    lc fx.Lifecycle,
+    db *xorm.Engine,
+    logger *slog.Logger,
+    p MessagePublisher,
+    opt OutboxOption,
+) *OutboxWorker {
+    w := &OutboxWorker{
+        db:        db,
+        logger:    logger,
+        publisher: p,
+        interval:  opt.Interval,
+        batch:     opt.Batch,
+        done:      make(chan struct{}),
+    }
+    lc.Append(fx.Hook{
+        OnStart: func(ctx context.Context) error { go w.run(); return nil },
+        OnStop:  func(ctx context.Context) error { close(w.done); return nil },
+    })
+    return w
+}
+
+func (w *OutboxWorker) run() {
+    t := time.NewTicker(w.interval)
+    defer t.Stop()
+    for {
+        select {
+        case <-w.done:
+            return
+        case <-t.C:
+            w.tick(context.Background())
+        }
+    }
+}
+
+func (w *OutboxWorker) tick(ctx context.Context) {
+    start := time.Now()
+    processed := 0
+    failed := 0
+    var lastErr error
+
+    var rows []persistence.OutboxDO
+    err := w.db.Context(ctx).
+        Where("delivered_at = 0").
+        Asc("occurred_at").
+        Limit(w.batch).
+        Find(&rows)
+    if err != nil {
+        w.logger.ErrorContext(ctx, "outbox tick completed",
+            slog.String("operation", "outbox.tick"),
+            slog.String("outcome", "failed"),
+            slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+            sloghelper.Error(oops.Wrap(err)),
+        )
+        return
+    }
+
+    for _, row := range rows {
+        // Publisher is at-least-once; consumers must be idempotent (§3.2 "Event Handler Idempotency").
+        if err := w.publisher.Publish(ctx, row.EventKind, row.Payload); err != nil {
+            // Leave undelivered; bump attempts for observability/back-off.
+            _, _ = w.db.Context(ctx).ID(row.ID).Incr("attempts").Update(&persistence.OutboxDO{})
+            failed++
+            lastErr = oops.Wrap(err)
+            continue
+        }
+        now := time.Now().UnixMilli()
+        if _, err := w.db.Context(ctx).ID(row.ID).
+            Cols("delivered_at").
+            Update(&persistence.OutboxDO{DeliveredAt: now}); err != nil {
+            failed++
+            lastErr = oops.Wrap(err)
+            continue
+        }
+        processed++
+    }
+    if failed > 0 {
+        w.logger.WarnContext(ctx, "outbox tick completed",
+            slog.String("operation", "outbox.tick"),
+            slog.String("outcome", "retrying"),
+            slog.Int("attempted", len(rows)),
+            slog.Int("processed", processed),
+            slog.Int("failed", failed),
+            slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+            sloghelper.Error(lastErr),
+        )
+        return
+    }
+    w.logger.InfoContext(ctx, "outbox tick completed",
+        slog.String("operation", "outbox.tick"),
+        slog.String("outcome", "success"),
+        slog.Int("attempted", len(rows)),
+        slog.Int("processed", processed),
+        slog.Int("failed", failed),
+        slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+    )
+}
+```
+
+Operational notes:
+
+- The Integration Event payload is mapped inside the Infrastructure outbox translator; Infrastructure persists rows and adapts broker delivery.
+- Domain code **never** publishes directly and never imports generated protocol packages.
+- `MessagePublisher` wraps Kafka/NATS/SQS delivery for the worker. The concrete broker client lives in `internal/pkg/<broker>` (§9.1 "Shared Middleware Client Ownership").
+- For high-throughput scenarios add a worker shard key (e.g., hash on `aggregate_id`) and run multiple workers, each `WHERE shard = ?`.
+- Retain delivered rows for an audit window (e.g., 7 days) before truncation; do not delete inside `tick`.
+- The in-memory `mediator` bus may still be used for **same-process** Domain Event handlers; Outbox is for the cross-process Integration Event hop.
+
 ---
 
 ## 4. DDD Tactical Design Reference
@@ -843,7 +1192,29 @@ func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderComman
 
 ### 5.2 Integration Events (default for cross-context state propagation)
 
-Producer side: after `Save()`, the producing context translates selected Domain Events into Integration Events and publishes those cross-context contracts. Consumer side lives in the **subscribing** context's `application/handler.go`:
+Two halves: the **producing context** maps selected Domain Events into Integration Events with a stable contract payload and ships them via Outbox (§3.4 "Outbox Pattern Implementation"); the **consuming context** subscribes in `application/handler.go`. A naked `mediator.Subscribe` of the producer's Domain Event from another context is prohibited — that couples the consumer to the publisher's internal model and violates [ddd-core.md §5.3](ddd-core.md).
+
+**Producer side** — the use case remains ordinary Application orchestration. It does not receive an `OutboxWriter`, `UnitOfWork`, `BrokerPublisher`, or Integration Event envelope just because the implementation needs MySQL transaction coupling:
+
+```go
+completed, err := order.Complete()
+if err != nil {
+    return err
+}
+if err := h.repo.Save(ctx, order); err != nil {
+    return err
+}
+// Optional same-process notifications are best-effort and separate from
+// the reliable cross-process Outbox path.
+```
+
+The `Complete()` Domain method records its Domain Event internally. The Domain Event → Integration Event mapping can live in an Infrastructure outbox translator because it is boundary mapping to a published protocol contract, not a Domain rule. If the mapping starts making business decisions about whether an event is valid, whether it should be published, or what state transition happened, move that rule back into Domain or Application policy and keep only the payload conversion in Infrastructure.
+
+With `github.com/go-jimu/components/mediator.EventCollection`, do not rely on `Raise` as the source for reliable outbox rows: it exposes `Add` and `Raise`, but no read/drain API and no error return. Reliable Integration Events therefore require a project-owned drainable event collection, a repository-internal transaction hook, or a transaction-aware event bus implementation. That mechanism stays inside Infrastructure; do not expose an Application/Domain port to compensate for the technical limitation.
+
+For low-reliability cases, bypassing Outbox is allowed only when all of these are true: the deployment is a single-process modular monolith, the event belongs to a Generic or low-risk Supporting subdomain, the side effect is reconstructable, and loss does not affect money, permissions, inventory, compliance, or externally visible state. Record that choice in the plan or ADR and pick the tier per [ddd-core.md §6.2](ddd-core.md).
+
+**Consumer side** — subscriber lives in the consuming context:
 
 ```go
 // internal/business/user/application/handler.go — User context subscribes to Order's Integration Event
@@ -855,7 +1226,8 @@ func (h *UserPointsHandler) Listening() []mediator.EventKind {
 
 func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
     // Idempotent side effect; owns its own transaction; logs and returns on failure
-    // — never propagates errors back to the producer.
+    // — never propagates errors back to the producer. See §3.2 "Event Handler Idempotency" for the
+    // dedup pattern (idempotency key, processed-events table, or natural idempotency).
 }
 
 // Wire in the subscribing module's NewApplication: ev.Subscribe(NewUserPointsHandler(repo))
@@ -937,7 +1309,11 @@ Production files only. Test file placement is governed by §6.3 and is not requi
 | `application/dto.go` | DTO definitions |
 | `application/assembler.go` | Object conversion (DTO ↔ Domain, Proto ↔ Domain) |
 | `interfaces/http/handler.go` | REST handler (optional, hand-written protocols only) |
+| `api/queries.go` | Cross-context Reader / Facade ports (optional, only when this context publishes read-side facades; §5.3) |
 | `infrastructure/persistence/do.go` | Database models |
+| `infrastructure/persistence/outbox_do.go` | Conditional: Outbox row model (§3.4 "Outbox Pattern Implementation") |
+| `infrastructure/persistence/outbox_translator.go` | Conditional: Domain Event → Integration Event outbox mapping (§5.2) |
+| `infrastructure/messaging/outbox_worker.go` | Conditional: Outbox drainer worker; reads pending rows and publishes to the broker |
 | `infrastructure/persistence/repository.go` | Repository implementation |
 | `infrastructure/persistence/converter.go` | Conversion functions |
 
@@ -991,10 +1367,81 @@ Layer-specific placement:
 | Layer | Approach |
 |-------|----------|
 | Domain / Infrastructure | Use `oops.With("key", val).Wrap(err)` to attach context |
-| Application | Log then return: `logger.ErrorContext(...)`; `return err` |
+| Application | If this is the active execution boundary, log completion then return; otherwise wrap / return and let the outer boundary log |
 | Interface | Convert to protocol error: `connect.NewError(connect.CodeNotFound, err)` |
 
-### 8.2 Error Definitions
+### 8.2 Boundary Logging
+
+Every execution boundary must emit one completion log for each operation, whether it succeeds, fails, skips, or schedules a retry. Internal layers enrich returned errors with context; they do not log errors that an outer boundary will log again.
+
+Execution boundaries:
+
+- HTTP / gRPC / ConnectRPC handlers or middleware
+- `Application` methods that directly implement generated RPC handlers
+- Command and Query Handlers when they are the use-case entry point
+- Event Handlers
+- async workers, schedulers, consumers, and outbox drainers
+- process startup, shutdown, and fx lifecycle hooks
+
+Layer rules:
+
+| Layer / component | Logging rule |
+|-------------------|--------------|
+| Domain | No logging. Return Domain errors and collect Domain Events only. |
+| Infrastructure adapter | Do not log returned errors; wrap with `oops.With(...).Wrap(err)`. |
+| Infrastructure execution boundary | Log completion, because there is no outer request boundary. Examples: worker tick, consumer loop, lifecycle hook. |
+| Application / Interface boundary | Log completion once, then return or map the error. Do not duplicate an error log already emitted by an outer middleware. |
+
+Completion logs must include stable structured fields:
+
+| Field | Meaning |
+|-------|---------|
+| `operation` | Stable operation name, e.g. `user.change_password`, `outbox.tick`, `order.completed.handle` |
+| `outcome` | One of `success`, `failed`, `skipped`, `retrying` |
+| `duration_ms` | Wall-clock duration for the operation |
+| `error` | `sloghelper.Error(err)` on failed outcomes |
+| Business IDs | Add available identifiers such as `user_id`, `order_id`, `aggregate_id`, `event_id`, `event_kind`, `consumer` |
+
+Use context-aware logging at runtime:
+
+```go
+start := time.Now()
+err := h.changePassword.Handle(ctx, cmd)
+if err != nil {
+    logger.ErrorContext(ctx, "command completed",
+        slog.String("operation", "user.change_password"),
+        slog.String("outcome", "failed"),
+        slog.String("user_id", cmd.ID),
+        slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+        sloghelper.Error(err),
+    )
+    return err
+}
+logger.InfoContext(ctx, "command completed",
+    slog.String("operation", "user.change_password"),
+    slog.String("outcome", "success"),
+    slog.String("user_id", cmd.ID),
+    slog.Int64("duration_ms", time.Since(start).Milliseconds()),
+)
+```
+
+Use `github.com/go-jimu/components/sloghelper` for runtime logging:
+
+- Initialize the process logger with `sloghelper.NewLog(opt)` from the configured `sloghelper.Options`; it sets `slog.Default()` and enables source shortening / JSON output.
+- Pass `*slog.Logger` through fx constructors for components that own execution boundaries.
+- Use `sloghelper.NewContext(ctx, logger)` / `sloghelper.FromContext(ctx)` when middleware attaches request-scoped loggers.
+- Log errors with `sloghelper.Error(err)` so wrapped errors keep structured message and stack trace data.
+
+Use `logger.InfoContext` / `logger.ErrorContext` when a request or job context exists. Use package-level `slog.Info` / `slog.Error` only during bootstrap before `sloghelper.NewLog` has been wired, or in tiny examples where dependency injection is omitted for brevity.
+
+For Event Handlers and workers, logging is the primary observable result because there is no synchronous caller. They must log a completion summary:
+
+- idempotent duplicate / already-processed event: `outcome=skipped`
+- transient publish / storage failure that will retry: `outcome=retrying`
+- exhausted retries / dead-letter / unrecoverable error: `outcome=failed`
+- worker tick summary: include counts such as `attempted`, `processed`, `failed`, `skipped`
+
+### 8.3 Error Definitions
 
 ```go
 // domain/errors.go
@@ -1026,7 +1473,8 @@ Each component owns its `Option`; the top-level `main` only aggregates and distr
 
 **Business modules follow the same rule.** If a bounded context needs runtime config (e.g., `user.MaxLoginAttempts`), declare `user.Option` in `internal/business/user/option.go` and add a `User user.Option` field to the top-level `Option`.
 
-**Shared Middleware Client Ownership**:
+#### Shared Middleware Client Ownership
+
 - Initialize shared middleware clients in `internal/pkg/<middleware>`: `internal/pkg/mysql`, `internal/pkg/redis`, `internal/pkg/kafka`, etc.
 - Each middleware package owns its `Option`, constructor, health/lifecycle hooks, and fx provider.
 - Bounded-context Infrastructure packages must not read shared middleware config, open connections, or close clients.
