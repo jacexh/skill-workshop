@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-06
+last_updated: 2026-05-09
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -34,7 +34,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 | `jacexh/action-autotag@v1` | Creates repository-level semver tags after the release workflow pushes a bump commit |
 | `softprops/action-gh-release@v1` | Publishes GitHub Releases with generated notes for new tags |
 | Claude Code `/plugin` command | Install / update / manage Claude-track plugins |
-| Codex CLI `plugin marketplace` command | Install / upgrade / remove Codex-track plugins; native hooks require restart and `[features] codex_hooks = true` |
+| Codex CLI `plugin marketplace` command | Install / upgrade / remove Codex-track plugins; native plugin hooks require restart plus `[features] hooks = true` and `plugin_hooks = true` |
 
 ## Infrastructure
 

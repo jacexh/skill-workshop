@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-08
+last_updated: 2026-05-09
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -11,7 +11,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 - **Hook runtime (Claude memory):** All hook logic lives in `plugins/superpowers-memory/hooks/hook-runtime.js`. Bash scripts (`pre-tool-use`, `session-start`, `user-prompt-expansion`) are 2-5 line wrappers that `exec node hook-runtime.js <mode>`. JSON output: `hookSpecificOutput` wrapper in plugin env, flat `additional_context` otherwise.
 - **Hook runtime (Codex memory):** `codex-plugins/superpowers-memory/hooks/codex-runtime.js` — same modes minus `user-prompt-expansion`, plus `user-prompt-submit`. Plugin-root resolution uses `path.dirname(__filename)` instead of `${CLAUDE_PLUGIN_ROOT}` (Codex provides no equivalent env var). Output always uses `hookSpecificOutput.additionalContext` form.
 - **Hook scripts (architect Claude):** Bash with `set -euo pipefail`. Inline `node -e` for JSON parsing. Reads YAML frontmatter for pattern name/description.
-- **Hook scripts (architect Codex):** Direct Node.js (`codex-runtime.js`) with active `session-start` and `user-prompt-submit` modes. Pattern dirs resolve bundled defaults, Claude/global dirs, then project dirs; later dirs override earlier dirs by filename. Legacy `stop` mode returns `{}` only for older installed configs; new native/fallback configs do not register Stop.
+- **Hook scripts (architect Codex):** Direct Node.js (`codex-runtime.js`) with active `session-start` and `user-prompt-submit` modes. Pattern dirs resolve bundled defaults, Claude/global dirs, then project dirs; later dirs override earlier dirs by filename. Runtime emits a generic Architecture Gate for any dynamic pattern set and only emits DDD-specific addenda when `ddd-modeling.md` is present. Legacy `stop` mode returns `{}` only for older installed configs; new native/fallback configs do not register Stop.
 - **Hook scripts (designing-tests Codex):** Direct Node.js (`codex-runtime.js`), single `session-start` mode. Same YAML frontmatter parsing as Claude side.
 - **Markdown files:** Skills use YAML frontmatter with `name` and `description`. Knowledge base files use `last_updated` (YYYY-MM-DD), `updated_by`, `triggered_by_plan`.
 - **`triggered_by_plan` rule:** Only update this field when a concrete plan filename can be identified as the trigger. If no plan triggered the update, **preserve the existing value — never overwrite with `null`**.
@@ -26,8 +26,8 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 - **No external dependencies beyond Node.js and git:** Hook scripts may only use tools present in standard Claude Code / Codex environments.
 - **Cross-platform hooks:** Any new hook must work on Unix and Windows. The `run-hook.cmd` polyglot wrapper handles dispatch on Claude side. Codex side uses direct Node.js (no shell wrapper needed).
 - **Strategy A for Codex track (ADR-013):** `codex-plugins/` is a parallel tree; never modify `plugins/` from Codex-side work. The only allowed cross-tree addition is shared test fixtures under `plugins/superpowers-memory/hooks/fixtures/`.
-- **Design-pattern track parity:** Shared standards in `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/` should stay semantically aligned unless a change is intentionally host-specific.
-- **DDD pattern ownership:** `ddd-modeling.md` owns strategic modeling and planning gates, `ddd-core.md` owns language-neutral tactical rules, and `ddd-<language>.md` files only add implementation-specific placement, validation, testing, and wiring guidance.
+- **Design-pattern track parity:** Shared standards in `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/` should stay semantically aligned unless a change is intentionally host-specific. Claude and Codex architect tracks both expose a `standards` skill for explicit use.
+- **DDD pattern ownership:** `ddd-modeling.md` owns strategic modeling, architecture gates, and technical-capability classification; `ddd-core.md` owns language-neutral tactical rules and review checklist; `ddd-<language>.md` files only add implementation-specific placement, validation, testing, and wiring guidance.
 
 ## Testing Conventions
 
@@ -55,11 +55,11 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 ## Codex-track-specific conventions (ADR-013)
 
-- **Native Codex hook contract:** Each Codex plugin manifest declares its plugin-local native hook file. Native hook files use `{ "version": "<semver>", "hooks": { ... } }` and commands use `node "${PLUGIN_ROOT}/hooks/codex-runtime.js" ...`. Users need `[features] codex_hooks = true` and a Codex restart after install/upgrade.
+- **Native Codex hook contract:** Each Codex plugin manifest declares its plugin-local native hook file. Native hook files use `{ "version": "<semver>", "hooks": { ... } }` and commands use `node "${PLUGIN_ROOT}/hooks/codex-runtime.js" ...`. Users need `[features] hooks = true` and `plugin_hooks = true`, then a Codex restart after install/upgrade.
 - **Fallback hook snippet contract:** `codex-hooks-snippet.json` mirrors the native hook file for legacy fallback installer compatibility. Tests guard version/schema drift between manifest, native hook file, and fallback snippet while the legacy installer remains in tree.
 - **Legacy hook installer protocol:** Each Codex plugin ships an installer; representative path: `codex-plugins/superpowers-memory/scripts/install-codex-hooks.js`. The public setup skill has been removed; the script remains for cleanup and legacy migration tests. The installer supports `install` (legacy/private) and `remove`, prefers the native hook file, falls back to `codex-hooks-snippet.json`, infers the plugin name from source-tree and versioned cache layouts, removes stale entries for that plugin by runtime command path, writes strict JSON, and backs up `~/.codex/hooks.json`.
 - **Fallback cleanup protocol:** Each Codex plugin ships `$<plugin>:cleanup`, which runs the same installer in `remove` mode. Cleanup removes only matching skill-workshop fallback commands from `~/.codex/hooks.json`, preserves unrelated hooks, deletes empty event arrays, and is the migration path after enabling native hooks.
 - **Marketplace upgrade flow:** Codex `plugin marketplace upgrade` updates plugin files; native hooks take effect after restart. Current Codex users do not run setup after install or upgrade. Users with stale fallback entries run `$<plugin>:cleanup` once and restart. README of each Codex plugin documents this.
 - **Skill mention syntax:** Codex uses `$plugin:skill-name` (not `/`); UserPromptSubmit hook regex matches accordingly.
-- **Architect prompt router:** Codex architect UserPromptSubmit must stay non-blocking and trigger only on explicit upstream `superpowers` workflow skill mentions; natural-language architecture discussion returns `{}`. Injected content stays a dynamic pattern index + instruction to read relevant full patterns.
+- **Architect prompt router:** Codex architect UserPromptSubmit must stay non-blocking and trigger only on explicit upstream `superpowers` workflow skill mentions; natural-language architecture discussion returns `{}`. Injected content stays a dynamic pattern index + Architecture Gate; DDD-specific guidance is conditional on the active pattern set, not assumed globally.
 - **Architect Stop policy:** Codex architect does not register Stop hooks. Stop fires per assistant turn in Codex and is too intrusive; standards guidance relies on SessionStart, explicit superpowers skill mentions, and `$superpowers-architect:standards`.

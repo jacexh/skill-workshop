@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-07
+last_updated: 2026-05-09
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -18,7 +18,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Rich Injection** — Hook output pattern: a multi-section `additionalContext` block (diff scope + imperative MUST language + numbered checklist) used in place of `decision: "block"`; designed to make compliance the path of least resistance without forcing a halt. → ADR-011
 
-**Codex Native Hooks** — Manifest-declared lifecycle hooks loaded from each Codex plugin root when `codex_hooks` is enabled. → `codex-plugins/superpowers-memory/hooks/hooks.json`, ADR-014
+**Codex Native Hooks** — Manifest-declared lifecycle hooks loaded from each Codex plugin root when `hooks` and `plugin_hooks` are enabled. → `codex-plugins/superpowers-memory/hooks/hooks.json`, ADR-014
 
 **Codex Cleanup Skill** — Per-Codex-plugin migration helper that removes that plugin's old fallback hook entries from `~/.codex/hooks.json` after native Codex hooks are enabled. → `codex-plugins/superpowers-memory/skills/cleanup/SKILL.md`, ADR-014
 

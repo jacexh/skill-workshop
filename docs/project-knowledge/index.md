@@ -1,23 +1,23 @@
 ---
-last_updated: 2026-05-08
+last_updated: 2026-05-09
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
-covers_branch: hotfix/ddd@0f86cf4
+covers_branch: hotfix/patterns@8711834
 ---
 
 # Project Knowledge Index
 
 - [architecture.md](architecture.md) — System boundaries, components, data flows
-  Key points: dual-track marketplace; Codex plugins use native manifest hooks plus cleanup for old fallback entries; Codex architect combines SessionStart, explicit skill routing, and standards skill without Stop interception
+  Key points: dual-track marketplace; Codex plugins use native manifest hooks plus cleanup for old fallback entries; architect guidance uses dynamic pattern indexes, Architecture Gate, and explicit standards skills on both tracks
 
 - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
-  Key points: Node.js + Bash + Markdown + JSON; release scripts use git + jq; Codex native hooks require `codex_hooks` and restart
+  Key points: Node.js + Bash + Markdown + JSON; release scripts use git + jq; Codex native plugin hooks require `hooks` + `plugin_hooks` and restart
 
 - [features.md](features.md) — Current capability map
-  Key points: marketplace install paths; memory load/update/rebuild/write-lock/verify; DDD design-pattern guidance; test design guidance; Codex native hooks and fallback cleanup
+  Key points: marketplace install paths; memory load/update/rebuild/write-lock/verify; DDD Architecture Gate and technical-capability guidance; Claude/Codex architect standards skills; Codex native hooks and fallback cleanup
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; DDD pattern docs split modeling/core/language ownership; Codex cleanup removes old fallback hooks
+  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; DDD pattern docs split modeling/core/language ownership; Codex architect DDD guidance is conditional on active pattern set
 
 - [decisions.md](decisions.md) — ADR summary log (14 ADRs, 0 superseded)
   Key points: ADR-014 native Codex hooks with cleanup migration; ADR-013 Codex marketplace compat; ADR-012 UserPromptExpansion slash hook; ADR-010 KB write-lock
