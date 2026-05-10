@@ -137,7 +137,7 @@ project/
 │   │       ├── pkg/             # Bounded-context private utilities (if needed)
 │   │       └── <module>.go      # Module assembly (fx Module)
 │   └── pkg/                     # Infrastructure adapters — third-party libs wrapped + fx providers
-│       ├── eventbus/            # mediator wrapper + lifecycle hooks
+│       ├── eventbus/            # event.Dispatcher wrapper + lifecycle hooks
 │       ├── mysql/               # MySQL / XORM client wrapper + config
 │       ├── redis/               # Redis client wrapper + config
 │       ├── kafka/               # Kafka producer/consumer wrapper + config
@@ -299,14 +299,16 @@ If the rule can be unit-tested without Redis, SQL, a queue, ConnectRPC, or gener
 - Simple cases: use the Aggregate Root's own constructor (`NewXxx`)
 - Complex cases (assembling multiple Value Objects, cross-entity validation): extract an independent Domain Factory struct within the domain package
 
-**Domain Event Collection Contract** (using `mediator.EventCollection`):
-- Aggregate Root holds an `Events mediator.EventCollection` field
+**Domain Event Collection Contract** (using `event.Collection`):
+- Aggregate Root holds an `Events event.Collection` field
 - Domain methods append events via `Events.Add(event)` — they never dispatch directly
-- For best-effort same-process dispatch, Application may call `Events.Raise(mediator)` once after a successful `Save()`
-- For reliable Outbox delivery, do not use `Raise` as the source of outbox writes; use a project-owned drainable event collection, repository transaction hook, or transaction-aware event bus that reads pending events before commit and clears them only after commit
-- `Raise` guarantees idempotency internally for best-effort dispatch, preventing duplicate dispatch
+- Exactly one component may call `Drain()` on a given aggregate instance after a `Save()` attempt:
+  - **Best-effort same-process only** — Application drains the collection and hands the events to the dispatcher once after a successful `Save()`: `dispatcher.DispatchAll(user.Events.Drain())`. The Repository must not drain.
+  - **Reliable Outbox** — the Repository drains events and writes outbox rows in the same transaction that persists business data (§3.4); Application must not call `Drain()` again — it would return `nil`.
+  - **Outbox plus same-process notifications** — the draining owner fans out from the single drained slice (for example: write outbox rows transactionally, then optionally enqueue the same events locally after commit). Never have Application and Repository drain the same aggregate independently.
+- `Drain()` is one-shot — subsequent calls return `nil` — which prevents duplicate dispatch and makes drain ownership explicit.
 
-> This is the Go-specific implementation of the language-agnostic event collection pattern described in [ddd-core.md §3.1 "Domain Event Collection"](ddd-core.md). The `mediator.EventCollection` provides `Add`/`Raise`/`AsyncRaise` with an atomic one-time-raise guarantee via `sync/atomic.CompareAndSwap`, but it does not expose a read/drain API or dispatch error return.
+> This is the Go-specific implementation of the language-agnostic event collection pattern described in [ddd-core.md §3.1 "Domain Event Collection"](ddd-core.md). The `event.Collection` exposes `Add`/`Drain`/`Len` with a one-shot drain guarantee. The `event.Dispatcher` is in-process only; `Dispatch` / `DispatchAll` only enqueue events into the in-memory worker — the returned `error` reflects admission/enqueue (`event.ErrDispatcherClosed` during shutdown), never handler execution, panic, or unhandled-event outcomes. Handlers own their own error policy. Subscription is a separate `event.Subscriber` interface; the in-memory dispatcher implements both.
 
 **State Machine Contract** (optional, using `github.com/go-jimu/components/fsm`):
 
@@ -333,7 +335,10 @@ When an Aggregate Root has a complex lifecycle with multiple state transitions a
 // domain/order.go — minimal viable shape; replicate the same idiom for additional states / transitions
 package domain
 
-import "github.com/go-jimu/components/fsm"
+import (
+    "github.com/go-jimu/components/ddd/event"
+    "github.com/go-jimu/components/fsm"
+)
 
 const (
     OrderStatePending fsm.StateLabel = "pending"
@@ -361,7 +366,7 @@ type Order struct {
     ID          string
     Status      fsm.State
     TotalAmount int64
-    Events      mediator.EventCollection
+    Events      event.Collection
     Version     int
 }
 
@@ -385,15 +390,15 @@ func (o *Order) Pay() error {
 // domain/event.go
 package domain
 
-import "github.com/go-jimu/components/mediator"
+import "github.com/go-jimu/components/ddd/event"
 
 // Event kind constants
 const (
-    EventKindUserCreated     mediator.EventKind = "user.created"
-    EventKindPasswordChanged mediator.EventKind = "user.password_changed"
+    EventKindUserCreated     event.Kind = "user.created"
+    EventKindPasswordChanged event.Kind = "user.password_changed"
 )
 
-// Domain events implement mediator.Event (Kind() method).
+// Domain events implement event.Event (Kind() method).
 // Rich Event style: carry ID + minimum necessary fields.
 type EventUserCreated struct {
     ID    string
@@ -401,11 +406,11 @@ type EventUserCreated struct {
     Email string
 }
 
-func (e EventUserCreated) Kind() mediator.EventKind { return EventKindUserCreated }
+func (e EventUserCreated) Kind() event.Kind { return EventKindUserCreated }
 
 type EventPasswordChanged struct{ ID string }
 
-func (e EventPasswordChanged) Kind() mediator.EventKind { return EventKindPasswordChanged }
+func (e EventPasswordChanged) Kind() event.Kind { return EventKindPasswordChanged }
 ```
 
 ```go
@@ -416,7 +421,7 @@ import (
     "errors"
     "time"
 
-    "github.com/go-jimu/components/mediator"
+    "github.com/go-jimu/components/ddd/event"
     "github.com/google/uuid"
 )
 
@@ -433,7 +438,7 @@ type User struct {
     Email          Email          // Value Object
     HashedPassword Password       // Value Object
     Status         UserStatus     // Value Object
-    Events         mediator.EventCollection  // Domain event collection
+    Events         event.Collection  // Domain event collection
     Version        int            // Optimistic lock version (read-only; Infrastructure increments)
     CreatedAt      time.Time
     UpdatedAt      time.Time
@@ -478,7 +483,7 @@ func NewUser(name, rawPassword string, email Email) (*User, error) {
         Email:          email,
         HashedPassword: hashed,
         Status:         UserStatusInactive,
-        Events:         mediator.NewEventCollection(),
+        Events:         event.NewCollection(),
         Version:        0,  // 0 = new object, not yet persisted
         CreatedAt:      time.Now(),
     }
@@ -532,7 +537,7 @@ type Repository interface {
 - **Application Service**: Use-case orchestration, coordinating multiple aggregates/domain services
 - **Command + Command Handler** (`command.go`): Write operation intent and handling
 - **Query + Query Handler** (`query.go`): Read operation intent and handling
-- **Event Handler** (`handler.go`): Subscribes to Domain Events inside the same context or Integration Events from other contexts and executes side-effect logic (e.g., send notification, update read model, trigger cross-context workflow)
+- **Event Handler** (`handler.go`): In-process Domain Event consumers — subscribe to Domain Events emitted within the same bounded context and execute side-effect logic (e.g., send notification, update read model, trigger follow-up workflow within this context)
 - **QueryRepository Interface**: Defined in Application layer, returns DTOs, bypasses Domain model
 - **DTO**: Data Transfer Objects, decoupling internal and external models
 - **Assembler**: DTO ↔ Domain object conversion
@@ -543,20 +548,20 @@ type Repository interface {
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
 - **One transaction modifies one aggregate only.** To modify multiple aggregates, use domain events to trigger subsequent aggregate modifications (eventual consistency)
-- Best-effort same-process events may be dispatched after a successful persist via `Events.Raise(mediator)`; reliable Outbox delivery is handled by the Repository or transaction-aware event bus and must not depend on `Raise`
+- Exactly one component may drain a given aggregate instance (see §3.1 "Domain Event Collection Contract"): **best-effort same-process only** (Application calls `dispatcher.DispatchAll(user.Events.Drain())` after `Save()` returns; Repository does not drain), **reliable Outbox** (Repository drains inside the persistence transaction and writes outbox rows; Application does not drain again), or **Outbox plus same-process notifications** (the draining owner fans out from the single drained event slice). Never call `Drain()` twice on the same aggregate instance.
 - After `Save()`, the in-memory aggregate is stale — reload via `Get()` if further operations are needed
 - **File organization**: start with flat files (`command.go`, `query.go`, `handler.go`); when handlers grow numerous, promote to sub-directories (`command/`, `query/`, `handler/`, one file per handler). `application.go` remains the single entry point that wires everything.
 
 **Event Handler Contract**:
-- Implements `mediator.EventHandler` interface: `Listening() []mediator.EventKind` + `Handle(ctx, event)`
+- Implements `event.Handler` interface: `Listening() []event.Kind` + `Handle(ctx, event)`
 - Lives in the **consuming** bounded context's Application layer, not the producing context
 - Each EventHandler owns its own transaction — failures do not roll back the producing side
-- Error handling: log and continue (or retry); never propagate errors back to the event producer
-- Registered during module initialization via `mediator.Subscribe(handler)`
+- Error handling: log and continue (or retry); never propagate errors back to the event producer. `Dispatch` / `DispatchAll` only return admission/enqueue errors (`event.ErrDispatcherClosed` during shutdown), never handler execution, panic, or unhandled-event outcomes — handlers own their own error policy
+- Registered during module initialization via `subscriber.Subscribe(handler)`. Inject `event.Subscriber` for the subscribing side and `event.Dispatcher` for the dispatching side; the `*event.InMemoryDispatcher` returned by `eventbus.NewDispatcher` implements both
 
 #### Event Handler Idempotency
 
-Idempotency is mandatory: the same event may be delivered twice. Pick one pattern based on the side-effect shape; do not rely on broker-level dedup, since at-least-once is the default in Kafka, NATS JetStream, RocketMQ, and the in-process mediator:
+Idempotency is mandatory for broker/outbox/replay paths where the same event may be delivered twice. Pick one pattern based on the side-effect shape; do not rely on broker-level dedup, since at-least-once is the default in Kafka, NATS JetStream, and RocketMQ. The in-process `event.Dispatcher` is best-effort only: it has no persistence, no retry, and no at-least-once guarantee, but handlers should still be written idempotently when they can be reached from replayable or broker-backed paths.
 
 | Pattern | When it fits | Mechanism |
 |---------|--------------|-----------|
@@ -591,7 +596,9 @@ type CommandChangePassword struct {
 // Command Handler — canonical 4-step orchestration:
 // Load aggregate → invoke domain method → Save → dispatch events.
 type CommandChangePasswordHandler struct {
-    repo domain.Repository
+    repo       domain.Repository
+    dispatcher event.Dispatcher   // injected; no global default
+    logger     *slog.Logger
 }
 
 func (h *CommandChangePasswordHandler) Handle(ctx context.Context, cmd *CommandChangePassword) error {
@@ -612,8 +619,16 @@ func (h *CommandChangePasswordHandler) Handle(ctx context.Context, cmd *CommandC
     }
 
     // 4. Best-effort same-process dispatch after successful persist.
-    // Reliable Outbox delivery uses the repository / transaction-aware event bus path instead.
-    user.Events.Raise(mediator.Default())
+    // Use this path ONLY when the Repository does not drain for outbox; otherwise
+    // user.Events.Drain() returns nil because the Repository already consumed it.
+    // DispatchAll only reports admission/enqueue errors (event.ErrDispatcherClosed during
+    // shutdown) — log and continue.
+    if err := h.dispatcher.DispatchAll(user.Events.Drain()); err != nil {
+        h.logger.WarnContext(ctx, "domain event dispatch skipped",
+            slog.String("operation", "user.change_password"),
+            slog.String("user_id", cmd.ID),
+            sloghelper.Error(err))
+    }
     return nil
 }
 ```
@@ -869,7 +884,7 @@ func convertToEntity(do *UserDO) (*domain.User, error) {
     if err := copier.Copy(user, do); err != nil {
         return nil, oops.Wrap(err)
     }
-    user.Events = mediator.NewEventCollection()  // Initialize event collection when loading from DB
+    user.Events = event.NewCollection()  // Initialize event collection when loading from DB
     return user, nil
 }
 
@@ -908,7 +923,7 @@ func (OutboxDO) TableName() string { return "outbox" }
 package persistence
 
 import (
-    "github.com/go-jimu/components/mediator"
+    "github.com/go-jimu/components/ddd/event"
     "github.com/google/uuid"
     "github.com/samber/oops"
     "google.golang.org/protobuf/proto"
@@ -918,7 +933,7 @@ import (
     userv1 "github.com/example/project/pkg/gen/proto/user/v1"
 )
 
-func outboxRowsFromDomainEvents(events []mediator.Event) ([]OutboxDO, error) {
+func outboxRowsFromDomainEvents(events []event.Event) ([]OutboxDO, error) {
     rows := make([]OutboxDO, 0, len(events))
     for _, ev := range events {
         switch e := ev.(type) {
@@ -964,7 +979,7 @@ type userRepository struct {
 
 func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
     do := convertToDO(user)
-    events := user.PendingEvents() // Project-owned read API; see note below.
+    events := user.Events.Drain() // One-shot drain from event.Collection.
     outboxRows, err := outboxRowsFromDomainEvents(events)
     if err != nil {
         return err
@@ -994,15 +1009,11 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
         }
         return nil, nil
     })
-    if err != nil {
-        return err
-    }
-    user.ClearEvents()
-    return nil
+    return err
 }
 ```
 
-The `PendingEvents()` / `ClearEvents()` split above is deliberate: a reliable Outbox implementation needs to read collected Domain Events before commit, write outbox rows in the same transaction, and clear events only after the transaction succeeds. The stock `github.com/go-jimu/components/mediator.EventCollection.Raise(mediator)` is not sufficient for reliable outbox writes because `Raise` does not expose a read/drain API and does not return dispatch errors. If a project uses that collection for same-process handlers, add a project-owned drainable wrapper or keep a separate transaction-aware event collector inside Infrastructure; do not expose `OutboxWriter`, `UnitOfWork`, or a MySQL-shaped port upward to compensate for this technical limitation.
+A reliable Outbox implementation drains collected Domain Events from the aggregate, then writes outbox rows in the same transaction that persists business data. With `event.Collection.Drain()` this is a single call: it returns the accumulated events and marks the collection drained, so the same instance cannot dispatch them twice. If the transaction aborts, the in-memory aggregate is stale anyway — losing the drained events is acceptable **only because** the caller must discard this instance and re-run the full use case via a fresh `Get()` (per §3.2). Never retry `Save()` on the same already-drained instance: `Drain()` left the collection empty, so the retry would silently skip outbox rows. The in-process `event.Dispatcher` is not the source of cross-process Integration Events: `Dispatch` / `DispatchAll` only report admission/enqueue errors (`event.ErrDispatcherClosed` on shutdown), never handler outcomes or cross-process delivery confirmation, and the queue does not survive a process crash. Keep the outbox mechanism inside Infrastructure; do not expose `OutboxWriter`, `UnitOfWork`, or a MySQL-shaped port upward to compensate for this technical boundary.
 
 ```go
 // infrastructure/messaging/outbox_worker.go
@@ -1147,7 +1158,7 @@ Operational notes:
 - `MessagePublisher` wraps Kafka/NATS/SQS delivery for the worker. The concrete broker client lives in `internal/pkg/<broker>` (§9.1 "Shared Middleware Client Ownership").
 - For high-throughput scenarios add a worker shard key (e.g., hash on `aggregate_id`) and run multiple workers, each `WHERE shard = ?`.
 - Retain delivered rows for an audit window (e.g., 7 days) before truncation; do not delete inside `tick`.
-- The in-memory `mediator` bus may still be used for **same-process** Domain Event handlers; Outbox is for the cross-process Integration Event hop.
+- The in-memory `event.Dispatcher` may still be used for **same-process** Domain Event handlers; Outbox is for the cross-process Integration Event hop.
 
 ---
 
@@ -1155,16 +1166,16 @@ Operational notes:
 
 | DDD Concept | Layer | Go Implementation |
 |-------------|-------|-------------------|
-| **Aggregate** | Domain | `struct` + domain methods + `mediator.EventCollection` |
+| **Aggregate** | Domain | `struct` + domain methods + `event.Collection` |
 | **Entity** | Domain | `struct` with ID |
 | **Value Object** | Domain | Immutable `struct` |
 | **Domain Service** | Domain | Stateless function / struct |
 | **State Machine** | Domain (definition) | `fsm.StateMachine` + `fsm.StateContext` |
 | **Repository** | Domain (interface) + Infra (impl) | Interface + Impl |
 | **Query Repository** | Application (interface) + Infra (impl) | Interface + Impl |
-| **Domain Event** | Domain | `Event` struct implementing `mediator.Event` |
+| **Domain Event** | Domain | `Event` struct implementing `event.Event` |
 | **Application Service** (Command/Query Handler) | Application | Use-case orchestration; concrete form is `CommandXxxHandler` / `QueryXxxHandler` |
-| **Event Handler** | Application | `mediator.EventHandler` impl |
+| **Event Handler** | Application | `event.Handler` impl |
 | **DTO** | Application / Interface | Data transfer struct |
 | **Factory** | Domain | Constructor / independent Factory struct |
 | **CQRS** | Application | Command + Query separation |
@@ -1192,7 +1203,7 @@ func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderComman
 
 ### 5.2 Integration Events (default for cross-context state propagation)
 
-Two halves: the **producing context** maps selected Domain Events into Integration Events with a stable contract payload and ships them via Outbox (§3.4 "Outbox Pattern Implementation"); the **consuming context** subscribes in `application/handler.go`. A naked `mediator.Subscribe` of the producer's Domain Event from another context is prohibited — that couples the consumer to the publisher's internal model and violates [ddd-core.md §5.3](ddd-core.md).
+Two halves: the **producing context** maps selected Domain Events into Integration Events with a stable contract payload and ships them via Outbox (§3.4 "Outbox Pattern Implementation"); the **consuming context** handles broker-delivered Integration Events in its Application layer through an inbound messaging adapter / worker. `event.Subscriber.Subscribe` is only for same-process, low-reliability modular-monolith paths. Subscribing directly to the producer's Domain Event from another context (via `event.Subscriber.Subscribe`) is prohibited — that couples the consumer to the publisher's internal model and violates [ddd-core.md §5.3](ddd-core.md).
 
 **Producer side** — the use case remains ordinary Application orchestration. It does not receive an `OutboxWriter`, `UnitOfWork`, `BrokerPublisher`, or Integration Event envelope just because the implementation needs MySQL transaction coupling:
 
@@ -1210,28 +1221,28 @@ if err := h.repo.Save(ctx, order); err != nil {
 
 The `Complete()` Domain method records its Domain Event internally. The Domain Event → Integration Event mapping can live in an Infrastructure outbox translator because it is boundary mapping to a published protocol contract, not a Domain rule. If the mapping starts making business decisions about whether an event is valid, whether it should be published, or what state transition happened, move that rule back into Domain or Application policy and keep only the payload conversion in Infrastructure.
 
-With `github.com/go-jimu/components/mediator.EventCollection`, do not rely on `Raise` as the source for reliable outbox rows: it exposes `Add` and `Raise`, but no read/drain API and no error return. Reliable Integration Events therefore require a project-owned drainable event collection, a repository-internal transaction hook, or a transaction-aware event bus implementation. That mechanism stays inside Infrastructure; do not expose an Application/Domain port to compensate for the technical limitation.
+With `github.com/go-jimu/components/ddd/event`, the in-process `event.Dispatcher` is not the source for reliable outbox rows: `Dispatch` / `DispatchAll` only return admission/enqueue errors (`event.ErrDispatcherClosed` on shutdown) — never handler execution, panic, unhandled-event outcomes, or cross-process delivery confirmation — and the in-memory queue does not survive a process crash. Reliable Integration Events instead drain Domain Events via `event.Collection.Drain()` inside the Repository and write outbox rows in the same transaction as the business data. That mechanism stays inside Infrastructure; do not expose an Application/Domain port to compensate for the technical boundary.
 
 For low-reliability cases, bypassing Outbox is allowed only when all of these are true: the deployment is a single-process modular monolith, the event belongs to a Generic or low-risk Supporting subdomain, the side effect is reconstructable, and loss does not affect money, permissions, inventory, compliance, or externally visible state. Record that choice in the plan or ADR and pick the tier per [ddd-core.md §6.2](ddd-core.md).
 
-**Consumer side** — subscriber lives in the consuming context:
+**Consumer side (reliable Outbox / broker path)** — the broker adapter decodes the Integration Event payload and calls an Application handler in the consuming context:
 
 ```go
-// internal/business/user/application/handler.go — User context subscribes to Order's Integration Event
+// internal/business/user/application/handler.go — User context handles Order's Integration Event
 type UserPointsHandler struct{ repo domain.Repository }
 
-func (h *UserPointsHandler) Listening() []mediator.EventKind {
-    return []mediator.EventKind{orderevents.EventKindOrderCompleted}
-}
-
-func (h *UserPointsHandler) Handle(ctx context.Context, event mediator.Event) {
+func (h *UserPointsHandler) HandleOrderCompleted(ctx context.Context, ev orderevents.OrderCompletedV1) {
     // Idempotent side effect; owns its own transaction; logs and returns on failure
-    // — never propagates errors back to the producer. See §3.2 "Event Handler Idempotency" for the
-    // dedup pattern (idempotency key, processed-events table, or natural idempotency).
+    // — never propagates errors back to the producer. See §3.2 "Event Handler
+    // Idempotency" for the dedup pattern (idempotency key, processed-events
+    // table, or natural idempotency).
 }
 
-// Wire in the subscribing module's NewApplication: ev.Subscribe(NewUserPointsHandler(repo))
+// internal/pkg/kafka/order_events_consumer.go (Infrastructure adapter)
+// Decodes the broker payload and calls handler.HandleOrderCompleted(ctx, event).
 ```
+
+For low-reliability same-process modular-monolith cases that explicitly bypass Outbox, the consuming context may register an `event.Handler` with `event.Subscriber`. That path is not the reliable cross-process Integration Event mechanism.
 
 ### 5.3 Cross-Context Queries
 
@@ -1353,7 +1364,7 @@ Layer-specific placement:
 | Validation | `github.com/go-playground/validator/v10` |
 | Logging | `log/slog` + `github.com/go-jimu/components/sloghelper` |
 | Error Handling | `github.com/samber/oops` |
-| Event Bus | `github.com/go-jimu/components/mediator` |
+| Event Bus | `github.com/go-jimu/components/ddd/event` |
 | State Machine | `github.com/go-jimu/components/fsm` |
 | Configuration | `github.com/go-jimu/components/config` + `config/loader` |
 | Object Copying | `github.com/jinzhu/copier` |
@@ -1527,8 +1538,8 @@ import (
     "os"
 
     "github.com/go-jimu/components/config/loader"
-    "github.com/go-jimu/components/mediator"
     "github.com/go-jimu/components/sloghelper"
+    "github.com/example/project/internal/pkg/eventbus"
     "github.com/example/project/internal/pkg/grpcsrv"
     "github.com/example/project/internal/pkg/httpsrv"
     "github.com/example/project/internal/pkg/mysql"
@@ -1544,7 +1555,7 @@ type Option struct {
     MySQL      mysql.Option       `json:"mysql" toml:"mysql" yaml:"mysql"`
     HTTPServer httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
     GRPCServer grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
-    Eventbus   mediator.Options   `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+    Eventbus   eventbus.Option    `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
 }
 
 func main() {
@@ -1604,8 +1615,9 @@ grpc:
   addr: "${GRPC_ADDR::9090}"
 
 eventbus:
-  timeout: "30s"
-  concurrent: 100
+  buffer-size: 1024
+  delay-close: "5s"
+  handler-timeout: "30s"
 ```
 
 Loading and resolution order:
@@ -1627,7 +1639,7 @@ Use `app.Run()` as the standard entry point — it encapsulates Start → Wait f
 app := fx.New(
     fx.Supply(opt),                  // distributes every field via fx.Out (see §9.2)
     fx.Provide(sloghelper.NewLog),
-    fx.Provide(eventbus.NewMediator),
+    fx.Provide(eventbus.NewDispatcher),
     pkg.Module,                      // infrastructure adapters (internal/pkg)
     user.Module,                     // bounded contexts (internal/business/<module>)
     fx.StopTimeout(30*time.Second),
@@ -1650,7 +1662,7 @@ Components that have **in-flight work** at shutdown time must register `fx.Lifec
 |-----------|---------------|---------------|
 | HTTP Server | HTTP requests being processed | `srv.Shutdown(ctx)` — stop accepting, drain in-flight requests |
 | gRPC Server | RPC calls being processed | `server.GracefulStop()` — stop accepting, drain in-flight calls |
-| EventBus (Mediator) | Event handler goroutines running | `GracefulShutdown(ctx)` — reject new events, wait for handlers |
+| EventBus (Dispatcher) | Queued event batches + the handler invocation currently running on the worker | `dispatcher.Close(ctx)` — wait `delayClose`, reject new events, drain queued/in-flight batches |
 | Message queue consumer | Messages being processed | Stop consuming, finish current batch |
 
 Pure connection clients (MySQL, Redis, HTTP Client) do not need drain-style OnStop hooks — they have no in-flight work of their own. They may still register cleanup hooks such as `client.Close()`.
@@ -1683,22 +1695,53 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option) *http.Server {
 
 gRPC Server follows the same pattern: OnStart binds listener + `go server.Serve(ln)`; OnStop calls `server.GracefulStop()`.
 
-#### EventBus: Drain Handler Goroutines
+#### EventBus: Drain Queued Event Batches
 
 ```go
 // internal/pkg/eventbus/eventbus.go
-func NewMediator(lc fx.Lifecycle, opt mediator.Options) mediator.Mediator {
-    m := mediator.NewInMemMediator(opt)
+package eventbus
+
+import (
+    "context"
+    "log/slog"
+    "time"
+
+    "github.com/go-jimu/components/ddd/event"
+    "go.uber.org/fx"
+)
+
+// Option owns the dispatcher's tunable settings (per §9.1 — each component
+// declares its own Option; the third-party package no longer ships a config struct).
+type Option struct {
+    BufferSize     int           `json:"buffer-size" toml:"buffer-size" yaml:"buffer-size"`
+    DelayClose     time.Duration `json:"delay-close" toml:"delay-close" yaml:"delay-close"`
+    HandlerTimeout time.Duration `json:"handler-timeout" toml:"handler-timeout" yaml:"handler-timeout"`
+}
+
+// NewDispatcher returns the in-memory dispatcher under both faces it implements.
+// fx wires each return value by its declared type, so consumers inject whichever
+// face they need; both views point to the same underlying *event.InMemoryDispatcher.
+func NewDispatcher(lc fx.Lifecycle, opt Option, logger *slog.Logger) (event.Dispatcher, event.Subscriber) {
+    d := event.NewDispatcher(
+        event.WithLogger(logger),
+        event.WithBufferSize(opt.BufferSize),
+        event.WithDelayClose(opt.DelayClose),
+        event.WithHandlerTimeout(opt.HandlerTimeout),
+    )
     lc.Append(fx.Hook{
         OnStop: func(ctx context.Context) error {
-            // marks mediator closed, waits for in-flight handler goroutines,
-            // honors fx.StopTimeout via ctx
-            return m.(*mediator.InMemMediator).GracefulShutdown(ctx)
+            // Close first sleeps for delayClose (the dispatcher still accepts new
+            // events during this grace window), then marks itself closed and waits
+            // for the single worker to drain the queue and finish the in-flight
+            // batch. fx.StopTimeout (passed via ctx) is the hard cap on the total.
+            return d.Close(ctx)
         },
     })
-    return m
+    return d, d
 }
 ```
+
+The example wires only the YAML-friendly options. `event` also exposes callback-shaped hooks that don't belong in config but are wired here when needed: `event.WithContextFactory` (per-dispatch context derivation, e.g. propagate trace IDs), `event.WithUnhandledEventHandler` (events with no registered handler — useful for surfacing typos and dead kinds), `event.WithPanicHandler` (recovered handler panics — forward to metrics/alerting), and `event.WithCloseInterruptedHandler` (snapshot of accepted-but-unhandled batches when `Close` is cut short by `ctx.Done()`).
 
 ### 10.3 Shutdown Ordering
 
@@ -1710,8 +1753,8 @@ Start order (determined by dependency graph):
 
 Stop order (automatic reverse):
   Server.OnStop        → drain in-flight requests
-                          (last requests may call Events.Raise(), dispatching final events)
-  EventBus.OnStop      → drain in-flight handler goroutines
+                          (last requests may dispatch final events via dispatcher.DispatchAll(events.Drain()))
+  EventBus.OnStop      → drain queued/in-flight event batches (single worker, sequential)
                           (handlers can still access MySQL)
   Process exits        → OS reclaims all connections
 ```
@@ -1755,6 +1798,7 @@ Kubernetes initiates Pod deletion
 package user
 
 import (
+    "github.com/go-jimu/components/ddd/event"
     "go.uber.org/fx"
 
     "github.com/example/project/internal/business/user/application"
@@ -1766,7 +1810,13 @@ var Module = fx.Module(
     "domain.user",
     fx.Provide(persistence.NewRepository),
     fx.Provide(persistence.NewQueryRepository),
+    fx.Provide(application.NewWelcomeEmailHandler), // in-process Domain Event Handler (event.Handler impl in application/handler.go)
     fx.Provide(application.NewApplication),
+    // Register in-process Domain Event Handlers with the dispatcher's Subscriber face.
+    // Repeat for each event.Handler the context owns. See §3.2 "Event Handler Contract".
+    fx.Invoke(func(sub event.Subscriber, h *application.WelcomeEmailHandler) {
+        sub.Subscribe(h)
+    }),
     fx.Invoke(func(app *application.Application, mux *http.ServeMux) {
         path, handler := userv1connect.NewUserServiceHandler(app)
         mux.Handle(path, handler)
