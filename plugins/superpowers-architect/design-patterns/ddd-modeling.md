@@ -33,6 +33,8 @@ Architecture Gate:
 
 Stop before implementation when any required answer is unknown. Missing gate answers are design work, not implementation details.
 
+For **Level 1 — Local Change** work, keep the Architecture Gate block but use explicit `n/a — <reason>` values for fields the change does not touch; do not invent bounded contexts, aggregates, invariants, or integration boundaries only to fill the form. Level 2, Level 3, and cross-context changes must fill every affected field with concrete answers.
+
 ### 0.1 Technical capability classification
 
 Technical-facing modules still require domain modeling when they own stable language, state transitions, policies, or invariants. Dispatchers, registries, schedulers, routers, connectors, projections, ownership managers, delivery engines, and observability pipelines are not automatically Infrastructure.
@@ -79,31 +81,11 @@ This document provides decision procedures to get these boundaries right.
 
 ---
 
-## 1A. Subdomain Classification
+### 1.1 When the capability is a vendor wrapper
 
-Before discovering bounded contexts, classify each candidate business capability into one of three **subdomain** types. The classification determines how much design effort to invest and where Domain-Driven Design pays off most.
+If a candidate business capability is essentially an integration with a third-party system — authentication providers, transactional email, object storage, observability backends, billing SaaS, payment gateways, etc. — prefer adapting it through an Anti-Corruption Layer (see [ddd-core.md §5.6](ddd-core.md)) and skip the full bounded context / aggregate / repository design flow for that capability.
 
-| Subdomain Type | Definition | Design effort | Sourcing |
-|---------------|------------|---------------|----------|
-| **Core Domain** | The business's competitive differentiator — where value is created and where the business can't be replaced by a competitor | Highest — strongest models, richest ubiquitous language, most experienced engineers, full DDD tactical patterns | Always built in-house |
-| **Supporting Subdomain** | Necessary for the business to function but not differentiating; custom logic exists, but it doesn't define the business | Medium — apply DDD where it pays off (clear invariants, complex rules); accept simpler patterns elsewhere | Built in-house, may be outsourced or partially adopted from a vendor |
-| **Generic Subdomain** | Solved problems with off-the-shelf solutions (auth, billing, email delivery, file storage, observability) | Minimal — adopt existing solutions; integrate via Anti-Corruption Layer; do not re-model | Buy / open-source / SaaS |
-
-**Why this matters before §2:**
-- Investing the same design effort everywhere wastes the team on Generic subdomains and starves Core
-- An "Order" context in an e-commerce business is Core; an "Identity / Auth" context is almost always Generic; a "Notification" context is usually Supporting
-- For Generic subdomains, the right answer is often "don't model this at all — wrap a vendor in an ACL"
-
-**Procedure:**
-
-1. List the business capabilities (§2.1 starts here too)
-2. For each, ask: *"If this capability is identical to a competitor's, do we lose customers?"*
-   - **Yes** → Core
-   - **No, but it's specific to how we operate** → Supporting
-   - **No, every company in any industry has this** → Generic
-3. Record the classification next to each candidate context. Reference it in design reviews — Generic subdomains should not require lengthy aggregate-design discussions.
-
-> Subdomain classification answers *how much DDD*, not *what shape*. Bounded context discovery (§2) and aggregate design (§3) still apply, but the depth of analysis follows the classification.
+This judgment only decides whether the capability enters the modeling process described below. It does not relax the Architecture Gate (§0) for capabilities that *do* enter modeling, and it does not preempt §2's discovery for any capability whose rules and language the team genuinely owns.
 
 ---
 
@@ -186,16 +168,16 @@ Apply these heuristics to validate and refine the boundaries identified in Steps
 Once boundaries are identified, map how contexts relate:
 
 ```
-┌──────────────┐  integration event  ┌──────────────────┐
+┌──────────────┐  integration message  ┌──────────────────┐
 │   Catalog    │ ──────────────────► │    Inventory     │
 │ (upstream)   │  ProductPublished   │  (downstream)    │
 └──────────────┘                     └──────────────────┘
                                               │
-                                   integration event
+                                   integration message
                                      StockReserved
                                               │
                                               ▼
-┌──────────────┐  integration event  ┌──────────────────┐
+┌──────────────┐  integration message  ┌──────────────────┐
 │    Order     │ ◄────────────────── │    Billing       │
 │              │   PaymentConfirmed  │                  │
 └──────────────┘                     └──────────────────┘
@@ -205,7 +187,7 @@ Once boundaries are identified, map how contexts relate:
 
 | Relationship | When to use | Risk |
 |-------------|------------|------|
-| **Integration events** (default for cross-context state propagation) | One context's state changes should trigger reactions in others | Eventual consistency |
+| **Integration messages** (default for cross-context state propagation) | One context's state changes should trigger reactions in others | Eventual consistency |
 | **Cross-context queries** (read-only) | A context needs a current snapshot of data owned elsewhere, with no write side-effects | Coupling to query DTO shape; live-read latency |
 | **Protocol contracts** (Protobuf, OpenAPI, GraphQL SDL) | Cross-service / cross-repository structured data contracts | Schema-evolution discipline required |
 | **Anti-Corruption Layer** | Integrating with external / legacy systems whose model you cannot adopt | Translation overhead |
@@ -219,7 +201,7 @@ Once boundaries are identified, map how contexts relate:
 
 | Pattern | When it fits | Power dynamic | Typical mechanism |
 |---------|-------------|---------------|--------------------|
-| **Customer-Supplier** | Downstream depends on upstream's published model, but downstream's needs influence upstream's roadmap | Balanced — upstream commits to backward compatibility for downstream's roadmap | Integration events + Cross-context queries |
+| **Customer-Supplier** | Downstream depends on upstream's published model, but downstream's needs influence upstream's roadmap | Balanced — upstream commits to backward compatibility for downstream's roadmap | Integration messages + Cross-context queries |
 | **Conformist** | Downstream depends on upstream but has no influence (vendor, large-org platform team, legacy core) | Upstream-dominant | Conform to upstream's model directly; downstream pays the integration cost |
 | **Anti-Corruption Layer (ACL)** | Downstream cannot or will not adopt upstream's model (legacy systems, third-party APIs with bad models) | Downstream protects itself | ACL adapter in Infrastructure (see [ddd-core.md §5.6](ddd-core.md)) |
 | **Open-Host Service (OHS)** | One context serves many downstream consumers and exposes a stable, well-defined integration API | Upstream offers, downstream conforms | Protocol contracts, REST/gRPC published API |
@@ -236,7 +218,7 @@ Once boundaries are identified, map how contexts relate:
 3. Re-examine relationships marked **Partnership** — they are usually a sign that two contexts should be merged or further split.
 4. **Conformist** and **ACL** are mutually exclusive answers to the same question ("can we adopt upstream's model?"). Choose explicitly; do not drift into Conformist by accident.
 
-> Mechanism (§2.4) and relationship pattern (§2.5) are orthogonal. A Customer-Supplier relationship can be implemented with Integration Events, cross-context queries, or protocol contracts — choose both axes deliberately.
+> Mechanism (§2.4) and relationship pattern (§2.5) are orthogonal. A Customer-Supplier relationship can be implemented with Integration Messages, cross-context queries, or protocol contracts — choose both axes deliberately.
 
 ### 2.6 Bounded Context Checklist
 
@@ -245,7 +227,7 @@ Before proceeding to aggregate design, verify:
 - [ ] Each context has a clear name that reflects a business capability
 - [ ] Each context has its own ubiquitous language (no term means two things within one context)
 - [ ] Data authority is clear: every key entity has exactly one owning context
-- [ ] Cross-context communication uses one of: Integration Events, queries through explicit query interfaces, ACL, or protocol contracts (no direct calls into another context's Domain model or Application Service)
+- [ ] Cross-context communication uses one of: Integration Messages, queries through explicit query interfaces, ACL, or protocol contracts (no direct calls into another context's Domain model or Application Service)
 - [ ] No context is a "god context" responsible for everything
 
 ---
@@ -283,9 +265,9 @@ Order and User:
 
 Order and Inventory:
   Invariant: "Stock cannot go negative"
-  Can this be temporarily inconsistent? Yes — we can reserve stock via Integration Events.
+  Can this be temporarily inconsistent? Yes — we can reserve stock via Integration Messages.
   Failure mode: if eventual consistency fails, we compensate (cancel order or backorder).
-  → Separate aggregates. Domain Events inside each context, Integration Events for stock reservation across contexts.
+  → Separate aggregates. Domain Events inside each context, Integration Messages for stock reservation across contexts.
 ```
 
 ### 3.2 Aggregate Boundary Decision Tree
@@ -315,7 +297,7 @@ Q3: Is there a business invariant between A and B that MUST be
     │
     ├── Yes → Can you redesign to use eventual consistency?
     │         │
-    │         ├── Yes → Separate aggregates + Domain Events / Integration Events.
+    │         ├── Yes → Separate aggregates + Domain Events / Integration Messages.
     │         │
     │         └── No (rare) → Same aggregate.
     │                         This will be a large aggregate.
@@ -410,8 +392,8 @@ Order ↔ Product:
 
 Order ↔ Inventory:
 - Q3: Transactional invariant ("stock can't go negative")?
-- Can we use eventual consistency? **Yes** — reserve via domain event; compensate on failure.
-- **→ Separate aggregates. OrderPlaced event triggers inventory reservation.**
+- Can we use eventual consistency? **Yes** — reserve via Integration Message if Inventory is another bounded context; compensate on failure.
+- **→ Separate aggregates. OrderPlaced Domain Event stays inside Order; an OrderPlaced Integration Message triggers inventory reservation across the context boundary.**
 
 **Result:**
 ```
@@ -549,7 +531,7 @@ Payment Aggregate:      { id, order_id, amount, status, method }
 Shipment Aggregate:     { id, order_id, tracking_number, status, carrier }
 Invoice Aggregate:      { id, order_id, amount, issued_at, pdf_url }
 
-Communication: Integration Events
+Communication: Integration Messages
   OrderPlaced → triggers Payment creation
   PaymentConfirmed → triggers Shipment creation + Invoice generation
 ```
@@ -604,28 +586,24 @@ Communication: Integration Events
 
 Use this step-by-step procedure during the design phase, before writing implementation plans.
 
-### Phase 0: Subdomain Classification
-
-1. **Classify each candidate capability** as Core / Supporting / Generic (§1A) — the classification sets the design-effort budget for everything that follows
-
 ### Phase 1: Bounded Context Discovery
 
-2. **List business capabilities** from requirements (§2.1)
-3. **Analyze ubiquitous language** — identify terms with context-dependent meanings (§2.2)
-4. **Apply boundary heuristics** — validate with change coupling, data authority, team alignment (§2.3)
-5. **Map context relationships** — document upstream/downstream and communication mechanisms (§2.4)
-6. **Choose context map relationship patterns** — Customer-Supplier, Conformist, ACL, OHS, Published Language, Partnership, Shared Kernel, or Separate Ways (§2.5)
-7. **Verify** against the checklist (§2.6)
+1. **List business capabilities** from requirements (§2.1)
+2. **Analyze ubiquitous language** — identify terms with context-dependent meanings (§2.2)
+3. **Apply boundary heuristics** — validate with change coupling, data authority, team alignment (§2.3)
+4. **Map context relationships** — document upstream/downstream and communication mechanisms (§2.4)
+5. **Choose context map relationship patterns** — Customer-Supplier, Conformist, ACL, OHS, Published Language, Partnership, Shared Kernel, or Separate Ways (§2.5)
+6. **Verify** against the checklist (§2.6)
 
 ### Phase 2: Aggregate Design (per bounded context)
 
-8. **List all entities and concepts** within this context
-9. **Classify each as Entity or Value Object** using the decision in §3.3
-10. **For each entity pair, apply the aggregate boundary decision tree** (§3.2)
-11. **State the invariant** that justifies each aggregate boundary — if you can't name it, the entities probably don't belong together
-12. **Check aggregate sizing** (§3.4) — flag any aggregate with unbounded collections or >3 entity types
-13. **Identify cross-aggregate references** — these are always by ID, never by direct object reference
-14. **Design Domain Events for intra-context propagation and Integration Events for cross-context communication**
+7. **List all entities and concepts** within this context
+8. **Classify each as Entity or Value Object** using the decision in §3.3
+9. **For each entity pair, apply the aggregate boundary decision tree** (§3.2)
+10. **State the invariant** that justifies each aggregate boundary — if you can't name it, the entities probably don't belong together
+11. **Check aggregate sizing** (§3.4) — flag any aggregate with unbounded collections or >3 entity types
+12. **Identify cross-aggregate references** — these are always by ID, never by direct object reference
+13. **Design Domain Events for intra-context propagation and Integration Messages for cross-context communication**
 
 ### Phase 3: Modeling Output
 
@@ -650,7 +628,7 @@ Aggregates:
     ...
 
 Cross-context communication:
-  - [Integration Event] → consumed by [Context] to [action]
+  - [Integration Message] → consumed by [Context] to [action]
 ```
 
 ---
@@ -688,7 +666,7 @@ Plan must state:
 - DTO and assembler changes
 - external integration boundary, if any
 - Infrastructure implementation
-- Domain Events produced or consumed; Integration Events published or subscribed for cross-context communication
+- Domain Events produced or consumed; Integration Messages published or subscribed for cross-context communication
 - transaction boundary and event dispatch timing
 
 Check against [ddd-core.md §3.1-§3.4](ddd-core.md), [§5](ddd-core.md), and the relevant language-specific implementation guide before implementation.
@@ -702,8 +680,8 @@ Spec must include:
 - bounded context, business capability, ubiquitous language, and data authority (see §2)
 - aggregate root, entities, value objects, and guarded invariants (see §3)
 - technical capability classification for any runtime coordination, routing, scheduling, delivery, registry, projection, ownership, observability, or audit concern
-- Integration Events and minimum required payload fields (see [ddd-core.md §5.4](ddd-core.md))
-- cross-context communication mechanism: Integration Events, queries, ACL, or protocol contracts (see [ddd-core.md §5.2](ddd-core.md))
+- Integration Messages and minimum required payload fields (see [ddd-core.md §5.4](ddd-core.md))
+- cross-context communication mechanism: Integration Messages, queries, ACL, or protocol contracts (see [ddd-core.md §5.2](ddd-core.md))
 - language-specific package layout (see the corresponding implementation guide: [ddd-golang.md](ddd-golang.md), [ddd-python.md](ddd-python.md), [ddd-typescript.md](ddd-typescript.md))
 
 Check aggregate boundaries against §3, tactical rules against [ddd-core.md](ddd-core.md), and language-specific placement rules against the relevant implementation guide.
@@ -712,9 +690,9 @@ Do not treat existing code as precedent when it conflicts with the dependency ru
 
 ### 7.4 Cross-Context Change Without a New Context
 
-If a change adds or modifies cross-context communication (a new domain event with new subscribers in another context, a new query exposed across contexts, an ACL adapter, etc.) but does not introduce a new bounded context or aggregate, treat it as **Level 2 on each affected side** and produce one plan per side:
+If a change adds or modifies cross-context communication (a new Integration Message with subscribers in another context, a new query exposed across contexts, an ACL adapter, etc.) but does not introduce a new bounded context or aggregate, treat it as **Level 2 on each affected side** and produce one plan per side:
 
-- Producing side: the new domain event / query / contract, its payload contract, and dispatch (or response) timing
+- Producing side: the new Integration Message / query / contract, its payload contract, and dispatch (or response) timing
 - Consuming side: the handler / consumer, idempotency strategy, and transaction boundary
 
 If the change crosses three or more contexts, or if the contract itself is unstable, escalate to Level 3 and treat the contract as a first-class design artifact.

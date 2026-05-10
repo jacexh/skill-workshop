@@ -771,7 +771,7 @@ Bounded contexts must not import another context's Domain model or call its Appl
 
 Use [ddd-core.md §5.2](ddd-core.md)'s four-mechanism table to pick the right tool:
 
-- **Integration Events** — default for asynchronous cross-context state propagation; loose coupling, eventual consistency. Produce them from selected internal Domain Events after successful persistence
+- **Integration Messages** — default for asynchronous cross-context state propagation; loose coupling, eventual consistency. Produce them by translating selected internal Domain Events after successful persistence. Keep the cross-context concept, payload contract, publish/subscribe port, and delivery adapter separate; see [ddd-core.md §5.3](ddd-core.md) for the default lifecycle and publication failure policy
 - **Cross-context queries** — read-only DTOs through a port the owning context **explicitly exports** (e.g., `UserReader` / `UserSummaryPort`, a small read-side facade — *not* the context's internal `UserQueryRepository`, which is a CQRS read-side concern within the User context itself). Appropriate when the consumer needs a current snapshot and event-driven projection is not viable
 - **Anti-Corruption Layer** — when integrating with external/legacy systems; lives in `infrastructure/` and is transparent to Domain
 - **Protocol contracts** — for cross-service / cross-package data contracts; generated code lives in `packages/contracts/`, never imported by Domain
@@ -967,7 +967,7 @@ Guidelines:
 5. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
 6. **State encapsulation** — all state changes go through domain methods; use `private` fields, `readonly`, and `private constructor` + static factories to prevent external mutation
 7. **ID generation in Domain** — use `ulid()` / `uuidv7()` factory inside the aggregate's `create()`; database auto-increment IDs are prohibited
-8. **Disciplined cross-context communication** — Integration Events (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port — *not* another context's internal `UserQueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; events use Rich Event style (ID + minimum necessary fields)
+8. **Disciplined cross-context communication** — Integration Messages (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port — *not* another context's internal `UserQueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; Integration Message payloads carry the ID plus minimum necessary facts
 9. **Event collection** — aggregates collect events in a private array; Application calls `collectEvents()` after successful `save()` to drain and dispatch
 10. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return DTO `type`s
 11. **Transaction boundary** — one Command Handler owns one transaction (typically via `UnitOfWork.runInTransaction`); one transaction modifies one aggregate only
@@ -975,7 +975,7 @@ Guidelines:
 13. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
 14. **Optimistic locking** — Infrastructure increments `version` via `SET version = version + 1 WHERE version = ?`; Domain holds `version` as a read-only token; always reload via `repo.get()` after `save()` before further operations
 15. **Event dispatch timing** — dispatch after successful persist (after `runInTransaction` resolves), never before
-16. **Event reliability** — choose in-memory bus / Outbox Pattern / message queue based on reliability requirements
+16. **Event reliability** — Domain Event delivery is bounded-context-internal and implementation-specific; cross-context Integration Messages default to adapter delivery semantics plus consumer-side idempotency, with explicit reliability design only when pre-publish loss is unacceptable
 17. **Technical capability classification** — technical-facing code (dispatchers, registries, schedulers, routers, projections, ownership managers) is Domain-facing when it owns stable language, states, policies, or invariants; Infrastructure only adapts external systems and mechanisms ([ddd-core.md §3.1](ddd-core.md))
 18. **Type safety** — `tsconfig` `strict: true`; never use `any` to escape type errors; prefer branded types or value objects over loose primitives at Domain boundaries
 19. **Async discipline** — Repository / QueryRepository / external clients return `Promise`; Domain methods stay synchronous unless the rule itself is asynchronous

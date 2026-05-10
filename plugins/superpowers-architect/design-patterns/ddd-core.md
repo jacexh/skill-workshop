@@ -150,7 +150,7 @@ internal/<context>/
 | **Value Object** | No identity; equality is determined by attribute values. Immutable after creation. |
 | **Domain Service** | Handles business logic that genuinely spans multiple aggregates and has no natural home on any one of them. **Use sparingly.** Default to placing behavior on the aggregate or value object that owns the data; extract a Domain Service only when the rule cannot be expressed there. Overuse leads to anemic aggregates (aggregates reduced to data containers with rules drifting into stateless services). |
 | **Repository Interface** | Defines the persistence contract for aggregates (write operations). Declaration only — no implementation. |
-| **Domain Event** | Records something significant that happened within the domain. Used to decouple inter-context communication. |
+| **Domain Event** | Records something significant that happened within one bounded context. Used to decouple follow-up behavior inside that context; cross-context communication uses Integration Messages. |
 
 #### Constraints
 
@@ -233,21 +233,19 @@ Common anti-patterns:
 Aggregate Root must provide a mechanism for collecting, reading, and clearing domain events:
 
 - Domain methods **append** events to an internal list; they never dispatch events directly
-- For best-effort in-process dispatch, the Application layer may call a drain method such as **`collect_events()`** after a successful `Save()`, then dispatch the returned events
-- For reliable Outbox delivery, a Repository or transaction-aware event bus may read pending events before commit, write the outbox rows inside the same transaction, and clear the aggregate's events only after the transaction commits
-- Never clear events before the persistence / outbox transaction has succeeded; otherwise a failed `Save()` can silently drop events
-- Each drain / clear operation is one-shot — after events are cleared, a second drain returns an empty list
+- After a successful `Save()`, the Application layer calls a drain method such as **`collect_events()`** and dispatches the returned events
+- The Repository never drains events; the Application layer is the sole drainer so the same aggregate instance cannot be drained twice
+- Each drain / clear operation is one-shot — a second drain on the same in-memory instance returns an empty list, so callers must not retry `Save()` on an already-drained instance (reload via `Get()` first; see §3.2)
+- Never dispatch events before persistence has succeeded; otherwise a failed `Save()` can surface events the system later disowns
 
 ```
-# Best-effort in-process flow in a Command Handler:
+# Application Command Handler flow:
 aggregate = repo.get(id)
 aggregate.do_something()        # events collected internally
 repo.save(aggregate)            # persist succeeds
 events = aggregate.collect_events()  # drain events
 event_bus.dispatch(events)      # dispatch after persist
 ```
-
-Reliable Outbox implementations follow the same dependency rule, but the event read/write/clear sequence is hidden behind the Repository or transaction-aware event bus implementation so atomicity does not leak upward as a technology-shaped port.
 
 ### 3.2 Application Layer
 
@@ -450,58 +448,95 @@ Cross-context interaction must use one of these four mechanisms. Anything else (
 
 | # | Mechanism | Use when | Coupling |
 |---|-----------|----------|----------|
-| 1 | **Integration Events** (default for cross-context state propagation) | One context's state change should trigger reactions in others | Loose; eventual consistency |
+| 1 | **Integration Messages** (default for cross-context state propagation) | One context's state change should trigger reactions in others | Loose; eventual consistency |
 | 2 | **Cross-Context Queries** (read-only) | A context needs a current snapshot of data owned elsewhere, with no write side-effects | Loose; through explicit query interfaces, never through the source context's Domain model |
 | 3 | **Anti-Corruption Layer (ACL)** | Integrating with external / legacy systems whose model you cannot or should not adopt | Translation overhead; prevents pollution |
 | 4 | **Protocol Contracts** (Protobuf, OpenAPI, GraphQL SDL) | Cross-service / cross-repository structured data contracts; generated code shared | Schema-level only; no Domain coupling |
 
-Integration Events are the default for asynchronous cross-context state propagation. The other three exist for cases events cannot serve cleanly — they are not fallbacks for laziness.
+Integration Messages are the default for asynchronous cross-context state propagation. The other three exist for cases messages cannot serve cleanly — they are not fallbacks for laziness.
 
-### 5.3 Domain Events and Integration Events
+### 5.3 Domain Events and Integration Messages
 
-Domain Events record facts inside a bounded context. Integration Events publish selected facts across bounded-context boundaries:
+Domain Events record facts inside a bounded context. Integration Messages publish selected facts across bounded-context boundaries:
 
 ```
 Publisher (Order context):
   1. Execute business logic; aggregate collects domain events internally
   2. Persist the aggregate
-  3. After successful persist, translate selected Domain Events into Integration Events
-  4. Publish Integration Events to other contexts
+  3. After successful persist, translate selected Domain Events into Integration Messages
+  4. Publish Integration Messages to other contexts
  
 Subscriber (User context):
-  1. Subscribe to the relevant Integration Event
+  1. Subscribe to the relevant Integration Message
   2. Handle within its own transaction boundary
   3. Never depend on the publisher's internal domain model
 ```
 
-A **Domain Event** is internal to its bounded context — it uses the publisher's ubiquitous language and may be refactored whenever the publisher's domain model evolves. An **Integration Event** is the cross-context contract — its payload is part of the published language and follows additive schema-evolution discipline (no breaking field changes; deprecate before removing).
+#### Boundary Rule
 
-| Property | Domain Event | Integration Event |
+A **Domain Event** is internal to its bounded context — it uses the publisher's ubiquitous language and may be refactored whenever the publisher's domain model evolves. An **Integration Message** is the cross-context semantic contract — its payload is part of the published language and follows additive schema-evolution discipline (no breaking field changes; deprecate before removing).
+
+#### Concept / Contract / Port / Mechanism
+
+Keep the concept, contract, port, and delivery mechanism separate:
+
+- **Concept**: the cross-context fact another bounded context may depend on.
+- **Contract**: the stable payload schema, message kind, versioning, and compatibility rules.
+- **Port**: the implementation-independent publish / subscribe API exposed to Application code.
+- **Mechanism**: broker, queue, HTTP callback, relay, retry, DLQ, ordering, and other adapter-specific delivery concerns.
+
+#### Default Lifecycle
+
+1. A Domain method records one or more Domain Events inside the producing bounded context.
+2. The Application command handler persists the aggregate.
+3. After successful `Save()`, Application drains the Domain Events and dispatches them inside the same bounded context.
+4. A boundary translator / publisher in that bounded context selects publishable facts and maps them to Integration Message contract payloads.
+5. The publisher submits the Integration Message through the publish port; success means the selected adapter accepted the message according to its own semantics, not that any consumer has handled it.
+6. The subscriber adapter resolves the message payload and routes by message kind.
+7. The consumer handler processes the message in its own transaction boundary.
+8. The adapter applies its delivery policy (ack, retry, DLQ, stop, or other failure handling).
+
+Directly constructing and publishing an Integration Message in the command handler is a shortcut for simple use cases where cross-context publication is an explicit output of that command. The default is Domain Event first, boundary translation second.
+
+#### Publication Failure Policy
+
+| Requirement | Default handling |
+|-------------|------------------|
+| Ordinary notification; loss is acceptable | Log adapter admission / delivery failure; the original command remains successful after its aggregate is persisted |
+| User-facing command requires publish admission | Treat publication as an explicit command output and return the publish-port error, or use the direct-publish shortcut deliberately |
+| Pre-publish loss is unacceptable | Use an explicit reliability design; do not hide this requirement inside a command handler or technology-shaped port |
+| Subscriber adapter may redeliver | Make the consumer idempotent according to that adapter's delivery semantics |
+
+#### Domain Event vs Integration Message
+
+| Property | Domain Event | Integration Message |
 |----------|--------------|-------------------|
 | Scope | Inside one bounded context | Crosses bounded contexts |
 | Vocabulary | Publisher's ubiquitous language | Stable published language / contract |
 | Schema evolution | Refactored freely with the domain | Additive only; deprecation discipline |
 | Coupling | None outside the publishing context | Consumers depend on it |
-| Typical mechanism | In-process bus; same repo | Outbox + message queue, or §5.7 protocol contract |
+| Typical mechanism | Bounded-context-internal dispatcher / handlers; concrete delivery is implementation-specific | Publish / subscribe port implemented by a broker adapter, or §5.7 protocol contract |
 
-**Rule:** what crosses a bounded context is always an Integration Event, even when it is constructed from a Domain Event one-to-one. In simple monolithic deployments the two often share the same struct/class, but the *contract* is what matters — once a consumer depends on the payload, schema changes need consumer-side coordination.
+#### Refactoring Existing Events
 
-When refactoring a Domain Event whose payload is also published cross-context, treat the publishing side as a **producer of an Integration Event** and choose one of:
+**Rule:** what crosses a bounded context is always an Integration Message, even when it is constructed from a Domain Event one-to-one. In simple monolithic deployments the two often share the same struct/class, but the *contract* is what matters — once a consumer depends on the payload, schema changes need consumer-side coordination.
 
-1. **Translate at the boundary** — keep the Domain Event internal; an event handler in the same bounded context produces an Integration Event with a stable payload before publishing
+When refactoring a Domain Event whose payload is also published cross-context, treat the publishing side as a **producer of an Integration Message** and choose one of:
+
+1. **Translate at the boundary** — keep the Domain Event internal; an event handler in the same bounded context produces an Integration Message with a stable payload before publishing
 2. **Lock the payload** — accept that this Domain Event's payload is also a published contract, and apply additive evolution discipline to it
-3. **Versioned Integration Event** — emit `OrderPlacedV1`, `OrderPlacedV2` while keeping consumers running on either version through a deprecation window
+3. **Versioned Integration Message** — emit `OrderPlacedV1`, `OrderPlacedV2` while keeping consumers running on either version through a deprecation window
 
-Conflating internal Domain Events with cross-context Integration Events is the most common cause of "we can't change anything because every event is a contract" — an outcome that defeats the loose coupling event-driven boundaries were supposed to provide.
+Conflating internal Domain Events with cross-context Integration Messages is the most common cause of "we can't change anything because every event is a contract" — an outcome that defeats the loose coupling event-driven boundaries were supposed to provide.
 
-### 5.4 Integration Event Payload Design
+### 5.4 Integration Message Payload Design
 
-Integration events use a **Rich Event** style: carry the aggregate ID plus the minimum set of fields the consumer needs to process the event — nothing more.
+Integration Messages use a **rich fact** style: carry the aggregate ID plus the minimum set of fields the consumer needs to process the fact — nothing more.
 
 **Rules:**
 - **Never** include a full entity or aggregate root object in an event payload
-- Carry only the fields that are necessary for consumers to act on the event
-- Fields represent a **snapshot of the state at the moment the event occurred** — consumers must treat them as a historical record, not as current state
+- Carry only the fields that are necessary for consumers to act on the message
+- Fields represent a **snapshot of the state at the moment the fact occurred** — consumers must treat them as a historical record, not as current state
 - If a consumer needs the latest state of an entity, it must query it explicitly from its own data source
 
 ```
@@ -531,7 +566,7 @@ Two transport variants:
 Rules that apply to both variants:
 
 - Responses are DTOs / read models — Domain objects are never returned across the boundary
-- Queries must not produce side effects in the source context; for cross-context state propagation, use Integration Events
+- Queries must not produce side effects in the source context; for cross-context state propagation, use Integration Messages
 - Avoid query chains across more than two contexts; if you find yourself doing this, the bounded context boundaries are likely wrong
 
 Cross-context queries are appropriate when the consumer's read needs cannot be satisfied by an event-driven projection (data is too large to replicate, or freshness requirements demand a live read).
@@ -558,7 +593,7 @@ Rules:
 - Domain layers must not depend on generated protocol packages; if Domain logic needs an internal representation, define a Domain type and convert at the boundary (in Application or Infrastructure)
 - Do not relocate a Domain-facing port to Application merely because Application is the layer that touches the generated stub. Keep the semantic port in the owning layer (with Domain-typed inputs/outputs) and add `Proto ↔ Domain` assemblers in the layer that holds the proto dependency.
 - Schema evolution follows additive rules — no breaking field changes; deprecate before removing
-- Protocol contracts complement Integration Events and Cross-Context Queries (one for sync structured data; the others for state propagation and ad-hoc reads), they do not replace them
+- Protocol contracts complement Integration Messages and Cross-Context Queries (one for sync structured data; the others for state propagation and ad-hoc reads), they do not replace them
 
 **Placement**: generated code lives in a single language-conventional location, isolated from Domain. Each language guide names its concrete directory; the abstract rule is "one place, never inside a Domain package, never co-mingled with hand-written business types". Examples:
 
@@ -568,11 +603,11 @@ Rules:
 | Python | `packages/contracts/` or `src/contracts/gen/` |
 | TypeScript | `packages/contracts/` |
 
-Hand-written shared event payload types (used to type Integration Events crossing context boundaries within the same repository) are a different artifact from generated protocol code and should not be placed in the same directory.
+Hand-written shared event payload types (used to type Integration Messages crossing context boundaries within the same repository) are a different artifact from generated protocol code and should not be placed in the same directory.
 
 ---
 
-## 6. Domain Events and Reliability
+## 6. Domain Events and Dispatch Timing
 
 ### 6.1 Dispatch Timing
 
@@ -590,27 +625,11 @@ Domain events must be dispatched **after a successful persist**. Never dispatch 
   3. Persist aggregate
 ```
 
-### 6.2 Reliability Tiers
+### 6.2 Cross-process delivery
 
-Choose the appropriate delivery strategy based on business requirements:
+Cross-context Integration Messages are typically delivered through a message broker (Kafka, NATS, RocketMQ, RabbitMQ, etc.) using **at-least-once delivery + idempotent consumers** as the default reliability model. Domain Events stay inside one bounded context; their delivery semantics come from that bounded context's chosen dispatcher implementation. If the implementation is in-memory, crash-time loss is acceptable only when the producer's persisted state remains the source of truth and downstream readers can derive missing reactions from a query or replay.
 
-| Scenario | Strategy | Trade-off |
-|----------|----------|-----------|
-| In-process events, loss tolerable | In-memory event bus | Simplest; events lost on crash |
-| Cross-service notification, no loss | Outbox Pattern | Atomic write with business data; separate worker delivers |
-| High throughput, eventual consistency | Message queue + idempotent consumer | Kafka, RocketMQ, etc. |
-
-**Outbox Pattern flow:**
-
-```
-Single transaction:
-  ┌─────────────────────┐     ┌──────────────────────────────┐
-  │  Write business data │ ──► │  Write event to outbox table  │
-  └─────────────────────┘     └──────────────────────────────┘
-
-Separate worker:
-  Poll outbox table → publish to message queue → mark as delivered
-```
+The narrow case where pre-publish loss is unacceptable — payment, inventory, regulatory compliance — requires a separate reliability design. This guide does not prescribe an implementation; consult the language ecosystem's standard solutions, and keep the reliability mechanism inside the Repository or Infrastructure adapter so it does not leak as a Domain or Application port (§3.4).
 
 ---
 
@@ -701,7 +720,7 @@ Use this checklist when reviewing backend, DDD, refactor, or technical-capabilit
 - **Technical capability classification**: dispatchers, registries, schedulers, routers, connectors, ownership managers, delivery mechanisms, projections, observability, and audit logic are classified before package placement.
 - **Interface direction**: inward layers define the interfaces they need; outer layers implement them. Infrastructure-defined interfaces must not be imported inward.
 - **Port granularity**: ports are named for semantic capabilities, not implementation technologies. Redis/MySQL/cache/queue clients are composed inside Infrastructure unless the use case itself needs a separate semantic boundary.
-- **Cross-context boundaries**: communication uses Integration Events, cross-context queries, ACL, or protocol contracts; no direct calls into another context's Domain model or Application Service.
+- **Cross-context boundaries**: communication uses Integration Messages, cross-context queries, ACL, or protocol contracts; no direct calls into another context's Domain model or Application Service.
 - **Package/path consistency**: a package path that claims `domain`, `application`, `interfaces`, or `infrastructure` follows that layer's dependency and responsibility rules.
 
 ---
@@ -715,15 +734,15 @@ Use this checklist when reviewing backend, DDD, refactor, or technical-capabilit
 5. **Aggregate boundary** — Repository operates on aggregate roots only, never on child entities directly
 6. **State encapsulation** — all state changes go through domain methods; direct field mutation from outside is prohibited
 7. **ID generation in Domain** — use infrastructure-independent ID schemes (UUID, ULID, Snowflake); never rely on database auto-increment
-8. **Disciplined cross-context communication** — use one of: Integration Events (default for cross-context state propagation), cross-context queries (read-only), ACL (external/legacy), protocol contracts (cross-service schemas); direct calls into another context's Domain model or Application Service are prohibited; event payloads use Rich Event style (ID + minimum necessary fields), never embed full entities or aggregate objects
-9. **Event collection** — aggregates collect events internally; best-effort handlers may drain after persist, while reliable Outbox implementations read events inside the persistence mechanism and clear them only after commit
+8. **Disciplined cross-context communication** — use one of: Integration Messages (default for cross-context state propagation), cross-context queries (read-only), ACL (external/legacy), protocol contracts (cross-service schemas); direct calls into another context's Domain model or Application Service are prohibited; Integration Message payloads carry the ID plus the minimum necessary facts, never full entities or aggregate objects
+9. **Event collection** — aggregates collect events internally; the Application layer drains and dispatches once after a successful persist, and the Repository never drains
 10. **CQRS** — Commands go through the domain model; Queries go directly to the database via QueryRepository and return DTOs
 11. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
 12. **Repository collection semantics** — `Save()` covers create, update, and state-driven soft delete; never split by database operation type
 13. **Soft delete** — business-driven deletion is modeled as domain state; `deleted_at` is always an Infrastructure concern
 14. **Optimistic locking** — Infrastructure increments `version` via SQL; domain holds `Version` as a read-only token; always reload after `Save()` before further operations
 15. **Event dispatch timing** — dispatch events after a successful persist, never before
-16. **Event reliability** — choose in-memory bus / Outbox Pattern / message queue based on reliability requirements
+16. **Event reliability** — Domain Event delivery is bounded-context-internal and implementation-specific; cross-process Integration Messages default to broker at-least-once delivery + consumer-side idempotency
 17. **Technical capability classification** — technical-facing code is Domain-facing when it owns stable language, states, policies, or invariants; Infrastructure only adapts external systems and mechanisms
 
 ---

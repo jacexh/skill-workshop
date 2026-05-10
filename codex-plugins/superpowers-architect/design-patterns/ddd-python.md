@@ -1311,10 +1311,19 @@ class CreateOrderHandler:
         ...
 ```
 
-### 5.2 Communicate via Integration Events (default for cross-context state propagation)
+### 5.2 Communicate via Integration Messages (default for cross-context state propagation)
+
+Integration Messages are cross-context semantic contracts. The default lifecycle follows [ddd-core.md §5.3](ddd-core.md): a Domain method records Domain Events inside the producing bounded context; the Application command handler saves the aggregate and drains those Domain Events; a same-context boundary translator / publisher selects publishable facts and maps them to Integration Message payloads; the publish port submits the message to the selected adapter. Adapter success means the adapter accepted the message according to its own semantics, not that any consumer has handled it.
+
+Keep concept, contract, port, and delivery mechanism separate:
+
+- **Concept**: the cross-context fact another bounded context may depend on.
+- **Contract**: the stable payload schema, message kind/name, versioning, and compatibility rules.
+- **Port**: the implementation-independent publish / subscribe API exposed to Application code.
+- **Mechanism**: broker, queue, retry, DLQ, ordering, and other adapter-specific delivery concerns.
 
 ```python
-# Order context publishes an Integration Event after persisting its aggregate
+# Order context persists the aggregate and dispatches internal Domain Events.
 class CreateOrderHandler:
     def __init__(self, repo: OrderRepository, event_bus: EventBus) -> None:
         self._repo = repo
@@ -1323,21 +1332,37 @@ class CreateOrderHandler:
     async def handle(self, cmd: CreateOrderCommand) -> str:
         order = Order.create(user_id=cmd.user_id, items=cmd.items)
         await self._repo.save(order)
-        # Translate selected Domain Events into Integration Events, then publish.
-        await self._event_bus.publish(to_integration_events(order.collect_events()))
+        await self._event_bus.publish(order.collect_events())
         return order.id
 
 
-# User context subscribes to the Integration Event
+# Same Order context: boundary translator publishes selected facts as Integration Messages.
+class OrderCreatedPublisher:
+    def __init__(self, publisher: MessagePublisher) -> None:
+        self._publisher = publisher
+
+    async def handle(self, event: OrderCreatedEvent) -> None:
+        msg = OrderCreatedMessage(
+            order_id=event.order_id,
+            user_id=event.user_id,
+            total_amount=event.total_amount,
+            occurred_at=event.occurred_at,
+        )
+        await self._publisher.publish(msg)
+
+
+# User context subscribes to the Integration Message
 class UserPointsSubscriber:
     def __init__(self, repo: UserRepository) -> None:
         self._repo = repo
 
-    async def handle(self, event: OrderCompletedEvent) -> None:
-        user = await self._repo.get(event.user_id)
-        user.add_points(event.total_amount // 10)
+    async def handle(self, msg: OrderCreatedMessage) -> None:
+        user = await self._repo.get(msg.user_id)
+        user.add_points(msg.total_amount // 10)
         await self._repo.save(user)
 ```
+
+Publication failures follow [ddd-core.md §5.3](ddd-core.md)'s policy table: ordinary notifications may log and keep the original command successful, command-visible publication should return the publish-port error explicitly, and pre-publish loss intolerance requires an explicit reliability design rather than a technology-shaped port.
 
 ### 5.3 ACL and Protocol Contracts
 
@@ -1639,8 +1664,9 @@ EventHandler = Callable[[DomainEvent], Coroutine[Any, Any, None]]
 class InMemoryEventBus:
     """Simple in-memory event bus for intra-process event dispatch.
 
-    For production cross-service scenarios, replace with an Outbox Pattern
-    or message queue implementation. See ddd-core.md §6.2.
+    Domain Events stay inside one bounded context. Cross-context facts are
+    Integration Messages published through an explicit port / adapter; see
+    ddd-core.md §5.3 and §6.2.
     """
 
     def __init__(self) -> None:
@@ -1996,7 +2022,7 @@ dev = [
 5. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
 6. **State encapsulation** — all state changes go through domain methods; use `__slots__` and `@property` to prevent external mutation
 7. **ID generation in Domain** — use a time-sortable identifier (stdlib `uuid.uuid7()` on Python 3.14+; third-party UUIDv7 / ULID library or `uuid.uuid4()` on 3.12 / 3.13); database auto-increment IDs are prohibited
-8. **Disciplined cross-context communication** — Integration Events (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port, never another context's internal `QueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; events use Rich Event style (ID + minimum necessary fields)
+8. **Disciplined cross-context communication** — Integration Messages (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port, never another context's internal `QueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; Integration Message payloads carry the ID plus minimum necessary facts
 9. **Event collection** — aggregates collect events in `_events` list; Application calls `collect_events()` after successful `save()` to drain and dispatch
 10. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return Pydantic DTOs
 11. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
@@ -2004,7 +2030,7 @@ dev = [
 13. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
 14. **Optimistic locking** — Infrastructure increments `version` via SQL; Domain holds `version` as a read-only token; always reload after `save()`
 15. **Event dispatch timing** — dispatch after successful persist, never before
-16. **Event reliability** — choose in-memory bus / Outbox Pattern / message queue based on reliability requirements
+16. **Event reliability** — Domain Event delivery is bounded-context-internal and implementation-specific; cross-context Integration Messages default to adapter delivery semantics plus consumer-side idempotency, with explicit reliability design only when pre-publish loss is unacceptable
 17. **Technical capability classification** — technical-facing code (dispatchers, registries, schedulers, routers, projections, ownership managers) is Domain-facing when it owns stable language, states, policies, or invariants; Infrastructure only adapts external systems and mechanisms ([ddd-core.md §3.1](ddd-core.md))
 18. **Type safety** — full type annotations, `mypy --strict`, Pydantic validation at boundaries
 19. **Async I/O** — all infrastructure operations are `async`; domain methods remain synchronous

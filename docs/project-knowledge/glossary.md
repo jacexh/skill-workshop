@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-09
+last_updated: 2026-05-10
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -13,6 +13,10 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Hook Runtime** — Node.js entry point for superpowers-memory hooks. Claude `hook-runtime.js`; Codex `codex-runtime.js` (drops `user-prompt-expansion` mode, adds `user-prompt-submit`). → `plugins/superpowers-memory/hooks/hook-runtime.js`
 
 **Trigger Skills** — Upstream `superpowers` skills that plugin hooks intercept. Claude memory hooks 5 skills via PreToolUse:Skill; Codex memory hooks only 2 manually-typed (brainstorming, finishing-a-development-branch) via UserPromptSubmit (ADR-013). → `plugins/*/hooks/`
+
+**Domain Event** — DDD fact recorded inside one bounded context; cross-context contracts must be Integration Messages. → `plugins/superpowers-architect/design-patterns/ddd-core.md`
+
+**Integration Message** — Stable cross-context semantic contract for state propagation; Go guidance uses `ddd/message` as the publish/subscribe port. → `plugins/superpowers-architect/design-patterns/ddd-core.md`
 
 **KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/project-knowledge/`; acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild`. Same lock file used by both tracks (Claude and Codex naturally share when running on same repo). → ADR-010
 
