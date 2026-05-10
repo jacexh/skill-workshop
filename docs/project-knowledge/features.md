@@ -90,7 +90,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Actors / Entry Points** — `superpowers-architect:standards`, architect hooks, and design-pattern files under both `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/`.
 
-**Capability Boundary** — `ddd-modeling.md` owns architecture gates, model discovery, and technical-capability classification; `ddd-core.md` owns language-neutral DDD/Clean Architecture rules and review checklist; language guides add implementation-specific placement, validation, observability, test, and wiring rules.
+**Capability Boundary** — `ddd-modeling.md` owns architecture gates, model discovery, technical-capability classification, port granularity, and vendor-wrapper ACL triage; `ddd-core.md` owns language-neutral DDD/Clean Architecture rules and the Domain Event vs Integration Message boundary; language guides add implementation-specific placement, validation, observability, test, and wiring rules.
 
 **References** — `plugins/superpowers-architect/design-patterns/ddd-modeling.md`, `plugins/superpowers-architect/design-patterns/ddd-core.md`; see `conventions.md` for design-pattern maintenance rules.
 
