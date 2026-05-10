@@ -4,6 +4,7 @@ updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
 
+
 # Conventions
 
 ## Coding Standards
@@ -30,7 +31,8 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 - **DDD pattern ownership:** `ddd-modeling.md` owns strategic modeling, architecture gates, technical-capability classification, and port granularity; `ddd-core.md` owns language-neutral tactical rules, Domain Event vs Integration Event boundaries, generated protocol DTO boundaries, and review checklist; `ddd-<language>.md` files only add implementation-specific placement, validation, testing, observability, and wiring guidance.
 - **DDD port placement rule:** Port/interface ownership is decided by semantic capability, not by implementation technology or by where request/response types are defined. Generated proto structs are protocol DTOs/contracts, not Domain entities; Domain-facing ports use Domain types and map `Proto ↔ Domain` at Application/Interface/Infrastructure boundaries.
 - **DDD technology-leak rule:** Do not create Application/Domain ports solely for MySQL transactions, outbox rows, broker publishing, retry counters, or Unit of Work plumbing. Hide those consistency mechanics behind Repository, transaction-aware event bus, or Infrastructure adapters unless the use case names and observes that capability.
-- **DDD event boundary rule:** Domain Events are internal bounded-context facts; cross-context state propagation uses Integration Events with stable payload contracts. Reliable outbox delivery reads pending Domain Events inside persistence/delivery infrastructure and clears them only after the transaction succeeds; best-effort in-process mediator dispatch remains separate.
+- **DDD event boundary rule:** Domain Events are internal bounded-context facts dispatched in-process within the same context (Go guide uses `github.com/go-jimu/components/ddd/event`); cross-context state propagation uses Integration Events with stable payload contracts. Reliable outbox delivery reads pending Domain Events inside persistence/delivery infrastructure and clears them only after the transaction succeeds; best-effort in-process Domain Event dispatch remains separate.
+- **DDD event collection drain ownership:** Each aggregate's event collection is drained exactly once per `Save()` attempt by exactly one component — Application for in-process dispatch, or Repository inside the persistence transaction. Drain is one-shot; a second drain returns an empty slice, silently dropping events. The doc enforces this so producers cannot accidentally double-dispatch or lose events to a stale instance.
 - **DDD Go logging rule:** Execution boundaries in generated Go guidance log one completion record for every success, failure, skip, or retry. Runtime logging uses `github.com/go-jimu/components/sloghelper`, with `sloghelper.Error(err)` for wrapped errors and request/job loggers passed through context or constructors.
 
 ## Testing Conventions
