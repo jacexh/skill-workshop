@@ -1,15 +1,17 @@
 ---
 name: ddd-core
-description: DDD + Clean Architecture specification for backend services. Use when designing, implementing, or reviewing backend code with bounded contexts, aggregates, repositories, domain events, CQRS, or domain modeling. Also use when creating new backend services or reviewing architecture conformance.
+description: DDD + Clean Architecture specification for backend services. Use when designing, implementing, or reviewing backend code with bounded contexts, aggregates, repositories, domain events, CQRS, or domain modeling. Also use when creating new backend services or reviewing architecture conformance. Code agents must read ddd-agent-contract.md first.
 ---
 
 # Backend Architecture Specification
 ## DDD + Clean Architecture
 
-**Version**: v2.2
-**Date**: 2026-04-15
+**Version**: v2.3
+**Date**: 2026-05-11
 **Scope**: All backend services, language-agnostic
 **Prerequisite**: Before using this specification, complete the strategic modeling phase described in [`ddd-modeling.md`](ddd-modeling.md). That document guides you from business requirements to a domain model (bounded contexts, aggregate boundaries). This document then provides the tactical implementation rules for that model.
+
+> **Agents — read this first**: [`ddd-agent-contract.md`](ddd-agent-contract.md) defines the mandatory execution order, stop protocol, and prohibited actions for code agents working on DDD tasks. Do not skip it.
 
 ---
 
@@ -290,7 +292,7 @@ Otherwise collapse it. The `QueryRepository` interface itself must remain in eit
 - Specifically, Application must not implement business field validation; it constructs Domain inputs, calls Domain constructors / methods / `Validate()`, and maps Domain errors outward (see §3.1 Validation Contract)
 - Application must not become the owner of domain rules for technical-facing capabilities (see §3.1 Domain Rules in Technical Capabilities); it orchestrates Domain methods/services and Infrastructure implementations
 - Never access the database directly; always go through Repository / QueryRepository interfaces
-- **One transaction modifies one aggregate only.** If a use case needs to modify multiple aggregates, modify the first aggregate and persist it, then use domain events to trigger modifications to other aggregates in separate transactions (eventual consistency). Co-locating multiple aggregate mutations in a single transaction is prohibited.
+- **Default transaction boundary: one transaction modifies one aggregate only.** If a use case needs to modify multiple aggregates, prefer modifying the first aggregate and persisting it, then use Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions to coordinate the other aggregates in separate transactions. Co-locating multiple aggregate mutations in a single transaction is prohibited unless the exception gate below is satisfied.
 - Domain events are dispatched **after a successful persist**, never immediately after calling a domain method
 - Error handling: log Infrastructure errors at this layer; propagate Domain errors silently (they are part of the normal business flow)
 - After calling `Repository.Save()`, the in-memory aggregate is considered **stale**. If further operations are needed on the same aggregate, reload it with `Repository.Get()` before proceeding:
@@ -305,6 +307,20 @@ ar = repo.get(id)   # reload — never reuse the reference after Save()
 ar.method_2()
 repo.save(ar)
 ```
+
+#### Multi-Aggregate Transaction Exception Gate
+
+Treat multi-aggregate writes in one transaction as a design exception, not a convenience. The plan must satisfy every item below before implementation:
+
+- **Same bounded context**: the aggregates belong to the same bounded context and the write does not cross a service, database, or external consistency boundary.
+- **Non-repairable invariant**: the business can name an invariant that would be violated by temporary inconsistency and cannot be safely repaired by compensation, retry, replay, or reconciliation.
+- **Modeling check completed**: the team has checked whether the rule should instead be modeled as one aggregate, a new aggregate (for example a `Transfer`, `Reservation`, `LedgerEntry`, or `Registry` aggregate), a Domain Service plus one aggregate write, or a database uniqueness / exclusion constraint surfaced as a Domain error.
+- **Alternatives rejected with reason**: Domain Events, Integration Messages, Saga / Process Manager, outbox / replay, and idempotent consumers have been considered and rejected for this specific invariant.
+- **Concurrency plan**: the write states the lock / optimistic-concurrency strategy, expected contention, retry behavior, and stale-state rules after `Save()`.
+- **Failure semantics**: the command defines what callers observe when either aggregate write fails, and whether any side effects may already have been admitted.
+- **No precedent**: migration scripts, data repair jobs, and legacy transition code may use broader transactions, but they must be labeled as operational / transitional exceptions and must not become precedent for normal Command Handlers.
+
+If the exception cannot be justified in those terms, keep the normal one-aggregate transaction boundary and coordinate through events, messages, or an explicit process.
 
 ### 3.3 Interface Layer
 
@@ -720,6 +736,7 @@ Use this checklist when reviewing backend, DDD, refactor, or technical-capabilit
 - **Technical capability classification**: dispatchers, registries, schedulers, routers, connectors, ownership managers, delivery mechanisms, projections, observability, and audit logic are classified before package placement.
 - **Interface direction**: inward layers define the interfaces they need; outer layers implement them. Infrastructure-defined interfaces must not be imported inward.
 - **Port granularity**: ports are named for semantic capabilities, not implementation technologies. Redis/MySQL/cache/queue clients are composed inside Infrastructure unless the use case itself needs a separate semantic boundary.
+- **Transaction boundary**: Command Handlers default to one aggregate write per transaction. Any multi-aggregate transaction passes the exception gate in §3.2 and remains inside one bounded context.
 - **Cross-context boundaries**: communication uses Integration Messages, cross-context queries, ACL, or protocol contracts; no direct calls into another context's Domain model or Application Service.
 - **Package/path consistency**: a package path that claims `domain`, `application`, `interfaces`, or `infrastructure` follows that layer's dependency and responsibility rules.
 
@@ -737,7 +754,7 @@ Use this checklist when reviewing backend, DDD, refactor, or technical-capabilit
 8. **Disciplined cross-context communication** — use one of: Integration Messages (default for cross-context state propagation), cross-context queries (read-only), ACL (external/legacy), protocol contracts (cross-service schemas); direct calls into another context's Domain model or Application Service are prohibited; Integration Message payloads carry the ID plus the minimum necessary facts, never full entities or aggregate objects
 9. **Event collection** — aggregates collect events internally; the Application layer drains and dispatches once after a successful persist, and the Repository never drains
 10. **CQRS** — Commands go through the domain model; Queries go directly to the database via QueryRepository and return DTOs
-11. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
+11. **Transaction boundary** — one Command Handler owns one transaction; the default is one aggregate write per transaction; multi-aggregate writes require the §3.2 exception gate and must stay inside one bounded context
 12. **Repository collection semantics** — `Save()` covers create, update, and state-driven soft delete; never split by database operation type
 13. **Soft delete** — business-driven deletion is modeled as domain state; `deleted_at` is always an Infrastructure concern
 14. **Optimistic locking** — Infrastructure increments `version` via SQL; domain holds `Version` as a read-only token; always reload after `Save()` before further operations

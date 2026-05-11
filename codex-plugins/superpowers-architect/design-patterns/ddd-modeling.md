@@ -1,15 +1,17 @@
 ---
 name: ddd-modeling
-description: Strategic domain modeling guide for DDD. Use BEFORE writing implementation plans to identify bounded contexts, aggregate roots, and aggregate boundaries from business requirements. Provides decision trees, heuristics, and worked examples for domain discovery. Prerequisite to ddd-core and language-specific implementation guides.
+description: Strategic domain modeling guide for DDD. Use BEFORE writing implementation plans to identify bounded contexts, aggregate roots, and aggregate boundaries from business requirements. Provides decision trees, heuristics, and worked examples for domain discovery. Prerequisite to ddd-core and language-specific implementation guides. Code agents must read ddd-agent-contract.md first.
 ---
 
 # Strategic Domain Modeling Guide
 ## From Business Requirements to Domain Model
 
-**Version**: v1.0
-**Date**: 2026-04-15
+**Version**: v1.1
+**Date**: 2026-05-11
 **Scope**: All backend services using DDD
 **Usage**: Complete this modeling phase BEFORE writing implementation plans. The output feeds into [`ddd-core.md`](ddd-core.md) and language-specific guides ([`ddd-golang.md`](ddd-golang.md), [`ddd-python.md`](ddd-python.md), [`ddd-typescript.md`](ddd-typescript.md)).
+
+> **Agents — read this first**: [`ddd-agent-contract.md`](ddd-agent-contract.md) defines the mandatory execution order, stop protocol, and prohibited actions for code agents working on DDD tasks. Do not skip it.
 
 ---
 
@@ -667,7 +669,7 @@ Plan must state:
 - external integration boundary, if any
 - Infrastructure implementation
 - Domain Events produced or consumed; Integration Messages published or subscribed for cross-context communication
-- transaction boundary and event dispatch timing
+- transaction boundary and event dispatch timing; if the use case proposes one transaction that writes multiple aggregates, include the multi-aggregate exception evidence required by [ddd-core.md §3.2](ddd-core.md)
 
 Check against [ddd-core.md §3.1-§3.4](ddd-core.md), [§5](ddd-core.md), and the relevant language-specific implementation guide before implementation.
 
@@ -680,6 +682,7 @@ Spec must include:
 - bounded context, business capability, ubiquitous language, and data authority (see §2)
 - aggregate root, entities, value objects, and guarded invariants (see §3)
 - technical capability classification for any runtime coordination, routing, scheduling, delivery, registry, projection, ownership, observability, or audit concern
+- transaction boundary for each command; any proposed multi-aggregate transaction must stay inside one bounded context and satisfy the exception gate in [ddd-core.md §3.2](ddd-core.md)
 - Integration Messages and minimum required payload fields (see [ddd-core.md §5.4](ddd-core.md))
 - cross-context communication mechanism: Integration Messages, queries, ACL, or protocol contracts (see [ddd-core.md §5.2](ddd-core.md))
 - language-specific package layout (see the corresponding implementation guide: [ddd-golang.md](ddd-golang.md), [ddd-python.md](ddd-python.md), [ddd-typescript.md](ddd-typescript.md))
