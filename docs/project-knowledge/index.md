@@ -2,7 +2,7 @@
 last_updated: 2026-05-11
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
-covers_branch: hotfix/packages@048dc9f
+covers_branch: hotfix/packages@ab00832
 ---
 
 # Project Knowledge Index
