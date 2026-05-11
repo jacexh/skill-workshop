@@ -18,6 +18,8 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Integration Message** — Stable cross-context semantic contract for state propagation; Go guidance uses `ddd/message` as the publish/subscribe port. → `plugins/superpowers-architect/design-patterns/ddd-core.md`
 
+**Canonical Go Component Libraries** — Required Go libraries named by `ddd-golang.md` for DDD concerns; agents should use their public interfaces instead of local substitutes. → `plugins/superpowers-architect/design-patterns/ddd-golang.md`
+
 **KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/project-knowledge/`; acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild`. Same lock file used by both tracks (Claude and Codex naturally share when running on same repo). → ADR-010
 
 **Rich Injection** — Hook output pattern: a multi-section `additionalContext` block (diff scope + imperative MUST language + numbered checklist) used in place of `decision: "block"`; designed to make compliance the path of least resistance without forcing a halt. → ADR-011
@@ -32,4 +34,4 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Prompt Router** — Codex UserPromptSubmit hook path that inspects raw user text and injects focused context for explicit workflow signals; used by memory and architect where skill-call hooks are unavailable. → `codex-plugins/*/hooks/codex-runtime.js`
 
-**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, 12 must-not rules, dual-track self-check, compact output template. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
+**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, 13 must-not rules, dual-track self-check, compact output template. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
