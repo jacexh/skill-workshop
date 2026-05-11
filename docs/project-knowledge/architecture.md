@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-09
+last_updated: 2026-05-11
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -23,7 +23,7 @@ Skill Workshop is a dual-track plugin marketplace. Each track exposes the same t
 | `plugins/superpowers-memory/content-rules.md` | Shared content generation rules (SSOT) | Language, inclusion/exclusion, ownership matrix, size guards | None |
 | `plugins/superpowers-architect/` | Claude track: design pattern standards injection | Hook (`pre-tool-use`) + skill (`standards`) | Claude Code plugin runtime, Node.js |
 | `plugins/superpowers-architect/hooks/pre-tool-use` | Scans global + project pattern dirs, injects compact index into 5 trigger skills with plan/review wording fork | Targets 5 skills; uses `node -e` for JSON parsing; reads YAML frontmatter for name/description | Node.js, bash |
-| `plugins/superpowers-architect/design-patterns/` | 8 reference design pattern files | `database.md`, `rest-api.md`, `ddd-core.md`, `ddd-modeling.md`, `ddd-golang.md`, `ddd-python.md`, `ddd-typescript.md`, `frontend-patterns.md` | None |
+| `plugins/superpowers-architect/design-patterns/` | 10 reference design pattern files; the architect `standards` skill discovers them by directory scan | `database.md`, `rest-api.md`, `frontend-patterns.md`, `ddd-agent-contract.md` (agent execution contract, read first by agents), `ddd-modeling.md`, `ddd-core.md`, `ddd-golang.md`, `ddd-golang-runtime.md` (config + fx.Lifecycle + graceful shutdown + k8s), `ddd-python.md`, `ddd-typescript.md` | None |
 | `plugins/designing-tests/` | Claude track: intent-first test design guidance | Skill (`designing-tests`), Hook (`pre-tool-use`), 4 reference files | Claude Code plugin runtime, Node.js |
 | `plugins/designing-tests/hooks/pre-tool-use` | Three-tier injection across 4 skills: planning / execution / full | Targets `writing-plans` / `executing-plans` / `subagent-driven-development` / `test-driven-development` | Node.js, bash |
 | `codex-plugins/superpowers-memory/` | Codex track: equivalent KB persistence + write-lock | Skills (`load`, `update`, `rebuild`, `cleanup`), Hooks (`session-start`, `user-prompt-submit`, `pre-tool-use`) | Codex CLI plugin runtime, Node.js, git |
@@ -70,3 +70,4 @@ Skill Workshop is a dual-track plugin marketplace. Each track exposes the same t
 - **Dual-path coverage of finishing-a-development-branch (Claude):** PreToolUse:Skill (programmatic) and UserPromptExpansion (slash-command) share `classifyFinishingState()`; KB-ready precheck at each caller (ADR-012).
 - **Codex marketplace compat — Strategy A:** Parallel `codex-plugins/` tree with full duplication; Codex track is experimental. Native manifest hooks are the install/upgrade path; public setup skills were removed after native hooks became primary, and cleanup skills migrate users off stale fallback entries (ADR-013, ADR-014). Architect Codex layers SessionStart guidance, explicit skill-mention routing, and the explicit standards skill; Stop interception is intentionally not registered.
 - **PR-merge auto release:** Release logic is script-backed; Claude and Codex plugin version bumps are path-scoped and Codex hook snippet versions stay aligned with Codex plugin manifests (see `docs/superpowers/specs/2026-04-27-auto-release-versioning-design.md`).
+- **DDD agent contract + Go runtime split:** Agent-behavior contract for DDD work and Go runtime concerns live in standalone design-pattern files, loaded by the architect `standards` skill alongside the existing modeling/core/language guides (ADR-015).

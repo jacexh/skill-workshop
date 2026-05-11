@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-10
+last_updated: 2026-05-11
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -31,3 +31,5 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Standing Primer** — Always-present text injected at SessionStart by Codex-side hooks to compensate for Codex's lack of per-skill JIT injection. Carries decay-tolerant standing rules ("before X, do Y") instead of just-in-time advisories. → ADR-013
 
 **Prompt Router** — Codex UserPromptSubmit hook path that inspects raw user text and injects focused context for explicit workflow signals; used by memory and architect where skill-call hooks are unavailable. → `codex-plugins/*/hooks/codex-runtime.js`
+
+**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, 12 must-not rules, dual-track self-check, compact output template. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
