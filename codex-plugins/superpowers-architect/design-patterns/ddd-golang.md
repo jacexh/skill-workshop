@@ -283,6 +283,7 @@ If the rule can be unit-tested without Redis, SQL, a queue, ConnectRPC, or gener
 
 **Constraints**: see [ddd-core.md §3.1](ddd-core.md) for the full list (no concrete implementation dependencies; general-purpose libraries allowed; no cross-context Domain imports; state changes through domain methods; Version is a read-only token incremented by Infrastructure; IDs generated in Domain via UUID/ULID/Snowflake). Go-specific deltas:
 
+- **Canonical Go component libraries are requirements, not suggestions.** When this guide names a Go library for a DDD concern, use that library and its public interfaces instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed only when existing repository code already standardized on it or the user explicitly approves the exception.
 - **Concrete prohibition list for Go imports**: no `import` of `pkg/gen/...` (generated proto), `connectrpc.com/connect`, `google.golang.org/grpc`, `net/http`'s server side, `xorm.io/xorm`, `gorm.io/gorm`, database/sql drivers, `franz-go` / Kafka / NATS / RocketMQ / Redis clients, `internal/pkg/*` adapters, `internal/.../infrastructure`, or another bounded context's `internal/business/<ctx>/domain`. Allowed: `github.com/google/uuid`, `time`, `errors`, `fmt`, `strings`, `github.com/samber/oops`, and the in-package `github.com/go-jimu/components/ddd/event` (event types only, no dispatcher implementation).
 - **No anemic aggregates.** An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/handler.go` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. When fields must be exported for XORM/copier mapping, keep mutation methods as the only sanctioned mutation path and treat direct external assignment as a code-review failure.
 - **Version increment lives in SQL.** The Domain `Version int` field is read-only; the `version = version + 1` mutation happens in the Repository's `UPDATE` statement (see §3.4). Do not increment `Version` in Domain methods or factories.
@@ -1237,7 +1238,9 @@ Layer-specific placement:
 
 ## 7. Technology Stack
 
-| Purpose | Recommended Library |
+Unless an existing repository has already standardized on a different implementation or the user explicitly approves an exception, these are the required libraries for the concerns listed below. Do not create project-local substitutes for their core interfaces (`event.Event`, `event.Collection`, `message.Publisher`, `message.Handler`, `fsm.StateContext`, `sloghelper.Error`, config loader options, and similar).
+
+| Purpose | Required Library |
 |---------|---------------------|
 | Dependency Injection | `go.uber.org/fx` |
 | RPC/HTTP | `connectrpc.com/connect` |
