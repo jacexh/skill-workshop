@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-10
+last_updated: 2026-05-11
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -90,9 +90,19 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Actors / Entry Points** — `superpowers-architect:standards`, architect hooks, and design-pattern files under both `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/`.
 
-**Capability Boundary** — `ddd-modeling.md` owns architecture gates, model discovery, technical-capability classification, port granularity, and vendor-wrapper ACL triage; `ddd-core.md` owns language-neutral DDD/Clean Architecture rules and the Domain Event vs Integration Message boundary; language guides add implementation-specific placement, validation, observability, test, and wiring rules.
+**Capability Boundary** — `ddd-modeling.md` owns architecture gates, model discovery, technical-capability classification, port granularity, and vendor-wrapper ACL triage; `ddd-core.md` owns language-neutral DDD/Clean Architecture rules and the Domain Event vs Integration Message boundary; `ddd-golang.md` covers Go layers/aggregates/events/integration messages; `ddd-golang-runtime.md` carries Go runtime concerns (config, fx.Lifecycle, graceful shutdown, Kubernetes); Python/TypeScript guides keep their implementation-specific scope.
 
-**References** — `plugins/superpowers-architect/design-patterns/ddd-modeling.md`, `plugins/superpowers-architect/design-patterns/ddd-core.md`; see `conventions.md` for design-pattern maintenance rules.
+**References** — `plugins/superpowers-architect/design-patterns/ddd-modeling.md`, `plugins/superpowers-architect/design-patterns/ddd-core.md`, `plugins/superpowers-architect/design-patterns/ddd-golang-runtime.md`; see `conventions.md` for design-pattern maintenance rules and ADR-015 for the agent-contract/runtime split.
+
+#### DDD Code Agent Execution Contract
+
+**Enables** — Code agents (Claude Code, Codex) follow a deterministic execution protocol when doing DDD or Go-runtime work: trigger conditions, mandatory read order, stop-and-ask protocol, prohibited actions, dual-track self-check, and a compact output template.
+
+**Actors / Entry Points** — `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md` (and its Codex mirror); referenced from the top of `ddd-modeling.md`, `ddd-core.md`, `ddd-golang.md`; loaded via the architect `standards` skill's directory scan.
+
+**Capability Boundary** — The contract is a behavior layer, not architecture content. It classifies tasks into DDD / Go-runtime-only / mixed and maps each to which specs must be read; it does not duplicate modeling/core/language rules. Promotion to a standalone skill is deferred until observed need (see ADR-015).
+
+**References** — `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015.
 
 #### Claude Architecture Standards Injection
 

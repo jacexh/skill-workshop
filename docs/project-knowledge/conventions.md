@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-10
+last_updated: 2026-05-11
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -34,6 +34,8 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 - **DDD event boundary rule:** Domain Events are bounded-context-internal facts; cross-context state propagation uses Integration Messages with stable payload contracts. The Go guide's current `ddd/event` implementation is in-memory/same-process, while cross-context Go examples use `ddd/message` plus a broker adapter such as `contrib/message/kafka`.
 - **DDD event collection drain ownership:** Each aggregate's event collection is drained exactly once by Application after a successful `Save()`. Repository never drains. Drain is one-shot; a second drain returns an empty slice, so callers must reload before further mutations instead of retrying `Save()` on a drained aggregate instance.
 - **DDD Go logging rule:** Execution boundaries in generated Go guidance log one completion record for every success, failure, skip, or retry. Runtime logging uses `github.com/go-jimu/components/sloghelper`, with `sloghelper.Error(err)` for wrapped errors and request/job loggers passed through context or constructors.
+- **DDD agent execution contract (ADR-015):** `ddd-agent-contract.md` is the agent-behavior layer for DDD work. Agents classify the task as DDD-business / Go-runtime-only / mixed; only DDD-business and mixed paths emit the modeling §0 Architecture Gate, runtime-only work declares runtime component/ownership/lifecycle/config/shutdown instead. The contract owns the 12 must-not rules, the stop-and-ask protocol (preceded by repo-context inspection), the dual-track self-check (DDD §5.1 + Runtime §5.2), and the compact output template; modeling/core/language docs do not duplicate these.
+- **DDD Go runtime split (ADR-015):** Go runtime concerns — fx-based configuration management, `fx.Lifecycle` hooks, graceful shutdown ordering, Kubernetes `preStop` — live in `ddd-golang-runtime.md`. `ddd-golang.md` keeps layers, aggregates, events, integration messages, file organization, module assembly. The two are siblings under `design-patterns/`; agents editing `cmd/**/main.go`, `internal/pkg/<middleware>/**.go`, or `fx.Lifecycle` must load runtime, not the Go guide alone.
 
 ## Testing Conventions
 
