@@ -6,14 +6,19 @@ description: Python implementation guide for DDD + Clean Architecture. Use when 
 # Python Web System Architecture Guide
 ## DDD + Clean Architecture — Python Implementation
 
-**Version**: v1.0
-**Date**: 2026-04-02
+**Version**: v2.3
+**Date**: 2026-05-11
 **Scope**: Team backend service architecture standard
 **Prerequisites**:
+- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first; defines trigger conditions, stop protocol, and prohibited actions. Do not skip.
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
-- **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`.
+- **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).
 - This document is the Python implementation guide that builds on both.
 **Python Version**: 3.12+
+
+> **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. This guide adds Python-specific workflow, placement, event/message, testing, and module-assembly guidance.
+
+> **Code blocks in this guide are illustrative**, not copy-paste templates. Imports may be omitted and identifiers may reference types defined elsewhere in the project. See [`ddd-agent-contract.md` §6](ddd-agent-contract.md).
 
 ---
 
@@ -21,11 +26,14 @@ description: Python implementation guide for DDD + Clean Architecture. Use when 
 
 Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Python-specific** items.
 
+Every Python backend plan must also include the `Architecture Gate` block from [ddd-modeling.md §0](ddd-modeling.md). For technical-facing packages, explicitly classify the capability before choosing between `domain`, `application`, `interfaces`, `infrastructure`, `shared`, or a distributable package.
+
 ### Level 1 (Local Change)
 
 Plan must additionally state:
 
 - the Python module being changed (e.g., `src/<project>/user/domain/`)
+- why the module path matches the bounded context and layer responsibility
 - whether tests live alongside the module or in a separate `tests/` tree (§11)
 
 ### Level 2 (New Use Case)
@@ -34,6 +42,8 @@ Plan must additionally state:
 
 - file placement under the bounded context (`command.py`, `query.py`, `subscriber.py`, `query_repository.py` — see §6.2)
 - new Pydantic DTOs and assemblers required (§3.2)
+- import-boundary impact: generated stubs, FastAPI, SQLAlchemy, broker clients, and framework imports stay out of Domain
+- mock or protocol requirements for Application-layer tests (§11)
 - dependency-injector container wiring changes (§9)
 
 ### Level 3 (New Bounded Context or Aggregate)
@@ -41,16 +51,16 @@ Plan must additionally state:
 Spec must additionally state:
 
 - planned package layout under `src/<project>/<context>/` (§2.2)
-- shared object placement decisions — what stays in the owning context, what goes in `shared/`, what goes in a separate distributable package
+- shared object placement decisions (§2.3) — what stays in the owning context, what goes in `shared/`, what goes in generated/shared contract packages, and what belongs in a separate distributable package
 - shared infrastructure provider ownership (DB session factory, event bus, cache client — see §9)
 
 ### Cross-Context Change Without a New Context
 
 Follow the multi-side planning rule in [ddd-modeling.md §7.4](ddd-modeling.md). The Python-side plan must list:
 
-- producing context's `subscriber.py` or event publisher path
+- producing context's Application handler / event publisher path
 - consuming context's `subscriber.py` and its idempotency strategy
-- shared event payload definitions (e.g., in `shared/events/`) if used cross-context
+- generated / shared contract package updates if a new protocol contract or Integration Message payload is introduced
 
 ---
 
@@ -230,6 +240,44 @@ src/<project_name>/user/               # User bounded context
         └── publisher.py               # Event publisher implementation
 ```
 
+### 2.3 Shared Object Placement
+
+When a Python type is needed by multiple bounded contexts, first decide what it represents:
+
+1. **Domain concept owned by one bounded context**: keep it in the owning context. Other contexts must not import it directly; exchange through Integration Messages, cross-context query facades, ACL, or protocol contracts (see §5).
+2. **Cross-context / cross-service data contract**: define it in `proto/`, OpenAPI, JSON Schema, or another contract-first source and consume generated bindings from a contracts package. Keep derivation rules in the owning context.
+3. **Shared technical capability**: place it in `src/<project>/shared/<capability>/` when it adapts databases, message brokers, HTTP clients, telemetry, clocks, IDs, transactions, or other implementation mechanisms.
+4. **General-purpose library intended for external reuse**: only then place it in a separate distributable package.
+
+Do not use `shared/` as a dumping ground for internal business DTOs, read models, constants, or domain concepts. If a type carries business meaning, name its owner before moving it.
+
+Generated stubs and Pydantic DTOs are boundary shapes, not Domain entities. Domain methods, Value Objects, Repository interfaces, and Domain Events use Domain-owned types; generated/protocol DTOs are mapped at Application, Interface, or Infrastructure boundaries.
+
+### 2.4 Python Boundary Checklist
+
+Use this checklist before accepting a package layout or import graph:
+
+- A package path ending in `/domain` contains only domain concepts: aggregates, entities, value objects, domain services, write repository ABCs, domain events, and domain errors.
+- Domain packages do not import FastAPI, Starlette, SQLAlchemy, Alembic, generated stubs, broker/cache clients, `shared/` adapters, `infrastructure/`, or another bounded context's Domain package.
+- Application packages may import Domain and protocol/generated DTO packages when they implement service stubs or map boundary DTOs, but they must not import concrete storage, queue, cache, or network clients.
+- Infrastructure packages may import Domain/Application interfaces they implement, generated/protocol packages, and external clients.
+- `shared/<capability>` is only for shared technical adapters. It must not import bounded-context packages or own business/domain rules.
+- A generated type in a method signature is boundary evidence, not layer-ownership evidence. If the method represents a Domain capability, keep the ABC in `domain/` with Domain types and map at the boundary.
+- Package names and module names must agree with the bounded context and layer they represent. A `dispatcher`, `registry`, `router`, `scheduler`, or `connector` module must still declare whether it is Domain-facing policy, Application orchestration, or Infrastructure adapter.
+
+### 2.5 Technical Coordination Placement
+
+Technical coordination code often exposes domain rules indirectly. Place it by rule ownership, not by mechanism:
+
+| Example | Place the rule | Place the mechanism |
+|---------|----------------|---------------------|
+| Connection registration with naming, ownership, admission, or lifecycle rules | `src/<project>/<context>/domain` as a policy, service, value object, or aggregate behavior | Storage/lease/CAS implementation in `infrastructure/` or `shared/` |
+| Dispatch routing with semantic destinations, priorities, or retry eligibility | Domain policy when destinations, priorities, or retry rules are stable language and testable without a queue; Application orchestration when it merely selects among Domain-defined ports | Queue/client/server adapter in Infrastructure |
+| Scheduler with business-visible states or deadlines | Domain state/policy plus Application orchestration | Timer, worker, lock backend, or APScheduler/Celery adapter in Infrastructure |
+| Observability or audit derivation with business meaning | Domain event or Domain-facing projection rule | Telemetry/export backend in Infrastructure |
+
+If the rule can be unit-tested without SQLAlchemy, Redis, a queue, FastAPI, or generated protocol types, keep that rule inward and adapt the mechanism outward.
+
 ---
 
 ## 3. Layer Responsibilities
@@ -249,7 +297,7 @@ src/<project_name>/user/               # User bounded context
 - **Domain Event**: Records significant domain occurrences
 
 **Constraints**:
-- No concrete implementation dependencies (no `import` of SQLAlchemy, FastAPI, HTTP clients, message queue clients, or generated protocol packages)
+- No concrete implementation dependencies (no `import` of SQLAlchemy, Alembic, FastAPI, Starlette, HTTP clients, message queue clients, cache clients, generated protocol packages, `shared/` adapters, `infrastructure/`, or another bounded context's Domain package)
 - Implementation-independent libraries (Python standard library, `uuid`, `dataclasses`, `typing`, Pydantic when used as an internal validation helper) are allowed; they must not couple Domain to a specific external system
 - Must not depend on other bounded contexts' domain layers (communicate via events / queries / ACL / protocol contracts — see §5)
 - All state changes go through domain methods — direct attribute mutation from outside is prohibited
@@ -264,8 +312,9 @@ src/<project_name>/user/               # User bounded context
 **Domain Event Collection**:
 - Aggregate Root holds a `_events: list[DomainEvent]` internal list
 - Domain methods append events via `_record_event(event)` — they never dispatch directly
-- Application layer calls `collect_events()` after a successful `save()` to drain and dispatch all collected events
-- `collect_events()` returns the event list and clears it — calling it twice in a row returns an empty list on the second call
+- Application layer is the sole drainer. After a successful `save()` returns, Application calls `collect_events()` exactly once and dispatches the returned events. Repository must not drain.
+- `collect_events()` returns the event list and clears it — calling it twice in a row returns an empty list on the second call. After `save()` succeeds, the in-memory aggregate is stale; if the use case needs further mutations, reload via `get()` first.
+- Domain Events are bounded-context-internal facts. Cross-context state propagation uses Integration Messages through an explicit port/adapter (see §5.2), not direct subscription to another context's Domain Events.
 
 > This is the Python implementation of the language-agnostic event collection pattern described in [ddd-core.md §3.1 "Domain Event Collection"](ddd-core.md).
 
@@ -675,9 +724,21 @@ class Repository(ABC):
 - No business rules (those belong in the Domain layer)
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
-- **One transaction modifies one aggregate only.** To modify multiple aggregates, use domain events to trigger subsequent aggregate modifications (eventual consistency)
-- Domain events are dispatched after a successful persist via `collect_events()`
+- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.2](ddd-core.md); do not implement one merely because SQLAlchemy session APIs make it easy.
+- Application is the sole drainer of Domain Events: after a successful `save()` it calls `collect_events()` exactly once. Repository never drains.
+- Domain events are dispatched after a successful persist via `collect_events()`. Dispatch/publish admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - After `save()`, the in-memory aggregate is stale — reload via `get()` if further operations are needed
+- **File organization**: start with flat files (`command.py`, `query.py`, `handler.py`); when handlers grow numerous, promote to sub-packages (`command/`, `query/`, `handler/`, one file per handler). A context module/container remains the single entry point that wires them.
+
+**Event Handler Contract**:
+- Lives in the **consuming** bounded context's Application layer, not the producing context
+- Each handler owns its own transaction; failures do not roll back the producing side
+- Error handling: log and continue, retry, or route to adapter-specific failure handling; never propagate handler execution errors back to the Domain Event producer
+- Write handlers so repeated execution is harmless when practical: prefer set/update operations, deterministic business keys, and guards on externally visible side effects
+
+**Query Handler: When the Class Is Optional**:
+
+For trivial reads, skip a dedicated `FindXxxHandler` class and let the Interface/Application entry point call `QueryRepository` directly. Keep an explicit Query Handler when the read path composes multiple calls, decodes cursors, filters/masks data, authorizes read-specific behavior, or applies a named cache/read policy.
 
 ```python
 # application/command.py
@@ -1045,7 +1106,10 @@ def create_routes(
 - No business logic
 - Handles technical details (SQL, caching, retries, etc.)
 - **Version is incremented by SQL** — Domain layer does not increment it
+- `save()` is the single method covering create, update, and state-driven soft delete; do not split Repository ports into `insert()` / `update()` / `delete()` based on SQL operation. `version == 0` means insert; `version > 0` means version-guarded update. The repository implementation determines the SQL operation internally based on aggregate state.
 - Adding a technical client (`redis-py`, `aiocache`, `httpx`, an MQ SDK) does not justify a new ABC in `domain/` or `application/`. If Redis only accelerates a SQLAlchemy-backed repository, compose it inside `infrastructure/persistence/`; do not introduce a separate `Cacher` ABC. Define a new ABC only for a named use-case capability (distributed lock, lease ownership, explicit cache invalidation, rate limiting, event publication)
+- Infrastructure implements technical mechanisms for Domain rules, but it must not be the only place where those rules are expressed
+- Shared clients/session factories are initialized in `shared/` or composition-root providers; bounded-context Infrastructure receives initialized clients and does not read global config or open shared connections unless it owns that adapter
 
 **Soft Delete**:
 - **Business-driven logical deletion**: Domain has a status field (e.g., `Status = Cancelled`); `save()` internally sets `deleted_at` based on the status

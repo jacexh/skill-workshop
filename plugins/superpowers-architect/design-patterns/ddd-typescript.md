@@ -6,17 +6,20 @@ description: TypeScript implementation guide for DDD + Clean Architecture. Use w
 # TypeScript Backend Architecture Guide
 ## DDD + Clean Architecture — TypeScript Implementation
 
-**Version**: v1.0
-**Date**: 2026-04-20  
+**Version**: v2.3
+**Date**: 2026-05-11
 **Scope**: Team backend service architecture standard  
 **Prerequisites**:
+- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first; defines trigger conditions, stop protocol, and prohibited actions. Do not skip.
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
 - **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).
 - This document is the TypeScript implementation guide that builds on both
 **Runtime**: Node.js 22+  
 **TypeScript**: 5.6+
 
-> **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. This guide adds only what is implementation-specific.
+> **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. This guide adds TypeScript-specific workflow, placement, event/message, testing, and composition-root guidance.
+
+> **Code blocks in this guide are illustrative**, not copy-paste templates. Imports may be omitted and identifiers may reference types defined elsewhere in the project. See [`ddd-agent-contract.md` §6](ddd-agent-contract.md).
 
 ---
 
@@ -24,11 +27,14 @@ description: TypeScript implementation guide for DDD + Clean Architecture. Use w
 
 Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **TypeScript-specific** items.
 
+Every TypeScript backend plan must also include the `Architecture Gate` block from [ddd-modeling.md §0](ddd-modeling.md). For technical-facing packages, explicitly classify the capability before choosing between `domain`, `application`, `interfaces`, `infrastructure`, `shared`, or `packages/*`.
+
 ### Level 1 (Local Change)
 
 Plan must additionally state:
 
 - the TypeScript module being changed (e.g., `apps/api/src/modules/user/domain/`)
+- why the module path matches the bounded context and layer responsibility
 - whether tests live alongside the module (`*.spec.ts`) or in a separate `test/` tree (§9)
 
 ### Level 2 (New Use Case)
@@ -37,6 +43,8 @@ Plan must additionally state:
 
 - file placement under the bounded context (`commands/`, `queries/`, `subscribers/`, `query-repository.ts` — see §6)
 - new DTOs / zod schemas required (§3.2)
+- import-boundary impact: generated contracts, Fastify/Express/Nest, ORM/query-builder, broker clients, and framework imports stay out of Domain
+- mock/fake requirements for Application-layer tests (§9)
 - composition-root wiring changes (§10)
 
 ### Level 3 (New Bounded Context or Aggregate)
@@ -44,7 +52,7 @@ Plan must additionally state:
 Spec must additionally state:
 
 - planned package layout under `apps/api/src/modules/<context>/` (§2.2)
-- shared object placement decisions — what stays in the owning context, what goes in `shared/`, what goes in `packages/contracts/` or `packages/shared-kernel/`
+- shared object placement decisions (§2.3) — what stays in the owning context, what goes in `shared/`, what goes in `packages/contracts/` or `packages/shared-kernel/`
 - shared infrastructure provider ownership (DB pool, event bus, cache client — see §10)
 
 ### Cross-Context Change Without a New Context
@@ -53,7 +61,7 @@ Follow the multi-side planning rule in [ddd-modeling.md §7.4](ddd-modeling.md).
 
 - producing context's subscriber / event publisher path
 - consuming context's subscriber and its idempotency strategy
-- shared event payload definitions or `packages/contracts/` updates if a protocol contract is involved
+- `packages/contracts/` updates if a new protocol contract or Integration Message payload is introduced
 
 ---
 
@@ -205,6 +213,45 @@ apps/api/src/modules/user/
 
 Start with flat files when the module is small. When handlers grow numerous, promote to sub-directories (`commands/`, `queries/`, `handlers/`, one file per handler). `module.ts` remains the single entry point that wires the bounded context.
 
+### 2.3 Shared Object Placement
+
+When a TypeScript type is needed by multiple modules, first decide what it represents:
+
+1. **Domain concept owned by one bounded context**: keep it in the owning bounded context. Other contexts must not import it directly; exchange through Integration Messages, cross-context query facades, ACL, or protocol contracts (see §5).
+2. **Cross-context / cross-service data contract**: define it in `packages/contracts/` from OpenAPI, Protobuf, JSON Schema, GraphQL SDL, or another contract-first source. Keep business derivation rules in the owning context.
+3. **Shared technical capability**: place it in `apps/api/src/shared/<capability>/` when it adapts databases, message brokers, HTTP clients, telemetry, clocks, IDs, transactions, or other implementation mechanisms.
+4. **Shared Kernel**: use `packages/shared-kernel/` only for a tiny, stable set of types that two contexts deliberately co-own. Avoid by default.
+5. **General-purpose library intended for external reuse**: only then place hand-written code in a package outside `apps/api`.
+
+Do not use `shared/` or `packages/shared-kernel/` as a dumping ground for internal business DTOs, read models, constants, or domain concepts. If a type carries business meaning, name its owner before moving it.
+
+Generated contract types are DTOs / protocol contracts, not Domain entities or Value Objects. Domain methods, repository interfaces, and Domain Events use Domain-owned types; generated/protocol DTOs are mapped at Application, Interface, or Infrastructure boundaries.
+
+### 2.4 TypeScript Boundary Checklist
+
+Use this checklist before accepting a package layout or import graph:
+
+- A path ending in `/domain` contains only domain concepts: aggregates, entities, value objects, domain services, write repository interfaces, domain events, and domain errors.
+- Domain packages do not import Fastify, Express, NestJS, decorators, ORM/query-builder clients, generated contract packages, broker/cache clients, `shared/` adapters, `infrastructure/`, or another bounded context's Domain package.
+- Application packages may import Domain and generated contract packages when they implement service stubs or map boundary DTOs, but they must not import concrete storage, queue, cache, or network clients.
+- Infrastructure packages may import Domain/Application interfaces they implement, generated contract packages, and external clients.
+- `apps/api/src/shared/<capability>` is only for shared technical adapters. It must not import `modules/*` or own business/domain rules.
+- A generated type in a method signature is boundary evidence, not layer-ownership evidence. If the method represents a Domain capability, keep the interface in `domain/` with Domain types and map at the boundary.
+- Package names and directory names must agree with the bounded context and layer they represent. A `dispatcher`, `registry`, `router`, `scheduler`, or `connector` module must still declare whether it is Domain-facing policy, Application orchestration, or Infrastructure adapter.
+
+### 2.5 Technical Coordination Placement
+
+Technical coordination code often exposes domain rules indirectly. Place it by rule ownership, not by mechanism:
+
+| Example | Place the rule | Place the mechanism |
+|---------|----------------|---------------------|
+| Connection/session registration with naming, ownership, admission, or lifecycle rules | `modules/<context>/domain` as a policy, service, value object, or aggregate behavior | Storage/lease/CAS implementation in `infrastructure/` or `shared/` |
+| Dispatch routing with semantic destinations, priorities, or retry eligibility | Domain policy when destinations, priorities, or retry rules are stable language and testable without a queue; Application orchestration when it merely selects among Domain-defined ports | Queue/client/server adapter in Infrastructure |
+| Scheduler with business-visible states or deadlines | Domain state/policy plus Application orchestration | Timer, worker, BullMQ/Temporal/Cron adapter, or lock backend in Infrastructure |
+| Observability or audit derivation with business meaning | Domain event or Domain-facing projection rule | Telemetry/export backend in Infrastructure |
+
+If the rule can be unit-tested without SQL, Redis, a queue, framework request objects, or generated contract types, keep that rule inward and adapt the mechanism outward.
+
 ---
 
 ## 3. Layer Responsibilities
@@ -224,7 +271,7 @@ Start with flat files when the module is small. When handlers grow numerous, pro
 - **Domain Event**: Records significant domain occurrences
 
 **Constraints**:
-- No infrastructure dependencies
+- No concrete implementation dependencies (no import of Fastify, Express, NestJS, decorators, ORM/query-builder clients, database drivers, HTTP clients, message queue clients, cache clients, generated contract packages, `shared/` adapters, `infrastructure/`, or another bounded context's Domain package)
 - Must not depend on other bounded contexts' domain layers
 - All state changes go through domain methods
 - **No anemic aggregates.** An Aggregate Root that is a `type` / interface with public fields and no behavior, while the rules live in `application/handlers/`, is prohibited. Every state transition is a method on the Aggregate Root class (or Value Object). Use `private` fields + `private constructor` + static factory (`User.create(...)`); expose read-only access via getters; mutation only via named domain methods (`changePassword`, `activate`, …)
@@ -238,8 +285,9 @@ Start with flat files when the module is small. When handlers grow numerous, pro
 **Domain Event Collection Contract**:
 - Aggregate Root keeps an internal event list
 - Domain methods append events; they never dispatch directly
-- Application calls `collectEvents()` after successful persistence
-- `collectEvents()` drains the list; a second call returns an empty array
+- Application is the sole drainer. After successful persistence, Application calls `collectEvents()` exactly once and dispatches the returned events. Repository must not drain.
+- `collectEvents()` drains the list; a second call returns an empty array. After `repo.save()` succeeds, the in-memory aggregate is stale; reload via `repo.get()` before further mutations.
+- Domain Events are bounded-context-internal facts. Cross-context state propagation uses Integration Messages through an explicit port/adapter (see §5.2), not direct subscription to another context's Domain Events.
 
 **Validation Contract** — implements [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). TypeScript-specific notes:
 
@@ -479,10 +527,22 @@ export interface UserRepository {
 - No business rules
 - Depends on Domain
 - Owns transaction boundaries
-- **One transaction modifies one aggregate only.** Co-locating multiple aggregate mutations in a single transaction is prohibited. To modify multiple aggregates, persist the first and use domain events to trigger subsequent aggregate modifications in separate transactions (eventual consistency)
-- Dispatch domain events only after successful persistence
+- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.2](ddd-core.md); do not implement one merely because the database transaction API makes it easy.
+- Application is the sole drainer of Domain Events: after successful `repo.save()` it calls `collectEvents()` exactly once. Repository never drains.
+- Dispatch domain events only after successful persistence. Publish/admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - QueryRepository interfaces live here, return DTOs, and bypass Domain aggregates on the read side
 - After `repo.save()`, the in-memory aggregate is stale — reload via `repo.get()` before any further operation on the same aggregate
+- **File organization**: start with flat files for small contexts; when handlers grow numerous, promote to sub-directories (`commands/`, `queries/`, `handlers/`, one file per handler). `module.ts` remains the single entry point that wires the bounded context.
+
+**Event Handler Contract**:
+- Lives in the **consuming** bounded context's Application layer, not the producing context
+- Each handler owns its own transaction; failures do not roll back the producing side
+- Error handling: log and continue, retry, or route to adapter-specific failure handling; never propagate handler execution errors back to the Domain Event producer
+- Write handlers so repeated execution is harmless when practical: prefer set/update operations, deterministic business keys, and guards on externally visible side effects
+
+**Query Handler: When the Class Is Optional**:
+
+For trivial reads, skip a dedicated `FindXxxHandler` class and let the Interface/Application entry point call `QueryRepository` directly. Keep an explicit Query Handler when the read path composes multiple calls, decodes cursors, filters/masks data, authorizes read-specific behavior, or applies a named cache/read policy.
 
 ```ts
 // application/commands/change-password.command.ts
@@ -626,6 +686,8 @@ export const userRoutes = (
 - Must not leak ORM entities into Domain
 - `save()` is the single method covering create, update, and state-driven soft delete; never split into `insert()` / `update()` / `delete()` based on SQL operation. `version === 0` → INSERT; `version > 0` → version-guarded UPDATE. `Save()` determines the operation internally based on the aggregate's state
 - Adding a technical client (`ioredis`, `kysely`, an HTTP/MQ SDK) does not justify a new TS interface in `domain/` or `application/`. If Redis only accelerates a SQL-backed repository, compose it inside `infrastructure/persistence/`; do not introduce a separate `Cacher` interface. Add a new interface only for a named use-case capability (distributed lock, lease ownership, explicit cache invalidation, rate limiting, event publication)
+- Infrastructure implements technical mechanisms for Domain rules, but it must not be the only place where those rules are expressed
+- Shared clients/pools are initialized in `shared/` or the composition root; bounded-context Infrastructure receives initialized clients and does not read global config or open shared connections unless it owns that adapter
 
 **Persistence Guidance**:
 - Prefer explicit mapping over active-record style domain models
@@ -767,11 +829,25 @@ export class KyselyUserRepository implements UserRepository {
 
 Bounded contexts must not import another context's Domain model or call its Application Service / Domain Service / Repository directly. Cross-module imports between `modules/<a>/domain/` and `modules/<b>/domain/` are a hard error.
 
-### 5.2 Choosing the Mechanism
+### 5.2 Integration Messages (default for cross-context state propagation)
+
+Integration Messages are cross-context semantic contracts. The default lifecycle follows [ddd-core.md §5.3](ddd-core.md): a Domain method records Domain Events inside the producing bounded context; the Application command handler saves the aggregate and drains those Domain Events; a same-context boundary translator / publisher selects publishable facts and maps them to Integration Message payloads; the publish port submits the message to the selected adapter. Adapter success means the adapter accepted the message according to its own semantics, not that any consumer has handled it.
+
+Keep four layers separate:
+
+- **Concept**: the cross-context fact another bounded context may depend on.
+- **Contract**: `packages/contracts/` payload type, message kind/name, versioning, and compatibility rules.
+- **Port**: implementation-independent publish / subscribe interfaces exposed to Application code.
+- **Adapter**: Kafka, SQS, RabbitMQ, BullMQ, NATS, retry, DLQ, ordering, and provider-specific delivery behavior.
+
+Subscribing directly to another context's Domain Event is prohibited. Domain Events stay inside one bounded context; Integration Messages carry the stable published-language payload across context boundaries.
+
+Publication failures follow [ddd-core.md §5.3](ddd-core.md)'s policy table: ordinary notifications may log and keep the original command successful, command-visible publication should return the publish-port error explicitly, and pre-publish loss intolerance requires an explicit reliability design rather than a technology-shaped port.
+
+### 5.3 Choosing Other Mechanisms
 
 Use [ddd-core.md §5.2](ddd-core.md)'s four-mechanism table to pick the right tool:
 
-- **Integration Messages** — default for asynchronous cross-context state propagation; loose coupling, eventual consistency. Produce them by translating selected internal Domain Events after successful persistence. Keep the cross-context concept, payload contract, publish/subscribe port, and delivery adapter separate; see [ddd-core.md §5.3](ddd-core.md) for the default lifecycle and publication failure policy
 - **Cross-context queries** — read-only DTOs through a port the owning context **explicitly exports** (e.g., `UserReader` / `UserSummaryPort`, a small read-side facade — *not* the context's internal `UserQueryRepository`, which is a CQRS read-side concern within the User context itself). Appropriate when the consumer needs a current snapshot and event-driven projection is not viable
 - **Anti-Corruption Layer** — when integrating with external/legacy systems; lives in `infrastructure/` and is transparent to Domain
 - **Protocol contracts** — for cross-service / cross-package data contracts; generated code lives in `packages/contracts/`, never imported by Domain
