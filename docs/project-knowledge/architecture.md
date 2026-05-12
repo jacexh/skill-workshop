@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-11
+last_updated: 2026-05-12
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -23,7 +23,7 @@ Skill Workshop is a dual-track plugin marketplace. Each track exposes the same t
 | `plugins/superpowers-memory/content-rules.md` | Shared content generation rules (SSOT) | Language, inclusion/exclusion, ownership matrix, size guards | None |
 | `plugins/superpowers-architect/` | Claude track: design pattern standards injection | Hook (`pre-tool-use`) + skill (`standards`) | Claude Code plugin runtime, Node.js |
 | `plugins/superpowers-architect/hooks/pre-tool-use` | Scans global + project pattern dirs, injects compact index into 5 trigger skills with plan/review wording fork | Targets 5 skills; uses `node -e` for JSON parsing; reads YAML frontmatter for name/description | Node.js, bash |
-| `plugins/superpowers-architect/design-patterns/` | 10 reference design pattern files; the architect `standards` skill discovers them by directory scan | `database.md`, `rest-api.md`, `frontend-patterns.md`, `ddd-agent-contract.md` (agent execution contract, read first by agents), `ddd-modeling.md`, `ddd-core.md`, `ddd-golang.md`, `ddd-golang-runtime.md` (config + fx.Lifecycle + graceful shutdown + k8s), `ddd-python.md`, `ddd-typescript.md` | None |
+| `plugins/superpowers-architect/design-patterns/` | 10 reference design pattern files; the architect `standards` skill discovers them by directory scan. Python and TypeScript DDD guides mirror the Go guide's shared DDD gates while keeping language-specific implementation guidance. | `database.md`, `rest-api.md`, `frontend-patterns.md`, `ddd-agent-contract.md` (agent execution contract, read first by agents), `ddd-modeling.md`, `ddd-core.md`, `ddd-golang.md`, `ddd-golang-runtime.md` (config + fx.Lifecycle + graceful shutdown + k8s), `ddd-python.md`, `ddd-typescript.md` | None |
 | `plugins/designing-tests/` | Claude track: intent-first test design guidance | Skill (`designing-tests`), Hook (`pre-tool-use`), 4 reference files | Claude Code plugin runtime, Node.js |
 | `plugins/designing-tests/hooks/pre-tool-use` | Three-tier injection across 4 skills: planning / execution / full | Targets `writing-plans` / `executing-plans` / `subagent-driven-development` / `test-driven-development` | Node.js, bash |
 | `codex-plugins/superpowers-memory/` | Codex track: equivalent KB persistence + write-lock | Skills (`load`, `update`, `rebuild`, `cleanup`), Hooks (`session-start`, `user-prompt-submit`, `pre-tool-use`) | Codex CLI plugin runtime, Node.js, git |
