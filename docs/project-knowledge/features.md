@@ -1,14 +1,14 @@
 ---
-last_updated: 2026-05-12
+last_updated: 2026-05-13
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
+triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
 
 # Features
 
 ## Implemented
 
-### Marketplace Capabilities
+### Product Capabilities
 
 #### Claude Marketplace
 
@@ -30,17 +30,17 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **References** — ADR-013, ADR-014; see `conventions.md` for Codex hook and fallback cleanup rules.
 
-#### Auto Release
+#### Product-First Capability Maps
 
-**Enables** — PR merges can publish versioned plugin releases without hand-editing manifests.
+**Enables** — `features.md` records current product/system capabilities from PRDs, roadmaps, specs, plans, and entry points without collapsing them into runtime component inventories.
 
-**Actors / Entry Points** — `.github/workflows/auto-release.yml` calls release scripts under `scripts/release/`.
+**Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/content-rules.md`, and `plugins/superpowers-memory/templates/features.md`.
 
-**Capability Boundary** — Release detection is path-scoped so Claude and Codex plugin version bumps stay aligned with changed files.
+**Capability Boundary** — Implemented entries follow fixed fields and the group order `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`; size guards allow larger `features.md` and `architecture.md` files while remaining warn-only.
 
-**References** — See `conventions.md` for versioning workflow and release script rules.
+**References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/features.md`, `docs/superpowers/specs/2026-05-13-features-capability-reconciliation-design.md`.
 
-### Knowledge Memory Capabilities
+### User / Operator Workflows
 
 #### Project Knowledge Loading
 
@@ -56,11 +56,13 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Enables** — Agents can incrementally update or fully/scoped rebuild `docs/project-knowledge/` from code, plans, specs, and ADRs.
 
-**Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, templates, and `content-rules.md`.
+**Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/templates/`, and `plugins/superpowers-memory/content-rules.md`.
 
-**Capability Boundary** — `content-rules.md` is the SSOT for ownership, exclusion rules, per-file structure, size guards, and `features.md` readability.
+**Capability Boundary** — `plugins/superpowers-memory/content-rules.md` is the SSOT for ownership, exclusion rules, per-file structure, size guards, and `features.md` readability.
 
-**References** — `plugins/superpowers-memory/content-rules.md`, `templates/`, ADR-003.
+**References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/`, ADR-003.
+
+### Platform Capabilities
 
 #### Knowledge Base Write Lock
 
@@ -81,8 +83,6 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Capability Boundary** — Verify is advisory except for git commit readiness; it now flags dense single-paragraph `features.md` entries so capability maps stay readable.
 
 **References** — `plugins/superpowers-memory/hooks/fixtures/`; see `content-rules.md` for shape rules.
-
-### Architecture Guidance Capabilities
 
 #### DDD Design Pattern Guidance
 
@@ -124,8 +124,6 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **References** — `codex-plugins/superpowers-architect/`, ADR-013, ADR-014.
 
-### Test Design Capabilities
-
 #### Test Design Skill
 
 **Enables** — Agents can design tests from intent before implementation, including test lists, intent comments, boundary selection, and quality labels.
@@ -135,8 +133,6 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Capability Boundary** — Claude has tiered PreToolUse injection; Codex uses SessionStart guidance and the full skill on demand.
 
 **References** — `plugins/designing-tests/`, `codex-plugins/designing-tests/`, ADR-013.
-
-### Codex Compatibility Capabilities
 
 #### Native Codex Hooks
 
@@ -157,6 +153,28 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Capability Boundary** — Cleanup removes only matching skill-workshop fallback hook commands from `~/.codex/hooks.json`, deletes empty hook-event arrays, preserves unrelated user hooks, and requires a Codex restart.
 
 **References** — `codex-plugins/*/skills/cleanup/SKILL.md`; see `conventions.md` for installer `remove` mode.
+
+### Operations
+
+#### Auto Release
+
+**Enables** — PR merges can publish versioned plugin releases without hand-editing manifests.
+
+**Actors / Entry Points** — `.github/workflows/auto-release.yml` calls release scripts under `scripts/release/`.
+
+**Capability Boundary** — Release detection is path-scoped so Claude and Codex plugin version bumps stay aligned with changed files.
+
+**References** — See `conventions.md` for versioning workflow and release script rules.
+
+#### Release And Runtime Test Fixtures
+
+**Enables** — Maintainers can verify release scripts, Codex manifest shape, hook setup, architect runtime routing, and memory verify behavior before shipping.
+
+**Actors / Entry Points** — `scripts/release/test/run-tests.sh` and fixture directories under `plugins/superpowers-memory/hooks/fixtures/`.
+
+**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; they do not replace full host-runtime acceptance testing.
+
+**References** — `scripts/release/test/`; `plugins/superpowers-memory/hooks/fixtures/README.md`.
 
 ## In Progress
 

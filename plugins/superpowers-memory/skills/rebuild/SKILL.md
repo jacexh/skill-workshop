@@ -48,7 +48,7 @@ Then map abstract source categories to concrete paths:
 | Target file | Abstract source categories to read |
 |-------------|---------------------|
 | `architecture.md` | (1) Top-level module/service directories per the detected layout; (2) service entry points (main/application classes, WSGI/ASGI entry, etc.); (3) aggregate root / domain-model files, however the project organizes them; (4) FSM construction code where applicable; (5) API / contract definitions (proto, OpenAPI, GraphQL SDL, REST controllers); (6) deployment manifests (`docker-compose*.yml`, `deploy/`, `k8s/`, `helm/`, `terraform/`); (7) `README.md` + `CLAUDE.md` + `AGENTS.md` |
-| `features.md` | `README.md`; `docs/design/`; `docs/superpowers/plans/` (in-progress + planned); module/service entry points for implemented capabilities |
+| `features.md` | `README.md`; PRDs/roadmaps/product specs such as `docs/roadmaps/`, `docs/prd/`, `docs/product/`, `docs/specs/`; `docs/design/`; `docs/superpowers/specs/`; `docs/superpowers/plans/` (in-progress + planned); module/service entry points for implemented capabilities |
 | `tech-stack.md` | Root language manifests (per detection above); containerization (`Dockerfile`, `docker-compose*.yml`); build orchestration (`Makefile`, `Taskfile.yml`, `justfile`, or equivalent); toolchain installers (`scripts/setup-*.sh` or equivalent) |
 | `conventions.md` | Lint/format configs (per the languages present); build orchestration; CI configs (`.github/workflows/`, `.gitlab-ci.yml`, `.circleci/`); `CLAUDE.md`; `docs/design/` (stable cross-cutting rules) |
 | `decisions.md` + `adr/` | Existing `decisions.md` + `adr/*.md` (format-compliance pass); `git log --oneline` for significant recent changes (granularity gate); `docs/design/` + `docs/superpowers/specs/` for decision sources |
@@ -110,7 +110,18 @@ Prioritize reading:
 
 Do NOT read: test files, generated code, vendor/node_modules, migration files, or single-module implementation details.
 
-### 2a. Exclusion Gate + Single-Owner (before generating files)
+### 2a. Feature Capability Reconciliation
+
+When rebuilding `features.md` (full or scoped), reconcile product sources before writing the file:
+
+1. Extract capability candidates from README, PRDs, roadmaps, product specs, design docs, superpowers specs/plans, and user-facing entry points. Prefer source terms that name product/business concepts and user-visible operations.
+2. For each candidate, classify it as `Implemented`, `In Progress`, `Planned`, or `Not a features.md entry`.
+3. For implemented candidates, write `####` entries with all fixed fields: `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`.
+4. Preserve use-shaping product constraints in `Capability Boundary` when they change how users/operators experience the capability. Examples: one Issue can have at most one Work, Artifact is latest-only, a plugin requiring config is visible but unavailable for launch, global reports are deferred.
+5. Assign implemented entries to the canonical group order from `content-rules.md`: `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`. If a capability can be described in stable product language, place it in `Product Capabilities` before considering workflow or platform groups.
+6. Route non-feature facts to their owner files per the Ownership Matrix. Do not let runtime component names replace product-facing capability names.
+
+### 2b. Exclusion Gate + Single-Owner (before generating files)
 
 Before writing any file:
 
@@ -145,7 +156,7 @@ Before writing any file:
 
 ### 3. Generate knowledge files
 
-**Scoped mode:** generate ONLY the target file per its per-file format rule below. Do NOT rewrite other KB files. If Step 2a's Single-Owner check routes content out of the target (e.g., impl constants from `architecture.md` that belong in `tech-stack.md`), **append** the displaced entry to the correct destination file — do not overwrite the destination. In the target file, leave a ≤1-line pointer per the Ownership Matrix. Record both the target rewrite and every destination append in Step 7's diff summary.
+**Scoped mode:** generate ONLY the target file per its per-file format rule below. Do NOT rewrite other KB files. If Step 2b's Single-Owner check routes content out of the target (e.g., impl constants from `architecture.md` that belong in `tech-stack.md`), **append** the displaced entry to the correct destination file — do not overwrite the destination. In the target file, leave a ≤1-line pointer per the Ownership Matrix. Record both the target rewrite and every destination append in Step 7's diff summary.
 
 **Full mode:** create `docs/project-knowledge/` directory if it doesn't exist.
 
@@ -153,7 +164,7 @@ For each of the 6 knowledge files (full mode) or the single target file (scoped 
 
 - **architecture.md** — Pattern Overview (paradigm + 2–3 key characteristics, 1 paragraph); System Context (external actors + external systems, list form, ≤10 lines); Layering (bounded contexts or layers; each entry is name + one-sentence responsibility + path + key abstraction names; declare call-direction rules at the end); Scenario Sequences (2–3 Mermaid `sequenceDiagram` for cross-module flows of 3+ components; single-module internal flows do NOT belong here); Key Object FSMs (Mermaid `stateDiagram-v2` for aggregates whose transitions cross module boundaries, with trigger + emitted-event labels — bullet-list state enumerations are Exclusion List violations); Key Design Decisions (pointer list, 3–5 entries as `**[title]** — see ADR-NNN`). Skip §Key Object FSMs only if the project genuinely has no aggregates with cross-BC state transitions — and declare this explicitly rather than silently omitting the section.
 - **tech-stack.md** — Languages and frameworks (from config files), key dependencies (from package manifests), build tools (from scripts/Makefile). Organize by technology category or system boundary — whichever fits better.
-- **features.md** — Current capability map. Generate implemented capabilities from README, specs, plans, and code entry points; group by reader-facing capability area, not by plan/branch/iteration. Use `###` capability groups and `####` capability entries with `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`. In-progress/planned capabilities should include intent + plan/spec pointer.
+- **features.md** — Current capability map. First reconcile PRD/roadmap/spec/plan capability candidates against current implementation status. Generate implemented capabilities from README, specs, plans, product docs, and code entry points; use implemented `###` groups in this order when content exists: `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`; do not group by plan/branch/iteration. Use `####` capability entries with `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`. In-progress/planned capabilities should include intent + plan/spec pointer.
 - **conventions.md** — Coding standards (from linter configs, existing patterns), architecture rules (project-specific only — do not duplicate general DDD/Clean Architecture rules from design-pattern docs), testing conventions (framework, mock principle, coverage target), git workflow. Add Domain-Specific Conventions (DB, API, frontend standards) only if non-obvious project-specific rules exist.
 - **decisions.md + adr/** — Extract significant decisions from git history, specs, and code comments. Apply the 3-criteria granularity gate first — most "decisions" fail one criterion and should go elsewhere (tech-stack.md, conventions.md, design docs). For each surviving ADR, write TWO artifacts: (1) a 4-line summary in `decisions.md` (heading + Decision + Trade-off + pointer); (2) a full detail file at `docs/project-knowledge/adr/ADR-NNN-<slug>.md` with Context / Decision / Alternatives Rejected / Consequences. Create the `adr/` directory if missing.
 - **glossary.md** — Domain terms from Ubiquitous Language: terms where the business meaning is not obvious from the code name, or the same word means different things in different contexts. Use definition list format: `**Term** — Definition. → \`path\``

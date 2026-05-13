@@ -30,6 +30,7 @@ Lock has a 60-minute TTL — if this skill aborts midway, the lock auto-expires 
 - Read existing knowledge files from `docs/project-knowledge/`. If fewer than 6 files exist (e.g., `glossary.md` missing from older versions), note which files are missing — they will be created during this update if relevant content is found, otherwise skipped.
 - Determine the base branch: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'` and fall back to `main` if the command fails. Then run `git diff <base-branch>...HEAD --stat` to see what files changed.
 - **Plan context (optional):** If `docs/superpowers/plans/` exists and has files, identify the most recent plan file (sorted by modification time). If multiple files were modified within the last 24 hours, ask the user which plan triggered this update. Read the triggering plan and its associated spec from `docs/superpowers/specs/`. If no plan files exist, proceed with `git diff` analysis alone — plan association is not required.
+- **Product source context:** Also look for PRDs, roadmaps, or product specs in common project locations such as `docs/roadmaps/`, `docs/prd/`, `docs/product/`, `docs/specs/`, `docs/design/`, and README sections referenced by the triggering plan/spec. Read only the documents that appear to describe the current branch or completed work.
 
 ### 2. Structural change detection
 
@@ -65,7 +66,22 @@ Check for architecture-level changes beyond `git diff --stat`:
 - Significant design decisions made? → apply the 3-criteria granularity gate (cross-module scope, ≥2 substantive rejected alternatives, not trivially reversible). Failing any criterion → route to `tech-stack.md` / `conventions.md` / `docs/design/` instead. Passing all three → (a) add 4-line summary entry to `decisions.md` (heading + Decision + Trade-off + pointer to detail); (b) create `docs/project-knowledge/adr/ADR-NNN-<slug>.md` with full Context / Decision / Alternatives Rejected / Consequences. When an existing ADR is superseded → collapse its `decisions.md` entry to the 1-line supersede heading and add `superseded_by: ADR-MMM` to the detail file's frontmatter.
 - New domain terms introduced? → update `glossary.md`
 
-### 3a. Exclusion Gate (before writing any new entry)
+### 3a. Feature Capability Reconciliation
+
+Before writing `features.md`, reconcile source requirements against the current capability map:
+
+1. Extract capability candidates from the triggering plan/spec plus any relevant PRD, roadmap, product spec, README, and user-facing entry points. Prefer source terms that name product/business concepts and user-visible operations.
+2. For each candidate, classify it as:
+   - `Implemented` → write or update a `####` capability entry with `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`.
+   - `In Progress` → write a concise `Intent` + `Source` entry.
+   - `Planned` → write a concise `Intent` + `Source` entry.
+   - `Not a features.md entry` → route to `architecture.md`, `decisions.md`, `tech-stack.md`, `conventions.md`, `glossary.md`, or the plan file per the Ownership Matrix.
+3. Preserve use-shaping product constraints in `Capability Boundary` when they change how users/operators experience the capability. Examples: one Issue can have at most one Work, Artifact is latest-only, a plugin requiring config is visible but unavailable for launch, global reports are deferred.
+4. Assign implemented entries to the canonical group order from `content-rules.md`: `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`. If a capability can be described in stable product language, place it in `Product Capabilities` before considering workflow or platform groups.
+5. Do not convert the capability list into a runtime component inventory. Technical capabilities are valid only when they are platform/operator capabilities in their own right.
+6. In the update report, mention important source capability candidates that were intentionally not represented in `features.md` and where they were routed.
+
+### 3b. Exclusion Gate (before writing any new entry)
 
 For EACH new entry about to be written, run this checklist against the entry's content shape:
 
@@ -78,7 +94,7 @@ For EACH new entry about to be written, run this checklist against the entry's c
 
 If ANY checklist item fails, either compress the entry to comply OR redirect it to the correct owner file per the Ownership Matrix.
 
-### 3b. Single-Owner Principle
+### 3c. Single-Owner Principle
 
 For every piece of information being added, pick ONE owner file per the Ownership Matrix in `content-rules.md`:
 
@@ -95,7 +111,7 @@ For every piece of information being added, pick ONE owner file per the Ownershi
 
 Other files that need to reference this information get a ≤1-line pointer ("see ADR-NNN", "see architecture.md §Components"). Never duplicate the expansion.
 
-### 3c. Existing entry audit
+### 3d. Existing entry audit
 
 Before writing any new entry, spot-check 2-3 existing entries in each file you will touch against the per-file format rule. If any are in a format forbidden by current `content-rules.md`, list them and rewrite them in Step 4 alongside the new entries. Common patterns to flag:
 
@@ -112,7 +128,7 @@ This step exists because the skill's earlier versions allowed append-only behavi
 ### 4. Apply updates
 
 - Only modify files that need changes — do not rewrite unchanged files
-- Apply the Exclusion Gate (Step 3a) and per-file format rule to **ALL entries in any file you touch, not just new ones**. If an existing entry violates current rules (changelog-shaped features entry, CRITICAL-format ADR without ≥2 substantive rejected alts, multi-line glossary entry, architecture facts inside conventions, etc.), rewrite it to comply in the same update. Do not preserve violations just because they predate the current rules.
+- Apply Feature Capability Reconciliation (Step 3a), the Exclusion Gate (Step 3b), and the per-file format rule to **ALL entries in any file you touch, not just new ones**. If an existing entry violates current rules (changelog-shaped features entry, missing implemented feature fields, CRITICAL-format ADR without ≥2 substantive rejected alts, multi-line glossary entry, architecture facts inside conventions, etc.), rewrite it to comply in the same update. Do not preserve violations just because they predate the current rules.
 - Update frontmatter in every modified file:
   - `last_updated`: today's date (YYYY-MM-DD)
   - `updated_by`: `superpowers-memory:update`
@@ -196,7 +212,7 @@ Knowledge files follow the structure defined in the plugin templates:
 
 - `architecture.md` → Pattern Overview (paradigm + 2–3 key characteristics, 1 paragraph), System Context (external actors + external systems, ≤10 lines), Layering (BCs/layers with responsibility + path + key abstractions, call-direction rules), Scenario Sequences (2–3 Mermaid `sequenceDiagram` for cross-module flows), Key Object FSMs (Mermaid `stateDiagram-v2` with trigger + emitted-event labels), Key Design Decisions (pointer list to ADRs only). No implementation constants (ports, timeouts, TTLs), no env var names, no HTTP header names, no prose FSM state lists, no capability descriptions (those belong in `features.md`).
 - `tech-stack.md` → Flexible: by technology category or system boundary
-- `features.md` → Current capability map. Use `## Implemented` / `## In Progress` / `## Planned`; `###` reader-facing capability groups; `####` individual capabilities. Implemented capabilities use fixed fields: `Enables`, `Actors / Entry Points`, `Capability Boundary`, `References`. Do NOT group by plan/branch/iteration; do NOT include commit SHAs, test counts, "shipped YYYY-MM-DD" timestamps, scope-boundary blocks, or long single-paragraph entries.
+- `features.md` → Current capability map. First reconcile PRD/roadmap/spec/plan capability candidates against current implementation status. Use `## Implemented` / `## In Progress` / `## Planned`; implemented `###` groups follow this order when content exists: `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`; `####` individual capabilities use fixed fields: `Enables`, `Actors / Entry Points`, `Capability Boundary`, `References`. Do NOT group by plan/branch/iteration; do NOT include commit SHAs, test counts, "shipped YYYY-MM-DD" timestamps, scope-boundary blocks, or long single-paragraph entries.
 - `conventions.md` → Naming, Code Style, Error Handling, Architecture Rules, Testing, Git & Workflow, + optional Domain-Specific. Rules only. If a section describes data flow, component wiring, or a sequence of runtime steps, it belongs in `architecture.md`.
 - `decisions.md` → **summary only, 4 lines per ADR** (heading + Decision + Trade-off + pointer to detail file). Max 6 non-blank lines per entry. The 3-criteria granularity gate governs what qualifies as an ADR — failing any criterion routes the fact elsewhere. Superseded ADRs collapse to a 1-line heading (no body in the summary).
 - `adr/ADR-NNN-<slug>.md` → **full rationale** loaded on demand. One file per ADR: Context / Decision / Alternatives Rejected (paragraph per alt) / Consequences. Target ~100 lines.

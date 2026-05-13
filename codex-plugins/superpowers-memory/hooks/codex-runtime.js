@@ -258,6 +258,12 @@ const SHIPPED_NARRATIVE_PATTERN = /\bshipped\s+\d{4}-\d{2}-\d{2}\b/i;
 const COMMITS_RANGE_PATTERN = /\bcommits on [\w\/-]+|\b[0-9a-f]{7,40}\.\.(?:HEAD|[\w\/-]+)/i;
 const GLOSSARY_WIDTH_THRESHOLD = 400;
 const FEATURE_DENSE_PARAGRAPH_THRESHOLD = 500;
+const REQUIRED_IMPLEMENTED_FEATURE_FIELDS = [
+  "Enables",
+  "Actors / Entry Points",
+  "Capability Boundary",
+  "References",
+];
 
 function lintFeatures(content) {
   const findings = [];
@@ -265,6 +271,21 @@ function lintFeatures(content) {
   let paragraphStart = -1;
   let paragraphText = "";
   let awaitingFeatureParagraph = false;
+  let lifecycle = null;
+  let currentFeature = null;
+
+  function flushImplementedFeature() {
+    if (!currentFeature) return;
+    const missing = REQUIRED_IMPLEMENTED_FEATURE_FIELDS.filter((field) => !currentFeature.fields.has(field));
+    if (missing.length > 0) {
+      findings.push({
+        line: currentFeature.line,
+        kind: "feature_missing_field",
+        sample: `${currentFeature.name} missing ${missing.join(", ")}`,
+      });
+    }
+    currentFeature = null;
+  }
 
   function flushFeatureParagraph() {
     if (paragraphStart < 0) return;
@@ -282,9 +303,32 @@ function lintFeatures(content) {
   lines.forEach((line, i) => {
     const trimmed = line.trim();
     const isHeading = /^#{1,6}\s+/.test(trimmed);
+    const lifecycleMatch = /^##\s+(.+?)\s*$/.exec(trimmed);
+    const implementedFeatureMatch = /^####\s+(.+?)\s*$/.exec(trimmed);
     const isFeatureHeading = /^#{3,4}\s+/.test(trimmed);
     const isBlank = trimmed === "";
-    const isStructuredField = /^\*\*[^*]+\*\*\s+—/.test(trimmed);
+    const structuredFieldMatch = /^\*\*([^*]+)\*\*\s+—/.exec(trimmed);
+    const isStructuredField = structuredFieldMatch !== null;
+
+    if (lifecycleMatch) {
+      flushImplementedFeature();
+      lifecycle = lifecycleMatch[1];
+    } else if (isHeading && !implementedFeatureMatch) {
+      flushImplementedFeature();
+    }
+
+    if (implementedFeatureMatch) {
+      flushImplementedFeature();
+      if (lifecycle === "Implemented") {
+        currentFeature = {
+          line: i + 1,
+          name: implementedFeatureMatch[1],
+          fields: new Set(),
+        };
+      }
+    } else if (currentFeature && structuredFieldMatch) {
+      currentFeature.fields.add(structuredFieldMatch[1].trim());
+    }
 
     if (isHeading || isBlank || isStructuredField) {
       flushFeatureParagraph();
@@ -311,6 +355,7 @@ function lintFeatures(content) {
       findings.push({ line: i + 1, kind: "commits_range", sample: line.trim().slice(0, 120) });
     }
   });
+  flushImplementedFeature();
   flushFeatureParagraph();
   return findings;
 }
@@ -675,16 +720,16 @@ function buildVerifyOutput() {
   }
 
   const sizeThresholds = {
-    "architecture.md": 200,
-    "conventions.md": 150,
+    "architecture.md": 300,
+    "conventions.md": 180,
     "decisions.md": 300,
     "tech-stack.md": 120,
-    "features.md": 180,
-    "glossary.md": 80,
+    "features.md": 400,
+    "glossary.md": 120,
     "index.md": 50,
   };
 
-  const TOKEN_BUDGET = 20000;
+  const TOKEN_BUDGET = 30000;
 
   const sizeWarnings = [];
   const staleRefs = [];
