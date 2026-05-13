@@ -124,16 +124,17 @@ internal/<context>/
 │   └── grpc/                      # gRPC server implementations
 │
 └── infrastructure/
-    ├── persistence/
-    │   ├── repository.{ext}           # Repository implementation (write)
-    │   ├── query_repository.{ext}     # Query repository implementation (read)
-    │   ├── data_object.{ext}          # ORM / database models
-    │   └── converter.{ext}            # DO ↔ Entity conversion
-    └── messaging/
-        └── publisher.{ext}            # Event publisher implementation
+    ├── <aggregate>_repository.{ext}       # Write repository implementation
+    ├── <read_model>_query_repository.{ext} # Read repository implementation
+    ├── <message>_publisher.{ext}          # Message/event publisher adapter
+    ├── data_object.{ext}          # ORM / database models
+    ├── converter.{ext}            # DO ↔ Entity conversion
+    └── dto.{ext}                  # Infrastructure-local DTOs, if shared by adapters
 ```
 
 > `{ext}` refers to the file extension of the language in use (`.go`, `.py`, `.java`, `.ts`, etc.).
+>
+> Inside a bounded context, keep `infrastructure/` flat by default. Primary adapter files use semantic capability names: one port, Repository, or adapter maps to one `<capability>.{ext}` file plus its test file. Supporting files such as `data_object`, `converter`, or `dto` may stay role-named when they are shared by those adapters. Do not create `redis/`, `mysql/`, `persistence/`, or `messaging/` subdirectories merely because of the backing technology. Technology names belong in concrete type names or file suffixes only when multiple implementations coexist, for example `runtime_state_redis.{ext}` and `runtime_state_memory.{ext}`. Shared technology components belong in the project's shared technical package (for example `internal/pkg/redis` or `shared/db`), not under a bounded context's `infrastructure/`.
 
 ---
 
