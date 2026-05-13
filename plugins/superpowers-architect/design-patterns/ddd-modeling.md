@@ -58,11 +58,22 @@ Define ports by use-case semantics, not by implementation technology. Adding Red
 Before adding a port, answer:
 
 - What semantic capability does the caller need? (name it in domain terms, not "calls Redis")
+- Is the caller on the Command/write side, the Query/read side, or a cross-context facade? Do not mix these in one port.
+- Which actor or consumer owns the need? (producer append, UI replay, audit lookup, projection bootstrap, billing lookup, etc.)
 - Which layer owns the rule behind that capability? (apply §0.1's classification table — Domain-facing, Application orchestration, or Infrastructure)
 - Does the caller need a separate failure policy, consistency boundary, or replacement strategy?
 - Would the caller's code change if the implementation switched from Redis to MySQL, or from cache-aside to write-through?
+- Does this interface force a caller to depend on methods it never uses, or does adding a new consumer keep expanding the same interface?
 
 If the caller still needs the same aggregate collection or read model, keep the existing Repository / QueryRepository / semantic port and compose the technical dependency inside Infrastructure. For example, a high-traffic read path may implement `UserQueryRepository` with MySQL plus Redis cache-aside; it must not expose a separate `Cacher` port unless caching behavior itself is a named use-case concern.
+
+CQRS port boundaries are consumer-specific. The same physical table, stream, object store, or append-only log may back several ports, but the inward-facing ports must follow caller semantics:
+
+- A Command-side append or persistence concern is a writer port with the command's failure semantics.
+- A Query-side replay, listing, audit lookup, or projection read is a reader/query port returning the read model that consumer needs.
+- A projection high-watermark, lease, cursor, or sequence concern is a coordination port only when the use case observes that coordination semantics.
+
+Do not create an omnibus `Store`, `Client`, or `Repository` interface that combines write methods for one producer with read methods for unrelated consumers merely because one Infrastructure adapter can implement all of them. Keep the large concrete adapter in Infrastructure if useful, but expose small Application/Domain ports per use case. If a new consumer adds methods to a shared port, re-run this checklist before accepting the expansion.
 
 The source of a port's request/response types does not decide the port's layer. Generated protocol messages, database rows, queue payloads, or external DTOs are boundary shapes; they are mapped to the layer-owned model before invoking the semantic port. If the capability is Domain-facing but the external call is expressed with Protobuf messages, keep the port in Domain and add an Application/Infrastructure mapper from proto DTOs to Domain entities, value objects, commands, or events.
 
