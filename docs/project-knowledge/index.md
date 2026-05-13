@@ -1,8 +1,8 @@
 ---
-last_updated: 2026-05-12
+last_updated: 2026-05-13
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
-covers_branch: hotfix/py-ts@cc10ca6
+triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
+covers_branch: hotfix/feature-tree@e62551a
 ---
 
 # Project Knowledge Index
@@ -14,10 +14,10 @@ covers_branch: hotfix/py-ts@cc10ca6
   Key points: Node.js + Bash + Markdown + JSON; release scripts use git + jq; Codex native plugin hooks require `hooks` + `plugin_hooks` and restart
 
 - [features.md](features.md) — Current capability map
-  Key points: marketplace install paths; memory load/update/rebuild/write-lock/verify; DDD guidance spans modeling/core/golang/golang-runtime/python/typescript with shared gates, event-drain lifecycle, and Integration Message boundaries
+  Key points: product-first capability map with canonical group order; memory update/rebuild now reconciles PRD/spec/roadmap capabilities; verify flags missing implemented feature fields and larger capability-map size guards
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; DDD language guides preserve shared gates while Go-only component requirements stay Go-specific
+  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; KB verify uses 30K token budget with larger features/architecture caps; DDD language guides preserve shared gates while Go-only component requirements stay Go-specific
 
 - [decisions.md](decisions.md) — ADR summary log (15 ADRs, 0 superseded)
   Key points: ADR-015 DDD agent contract + Go runtime split; ADR-014 native Codex hooks with cleanup; ADR-013 Codex marketplace compat; ADR-012 UserPromptExpansion slash hook; ADR-010 KB write-lock

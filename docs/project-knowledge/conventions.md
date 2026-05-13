@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-05-12
+last_updated: 2026-05-13
 updated_by: superpowers-memory:update
-triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
+triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
 
 
@@ -16,7 +16,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 - **Hook scripts (designing-tests Codex):** Direct Node.js (`codex-runtime.js`), single `session-start` mode. Same YAML frontmatter parsing as Claude side.
 - **Markdown files:** Skills use YAML frontmatter with `name` and `description`. Knowledge base files use `last_updated` (YYYY-MM-DD), `updated_by`, `triggered_by_plan`.
 - **`triggered_by_plan` rule:** Only update this field when a concrete plan filename can be identified as the trigger. If no plan triggered the update, **preserve the existing value — never overwrite with `null`**.
-- **Content rules (KB):** `content-rules.md` is the shared SSOT for `rebuild` and `update` skills. Defines language, inclusion/exclusion criteria, ownership matrix, quality standards, size guards.
+- **Content rules (KB):** `content-rules.md` is the shared SSOT for `rebuild` and `update` skills. Defines language, inclusion/exclusion criteria, ownership matrix, feature capability reconciliation, quality standards, and size guards.
 - **JSON manifests:** `plugin.json`, native Codex hook files such as `codex-plugins/superpowers-memory/hooks/hooks.json`, Claude `hooks.json`, `marketplace.json`, and `codex-hooks-snippet.json` use 2-space indentation. Arrays/objects expand multi-line (one element per line) — both Claude and Codex tracks aligned. `~/.codex/hooks.json` must remain strict JSON; never write JSON comments into it.
 - **No linter configs present** — conventions followed by practice.
 
@@ -42,7 +42,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 - No automated test suite. Verification is done manually per plan task acceptance criteria.
 - The `verify` command in `hook-runtime.js` / `codex-runtime.js` provides automated checks for KB files (size thresholds, stale path references, content-shape lint, total token budget). Codex variant runs the same `verify` logic.
-- Fixture-based runtime testing: `plugins/superpowers-memory/hooks/fixtures/<scenario>/` (clean, shape-violation, ssot-violation, codex-apply-patch). Run via `cd <fixture> && node ../../<runtime>.js <mode>`. Both `hook-runtime.js` (Claude) and `codex-runtime.js` (Codex) share the same fixture set.
+- Fixture-based runtime testing: `plugins/superpowers-memory/hooks/fixtures/<scenario>/` (clean, dense-features, missing-feature-fields, shape-violation, ssot-violation, codex-apply-patch). `scripts/release/test/test_memory_verify.sh` copies fixtures to temporary non-repo directories so both `hook-runtime.js` (Claude) and `codex-runtime.js` (Codex) verify the same scenarios.
 
 ## Git & Workflow
 
@@ -56,10 +56,10 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 - **Ownership matrix** — see `plugins/superpowers-memory/content-rules.md`. Each fact has ONE owner file; others reference by pointer (≤1 line).
 - **ADR granularity gate** — new ADRs only when a future reader without this record would re-propose the opposite (NORMAL 3-line default; CRITICAL only when ≥2 rejected alts with substantive analysis).
-- **`features.md` is current capability map** — use `##` lifecycle states, `###` capability groups, and `####` capability entries with `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`. No dense single-paragraph entries, commit SHAs, test counts, timestamps, or changelog narrative.
+- **`features.md` is current capability map** — implemented capability groups follow `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`; each `####` entry uses `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`. No dense single-paragraph entries, missing implemented fields, commit SHAs, test counts, timestamps, or changelog narrative.
 - **`glossary.md` entries ≤2 lines** — one-line business definition + 1 path.
 - **Exclusion Gate** in `update` / `rebuild` skills checks every new entry against content-shape rules before write.
-- **`verify` surfaces** `ssotViolations`, `shapeViolations`, `tokenBudgetViolation` (20K default), `sizeWarnings`. All warn-only — commits not blocked. `committable` reflects git state only.
+- **`verify` surfaces** `ssotViolations`, `shapeViolations`, `tokenBudgetViolation` (30K default), `sizeWarnings`. All warn-only — commits not blocked. `committable` reflects git state only. Line caps are intentionally larger for `features.md` (400) and `architecture.md` (300) so valid product capabilities and cross-module structure are not deleted merely to satisfy the guard.
 - **KB writes go through `superpowers-memory:update` / `superpowers-memory:rebuild` only** (ADR-010). PreToolUse hook blocks Write/Edit on `docs/project-knowledge/` paths unless write-lock (`.git/superpowers-memory.lock`, 60-min TTL) is held. No escape hatch — manual typo fixes also go through `superpowers-memory:update`.
 
 ## Codex-track-specific conventions (ADR-013)

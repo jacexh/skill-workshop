@@ -52,6 +52,8 @@ Describes how modules/services are wired, how they interact over time, and how c
 
 Describes **what the system can do now**. It is the current capability map for humans and agents: readers should understand the implemented capabilities, who or what uses them, where to enter the system, and which owner file to load next. Past versions are NOT documented (evolution lives in ADR supersede chains and plan files).
 
+**Product-source rule:** When PRDs, roadmaps, specs, or plans exist, extract their user goals, business objects, actions, and use-shaping constraints as capability candidates before summarizing implementation paths. Product-facing capabilities should keep the source language where it is stable (for example "Issue-bound Work", "Plugin Marketplace", "Attachment", "Artifact", "Project Dashboard"). Do not let technical runtime components replace product capabilities; use technical groups only for platform/operator capabilities that are not product-facing.
+
 **Relationship to other KB files:**
 
 | Question | Owner |
@@ -95,14 +97,20 @@ Describes **what the system can do now**. It is the current capability map for h
 **Grouping rules:**
 
 - Use `##` only for lifecycle state: `Implemented`, `In Progress`, `Planned`.
-- Use `###` for reader-facing capability groups, such as `Product Capabilities`, `Agent Execution Capabilities`, `Platform Capabilities`, or `Operational Capabilities`.
+- For `## Implemented`, use these `###` groups in this order when content exists:
+  1. `Product Capabilities` — product-facing abilities named by users, PRDs, roadmaps, specs, or business workflows.
+  2. `User / Operator Workflows` — cross-capability flows and operational actions that users/operators perform end to end.
+  3. `Platform Capabilities` — system/platform abilities needed to understand runtime boundaries, integration, messaging, observability, or extension points.
+  4. `Operations` — deployment, configuration, CI/CD, test infrastructure, and runbook-facing capabilities.
 - Use `####` for individual capabilities.
-- Prefer business capability / bounded-context language for product groups. Technical platform groups are allowed, but must not be presented as business bounded contexts.
+- If a capability can be described in stable product language, put it under `Product Capabilities` before considering workflow or platform groups. Do not split one product capability into several technical component entries merely because the implementation crosses services.
+- Technical platform groups are allowed, but must not replace product-facing capability entries.
 - Do not use `#####` unless the user explicitly asks for deeper local detail.
 
 **Entry rules:**
 
 - Each implemented capability should use the fixed fields above. Keep each field to 1–3 lines.
+- Each implemented `####` capability must include all fixed fields: `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`. `verify` reports `feature_missing_field` when any field is absent.
 - Long single-paragraph entries are forbidden. If a capability needs more than one short paragraph, split it into the fixed fields.
 - `features.md` may mention key constraints that shape use of the capability, but detailed wiring, FSM diagrams, event flows, schema details, and implementation constants belong in owner files.
 
@@ -115,6 +123,7 @@ Describes **what the system can do now**. It is the current capability map for h
 
 **Include**:
 - What the system can do now
+- Product capabilities from PRDs, roadmaps, specs, and plans once implemented or clearly in progress/planned
 - Actor / entry point / relevant path
 - Capability boundary and externally meaningful constraints
 - Pointers to owner files for structure, decisions, technology, conventions, or terminology
@@ -247,12 +256,12 @@ Per-file line thresholds (enforced by `verify sizeWarnings` — warn-only, does 
 
 | File | Warning threshold |
 |------|------------------|
-| architecture.md | 200 |
-| conventions.md | 150 |
+| architecture.md | 300 |
+| conventions.md | 180 |
 | decisions.md | 300 |
 | tech-stack.md | 120 |
-| features.md | 180 |
-| glossary.md | 80 |
+| features.md | 400 |
+| glossary.md | 120 |
 | index.md | 50 |
 
 `adr/ADR-NNN-*.md` files are NOT aggregated into a threshold — each is judged individually against the per-ADR-detail guard (~100 lines). They do not count toward `decisions.md`'s line count.
@@ -263,7 +272,7 @@ Exceeding threshold → warning in `verify` output + compression suggestion. Com
 
 Per-file caps don't compose. Aggregate check: sum of the seven canonical KB file bytes / 4 ≈ tokens. `adr/` detail files are excluded — they load on demand, not at session start.
 
-- **Default budget: 20,000 tokens** (approx what a full `load` would inject; ~2% of 1M context).
+- **Default budget: 30,000 tokens** (approx what a full `load` would inject; ~3% of 1M context).
 - Exceed → warning in `verify` output with per-file breakdown. Warn-only; does not block commits.
 
 ## Quality
@@ -278,7 +287,7 @@ Per-file caps don't compose. Aggregate check: sum of the seven canonical KB file
 When size guard / content-shape warnings fire, suggest specific compression actions:
 
 - `decisions.md` over cap → (1) run every ADR through the 3-criteria granularity gate — downgrade tool/library picks to `tech-stack.md`, convention-shaped rules to `conventions.md`; (2) collapse superseded ADRs to 1-line supersede format; (3) move any remaining rationale detail from `decisions.md` into `adr/ADR-NNN-*.md` so the summary file carries only 4-6 lines per ADR.
-- `features.md` over cap → strip changelog blocks, commit SHAs, test counts; merge redundant capability groups; keep fixed fields short; move wiring/flow detail to `architecture.md` and rationale to ADRs.
+- `features.md` over cap → strip changelog blocks, commit SHAs, test counts; merge redundant capability groups; keep fixed fields short; move wiring/flow detail to `architecture.md` and rationale to ADRs. Do not delete still-valid PRD/spec product capabilities merely to satisfy the line cap.
 - `glossary.md` over cap → compress each entry to ≤2 lines; move context to owner file per Matrix.
 - `architecture.md` over cap → remove implementation details; keep module-level wiring only.
 - `conventions.md` over cap → remove rules already enforced by formatter/linter; remove rules duplicated from design patterns.
