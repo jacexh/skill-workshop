@@ -201,18 +201,22 @@ internal/business/user/          # User bounded context
 │   └── queries.go               # Reader / Facade interface + DTOs consumed by other bounded contexts
 │
 ├── infrastructure/              # Infrastructure layer - external system integrations ONLY
-│   ├── persistence/
-│   │   ├── repository.go        # Repository implementation
-│   │   ├── repository_test.go   # Repository integration tests
-│   │   ├── do.go                # Database models (XORM/GORM)
-│   │   └── converter.go         # DO <-> Entity conversion
-│   └── messaging/
-│       └── publisher.go         # Event publisher implementation
+│   ├── user_repository.go       # Write repository implementation
+│   ├── user_repository_test.go  # Repository integration tests
+│   ├── user_query_repository.go # Read repository implementation
+│   ├── order_publisher.go       # Message/event publisher adapter
+│   ├── do.go                    # Database models (XORM/GORM)
+│   ├── converter.go             # DO <-> Entity conversion
+│   └── dto.go                   # Infrastructure-local DTOs, if shared by adapters
 │
 ├── pkg/                         # Bounded-context private utilities (not imported by other contexts)
 │
 └── user.go                      # Module assembly (fx Module)
 ```
+
+Within a bounded context, keep `infrastructure/` flat by default. Primary adapter files use semantic capability names: one port, Repository, or adapter maps to one `<capability>.go` file plus `<capability>_test.go`. Supporting files such as `do.go`, `converter.go`, or `dto.go` may stay role-named when they are shared by those adapters. Do not create `redis/`, `mysql/`, `persistence/`, or `messaging/` packages merely because of the backing technology. Technology names belong in concrete type names or file suffixes only when multiple implementations coexist, for example `runtime_state_redis.go` and `runtime_state_memory.go`. Shared technology components belong in `internal/pkg/<capability>`; bounded-context Infrastructure receives initialized clients from those shared packages.
+
+Because `infrastructure` is a single Go package, exported adapter types and constructors must include the semantic capability. Prefer `NewUserRepository`, `NewRuntimeStateRepository`, and `NewOrderPublisher` over generic names such as `NewRepository` or `NewPublisher`. If multiple technologies implement the same semantic capability, include the technology as a suffix: `NewRuntimeStateRedisRepository`, `NewRuntimeStateMemoryRepository`.
 
 ### 2.3 Shared Object Placement
 
@@ -607,15 +611,15 @@ type ActivityLogStore interface {
 One Infrastructure struct may implement all of the small ports:
 
 ```go
-fx.Provide(func(conn storage.Conn) *persistence.ActivityLogAdapter {
-    return persistence.NewActivityLogAdapter(conn)
+fx.Provide(func(conn storage.Conn) *infrastructure.ActivityLogAdapter {
+    return infrastructure.NewActivityLogAdapter(conn)
 })
-fx.Provide(func(log *persistence.ActivityLogAdapter) command.ActivityLogWriter { return log })
-fx.Provide(func(log *persistence.ActivityLogAdapter) query.ActivityReplayReader {
-    return persistence.NewReplayReader(log)
+fx.Provide(func(log *infrastructure.ActivityLogAdapter) command.ActivityLogWriter { return log })
+fx.Provide(func(log *infrastructure.ActivityLogAdapter) query.ActivityReplayReader {
+    return infrastructure.NewReplayReader(log)
 })
-fx.Provide(func(log *persistence.ActivityLogAdapter) query.ActivityCorrelationReader {
-    return persistence.NewCorrelationReader(log)
+fx.Provide(func(log *infrastructure.ActivityLogAdapter) query.ActivityCorrelationReader {
+    return infrastructure.NewCorrelationReader(log)
 })
 ```
 
@@ -631,8 +635,8 @@ type Repository interface {
     FindDetail(ctx context.Context, id string) (*DetailDTO, error)
 }
 
-// infrastructure/persistence/activity_query_repository.go
-package persistence
+// infrastructure/activity_query_repository.go
+package infrastructure
 
 var _ query.Repository = (*activityQueryRepository)(nil)
 ```
@@ -863,8 +867,8 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 > For the full soft delete specification, see [ddd-core.md §3.4 "Soft Delete"](ddd-core.md).
 
 ```go
-// infrastructure/persistence/do.go
-package persistence
+// infrastructure/do.go
+package infrastructure
 
 import (
     "xorm.io/xorm"
@@ -888,8 +892,8 @@ func (u UserDO) TableName() string {
     return "user"
 }
 
-// infrastructure/persistence/repository.go
-package persistence
+// infrastructure/user_repository.go
+package infrastructure
 
 import (
     "context"
@@ -910,7 +914,7 @@ type userRepository struct {
 
 // Constructor returns interface. The MySQL client is constructed in internal/pkg/mysql
 // and injected here; this package does not read config or open connections.
-func NewRepository(db *xorm.Engine) domain.Repository {
+func NewUserRepository(db *xorm.Engine) domain.Repository {
     return &userRepository{db: db}
 }
 
@@ -1187,8 +1191,8 @@ func (h *OrderCompletedHandler) Handle(ctx context.Context, msg message.Message)
 **Wiring** — Application code depends only on the upstream `message.Publisher` / `message.Handler` / `message.Subscriber` interfaces; the Kafka adapter lives in Infrastructure:
 
 ```go
-// infrastructure/messaging/kafka.go
-package messaging
+// infrastructure/order_publisher.go
+package infrastructure
 
 import (
     "github.com/go-jimu/components/ddd/message"
@@ -1199,7 +1203,7 @@ import (
     orderv1 "github.com/example/project/pkg/gen/proto/order/v1"
 )
 
-func NewKafkaPublisher(client *kgo.Client) message.Publisher {
+func NewOrderPublisher(client *kgo.Client) message.Publisher {
     return kafka.NewPublisher(client)
 }
 
@@ -1311,10 +1315,11 @@ Production files only. Test file placement is governed by §6.3 and is not requi
 | `application/assembler.go` | Object conversion (DTO ↔ Domain, Proto ↔ Domain) |
 | `interfaces/http/handler.go` | REST handler (optional, hand-written protocols only) |
 | `api/queries.go` | Cross-context Reader / Facade ports (optional, only when this context publishes read-side facades; §5.3) |
-| `infrastructure/persistence/do.go` | Database models |
-| `infrastructure/messaging/kafka.go` | Conditional: `message.Publisher` / `message.Subscriber` wiring against the `contrib/message/kafka` adapter (§5.2) |
-| `infrastructure/persistence/repository.go` | Repository implementation |
-| `infrastructure/persistence/converter.go` | Conversion functions |
+| `infrastructure/<aggregate>_repository.go` | Write repository implementation |
+| `infrastructure/<read_model>_query_repository.go` | Read repository implementation |
+| `infrastructure/<message>_publisher.go` | Conditional: `message.Publisher` / `message.Subscriber` wiring against the selected adapter (§5.2) |
+| `infrastructure/do.go` | Database models shared by Infrastructure adapters |
+| `infrastructure/converter.go` | Conversion functions shared by Infrastructure adapters |
 
 ### 6.3 Test File Organization
 
@@ -1497,16 +1502,15 @@ import (
 
     "github.com/example/project/internal/business/user/application"
     "github.com/example/project/internal/business/user/application/handler"
-    "github.com/example/project/internal/business/user/infrastructure/persistence"
-    "github.com/example/project/internal/business/user/infrastructure/messaging"
+    "github.com/example/project/internal/business/user/infrastructure"
     userv1connect "github.com/example/project/pkg/gen/proto/user/v1/userv1connect"
 )
 
 var Module = fx.Module(
     "domain.user",
-    fx.Provide(persistence.NewRepository),
-    fx.Provide(persistence.NewQueryRepository),
-    fx.Provide(messaging.NewKafkaPublisher), // provides message.Publisher via the selected adapter
+    fx.Provide(infrastructure.NewUserRepository),
+    fx.Provide(infrastructure.NewUserQueryRepository),
+    fx.Provide(infrastructure.NewOrderPublisher), // provides message.Publisher via the selected adapter
     fx.Provide(handler.NewWelcomeEmailHandler), // in-process Domain Event Handler (event.Handler impl in application/handler/<event>.go)
     fx.Provide(handler.NewOrderCompletedPublisher), // boundary publisher: Domain Event -> Integration Message
     fx.Provide(application.NewApplication),

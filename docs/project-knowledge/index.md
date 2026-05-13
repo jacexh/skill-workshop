@@ -2,7 +2,7 @@
 last_updated: 2026-05-13
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
-covers_branch: hotfix/feature-tree@e62551a
+covers_branch: hotfix/infrastructure@a3f0056
 ---
 
 # Project Knowledge Index
@@ -17,7 +17,7 @@ covers_branch: hotfix/feature-tree@e62551a
   Key points: product-first capability map with canonical group order; memory update/rebuild now reconciles PRD/spec/roadmap capabilities; verify flags missing implemented feature fields and larger capability-map size guards
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); content-rules.md as SSOT; KB verify uses 30K token budget with larger features/architecture caps; DDD language guides preserve shared gates while Go-only component requirements stay Go-specific
+  Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); DDD Go infrastructure stays flat by semantic capability while shared clients live in internal/pkg; KB verify uses 30K token budget with larger features/architecture caps
 
 - [decisions.md](decisions.md) — ADR summary log (15 ADRs, 0 superseded)
   Key points: ADR-015 DDD agent contract + Go runtime split; ADR-014 native Codex hooks with cleanup; ADR-013 Codex marketplace compat; ADR-012 UserPromptExpansion slash hook; ADR-010 KB write-lock
