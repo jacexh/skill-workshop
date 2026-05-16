@@ -63,8 +63,9 @@ Then map abstract source categories to concrete paths:
 | `conventions.md` | Lint/format configs (per the languages present); build orchestration; CI configs (`.github/workflows/`, `.gitlab-ci.yml`, `.circleci/`); `CLAUDE.md`; `docs/design/` (stable cross-cutting rules) |
 | `decisions.md` + `adr/` | Existing `decisions.md` + `adr/*.md` (format-compliance pass); `git log --oneline` for significant recent changes (granularity gate); `docs/design/` + `docs/superpowers/specs/` for decision sources |
 | `glossary.md` | Aggregate and domain-object names (per the project's domain-code organization — packages, model classes, ORM entities, proto `message` definitions); API contract type names (proto `service`, OpenAPI schema names, GraphQL types); `README.md` + `CLAUDE.md` for project-specific vocabulary |
+| `playbooks.md` + `playbooks/` | (1) `docs/superpowers/specs/` and `docs/superpowers/plans/` — cluster files describing the same class of change (e.g., multiple `*service-split*`, `*add-*-endpoint*`, `*migration*`); (2) existing `conventions.md` for step-style entries that should be promoted to playbooks; (3) `README.md` "how to add X / contributing" sections; (4) recurring patterns visible in `git log --oneline` (same operation done by multiple commits). Each candidate cluster MUST pass the 3-gate rule (recurrence ≥2 times; ≥3 cross-file actions; non-obvious from code) before being written. |
 
-Files outside the mapping are out of scope — for example, `adr/ADR-NNN-<slug>.md` detail files are not scoped targets (they're rebuilt as part of `decisions.md` rebuild, or authored directly during `update`).
+Files outside the mapping are out of scope — for example, `adr/ADR-NNN-<slug>.md` and `playbooks/<slug>.md` detail files are not scoped targets (they're rebuilt as part of `decisions.md` / `playbooks.md` rebuild, or authored directly during `update`).
 
 ## Pre-check
 
@@ -170,7 +171,7 @@ Before writing any file:
 
 **Full mode:** create `docs/project-knowledge/` directory if it doesn't exist.
 
-For each of the 6 knowledge files (full mode) or the single target file (scoped mode), use the plugin template as the structural basis and fill in concrete content from the codebase analysis:
+For each of the 6 canonical knowledge files (full mode) or the single target file (scoped mode), use the plugin template as the structural basis and fill in concrete content from the codebase analysis. `playbooks.md` + `playbooks/` is a **lazy slot**: generate it only when at least one candidate cluster passes the 3-gate rule (see content-rules.md); otherwise omit entirely — do not create an empty index.
 
 - **architecture.md** — Pattern Overview (paradigm + 2–3 key characteristics, 1 paragraph); System Context (external actors + external systems, list form, ≤10 lines); Layering (bounded contexts or layers; each entry is name + one-sentence responsibility + path + key abstraction names; declare call-direction rules at the end); Scenario Sequences (2–3 Mermaid `sequenceDiagram` for cross-module flows of 3+ components; single-module internal flows do NOT belong here); Key Object FSMs (Mermaid `stateDiagram-v2` for aggregates whose transitions cross module boundaries, with trigger + emitted-event labels — bullet-list state enumerations are Exclusion List violations); Key Design Decisions (pointer list, 3–5 entries as `**[title]** — see ADR-NNN`). Skip §Key Object FSMs only if the project genuinely has no aggregates with cross-BC state transitions — and declare this explicitly rather than silently omitting the section.
 - **tech-stack.md** — Languages and frameworks (from config files), key dependencies (from package manifests), build tools (from scripts/Makefile). Organize by technology category or system boundary — whichever fits better.
@@ -178,6 +179,7 @@ For each of the 6 knowledge files (full mode) or the single target file (scoped 
 - **conventions.md** — Coding standards (from linter configs, existing patterns), architecture rules (project-specific only — do not duplicate general DDD/Clean Architecture rules from design-pattern docs), testing conventions (framework, mock principle, coverage target), git workflow. Add Domain-Specific Conventions (DB, API, frontend standards) only if non-obvious project-specific rules exist.
 - **decisions.md + adr/** — Extract significant decisions from git history, specs, and code comments. Apply the 3-criteria granularity gate first — most "decisions" fail one criterion and should go elsewhere (tech-stack.md, conventions.md, design docs). For each surviving ADR, write TWO artifacts: (1) a 4-line summary in `decisions.md` (heading + Decision + Trade-off + pointer); (2) a full detail file at `docs/project-knowledge/adr/ADR-NNN-<slug>.md` with Context / Decision / Alternatives Rejected / Consequences. Create the `adr/` directory if missing.
 - **glossary.md** — Domain terms from Ubiquitous Language: terms where the business meaning is not obvious from the code name, or the same word means different things in different contexts. Use definition list format: `**Term** — Definition. → \`path\``
+- **playbooks.md + playbooks/<slug>.md** (lazy) — Cluster the discovery sources listed in the Scope Routing table (specs/plans, conventions, README "how to add" sections, recurring git log patterns). For each cluster, apply the 3-gate rule (recurrence ≥2; ≥3 cross-file actions; non-obvious from code). For surviving clusters, write TWO artifacts: (1) one line in `playbooks.md` index — `- [<Verb-led title>](playbooks/<slug>.md) — When: <trigger>`; (2) one detail file at `docs/project-knowledge/playbooks/<slug>.md` following the `templates/playbook-detail.md` shape (Preconditions / Steps / Verification / Pitfalls / References). If no clusters pass the gate, skip this slot entirely — do not create an empty `playbooks.md`.
 
 ### 4. Set frontmatter
 
@@ -195,7 +197,7 @@ For each of the 6 knowledge files (full mode) or the single target file (scoped 
 
 Always regenerate `docs/project-knowledge/index.md` — in both modes — since key points for any touched file may have changed.
 
-- Re-read all existing knowledge files (including the one(s) just rewritten)
+- Re-read all existing knowledge files (including the one(s) just rewritten). Include `playbooks.md` if and only if it exists; do not add a placeholder line for an omitted lazy slot.
 - For each file, extract 1-2 key points that help AI decide whether to load the file in full (e.g., specific pattern names, version numbers, counts — not generic descriptions)
 - Write the file following the format in `templates/index.md`, setting `updated_by: superpowers-memory:rebuild` and `covers_branch: <branch>@<short-sha>` where `<branch>` is the output of `git branch --show-current` and `<short-sha>` is the output of `git rev-parse --short HEAD` (e.g., `covers_branch: main@a1b2c3d`). The SHA anchor ensures staleness detection works at commit granularity, not just branch-name granularity.
 - `triggered_by_plan`:
@@ -242,15 +244,19 @@ Check the `committable` field from the step 6 verify output. If `false`, skip th
 
 **Full mode:**
 ```bash
-git add docs/project-knowledge/ docs/project-knowledge/adr/
+git add docs/project-knowledge/
 git commit -m "docs: rebuild project knowledge base from codebase"
 ```
+
+Staging the directory root recursively picks up everything underneath (`adr/`, `playbooks/`, all KB files). Do not list subdirectories explicitly — passing a literal pathspec that doesn't exist (e.g., `playbooks/` on a KB that has no playbooks) makes `git add` exit with `fatal: pathspec ... did not match any files`.
 
 **Scoped mode:** add only the files that were touched (target file + any destinations that received routed content + `index.md`), and use a scope-specific message:
 ```bash
 git add docs/project-knowledge/<target-file> [docs/project-knowledge/<other-destinations>...] docs/project-knowledge/index.md
 git commit -m "docs: rebuild <target-file> against current content rules"
 ```
+
+When the target is `playbooks.md`, also stage the `docs/project-knowledge/playbooks/` directory (only if newly-created detail files exist there) so they commit together.
 
 If the commit fails (e.g., pre-commit hook), report the error to the user. Do not retry with `--no-verify`.
 

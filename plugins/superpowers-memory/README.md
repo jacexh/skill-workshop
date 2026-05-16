@@ -8,9 +8,9 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 ## What This Plugin Does
 
-1. **Project Knowledge Base** — Maintains 6 knowledge files (`docs/project-knowledge/`) covering architecture, tech stack, features, conventions, decisions, and domain glossary. Updated incrementally after each development iteration.
+1. **Project Knowledge Base** — Maintains 6 core knowledge files (`docs/project-knowledge/`) covering architecture, tech stack, features, conventions, decisions, and domain glossary, plus an **optional `playbooks.md`** (lazy slot) for reusable code-change recipes. Updated incrementally after each development iteration.
 
-2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading all 6 files.
+2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading the underlying files.
 
 3. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `superpowers-memory:load` before planning/execution, and to run `superpowers-memory:update` after execution completes or when finishing a development branch.
 
@@ -66,9 +66,14 @@ docs/project-knowledge/
 ├── tech-stack.md     # Languages, frameworks, dependencies
 ├── features.md       # Implemented and in-progress features
 ├── conventions.md    # Coding standards, architecture rules
-├── decisions.md      # Architecture Decision Records
-└── glossary.md       # Domain terminology (Ubiquitous Language)
+├── decisions.md      # Architecture Decision Records (summaries)
+├── adr/              # Per-ADR rationale details (on-demand load)
+├── glossary.md       # Domain terminology (Ubiquitous Language)
+├── playbooks.md      # (optional) Index of reusable code-change recipes
+└── playbooks/        # (optional) Per-playbook details (on-demand load)
 ```
+
+`adr/` and `playbooks/` only appear if the corresponding facts exist — `playbooks.md` is a **lazy slot** and is omitted entirely when no recipes pass the 3-gate rule (recurrence ≥2 / ≥3 cross-file steps / non-obvious from code). See `content-rules.md` for routing.
 
 ## License
 

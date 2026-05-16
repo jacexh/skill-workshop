@@ -726,6 +726,7 @@ function buildVerifyOutput() {
     "tech-stack.md": 120,
     "features.md": 400,
     "glossary.md": 120,
+    "playbooks.md": 200,
     "index.md": 50,
   };
 

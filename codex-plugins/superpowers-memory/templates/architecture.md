@@ -60,10 +60,26 @@ triggered_by_plan: null
      - key abstraction names only (aggregate root names, core interface names — no signatures, no field lists)
 
      State call direction rules at the end (e.g., upper → lower direct; lower → upper via events).
-     DO NOT duplicate capability descriptions that belong in features.md. -->
+     DO NOT duplicate capability descriptions that belong in features.md.
+
+     GRANULARITY RULE:
+     - ≥3 independent top-level modules (deploy units / services / major packages):
+       use a `####` subsection per module, each capped at 3 lines.
+       Discovery cues: count of `main` packages (Go), `bin` entries (package.json),
+       `__main__.py` files (Python), top-level service directories (`cmd/`/`apps/`/
+       `services/`), distinct deploy manifests.
+     - ≤2 modules or a single-deployable project: flat bullet list (the form below). -->
 
 **[Layer / BC Name]** — [one-sentence responsibility]. Location: `path/to/module/`
 - Key abstractions: [AggregateRoot names, interface names — names only]
+
+<!-- For ≥3 modules, use this `####` form instead of the flat bullet above:
+
+#### [Module / Service Name]
+**Responsibility:** [one sentence]
+**Path / entry:** `path/to/module/` → `path/to/entry`
+**Key abstractions:** [AggregateRoot names, interface names — names only]
+-->
 
 **Call direction rules:**
 - [e.g., "Upper layers call lower directly (ConnectRPC); lower layers publish events, never call back"]
