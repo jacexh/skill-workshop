@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-13
+last_updated: 2026-05-16
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
@@ -62,6 +62,8 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 - **Exclusion Gate** in `update` / `rebuild` skills checks every new entry against content-shape rules before write.
 - **`verify` surfaces** `ssotViolations`, `shapeViolations`, `tokenBudgetViolation` (30K default), `sizeWarnings`. All warn-only — commits not blocked. `committable` reflects git state only. Line caps are intentionally larger for `features.md` (400) and `architecture.md` (300) so valid product capabilities and cross-module structure are not deleted merely to satisfy the guard.
 - **KB writes go through `superpowers-memory:update` / `superpowers-memory:rebuild` only** (ADR-010). PreToolUse hook blocks Write/Edit on `docs/project-knowledge/` paths unless write-lock (`.git/superpowers-memory.lock`, 60-min TTL) is held. No escape hatch — manual typo fixes also go through `superpowers-memory:update`.
+- **Schema meta-rule (slots vs topics)** — `content-rules.md` defines schema slots (file names, sections, ownership), not content topics. Concrete lists inside a slot (e.g., cross-cutting concern topics, implementation-constant examples) are discovery cues, not contracts; per-project content is discovered by reading the codebase. Lazy slots (currently `playbooks.md`) are omitted entirely when empty rather than forced.
+- **Playbooks lazy slot** — `playbooks.md` (index) + `playbooks/<slug>.md` (detail) carry procedural code-change recipes. Created only when ≥2 concrete instances exist OR a spec/plan declares the recipe (3-gate rule in `content-rules.md`: recurrence; ≥3 cross-file actions; non-obvious from code). Index ≤200 lines; detail loaded on demand via `Read`.
 
 ## Codex-track-specific conventions (ADR-013)
 

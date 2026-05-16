@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-12
+last_updated: 2026-05-16
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -19,7 +19,7 @@ Skill Workshop is a dual-track plugin marketplace. Each track exposes the same t
 | `plugins/superpowers-memory/` | Claude track: cross-session project knowledge persistence + KB write-lock | Skills (`load`, `update`, `rebuild`), Hooks (`session-start`, `pre-tool-use`, `user-prompt-expansion`) | Claude Code plugin runtime, Node.js, git |
 | `plugins/superpowers-memory/hooks/` | Bash wrappers + `hook-runtime.js` Node.js runtime; `hooks.json` declares event bindings; runtime modes: `session-start` / `pre-tool-use` / `user-prompt-expansion` / `verify` / `lock` / `unlock` / `lock-status` / `analyze` | Stdin JSON in, JSON `hookSpecificOutput` out | Node.js, git |
 | `plugins/superpowers-memory/skills/` | Three skills for KB management | `load`, `update`, `rebuild` | Claude Code skill system |
-| `plugins/superpowers-memory/templates/` | 7 KB file structural templates | `architecture.md`, `tech-stack.md`, `features.md`, `conventions.md`, `decisions.md`, `glossary.md`, `index.md` | None |
+| `plugins/superpowers-memory/templates/` | 10 KB file structural templates: 7 canonical (`architecture.md`, `tech-stack.md`, `features.md`, `conventions.md`, `decisions.md`, `glossary.md`, `index.md`) plus `adr-detail.md` (per-ADR detail), `playbooks.md` + `playbook-detail.md` (lazy procedural recipes) | None |
 | `plugins/superpowers-memory/content-rules.md` | Shared content generation rules (SSOT) | Language, inclusion/exclusion, ownership matrix, size guards | None |
 | `plugins/superpowers-architect/` | Claude track: design pattern standards injection | Hook (`pre-tool-use`) + skill (`standards`) | Claude Code plugin runtime, Node.js |
 | `plugins/superpowers-architect/hooks/pre-tool-use` | Scans global + project pattern dirs, injects compact index into 5 trigger skills with plan/review wording fork | Targets 5 skills; uses `node -e` for JSON parsing; reads YAML frontmatter for name/description | Node.js, bash |
