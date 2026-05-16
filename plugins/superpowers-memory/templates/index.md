@@ -28,3 +28,9 @@ covers_branch: <branch>@<short-sha>
 
 - [glossary.md](glossary.md) — Domain terminology (Ubiquitous Language)
   Key points: [1-2 facts. Good: "12 domain terms across 4 contexts"]
+
+<!-- Include the next line ONLY if `playbooks.md` exists in the KB (lazy slot).
+     Omit entirely otherwise — do NOT leave a placeholder. -->
+
+- [playbooks.md](playbooks.md) — Code-change recipes (procedural)
+  Key points: [1-2 facts. Good: "5 playbooks: add endpoint, add migration, add service, …"]

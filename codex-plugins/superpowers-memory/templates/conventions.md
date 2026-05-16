@@ -54,6 +54,31 @@ triggered_by_plan: null
 
 <!-- Branch naming, commit message format, PR process -->
 
+## Cross-cutting concerns
+
+<!-- REQUIRED section, may be N/A.
+     Index rules that apply across most code paths in the project.
+     Topics are DISCOVERED per project — not a fixed list.
+
+     Discovery cues:
+     - middlewares/decorators imported across many files
+     - utility modules with broad fan-in
+     - CI-enforced cross-file checks
+     - framework hooks wired globally
+
+     Format per concern (one line each):
+     **<topic>:** <one-line rule> → `<canonical impl path>`
+
+     Common topic names when present: auth, logging, tracing, error handling, config,
+     observability, persistence, caching, rate limiting, i18n. List only what the
+     project actually has.
+
+     If the project has no cross-cutting concerns (pure library, plugin/skill repo,
+     docs site), write the single line below and nothing else:
+     N/A: <reason> -->
+
+**<topic>:** <one-line rule> → `<canonical impl path>`
+
 ## Domain-Specific Conventions [OPTIONAL]
 
 <!-- Add sections based on project needs. Common examples:

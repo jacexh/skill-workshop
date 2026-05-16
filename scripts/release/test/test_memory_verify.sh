@@ -78,6 +78,34 @@ echo "$large_out" | jq -e '[.sizeWarnings[] | select(.file == "features.md" or .
 large_codex_out="$(cd "$large" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
 echo "$large_codex_out" | jq -e '[.sizeWarnings[] | select(.file == "features.md" or .file == "architecture.md")] | length == 0' >/dev/null
 
+# playbooks.md is a lazy slot — when absent, neither runtime should warn about it
+# nor fail verification. The pre-existing clean fixture has no playbooks.md, so a
+# clean verify must not mention it in sizeWarnings.
+echo "$clean_out" | jq -e '[.sizeWarnings[] | select(.file == "playbooks.md")] | length == 0' >/dev/null
+echo "$clean_codex_out" | jq -e '[.sizeWarnings[] | select(.file == "playbooks.md")] | length == 0' >/dev/null
+
+# When playbooks.md exists and exceeds the 200-line threshold, both runtimes must
+# emit a sizeWarning entry naming playbooks.md.
+oversized="$TMPDIR/oversized-playbooks"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$oversized"
+{
+  printf '%s\n' '---'
+  printf '%s\n' 'last_updated: 2026-05-13'
+  printf '%s\n' 'updated_by: superpowers-memory:update'
+  printf '%s\n' 'triggered_by_plan: null'
+  printf '%s\n' '---'
+  printf '\n# Playbooks\n\n## Code-change recipes\n\n'
+  for i in $(seq 1 220); do
+    printf -- '- [Recipe %03d](playbooks/recipe-%03d.md) — When: scenario %03d occurs in the codebase.\n' "$i" "$i" "$i"
+  done
+} > "$oversized/docs/project-knowledge/playbooks.md"
+
+oversized_out="$(cd "$oversized" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$oversized_out" | jq -e '[.sizeWarnings[] | select(.file == "playbooks.md" and .lines > 200 and .threshold == 200)] | length == 1' >/dev/null
+
+oversized_codex_out="$(cd "$oversized" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$oversized_codex_out" | jq -e '[.sizeWarnings[] | select(.file == "playbooks.md" and .lines > 200 and .threshold == 200)] | length == 1' >/dev/null
+
 out="$(cd "$missing" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$out" | jq -e '.shapeViolations[] | select(.kind == "feature_missing_field")' >/dev/null
 
@@ -85,3 +113,4 @@ codex_out="$(cd "$missing" && node "$ROOT/codex-plugins/superpowers-memory/hooks
 echo "$codex_out" | jq -e '.shapeViolations[] | select(.kind == "feature_missing_field")' >/dev/null
 
 echo "  memory verify: feature fixed-field lint correct"
+echo "  memory verify: playbooks.md threshold (200) fires when oversized, silent when absent"

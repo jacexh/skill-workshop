@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-13
+last_updated: 2026-05-16
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
@@ -80,9 +80,19 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `node plugins/superpowers-memory/hooks/hook-runtime.js verify` and the Codex equivalent.
 
-**Capability Boundary** — Verify is advisory except for git commit readiness; it now flags dense single-paragraph `features.md` entries so capability maps stay readable.
+**Capability Boundary** — Verify is advisory except for git commit readiness; it now flags dense single-paragraph `features.md` entries so capability maps stay readable, and includes `playbooks.md` (≤200 lines) in size and token-budget aggregation when present.
 
 **References** — `plugins/superpowers-memory/hooks/fixtures/`; see `content-rules.md` for shape rules.
+
+#### Code-change Playbook Recipes
+
+**Enables** — Project knowledge bases can carry reusable code-change recipes — a `playbooks.md` index of "to do X, follow steps A→B→C" entries plus per-recipe `playbooks/<slug>.md` details — so contributors and agents reproduce recurring class-of-change work without re-deriving the sequence.
+
+**Actors / Entry Points** — `superpowers-memory:rebuild` (scope routing for `playbooks.md`); `superpowers-memory:update` (3-prime playbook candidate detection); `plugins/superpowers-memory/content-rules.md` defines the 3-gate creation rule and routing; `plugins/superpowers-memory/templates/playbooks.md` + `plugins/superpowers-memory/templates/playbook-detail.md` carry the shape.
+
+**Capability Boundary** — Lazy slot — omitted entirely when no recipes pass the 3-gate rule (recurrence ≥2 concrete instances OR explicit spec/plan directive; ≥3 cross-file actions; non-obvious from code). Index is bounded; detail files load on demand via `Read`, not injected at SessionStart.
+
+**References** — `plugins/superpowers-memory/content-rules.md` §playbooks.md / §playbooks/<slug>.md; `plugins/superpowers-memory/templates/playbooks.md`; `plugins/superpowers-memory/templates/playbook-detail.md`.
 
 #### DDD Design Pattern Guidance
 
