@@ -84,6 +84,10 @@ function run(command, args) {
   };
 }
 
+function parsePorcelainPath(line) {
+  return line.slice(2).trimStart();
+}
+
 function findIndexPath() {
   for (const name of ["index.md", "MEMORY.md"]) {
     const candidate = path.join(knowledgeDir, name);
@@ -422,6 +426,12 @@ function lintGlossary(content) {
 const ADR_HEADING_PATTERN = /^## ADR-/;
 const SUPERSEDE_HEADING_PATTERN = /Superseded by ADR-/i;
 const ADR_SUMMARY_MAX_LINES = 6;
+const LEGACY_ADR_INLINE_PATTERN = /^\s*(?:\*\*)?(Date|Status|Context|Reason|Alternatives|Alternatives Rejected|Consequences)(?:\*\*)?\s*:/i;
+const ADR_DETAIL_LINK_PATTERN = /\]\((adr\/ADR-[^)]+\.md)\)/g;
+const PLAYBOOK_LINK_PATTERN = /\]\((playbooks\/[^)]+\.md)\)/g;
+const REQUIRED_PLAYBOOK_SECTIONS = ["Preconditions", "Steps", "Verification", "Pitfalls", "References"];
+const READINESS_RISK_PATTERN = /\b(STATUS:\s*Scaffolding only|return(?:s)?\s+.*not implemented|throw new Error\([^)]*not implemented|errors\.New\([^)]*not implemented|TODO[^\n]*not implemented|not-yet-wired[^\n]*error)\b/i;
+const READINESS_CALIBRATION_PATTERN = /\b(scaffold|partial|not implemented|not-yet-wired|requires|deferred|experimental|in progress|future)\b/i;
 
 function lintDecisions(content) {
   const findings = [];
@@ -454,6 +464,14 @@ function lintDecisions(content) {
           findings.push({
             line: adrStart + 1,
             kind: "unsplit_adr_detail",
+            sample: heading.trim().slice(0, 120),
+          });
+        }
+
+        if (body.some((line) => LEGACY_ADR_INLINE_PATTERN.test(line.trim()))) {
+          findings.push({
+            line: adrStart + 1,
+            kind: "legacy_adr_inline",
             sample: heading.trim().slice(0, 120),
           });
         }
@@ -492,6 +510,266 @@ function contentShapeLintKnowledgeBase(files) {
     }
   }
   return violations;
+}
+
+function lintDecisionDetailLinks(content) {
+  const findings = [];
+  let match;
+  while ((match = ADR_DETAIL_LINK_PATTERN.exec(content)) !== null) {
+    const ref = match[1];
+    if (!fs.existsSync(path.join(knowledgeDir, ref))) {
+      findings.push({
+        file: "decisions.md",
+        line: content.slice(0, match.index).split("\n").length,
+        kind: "adr_detail_missing",
+        sample: ref,
+      });
+    }
+  }
+  return findings;
+}
+
+function lintPlaybookIntegrity() {
+  const findings = [];
+  const indexPath = path.join(knowledgeDir, "playbooks.md");
+  const detailsDir = path.join(knowledgeDir, "playbooks");
+
+  if (!fs.existsSync(indexPath)) {
+    if (fs.existsSync(detailsDir)) {
+      findings.push({
+        file: "playbooks.md",
+        line: 1,
+        kind: "playbook_index_missing",
+        sample: "playbooks/ exists without playbooks.md",
+      });
+    }
+    return findings;
+  }
+
+  const content = fs.readFileSync(indexPath, "utf8");
+  let match;
+  while ((match = PLAYBOOK_LINK_PATTERN.exec(content)) !== null) {
+    const ref = match[1];
+    const detailPath = path.join(knowledgeDir, ref);
+    if (!fs.existsSync(detailPath)) {
+      findings.push({
+        file: "playbooks.md",
+        line: content.slice(0, match.index).split("\n").length,
+        kind: "playbook_detail_missing",
+        sample: ref,
+      });
+      continue;
+    }
+
+    const detail = fs.readFileSync(detailPath, "utf8");
+    for (const section of REQUIRED_PLAYBOOK_SECTIONS) {
+      if (!new RegExp("^##\\s+" + section + "\\s*$", "m").test(detail)) {
+        findings.push({
+          file: ref,
+          line: 1,
+          kind: "playbook_missing_section",
+          sample: section,
+        });
+      }
+    }
+  }
+
+  return findings;
+}
+
+function extractBacktickRefs(text) {
+  const refs = [];
+  const refPattern = /`([^`]+)`/g;
+  let match;
+  while ((match = refPattern.exec(text)) !== null) {
+    refs.push(match[1]);
+  }
+  return refs;
+}
+
+function lintReadinessWarnings(files) {
+  const features = files.find(([filename]) => filename === "features.md");
+  if (!features) return [];
+
+  const warnings = [];
+  const lines = features[1].split("\n");
+  let lifecycle = null;
+  let current = null;
+  const capabilities = [];
+
+  function flushCapability() {
+    if (current) capabilities.push(current);
+    current = null;
+  }
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    const lifecycleMatch = /^##\s+(.+?)\s*$/.exec(trimmed);
+    const capabilityMatch = /^####\s+(.+?)\s*$/.exec(trimmed);
+    const fieldMatch = /^\*\*([^*]+)\*\*\s+—\s*(.*)$/.exec(trimmed);
+
+    if (lifecycleMatch) {
+      flushCapability();
+      lifecycle = lifecycleMatch[1];
+      return;
+    }
+
+    if (capabilityMatch) {
+      flushCapability();
+      if (lifecycle === "Implemented") {
+        current = {
+          line: i + 1,
+          name: capabilityMatch[1],
+          fields: {},
+          text: "",
+        };
+      }
+      return;
+    }
+
+    if (current) {
+      current.text += "\n" + line;
+      if (fieldMatch) current.fields[fieldMatch[1].trim()] = fieldMatch[2].trim();
+    }
+  });
+  flushCapability();
+
+  for (const cap of capabilities) {
+    const capabilityBoundary = cap.fields["Capability Boundary"] || "";
+    if (READINESS_CALIBRATION_PATTERN.test(capabilityBoundary)) continue;
+
+    const refs = extractBacktickRefs(cap.text);
+    for (const ref of refs) {
+      if (ref.includes("://") || ref.startsWith("docs/")) continue;
+      if (/\.md$/i.test(ref)) continue;
+      const target = path.join(repoRoot, ref.replace(/\/$/, ""));
+      if (!fs.existsSync(target) || !fs.statSync(target).isFile()) continue;
+      const content = fs.readFileSync(target, "utf8");
+      if (READINESS_RISK_PATTERN.test(content)) {
+        warnings.push({
+          file: "features.md",
+          line: cap.line,
+          kind: "capability_readiness_uncalibrated",
+          sample: `${cap.name} references ${ref} with scaffold/not-implemented signals but no Capability Boundary calibration`,
+        });
+        break;
+      }
+    }
+  }
+
+  return warnings;
+}
+
+function buildKnowledgeStatus() {
+  const currentBranch = getCurrentBranch();
+  const currentSHA = getCurrentSHA();
+  const covered = readCoversBranch();
+  const resolvedStoredSHA = covered && covered.sha ? resolveStoredSHA(covered.sha) : null;
+  const branchMatches = covered && covered.branch === currentBranch;
+  const shaMatches = resolvedStoredSHA && currentSHA && resolvedStoredSHA === currentSHA;
+
+  const status = {
+    knowledgeBaseExists: hasKnowledgeBase(),
+    indexPath: findIndexPath() ? relativePath(findIndexPath()) : null,
+    currentBranch,
+    currentSHA: currentSHA ? currentSHA.slice(0, 12) : null,
+    coversBranch: covered ? { branch: covered.branch, sha: covered.sha } : null,
+    stale: false,
+    reason: "Knowledge base coverage matches HEAD.",
+    nonKbCommitCount: 0,
+    changedFiles: [],
+    uncommittedNonKbFiles: [],
+    uncommittedKbFiles: [],
+  };
+
+  const nonKbStatus = run("git", ["status", "--porcelain", "--", ".", ":!docs/project-knowledge"]);
+  if (nonKbStatus.code === 0 && nonKbStatus.stdout.trim()) {
+    status.uncommittedNonKbFiles = nonKbStatus.stdout.trim().split("\n").map(parsePorcelainPath);
+  }
+  const kbStatus = run("git", ["status", "--porcelain", "--", "docs/project-knowledge"]);
+  if (kbStatus.code === 0 && kbStatus.stdout.trim()) {
+    status.uncommittedKbFiles = kbStatus.stdout.trim().split("\n").map(parsePorcelainPath);
+  }
+
+  if (!status.knowledgeBaseExists || !status.indexPath) {
+    status.stale = true;
+    status.reason = "Knowledge base or index is missing.";
+    return status;
+  }
+  if (!covered) {
+    status.stale = true;
+    status.reason = "Knowledge base has no covers_branch recorded.";
+    return status;
+  }
+  if (!branchMatches) {
+    status.stale = true;
+    status.reason = "Knowledge base covers a different branch.";
+    return status;
+  }
+  if (!covered.sha) {
+    status.stale = true;
+    status.reason = "Knowledge base uses legacy covers_branch format without SHA.";
+    return status;
+  }
+  if (!resolvedStoredSHA) {
+    status.stale = true;
+    status.reason = "Stored covers_branch SHA is unresolvable.";
+    return status;
+  }
+  if (shaMatches) {
+    if (status.uncommittedNonKbFiles.length > 0) {
+      status.stale = true;
+      status.reason = "Uncommitted non-KB files exist after covers_branch.";
+    }
+    return status;
+  }
+
+  const range = resolvedStoredSHA + "..HEAD";
+  const logResult = run("git", ["log", "--oneline", "--no-merges", range, "--", ".", ":!docs/project-knowledge"]);
+  const diffResult = run("git", ["diff", "--name-only", range, "--", ".", ":!docs/project-knowledge"]);
+  const commitLines = logResult.code === 0 && logResult.stdout.trim()
+    ? logResult.stdout.trim().split("\n")
+    : [];
+  status.nonKbCommitCount = commitLines.length;
+  status.changedFiles = diffResult.code === 0 && diffResult.stdout.trim()
+    ? diffResult.stdout.trim().split("\n")
+    : [];
+  status.stale = status.nonKbCommitCount > 0 || status.changedFiles.length > 0;
+  status.reason = status.stale
+    ? "New non-KB commits exist after covers_branch."
+    : "Only KB changes exist after covers_branch.";
+  return status;
+}
+
+function formatKnowledgeStatusForContext(status) {
+  const covered = status.coversBranch
+    ? status.coversBranch.branch + (status.coversBranch.sha ? "@" + status.coversBranch.sha.slice(0, 12) : " (legacy: no SHA)")
+    : "(none recorded)";
+  const current = (status.currentBranch || "(unknown)") + (status.currentSHA ? "@" + status.currentSHA : "");
+  const lines = [
+    "",
+    "## Project KB status",
+    "- Current: " + current,
+    "- Covers: " + covered,
+    "- Status: " + (status.stale ? "stale" : "current"),
+    "- Reason: " + status.reason,
+  ];
+  if (status.stale && status.nonKbCommitCount > 0) {
+    lines.push("- Non-KB commits since coverage: " + status.nonKbCommitCount);
+  }
+  if (status.stale && status.changedFiles.length > 0) {
+    lines.push("- Changed files: " + status.changedFiles.slice(0, 10).join(", "));
+  }
+  if (status.uncommittedNonKbFiles.length > 0) {
+    lines.push("- Uncommitted non-KB files: " + status.uncommittedNonKbFiles.slice(0, 10).join(", "));
+  }
+  if (status.uncommittedKbFiles.length > 0) {
+    lines.push("- Uncommitted KB files: " + status.uncommittedKbFiles.slice(0, 10).join(", "));
+  }
+  if (status.stale) {
+    lines.push("- Before finishing, committing, merging, or opening a PR: run superpowers-memory:update.");
+  }
+  return lines.join("\n");
 }
 
 // Hook output formats per Claude Code protocol:
@@ -538,9 +816,10 @@ function buildSessionStartOutput() {
   }
 
   const content = fs.readFileSync(indexPath, "utf8");
+  const statusContext = formatKnowledgeStatusForContext(buildKnowledgeStatus());
   return hookPayload(
     "SessionStart",
-    "Project knowledge index loaded from " + relativePath(indexPath) + ":\n\n" + content
+    "Project knowledge index loaded from " + relativePath(indexPath) + ":\n\n" + content + statusContext
   );
 }
 
@@ -752,6 +1031,12 @@ function buildVerifyOutput() {
   }
   const ssotViolations = ssotCheckKnowledgeBase(fileContents);
   const shapeViolations = contentShapeLintKnowledgeBase(fileContents);
+  const decisionsFile = fileContents.find(([filename]) => filename === "decisions.md");
+  if (decisionsFile) {
+    shapeViolations.push(...lintDecisionDetailLinks(decisionsFile[1]));
+  }
+  shapeViolations.push(...lintPlaybookIntegrity());
+  const readinessWarnings = lintReadinessWarnings(fileContents);
 
   const totalBytes = fileContents.reduce((sum, [, content]) => sum + Buffer.byteLength(content, "utf8"), 0);
   const estimatedTokens = Math.ceil(totalBytes / 4);
@@ -783,11 +1068,13 @@ function buildVerifyOutput() {
       sizeWarnings.length === 0 &&
       ssotViolations.length === 0 &&
       shapeViolations.length === 0 &&
+      readinessWarnings.length === 0 &&
       !tokenBudgetViolation,
     sizeWarnings,
     staleRefs,
     ssotViolations,
     shapeViolations,
+    readinessWarnings,
     tokenBudgetViolation,
     committable,
   };
@@ -840,6 +1127,11 @@ async function main() {
 
   if (mode === "verify") {
     process.stdout.write(JSON.stringify(buildVerifyOutput(), null, 2) + "\n");
+    return;
+  }
+
+  if (mode === "status") {
+    process.stdout.write(JSON.stringify(buildKnowledgeStatus(), null, 2) + "\n");
     return;
   }
 

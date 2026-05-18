@@ -129,6 +129,7 @@ Describes **what the system can do now**. It is the current capability map for h
 - Each implemented `####` capability must include all fixed fields: `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`. `verify` reports `feature_missing_field` when any field is absent.
 - Long single-paragraph entries are forbidden. If a capability needs more than one short paragraph, split it into the fixed fields.
 - `features.md` may mention key constraints that shape use of the capability, but detailed wiring, FSM diagrams, event flows, schema details, and implementation constants belong in owner files.
+- **Readiness calibration:** `Implemented` means the capability is usable under the documented prerequisites, not merely scaffolded in code. If an implemented capability depends on an external service, a partial adapter, an experimental host protocol, or scaffolded/not-yet-wired code, the `Capability Boundary` MUST say so explicitly (`requires ...`, `partial`, `experimental`, `scaffolded only`, `not implemented`, etc.). A capability whose key referenced path contains clear `not implemented` / `scaffolding only` / deferred-operational signals without this boundary calibration is a KB defect; `verify` reports `capability_readiness_uncalibrated`.
 
 **Exclusions** (strict):
 - Commit SHAs, commit ranges like `abc1234..HEAD`
@@ -333,7 +334,7 @@ last_updated: YYYY-MM-DD
 
 ## Exclusion List (applies to all files)
 
-**NEVER include** — these are Exclusion List violations checked by `verify contentShapeLint`:
+**NEVER include** — these are Exclusion List violations checked by `verify`:
 
 - Struct / class field lists (AI reads source code)
 - Enum / constant value catalogs (change with code, go stale)
@@ -366,6 +367,17 @@ Per-file line thresholds (enforced by `verify sizeWarnings` — warn-only, does 
 `adr/ADR-NNN-*.md` and `playbooks/<slug>.md` files are NOT aggregated into a threshold — each is judged individually against its per-detail guard (~100 lines). They do not count toward `decisions.md`'s or `playbooks.md`'s line count.
 
 Exceeding threshold → warning in `verify` output + compression suggestion. Commits are NOT blocked; user retains control over whether to compress or accept. `committable` reflects git state only (rebase/merge/detached-HEAD checks).
+
+## Verify Coverage
+
+`verify` is the executable guardrail for this rule file. It reports:
+
+- `staleRefs` — backtick path references that no longer exist.
+- `shapeViolations` — feature field/density issues, glossary width/length issues, method signatures, legacy inline ADRs, ADR summary/detail mismatches, and playbook index/detail problems.
+- `readinessWarnings` — implemented capabilities that reference scaffolded/not-implemented code without Capability Boundary calibration.
+- `ssotViolations` — near-duplicate multi-line facts across owner files.
+- `sizeWarnings` — canonical file line thresholds.
+- `tokenBudgetViolation` — aggregate eager-load token budget overflow.
 
 ## Total Token Budget
 

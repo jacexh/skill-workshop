@@ -216,7 +216,7 @@ Run the automated verification script first, then do manual spot-checks:
 node "<plugin-root>/hooks/codex-runtime.js" verify
 ```
 
-The script checks: file size thresholds, stale path references, content-shape violations, and git commit readiness. Fix any `staleRefs`, `sizeWarnings`, or `shapeViolations` it reports before proceeding.
+The script checks: file size thresholds, stale path references, content-shape violations, ADR summary/detail integrity, playbook integrity, readiness warnings, SSOT duplication, token budget, and git commit readiness. Fix any `staleRefs`, `sizeWarnings`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` it reports before proceeding.
 
 **Manual checks (on top of automated):**
 
@@ -232,11 +232,20 @@ List actual top-level source directories. Confirm each appears in `architecture.
 **6c. SSOT spot-check:**
 Pick 2-3 concepts appearing in multiple files. Confirm full description only in designated owner file; other files use references only.
 
+**6d. Outcome probes:**
+Ask and answer at least 3 real questions using only the rebuilt KB. This is the lower bound for a single rebuild; periodic full KB evaluation should use the README rubric's 10-20 question sample.
+- 1 question about the primary module or workflow rebuilt
+- 1 question about a recent or high-impact decision
+- 1 question about verification or operational steps
+
+For each probe, record `answered`, `partial`, or `missing` in the final rebuild report shown to the user; if a commit is created, include the same summary in the commit body or PR description. Any `missing` or materially `partial` answer must either be fixed in the KB or explicitly routed out of the KB with a reason.
+
 ### 7. Post-rebuild diff summary
 
 If previous knowledge files existed:
 - Output a brief diff summary: which files changed, what was added/removed/modified
 - This helps the user verify the rebuild didn't lose important information.
+- Include the outcome probe results from Step 6d.
 
 ### 8. Commit
 

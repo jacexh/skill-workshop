@@ -15,6 +15,10 @@ No git init required — the `committable` field is only meaningful in a real re
 
 - **clean/** — minimal valid KB; all checks return empty violations. Includes `cmd/server/main.go` stub so staleRef check is quiet.
 - **dense-features/** — `features.md` capability compressed into one oversized paragraph; triggers `feature_entry_too_dense`.
+- **legacy-adr-inline/** — old-style inline ADR rationale in `decisions.md`; triggers `legacy_adr_inline`.
+- **missing-adr-detail/** — ADR summary points to a missing on-demand detail file; triggers `adr_detail_missing`.
+- **broken-playbook/** — playbook index has a missing detail and one incomplete detail; triggers `playbook_detail_missing` and `playbook_missing_section`.
+- **readiness-warning/** — implemented capability points at scaffolded/not-implemented code without boundary calibration; triggers `capability_readiness_uncalibrated`.
 - **missing-feature-fields/** — implemented `features.md` capability missing fixed fields; triggers `feature_missing_field`.
 - **ssot-violation/** — three identical lines span architecture.md + features.md; triggers `ssotViolations`.
 - **shape-violation/** — exercises all `shapeViolations` kinds: commit SHA + test count + shipped-narrative + commits-range in features.md; multi-line term + method signatures + over-wide single-line entry in glossary.md; summary-format ADR whose body exceeds 6 lines (`unsplit_adr_detail`) + superseded ADR with residual body content (`unresolved_supersede`) in decisions.md.

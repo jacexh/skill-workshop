@@ -6,7 +6,7 @@ triggered_by_plan: null
 
 # Decisions
 
-## ADR-001: Use Go
+## ADR-001: Use Go runtime
 **Decision:** Implement the server in Go 1.26.
-**Why:** Team expertise + stdlib HTTP is sufficient.
-**Trade-off:** None.
+**Trade-off:** Fewer framework conventions; handlers must keep routing explicit.
+→ Details: [ADR-001](adr/ADR-001-use-go-runtime.md)
