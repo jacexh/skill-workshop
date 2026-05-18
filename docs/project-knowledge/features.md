@@ -150,7 +150,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `.codex-plugin/plugin.json`, `codex-plugins/superpowers-memory/hooks/hooks.json`, and `codex-plugins/superpowers-memory/hooks/codex-runtime.js` represent the per-plugin pattern.
 
-**Capability Boundary** — Native hooks are primary when supported; users restart Codex after install or upgrade.
+**Capability Boundary** — Native hooks are primary when supported; users restart Codex after install or upgrade. Some runtime branches are intentionally deferred or no-op where Codex protocol support is not implemented.
 
 **References** — ADR-014; see `conventions.md` for native hook contract.
 

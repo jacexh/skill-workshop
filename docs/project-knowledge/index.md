@@ -1,8 +1,8 @@
 ---
-last_updated: 2026-05-16
+last_updated: 2026-05-18
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
-covers_branch: hotfix/enh@afef7eb
+covers_branch: hotfix/memory@37a85ad
 ---
 
 # Project Knowledge Index
@@ -20,10 +20,10 @@ covers_branch: hotfix/enh@afef7eb
   Key points: hook-runtime.js (Claude) + codex-runtime.js (Codex); KB schema meta-rule (slots vs topics, lazy slots allowed); DDD Go infrastructure flat by semantic capability; KB verify uses 30K token budget
 
 - [decisions.md](decisions.md) — ADR summary log (15 ADRs, 0 superseded)
-  Key points: ADR-015 DDD agent contract + Go runtime split; ADR-014 native Codex hooks with cleanup; ADR-013 Codex marketplace compat; ADR-012 UserPromptExpansion slash hook; ADR-010 KB write-lock
+  Key points: ADR-015 DDD agent contract + Go runtime split; ADR-014 native Codex hooks with cleanup; ADR-013 Codex marketplace compat; ADR-012 UserPromptExpansion slash hook; ADR-010 KB write-lock; ADR-001..009 now split into on-demand detail files
 
 - [adr/](adr/) — On-demand ADR detail files (loaded via `Read`, not at session start)
-  Currently: ADR-010 through ADR-015; ADR-001..009 still in pre-v1.8 inline format inside decisions.md
+  Currently: ADR-001 through ADR-015
 
 - [glossary.md](glossary.md) — Domain terminology
   Key points: includes Domain Event, Integration Message, Canonical Go Component Libraries, DDD Agent Contract, Codex Native Hooks, Auto Release Pipeline, Hook Runtime, Prompt Router, KB Write Lock, Playbook

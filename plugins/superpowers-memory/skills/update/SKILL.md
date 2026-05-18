@@ -185,7 +185,7 @@ Run the automated verification script first, then do manual spot-checks:
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
 ```
 
-The script checks: file size thresholds, stale path references, content-shape violations, and git commit readiness. Fix any `staleRefs`, `sizeWarnings`, or `shapeViolations` it reports before proceeding. Shape violations must be corrected in-place per the per-file format rule — do not suppress them or leave them for a future pass.
+The script checks: file size thresholds, stale path references, content-shape violations, ADR summary/detail integrity, playbook integrity, readiness warnings, SSOT duplication, token budget, and git commit readiness. Fix any `staleRefs`, `sizeWarnings`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` it reports before proceeding. Shape/readiness violations must be corrected in-place per the per-file format rule — do not suppress them or leave them for a future pass.
 
 **Manual checks (on top of automated):**
 
@@ -200,6 +200,14 @@ List actual top-level source directories. Confirm each appears in architecture.m
 
 **7c. SSOT spot-check:**
 Pick 2-3 concepts appearing in multiple files. Confirm full description only in designated owner file; other files use references only.
+
+**7d. Outcome probes:**
+Ask and answer at least 3 real questions using only the KB. This is the lower bound for a single incremental update; periodic full KB evaluation should use the README rubric's 10-20 question sample.
+- 1 question from the current diff
+- 1 question from the triggering plan/spec or most recent product source
+- 1 question from a high-risk or high-activity area
+
+For each probe, record `answered`, `partial`, or `missing` in the final update report shown to the user; if a commit is created, include the same summary in the commit body or PR description. Any `missing` or materially `partial` answer must either be fixed in the KB or explicitly routed out of the KB with a reason.
 
 ### 8. Size guard
 
@@ -225,6 +233,7 @@ If the commit fails (e.g., pre-commit hook), report the error to the user. Do no
 
 - List which knowledge files were updated and what changed
 - Confirm index.md was regenerated
+- Include the outcome probe results from Step 7d
 - If no knowledge file updates were needed, still regenerate index.md
 
 ### 11. Release write lock

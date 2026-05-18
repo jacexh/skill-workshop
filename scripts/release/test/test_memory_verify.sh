@@ -29,6 +29,11 @@ assert_feature_template_group_order() {
 assert_feature_template_group_order "$ROOT/plugins/superpowers-memory/templates/features.md"
 assert_feature_template_group_order "$ROOT/codex-plugins/superpowers-memory/templates/features.md"
 
+# Intent: Claude and Codex tracks must keep the shared KB rules and templates
+# identical so generated knowledge does not drift by host runtime.
+diff -u "$ROOT/plugins/superpowers-memory/content-rules.md" "$ROOT/codex-plugins/superpowers-memory/content-rules.md" >/dev/null
+diff -qr "$ROOT/plugins/superpowers-memory/templates" "$ROOT/codex-plugins/superpowers-memory/templates" >/dev/null
+
 clean="$TMPDIR/clean"
 cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$clean"
 
@@ -37,6 +42,17 @@ echo "$clean_out" | jq -e '.shapeViolations | length == 0' >/dev/null
 
 clean_codex_out="$(cd "$clean" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
 echo "$clean_codex_out" | jq -e '.shapeViolations | length == 0' >/dev/null
+
+# Current ADR summaries may include a short "Why" line without becoming legacy
+# inline ADRs. Legacy detection is limited to fields from the old detail format.
+why_summary="$TMPDIR/why-summary"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$why_summary"
+sed -i.bak '/^\*\*Decision:/a **Why:** Team familiarity makes maintenance cheaper.' "$why_summary/docs/project-knowledge/decisions.md"
+rm "$why_summary/docs/project-knowledge/decisions.md.bak"
+why_out="$(cd "$why_summary" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$why_out" | jq -e '[.shapeViolations[] | select(.kind == "legacy_adr_inline")] | length == 0' >/dev/null
+why_codex_out="$(cd "$why_summary" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$why_codex_out" | jq -e '[.shapeViolations[] | select(.kind == "legacy_adr_inline")] | length == 0' >/dev/null
 
 missing="$TMPDIR/missing-feature-fields"
 cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/missing-feature-fields" "$missing"
@@ -112,5 +128,79 @@ echo "$out" | jq -e '.shapeViolations[] | select(.kind == "feature_missing_field
 codex_out="$(cd "$missing" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
 echo "$codex_out" | jq -e '.shapeViolations[] | select(.kind == "feature_missing_field")' >/dev/null
 
+assert_verify_kind_for_both_runtimes() {
+  local fixture="$1"
+  local field="$2"
+  local kind="$3"
+  local scenario="$TMPDIR/$fixture"
+  cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/$fixture" "$scenario"
+
+  local claude_out codex_verify_out
+  claude_out="$(cd "$scenario" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+  codex_verify_out="$(cd "$scenario" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+
+  echo "$claude_out" | jq -e --arg field "$field" --arg kind "$kind" '.[$field][] | select(.kind == $kind)' >/dev/null
+  echo "$codex_verify_out" | jq -e --arg field "$field" --arg kind "$kind" '.[$field][] | select(.kind == $kind)' >/dev/null
+}
+
+# Intent: dense feature prose should be caught so agents do not bury capability
+# boundaries inside oversized paragraphs.
+assert_verify_kind_for_both_runtimes "dense-features" "shapeViolations" "feature_entry_too_dense"
+
+# Intent: duplicated multi-line KB facts should be caught so the ownership
+# matrix remains enforceable across both host runtimes.
+ssot="$TMPDIR/ssot-violation"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/ssot-violation" "$ssot"
+ssot_out="$(cd "$ssot" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$ssot_out" | jq -e '.ssotViolations | length > 0' >/dev/null
+ssot_codex_out="$(cd "$ssot" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$ssot_codex_out" | jq -e '.ssotViolations | length > 0' >/dev/null
+
+# Intent: legacy inline ADRs should be visible as a migration risk instead of
+# silently passing as a modern summary/detail decision log.
+assert_verify_kind_for_both_runtimes "legacy-adr-inline" "shapeViolations" "legacy_adr_inline"
+
+# Intent: ADR summaries that point to missing detail files should fail the
+# on-demand decision-context contract.
+assert_verify_kind_for_both_runtimes "missing-adr-detail" "shapeViolations" "adr_detail_missing"
+
+# Intent: playbook indexes and detail files must stay loadable and complete so
+# agents can follow recurring code-change recipes without broken links.
+assert_verify_kind_for_both_runtimes "broken-playbook" "shapeViolations" "playbook_detail_missing"
+assert_verify_kind_for_both_runtimes "broken-playbook" "shapeViolations" "playbook_missing_section"
+
+# Intent: implemented capabilities that point at scaffolded/not-implemented code
+# should surface readiness risk instead of overstating runtime availability.
+assert_verify_kind_for_both_runtimes "readiness-warning" "readinessWarnings" "capability_readiness_uncalibrated"
+
+# Intent: Codex status should expose whether KB coverage matches HEAD, giving
+# Codex a lightweight compensation for prompt paths that cannot fire JIT hooks.
+status_repo="$TMPDIR/status-repo"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$status_repo"
+(
+  cd "$status_repo"
+  git init -q
+  git config user.email test@example.com
+  git config user.name Test
+  git add .
+  git commit -q -m "initial"
+  covered_sha="$(git rev-parse --short HEAD)"
+  branch="$(git branch --show-current)"
+  sed -i.bak "s/^covers_branch:.*/covers_branch: ${branch}@${covered_sha}/" docs/project-knowledge/index.md
+  rm docs/project-knowledge/index.md.bak
+  git add docs/project-knowledge/index.md
+  git commit -q -m "docs: record coverage"
+  printf 'change\n' > src-new.txt
+  git add src-new.txt
+  git commit -q -m "feat: add source change"
+  node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" status |
+    jq -e '.stale == true and .nonKbCommitCount == 1 and (.changedFiles[] == "src-new.txt")' >/dev/null
+  node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" session-start |
+    jq -e '.additional_context | contains("Project KB status") and contains("stale")' >/dev/null
+  node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" session-start |
+    jq -e '.hookSpecificOutput.additionalContext | contains("Project KB status") and contains("stale")' >/dev/null
+)
+
 echo "  memory verify: feature fixed-field lint correct"
 echo "  memory verify: playbooks.md threshold (200) fires when oversized, silent when absent"
+echo "  memory verify: shape, ADR, playbook, readiness, SSOT, and runtime status checks correct"
