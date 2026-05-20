@@ -295,7 +295,8 @@ Use this decision table before exposing a read/write interface inward:
 
 | Caller need | Port shape | Owner |
 |-------------|------------|-------|
-| Persist or append data as part of a command / producer flow | Writer port, named for the command-side capability | Domain when it persists aggregates; Application when it writes an application-owned log, projection, message, or external output |
+| Persist, append, publish, deliver, or mutate data as part of a command / producer flow | Command-side capability port, named for the lifecycle capability; use a `*Writer` suffix only for genuinely one-directional output | Domain when it persists aggregates; Application when it writes an application-owned log, projection, message, or external output |
+| New caller observes the same capability semantics (aggregate, consistency, failure/authorization) as an existing port | Add a method to the existing port — do **not** introduce a new port | Same owner as the existing port |
 | Serve a UI/API/product read-model query | QueryRepository or reader/facade port returning DTOs/read models | Application |
 | Expose a read-only view to another bounded context | Published facade/query port, not the source context's internal QueryRepository | Owning context Application/API boundary |
 | Bootstrap projection sequence, cursor, lease, ownership, or high-watermark coordination | Semantic coordination port if the use case observes the coordination semantics | Domain-facing when it owns stable rules; otherwise Application orchestration |
@@ -307,8 +308,8 @@ Rules:
 - Do not expose a storage-shaped omnibus interface such as `MessageStore`, `EventStore`, `AuditStore`, or `DataStore` to multiple use cases when it mixes producer writes, UI replay, audit lookup, projection bootstrap, and other unrelated read models.
 - Do not place read methods on a write Repository merely because the same table holds the data. Write Repositories protect aggregate persistence. Query ports serve consumer-specific read models.
 - Do not force consumers to implement or mock methods they never call. Interface bloat is a sign that the port is tracking an adapter, not a use case.
-- It is acceptable for one Infrastructure struct to implement several small ports. Wiring should bind it separately to each inward interface.
-- If adding a new consumer requires adding methods to an existing port, first ask whether the new consumer has different freshness, ordering, authorization, pagination, fallback, or failure semantics. If yes, define a new consumer-specific reader/facade port.
+- It is acceptable for one Infrastructure struct to implement several semantic capability-lifecycle ports. Wiring should bind it separately to each inward interface.
+- The default evolution path for an inward-defined port is to add a method to an existing port when a new consumer observes the same capability semantics. Fork into a new consumer-specific reader / facade / writer port only when the new caller has different freshness, ordering, authorization, pagination, fallback, or failure semantics. Forking is the exception; extension is the default. (See `ddd-modeling.md §0.2.2`.)
 - Do not create a Command or Query port just because Application code must trigger Infrastructure. First classify the capability. Peer forwarding, cache/coordination routing read models, network addresses, hop headers, retry/backoff settings, queue subjects, storage table names, replica selection, and deployment topology are Infrastructure mechanics unless the use case itself names and observes a stable semantic lifecycle.
 - A CQRS query port must answer a product/application read use case, not a generic "query Infrastructure state" need.
 
