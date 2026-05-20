@@ -8,7 +8,8 @@ Codex hooks require this feature flag in `~/.codex/config.toml`:
 
 ```toml
 [features]
-codex_hooks = true
+hooks = true
+plugin_hooks = true
 ```
 
 ```bash
@@ -18,7 +19,7 @@ codex plugin install superpowers-memory
 
 Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.
 
-If hooks do not appear after restart, confirm `codex_hooks` is enabled and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$superpowers-memory:cleanup` once to remove the old entries.
+If hooks do not appear after restart, confirm both `hooks = true` and `plugin_hooks = true` are enabled, open `/hooks` to review and trust plugin hooks, and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$superpowers-memory:cleanup` once to remove the old entries.
 
 ## Upgrade
 
@@ -84,4 +85,4 @@ The following coverage exists on Claude Code but **cannot be implemented on Code
 
 1. **Agent-self-decided invocation of `$superpowers:finishing-a-development-branch`** does not fire any hook in Codex. The agent only receives the standing primer from SessionStart, not the JIT diff evidence (commits since `covers_branch`, files changed). User-typed slash invocation IS covered via UserPromptSubmit.
 
-2. **Auto-triggered planning skills** (`writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, `receiving-code-review`) cannot receive a per-skill JIT advisory in Codex (matcher does not support skill names). Coverage falls back to SessionStart standing primer.
+2. **Auto-triggered planning skills** (`writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, `receiving-code-review`) cannot receive a per-skill JIT advisory in Codex because native skill invocation is not exposed as a hookable tool or event. Coverage falls back to SessionStart standing primer.

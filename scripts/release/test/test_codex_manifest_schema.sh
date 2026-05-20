@@ -46,6 +46,10 @@ for i in $(seq 0 $((count - 1))); do
     echo "FAIL $name README must not tell users to run setup"
     exit 1
   fi
+  if [ -f "$readme" ] && grep -Fq "codex_hooks" "$readme"; then
+    echo "FAIL $name README must use canonical hooks/plugin_hooks feature flags"
+    exit 1
+  fi
 
   hooks_type=$(jq -r '.hooks | type' "$manifest")
   [ "$hooks_type" = "string" ] || {
@@ -63,6 +67,17 @@ for i in $(seq 0 $((count - 1))); do
   hooks_shape=$(jq -r '.hooks | type' "$hooks_file")
   [ "$hooks_shape" = "object" ] || {
     echo "FAIL $name lifecycle config must contain a hooks object, got $hooks_shape"
+    exit 1
+  }
+  jq -e '
+    .hooks
+    | to_entries[]
+    | .value[]
+    | (.hooks // [])[]
+    | select(.type == "command")
+    | select((.timeout | type) != "number" or .timeout <= 0 or (.statusMessage | type) != "string" or .statusMessage == "")
+  ' "$hooks_file" >/dev/null && {
+    echo "FAIL $name command hooks must set positive timeout and non-empty statusMessage"
     exit 1
   }
 

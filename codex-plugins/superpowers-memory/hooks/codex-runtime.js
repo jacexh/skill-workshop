@@ -774,7 +774,7 @@ function formatKnowledgeStatusForContext(status) {
 
 // Hook output format for Codex protocol: always hookSpecificOutput wrapper.
 // - Advisory (SessionStart/UserPromptSubmit/PreToolUse): hookSpecificOutput wrapper
-// - Blocking (PreToolUse only): { decision: "block", reason }
+// - Blocking (PreToolUse only): hookSpecificOutput.permissionDecision = "deny"
 function hookPayload(eventName, message) {
   return {
     hookSpecificOutput: {
@@ -1147,15 +1147,18 @@ function handleWritePreToolUse(toolName, toolInput) {
 
   const relFromRepo = path.relative(repoRoot, absTarget).replace(/\\/g, "/");
   return {
-    decision: "block",
-    reason:
-      "Direct edits to docs/project-knowledge/ are forbidden. " +
-      "This directory is owned by superpowers-memory:update " +
-      "(or superpowers-memory:rebuild for full regeneration). " +
-      "To record an architectural decision: document it in your plan/spec under " +
-      "docs/superpowers/plans/, then run superpowers-memory:update to materialize " +
-      "the entry per content-rules.md. " +
-      "(blocked tool=" + toolName + ", path=" + relFromRepo + ")",
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason:
+        "Direct edits to docs/project-knowledge/ are forbidden. " +
+        "This directory is owned by superpowers-memory:update " +
+        "(or superpowers-memory:rebuild for full regeneration). " +
+        "To record an architectural decision: document it in your plan/spec under " +
+        "docs/superpowers/plans/, then run superpowers-memory:update to materialize " +
+        "the entry per content-rules.md. " +
+        "(blocked tool=" + toolName + ", path=" + relFromRepo + ")",
+    },
   };
 }
 

@@ -8,7 +8,8 @@ Codex hooks require this feature flag in `~/.codex/config.toml`:
 
 ```toml
 [features]
-codex_hooks = true
+hooks = true
+plugin_hooks = true
 ```
 
 ```bash
@@ -18,7 +19,7 @@ codex plugin install designing-tests
 
 Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.
 
-If hooks do not appear after restart, confirm `codex_hooks` is enabled and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$designing-tests:cleanup` once to remove the old entries.
+If hooks do not appear after restart, confirm both `hooks = true` and `plugin_hooks = true` are enabled, open `/hooks` to review and trust plugin hooks, and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$designing-tests:cleanup` once to remove the old entries.
 
 ## Upgrade
 
@@ -43,4 +44,4 @@ Claude Code's PreToolUse:Skill hook intercepts the 4 trigger skills with three d
 - **execution tier** for `executing-plans` / `subagent-driven-development` (condensed principles)
 - **full tier** for `test-driven-development` (entire SKILL.md + reference index)
 
-Codex's PreToolUse matcher does not support skill names, so all three tiers collapse into the SessionStart primer (always-present execution tier + reference index). The full SKILL.md is not auto-injected — it loads on demand when the agent invokes `$designing-tests:designing-tests`.
+Codex does not expose native skill invocation as a hookable tool or event, so all three tiers collapse into the SessionStart primer (always-present execution tier + reference index). The full SKILL.md is not auto-injected — it loads on demand when the agent invokes `$designing-tests:designing-tests`.

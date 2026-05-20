@@ -201,6 +201,17 @@ cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$status_repo"
     jq -e '.hookSpecificOutput.additionalContext | contains("Project KB status") and contains("stale")' >/dev/null
 )
 
+# Intent: Codex KB write protection should use the current PreToolUse deny
+# protocol so direct docs/project-knowledge edits are blocked by Codex itself.
+pretool_repo="$TMPDIR/pretool-repo"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$pretool_repo"
+(
+  cd "$pretool_repo"
+  printf '%s' '{"tool_name":"apply_patch","tool_input":{"patch":"*** Update File: docs/project-knowledge/index.md\n@@\n-old\n+new\n"}}' |
+    node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" pre-tool-use |
+    jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and .hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | contains("Direct edits to docs/project-knowledge/ are forbidden"))' >/dev/null
+)
+
 echo "  memory verify: feature fixed-field lint correct"
 echo "  memory verify: playbooks.md threshold (200) fires when oversized, silent when absent"
 echo "  memory verify: shape, ADR, playbook, readiness, SSOT, and runtime status checks correct"
