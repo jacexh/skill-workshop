@@ -44,11 +44,13 @@ Apply this checklist only when the active pattern set includes DDD, Clean Archit
 
 When applicable, use the following questions for modules, interfaces, schedulers, registries, dispatchers, connectors, projections, and other technical-facing code:
 
+- Classify the capability before deciding interface ownership. Do not conclude "Application owns a port" merely because Application code calls an Infrastructure implementation.
 - Does the module define stable terms used by the product or operators?
 - Does it own state transitions, admission rules, naming rules, ownership rules, routing policy, or lifecycle semantics?
 - Can its rules be tested without a database, queue, network, generated protocol package, or framework?
 - Would duplicating the rule in another adapter create inconsistent behavior?
-- If yes to any of the above, name the Domain-facing rule and keep it out of Infrastructure. Application may orchestrate it; Infrastructure may only adapt external systems or enforce the already-named rule mechanically.
+- If the answers above identify stable language, state transitions, policies, or invariants, name the Domain-facing rule and keep that rule out of Infrastructure. Application may orchestrate it; Infrastructure may only adapt external systems or enforce the already-named rule mechanically.
+- Separately check for Infrastructure-shaped contract details: peer addresses, hop headers, queue subjects, retry/backoff settings, storage tables/keys, cache/coordination read models, replica selection, or deployment topology. Classify those portions as Infrastructure unless the Application use case names and observes a stable semantic lifecycle independent of the mechanism.
 
 ## Expected Output Discipline
 
@@ -69,7 +71,7 @@ When the active pattern set includes DDD, Clean Architecture, or another layered
 - Import boundaries: Domain has no framework, generated protocol, storage, queue, HTTP, or Infrastructure imports.
 - Package/path consistency: package names match the bounded context and layer they claim to represent.
 - Technical capability placement: registries, dispatchers, schedulers, routing, ownership, projection, and observability code are classified before being accepted as Infrastructure.
-- Interface ownership: Domain owns write repository interfaces and domain services; Application owns use-case orchestration, query interfaces, ports needed by use cases, DTOs, and event handlers; Infrastructure implements adapters only.
+- Interface ownership: Domain owns write repository interfaces and domain services; Application owns use-case orchestration, product/read-use-case query interfaces, semantic ports needed by use cases after capability classification, DTOs, and event handlers; Infrastructure owns adapter selection, peer forwarding, routing directories, transport headers, queue subjects, storage schemas, retry/backoff mechanics, and deployment topology.
 - Cross-context boundaries: no direct imports or calls into another context's Domain or Application layer.
 
 For pattern sets that do not include any layered-architecture pattern, drive the review from whatever gates / checklists the active patterns themselves define and skip the layered-architecture items above.

@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-16
+last_updated: 2026-05-20
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -34,6 +34,6 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Prompt Router** — Codex UserPromptSubmit hook path that inspects raw user text and injects focused context for explicit workflow signals; used by memory and architect where skill-call hooks are unavailable. → `codex-plugins/*/hooks/codex-runtime.js`
 
-**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, 13 must-not rules, dual-track self-check, compact output template. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
+**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, 16 must-not rules, dual-track self-check, compact output template. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
 
 **Playbook** — Reusable procedural recipe for a recurring class of code change; indexed in `playbooks.md`, detailed in `playbooks/<slug>.md`. Created only when ≥2 concrete instances exist (or an explicit spec/plan directive). → `plugins/superpowers-memory/content-rules.md`

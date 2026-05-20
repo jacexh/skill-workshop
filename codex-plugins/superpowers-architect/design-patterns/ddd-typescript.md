@@ -513,7 +513,7 @@ export interface UserRepository {
 
 **Role**: Orchestrate use cases; define transactions; coordinate Domain objects.
 
-> Corresponds to [ddd-core.md §3.2](ddd-core.md). The TypeScript guide adds transaction and composition details specific to Node.js services.
+> Corresponds to [ddd-core.md §3.1, §3.2](ddd-core.md). The TypeScript guide adds transaction and composition details specific to Node.js services.
 
 **Contents**:
 - Command and Query definitions
@@ -527,7 +527,7 @@ export interface UserRepository {
 - No business rules
 - Depends on Domain
 - Owns transaction boundaries
-- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.2](ddd-core.md); do not implement one merely because the database transaction API makes it easy.
+- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.1, §3.2](ddd-core.md); do not implement one merely because the database transaction API makes it easy.
 - Application is the sole drainer of Domain Events: after successful `repo.save()` it calls `collectEvents()` exactly once. Repository never drains.
 - Dispatch domain events only after successful persistence. Publish/admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - QueryRepository interfaces live here, return DTOs, and bypass Domain aggregates on the read side
@@ -1038,21 +1038,21 @@ Guidelines:
 
 1. **Domain layer has no concrete implementation dependencies** — no `import` of Kysely / Prisma / TypeORM, Fastify / Express / Nest, HTTP/MQ clients, or generated protocol packages; `node:crypto`, `ulid`, and small in-memory helpers are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context (`modules/<context>/`), not by technical layer
-3. **Dependency inversion** — Domain defines write Repository interfaces; Application defines read QueryRepository interfaces; Infrastructure implements both
+3. **Dependency inversion** — Domain defines write Repository interfaces; Application defines product/application read QueryRepository interfaces after capability classification; Infrastructure implements both
 4. **Port granularity** — define interfaces by caller semantics, not implementation technology; cache/database/queue clients stay inside Infrastructure unless they are a named use-case capability ([ddd-modeling.md §0.2](ddd-modeling.md))
 5. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
 6. **State encapsulation** — all state changes go through domain methods; use `private` fields, `readonly`, and `private constructor` + static factories to prevent external mutation
 7. **ID generation in Domain** — use `ulid()` / `uuidv7()` factory inside the aggregate's `create()`; database auto-increment IDs are prohibited
 8. **Disciplined cross-context communication** — Integration Messages (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port — *not* another context's internal `UserQueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; Integration Message payloads carry the ID plus minimum necessary facts
 9. **Event collection** — aggregates collect events in a private array; Application calls `collectEvents()` after successful `save()` to drain and dispatch
-10. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return DTO `type`s
+10. **CQRS** — Commands go through the Domain model; product/application Queries go through consumer-specific QueryRepository/reader ports and return DTO `type`s. Routing/topology lookup is not a CQRS query port
 11. **Transaction boundary** — one Command Handler owns one transaction (typically via `UnitOfWork.runInTransaction`); one transaction modifies one aggregate only
 12. **Repository collection semantics** — `save()` is the single method covering create, update, and state-driven soft delete; `version === 0` → INSERT, `version > 0` → version-guarded UPDATE; never split into `insert()` / `update()` / `delete()` by SQL operation
 13. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
 14. **Optimistic locking** — Infrastructure increments `version` via `SET version = version + 1 WHERE version = ?`; Domain holds `version` as a read-only token; always reload via `repo.get()` after `save()` before further operations
 15. **Event dispatch timing** — dispatch after successful persist (after `runInTransaction` resolves), never before
 16. **Event reliability** — Domain Event delivery is bounded-context-internal and implementation-specific; cross-context Integration Messages default to adapter delivery semantics plus consumer-side idempotency, with explicit reliability design only when pre-publish loss is unacceptable
-17. **Technical capability classification** — technical-facing code (dispatchers, registries, schedulers, routers, projections, ownership managers) is Domain-facing when it owns stable language, states, policies, or invariants; Infrastructure only adapts external systems and mechanisms ([ddd-core.md §3.1](ddd-core.md))
+17. **Technical capability classification** — classify dispatchers, registries, schedulers, routers, projections, and ownership managers before interface ownership; they are Domain-facing when they own stable language, states, policies, or invariants, while routing/transport/topology mechanics stay Infrastructure ([ddd-modeling.md §0.1](ddd-modeling.md), [ddd-core.md §3.1, §3.2](ddd-core.md))
 18. **Type safety** — `tsconfig` `strict: true`; never use `any` to escape type errors; prefer branded types or value objects over loose primitives at Domain boundaries
 19. **Async discipline** — Repository / QueryRepository / external clients return `Promise`; Domain methods stay synchronous unless the rule itself is asynchronous
 
