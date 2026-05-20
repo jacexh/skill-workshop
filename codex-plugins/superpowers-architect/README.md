@@ -19,7 +19,7 @@ codex plugin install superpowers-architect
 
 Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.
 
-If hooks do not appear after restart, confirm both `hooks = true` and `plugin_hooks = true` are enabled and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$superpowers-architect:cleanup` once to remove the old entries.
+If hooks do not appear after restart, confirm both `hooks = true` and `plugin_hooks = true` are enabled, open `/hooks` to review and trust plugin hooks, and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$superpowers-architect:cleanup` once to remove the old entries.
 
 ## Upgrade
 
@@ -63,4 +63,4 @@ export SPA_DEFAULTS=false
 
 ## Known Codex protocol gap (vs Claude Code)
 
-Claude Code's PreToolUse:Skill hook intercepts trigger skills and injects different wording for plan vs review. Codex's PreToolUse matcher does not support skill names, so the Codex port uses weaker signals instead: SessionStart standing context, UserPromptSubmit matching for explicit upstream `superpowers` skill mentions, and the explicit `$superpowers-architect:standards` skill. The Codex port intentionally does not register a Stop hook because Stop fires after each assistant turn and feels intrusive in normal conversation.
+Claude Code's PreToolUse:Skill hook intercepts trigger skills and injects different wording for plan vs review. Codex does not expose native skill invocation as a hookable tool or event, so the Codex port uses weaker signals instead: SessionStart standing context, UserPromptSubmit matching for explicit upstream `superpowers` skill mentions, and the explicit `$superpowers-architect:standards` skill. The Codex port intentionally does not register a Stop hook because Stop fires after each assistant turn and feels intrusive in normal conversation.

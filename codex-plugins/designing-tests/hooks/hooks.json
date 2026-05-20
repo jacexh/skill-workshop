@@ -6,7 +6,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" session-start"
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" session-start",
+            "timeout": 30,
+            "statusMessage": "Loading test design guidance"
           }
         ]
       }

@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-16
+last_updated: 2026-05-20
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
@@ -26,7 +26,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — Users install via `codex plugin marketplace add jacexh/skill-workshop`; Codex plugin code lives under `codex-plugins/`.
 
-**Capability Boundary** — Codex entries use object-form `source`, `policy`, and `category`; native plugin hooks require restart and both `hooks` and `plugin_hooks` feature flags.
+**Capability Boundary** — Codex entries use object-form `source`, `policy`, and `category`; native plugin hooks require restart, `[features] hooks = true`, `plugin_hooks = true`, and `/hooks` review/trust when hooks do not appear.
 
 **References** — ADR-013, ADR-014; see `conventions.md` for Codex hook and fallback cleanup rules.
 
@@ -150,7 +150,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `.codex-plugin/plugin.json`, `codex-plugins/superpowers-memory/hooks/hooks.json`, and `codex-plugins/superpowers-memory/hooks/codex-runtime.js` represent the per-plugin pattern.
 
-**Capability Boundary** — Native hooks are primary when supported; users restart Codex after install or upgrade. Some runtime branches are intentionally deferred or no-op where Codex protocol support is not implemented.
+**Capability Boundary** — Native hooks are primary when supported; users enable `hooks` + `plugin_hooks`, review/trust hooks via `/hooks`, and restart Codex after install or upgrade. Command hooks declare bounded timeout/status text; KB write protection uses Codex `permissionDecision = deny`. Some runtime branches remain deferred or no-op where Codex does not expose native skill invocation as a hookable event.
 
 **References** — ADR-014; see `conventions.md` for native hook contract.
 
@@ -182,7 +182,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `scripts/release/test/run-tests.sh` and fixture directories under `plugins/superpowers-memory/hooks/fixtures/`.
 
-**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; they do not replace full host-runtime acceptance testing.
+**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; Codex manifest tests guard canonical hook feature-flag docs and command hook metadata, while memory verify covers canonical PreToolUse deny behavior. They do not replace full host-runtime acceptance testing.
 
 **References** — `scripts/release/test/`; `plugins/superpowers-memory/hooks/fixtures/README.md`.
 
