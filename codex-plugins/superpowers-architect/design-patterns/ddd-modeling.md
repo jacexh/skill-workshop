@@ -61,6 +61,29 @@ Define ports by use-case semantics, not by implementation technology. Adding Red
 
 Reject an inward port when its contract is shaped around peer addresses, instance IDs used only for routing, cache/coordination ownership read models, RPC request/response forwarding, hop headers, retry/backoff knobs, queue subjects, storage tables, replica selection, or deployment topology. Those are Infrastructure mechanics unless the product/application use case names and observes a stable semantic lifecycle independent of the mechanism.
 
+#### 0.2.1 Capability lifecycle is the unit of granularity, not the mechanism operation
+
+An Application/Domain port encloses the full lifecycle of one stable semantic capability that a use case observes. Its use-case-visible stages -- admit, observe, mutate, publish, transfer, materialize, retire, release, recover, or retry -- belong on the same port when they share aggregate identity, consistency boundary, authorization, and failure semantics. Do not slice that lifecycle by underlying mechanism operation: `AttachmentContentWriter` + `FileContentReader` + `WorkspaceArchiveOpener` is one storage-backed example of the broader fragmented form that should instead become one `AttachmentContentStore` capability.
+
+Naming starts from a **domain noun + lifecycle role** (`AttachmentContentStore`, `WorkspaceArtifactStore`, `OrderRepository`, `PaymentSettlementGateway`, `NotificationDeliveryPort`). Do not default to verb-suffix names (`*Reader`, `*Writer`, `*Publisher`, `*Client`, `*Stream`, `*Opener`, `*Sender`, `*Fetcher`) for Application/Domain ports; those suffixes are inherently action-granular. A verb-suffix port is acceptable only when the capability is genuinely one-directional (a pure published read view, a pure outbound publisher, a fire-and-forget delivery sink) and you can state why the opposite lifecycle stages do not share aggregate identity, consistency, authorization, or failure semantics.
+
+ISP and SRP at the port boundary segregate **capabilities**, not methods. The unit of single responsibility is one coherent semantic lifecycle, not one operation; the unit of interface segregation is one consumer need, not one verb. A 3-method port serving one capability is more SRP-correct than three 1-method ports serving the same capability. Interface bloat means unrelated consumer semantics or lifecycle boundaries have been mixed, not that the method count is greater than one. Do not fragment ports to make tests or mocks smaller; tests should mock or stub the coherent capability the use case observes. `Repository` and `QueryRepository` are examples of lifecycle ports, not the only allowed multi-method ports -- non-repository semantic ports may also own the observe, mutate, publish, transfer, retire, release, recover, or retry methods for their capability.
+
+#### 0.2.2 Inward-defined ports evolve by adding methods, not by forking
+
+When a new use case touches an existing semantic capability, the default action is to add a method to the existing port — not to introduce a new one. Inward-defined ports have no external consumer to break, so the cost of extension is roughly equal to the cost of creation; defaulting to "new port per new use case" is what produces capability fragmentation.
+
+Fork into a new port only when the new caller observes **different** freshness, ordering, authorization, pagination, failure, or consistency-window semantics from the existing port, or operates on a different aggregate. If the only difference is "another method on the same capability", extend.
+
+**Modeling order (do not invert):**
+
+1. State the use case in one sentence: action + who observes the result + at which boundary it becomes visible.
+2. Identify which **existing** semantic capability's lifecycle stage that observation corresponds to.
+3. Default to adding a method on that capability's port. Only when step 2 finds no existing capability does a new port become a candidate.
+4. If a single use case is about to inject 2+ ports that look like different verbs on the same noun, review whether they are one capability lifecycle; at 3+ such ports, stop and re-group unless the semantic split is already justified in writing. That is the mechanism-operation-granular failure mode.
+
+Reversing this order (starting from "what does the Infrastructure adapter expose?" and reflecting each method as a port) is the most common source of fragmented ports, because Infrastructure exposes its API at method granularity by design.
+
 Before adding a port, answer:
 
 - What semantic capability does the caller need? (name it in domain terms, not "calls Redis")
@@ -69,25 +92,62 @@ Before adding a port, answer:
 - Which layer owns the rule behind that capability? (apply §0.1's classification table — Domain-facing, Application orchestration, or Infrastructure)
 - Does the caller need a separate failure policy, consistency boundary, or replacement strategy?
 - Would the caller's code change if the implementation switched from Redis to MySQL, or from cache-aside to write-through?
-- Does this interface force a caller to depend on methods it never uses, or does adding a new consumer keep expanding the same interface?
+- Does this interface force a caller to depend on unrelated lifecycle semantics it never observes? Multiple methods are acceptable when they belong to the same observed capability lifecycle; unrelated consumer semantics are the bloat signal.
 
 If the caller still needs the same aggregate collection or read model, keep the existing Repository / QueryRepository / semantic port and compose the technical dependency inside Infrastructure. For example, a high-traffic read path may implement `UserQueryRepository` with MySQL plus Redis cache-aside; it must not expose a separate `Cacher` port unless caching behavior itself is a named use-case concern.
 
 CQRS port boundaries are consumer-specific. The same physical table, stream, object store, or append-only log may back several ports, but the inward-facing ports must follow caller semantics:
 
-- A Command-side append or persistence concern is a writer port with the command's failure semantics.
-- A Query-side replay, listing, audit lookup, or projection read is a reader/query port returning the read model that consumer needs.
+- A Command-side append, persistence, publication, delivery, or mutation concern is a command-side capability port with the command failure semantics; use a `*Writer`-style name only when the capability is genuinely one-directional.
+- A Query-side replay, listing, audit lookup, or projection read is a query/facade port returning the read model that consumer needs; use a `*Reader`-style name only when the capability is genuinely read-only.
 - A projection high-watermark, lease, cursor, or sequence concern is a coordination port only when the use case observes that coordination semantics.
 
 A CQRS query port must answer an application/product read use case: UI/API DTOs, report rows, consumer-specific read facades, audit views, or current snapshots explicitly published by an owning context. Do not create a QueryRepository or query port merely to ask Infrastructure where work is routed, which peer owns a key, which address to forward to, which cache/coordination row exists, or which deployment instance is active. Those routing/topology queries stay in Infrastructure and may be composed behind a semantic command or query handler.
 
-Do not create an omnibus `Store`, `Client`, or `Repository` interface that combines write methods for one producer with read methods for unrelated consumers merely because one Infrastructure adapter can implement all of them. Keep the large concrete adapter in Infrastructure if useful, but expose small Application/Domain ports per use case. If a new consumer adds methods to a shared port, re-run this checklist before accepting the expansion.
+Do not create an omnibus or storage-shaped `Store`, `Client`, or `Repository` interface that combines write methods for one producer with read methods for unrelated consumers merely because one Infrastructure adapter can implement all of them. Keep the large concrete adapter in Infrastructure if useful, but expose Application/Domain ports per semantic capability lifecycle. If a new consumer adds methods to a shared port, re-run this checklist before accepting the expansion; extend only when the consumer observes the same lifecycle semantics.
 
 The source of a port's request/response types does not decide the port's layer. Generated protocol messages, database rows, queue payloads, or external DTOs are boundary shapes; they are mapped to the layer-owned model before invoking the semantic port. If the capability is Domain-facing but the external call is expressed with Protobuf messages, keep the port in Domain and add an Application/Infrastructure mapper from proto DTOs to Domain entities, value objects, commands, or events.
 
 **Worked example — ownership and routing in distributed execution.** The names below are illustrative for dispatcher, worker, executor, scheduler, and router-style systems; apply the classification to the capability, not to the literal identifier. A `Peer`-like interface that forwards to another process over RPC, carries hop headers, or exposes a network address is an Infrastructure peer-forwarding adapter, not an Application port. A `Directory.Get(workID) -> OwnerInfo{InstanceID, Addr}`-style lookup is the routing read model used to choose a peer; it is Infrastructure, not an Application command/query port. An `OwnershipDirectory.AcquireLease/RefreshLease/ReleaseLease`-style interface is a separate lifecycle-only concept: it may be Application-owned when the use case observes active executor ownership lifecycle semantics, but it must never answer address-lookup, forwarding, hop-header, storage-key, retry/backoff, or replica-routing questions. If callers need both lease lifecycle and forwarding, split them: Application depends on the ownership-lifecycle port, while Infrastructure composes the routing directory and peer client internally.
 
 **Worked example — proto-typed Domain-facing port.** Suppose a `MessageRecorder` records a Domain fact (state transition / invariant) whose wire format is generated from Protobuf. By §0.1 the capability is Domain-facing, so the port lives in `domain/` with a Domain-typed signature such as `Record(ctx, RecordCommand) error`, where `RecordCommand` is a Domain command/value object. The Application handler (or an Infrastructure inbound adapter) maps the incoming `pb.Message` into `RecordCommand` before calling the port. The wrong move — placing the port in `application/` with `pb.Message` directly in its signature — couples Domain rules to a transport schema and tends to fragment the same rule across handlers.
+
+**Worked example -- capability-lifecycle ports vs mechanism-operation-granular ports (File / Attachment / Workspace artifacts).**
+
+This file-backed example is one instance of the general rule. The same analysis applies to object storage, messaging, cache, schedulers, external APIs, runtime coordination, and any other Infrastructure mechanism whose operations are more granular than the use-case capability lifecycle.
+
+Wrong shape -- Application depends on six mechanism-operation-granular ports:
+
+```
+AttachmentContentWriter      // write on upload
+FileContentReader            // read for download
+WorkspaceArchiveReader       // read workspace output archive
+WorkspaceDirLister           // list workspace dir
+WorkspaceFileStat            // stat workspace file
+ArtifactManifestRW           // manifest read + write
+```
+
+Right shape — Application depends on three capability-lifecycle ports:
+
+```
+AttachmentContentStore        // "issue attachment content lifecycle"
+  Put(attachmentID, content)
+  Open(attachmentID) -> Reader
+  MaterializeInto(attachmentID, workspaceID, path)
+
+WorkspaceArtifactStore        // "workspace output publication / browsing"
+  ListEntries(workspaceID, path)
+  Stat(workspaceID, path)
+  OpenArchive(workspaceID, path) -> Reader
+
+ArtifactManifestStore         // directory-artifact manifest; an independent read model
+  LoadManifest(artifactID)
+  SaveManifest(artifactID, manifest)
+```
+
+The three ports may all be implemented by a single Infrastructure adapter (e.g., one `MountedStorage` struct) — that is allowed by §3.2 of `ddd-core.md`. The point is that **on the inward side, Application sees three capabilities, not six verbs**.
+
+Why is `ArtifactManifestStore` not merged into `WorkspaceArtifactStore`? The manifest is a File-bounded-context read model / product metadata whose lifecycle is independent of workspace content — it can exist when the workspace content is gone and be refreshed on its own. Different consistency boundary, so it is a separate capability. That is the §0.2.2 "different caller semantics" branch in action — and it is a positive example of when forking a port is correct.
 
 ## 1. Purpose
 
