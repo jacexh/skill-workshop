@@ -251,7 +251,7 @@ Use this checklist before accepting a package layout or import graph:
 - `internal/pkg/<capability>` is only for shared technical adapters. It must not import `internal/business/*` or own business/domain rules.
 - Root `pkg/` is not a dumping ground. Use it for generated code or stable libraries intended for external repository consumers.
 - A generated proto type in a method signature is boundary evidence, not layer-ownership evidence. If the method represents a Domain capability, keep the interface in `domain/` with Domain types and map at the boundary.
-- Application-owned ports must be small and consumer-specific. Do not expose one storage-shaped interface to multiple use cases merely because one adapter implements all methods.
+- Application-owned ports must be small, consumer-specific, and justified only after technical capability classification. Do not expose one storage-shaped or routing-shaped interface to multiple use cases merely because one adapter implements all methods, and do not place peer forwarding, network address lookup, hop headers, queue subjects, retry/backoff, or deployment topology in Application ports.
 - Package names and directory names must agree with the bounded context and layer they represent. A `dispatcher`, `registry`, `router`, or `connector` package must still declare whether it is Domain-facing policy, Application orchestration, or Infrastructure adapter.
 
 ### 2.5 Technical Coordination Placement
@@ -855,7 +855,7 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 - No business logic
 - Handles technical details (SQL, caching, retries, etc.)
 - **Version is incremented by SQL** (`version = version + 1`) — Domain layer does not increment it
-- Adding a technical client does not imply adding a new Application/Domain interface. If Redis only accelerates a MySQL-backed repository, compose Redis inside the repository implementation; do not add a separate `Cacher` port. Add a separate port only for a named use-case capability such as lease ownership, distributed locking, explicit cache invalidation, rate limiting, or event publication.
+- Adding a technical client does not imply adding a new Application/Domain interface. If Redis, another cache, or a coordination store only accelerates a repository or routing directory, compose Redis inside the Infrastructure implementation; do not add a separate `Cacher`, `Directory`, `Peer`, or equivalent routing-shaped port. Add a separate port only after classification, for a named use-case capability such as lease ownership lifecycle, distributed locking, explicit cache invalidation, rate limiting, or event publication. Keep address lookup, hop headers, peer forwarding, queue subjects, retry/backoff, storage keys, and deployment topology out of that semantic port.
 - Infrastructure implements technical mechanisms for domain rules, but it must not be the only place where those rules are expressed
 - Shared middleware clients are initialized in `internal/pkg/<middleware>`; bounded-context Infrastructure receives already constructed clients
 
@@ -1306,7 +1306,7 @@ Production files only. Test file placement is governed by §6.3 and is not requi
 | `application/application.go` | App Service constructor + gRPC/ConnectRPC stub implementation |
 | `application/command/<use_case>.go` | Command type + Handler + command-side ports used only by that use case |
 | `application/command/<capability>_writer.go` | Command-side/output writer port for append/log/publish use cases that are Application concerns |
-| `application/command/<capability>_port.go` | Command-side coordination port for sequence, cursor, lease, ownership, or high-watermark semantics |
+| `application/command/<capability>_port.go` | Command-side coordination port for sequence, cursor, lease, ownership, or high-watermark semantics after classification; not for address lookup, peer forwarding, or routing topology |
 | `application/query/<use_case>.go` | Query type + Handler for a read use case |
 | `application/query/repository.go` | QueryRepository / reader interfaces owned by query use cases |
 | `application/query/dto.go` | Query DTOs/read models |

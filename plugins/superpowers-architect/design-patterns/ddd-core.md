@@ -259,7 +259,7 @@ event_bus.dispatch(events)      # dispatch after persist
 - Split operations into **Commands** (writes) and **Queries** (reads) following CQRS
 - **Command Handler**: load aggregate → call domain method → persist → dispatch events
 - **Query Handler**: call QueryRepository directly → return DTO (bypasses domain model); the dedicated handler struct is optional for single-call delegating reads
-- **Define QueryRepository interfaces** in this layer — read models are an application concern, not a domain concern. Infrastructure implements these interfaces.
+- **Define QueryRepository interfaces** in this layer only for application/product read use cases — read models are an application concern, not a domain concern. Infrastructure implements these interfaces, but Infrastructure routing/topology lookups are not QueryRepositories.
 - Define **transaction boundaries**: one Command Handler corresponds to one transaction
 - Coarse-grained authorization checks belong here
 
@@ -285,7 +285,7 @@ Keep an explicit Query Handler when the read path does at least one of:
 - Encodes / decodes pagination cursors or normalizes DTO shapes
 - Performs derived computation across multiple records (presentation logic only — never business rules)
 
-Otherwise collapse it. The `QueryRepository` interface itself must remain in either case — it preserves the Application ↔ Infrastructure dependency boundary regardless of whether a Query Handler wraps it.
+Otherwise collapse it. The `QueryRepository` interface itself must remain in either case — it preserves the Application ↔ Infrastructure dependency boundary for product read use cases regardless of whether a Query Handler wraps it. This dependency boundary does not make every Infrastructure lookup an Application query port; capability classification still comes first.
 
 #### CQRS Port Granularity
 
@@ -296,9 +296,10 @@ Use this decision table before exposing a read/write interface inward:
 | Caller need | Port shape | Owner |
 |-------------|------------|-------|
 | Persist or append data as part of a command / producer flow | Writer port, named for the command-side capability | Domain when it persists aggregates; Application when it writes an application-owned log, projection, message, or external output |
-| Serve a UI/API/read-model query | QueryRepository or reader/facade port returning DTOs/read models | Application |
+| Serve a UI/API/product read-model query | QueryRepository or reader/facade port returning DTOs/read models | Application |
 | Expose a read-only view to another bounded context | Published facade/query port, not the source context's internal QueryRepository | Owning context Application/API boundary |
 | Bootstrap projection sequence, cursor, lease, ownership, or high-watermark coordination | Semantic coordination port if the use case observes the coordination semantics | Domain-facing when it owns stable rules; otherwise Application orchestration |
+| Locate a peer, forward a request, read routing ownership state, choose an address/replica, carry hop headers, or inspect deployment topology | Concrete Infrastructure routing/transport adapter, not an Application query port | Infrastructure |
 | Combine several SQL/log-store/cache methods only because one adapter implements them | Concrete Infrastructure adapter, not an inward port | Infrastructure |
 
 Rules:
@@ -308,6 +309,8 @@ Rules:
 - Do not force consumers to implement or mock methods they never call. Interface bloat is a sign that the port is tracking an adapter, not a use case.
 - It is acceptable for one Infrastructure struct to implement several small ports. Wiring should bind it separately to each inward interface.
 - If adding a new consumer requires adding methods to an existing port, first ask whether the new consumer has different freshness, ordering, authorization, pagination, fallback, or failure semantics. If yes, define a new consumer-specific reader/facade port.
+- Do not create a Command or Query port just because Application code must trigger Infrastructure. First classify the capability. Peer forwarding, cache/coordination routing read models, network addresses, hop headers, retry/backoff settings, queue subjects, storage table names, replica selection, and deployment topology are Infrastructure mechanics unless the use case itself names and observes a stable semantic lifecycle.
+- A CQRS query port must answer a product/application read use case, not a generic "query Infrastructure state" need.
 
 Example:
 
@@ -408,14 +411,14 @@ A Repository represents a **collection of aggregates**, not a database access ob
 
 Repository and QueryRepository interfaces are semantic boundaries. Infrastructure may combine multiple technical mechanisms behind one implementation (for example MySQL plus Redis cache-aside, write-through cache, local memory cache, retries, or lock renewal) as long as the caller still observes the same aggregate or read-model contract.
 
-Do **not** introduce technology-shaped ports such as `Cacher`, `RedisStore`, `MysqlReader`, or `LockClient` merely because an implementation uses that technology. Create a separate port only when the Application use case needs a distinct semantic capability with its own failure policy or consistency boundary. Examples:
+Do **not** introduce technology-shaped ports such as `Cacher`, `RedisStore`, `MysqlReader`, `LockClient`, `Peer`, `Directory`, or `Router` merely because an implementation uses that technology or because Application triggers the operation. Create a separate port only when the Application use case needs a distinct semantic capability with its own failure policy or consistency boundary. Examples:
 
 - Keep one `UserRepository` when Redis is only an acceleration layer for loading/saving `User` aggregates.
 - Keep one `UserQueryRepository` when Redis caches DTO/read-model queries but callers do not reason about cache state.
 - Keep the normal Repository / event bus interface when MySQL transaction coupling, Outbox rows, retry counters, broker adapters, or commit hooks are only reliability mechanisms behind persistence or delivery.
 - Introduce a separate port only when the use case explicitly commands cache invalidation, distributed locking, lease ownership, rate limiting, or another named technical-facing capability.
 
-Technical consistency requirements must not leak upward as dedicated ports. Do not create `OutboxWriter`, `BrokerPublisher`, `UnitOfWork`, `TransactionalEventPublisher`, or similar Application/Domain interfaces solely because the implementation needs an atomic database transaction, an outbox table, a message broker, or retry scheduling. Hide those mechanisms inside the Repository implementation, a transaction-aware event bus implementation, or an Infrastructure adapter unless the caller genuinely observes and chooses that capability as part of the use case.
+Technical consistency and routing requirements must not leak upward as dedicated ports. Do not create `OutboxWriter`, `BrokerPublisher`, `UnitOfWork`, `TransactionalEventPublisher`, `Peer`, `Directory`, `RoutingDirectory`, or similar Application/Domain interfaces solely because the implementation needs an atomic database transaction, an outbox table, a message broker, retry scheduling, peer forwarding, cache/coordination ownership lookup, network address resolution, hop-header handling, or deployment-topology inspection. Hide those mechanisms inside the Repository implementation, a transaction-aware event bus implementation, or an Infrastructure adapter unless the caller genuinely observes and chooses that capability as part of the use case.
 
 `Save()` is the **single method** for persisting an aggregate, covering create, update, and state-driven soft-delete scenarios. Never split it into `Insert()`, `Update()`, or `Delete()` based on underlying SQL operations — the caller must not need to know which statement executes.
 
@@ -779,10 +782,10 @@ Use this checklist when reviewing backend, DDD, refactor, or technical-capabilit
 
 - **Modeling gate**: `ddd-modeling.md` was applied first, with a gate level and bounded context / business capability stated.
 - **Import boundaries**: Domain imports no framework, generated protocol package, storage driver, queue client, HTTP server/client, Infrastructure package, or another bounded context's Domain package.
-- **Layer ownership**: Domain owns named rules/invariants; Application owns orchestration, transaction boundaries, query interfaces, and ports needed by use cases; Infrastructure implements adapters.
+- **Layer ownership**: Domain owns named rules/invariants; Application owns orchestration, transaction boundaries, product read query interfaces, and semantic ports needed by use cases after capability classification; Infrastructure implements adapters and owns routing/transport/topology mechanics.
 - **Technical capability classification**: dispatchers, registries, schedulers, routers, connectors, ownership managers, delivery mechanisms, projections, observability, and audit logic are classified before package placement.
 - **Interface direction**: inward layers define the interfaces they need; outer layers implement them. Infrastructure-defined interfaces must not be imported inward.
-- **CQRS port granularity**: ports are named for semantic capabilities, caller side, and consumer-specific read models, not implementation technologies. Redis/MySQL/cache/queue/log-store clients are composed inside Infrastructure unless the use case itself needs a separate semantic boundary. Reject omnibus store interfaces that mix unrelated producer writes, UI replay, audit lookup, and projection coordination.
+- **CQRS port granularity**: ports are named for semantic capabilities, caller side, and consumer-specific product read models, not implementation technologies. Redis/MySQL/cache/queue/log-store clients, peer forwarding, routing directories, hop headers, retry/backoff, and deployment topology are composed inside Infrastructure unless the use case itself needs a separate semantic lifecycle boundary. Reject omnibus store interfaces that mix unrelated producer writes, UI replay, audit lookup, and projection coordination.
 - **Transaction boundary**: Command Handlers default to one aggregate write per transaction. Any multi-aggregate transaction passes the exception gate in §3.2 and remains inside one bounded context.
 - **Cross-context boundaries**: communication uses Integration Messages, cross-context queries, ACL, or protocol contracts; no direct calls into another context's Domain model or Application Service.
 - **Package/path consistency**: a package path that claims `domain`, `application`, `interfaces`, or `infrastructure` follows that layer's dependency and responsibility rules.
@@ -793,21 +796,21 @@ Use this checklist when reviewing backend, DDD, refactor, or technical-capabilit
 
 1. **Domain layer has no concrete implementation dependencies** — no frameworks, ORMs, drivers, or protocol clients; general-purpose libraries are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context, not by technical layer
-3. **Dependency inversion** — Domain defines write Repository interfaces; Application defines read QueryRepository interfaces; Infrastructure implements both
-4. **CQRS port granularity** — define ports by caller semantics, command/query side, and consumer-specific read models; cache/database/queue/log-store clients stay inside Infrastructure unless they are a named use-case capability ([ddd-modeling.md §0.2](ddd-modeling.md), §3.2 CQRS Port Granularity, §3.4 Repository Pattern)
+3. **Dependency inversion** — Domain defines write Repository interfaces; Application defines product/application read QueryRepository interfaces after capability classification; Infrastructure implements both
+4. **CQRS port granularity** — define ports by caller semantics, command/query side, and consumer-specific product read models; cache/database/queue/log-store clients, routing directories, peer forwarding, and topology mechanics stay inside Infrastructure unless they are a named use-case lifecycle capability ([ddd-modeling.md §0.2](ddd-modeling.md), §3.2 CQRS Port Granularity, §3.4 Repository Pattern)
 5. **Aggregate boundary** — Repository operates on aggregate roots only, never on child entities directly
 6. **State encapsulation** — all state changes go through domain methods; direct field mutation from outside is prohibited
 7. **ID generation in Domain** — use infrastructure-independent ID schemes (UUID, ULID, Snowflake); never rely on database auto-increment
 8. **Disciplined cross-context communication** — use one of: Integration Messages (default for cross-context state propagation), cross-context queries (read-only), ACL (external/legacy), protocol contracts (cross-service schemas); direct calls into another context's Domain model or Application Service are prohibited; Integration Message payloads carry the ID plus the minimum necessary facts, never full entities or aggregate objects
 9. **Event collection** — aggregates collect events internally; the Application layer drains and dispatches once after a successful persist, and the Repository never drains
-10. **CQRS** — Commands go through the domain model or an application-owned writer port; Queries go through consumer-specific QueryRepository/reader/facade ports and return DTOs/read models. Do not expose one storage-shaped port for unrelated writers and readers.
+10. **CQRS** — Commands go through the domain model or an application-owned semantic writer port after capability classification; Queries go through consumer-specific QueryRepository/reader/facade ports and return product DTOs/read models. Do not expose one storage-shaped port for unrelated writers and readers, and do not model routing/topology lookup as a CQRS query port.
 11. **Transaction boundary** — one Command Handler owns one transaction; the default is one aggregate write per transaction; multi-aggregate writes require the §3.2 exception gate and must stay inside one bounded context
 12. **Repository collection semantics** — `Save()` covers create, update, and state-driven soft delete; never split by database operation type
 13. **Soft delete** — business-driven deletion is modeled as domain state; `deleted_at` is always an Infrastructure concern
 14. **Optimistic locking** — Infrastructure increments `version` via SQL; domain holds `Version` as a read-only token; always reload after `Save()` before further operations
 15. **Event dispatch timing** — dispatch events after a successful persist, never before
 16. **Event reliability** — Domain Event delivery is bounded-context-internal and implementation-specific; cross-process Integration Messages default to broker at-least-once delivery + consumer-side idempotency
-17. **Technical capability classification** — technical-facing code is Domain-facing when it owns stable language, states, policies, or invariants; Infrastructure only adapts external systems and mechanisms
+17. **Technical capability classification** — classify technical-facing code before interface ownership; it is Domain-facing when it owns stable language, states, policies, or invariants, while routing/transport/topology mechanics stay Infrastructure
 
 ---
 

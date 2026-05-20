@@ -2,13 +2,13 @@
 last_updated: 2026-05-20
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
-covers_branch: hotfix/codex-hook@35aeb8a
+covers_branch: hotfix/port@808feaa
 ---
 
 # Project Knowledge Index
 
 - [architecture.md](architecture.md) — System boundaries, components, data flows
-  Key points: dual-track marketplace; Codex native hook configs now carry timeout/statusMessage metadata and canonical PreToolUse deny flow; architect pattern files remain mirrored across Claude/Codex tracks
+  Key points: dual-track marketplace; Codex native hook configs and architect pattern files remain mirrored across Claude/Codex tracks
 
 - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
   Key points: Node.js + Bash + Markdown + JSON; Codex plugin runtime requires hooks/plugin_hooks flags and restart; release scripts use git + jq
@@ -17,7 +17,7 @@ covers_branch: hotfix/codex-hook@35aeb8a
   Key points: Codex marketplace/native hooks require hooks + plugin_hooks + /hooks trust; release/runtime tests guard command hook metadata and canonical Codex deny behavior
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: Codex command hooks require bounded timeout/statusMessage; memory write protection uses permissionDecision=deny; deprecated codex_hooks docs are blocked by release tests
+  Key points: DDD Application ports require capability classification first; infra routing/transport/topology details stay out of Application ports; Codex hook metadata rules remain enforced
 
 - [decisions.md](decisions.md) — ADR summary log (15 ADRs, 0 superseded)
   Key points: ADR-015 DDD agent contract + Go runtime split; ADR-014 native Codex hooks with cleanup; ADR-013 Codex marketplace compat; ADR-012 UserPromptExpansion slash hook; ADR-010 KB write-lock

@@ -711,7 +711,7 @@ class Repository(ABC):
 
 **Role**: Orchestrate domain objects to fulfill use cases; define transaction boundaries.
 
-> For the full specification, see [ddd-core.md §3.2](ddd-core.md).
+> For the full specification, see [ddd-core.md §3.1, §3.2](ddd-core.md).
 
 **Contents**:
 - **Command/Query**: Explicit modeling of operation intent — use `dataclass(frozen=True, slots=True)`
@@ -724,7 +724,7 @@ class Repository(ABC):
 - No business rules (those belong in the Domain layer)
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
-- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.2](ddd-core.md); do not implement one merely because SQLAlchemy session APIs make it easy.
+- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.1, §3.2](ddd-core.md); do not implement one merely because SQLAlchemy session APIs make it easy.
 - Application is the sole drainer of Domain Events: after a successful `save()` it calls `collect_events()` exactly once. Repository never drains.
 - Domain events are dispatched after a successful persist via `collect_events()`. Dispatch/publish admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - After `save()`, the in-memory aggregate is stale — reload via `get()` if further operations are needed
@@ -2081,21 +2081,21 @@ dev = [
 
 1. **Domain layer has no concrete implementation dependencies** — no `import` of SQLAlchemy, FastAPI, HTTP/MQ clients, or generated protocol packages; standard library, `uuid`, `dataclasses`, and Pydantic-as-internal-validation-helper are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context, not by technical layer
-3. **Dependency inversion** — Domain defines write Repository interfaces (`ABC`); Application defines read QueryRepository interfaces (`ABC`); Infrastructure implements both
+3. **Dependency inversion** — Domain defines write Repository interfaces (`ABC`); Application defines product/application read QueryRepository interfaces (`ABC`) after capability classification; Infrastructure implements both
 4. **Port granularity** — define ports by caller semantics, not implementation technology; cache/database/queue clients stay inside Infrastructure unless they are a named use-case capability ([ddd-modeling.md §0.2](ddd-modeling.md))
 5. **Aggregate boundary** — Repository operates on aggregate roots only, not child entities
 6. **State encapsulation** — all state changes go through domain methods; use `__slots__` and `@property` to prevent external mutation
 7. **ID generation in Domain** — use a time-sortable identifier (stdlib `uuid.uuid7()` on Python 3.14+; third-party UUIDv7 / ULID library or `uuid.uuid4()` on 3.12 / 3.13); database auto-increment IDs are prohibited
 8. **Disciplined cross-context communication** — Integration Messages (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port, never another context's internal `QueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; Integration Message payloads carry the ID plus minimum necessary facts
 9. **Event collection** — aggregates collect events in `_events` list; Application calls `collect_events()` after successful `save()` to drain and dispatch
-10. **CQRS** — Commands go through the Domain model; Queries go through QueryRepository directly to the DB and return Pydantic DTOs
+10. **CQRS** — Commands go through the Domain model; product/application Queries go through consumer-specific QueryRepository/reader ports and return Pydantic DTOs. Routing/topology lookup is not a CQRS query port
 11. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
 12. **Repository collection semantics** — `save()` covers create, update, and state-driven soft delete; never split by SQL operation type
 13. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
 14. **Optimistic locking** — Infrastructure increments `version` via SQL; Domain holds `version` as a read-only token; always reload after `save()`
 15. **Event dispatch timing** — dispatch after successful persist, never before
 16. **Event reliability** — Domain Event delivery is bounded-context-internal and implementation-specific; cross-context Integration Messages default to adapter delivery semantics plus consumer-side idempotency, with explicit reliability design only when pre-publish loss is unacceptable
-17. **Technical capability classification** — technical-facing code (dispatchers, registries, schedulers, routers, projections, ownership managers) is Domain-facing when it owns stable language, states, policies, or invariants; Infrastructure only adapts external systems and mechanisms ([ddd-core.md §3.1](ddd-core.md))
+17. **Technical capability classification** — classify dispatchers, registries, schedulers, routers, projections, and ownership managers before interface ownership; they are Domain-facing when they own stable language, states, policies, or invariants, while routing/transport/topology mechanics stay Infrastructure ([ddd-modeling.md §0.1](ddd-modeling.md), [ddd-core.md §3.1, §3.2](ddd-core.md))
 18. **Type safety** — full type annotations, `mypy --strict`, Pydantic validation at boundaries
 19. **Async I/O** — all infrastructure operations are `async`; domain methods remain synchronous
 
