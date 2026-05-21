@@ -6,8 +6,8 @@ description: Python implementation guide for DDD + Clean Architecture. Use when 
 # Python Web System Architecture Guide
 ## DDD + Clean Architecture — Python Implementation
 
-**Version**: v2.3
-**Date**: 2026-05-11
+**Version**: v2.4
+**Date**: 2026-05-21
 **Scope**: Team backend service architecture standard
 **Prerequisites**:
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first; defines trigger conditions, stop protocol, and prohibited actions. Do not skip.
@@ -277,6 +277,79 @@ Technical coordination code often exposes domain rules indirectly. Place it by r
 | Observability or audit derivation with business meaning | Domain event or Domain-facing projection rule | Telemetry/export backend in Infrastructure |
 
 If the rule can be unit-tested without SQLAlchemy, Redis, a queue, FastAPI, or generated protocol types, keep that rule inward and adapt the mechanism outward.
+
+### 2.6 Mechanized Review Checks
+
+These checks operationalize the P1-P4 hot-path checks in [ddd-core.md §10](ddd-core.md) and the §5.1 self-check in [ddd-agent-contract.md](ddd-agent-contract.md). Treat the shell commands below as local smoke checks unless they are replaced by AST-aware Ruff/custom rules; they surface review targets, not architectural proof.
+
+**P1 — Port eligibility: suspicious naming smoke scan**
+
+Python ports are typically `Protocol`, `ABC` subclass, or `abc.ABCMeta`-using classes. Scan the abstract-class declarations:
+
+```bash
+rg -n --type py \
+  '^class [A-Z][A-Za-z]+(Policy|Specification|Allocator|Generator|Resolver|Finalizer|Terminator|Closer|Calculator|Scorer|Pricer|Decider|Authorizer|Validator|Sink|Hook|Observer)\b.*(Protocol|ABC|ABCMeta)' \
+  src/*/application/ src/*/domain/
+```
+
+Hits require a written placement answer in the Architecture Gate's `Domain mechanism placement before Application ports` field. The answer must say whether the need belongs to an Aggregate, Domain Repository, Domain Service, Domain Event handler, Integration Message, ACL, Infrastructure adapter, QueryRepository/read facade, or an exceptional Application command-side port. The Python-idiomatic Domain Service form is a `@dataclass(frozen=True)` or plain class in `<context>/domain/service.py` whose methods take aggregates / value objects and return decisions.
+
+```bash
+rg -n --type py \
+  '^class [A-Z][A-Za-z]+(Client|Directory|Router|Forwarder)\b.*(Protocol|ABC|ABCMeta)' \
+  src/*/application/ src/*/domain/
+```
+
+Strong review signal in Application/Domain. Move mechanism-shaped names to `<context>/infrastructure/`, re-shape cross-context calls as ACL/read facades, or document why the word is part of the ubiquitous language and excludes routing/topology details.
+
+**Audit-only R3 — Domain mechanism parity smoke scan (Level 3 or periodic review)**
+
+```bash
+for ctx in src/*/; do
+  [ -d "${ctx}application" ] || continue
+  app_ports=$(rg -c --type py '^class [A-Z][A-Za-z]+\b.*(Protocol|ABC)' "${ctx}application" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+  domain_svc=$( [ -f "${ctx}domain/service.py" ] && echo 1 || echo 0 )
+  domain_events=$(rg -c --type py 'class [A-Z][A-Za-z]+Event\b' "${ctx}domain" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+  if [ "${app_ports:-0}" -gt 5 ] && [ "$domain_svc" -eq 0 ] && [ "${domain_events:-0}" -eq 0 ]; then
+    echo "WARN: ${ctx} has ${app_ports} application ports, no domain/service.py, and no domain events"
+  fi
+done
+```
+
+A warning here triggers audit-only R3: list the BC's command-side Application ports, Domain Repositories, Domain Services, Domain Events, Integration Messages, and Saga/Process Managers. Add a missing mechanism only when the domain need exists; do not add a service/event merely to satisfy a ratio.
+
+**P2 — Handler pressure**
+
+Count constructor parameters typed as `Protocol` / `ABC` on each Command Handler class:
+
+```bash
+rg -n --type py '^class [A-Z][A-Za-z]+CommandHandler\b' src/*/application/command/
+```
+
+Manually open hits with ≥4 typed dependencies and apply [`ddd-core.md §3.2`](ddd-core.md) "Command Handler Port-Pressure Heuristic". A Ruff custom rule (`ruff_pylint` or a per-project plugin) can mechanize this by counting `__init__` parameters whose annotations are `Protocol` subclasses.
+
+**P3 — Read-side DTO check**
+
+```bash
+rg -n --type py \
+  'def [a-z_]+\(.*\) -> (list\[)?[A-Z][A-Za-z]*\b' \
+  src/*/application/query/ src/*/application/*read*.py 2>/dev/null \
+  | rg '-> (list\[)?(domain|.*\.domain)\.'
+```
+
+Any reader/query method annotated `-> domain.X` or `-> list[domain.X]` from Application is rejected; return a DTO (`Pydantic` model, `@dataclass(frozen=True)`, or `TypedDict`) defined in `application/query/dto.py`.
+
+**P4 — Event/message extraction (manual)**
+
+When two or more handlers/subscribers react to the same same-BC state change, collapse the reaction behind one Domain Event and one same-BC handler. When the fact crosses a bounded-context boundary, publish an Integration Message instead of subscribing to another context's Domain Event. Long-running multi-aggregate coordination belongs in a Saga/Process Manager or compensating flow, not in a cluster of command-side Application ports.
+
+**P1 semantic fake sub-check (manual)**
+
+For every new inward `Protocol` or `ABC` introduced, write a `_Fake<Port>` or `_InMemory<Port>` test double whose backing state is a `dict`, `list`, or `dataclass` and that preserves the observable contract. If business/use-case tests can pass against it, continue the placement gate; this still does not automatically justify an Application command-side port. If the only meaningful fake is "pretend the external side effect succeeded", hide that implementation behind a Repository, QueryRepository, Saga/Process Manager, ACL, event/message publisher, or Infrastructure implementation ([modeling §0.1.1](ddd-modeling.md)).
+
+**Ruff / lint wiring**
+
+P1 naming and P3 DTO checks can be encoded as per-project Ruff custom rules or as `pytest` collection-time assertions; keep the shell forms as smoke checks. Audit-only R3 is best run nightly or on Level 3 changes as a structural smell check. P2 handler pressure, P4 event/message extraction, and the P1 semantic fake sub-check remain review-time prose checks captured in the PR description.
 
 ---
 
@@ -730,11 +803,17 @@ class Repository(ABC):
 - After `save()`, the in-memory aggregate is stale — reload via `get()` if further operations are needed
 - **File organization**: start with flat files (`command.py`, `query.py`, `handler.py`); when handlers grow numerous, promote to sub-packages (`command/`, `query/`, `handler/`, one file per handler). A context module/container remains the single entry point that wires them.
 
-**Event Handler Contract**:
-- Lives in the **consuming** bounded context's Application layer, not the producing context
-- Each handler owns its own transaction; failures do not roll back the producing side
+**Domain Event Handler Contract**:
+- Lives in the **same bounded context** as the Domain Event producer, usually in the Application layer
+- Handles repeated same-BC reactions to a domain fact after the aggregate is saved and events are drained
+- Each handler owns its own transaction; failures do not roll back the producing command
 - Error handling: log and continue, retry, or route to adapter-specific failure handling; never propagate handler execution errors back to the Domain Event producer
 - Write handlers so repeated execution is harmless when practical: prefer set/update operations, deterministic business keys, and guards on externally visible side effects
+
+**Integration Message Subscriber Contract**:
+- Lives in the consuming bounded context's Application layer
+- Handles stable cross-context Integration Message payloads, never another context's internal Domain Event type
+- Owns idempotency and transaction boundaries for the consuming context
 
 **Query Handler: When the Class Is Optional**:
 

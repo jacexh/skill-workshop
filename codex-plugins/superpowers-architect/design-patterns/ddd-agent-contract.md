@@ -5,12 +5,29 @@ description: Mandatory agent execution contract for DDD and Go runtime work. Use
 
 # DDD Code Agent Usage Contract
 
-**Version**: v1.1
-**Date**: 2026-05-11
+**Version**: v1.2
+**Date**: 2026-05-21
 **Audience**: Claude Code, Codex, and any other code agent expected to follow this repository's DDD standards.
 **Scope**: This is a behavior contract, not an architecture spec. It tells an agent **when** to read which DDD pattern, in **what order**, when to **stop and ask**, what **never** to do, and what to **self-check** before reporting work as complete.
 
 > If you are a human reading this, you may skim and go directly to [`ddd-modeling.md`](ddd-modeling.md) / [`ddd-core.md`](ddd-core.md) / [`ddd-golang.md`](ddd-golang.md). The rules below exist because LLM agents tend to skip preconditions and copy snippets out of context — this page defends against that.
+
+---
+
+## 0. Hot Path: Before Adding an Application Command-Side Port
+
+Application command-side ports are exceptions. Before creating one, answer this decision card in order:
+
+1. Rule on one aggregate? -> Aggregate method.
+2. Write-side aggregate collection? -> Domain Repository.
+3. Rule spanning aggregates? -> Domain Service, or Saga/Process Manager for long-running coordination.
+4. Repeated reaction to one same-BC domain fact? -> Domain Event + one same-BC handler.
+5. Cross-context fact propagation? -> Integration Message.
+6. Read-only product view? -> Application QueryRepository/read facade returning DTOs.
+7. External protocol, storage, routing, retry, topology, or vendor translation? -> Infrastructure adapter or ACL.
+8. Only after all above are rejected -> exceptional Application command-side port with the rejection reason in the Architecture Gate.
+
+Semantic fake rule: if the only meaningful fake is "pretend the external side effect succeeded", do not create an inward port; keep the mechanism behind Repository, QueryRepository, ACL, event/message publisher, Saga/Process Manager, or Infrastructure.
 
 ---
 
@@ -34,7 +51,7 @@ If unsure whether the contract applies: **assume it does** and read the contract
 Agents must follow this sequence. Do not jump to planning, editing, or reviewing before classifying the task and reading the required specs.
 
 ```
-1. Read this contract               (§1–§6 of this file)
+1. Read this contract               (§0–§6 of this file)
 2. Classify the task path           (DDD/business, Go runtime-only, or mixed)
 3. Read the required specs          (see the matrix below)
 4. Plan / edit / review code        (cite sections for non-trivial architecture decisions in plans, reviews, PR descriptions, or architecture notes; ordinary final summaries do not need section-by-section citations)
@@ -95,8 +112,11 @@ These are the most common DDD failure patterns an LLM produces when it shortcuts
 16. **Invent local substitutes for canonical Go component libraries.** In Go DDD code, do not define project-local `DomainEvent`, `EventBus`, `EventDispatcher`, `MessagePublisher`, `StateMachine`, `LoggerHelper`, `ConfigLoader`, or similar equivalents for concerns already covered by `ddd-golang.md`'s required library table. Use the named library interfaces directly (`github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/ddd/message`, `github.com/go-jimu/contrib/message/kafka`, `github.com/go-jimu/components/fsm`, `github.com/go-jimu/components/sloghelper`, `github.com/go-jimu/components/config`, etc.) unless existing repository code or explicit user direction establishes an exception. (golang §3.1, §7)
 17. **Mechanism-operation-granular Application/Domain port.** Do not slice the lifecycle of one capability -- observe / mutate / publish / transfer / retire / recover / release -- into multiple `*Reader`, `*Writer`, `*Stream`, `*Opener`, `*Sender`, `*Fetcher`, or similarly verb-suffixed ports. If a single Application use case is about to inject two or more ports that look like different verbs on the same noun, review whether they are one lifecycle; at three or more, stop and re-group unless the semantic split is justified in writing. They usually belong on one capability-lifecycle port. Default naming starts from a domain noun plus lifecycle role; verb-suffix names require an explicit justification of why the capability is one-directional. (modeling §0.2.1)
 18. **Capability-fragmented port — a new use case is not automatically a new port.** When a new use case touches a semantic capability whose port already exists (same aggregate, same consistency boundary, same failure/authorization semantics), the default action is to add a method to that port, not to create a new one. Fork only when the new caller observes different freshness, ordering, authorization, pagination, failure, or consistency-window semantics, or operates on a different aggregate. This is the positive default of the "unless consumer semantics differ" clause in `ddd-core.md §3.2`. (modeling §0.2.2, core §3.2)
+19. **Application command-side port as default abstraction.** Do not create an Application command-side port merely because a Command Handler needs to call, mock, listen to, publish, route, or finalize something. First place the need as Domain Repository, Aggregate method, Domain Service, Domain Event handler, Integration Message, ACL, Application QueryRepository/read facade, or Infrastructure adapter. A command-side Application port that survives must have an Architecture Gate exception explaining why none of those mechanisms owns the semantic need. (modeling §0, §0.2.3; core §3.1 Domain Mechanism Placement)
+20. **Repeated side-effect handling without a Domain Event.** Do not duplicate the same post-state-change side effect across multiple Command Handlers, subscribers, adapters, or local listeners. If the reaction is triggered by the same same-BC domain fact, emit one Domain Event from the aggregate and handle it with one Domain Event Handler after `Save()`. If the reaction crosses bounded contexts, translate the Domain Event or explicit published fact into an Integration Message. Direct per-use-case side-effect calls are allowed only when the side effect is an explicit output of that command and the Architecture Gate says why it is not event/message-driven. (core §3.1 Domain Event Collection, §5.3, §6)
+21. **Suspicious naming without placement justification.** Do not name an Application/Domain interface `*Policy`, `*Specification`, `*Allocator`, `*Generator`, `*Resolver`, `*Finalizer`, `*Terminator`, `*Closer`, `*Calculator`, `*Scorer`, `*Pricer`, `*Decider`, `*Authorizer`, `*Validator` (outside Domain `Validate()`), `*Sink`, `*Hook`, `*Observer`, `*Client`, `*Directory`, `*Router`, or `*Forwarder` without an Architecture Gate entry under "Domain mechanism placement before Application ports". The entry must answer which DDD mechanism owns the need, not merely rename the interface. Application interfaces that survive must record the exception reason. (modeling §0.2.3)
 
-> When uncertain whether a pattern is on this list, search this file for the keyword (`Cacher`, `proto`, `validation`, `drain`, …) before committing.
+> When uncertain whether a pattern is on this list, search this file for the keyword (`Cacher`, `proto`, `validation`, `drain`, `Policy`, `Allocator`, `Domain Event`, `Integration Message`, …) before committing.
 
 ---
 
@@ -119,7 +139,12 @@ Before claiming a task is done, run the matching checklist. Treat any applicable
 - [ ] **If code changed, tests on the changed layer**: Domain rules covered by pure unit tests; Application orchestration covered with Repository/QueryRepository mocks; Infrastructure covered by integration tests against real dependencies (test containers or equivalent).
 - [ ] **If docs / plans only changed**: references, section links, duplicated plugin copies (`plugins/` and `codex-plugins/`), and examples were checked for consistency.
 - [ ] **Naming**: aggregate / event / command / handler / repository naming matches the language guide's convention table.
-- [ ] **No `Must Not` violations**: each item in §4 above was reviewed against the diff.
+- [ ] **P1 Port eligibility**: every new inward interface appears in the Architecture Gate with its semantic need and owner; suspicious names from modeling §0.2.3 have a written placement answer; command-side Application ports have an explicit exception; the semantic fake is meaningful beyond "pretend the external side effect succeeded".
+- [ ] **P2 Handler pressure**: no Command Handler injects four or more semantic outbound dependencies without satisfying the port-pressure review (`ddd-core.md §3.2`), including event/message extraction.
+- [ ] **P3 Read-side DTO**: no Application reader/query interface returns `*Aggregate` or `[]*Aggregate`; product reads return DTOs.
+- [ ] **P4 Event/message extraction**: repeated same-BC side effects route through one Domain Event + same-BC handler; cross-context facts route through Integration Messages; long-running multi-aggregate coordination uses Saga/Process Manager or compensating flow.
+- [ ] **Audit-only R3 when scope warrants it**: for Level 3, new BC, or architecture-audit work, command-side Application ports were compared with Domain Repositories, Domain Services, Domain Events, Integration Messages, ACLs, Saga/Process Managers, and Infrastructure adapters. Missing mechanisms were added only when the domain need exists.
+- [ ] **No `Must Not` violations**: each item in §4 above was reviewed against the diff — in particular §4.19 (Application command-side port default), §4.20 (repeated side-effect without Domain Event), and §4.21 (suspicious naming).
 
 ### 5.2 Go Runtime Self-Check
 

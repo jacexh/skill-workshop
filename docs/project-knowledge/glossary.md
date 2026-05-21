@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-20
+last_updated: 2026-05-21
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -34,7 +34,9 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Prompt Router** — Codex UserPromptSubmit hook path that inspects raw user text and injects focused context for explicit workflow signals; used by memory and architect where skill-call hooks are unavailable. → `codex-plugins/*/hooks/codex-runtime.js`
 
-**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, 18 must-not rules, dual-track self-check, compact output template. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
+**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, hot-path Application-port decision card, P1-P4 self-checks, 21 must-not rules. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
+
+**Application Command-Side Port** — Exceptional Application-owned command dependency allowed only after the gate rejects Domain Repository, Aggregate, Domain Service, Domain Event, Integration Message, Saga/Process Manager, ACL, and Infrastructure homes. → `plugins/superpowers-architect/design-patterns/ddd-modeling.md`
 
 **Capability-Lifecycle Port** — Application/Domain Port whose boundary encloses one stable semantic capability's full lifecycle (observe / mutate / publish / transfer / retire / release); inward-defined Ports default to extension over forking. → `plugins/superpowers-architect/design-patterns/ddd-modeling.md` §0.2.1-§0.2.2
 

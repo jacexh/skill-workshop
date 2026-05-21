@@ -6,8 +6,8 @@ description: Go implementation guide for DDD + Clean Architecture. Use when edit
 # Go Web System Architecture Guide
 ## DDD + Clean Architecture — Go Implementation
 
-**Version**: v2.3
-**Date**: 2026-05-11
+**Version**: v2.4
+**Date**: 2026-05-21
 **Scope**: Team backend service architecture standard
 **Prerequisites**:
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first; defines trigger conditions, stop protocol, and prohibited actions. Do not skip.
@@ -251,7 +251,7 @@ Use this checklist before accepting a package layout or import graph:
 - `internal/pkg/<capability>` is only for shared technical adapters. It must not import `internal/business/*` or own business/domain rules.
 - Root `pkg/` is not a dumping ground. Use it for generated code or stable libraries intended for external repository consumers.
 - A generated proto type in a method signature is boundary evidence, not layer-ownership evidence. If the method represents a Domain capability, keep the interface in `domain/` with Domain types and map at the boundary.
-- Application-owned ports must be small, consumer-specific, and justified only after technical capability classification. Do not expose one storage-shaped or routing-shaped interface to multiple use cases merely because one adapter implements all methods, and do not place peer forwarding, network address lookup, hop headers, queue subjects, retry/backoff, or deployment topology in Application ports.
+- Application-owned read ports must be small, consumer-specific QueryRepositories/read facades. Command-side Application ports are exceptions justified only after the Domain mechanism placement gate. Do not expose one storage-shaped or routing-shaped interface to multiple use cases merely because one adapter implements all methods, and do not place peer forwarding, network address lookup, hop headers, queue subjects, retry/backoff, or deployment topology in Application ports.
 - Package names and directory names must agree with the bounded context and layer they represent. A `dispatcher`, `registry`, `router`, or `connector` package must still declare whether it is Domain-facing policy, Application orchestration, or Infrastructure adapter.
 
 ### 2.5 Technical Coordination Placement
@@ -266,6 +266,76 @@ Technical coordination code often exposes domain rules indirectly. Place it by r
 | Observability or audit derivation with business meaning | Domain event or Domain-facing projection rule | Telemetry/export backend in Infrastructure |
 
 If the rule can be unit-tested without Redis, SQL, a queue, ConnectRPC, or generated protocol types, keep that rule inward and adapt the mechanism outward.
+
+### 2.6 Mechanized Review Checks
+
+These checks operationalize the P1-P4 hot-path checks in [ddd-core.md §10](ddd-core.md) and the §5.1 self-check in [ddd-agent-contract.md](ddd-agent-contract.md). Treat the shell commands below as local smoke checks unless they are replaced by AST-aware lint rules; they surface review targets, not architectural proof.
+
+**P1 — Port eligibility: suspicious naming smoke scan (Application/Domain layer)**
+
+```bash
+grep -rn -E "type [A-Z][a-zA-Z]+(Policy|Specification|Allocator|Generator|Resolver|Finalizer|Terminator|Closer|Calculator|Scorer|Pricer|Decider|Authorizer|Validator|Sink|Hook|Observer) interface" \
+  internal/business/*/application/ internal/business/*/domain/
+```
+
+Any hit requires a written placement answer in the Architecture Gate's `Domain mechanism placement before Application ports` field. The answer must say whether the need belongs to an Aggregate, Domain Repository, Domain Service, Domain Event handler, Integration Message, ACL, Infrastructure adapter, QueryRepository/read facade, or an exceptional Application command-side port.
+
+```bash
+grep -rn -E "type [A-Z][a-zA-Z]+(Client|Directory|Router|Forwarder) interface" \
+  internal/business/*/application/ internal/business/*/domain/
+```
+
+Any hit here is a strong review signal. Re-shape mechanism-shaped ports to a domain-noun lifecycle role, move routing/topology mechanics to Infrastructure, or document why the word is part of the ubiquitous language and the interface excludes addresses, hop headers, retry knobs, and deployment topology.
+
+**Audit-only R3 — Domain mechanism parity smoke scan (Level 3 or periodic review)**
+
+```bash
+for ctx in internal/business/*/; do
+  [ -d "${ctx}application" ] || continue
+  app_ports=$(grep -rE "^type [A-Z][a-zA-Z]+ interface" "${ctx}application" 2>/dev/null | wc -l)
+  domain_svc=$( [ -f "${ctx}domain/service.go" ] && echo 1 || echo 0 )
+  domain_events=$(grep -rE "type [A-Z][a-zA-Z]+Event struct" "${ctx}domain" 2>/dev/null | wc -l)
+  if [ "$app_ports" -gt 5 ] && [ "$domain_svc" -eq 0 ] && [ "$domain_events" -eq 0 ]; then
+    echo "WARN: ${ctx} has ${app_ports} application ports, no domain/service.go, and no domain events"
+  fi
+done
+```
+
+A warning here triggers audit-only R3: list the BC's command-side Application ports, Domain Repositories, Domain Services, Domain Events, Integration Messages, and Saga/Process Managers. Add a missing mechanism only when the domain need exists; do not add a service/event merely to satisfy a ratio.
+
+**P2 — Handler pressure**
+
+For each Command Handler struct, count exported and unexported fields whose types are interfaces. Implementations vary, but a workable shape is:
+
+```bash
+# Heuristic: find Handler structs whose fields suggest >=4 outbound ports.
+ast-grep --pattern 'type $H struct { $$$ }' --lang go \
+  internal/business/*/application/command/*.go
+```
+
+For projects without `ast-grep`, a simpler heuristic: any file in `application/command/` declaring a Handler struct with four or more interface-typed fields is reviewed against [`ddd-core.md §3.2`](ddd-core.md) "Command Handler Port-Pressure Heuristic".
+
+**P3 — Read-side DTO check**
+
+```bash
+grep -rnE "interface \{[^}]*\) \(\[\]\*?domain\.[A-Z]" \
+  internal/business/*/application/query/ \
+  internal/business/*/application/*read*.go 2>/dev/null
+```
+
+Any reader/query interface returning `*domain.X` or `[]*domain.X` from Application is rejected: convert to a DTO/read-model returned from `application/query/dto.go`. Repository (write) interfaces in `domain/` are exempt.
+
+**P4 — Event/message extraction (manual)**
+
+When two or more handlers/subscribers react to the same same-BC state change, collapse the reaction behind one Domain Event and one same-BC handler. When the fact crosses a bounded-context boundary, publish an Integration Message instead of subscribing to another context's Domain Event. Long-running multi-aggregate coordination belongs in a Saga/Process Manager or compensating flow, not in a cluster of command-side Application ports.
+
+**P1 semantic fake sub-check (manual)**
+
+For every new inward interface introduced in the diff, write — at least mentally — a no-dependency semantic fake that uses a `map`, slice, or simple struct as backing state and preserves the observable contract. If the fake can support business/use-case tests, continue the placement gate; this still does not automatically justify an Application command-side port. If the only meaningful fake is "pretend the external side effect succeeded", the interface is a mechanism adapter — hide it behind a Repository, QueryRepository, Saga/Process Manager, ACL, event/message publisher, or Infrastructure implementation ([modeling §0.1.1](ddd-modeling.md)).
+
+**Recommended CI wiring**
+
+P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR, but AST-aware analyzers are required before treating them as hard CI gates. Audit-only R3 is a per-BC structural smell check for nightly runs or Level 3 changes. P2 handler pressure, P4 event/message extraction, and the P1 semantic fake sub-check remain review-time prose checks; encode them as required PR-description sections rather than brittle grep lints.
 
 ---
 
@@ -558,16 +628,7 @@ type Repository interface {
 
 Apply [ddd-core.md §3.2](ddd-core.md) before adding or expanding any Go interface in `application/`.
 
-Do this:
-
-```go
-// application/command/activity_log_writer.go — producer command/output side.
-package command
-
-type ActivityLogWriter interface {
-    Append(ctx context.Context, record *activityv1.ActivityRecord) error
-}
-```
+Prefer read-side examples first; command-side Application ports need an explicit placement-gate exception.
 
 ```go
 // application/query/activity_replay_reader.go — consumer replay query side.
@@ -586,6 +647,8 @@ type ActivityCorrelationReader interface {
     ListByCorrelation(ctx context.Context, q CorrelationQuery) ([]*activityv1.ActivityRecord, error)
 }
 ```
+
+Exceptional command-side port example after the Architecture Gate rejects Domain Event, Integration Message, Repository, ACL, and Infrastructure homes:
 
 ```go
 // application/command/projection_sequence_port.go — projection coordination side.
@@ -623,7 +686,7 @@ fx.Provide(func(log *infrastructure.ActivityLogAdapter) query.ActivityCorrelatio
 })
 ```
 
-The concrete adapter can keep helper methods for SQL reuse, but inward packages depend only on the port matching their use case. If adding a method to an existing port makes test fakes implement unused methods, split the port.
+The concrete adapter can keep helper methods for SQL reuse, but inward packages depend only on the interface matching their use case. Split command-side ports only after the placement gate confirms the need is not better expressed as a Domain Event, Integration Message, Repository, ACL, or Infrastructure detail.
 
 Concrete QueryRepository implementations stay in Infrastructure even when their interfaces live in `application/query/`:
 
@@ -643,12 +706,18 @@ var _ query.Repository = (*activityQueryRepository)(nil)
 
 This avoids circular imports: `application.go` may import `application/query`, Infrastructure imports `application/query` to implement the interface, and `application/query` imports neither Infrastructure nor the root `application` package.
 
-**Event Handler Contract**:
+**Domain Event Handler Contract**:
 - Implements `event.Handler` interface: `Listening() []event.Kind` + `Handle(context.Context, event.Event)`
-- Lives in the **consuming** bounded context's Application layer, not the producing context
-- Each EventHandler owns its own transaction — failures do not roll back the producing side
+- Lives in the **same bounded context** as the Domain Event producer, usually in `application/handler/`
+- Handles repeated same-BC reactions to a domain fact after the aggregate is saved and events are drained
+- Each EventHandler owns its own transaction — failures do not roll back the producing command
 - Error handling: log and continue (or retry); never propagate errors back to the event producer. `Dispatch` / `DispatchAll` only return admission/enqueue errors (`event.ErrDispatcherClosed` during shutdown), never handler execution, panic, or unhandled-event outcomes — handlers own their own error policy
-- Registered during module initialization via `subscriber.Subscribe(handler)`. Inject `event.Subscriber` for the subscribing side and `event.Dispatcher` for the dispatching side; the `*event.InMemoryDispatcher` returned by `eventbus.NewDispatcher` implements both
+- Registered during module initialization via `subscriber.Subscribe(handler)`. Inject `event.Subscriber` for the same-BC subscribing side and `event.Dispatcher` for the dispatching side; the `*event.InMemoryDispatcher` returned by `eventbus.NewDispatcher` implements both
+
+**Integration Message Subscriber Contract**:
+- Lives in the consuming bounded context's Application layer
+- Handles stable cross-context Integration Message payloads, never another context's internal Domain Event type
+- Owns idempotency and transaction boundaries for the consuming context
 
 `DispatchAll` admission error policy:
 - Best-effort follow-up only: log the admission/enqueue error and continue.
@@ -1304,9 +1373,8 @@ Production files only. Test file placement is governed by §6.3 and is not requi
 | `domain/repository.go` | Write repository interface |
 | `domain/service.go` | Domain service |
 | `application/application.go` | App Service constructor + gRPC/ConnectRPC stub implementation |
-| `application/command/<use_case>.go` | Command type + Handler + command-side ports used only by that use case |
-| `application/command/<capability>_writer.go` | Command-side/output writer port for append/log/publish use cases that are Application concerns |
-| `application/command/<capability>_port.go` | Command-side coordination port for sequence, cursor, lease, ownership, or high-watermark semantics after classification; not for address lookup, peer forwarding, or routing topology |
+| `application/command/<use_case>.go` | Command type + Handler; exceptional command-side ports only when the Architecture Gate rejects Domain/Event/Message/ACL/Infrastructure homes |
+| `application/command/<capability>_port.go` | Exceptional command-side coordination port for sequence, cursor, lease, ownership, or high-watermark semantics after placement-gate classification; not for address lookup, peer forwarding, or routing topology |
 | `application/query/<use_case>.go` | Query type + Handler for a read use case |
 | `application/query/repository.go` | QueryRepository / reader interfaces owned by query use cases |
 | `application/query/dto.go` | Query DTOs/read models |
