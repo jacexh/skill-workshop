@@ -6,8 +6,8 @@ description: TypeScript implementation guide for DDD + Clean Architecture. Use w
 # TypeScript Backend Architecture Guide
 ## DDD + Clean Architecture — TypeScript Implementation
 
-**Version**: v2.3
-**Date**: 2026-05-11
+**Version**: v2.4
+**Date**: 2026-05-21
 **Scope**: Team backend service architecture standard  
 **Prerequisites**:
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first; defines trigger conditions, stop protocol, and prohibited actions. Do not skip.
@@ -189,8 +189,7 @@ apps/api/src/modules/user/
 │   │   ├── find-user.handler.ts
 │   │   └── user-created.handler.ts
 │   ├── dto.ts
-│   ├── query-repository.ts
-│   └── unit-of-work.ts
+│   └── query-repository.ts
 │
 ├── interfaces/
 │   ├── http/
@@ -251,6 +250,79 @@ Technical coordination code often exposes domain rules indirectly. Place it by r
 | Observability or audit derivation with business meaning | Domain event or Domain-facing projection rule | Telemetry/export backend in Infrastructure |
 
 If the rule can be unit-tested without SQL, Redis, a queue, framework request objects, or generated contract types, keep that rule inward and adapt the mechanism outward.
+
+### 2.6 Mechanized Review Checks
+
+These checks operationalize the P1-P4 hot-path checks in [ddd-core.md §10](ddd-core.md) and the §5.1 self-check in [ddd-agent-contract.md](ddd-agent-contract.md). Treat the shell commands below as local smoke checks unless they are replaced by AST-aware ESLint/custom rules; they surface review targets, not architectural proof.
+
+**P1 — Port eligibility: suspicious naming smoke scan**
+
+TypeScript ports are declared as `interface` or `type` aliases:
+
+```bash
+rg -n --type ts \
+  '^(export )?(interface|type) [A-Z][A-Za-z]+(Policy|Specification|Allocator|Generator|Resolver|Finalizer|Terminator|Closer|Calculator|Scorer|Pricer|Decider|Authorizer|Validator|Sink|Hook|Observer)\b' \
+  modules/*/application/ modules/*/domain/
+```
+
+Hits require a written placement answer in the Architecture Gate's `Domain mechanism placement before Application ports` field. The answer must say whether the need belongs to an Aggregate, Domain Repository, Domain Service, Domain Event handler, Integration Message, ACL, Infrastructure adapter, QueryRepository/read facade, or an exceptional Application command-side port. The TS-idiomatic Domain Service form is a class (or pure function module) in `<context>/domain/service.ts` whose methods take aggregates / value objects and return decisions.
+
+```bash
+rg -n --type ts \
+  '^(export )?(interface|type) [A-Z][A-Za-z]+(Client|Directory|Router|Forwarder)\b' \
+  modules/*/application/ modules/*/domain/
+```
+
+Strong review signal in Application/Domain. Move mechanism-shaped names to `<context>/infrastructure/`, re-shape cross-context calls as ACL/read facades, or document why the word is part of the ubiquitous language and excludes routing/topology details.
+
+**Audit-only R3 — Domain mechanism parity smoke scan (Level 3 or periodic review)**
+
+```bash
+for ctx in modules/*/; do
+  [ -d "${ctx}application" ] || continue
+  app_ports=$(rg -c --type ts '^(export )?interface [A-Z]' "${ctx}application" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+  domain_svc=$( [ -f "${ctx}domain/service.ts" ] && echo 1 || echo 0 )
+  domain_events=$(rg -c --type ts '(class|interface|type) [A-Z][A-Za-z]+Event\b' "${ctx}domain" 2>/dev/null | awk -F: '{s+=$2} END {print s+0}')
+  if [ "${app_ports:-0}" -gt 5 ] && [ "$domain_svc" -eq 0 ] && [ "${domain_events:-0}" -eq 0 ]; then
+    echo "WARN: ${ctx} has ${app_ports} application ports, no domain/service.ts, and no domain events"
+  fi
+done
+```
+
+A warning here triggers audit-only R3: list the BC's command-side Application ports, Domain Repositories, Domain Services, Domain Events, Integration Messages, and Saga/Process Managers. Add a missing mechanism only when the domain need exists; do not add a service/event merely to satisfy a ratio.
+
+**P2 — Handler pressure**
+
+Count constructor parameters whose types are interface ports on each Command Handler class. A workable starting pattern:
+
+```bash
+rg -n --type ts '^(export )?class [A-Z][A-Za-z]+CommandHandler\b' modules/*/application/command/
+```
+
+Hits with 4+ injected interface dependencies trigger [`ddd-core.md §3.2`](ddd-core.md) "Command Handler Port-Pressure Heuristic" review. For NestJS/Angular projects, an ESLint custom rule scanning `@Inject(...)` / `@Injectable(...)` constructor lengths mechanizes this.
+
+**P3 — Read-side DTO check**
+
+```bash
+rg -n --type ts \
+  '(Promise<|: )(Array<|readonly )?[A-Z][A-Za-z]*\b' \
+  modules/*/application/query/ modules/*/application/*read*.ts 2>/dev/null \
+  | rg ': (Array<|readonly )?(import\(.*domain.*\)\.)?(domain\.)?[A-Z]'
+```
+
+Any reader/query method returning a Domain aggregate type (rather than a DTO interface from `application/query/dto.ts`) is rejected.
+
+**P4 — Event/message extraction (manual)**
+
+When two or more handlers/subscribers react to the same same-BC state change, collapse the reaction behind one Domain Event and one same-BC handler. When the fact crosses a bounded-context boundary, publish an Integration Message instead of subscribing to another context's Domain Event. Long-running multi-aggregate coordination belongs in a Saga/Process Manager or compensating flow, not in a cluster of command-side Application ports.
+
+**P1 semantic fake sub-check (manual)**
+
+For every new inward interface introduced, sketch a `Fake<Port>` or `InMemory<Port>` test double whose backing state is a `Map`, `Array`, or plain object and that preserves the observable contract. If business/use-case tests can pass against it, continue the placement gate; this still does not automatically justify an Application command-side port. If the only meaningful fake is "pretend the external side effect succeeded", hide that implementation behind a Repository, QueryRepository, Saga/Process Manager, ACL, event/message publisher, or Infrastructure implementation ([modeling §0.1.1](ddd-modeling.md)).
+
+**ESLint wiring**
+
+P1 naming and P3 DTO checks are well-suited to AST-aware ESLint custom rules (`no-restricted-syntax` selectors over `TSInterfaceDeclaration` / `TSTypeAliasDeclaration` names); keep the shell forms as smoke checks. Audit-only R3 runs nightly or on Level 3 changes as a structural smell check. P2 handler pressure, P4 event/message extraction, and the P1 semantic fake sub-check remain review-time prose checks in the PR description.
 
 ---
 
@@ -520,7 +592,7 @@ export interface UserRepository {
 - Command and Query handlers
 - DTOs
 - QueryRepository interfaces
-- Unit of Work / transaction boundary abstractions
+- Transaction boundary orchestration (using a technical transaction runner from shared/infrastructure wiring, not an Application semantic port)
 - Event handlers for consuming domain events
 
 **Constraints**:
@@ -534,11 +606,17 @@ export interface UserRepository {
 - After `repo.save()`, the in-memory aggregate is stale — reload via `repo.get()` before any further operation on the same aggregate
 - **File organization**: start with flat files for small contexts; when handlers grow numerous, promote to sub-directories (`commands/`, `queries/`, `handlers/`, one file per handler). `module.ts` remains the single entry point that wires the bounded context.
 
-**Event Handler Contract**:
-- Lives in the **consuming** bounded context's Application layer, not the producing context
-- Each handler owns its own transaction; failures do not roll back the producing side
+**Domain Event Handler Contract**:
+- Lives in the **same bounded context** as the Domain Event producer, usually in the Application layer
+- Handles repeated same-BC reactions to a domain fact after the aggregate is saved and events are drained
+- Each handler owns its own transaction; failures do not roll back the producing command
 - Error handling: log and continue, retry, or route to adapter-specific failure handling; never propagate handler execution errors back to the Domain Event producer
 - Write handlers so repeated execution is harmless when practical: prefer set/update operations, deterministic business keys, and guards on externally visible side effects
+
+**Integration Message Subscriber Contract**:
+- Lives in the consuming bounded context's Application layer
+- Handles stable cross-context Integration Message payloads, never another context's internal Domain Event type
+- Owns idempotency and transaction boundaries for the consuming context
 
 **Query Handler: When the Class Is Optional**:
 
@@ -551,13 +629,6 @@ export type ChangePasswordCommand = {
   oldPassword: string;
   newPassword: string;
 };
-```
-
-```ts
-// application/unit-of-work.ts
-export interface UnitOfWork {
-  runInTransaction<T>(work: () => Promise<T>): Promise<T>;
-}
 ```
 
 ```ts
@@ -581,17 +652,17 @@ import type { EventBus } from "../../../shared/event-bus/event-bus";
 import { UserNotFoundError } from "../../domain/errors";
 import type { UserRepository } from "../../domain/repository";
 import type { ChangePasswordCommand } from "../commands/change-password.command";
-import type { UnitOfWork } from "../unit-of-work";
+import type { TransactionRunner } from "../../../shared/tx/transaction-runner";
 
 export class ChangePasswordHandler {
   constructor(
     private readonly repo: UserRepository,
-    private readonly uow: UnitOfWork,
+    private readonly tx: TransactionRunner,
     private readonly eventBus: EventBus,
   ) {}
 
   async handle(command: ChangePasswordCommand): Promise<void> {
-    const events = await this.uow.runInTransaction(async () => {
+    const events = await this.tx.runInTransaction(async () => {
       const user = await this.repo.get(command.userId);
       if (!user) {
         throw new UserNotFoundError(command.userId);
@@ -1008,15 +1079,15 @@ import { ChangePasswordHandler } from "./modules/user/application/handlers/chang
 import { userRoutes } from "./modules/user/interfaces/http/user.routes";
 import { createDb } from "./shared/db/create-db";
 import { InMemoryEventBus } from "./shared/event-bus/event-bus";
-import { KyselyUnitOfWork } from "./shared/tx/kysely-unit-of-work";
+import { KyselyTransactionRunner } from "./shared/tx/kysely-transaction-runner";
 
 async function main(): Promise<void> {
   const app = Fastify();
   const db = createDb();
   const eventBus = new InMemoryEventBus();
-  const uow = new KyselyUnitOfWork(db);
+  const tx = new KyselyTransactionRunner(db);
   const userRepository = new KyselyUserRepository(db);
-  const changePassword = new ChangePasswordHandler(userRepository, uow, eventBus);
+  const changePassword = new ChangePasswordHandler(userRepository, tx, eventBus);
 
   await app.register(userRoutes(changePassword));
   await app.listen({ port: 8080, host: "0.0.0.0" });
@@ -1046,7 +1117,7 @@ Guidelines:
 8. **Disciplined cross-context communication** — Integration Messages (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port — *not* another context's internal `UserQueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; Integration Message payloads carry the ID plus minimum necessary facts
 9. **Event collection** — aggregates collect events in a private array; Application calls `collectEvents()` after successful `save()` to drain and dispatch
 10. **CQRS** — Commands go through the Domain model; product/application Queries go through consumer-specific QueryRepository/reader ports and return DTO `type`s. Routing/topology lookup is not a CQRS query port
-11. **Transaction boundary** — one Command Handler owns one transaction (typically via `UnitOfWork.runInTransaction`); one transaction modifies one aggregate only
+11. **Transaction boundary** — one Command Handler owns one transaction (typically via a shared/infrastructure `TransactionRunner`, not an Application semantic port); one transaction modifies one aggregate only
 12. **Repository collection semantics** — `save()` is the single method covering create, update, and state-driven soft delete; `version === 0` → INSERT, `version > 0` → version-guarded UPDATE; never split into `insert()` / `update()` / `delete()` by SQL operation
 13. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
 14. **Optimistic locking** — Infrastructure increments `version` via `SET version = version + 1 WHERE version = ?`; Domain holds `version` as a read-only token; always reload via `repo.get()` after `save()` before further operations
