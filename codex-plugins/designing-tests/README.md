@@ -1,6 +1,6 @@
 # designing-tests (Codex)
 
-Risk-driven test design guidance.
+Risk-driven test design guidance, including architecture-aware test design, integration-test quality standards, and hand-off gates for verification evidence, skipped tests, and residual risk.
 
 ## Installation
 
@@ -33,9 +33,9 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 
 ## Capabilities
 
-- **SessionStart hook** — injects execution-tier test design principles (intent-first, intent comments, boundary selection, quality labels, layer selection) plus 4 reference file indexes
+- **SessionStart hook** — injects execution-tier test design principles (intent-first, intent comments, architecture docs, boundary selection, integration escalation, quality labels, hand-off gate) plus reference file indexes
 - **`designing-tests` skill** — full guidance on demand via `$designing-tests:designing-tests`
-- 4 references (read on demand): layer-selection, risk-catalog, test-case-patterns, test-quality-review
+- 7 references (read on demand): architecture-test-design, handoff-gate, integration-quality, layer-selection, risk-catalog, test-case-patterns, test-quality-review
 
 ## Known Codex protocol gap (vs Claude Code)
 
@@ -44,4 +44,4 @@ Claude Code's PreToolUse:Skill hook intercepts the 4 trigger skills with three d
 - **execution tier** for `executing-plans` / `subagent-driven-development` (condensed principles)
 - **full tier** for `test-driven-development` (entire SKILL.md + reference index)
 
-Codex does not expose native skill invocation as a hookable tool or event, so all three tiers collapse into the SessionStart primer (always-present execution tier + reference index). The full SKILL.md is not auto-injected — it loads on demand when the agent invokes `$designing-tests:designing-tests`.
+Codex does not expose native skill invocation as a hookable tool event, so all three tiers collapse into one compact primer. The primer is injected at SessionStart and when the user explicitly mentions relevant `$superpowers:*` workflow skills through UserPromptSubmit. Agent-self-decided skill invocation is still not hookable; the full SKILL.md loads on demand when the agent invokes `$designing-tests:designing-tests`.

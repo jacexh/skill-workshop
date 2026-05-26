@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-21
+last_updated: 2026-05-26
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -41,3 +41,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Capability-Lifecycle Port** — Application/Domain Port whose boundary encloses one stable semantic capability's full lifecycle (observe / mutate / publish / transfer / retire / release); inward-defined Ports default to extension over forking. → `plugins/superpowers-architect/design-patterns/ddd-modeling.md` §0.2.1-§0.2.2
 
 **Playbook** — Reusable procedural recipe for a recurring class of code change; indexed in `playbooks.md`, detailed in `playbooks/<slug>.md`. Created only when ≥2 concrete instances exist (or an explicit spec/plan directive). → `plugins/superpowers-memory/content-rules.md`
+
+**Architecture Test Design** — Designing-tests reference workflow that turns architecture docs, ADRs, message flows, and sequence diagrams into goal coverage, state ownership, quality-threshold, and residual-risk test evidence. → `plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md`
+
+**Test Hand-off Gate** — Designing-tests verification record for real/shallow/fake labels, skipped/unrun risk, residual risk, and architecture claim evidence before completion or review claims. → `plugins/designing-tests/skills/designing-tests/references/handoff-gate.md`

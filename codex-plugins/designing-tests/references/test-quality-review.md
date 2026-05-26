@@ -8,7 +8,8 @@ For each existing test:
 2. label it `real`, `shallow`, or `fake`
 3. state why
 4. state which regression could still slip through
-5. recommend the smallest rewrite or addition that would make protection real
+5. state whether skipped/flaky/environment-gated tests count as evidence for the current hand-off
+6. recommend the smallest rewrite or addition that would make protection real
 
 ## Common Reasons
 
@@ -18,6 +19,8 @@ For each existing test:
 - asserts a large object shape without asserting the important contract
 - verifies setup details more than behavior
 - duplicates lower-level coverage without adding a new failure mode
+- claims integration coverage while mocking the internal collaborator that carries the risk
+- self-skips unless local services, credentials, or env vars exist and the skip is not reported as residual risk
 
 ### Fake
 
@@ -25,6 +28,7 @@ For each existing test:
 - mocks the unit under test
 - mocks internal collaborators so heavily that the risky path is skipped
 - proves only language or framework behavior
+- tests the fake, stub, fixture builder, or generated type placeholder instead of production behavior
 
 ## Good Review Output
 
@@ -33,3 +37,4 @@ Report:
 1. which tests are real, shallow, or fake
 2. which critical branches, side effects, or seams are still uncovered
 3. the next highest-value tests to add
+4. whether the suite is hand-off grade, using the rubric in [handoff-gate.md](handoff-gate.md)
