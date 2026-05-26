@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.12.28"
+    "version": "1.12.29"
   },
   "plugins": [
     {
@@ -44,7 +44,7 @@
       "name": "designing-tests",
       "source": "./plugins/designing-tests",
       "description": "Risk-driven test design from architecture docs, sequence diagrams, and hand-off evidence gates",
-      "version": "1.6.0",
+      "version": "1.12.29",
       "author": {
         "name": "xuhao"
       },
