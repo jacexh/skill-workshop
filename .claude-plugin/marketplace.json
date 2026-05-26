@@ -43,7 +43,7 @@
     {
       "name": "designing-tests",
       "source": "./plugins/designing-tests",
-      "description": "Risk-driven test design guidance for choosing the right boundary, coverage, and regression-protective test cases",
+      "description": "Risk-driven test design from architecture docs, sequence diagrams, and hand-off evidence gates",
       "version": "1.6.0",
       "author": {
         "name": "xuhao"

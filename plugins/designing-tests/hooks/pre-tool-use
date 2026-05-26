@@ -22,6 +22,12 @@ case "$skill_name" in
     superpowers:test-driven-development)
         tier="full"
         ;;
+    superpowers:verification-before-completion|\
+    superpowers:requesting-code-review|\
+    superpowers:receiving-code-review|\
+    superpowers:finishing-a-development-branch)
+        tier="handoff"
+        ;;
     *)
         printf '{}\n'
         exit 0
@@ -39,7 +45,10 @@ When implementation involves code changes, include test-driven development steps
 1. Require invoking superpowers:test-driven-development for each component that needs tests.
 2. Test steps BEFORE implementation steps — write tests first, implement second.
 3. Each test step should specify: what intent to verify, which boundary (unit/integration/E2E).
-Plans for code changes without a test strategy are incomplete.
+4. If requirements include architecture docs, ADRs, message flows, or sequence diagrams, add an architecture test design step: extract design goals, hotspots, and sequence phases before listing tests.
+5. Escalate to integration/seam/contract/E2E when the risk depends on real storage, serialization, middleware, broker behavior, generated clients, or deployment-like configuration.
+6. Add a hand-off verification step: test labels, commands run, skipped tests, and residual risk.
+Plans for code changes without a test strategy and hand-off gate are incomplete.
 ======================================"
 
     context_json=$(node -e "console.log(JSON.stringify(process.argv[1]))" "$context" 2>/dev/null || echo '""')
@@ -56,19 +65,45 @@ When executing steps that involve writing tests, follow these rules:
 
 2. TEST LIST BEFORE CODE: Before writing any test code, list each planned test case: <what to test> -> <expected outcome>. Apply equivalence partitioning for ranges, boundary value analysis for limits, decision tables for multi-condition logic.
 
-3. INTENT COMMENTS: Every test MUST have a comment above it explaining what regression it protects, in the language of the test file.
+3. ARCHITECTURE DOCS: If the source is an architecture doc, ADR, message flow, or sequence diagram, first extract architecture design goals, hotspots, and a sequence phase matrix. Tests should verify the design goals, not mechanically cover every arrow.
 
-4. BOUNDARY SELECTION: Pick the lowest layer that catches the real bug. Do not duplicate the same check across unit/integration/E2E.
+4. INTENT COMMENTS: Every test MUST have a comment above it explaining what regression it protects, in the language of the test file.
 
-5. QUALITY CHECK: A test is 'real' only if it would fail when intended behavior regresses. Tests that only check trivial shape/status are 'shallow'. Tests that reimplement business logic in assertions are 'fake'.
+5. BOUNDARY SELECTION: Pick the lowest layer that catches the real bug. Do not duplicate the same check across unit/integration/E2E.
 
-6. MINIMUM COVERAGE: One success path + one meaningful failure path + one edge/boundary path. Expand only when risk justifies it.
+6. ESCALATE WHEN NEEDED: If the regression depends on real storage, migrations, middleware, serialization, generated clients, broker/queue behavior, auth wiring, or deployment-like config, unit tests are not enough. Add the narrowest integration, seam, contract, or E2E test that fails the same way production would fail.
+
+7. QUALITY CHECK: A test is 'real' only if it would fail when intended behavior regresses. Tests that only check trivial shape/status are 'shallow'. Tests that reimplement business logic in assertions are 'fake'. An integration test that mocks the risky internal collaborator is not real for that risk.
+
+8. MINIMUM COVERAGE: One success path + one meaningful failure path + one edge/boundary path. Expand only when risk justifies it.
+
+9. HAND-OFF GATE: Before claiming completion, report what was tested, commands run, skipped/unavailable tests, and residual risk. Skipped integration/E2E tests do not count as verification evidence.
 
 For full test design guidance, invoke the designing-tests:designing-tests skill.
 ================================================="
 
     context_json=$(node -e "console.log(JSON.stringify(process.argv[1]))" "$context" 2>/dev/null || echo '""')
     sys_msg='"Test Design: injected execution guidance"'
+fi
+
+# --- Tier: handoff ---
+# Evidence gate for completion/review/branch-finish moments.
+if [ "$tier" = "handoff" ]; then
+    context="====== Test Design: HAND-OFF GATE ======
+Before claiming behavior is complete, fixed, reviewed, or ready to hand off:
+
+1. Report the test evidence by label: real / shallow / fake.
+2. State which regression each real test protects.
+3. Report exact commands run and their result.
+4. Name skipped/unavailable/flaky/unrun tests and the residual risk they leave.
+5. Do not count skipped integration/E2E tests as verification evidence.
+6. If an integration test mocks the risky internal collaborator, it is not real for that risk.
+
+For the full rubric, invoke designing-tests:designing-tests and read references/handoff-gate.md.
+======================================"
+
+    context_json=$(node -e "console.log(JSON.stringify(process.argv[1]))" "$context" 2>/dev/null || echo '""')
+    sys_msg='"Test Design: injected hand-off evidence gate"'
 fi
 
 # --- Tier: full ---

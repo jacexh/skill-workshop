@@ -12,11 +12,16 @@ Use this list to find the few tests that are most likely to prevent real inciden
 - retries, partial failures, and compensating behavior
 - schema drift and serialization mismatches
 - ordering sensitivity in async flows
+- API, message, generated client, route, or topic contract drift
+- transaction, migration, optimistic-lock, uniqueness, and durable-state drift
+- auth middleware, resource ownership, and tenant isolation wiring
 - cache consistency and stale reads
 - time windows, expiry, timezone, and clock skew
 - money, rounding, and precision loss
 - idempotency and deduplication
 - redaction and sensitive field leakage
+- environment/config drift: feature flags, connection pools, timeouts, startup, shutdown
+- observability regressions: missing logs, metrics, traces, correlation ids, or audit records
 
 ## Prioritization Rule
 

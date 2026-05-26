@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-20
+last_updated: 2026-05-26
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
@@ -136,13 +136,13 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 #### Test Design Skill
 
-**Enables** — Agents can design tests from intent before implementation, including test lists, intent comments, boundary selection, and quality labels.
+**Enables** — Agents can design tests from intent, architecture docs, ADRs, message flows, and sequence diagrams before implementation or hand-off.
 
-**Actors / Entry Points** — `designing-tests` skill and reference files for layer selection, risk catalog, test-case patterns, and test-quality review.
+**Actors / Entry Points** — `designing-tests` skill, Claude `PreToolUse` guidance, Codex SessionStart/UserPromptSubmit guidance, and references for architecture-test design, integration quality, hand-off gates, layer selection, risk catalog, test-case patterns, and test-quality review.
 
-**Capability Boundary** — Claude has tiered PreToolUse injection; Codex uses SessionStart guidance and the full skill on demand.
+**Capability Boundary** — The skill turns architecture goals into reviewable test evidence through goal coverage matrices, state-ownership gates, quality-threshold assumptions, real/shallow/fake labels, and skipped/unrun residual-risk reporting. Claude uses tiered PreToolUse injection for planning/execution/TDD/hand-off skills; Codex uses SessionStart plus explicit `$superpowers:*` UserPromptSubmit routing and the full skill on demand.
 
-**References** — `plugins/designing-tests/`, `codex-plugins/designing-tests/`, ADR-013.
+**References** — `plugins/designing-tests/`, `codex-plugins/designing-tests/`, `scripts/release/test/test_designing_tests_runtime.sh`, ADR-013, ADR-014.
 
 #### Native Codex Hooks
 
@@ -182,7 +182,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `scripts/release/test/run-tests.sh` and fixture directories under `plugins/superpowers-memory/hooks/fixtures/`.
 
-**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; Codex manifest tests guard canonical hook feature-flag docs and command hook metadata, while memory verify covers canonical PreToolUse deny behavior. They do not replace full host-runtime acceptance testing.
+**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; Codex manifest tests guard canonical hook feature-flag docs and command hook metadata, designing-tests runtime tests guard hand-off/architecture guidance injection, while memory verify covers canonical PreToolUse deny behavior. They do not replace full host-runtime acceptance testing.
 
 **References** — `scripts/release/test/`; `plugins/superpowers-memory/hooks/fixtures/README.md`.
 
