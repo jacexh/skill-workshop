@@ -1,10 +1,15 @@
 ---
-last_updated: 2026-05-20
+last_updated: 2026-05-27
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
 
 # Decisions
+
+## ADR-016: Progressive KB layout and playbook removal
+**Decision:** Remove the `playbooks.md` lazy slot from superpowers-memory and replace non-index line/token constraints with advisory `retrievalCost` plus vertical `<slot>-<domain>.md` shard support. `index.md` remains the only strict hot-path size constraint because it is injected at SessionStart.
+**Trade-off:** Large projects may produce more KB files and require better index routing. Accepted because preserving valid knowledge is more important than satisfying global caps, and playbooks had no observed practical value.
+→ [adr/ADR-016-progressive-kb-layout.md](adr/ADR-016-progressive-kb-layout.md)
 
 ## ADR-015: DDD agent contract and Go runtime split as standalone pattern files
 **Decision:** Add `ddd-agent-contract.md` (agent execution behavior: trigger conditions, task classification, stop protocol, 16 must-not rules including dependency-inversion-only Application-port rejection, routing/topology Application-port rejection, and canonical Go component-library usage, dual-track self-check, compact output template) and `ddd-golang-runtime.md` (Go config + fx.Lifecycle + graceful shutdown + Kubernetes) as siblings under `design-patterns/` on both Claude and Codex tracks. `ddd-golang.md` shrinks to layer/aggregate/event content with a stub linking into the runtime guide. Promotion of the contract to a standalone skill is deferred with explicit re-evaluation criteria.

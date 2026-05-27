@@ -29,8 +29,9 @@ covers_branch: <branch>@<short-sha>
 - [glossary.md](glossary.md) — Domain terminology (Ubiquitous Language)
   Key points: [1-2 facts. Good: "12 domain terms across 4 contexts"]
 
-<!-- Include the next line ONLY if `playbooks.md` exists in the KB (lazy slot).
-     Omit entirely otherwise — do NOT leave a placeholder. -->
+<!-- Include split shard files ONLY when they exist and help route retrieval.
+     Use stable slot-domain names, e.g. architecture-runtime.md,
+     features-admin.md, conventions-testing.md. Omit placeholders. -->
 
-- [playbooks.md](playbooks.md) — Code-change recipes (procedural)
-  Key points: [1-2 facts. Good: "5 playbooks: add endpoint, add migration, add service, …"]
+- [architecture-<domain>.md](architecture-<domain>.md) — Focused architecture detail
+  Key points: [1-2 facts that distinguish when to load this shard]

@@ -1,6 +1,6 @@
 # Content Rules
 
-Shared rules for `rebuild` and `update` skills. Single source of truth for content generation, ownership, format, and size governance.
+Shared rules for `rebuild` and `update` skills. Single source of truth for content generation, ownership, format, and retrieval governance.
 
 ## Language
 
@@ -8,7 +8,7 @@ Generate content in the same language as the project's existing documentation (R
 
 ## Meta-Rule: Slots vs Topics
 
-KB schema defines **slots** (file names, structural sections, ownership of fact types). It does NOT define **content topics** (which specific concerns, services, terms, or playbooks a given project must cover).
+KB schema defines **slots** (file names, structural sections, ownership of fact types). It does NOT define **content topics** (which specific concerns, services, or terms a given project must cover).
 
 Any concrete list inside a slot definition (e.g., "auth / logging / tracing" as cross-cutting concerns; "ports / timeouts" as implementation constants) is an **example**, not a contract. Per-project content is discovered by reading the codebase.
 
@@ -34,10 +34,38 @@ Every fact in the KB has exactly one owner file. Other files reference the owner
 | Dependency version + selection rationale | `tech-stack.md` | "see tech-stack.md" |
 | Coding, workflow, CI rules | `conventions.md` | "see conventions.md §<section>" |
 | Domain term definitions | `glossary.md` | "see glossary" |
-| **Procedural recipe** (ordered steps for a recurring class of code change) | `playbooks.md` (index) + `playbooks/<slug>.md` (detail) | "see playbooks/<slug>.md" |
 | Delivery timeline (what shipped when) | `docs/superpowers/plans/<date>-*.md` | plan filename only — do NOT inline changelog in KB |
 
 **Rule:** any claim ≥3 lines appearing in 2+ KB files MUST move to its owner, and the other files get a pointer (≤1 line).
+
+## Progressive Knowledge Layout
+
+`index.md` is the only always-injected hot-path file. Keep it small and scannable. All other KB files are storage and retrieval targets: valid knowledge MUST NOT be deleted merely to satisfy a line count or token estimate.
+
+Each canonical file is an **entry file**, not a capacity ceiling:
+
+- `architecture.md`
+- `features.md`
+- `conventions.md`
+- `tech-stack.md`
+- `decisions.md`
+- `glossary.md`
+
+For large or complex projects, any entry file except `index.md` may be split into sibling shard files named `<slot>-<domain>.md`, for example:
+
+- `architecture-runtime.md`
+- `architecture-billing.md`
+- `features-admin.md`
+- `conventions-testing.md`
+- `tech-stack-frontend.md`
+- `decisions-platform.md`
+- `glossary-claims.md`
+
+Split by stable domain, bounded context, submodule, platform capability, deploy unit, or workflow boundary. Do NOT split by arbitrary pagination (`architecture-1.md`, `architecture-2.md`) or only because a number is high.
+
+Entry files should keep a short overview plus links to shards. Shards own their detailed content and follow the same per-file rules as their parent slot. `index.md` should list important shards with 1-2 key points so agents can load only the relevant file.
+
+When `verify` reports high retrieval cost or split candidates, treat it as an advisory. The correct response is to improve routing, split by stable boundaries, remove duplicates, or fix shape violations — not to delete valid current project knowledge.
 
 ## Per-File Format Rules
 
@@ -215,7 +243,7 @@ superseded_by: ADR-MMM  # omit if status=Accepted
 [Operational effects now in force. Do NOT list forward-looking "X will need Y" work — that belongs in plan files.]
 ```
 
-**Per-ADR-detail size guard:** each detail file should fit in a single browser-page read (~100 lines / ~2500 tokens). Beyond that, the decision probably mixes multiple ADRs.
+**Per-ADR-detail shape check:** each detail file should be readable in one focused pass. If it grows large because it mixes unrelated decisions, split the ADR. If it is large because one decision genuinely has substantial context, keep the information and make the summary/index routing clearer.
 
 ### Migration from pre-1.8 format
 
@@ -224,7 +252,7 @@ If `decisions.md` still holds full-format ADRs (pre-v1.8 single-file structure):
 1. For each ADR, extract the `## ADR-NNN:` block to `adr/ADR-NNN-<slug>.md` (create directory if missing).
 2. Reduce the entry in `decisions.md` to the 4-line summary format above.
 3. For superseded ADRs, collapse to the 1-line supersede format; keep the detail file with `superseded_by:` in frontmatter.
-4. Re-run `verify` — `decisions.md` size should drop under threshold and `adr/` files are outside the token budget.
+4. Re-run `verify` — `decisions.md` should contain only summaries, and `adr/` files remain on-demand detail.
 
 The `update` skill detects v1 format and offers interactive migration.
 
@@ -246,91 +274,11 @@ The `update` skill detects v1 format and offers interactive migration.
 - Do NOT duplicate general design-pattern rules (DDD, Clean Architecture, etc.) — reference the pattern doc.
 - **Cross-cutting concerns section (required, may be N/A):** include a `## Cross-cutting concerns` section that indexes rules applying across most code paths in the project. Format per concern: `**<topic>:** <one-line rule> → \`<canonical impl path>\``. Topics are **discovered per project** — not a fixed list. Typical discovery cues: middlewares/decorators imported across many files; utility modules with broad fan-in; CI-enforced cross-file checks; framework hooks wired globally. Common topic names when present include auth, logging, tracing, error handling, config, observability, persistence, caching, rate limiting, i18n — but only list what the project actually has. If the project has no cross-cutting concerns (pure library, plugin/skill repo, docs site), write `N/A: <reason>` as the sole content under the heading.
 
-### playbooks.md — procedural recipes (index)
-
-Carries an **index of reusable code-change recipes**. Indexed at SessionStart via `index.md`; the file itself is loaded by `superpowers-memory:load` or `Read` when an agent recognizes its task may match a recipe. Detail files (`playbooks/<slug>.md`) are loaded on demand via `Read`.
-
-**A playbook is** a procedural recipe — an ordered sequence of code-change steps that a contributor (human or agent) follows when doing a specific class of recurring change. Typical examples (illustrative, not a contract): "add a new HTTP endpoint", "add a new database migration", "add a new service to the monorepo", "promote a feature flag to default-on", "add a new ADR", "bump a codegen-bearing dependency".
-
-**3-gate creation rule — all three must hold** to write a playbook:
-
-1. **Recurrence.** The same class of change has occurred **≥2 times** in the project (concrete instances, not anticipated ones), **OR** a spec/plan carries an explicit directive that this should become a reusable recipe (e.g., "next time we do X, follow these steps"). Forward-looking intuition alone ("this will probably happen again") fails this gate.
-2. **Multi-step cross-file.** The recipe spans **≥3 cross-file or cross-module actions**. Single-file edits don't warrant a playbook.
-3. **Non-obvious.** The steps are not derivable by reading the affected code in isolation (would a fresh contributor stumble? if no, no playbook needed).
-
-Fails any gate → not a playbook. Route as:
-
-| What you have | Goes to |
-|--------------|---------|
-| One-off change for a specific feature | spec/plan under `docs/superpowers/` |
-| Single-rule constraint ("must X / must not Y") | `conventions.md` |
-| Rationale for why this approach exists | `decisions.md` / `adr/` |
-| Live-system operation (incident, deploy, on-call) | runbook under `docs/runbooks/` (NOT KB) |
-| Architecture/concept explanation | `architecture.md` |
-
-**Boundary with neighbors:**
-
-- **vs convention:** convention is declarative (rule any change must satisfy); playbook is procedural (steps to follow). They often pair — convention sets the rule, playbook teaches how to satisfy it.
-- **vs ADR:** ADR explains WHY a decision was made; playbook executes the CONSEQUENCE. Playbook entries typically reference the relevant ADR in their `References` section.
-- **vs spec/plan:** spec/plan is one-shot (specific change); playbook is reusable (a class of change). Judgment test: "Will this be done a second time?" Yes → playbook.
-- **vs runbook:** runbook targets a running system (incident, deploy, on-call); playbook targets development-time code changes.
-
-**Index format (per playbook in `playbooks.md`):**
-
-```
-- [<Verb-led title>](playbooks/<slug>.md) — When: <one-line trigger condition>
-```
-
-The `When:` clause must be scannable — a code agent at SessionStart matches its current task against the trigger without opening the detail file.
-
-**Size cap:** `playbooks.md` ≤200 lines. Detail files are NOT counted toward this cap; they're loaded on demand.
-
-**Lazy slot:** if the project has no recurring change classes that pass the 3-gate rule, `playbooks.md` may be omitted entirely. Do not create an empty index just to satisfy the schema.
-
-**Discovery cue (for rebuild):** scan `docs/superpowers/specs/` and `docs/superpowers/plans/` for clusters of files describing the same class of change (e.g., multiple `*service-split*` or `*add-*-endpoint*` files); scan `conventions.md` for existing step-style entries that should be promoted; scan `README.md` for "how to add X" sections. Each cluster is a candidate that must pass the 3-gate rule before being written.
-
-### playbooks/<slug>.md — playbook detail (on-demand load)
-
-One file per playbook. Not referenced by `index.md` — fetched by `Read` when a contributor recognizes the playbook applies to their current task.
-
-**Format:**
-
-```
----
-playbook: <slug>
-title: <Verb-led title>
-last_updated: YYYY-MM-DD
----
-
-# <Verb-led title>
-
-**When:** <one-line trigger condition — identical to the index entry>
-**Why this exists:** <optional — link to the ADR or convention that motivates the recipe>
-
-## Preconditions
-- <fact that must be true before starting, e.g., "branch off main">
-
-## Steps
-1. <file/function-granularity action with concrete path>
-2. ...
-
-## Verification
-- <how to confirm it worked: which test, which log, which command output>
-
-## Pitfalls
-- <known traps, e.g., "remember the reverse migration">
-
-## References
-- adr/ADR-NNN-<slug>.md
-- related playbooks: [<title>](<slug>.md)
-```
-
-**Per-playbook size guard:** each detail file should fit a single browser-page read (~100 lines / ~2500 tokens). Beyond that, the playbook is probably two playbooks fused together — split.
-
 ### index.md
 
 - ≤50 lines total.
-- Each file: 1-line description + "Key points:" with 1–2 decision-relevant facts that help Claude decide whether to load the file in full.
+- Each file or shard: 1-line description + "Key points:" with 1–2 decision-relevant facts that help the agent decide whether to load it in full.
+- Include split shard files when they exist. Do not list omitted or legacy files.
 
 ## Exclusion List (applies to all files)
 
@@ -349,42 +297,44 @@ last_updated: YYYY-MM-DD
 - [ ] Does the entry fit the per-file format rule for its owner file?
 - [ ] Is the same fact already captured in its owner (per Ownership Matrix) — if so, use a pointer instead?
 
-## Size Guard
+## Retrieval Cost And Split Guidance
 
-Per-file line thresholds (enforced by `verify sizeWarnings` — warn-only, does not block commits):
+`index.md` is the only file with a strict line threshold because it is injected at SessionStart. Keep it ≤50 lines. If it exceeds that, `verify` reports `index_too_large` as a shape violation.
 
-| File | Warning threshold |
-|------|------------------|
-| architecture.md | 300 |
-| conventions.md | 180 |
-| decisions.md | 300 |
-| tech-stack.md | 120 |
-| features.md | 400 |
-| glossary.md | 120 |
-| playbooks.md | 200 |
-| index.md | 50 |
+All other KB files and shards are storage/read-on-demand artifacts. They do not have hard line caps, and retrieval-cost output does not affect `verify.ok`.
 
-`adr/ADR-NNN-*.md` and `playbooks/<slug>.md` files are NOT aggregated into a threshold — each is judged individually against its per-detail guard (~100 lines). They do not count toward `decisions.md`'s or `playbooks.md`'s line count.
+`verify` may report:
 
-Exceeding threshold → warning in `verify` output + compression suggestion. Commits are NOT blocked; user retains control over whether to compress or accept. `committable` reflects git state only (rebase/merge/detached-HEAD checks).
+- `retrievalCost` — estimated bytes/tokens for recognized top-level KB files and shards. Advisory only.
+- `splitCandidates` — large non-index files that may be easier to use if split by stable domain or submodule. Advisory only.
+- `sizeWarnings` — hot-path `index.md` size warnings only.
+
+When a non-index file becomes large, decide whether the content is valid:
+
+- Valid, cohesive, and useful → keep it.
+- Valid but mixes several stable domains/submodules → split to `<slot>-<domain>.md` and link from the entry file plus `index.md`.
+- Duplicated or wrong-owner facts → move to the owner file and replace duplicates with pointers.
+- Changelog, commit SHAs, test counts, method signatures, enum catalogs, or single-module implementation detail → fix the shape violation.
+
+Never delete still-valid project knowledge solely to satisfy a line count or token estimate.
 
 ## Verify Coverage
 
 `verify` is the executable guardrail for this rule file. It reports:
 
 - `staleRefs` — backtick path references that no longer exist.
-- `shapeViolations` — feature field/density issues, glossary width/length issues, method signatures, legacy inline ADRs, ADR summary/detail mismatches, and playbook index/detail problems.
+- `shapeViolations` — feature field/density issues, glossary width/length issues, method signatures, legacy inline ADRs, ADR summary/detail mismatches, and oversized `index.md`.
 - `readinessWarnings` — implemented capabilities that reference scaffolded/not-implemented code without Capability Boundary calibration.
 - `ssotViolations` — near-duplicate multi-line facts across owner files.
-- `sizeWarnings` — canonical file line thresholds.
-- `tokenBudgetViolation` — aggregate eager-load token budget overflow.
+- `sizeWarnings` — hot-path `index.md` line threshold only.
+- `retrievalCost` — advisory estimated retrieval cost for recognized KB entry files and shards.
+- `splitCandidates` — advisory list of large non-index files that may deserve vertical splitting.
 
-## Total Token Budget
+## Retrieval Cost
 
-Per-file caps don't compose. Aggregate check: sum of the canonical KB index files (`architecture.md`, `tech-stack.md`, `features.md`, `conventions.md`, `decisions.md`, `glossary.md`, `playbooks.md` if present) bytes / 4 ≈ tokens. `adr/` and `playbooks/` detail files are excluded — they load on demand, not at session start.
+`verify` estimates retrieval cost as bytes / 4 ≈ tokens for recognized top-level KB files and shards: `architecture*.md`, `features*.md`, `conventions*.md`, `tech-stack*.md`, `decisions*.md`, `glossary*.md`, and `index.md`.
 
-- **Default budget: 30,000 tokens** (approx what a full `load` would inject; ~3% of 1M context).
-- Exceed → warning in `verify` output with per-file breakdown. Warn-only; does not block commits.
+This is an observability metric, not a budget. High retrieval cost should lead to better routing and vertical splitting, not information loss.
 
 ## Quality
 
@@ -393,15 +343,15 @@ Per-file caps don't compose. Aggregate check: sum of the canonical KB index file
 - Structured (follow per-file format rule).
 - Linked (file paths, spec files, plan files, ADR numbers).
 
-## Compression Suggestions
+## Split And Shape Suggestions
 
-When size guard / content-shape warnings fire, suggest specific compression actions:
+When retrieval-cost advisories or content-shape warnings fire, suggest specific actions:
 
-- `decisions.md` over cap → (1) run every ADR through the 3-criteria granularity gate — downgrade tool/library picks to `tech-stack.md`, convention-shaped rules to `conventions.md`; (2) collapse superseded ADRs to 1-line supersede format; (3) move any remaining rationale detail from `decisions.md` into `adr/ADR-NNN-*.md` so the summary file carries only 4-6 lines per ADR.
-- `features.md` over cap → strip changelog blocks, commit SHAs, test counts; merge redundant capability groups; keep fixed fields short; move wiring/flow detail to `architecture.md` and rationale to ADRs. Do not delete still-valid PRD/spec product capabilities merely to satisfy the line cap.
-- `glossary.md` over cap → compress each entry to ≤2 lines; move context to owner file per Matrix.
-- `architecture.md` over cap → remove implementation details; keep module-level wiring only.
-- `conventions.md` over cap → remove rules already enforced by formatter/linter; remove rules duplicated from design patterns.
-- `tech-stack.md` over cap → remove transitive deps; compress to top 5–10.
+- `decisions.md` large → (1) run every ADR through the 3-criteria granularity gate — downgrade tool/library picks to `tech-stack.md`, convention-shaped rules to `conventions.md`; (2) collapse superseded ADRs to 1-line supersede format; (3) move any remaining rationale detail from `decisions.md` into `adr/ADR-NNN-*.md` so the summary file carries only 4-6 lines per ADR.
+- `features.md` large → strip changelog blocks, commit SHAs, and test counts; merge redundant capability groups; move wiring/flow detail to `architecture.md` and rationale to ADRs. If valid product capabilities remain large, split by stable product domain rather than deleting capabilities.
+- `glossary.md` large → compress each entry to ≤2 lines; move context to owner file per Matrix.
+- `architecture.md` large → remove implementation details and duplicate capability prose; if the remaining diagrams/flows are valid, split by bounded context, runtime subsystem, or cross-module flow family.
+- `conventions.md` large → remove rules already enforced by formatter/linter and rules duplicated from design patterns; split by stable practice area if needed.
+- `tech-stack.md` large → remove transitive deps; split by backend/frontend/runtime/tooling if a multi-stack project needs it.
 
-Do NOT auto-compress — always surface compression as a user decision.
+Do NOT auto-compress or delete valid knowledge — always surface split/shape decisions to the user.

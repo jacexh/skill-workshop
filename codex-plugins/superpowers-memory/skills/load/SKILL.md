@@ -37,6 +37,7 @@ Read the project knowledge base from `docs/project-knowledge/` and present a str
 
    **On-demand detail:**
    - State: "I can load any of these files in full if the current task requires it."
+   - Treat `index.md` as the routing table. If it lists split shard files such as `architecture-runtime.md`, `features-admin.md`, or `conventions-testing.md`, load the shard that matches the current task instead of loading every file in that slot.
    - Load specific files based on task context using this mapping:
      - Brainstorming a structural change or new module → `architecture.md`
      - Writing or evaluating an ADR → `decisions.md`
@@ -44,7 +45,7 @@ Read the project knowledge base from `docs/project-knowledge/` and present a str
      - Implementing a new feature or checking what's done → `features.md`
      - Setting up conventions, hooks, or workflow rules → `conventions.md`
      - Understanding domain terminology → `glossary.md` (skip if file does not exist — older knowledge bases may not have it)
-     - If the task spans multiple areas, load all relevant files before proceeding.
+     - If the task spans multiple areas, load all relevant entry files or shards before proceeding.
 
 ### Output Format (index.md present)
 

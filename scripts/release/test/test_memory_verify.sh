@@ -94,33 +94,68 @@ echo "$large_out" | jq -e '[.sizeWarnings[] | select(.file == "features.md" or .
 large_codex_out="$(cd "$large" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
 echo "$large_codex_out" | jq -e '[.sizeWarnings[] | select(.file == "features.md" or .file == "architecture.md")] | length == 0' >/dev/null
 
-# playbooks.md is a lazy slot — when absent, neither runtime should warn about it
-# nor fail verification. The pre-existing clean fixture has no playbooks.md, so a
-# clean verify must not mention it in sizeWarnings.
-echo "$clean_out" | jq -e '[.sizeWarnings[] | select(.file == "playbooks.md")] | length == 0' >/dev/null
-echo "$clean_codex_out" | jq -e '[.sizeWarnings[] | select(.file == "playbooks.md")] | length == 0' >/dev/null
-
-# When playbooks.md exists and exceeds the 200-line threshold, both runtimes must
-# emit a sizeWarning entry naming playbooks.md.
-oversized="$TMPDIR/oversized-playbooks"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$oversized"
+# Intent: legacy playbooks.md files should no longer be treated as a
+# canonical KB slot, so broken playbook links do not create verify failures.
+legacy_playbooks="$TMPDIR/legacy-playbooks"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$legacy_playbooks"
+mkdir -p "$legacy_playbooks/docs/project-knowledge/playbooks"
 {
   printf '%s\n' '---'
-  printf '%s\n' 'last_updated: 2026-05-13'
+  printf '%s\n' 'last_updated: 2026-05-27'
+  printf '%s\n' 'updated_by: legacy'
+  printf '%s\n' 'triggered_by_plan: null'
+  printf '%s\n' '---'
+  printf '\n# Playbooks\n\n'
+  printf '%s\n' '- [Missing legacy recipe](playbooks/missing.md) — When: old projects still carry this file.'
+} > "$legacy_playbooks/docs/project-knowledge/playbooks.md"
+
+legacy_out="$(cd "$legacy_playbooks" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$legacy_out" | jq -e '[.shapeViolations[] | select(.kind | startswith("playbook_"))] | length == 0' >/dev/null
+
+legacy_codex_out="$(cd "$legacy_playbooks" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$legacy_codex_out" | jq -e '[.shapeViolations[] | select(.kind | startswith("playbook_"))] | length == 0' >/dev/null
+
+# Intent: large non-index KB shards are valid storage and should be reported as
+# retrieval/split advisories without making verify fail.
+split="$TMPDIR/split-architecture"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$split"
+{
+  printf '%s\n' '---'
+  printf '%s\n' 'last_updated: 2026-05-27'
   printf '%s\n' 'updated_by: superpowers-memory:update'
   printf '%s\n' 'triggered_by_plan: null'
   printf '%s\n' '---'
-  printf '\n# Playbooks\n\n## Code-change recipes\n\n'
-  for i in $(seq 1 220); do
-    printf -- '- [Recipe %03d](playbooks/recipe-%03d.md) — When: scenario %03d occurs in the codebase.\n' "$i" "$i" "$i"
+  printf '\n# Runtime Architecture\n\n'
+  for i in $(seq 1 360); do
+    printf 'Runtime architecture sequence line %03d documents a valid cross-module flow.\n' "$i"
   done
-} > "$oversized/docs/project-knowledge/playbooks.md"
+} > "$split/docs/project-knowledge/architecture-runtime.md"
 
-oversized_out="$(cd "$oversized" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
-echo "$oversized_out" | jq -e '[.sizeWarnings[] | select(.file == "playbooks.md" and .lines > 200 and .threshold == 200)] | length == 1' >/dev/null
+split_out="$(cd "$split" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$split_out" | jq -e '.ok == true' >/dev/null
+echo "$split_out" | jq -e '.retrievalCost.perFile[] | select(.file == "architecture-runtime.md")' >/dev/null
+echo "$split_out" | jq -e '.splitCandidates[] | select(.file == "architecture-runtime.md")' >/dev/null
 
-oversized_codex_out="$(cd "$oversized" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
-echo "$oversized_codex_out" | jq -e '[.sizeWarnings[] | select(.file == "playbooks.md" and .lines > 200 and .threshold == 200)] | length == 1' >/dev/null
+split_codex_out="$(cd "$split" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$split_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$split_codex_out" | jq -e '.retrievalCost.perFile[] | select(.file == "architecture-runtime.md")' >/dev/null
+echo "$split_codex_out" | jq -e '.splitCandidates[] | select(.file == "architecture-runtime.md")' >/dev/null
+
+# Intent: index.md remains the only strict size-constrained hot-path file
+# because it is injected at session start.
+oversized_index="$TMPDIR/oversized-index"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$oversized_index"
+for i in $(seq 1 60); do
+  printf -- '- extra index route %03d\n' "$i" >> "$oversized_index/docs/project-knowledge/index.md"
+done
+
+oversized_index_out="$(cd "$oversized_index" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$oversized_index_out" | jq -e '.ok == false' >/dev/null
+echo "$oversized_index_out" | jq -e '.shapeViolations[] | select(.file == "index.md" and .kind == "index_too_large")' >/dev/null
+
+oversized_index_codex_out="$(cd "$oversized_index" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$oversized_index_codex_out" | jq -e '.ok == false' >/dev/null
+echo "$oversized_index_codex_out" | jq -e '.shapeViolations[] | select(.file == "index.md" and .kind == "index_too_large")' >/dev/null
 
 out="$(cd "$missing" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$out" | jq -e '.shapeViolations[] | select(.kind == "feature_missing_field")' >/dev/null
@@ -163,11 +198,6 @@ assert_verify_kind_for_both_runtimes "legacy-adr-inline" "shapeViolations" "lega
 # Intent: ADR summaries that point to missing detail files should fail the
 # on-demand decision-context contract.
 assert_verify_kind_for_both_runtimes "missing-adr-detail" "shapeViolations" "adr_detail_missing"
-
-# Intent: playbook indexes and detail files must stay loadable and complete so
-# agents can follow recurring code-change recipes without broken links.
-assert_verify_kind_for_both_runtimes "broken-playbook" "shapeViolations" "playbook_detail_missing"
-assert_verify_kind_for_both_runtimes "broken-playbook" "shapeViolations" "playbook_missing_section"
 
 # Intent: implemented capabilities that point at scaffolded/not-implemented code
 # should surface readiness risk instead of overstating runtime availability.
@@ -213,5 +243,5 @@ cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$pretool_repo"
 )
 
 echo "  memory verify: feature fixed-field lint correct"
-echo "  memory verify: playbooks.md threshold (200) fires when oversized, silent when absent"
-echo "  memory verify: shape, ADR, playbook, readiness, SSOT, and runtime status checks correct"
+echo "  memory verify: legacy playbooks ignored; split KB shards are retrieval advisories"
+echo "  memory verify: shape, ADR, readiness, SSOT, and runtime status checks correct"

@@ -40,7 +40,7 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 
 ## KB Quality Evaluation
 
-`superpowers-memory` evaluates project knowledge by **Code Agent outcome**, not by document shape. A KB is valuable when it lets an agent answer real project questions more accurately, use fewer tokens, avoid wrong edits, and detect stale or uncertain facts. Markdown slots, ADR files, frontmatter, indexes, or playbooks are implementation mechanisms; they are not quality signals by themselves.
+`superpowers-memory` evaluates project knowledge by **Code Agent outcome**, not by document shape. A KB is valuable when it lets an agent answer real project questions more accurately, use fewer tokens, avoid wrong edits, and detect stale or uncertain facts. Markdown slots, ADR files, frontmatter, indexes, or shards are implementation mechanisms; they are not quality signals by themselves.
 
 If a sub-metric is not natural for a project's documentation shape, look for equivalent evidence. Mark it `N/A` only when the form is inapplicable and the underlying agent outcome is not harmed. Do not use `N/A` to hide missing capability.
 
@@ -70,14 +70,14 @@ Use the same 0-5 anchor for every dimension:
 
 ### How This Plugin Supports the Standard
 
-- `index.md` and lazy ADR/playbook detail files target retrieval and token efficiency.
-- `content-rules.md` defines fact ownership, exclusion rules, ADR gates, playbook gates, and per-file content boundaries.
+- `index.md`, optional shard files, and lazy ADR detail files target retrieval and token efficiency.
+- `content-rules.md` defines fact ownership, exclusion rules, ADR gates, progressive knowledge layout, and per-file content boundaries.
 - `$superpowers-memory:load` gives agents a lightweight entry point before planning or architectural work.
 - `$superpowers-memory:update` and `$superpowers-memory:rebuild` force source review, owner routing, exclusion checks, index regeneration, and verification before commit.
 - The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; updates must go through the memory skills.
 - `codex-runtime.js status` reports `covers_branch` versus current HEAD so Codex has stale-KB evidence even on prompt paths that cannot fire JIT hooks.
-- `codex-runtime.js verify` checks stale path references, file size thresholds, shape violations, ADR/playbook integrity, readiness warnings, SSOT duplication, token budget, and commit readiness.
-- For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, size warnings, shape violations, SSOT violations, readiness warnings, token budget, and KB write-lock status.
+- `codex-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, and commit readiness.
+- For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, and KB write-lock status.
 
 ## Known Codex protocol gaps
 

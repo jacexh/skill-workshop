@@ -205,6 +205,34 @@ function hasKnowledgeBase() {
   return fs.existsSync(knowledgeDir);
 }
 
+const KNOWLEDGE_SLOT_PREFIXES = [
+  "architecture",
+  "features",
+  "conventions",
+  "decisions",
+  "tech-stack",
+  "glossary",
+];
+
+function knowledgeSlotForFile(filename) {
+  if (filename === "index.md") return "index";
+  for (const prefix of KNOWLEDGE_SLOT_PREFIXES) {
+    if (filename === `${prefix}.md`) return prefix;
+    if (filename.startsWith(`${prefix}-`) && filename.endsWith(".md")) return prefix;
+  }
+  return null;
+}
+
+function listKnowledgeEntryFiles() {
+  if (!hasKnowledgeBase()) return [];
+  return fs.readdirSync(knowledgeDir)
+    .filter((filename) => {
+      const filePath = path.join(knowledgeDir, filename);
+      return fs.statSync(filePath).isFile() && knowledgeSlotForFile(filename);
+    })
+    .sort();
+}
+
 function isGitRepo() {
   return run("git", ["rev-parse", "--is-inside-work-tree"]).code === 0;
 }
@@ -428,8 +456,6 @@ const SUPERSEDE_HEADING_PATTERN = /Superseded by ADR-/i;
 const ADR_SUMMARY_MAX_LINES = 6;
 const LEGACY_ADR_INLINE_PATTERN = /^\s*(?:\*\*)?(Date|Status|Context|Reason|Alternatives|Alternatives Rejected|Consequences)(?:\*\*)?\s*:/i;
 const ADR_DETAIL_LINK_PATTERN = /\]\((adr\/ADR-[^)]+\.md)\)/g;
-const PLAYBOOK_LINK_PATTERN = /\]\((playbooks\/[^)]+\.md)\)/g;
-const REQUIRED_PLAYBOOK_SECTIONS = ["Preconditions", "Steps", "Verification", "Pitfalls", "References"];
 const READINESS_RISK_PATTERN = /\b(STATUS:\s*Scaffolding only|return(?:s)?\s+.*not implemented|throw new Error\([^)]*not implemented|errors\.New\([^)]*not implemented|TODO[^\n]*not implemented|not-yet-wired[^\n]*error)\b/i;
 const READINESS_CALIBRATION_PATTERN = /\b(scaffold|partial|not implemented|not-yet-wired|requires|deferred|experimental|in progress|future)\b/i;
 
@@ -493,10 +519,11 @@ function lintDecisions(content) {
 function contentShapeLintKnowledgeBase(files) {
   const violations = [];
   for (const [filename, content] of files) {
+    const slot = knowledgeSlotForFile(filename);
     let findings = [];
-    if (filename === "features.md") findings = lintFeatures(content);
-    else if (filename === "glossary.md") findings = lintGlossary(content);
-    else if (filename === "decisions.md") findings = lintDecisions(content);
+    if (slot === "features") findings = lintFeatures(content);
+    else if (slot === "glossary") findings = lintGlossary(content);
+    else if (slot === "decisions") findings = lintDecisions(content);
     // Other files: only method signature lint
     else {
       content.split("\n").forEach((line, i) => {
@@ -512,68 +539,20 @@ function contentShapeLintKnowledgeBase(files) {
   return violations;
 }
 
-function lintDecisionDetailLinks(content) {
+function lintDecisionDetailLinks(filename, content) {
   const findings = [];
   let match;
   while ((match = ADR_DETAIL_LINK_PATTERN.exec(content)) !== null) {
     const ref = match[1];
     if (!fs.existsSync(path.join(knowledgeDir, ref))) {
       findings.push({
-        file: "decisions.md",
+        file: filename,
         line: content.slice(0, match.index).split("\n").length,
         kind: "adr_detail_missing",
         sample: ref,
       });
     }
   }
-  return findings;
-}
-
-function lintPlaybookIntegrity() {
-  const findings = [];
-  const indexPath = path.join(knowledgeDir, "playbooks.md");
-  const detailsDir = path.join(knowledgeDir, "playbooks");
-
-  if (!fs.existsSync(indexPath)) {
-    if (fs.existsSync(detailsDir)) {
-      findings.push({
-        file: "playbooks.md",
-        line: 1,
-        kind: "playbook_index_missing",
-        sample: "playbooks/ exists without playbooks.md",
-      });
-    }
-    return findings;
-  }
-
-  const content = fs.readFileSync(indexPath, "utf8");
-  let match;
-  while ((match = PLAYBOOK_LINK_PATTERN.exec(content)) !== null) {
-    const ref = match[1];
-    const detailPath = path.join(knowledgeDir, ref);
-    if (!fs.existsSync(detailPath)) {
-      findings.push({
-        file: "playbooks.md",
-        line: content.slice(0, match.index).split("\n").length,
-        kind: "playbook_detail_missing",
-        sample: ref,
-      });
-      continue;
-    }
-
-    const detail = fs.readFileSync(detailPath, "utf8");
-    for (const section of REQUIRED_PLAYBOOK_SECTIONS) {
-      if (!new RegExp("^##\\s+" + section + "\\s*$", "m").test(detail)) {
-        findings.push({
-          file: ref,
-          line: 1,
-          kind: "playbook_missing_section",
-          sample: section,
-        });
-      }
-    }
-  }
-
   return findings;
 }
 
@@ -588,71 +567,73 @@ function extractBacktickRefs(text) {
 }
 
 function lintReadinessWarnings(files) {
-  const features = files.find(([filename]) => filename === "features.md");
-  if (!features) return [];
-
   const warnings = [];
-  const lines = features[1].split("\n");
-  let lifecycle = null;
-  let current = null;
-  const capabilities = [];
 
-  function flushCapability() {
-    if (current) capabilities.push(current);
-    current = null;
-  }
+  for (const [filename, content] of files) {
+    if (knowledgeSlotForFile(filename) !== "features") continue;
 
-  lines.forEach((line, i) => {
-    const trimmed = line.trim();
-    const lifecycleMatch = /^##\s+(.+?)\s*$/.exec(trimmed);
-    const capabilityMatch = /^####\s+(.+?)\s*$/.exec(trimmed);
-    const fieldMatch = /^\*\*([^*]+)\*\*\s+—\s*(.*)$/.exec(trimmed);
+    const lines = content.split("\n");
+    let lifecycle = null;
+    let current = null;
+    const capabilities = [];
 
-    if (lifecycleMatch) {
-      flushCapability();
-      lifecycle = lifecycleMatch[1];
-      return;
+    function flushCapability() {
+      if (current) capabilities.push(current);
+      current = null;
     }
 
-    if (capabilityMatch) {
-      flushCapability();
-      if (lifecycle === "Implemented") {
-        current = {
-          line: i + 1,
-          name: capabilityMatch[1],
-          fields: {},
-          text: "",
-        };
+    lines.forEach((line, i) => {
+      const trimmed = line.trim();
+      const lifecycleMatch = /^##\s+(.+?)\s*$/.exec(trimmed);
+      const capabilityMatch = /^####\s+(.+?)\s*$/.exec(trimmed);
+      const fieldMatch = /^\*\*([^*]+)\*\*\s+—\s*(.*)$/.exec(trimmed);
+
+      if (lifecycleMatch) {
+        flushCapability();
+        lifecycle = lifecycleMatch[1];
+        return;
       }
-      return;
-    }
 
-    if (current) {
-      current.text += "\n" + line;
-      if (fieldMatch) current.fields[fieldMatch[1].trim()] = fieldMatch[2].trim();
-    }
-  });
-  flushCapability();
+      if (capabilityMatch) {
+        flushCapability();
+        if (lifecycle === "Implemented") {
+          current = {
+            line: i + 1,
+            name: capabilityMatch[1],
+            fields: {},
+            text: "",
+          };
+        }
+        return;
+      }
 
-  for (const cap of capabilities) {
-    const capabilityBoundary = cap.fields["Capability Boundary"] || "";
-    if (READINESS_CALIBRATION_PATTERN.test(capabilityBoundary)) continue;
+      if (current) {
+        current.text += "\n" + line;
+        if (fieldMatch) current.fields[fieldMatch[1].trim()] = fieldMatch[2].trim();
+      }
+    });
+    flushCapability();
 
-    const refs = extractBacktickRefs(cap.text);
-    for (const ref of refs) {
-      if (ref.includes("://") || ref.startsWith("docs/")) continue;
-      if (/\.md$/i.test(ref)) continue;
-      const target = path.join(repoRoot, ref.replace(/\/$/, ""));
-      if (!fs.existsSync(target) || !fs.statSync(target).isFile()) continue;
-      const content = fs.readFileSync(target, "utf8");
-      if (READINESS_RISK_PATTERN.test(content)) {
-        warnings.push({
-          file: "features.md",
-          line: cap.line,
-          kind: "capability_readiness_uncalibrated",
-          sample: `${cap.name} references ${ref} with scaffold/not-implemented signals but no Capability Boundary calibration`,
-        });
-        break;
+    for (const cap of capabilities) {
+      const capabilityBoundary = cap.fields["Capability Boundary"] || "";
+      if (READINESS_CALIBRATION_PATTERN.test(capabilityBoundary)) continue;
+
+      const refs = extractBacktickRefs(cap.text);
+      for (const ref of refs) {
+        if (ref.includes("://") || ref.startsWith("docs/")) continue;
+        if (/\.md$/i.test(ref)) continue;
+        const target = path.join(repoRoot, ref.replace(/\/$/, ""));
+        if (!fs.existsSync(target) || !fs.statSync(target).isFile()) continue;
+        const targetContent = fs.readFileSync(target, "utf8");
+        if (READINESS_RISK_PATTERN.test(targetContent)) {
+          warnings.push({
+            file: filename,
+            line: cap.line,
+            kind: "capability_readiness_uncalibrated",
+            sample: `${cap.name} references ${ref} with scaffold/not-implemented signals but no Capability Boundary calibration`,
+          });
+          break;
+        }
       }
     }
   }
@@ -961,33 +942,33 @@ function buildVerifyOutput() {
     return { ok: false, error: "Knowledge base not found" };
   }
 
-  const sizeThresholds = {
-    "architecture.md": 300,
-    "conventions.md": 180,
-    "decisions.md": 300,
-    "tech-stack.md": 120,
-    "features.md": 400,
-    "glossary.md": 120,
-    "playbooks.md": 200,
-    "index.md": 50,
-  };
-
-  const TOKEN_BUDGET = 30000;
-
+  const INDEX_LINE_THRESHOLD = 50;
+  const SPLIT_ADVISORY_LINE_THRESHOLD = 300;
+  const SPLIT_ADVISORY_TOKEN_THRESHOLD = 8000;
   const sizeWarnings = [];
   const staleRefs = [];
   const refPattern = /`([a-zA-Z0-9_.][a-zA-Z0-9_./\-]*\/[a-zA-Z0-9_./\-]*)`/g;
 
-  for (const [filename, threshold] of Object.entries(sizeThresholds)) {
+  const fileContents = [];
+  for (const filename of listKnowledgeEntryFiles()) {
     const filePath = path.join(knowledgeDir, filename);
-    if (!fs.existsSync(filePath)) continue;
-    const content = fs.readFileSync(filePath, "utf8");
+    fileContents.push([filename, fs.readFileSync(filePath, "utf8")]);
+  }
 
-    const lines = content.split("\n").length;
-    if (lines > threshold) {
-      sizeWarnings.push({ file: filename, lines, threshold });
+  const indexFile = fileContents.find(([filename]) => filename === "index.md");
+  if (indexFile) {
+    const lines = indexFile[1].split("\n").length;
+    if (lines > INDEX_LINE_THRESHOLD) {
+      sizeWarnings.push({
+        file: "index.md",
+        lines,
+        threshold: INDEX_LINE_THRESHOLD,
+        scope: "hot_path",
+      });
     }
+  }
 
+  for (const [filename, content] of fileContents) {
     let match;
     while ((match = refPattern.exec(content)) !== null) {
       const ref = match[1];
@@ -1022,31 +1003,51 @@ function buildVerifyOutput() {
   }
 
   // SSOT check — detect near-duplicate 3-line blocks across KB files
-  const fileContents = [];
-  for (const filename of Object.keys(sizeThresholds)) {
-    const filePath = path.join(knowledgeDir, filename);
-    if (fs.existsSync(filePath)) {
-      fileContents.push([filename, fs.readFileSync(filePath, "utf8")]);
-    }
-  }
   const ssotViolations = ssotCheckKnowledgeBase(fileContents);
   const shapeViolations = contentShapeLintKnowledgeBase(fileContents);
-  const decisionsFile = fileContents.find(([filename]) => filename === "decisions.md");
-  if (decisionsFile) {
-    shapeViolations.push(...lintDecisionDetailLinks(decisionsFile[1]));
+  if (indexFile) {
+    const lines = indexFile[1].split("\n").length;
+    if (lines > INDEX_LINE_THRESHOLD) {
+      shapeViolations.push({
+        file: "index.md",
+        line: 1,
+        kind: "index_too_large",
+        sample: `${lines} lines exceeds ${INDEX_LINE_THRESHOLD}-line hot-path limit`,
+      });
+    }
   }
-  shapeViolations.push(...lintPlaybookIntegrity());
+  for (const [filename, content] of fileContents) {
+    if (knowledgeSlotForFile(filename) === "decisions") {
+      shapeViolations.push(...lintDecisionDetailLinks(filename, content));
+    }
+  }
   const readinessWarnings = lintReadinessWarnings(fileContents);
 
   const totalBytes = fileContents.reduce((sum, [, content]) => sum + Buffer.byteLength(content, "utf8"), 0);
   const estimatedTokens = Math.ceil(totalBytes / 4);
   const perFileTokens = fileContents.map(([filename, content]) => ({
     file: filename,
+    bytes: Buffer.byteLength(content, "utf8"),
+    lines: content.split("\n").length,
     tokens: Math.ceil(Buffer.byteLength(content, "utf8") / 4),
   }));
-  const tokenBudgetViolation = estimatedTokens > TOKEN_BUDGET
-    ? { estimatedTokens, budget: TOKEN_BUDGET, bytes: totalBytes, perFile: perFileTokens }
-    : null;
+  const retrievalCost = {
+    estimatedTokens,
+    bytes: totalBytes,
+    perFile: perFileTokens,
+    advisoryOnly: true,
+  };
+  const splitCandidates = perFileTokens
+    .filter((entry) =>
+      entry.file !== "index.md" &&
+      (entry.lines > SPLIT_ADVISORY_LINE_THRESHOLD || entry.tokens > SPLIT_ADVISORY_TOKEN_THRESHOLD)
+    )
+    .map((entry) => ({
+      file: entry.file,
+      lines: entry.lines,
+      tokens: entry.tokens,
+      suggestion: "Consider splitting by stable domain/module if the content is hard to scan; do not delete valid knowledge to satisfy size.",
+    }));
 
   // Git commit readiness — resolve actual git dir to support worktrees
   let committable = false;
@@ -1065,17 +1066,16 @@ function buildVerifyOutput() {
   return {
     ok:
       staleRefs.length === 0 &&
-      sizeWarnings.length === 0 &&
       ssotViolations.length === 0 &&
       shapeViolations.length === 0 &&
-      readinessWarnings.length === 0 &&
-      !tokenBudgetViolation,
+      readinessWarnings.length === 0,
     sizeWarnings,
     staleRefs,
     ssotViolations,
     shapeViolations,
     readinessWarnings,
-    tokenBudgetViolation,
+    retrievalCost,
+    splitCandidates,
     committable,
   };
 }
