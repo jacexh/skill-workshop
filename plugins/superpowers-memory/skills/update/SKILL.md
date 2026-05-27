@@ -65,32 +65,6 @@ Check for architecture-level changes beyond `git diff --stat`:
 - New conventions established? → update `conventions.md`
 - Significant design decisions made? → apply the 3-criteria granularity gate (cross-module scope, ≥2 substantive rejected alternatives, not trivially reversible). Failing any criterion → route to `tech-stack.md` / `conventions.md` / `docs/design/` instead. Passing all three → (a) add 4-line summary entry to `decisions.md` (heading + Decision + Trade-off + pointer to detail); (b) create `docs/project-knowledge/adr/ADR-NNN-<slug>.md` with full Context / Decision / Alternatives Rejected / Consequences. When an existing ADR is superseded → collapse its `decisions.md` entry to the 1-line supersede heading and add `superseded_by: ADR-MMM` to the detail file's frontmatter.
 - New domain terms introduced? → update `glossary.md`
-- Recurring code-change pattern observed? → consider `playbooks.md` + `playbooks/<slug>.md` per the 3-gate rule below
-
-### 3-prime. Playbook candidate detection
-
-After analyzing the branch diff, check whether the changes are an **instance of a recurring class** that warrants a playbook. **Concrete-evidence triggers only — vague "this might recur" is not a trigger.**
-
-- The branch adds a structurally similar artifact to a class that **already exists ≥1 time** in the codebase (e.g., another HTTP endpoint when several already exist; another migration; another service split — this branch makes the total ≥2).
-- A spec/plan in `docs/superpowers/specs/` or `docs/superpowers/plans/` contains an **explicit directive** to extract a reusable recipe (e.g., "next time we do X, follow these steps", "to add another Y, see this section"). Mere mention of future iteration ("this will probably happen again") does NOT count.
-
-If a trigger fires, apply the 3-gate rule (see content-rules.md):
-
-1. **Recurrence:** has this class of change happened ≥2 times (counting this one) **OR** does a spec/plan carry an explicit "do it this way next time" directive? Forward-looking intuition alone fails this gate.
-2. **Multi-step cross-file:** does the recipe span ≥3 cross-file or cross-module actions?
-3. **Non-obvious:** would a fresh contributor stumble without the recipe?
-
-All three pass → write or update:
-- A 1-line entry in `playbooks.md` index (create the index file if absent).
-- A detail file at `docs/project-knowledge/playbooks/<slug>.md` following `templates/playbook-detail.md`.
-
-Any gate fails → route as:
-- One-off change → spec/plan stays in `docs/superpowers/`, no playbook.
-- Single rule → add a line to `conventions.md` instead.
-- Rationale only → add to `decisions.md` / `adr/` instead.
-
-When updating an existing playbook (the recipe changed because code evolved), re-verify all `Steps` paths against current code before editing. Do not append "edit history" inside the playbook — the playbook describes the **current** correct recipe.
-
 ### 3a. Feature Capability Reconciliation
 
 Before writing `features.md`, reconcile source requirements against the current capability map:
@@ -117,7 +91,7 @@ For EACH new entry about to be written, run this checklist against the entry's c
   - New ADR: passes the granularity gate (would a reader without this record re-propose the opposite?). If yes, default to NORMAL 3-line format. CRITICAL only when ≥2 rejected alts AND each has substantive analysis.
   - `architecture.md` entry: structure view (components, wiring, data flow). NOT capability description (that's features.md).
 
-If ANY checklist item fails, either compress the entry to comply OR redirect it to the correct owner file per the Ownership Matrix.
+If ANY checklist item fails, either reshape the entry to comply OR redirect it to the correct owner file per the Ownership Matrix.
 
 ### 3c. Single-Owner Principle
 
@@ -146,8 +120,6 @@ Before writing any new entry, spot-check 2-3 existing entries in each file you w
 - **conventions.md**: sections describing data flow, component wiring, or sequences of runtime steps (those belong in `architecture.md`)
 - **architecture.md**: entries carrying (a) implementation constants (port numbers, timeout values, keepalive settings, TTLs); (b) env var names, Redis key templates, HTTP header names; (c) FSM state names inlined as prose lists rather than Mermaid `stateDiagram-v2` with trigger + emitted-event labels; (d) capability descriptions that duplicate `features.md` entries; (e) missing required sections per the per-file format rule (Pattern Overview / System Context / Layering / Scenario Sequences / Key Object FSMs / Key Design Decisions); (f) §Layering as a flat bullet list when the project has ≥3 independent top-level modules (deploy units / services / major packages) — should use per-module `####` subsections capped at 3 lines each. Remediation: move (a) to `tech-stack.md` or drop; move (b) to `conventions.md` / `glossary.md`; reshape (c) as stateDiagram-v2 with `state_a --> state_b: Trigger / emits Event` labels; replace (d) with `"see features.md §..."` pointers; add (e) if the project genuinely has that dimension (e.g., skip §Key Object FSMs if the project has no aggregates with cross-BC state transitions — but declare this explicitly rather than silently omitting); restructure (f) into `####` subsections per the architecture.md granularity rule.
 - **conventions.md**: missing or stale `## Cross-cutting concerns` section. Audit the codebase for middlewares/decorators imported across many files, broadly-imported utility modules, CI-enforced cross-file checks. If concerns exist, the section MUST list them as `**<topic>:** <one-line rule> → \`<canonical impl path>\``. If the project has none (pure library, plugin/skill repo, docs site), the section MUST contain `N/A: <reason>` rather than being absent.
-- **playbooks.md** (if present): entries that no longer correspond to a real recipe (referenced path/module gone), entries that fail the 3-gate rule on re-audit (one-off retroactively, single-file recipe, derivable from code now), entries whose `When:` trigger is too vague to scan. Remediation: delete the index line and the detail file together; or compress the detail file in place if the recipe still applies but has drifted from current code.
-
 **v1 decisions.md detection:** if `docs/project-knowledge/adr/` does not exist AND `decisions.md` carries ADR bodies beyond the summary shape (sections like `**Context:**`, `**Alternatives Rejected:**`, or `**Consequences:**` under any `## ADR-` heading), the KB is in pre-v1.8 single-file format. Surface this to the user and offer interactive migration — walk through each ADR, apply the granularity gate, split surviving ones into summary + detail, and drop or reroute the rest. Do not auto-migrate silently — the granularity gate needs human judgment on borderline cases.
 
 This step exists because the skill's earlier versions allowed append-only behavior; files accumulated pre-rule entries that never get cleaned up unless this audit runs explicitly.
@@ -173,7 +145,7 @@ Always regenerate `docs/project-knowledge/index.md` in full (full overwrite — 
 - Extract 1-2 key points per file that help AI decide whether to load it in full
 - Write `docs/project-knowledge/index.md` following the format in `templates/index.md`, setting `updated_by: superpowers-memory:update`, `triggered_by_plan: <plan-filename>`, and `covers_branch: <branch>@<short-sha>` where `<branch>` is the output of `git branch --show-current` and `<short-sha>` is the output of `git rev-parse --short HEAD` (e.g., `covers_branch: hotfix-auth@a1b2c3d`). The SHA anchor ensures the finishing-a-development-branch guard detects new commits added after this update. The hook resolves short SHAs via `git rev-parse`, so any length git produces is acceptable.
 
-**Size constraint:** Keep index.md under 50 lines total.
+**Hot-path constraint:** Keep index.md under 50 lines total. Other KB files may be split into `<slot>-<domain>.md` shards instead of compressed.
 
 **Legacy cleanup:** If `docs/project-knowledge/MEMORY.md` exists (from an older version), delete it after creating `index.md`.
 
@@ -185,7 +157,7 @@ Run the automated verification script first, then do manual spot-checks:
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
 ```
 
-The script checks: file size thresholds, stale path references, content-shape violations, ADR summary/detail integrity, playbook integrity, readiness warnings, SSOT duplication, token budget, and git commit readiness. Fix any `staleRefs`, `sizeWarnings`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` it reports before proceeding. Shape/readiness violations must be corrected in-place per the per-file format rule — do not suppress them or leave them for a future pass.
+The script checks: stale path references, content-shape violations, ADR summary/detail integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, and git commit readiness. Fix any `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` it reports before proceeding. Shape/readiness violations must be corrected in-place per the per-file format rule — do not suppress them or leave them for a future pass. `retrievalCost` and `splitCandidates` are advisory; use them to improve routing or split valid content by domain, never to delete valid knowledge.
 
 **Manual checks (on top of automated):**
 
@@ -209,9 +181,9 @@ Ask and answer at least 3 real questions using only the KB. This is the lower bo
 
 For each probe, record `answered`, `partial`, or `missing` in the final update report shown to the user; if a commit is created, include the same summary in the commit body or PR description. Any `missing` or materially `partial` answer must either be fixed in the KB or explicitly routed out of the KB with a reason.
 
-### 8. Size guard
+### 8. Retrieval-cost review
 
-Follow the size guard rules in [`content-rules.md`](../../content-rules.md) — check line counts, warn if exceeded, suggest compression actions. Do NOT auto-compress.
+Review the retrieval-cost and split guidance in [`content-rules.md`](../../content-rules.md). `index.md` is the only strict size-constrained file. For other files, split valid large content by stable domain/submodule when that improves retrieval; do NOT auto-compress or delete valid knowledge.
 
 ### 9. Commit
 
@@ -223,7 +195,7 @@ git add docs/project-knowledge/
 git commit -m "docs: update project knowledge base from [plan-name or 'recent changes']"
 ```
 
-Staging the directory root recursively picks up `adr/`, `playbooks/`, and all KB files. Do not list subdirectories explicitly — a literal pathspec that doesn't exist makes `git add` fail with `fatal: pathspec ... did not match any files`.
+Staging the directory root recursively picks up `adr/`, shard files, and all KB files. Do not list subdirectories explicitly — a literal pathspec that doesn't exist makes `git add` fail with `fatal: pathspec ... did not match any files`.
 
 If the commit fails (e.g., pre-commit hook), report the error to the user. Do not retry with `--no-verify`.
 
@@ -255,11 +227,10 @@ Knowledge files follow the structure defined in the plugin templates:
 - `decisions.md` → **summary only, 4 lines per ADR** (heading + Decision + Trade-off + pointer to detail file). Max 6 non-blank lines per entry. The 3-criteria granularity gate governs what qualifies as an ADR — failing any criterion routes the fact elsewhere. Superseded ADRs collapse to a 1-line heading (no body in the summary).
 - `adr/ADR-NNN-<slug>.md` → **full rationale** loaded on demand. One file per ADR: Context / Decision / Alternatives Rejected (paragraph per alt) / Consequences. Target ~100 lines.
 - `glossary.md` → Definition list: `**Term** — one-line definition. → \`path\` (ADR-NNN if applicable)`. **≤2 lines per term, hard rule.** No paragraphs, no method signatures, no enum catalogs. If a term needs more context, link to the owner file.
-- `playbooks.md` + `playbooks/<slug>.md` (lazy slot) → Index file lists `- [<Verb-led title>](playbooks/<slug>.md) — When: <trigger>`. Detail files follow `templates/playbook-detail.md`: Preconditions / Steps / Verification / Pitfalls / References. Create only when the 3-gate rule passes (recurrence ≥2; ≥3 cross-file actions; non-obvious). Omit entirely if no recipes qualify.
 
 ## Content Rules
 
-Follow all rules defined in [`content-rules.md`](../../content-rules.md) — language, inclusion/exclusion, SSOT, quality, and size guard.
+Follow all rules defined in [`content-rules.md`](../../content-rules.md) — language, inclusion/exclusion, SSOT, quality, progressive knowledge layout, and retrieval-cost guidance.
 
 ## Related Skills
 

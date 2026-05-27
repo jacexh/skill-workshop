@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-26
+last_updated: 2026-05-27
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
@@ -16,7 +16,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 - **Hook scripts (designing-tests Codex):** Direct Node.js (`codex-runtime.js`) with `session-start` and `user-prompt-submit` modes. UserPromptSubmit triggers only on explicit upstream `$superpowers:*` workflow skill mentions and returns `{}` for unrelated natural language.
 - **Markdown files:** Skills use YAML frontmatter with `name` and `description`. Knowledge base files use `last_updated` (YYYY-MM-DD), `updated_by`, `triggered_by_plan`.
 - **`triggered_by_plan` rule:** Only update this field when a concrete plan filename can be identified as the trigger. If no plan triggered the update, **preserve the existing value — never overwrite with `null`**.
-- **Content rules (KB):** `content-rules.md` is the shared SSOT for `rebuild` and `update` skills. Defines language, inclusion/exclusion criteria, ownership matrix, feature capability reconciliation, quality standards, and size guards.
+- **Content rules (KB):** `content-rules.md` is the shared SSOT for `rebuild` and `update` skills. Defines language, inclusion/exclusion criteria, ownership matrix, feature capability reconciliation, quality standards, progressive shard layout, and retrieval-cost guidance.
 - **JSON manifests:** `plugin.json`, native Codex hook files such as `codex-plugins/superpowers-memory/hooks/hooks.json`, Claude `hooks.json`, `marketplace.json`, and `codex-hooks-snippet.json` use 2-space indentation. Arrays/objects expand multi-line (one element per line) — both Claude and Codex tracks aligned. Codex command hooks set bounded `timeout` and non-empty `statusMessage`; native hook files and fallback snippets stay byte-shape aligned by release tests. `~/.codex/hooks.json` must remain strict JSON; never write JSON comments into it.
 - **No linter configs present** — conventions followed by practice.
 
@@ -44,7 +44,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ## Testing Conventions
 
 - No automated test suite. Verification is done manually per plan task acceptance criteria.
-- The `verify` command in `hook-runtime.js` / `codex-runtime.js` provides automated checks for KB files (size thresholds, stale path references, content-shape lint, total token budget). Codex variant runs the same `verify` logic.
+- The `verify` command in `hook-runtime.js` / `codex-runtime.js` provides automated checks for KB files (stale path references, content-shape lint, ADR integrity, readiness, SSOT drift, retrieval-cost reporting, split candidates, and strict `index.md` size). Codex variant runs the same `verify` logic.
 - Fixture-based runtime testing: `plugins/superpowers-memory/hooks/fixtures/<scenario>/` (clean, dense-features, missing-feature-fields, shape-violation, ssot-violation, codex-apply-patch). `scripts/release/test/test_memory_verify.sh` copies fixtures to temporary non-repo directories so both `hook-runtime.js` (Claude) and `codex-runtime.js` (Codex) verify the same scenarios; Codex coverage includes canonical `PreToolUse` deny output for KB write protection.
 
 ## Git & Workflow
@@ -62,10 +62,10 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 - **`features.md` is current capability map** — implemented capability groups follow `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`; each `####` entry uses `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`. No dense single-paragraph entries, missing implemented fields, commit SHAs, test counts, timestamps, or changelog narrative.
 - **`glossary.md` entries ≤2 lines** — one-line business definition + 1 path.
 - **Exclusion Gate** in `update` / `rebuild` skills checks every new entry against content-shape rules before write.
-- **`verify` surfaces** `ssotViolations`, `shapeViolations`, `tokenBudgetViolation` (30K default), `sizeWarnings`. All warn-only — commits not blocked. `committable` reflects git state only. Line caps are intentionally larger for `features.md` (400) and `architecture.md` (300) so valid product capabilities and cross-module structure are not deleted merely to satisfy the guard.
+- **Progressive knowledge layout** — `index.md` is the only strict hot-path file and must stay small enough for SessionStart injection. All other canonical entry files may split into `<slot>-<domain>.md` shards when a domain/submodule grows large. Do not delete valid knowledge merely to satisfy line or token pressure.
+- **`verify` surfaces** `ssotViolations`, `shapeViolations`, `readinessWarnings`, `retrievalCost`, `splitCandidates`, and `sizeWarnings` only for `index.md`. `retrievalCost` and `splitCandidates` are advisory; `index_too_large` is a shape violation. `committable` reflects git state only.
 - **KB writes go through `superpowers-memory:update` / `superpowers-memory:rebuild` only** (ADR-010). PreToolUse hook blocks Write/Edit on `docs/project-knowledge/` paths unless write-lock (`.git/superpowers-memory.lock`, 60-min TTL) is held. No escape hatch — manual typo fixes also go through `superpowers-memory:update`.
-- **Schema meta-rule (slots vs topics)** — `content-rules.md` defines schema slots (file names, sections, ownership), not content topics. Concrete lists inside a slot (e.g., cross-cutting concern topics, implementation-constant examples) are discovery cues, not contracts; per-project content is discovered by reading the codebase. Lazy slots (currently `playbooks.md`) are omitted entirely when empty rather than forced.
-- **Playbooks lazy slot** — `playbooks.md` (index) + `playbooks/<slug>.md` (detail) carry procedural code-change recipes. Created only when ≥2 concrete instances exist OR a spec/plan declares the recipe (3-gate rule in `content-rules.md`: recurrence; ≥3 cross-file actions; non-obvious from code). Index ≤200 lines; detail loaded on demand via `Read`.
+- **Schema meta-rule (slots vs topics)** — `content-rules.md` defines schema slots (file names, sections, ownership), not content topics. Concrete lists inside a slot (e.g., cross-cutting concern topics, implementation-constant examples) are discovery cues, not contracts; per-project content is discovered by reading the codebase. The former playbook lazy slot is removed and should not be regenerated.
 
 ## Codex-track-specific conventions (ADR-013)
 

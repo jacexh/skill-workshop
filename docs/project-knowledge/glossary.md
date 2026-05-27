@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-26
+last_updated: 2026-05-27
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -9,6 +9,10 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Knowledge Base (KB)** — The set of Markdown files in `docs/project-knowledge/` of a target project that persist cross-session understanding of architecture, conventions, and decisions. Not the plugin's own templates. → `docs/project-knowledge/`
 
 **Progressive Loading** — Pattern used by both plugins: inject a lightweight index (names + descriptions + paths) at injection time; the agent loads full content on demand via `Read`. Avoids token bloat from dumping all content into every prompt. → ADR-005, ADR-006
+
+**Knowledge Shard** — Focused `<slot>-<domain>.md` KB file split by stable domain/submodule; loaded on demand through index routing. → `plugins/superpowers-memory/content-rules.md`
+
+**Retrieval Cost** — Advisory verify estimate of KB bytes/tokens; guides routing and splitting but never justifies deleting valid knowledge. → `plugins/superpowers-memory/hooks/hook-runtime.js`
 
 **Hook Runtime** — Node.js entry point for superpowers-memory hooks. Claude `hook-runtime.js`; Codex `codex-runtime.js` (drops `user-prompt-expansion` mode, adds `user-prompt-submit`). → `plugins/superpowers-memory/hooks/hook-runtime.js`
 
@@ -39,8 +43,6 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Application Command-Side Port** — Exceptional Application-owned command dependency allowed only after the gate rejects Domain Repository, Aggregate, Domain Service, Domain Event, Integration Message, Saga/Process Manager, ACL, and Infrastructure homes. → `plugins/superpowers-architect/design-patterns/ddd-modeling.md`
 
 **Capability-Lifecycle Port** — Application/Domain Port whose boundary encloses one stable semantic capability's full lifecycle (observe / mutate / publish / transfer / retire / release); inward-defined Ports default to extension over forking. → `plugins/superpowers-architect/design-patterns/ddd-modeling.md` §0.2.1-§0.2.2
-
-**Playbook** — Reusable procedural recipe for a recurring class of code change; indexed in `playbooks.md`, detailed in `playbooks/<slug>.md`. Created only when ≥2 concrete instances exist (or an explicit spec/plan directive). → `plugins/superpowers-memory/content-rules.md`
 
 **Architecture Test Design** — Designing-tests reference workflow that turns architecture docs, ADRs, message flows, and sequence diagrams into goal coverage, state ownership, quality-threshold, and residual-risk test evidence. → `plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md`
 

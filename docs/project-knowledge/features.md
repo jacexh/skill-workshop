@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-26
+last_updated: 2026-05-27
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
@@ -36,7 +36,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/content-rules.md`, and `plugins/superpowers-memory/templates/features.md`.
 
-**Capability Boundary** — Implemented entries follow fixed fields and the group order `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`; size guards allow larger `features.md` and `architecture.md` files while remaining warn-only.
+**Capability Boundary** — Implemented entries follow fixed fields and the group order `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`; valid large capability maps use retrieval-cost guidance and shard splitting instead of deleting or compressing correct knowledge.
 
 **References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/features.md`, `docs/superpowers/specs/2026-05-13-features-capability-reconciliation-design.md`.
 
@@ -58,7 +58,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/templates/`, and `plugins/superpowers-memory/content-rules.md`.
 
-**Capability Boundary** — `plugins/superpowers-memory/content-rules.md` is the SSOT for ownership, exclusion rules, per-file structure, size guards, and `features.md` readability.
+**Capability Boundary** — `plugins/superpowers-memory/content-rules.md` is the SSOT for ownership, exclusion rules, per-file structure, progressive shard layout, retrieval-cost guidance, and `features.md` readability.
 
 **References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/`, ADR-003.
 
@@ -76,23 +76,23 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 #### Knowledge Verification
 
-**Enables** — Operators can check KB shape, stale path references, size thresholds, token budget, and commit readiness before committing.
+**Enables** — Operators can check KB shape, stale path references, retrieval cost, split candidates, index size, and commit readiness before committing.
 
 **Actors / Entry Points** — `node plugins/superpowers-memory/hooks/hook-runtime.js verify` and the Codex equivalent.
 
-**Capability Boundary** — Verify is advisory except for git commit readiness; it now flags dense single-paragraph `features.md` entries so capability maps stay readable, and includes `playbooks.md` (≤200 lines) in size and token-budget aggregation when present.
+**Capability Boundary** — Verify treats only `index.md` as a strict hot-path size constraint. `retrievalCost` and `splitCandidates` are advisory for non-index files; legacy `playbooks.md` files are ignored because the playbook slot is no longer part of the schema.
 
 **References** — `plugins/superpowers-memory/hooks/fixtures/`; see `content-rules.md` for shape rules.
 
-#### Code-change Playbook Recipes
+#### Progressive Knowledge Layout
 
-**Enables** — Project knowledge bases can carry reusable code-change recipes — a `playbooks.md` index of "to do X, follow steps A→B→C" entries plus per-recipe `playbooks/<slug>.md` details — so contributors and agents reproduce recurring class-of-change work without re-deriving the sequence.
+**Enables** — Large project knowledge bases can split any non-index entry file by stable domain or submodule without treating size as information loss pressure.
 
-**Actors / Entry Points** — `superpowers-memory:rebuild` (scope routing for `playbooks.md`); `superpowers-memory:update` (3-prime playbook candidate detection); `plugins/superpowers-memory/content-rules.md` defines the 3-gate creation rule and routing; `plugins/superpowers-memory/templates/playbooks.md` + `plugins/superpowers-memory/templates/playbook-detail.md` carry the shape.
+**Actors / Entry Points** — `superpowers-memory:load`, `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/index.md`, and both verify runtimes.
 
-**Capability Boundary** — Lazy slot — omitted entirely when no recipes pass the 3-gate rule (recurrence ≥2 concrete instances OR explicit spec/plan directive; ≥3 cross-file actions; non-obvious from code). Index is bounded; detail files load on demand via `Read`, not injected at SessionStart.
+**Capability Boundary** — `index.md` stays ≤50 lines and routes to detailed files. Other recognized entry files may split into `<slot>-<domain>.md` shards; agents update index routing and load relevant shards on demand. The old playbook slot is removed rather than converted into another shard family. Codex host behavior remains experimental per ADR-013, but this layout contract is implemented in both runtimes.
 
-**References** — `plugins/superpowers-memory/content-rules.md` §playbooks.md / §playbooks/<slug>.md; `plugins/superpowers-memory/templates/playbooks.md`; `plugins/superpowers-memory/templates/playbook-detail.md`.
+**References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/index.md`, `plugins/superpowers-memory/hooks/hook-runtime.js`, ADR-016.
 
 #### DDD Design Pattern Guidance
 
@@ -182,7 +182,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `scripts/release/test/run-tests.sh` and fixture directories under `plugins/superpowers-memory/hooks/fixtures/`.
 
-**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; Codex manifest tests guard canonical hook feature-flag docs and command hook metadata, designing-tests runtime tests guard hand-off/architecture guidance injection, while memory verify covers canonical PreToolUse deny behavior. They do not replace full host-runtime acceptance testing.
+**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; Codex manifest tests guard canonical hook feature-flag docs and command hook metadata, designing-tests runtime tests guard hand-off/architecture guidance injection, while memory verify covers canonical PreToolUse deny behavior, legacy playbook ignore behavior, shard split advisories, and strict index size. They do not replace full host-runtime acceptance testing.
 
 **References** — `scripts/release/test/`; `plugins/superpowers-memory/hooks/fixtures/README.md`.
 
