@@ -1,7 +1,7 @@
 {
   "name": "superpowers-memory",
   "description": "Project knowledge persistence and plan checkpoint tracking for superpowers workflows",
-  "version": "1.12.24",
+  "version": "1.12.30",
   "author": {
     "name": "xuhao"
   },
