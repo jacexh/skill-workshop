@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-27
+last_updated: 2026-05-28
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
@@ -100,7 +100,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `superpowers-architect:standards`, architect hooks, and design-pattern files under both `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/`.
 
-**Capability Boundary** — `ddd-modeling.md` owns architecture gates, model discovery, mandatory technical-capability-before-port classification, port granularity (including the capability-lifecycle unit and inward-port extension default in §0.2.1-§0.2.2), generalized routing/ownership examples covering Dispatcher-style systems, and vendor-wrapper ACL triage; `ddd-core.md` owns language-neutral DDD/Clean Architecture rules, CQRS product-read port boundaries, and the Domain Event vs Integration Message boundary; `ddd-golang.md` covers Go layers/aggregates/events/integration messages and treats its named Go component libraries as required standards; `ddd-golang-runtime.md` carries Go runtime concerns (config, fx.Lifecycle, graceful shutdown, Kubernetes); Python/TypeScript guides now carry the same shared gates, placement rules, CQRS product-read boundaries, routing/topology port prohibitions, event-drain lifecycle, and cross-context message boundary in language-specific form.
+**Capability Boundary** — `ddd-modeling.md` owns architecture gates, model discovery, mandatory technical-capability-before-port classification, port granularity (including the capability-lifecycle unit and inward-port extension default in §0.2.1-§0.2.2), async handler cards, generalized routing/ownership examples covering Dispatcher-style systems, and vendor-wrapper ACL triage; `ddd-core.md` owns language-neutral DDD/Clean Architecture rules, CQRS product-read port boundaries, Domain Event vs Integration Message boundaries, and async reaction roles; `ddd-golang.md` covers Go layers/aggregates/events/integration messages, separates Domain Event Handler / Boundary Publisher / Integration Message Handler paths, and treats named Go component libraries as the project-default stack; `ddd-golang-runtime.md` carries Go runtime concerns (config, fx.Lifecycle, graceful shutdown, Kubernetes); Python/TypeScript guides carry the same shared gates, placement rules, CQRS product-read boundaries, routing/topology port prohibitions, event-drain lifecycle, and cross-context message boundary in language-specific form.
 
 **References** — `plugins/superpowers-architect/design-patterns/ddd-modeling.md`, `plugins/superpowers-architect/design-patterns/ddd-core.md`, `plugins/superpowers-architect/design-patterns/ddd-python.md`, `plugins/superpowers-architect/design-patterns/ddd-typescript.md`; see `conventions.md` for design-pattern maintenance rules and ADR-015 for the agent-contract/runtime split.
 
@@ -110,7 +110,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md` (and its Codex mirror); referenced from the top of `ddd-modeling.md`, `ddd-core.md`, `ddd-golang.md`; loaded via the architect `standards` skill's directory scan.
 
-**Capability Boundary** — The contract is a behavior layer, not architecture content. It classifies tasks into DDD / Go-runtime-only / mixed, maps each to which specs must be read, and carries the 18-rule must-not list including the dependency-inversion-only Application-port ban, the routing/topology Application-port ban, the mechanism-operation-granular Port ban (verb-suffix Ports), the capability-fragmented Port ban (new use case ≠ new Port), and the ban on local substitutes for canonical Go component libraries; it does not duplicate modeling/core/language rules. Promotion to a standalone skill is deferred until observed need (see ADR-015).
+**Capability Boundary** — The contract is a behavior layer, not architecture content. It classifies tasks into DDD / Go-runtime-only / mixed, maps each to which specs must be read, and carries the 23-rule must-not list including the dependency-inversion-only Application-port ban, the routing/topology Application-port ban, the mechanism-operation-granular Port ban, the capability-fragmented Port ban, umbrella async handler rejection, mixed Domain Event / Integration Message handler rejection, and the ban on local substitutes for the adopted Go component stack; it does not duplicate modeling/core/language rules. Promotion to a standalone skill is deferred until observed need (see ADR-015).
 
 **References** — `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015.
 

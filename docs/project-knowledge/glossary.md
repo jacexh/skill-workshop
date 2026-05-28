@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-27
+last_updated: 2026-05-28
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -22,7 +22,9 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Integration Message** — Stable cross-context semantic contract for state propagation; Go guidance uses `ddd/message` as the publish/subscribe port. → `plugins/superpowers-architect/design-patterns/ddd-core.md`
 
-**Canonical Go Component Libraries** — Required Go libraries named by `ddd-golang.md` for DDD concerns; agents should use their public interfaces instead of local substitutes. → `plugins/superpowers-architect/design-patterns/ddd-golang.md`
+**Boundary Publisher** — Same-BC Domain Event consumer that maps selected Domain Events to Integration Messages; it does not consume Integration Messages or mutate aggregates. → `plugins/superpowers-architect/design-patterns/ddd-core.md`
+
+**Project-Default Go Component Stack** — Go libraries named by `ddd-golang.md` for DDD concerns in projects adopting this guide; agents should use their public interfaces instead of local substitutes unless the repo/user establishes an exception. → `plugins/superpowers-architect/design-patterns/ddd-golang.md`
 
 **KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/project-knowledge/`; acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild`. Same lock file used by both tracks (Claude and Codex naturally share when running on same repo). → ADR-010
 
@@ -38,9 +40,9 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Prompt Router** — Codex UserPromptSubmit hook path that inspects raw user text and injects focused context for explicit workflow signals; used by memory and architect where skill-call hooks are unavailable. → `codex-plugins/*/hooks/codex-runtime.js`
 
-**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, hot-path Application-port decision card, P1-P4 self-checks, 21 must-not rules. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
+**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, hot-path Application-port decision card, P1-P7 self-checks, 23 must-not rules. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
 
-**Application Command-Side Port** — Exceptional Application-owned command dependency allowed only after the gate rejects Domain Repository, Aggregate, Domain Service, Domain Event, Integration Message, Saga/Process Manager, ACL, and Infrastructure homes. → `plugins/superpowers-architect/design-patterns/ddd-modeling.md`
+**Application Command-Side Port** — Exceptional Application-owned command dependency allowed only after the gate rejects Domain Repository, Aggregate, Domain Service, Domain Event, Integration Message, named Application coordination service, ACL, and Infrastructure homes. → `plugins/superpowers-architect/design-patterns/ddd-modeling.md`
 
 **Capability-Lifecycle Port** — Application/Domain Port whose boundary encloses one stable semantic capability's full lifecycle (observe / mutate / publish / transfer / retire / release); inward-defined Ports default to extension over forking. → `plugins/superpowers-architect/design-patterns/ddd-modeling.md` §0.2.1-§0.2.2
 

@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-27
+last_updated: 2026-05-28
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -12,7 +12,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 → [adr/ADR-016-progressive-kb-layout.md](adr/ADR-016-progressive-kb-layout.md)
 
 ## ADR-015: DDD agent contract and Go runtime split as standalone pattern files
-**Decision:** Add `ddd-agent-contract.md` (agent execution behavior: trigger conditions, task classification, stop protocol, 16 must-not rules including dependency-inversion-only Application-port rejection, routing/topology Application-port rejection, and canonical Go component-library usage, dual-track self-check, compact output template) and `ddd-golang-runtime.md` (Go config + fx.Lifecycle + graceful shutdown + Kubernetes) as siblings under `design-patterns/` on both Claude and Codex tracks. `ddd-golang.md` shrinks to layer/aggregate/event content with a stub linking into the runtime guide. Promotion of the contract to a standalone skill is deferred with explicit re-evaluation criteria.
+**Decision:** Add `ddd-agent-contract.md` (agent execution behavior: trigger conditions, task classification, stop protocol, 23 must-not rules including dependency-inversion-only Application-port rejection, routing/topology Application-port rejection, umbrella async handler rejection, mixed event/message handler rejection, adopted Go component-stack usage, dual-track self-check, compact output template) and `ddd-golang-runtime.md` (Go config + fx.Lifecycle + graceful shutdown + Kubernetes) as siblings under `design-patterns/` on both Claude and Codex tracks. `ddd-golang.md` shrinks to layer/aggregate/event content with a stub linking into the runtime guide. Promotion of the contract to a standalone skill is deferred with explicit re-evaluation criteria.
 **Trade-off:** Pattern-file count grows from 8 to 10 and the contract introduces a drift risk against the underlying spec rules. Accepted because agent-selective-absorption of a 1723-line `ddd-golang.md` and recurring must-not violations had higher cost than pattern-count growth.
 → [adr/ADR-015-ddd-agent-contract-and-runtime-split.md](adr/ADR-015-ddd-agent-contract-and-runtime-split.md)
 
