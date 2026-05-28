@@ -25,7 +25,7 @@ description: Go implementation guide for DDD + Clean Architecture. Use when edit
 
 Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Go-specific** items.
 
-Every Go backend plan must also include the `Architecture Gate` block from [ddd-modeling.md §0](ddd-modeling.md). For technical-facing packages, explicitly classify the capability before choosing between `domain`, `application`, `interfaces`, `infrastructure`, `internal/pkg`, or root `pkg`.
+Every Go backend plan must also include the `Architecture Gate` core block from [ddd-modeling.md §0](ddd-modeling.md), plus the placement extension when §0 requires it. For technical-facing packages, explicitly classify the capability before choosing between `domain`, `application`, `interfaces`, `infrastructure`, `internal/pkg`, or root `pkg`.
 
 ### Level 1 (Local Change)
 
@@ -39,7 +39,7 @@ Plan must additionally state:
 
 Plan must additionally state:
 
-- file placement under the bounded context (`application/command/<use_case>.go`, `application/query/<use_case>.go`, `application/query/repository.go`, `application/handler/<event>.go`, consumer-specific reader/writer/coordination ports, etc. — see §6.2)
+- file placement under the bounded context (`application/command/<use_case>.go`, `application/query/<use_case>.go`, `application/query/repository.go`, `application/eventhandler/<event>.go`, `application/messagehandler/<message>.go`, `application/messagepublisher/<event>_publisher.go`, consumer-specific reader/writer/coordination ports, etc. — see §6.2)
 - whether each new port is Command-side, Query-side, cross-context facade, or coordination; do not combine unrelated producer and consumer needs in one interface
 - import-boundary impact: generated proto, ConnectRPC, storage, queue, and framework imports stay out of Domain
 - new mock generation requirements (§6.3 "Generated mocks")
@@ -58,8 +58,8 @@ Spec must additionally state:
 
 Follow the multi-side planning rule in [ddd-modeling.md §7.4](ddd-modeling.md). The Go-side plan must list:
 
-- producing context's `application/handler/<event>.go` or event publisher path
-- consuming context's `application/handler/<event>.go` and its idempotency strategy
+- producing context's `application/eventhandler/<event>.go` or `application/messagepublisher/<event>_publisher.go`
+- consuming context's `application/messagehandler/<message>.go` and its idempotency strategy
 - `proto/` files and `pkg/gen/` regeneration if a new protocol contract is introduced
 
 ---
@@ -77,7 +77,7 @@ This guide combines **Domain-Driven Design (DDD)** with **Clean Architecture**, 
 
 ### 1.2 Layered Architecture
 
-Four layers with the **Domain Layer as the core** (innermost). The Interface layer is optional — in Go projects it is skipped for gRPC/ConnectRPC (the `Application` struct implements the generated handler stub directly; see §3.3). For REST/HTTP/WebSocket and other hand-written protocols, the Interface layer is present.
+Four layers with the **Domain Layer as the core** (innermost). The Interface layer is optional — in Go projects this guide allows a narrow gRPC/ConnectRPC shortcut where `application/application.go` implements the generated handler stub directly (see §3.3). Use-case packages under `application/command`, `application/query`, `application/eventhandler`, `application/messagehandler`, and `application/messagepublisher` still follow Application dependency rules. For REST/HTTP/WebSocket and other hand-written protocols, the Interface layer is present.
 
 ```
           ┌─────────────────────────────────────────────┐
@@ -109,7 +109,7 @@ Four layers with the **Domain Layer as the core** (innermost). The Interface lay
 **Golden rule: dependencies point inward only. The Domain Layer must not depend on any other layer.**
 
 - Interface Layer (if present) depends on Application and Domain layers
-- Application Layer depends only on Domain Layer (and implements generated RPC stubs when applicable)
+- Application use-case packages depend only on Domain Layer and Application-owned ports. The Go RPC shortcut allows only `application/application.go` to import generated RPC/proto packages to implement a generated server stub and map protocol DTOs at the boundary.
 - Domain Layer has no concrete implementation dependencies (no `import` of Infrastructure packages, ORM/database drivers, HTTP clients/servers, message queue clients, or generated protocol packages)
 - Infrastructure Layer depends on Domain Layer (implements Repository interfaces) and Application Layer (implements QueryRepository interfaces)
 
@@ -179,7 +179,7 @@ internal/business/user/          # User bounded context
 │   └── service.go               # Domain service (if needed)
 │
 ├── application/                 # Application layer - orchestrates domain objects
-│   ├── application.go           # App Service constructor + gRPC/ConnectRPC stub
+│   ├── application.go           # App Service constructor + optional gRPC/ConnectRPC boundary stub
 │   ├── command/                 # Commands, command handlers, command-side ports
 │   │   ├── change_password.go   # One use case per file when practical
 │   │   └── activity_log_writer.go # Command/output writer port
@@ -187,8 +187,12 @@ internal/business/user/          # User bounded context
 │   │   ├── find_user.go         # One read use case per file when practical
 │   │   ├── repository.go        # QueryRepository / reader interfaces
 │   │   └── dto.go               # Query DTOs / read models
-│   ├── handler/                 # Event handlers
+│   ├── eventhandler/            # Same-BC Domain Event handlers
 │   │   └── user_created.go
+│   ├── messagepublisher/        # Domain Event -> Integration Message publishers
+│   │   └── user_created_publisher.go
+│   ├── messagehandler/          # Integration Message consumers
+│   │   └── order_completed.go
 │   ├── assembler.go             # DTO/Proto <-> Domain conversion
 │   │   # application.go remains the single entry point that wires them all.
 │
@@ -246,7 +250,7 @@ Use this checklist before accepting a package layout or import graph:
 
 - A package path ending in `/domain` contains only domain concepts: aggregates, entities, value objects, domain services, write repository interfaces, domain events, and domain errors.
 - Domain packages do not import `pkg/gen`, ConnectRPC/gRPC/HTTP packages, storage drivers, queue clients, framework packages, `internal/pkg` adapters, `internal/.../infrastructure`, or another bounded context's Domain package.
-- Application packages may import Domain and generated protocol packages when they implement generated RPC stubs or map DTOs, but they must not import concrete storage, queue, or network clients.
+- Application use-case packages may import Domain and Application-owned ports; they must not import generated RPC stubs, concrete storage, queue, or network clients. The Go RPC shortcut is limited to `application/application.go`, which may import generated protocol packages to implement the generated server stub or map DTOs at the boundary.
 - Infrastructure packages may import Domain/Application interfaces they implement, generated protocol packages, and external clients.
 - `internal/pkg/<capability>` is only for shared technical adapters. It must not import `internal/business/*` or own business/domain rules.
 - Root `pkg/` is not a dumping ground. Use it for generated code or stable libraries intended for external repository consumers.
@@ -269,7 +273,7 @@ If the rule can be unit-tested without Redis, SQL, a queue, ConnectRPC, or gener
 
 ### 2.6 Mechanized Review Checks
 
-These checks operationalize the P1-P4 hot-path checks in [ddd-core.md §10](ddd-core.md) and the §5.1 self-check in [ddd-agent-contract.md](ddd-agent-contract.md). Treat the shell commands below as local smoke checks unless they are replaced by AST-aware lint rules; they surface review targets, not architectural proof.
+These checks operationalize the P1-P7 hot-path checks in [ddd-core.md §10](ddd-core.md) and the §5.1 self-check in [ddd-agent-contract.md](ddd-agent-contract.md). Treat the shell commands below as local smoke checks unless they are replaced by AST-aware lint rules; they surface review targets, not architectural proof.
 
 **P1 — Port eligibility: suspicious naming smoke scan (Application/Domain layer)**
 
@@ -301,7 +305,7 @@ for ctx in internal/business/*/; do
 done
 ```
 
-A warning here triggers audit-only R3: list the BC's command-side Application ports, Domain Repositories, Domain Services, Domain Events, Integration Messages, and Saga/Process Managers. Add a missing mechanism only when the domain need exists; do not add a service/event merely to satisfy a ratio.
+A warning here triggers audit-only R3: list the BC's command-side Application ports, Domain Repositories, Domain Services, Domain Events, Integration Messages, named Application coordination services, and Infrastructure adapters. Add a missing mechanism only when the domain need exists; do not add a service/event merely to satisfy a ratio.
 
 **P2 — Handler pressure**
 
@@ -327,15 +331,24 @@ Any reader/query interface returning `*domain.X` or `[]*domain.X` from Applicati
 
 **P4 — Event/message extraction (manual)**
 
-When two or more handlers/subscribers react to the same same-BC state change, collapse the reaction behind one Domain Event and one same-BC handler. When the fact crosses a bounded-context boundary, publish an Integration Message instead of subscribing to another context's Domain Event. Long-running multi-aggregate coordination belongs in a Saga/Process Manager or compensating flow, not in a cluster of command-side Application ports.
+When two or more handlers/subscribers react to the same same-BC state change, collapse the reaction behind one Domain Event and one same-BC handler. When the fact crosses a bounded-context boundary, publish an Integration Message instead of subscribing to another context's Domain Event. If an inbound handler starts accumulating unrelated phases, external calls, and state transitions, extract a named Application orchestration service and keep the inbound handler as a thin adapter for one event/message kind.
+
+**P5-P7 — Async handler role, granularity, and failure semantics (manual)**
+
+For every new or modified handler under `application/eventhandler/`, `application/messagehandler/`, or `application/messagepublisher/`, check:
+
+- Role is exactly one of Domain Event Handler, Boundary Publisher, or Integration Message Handler.
+- `Listening()` defaults to one kind. A multi-kind handler documents why all kinds share the same role, source context or contract family, target side effect, transaction boundary, failure policy, and dependency set.
+- A concrete type does not implement both `event.Handler` and `message.Handler`.
+- Failure behavior is explicitly best-effort, log-and-continue, return subscriber/adapter error, or `n/a`.
 
 **P1 semantic fake sub-check (manual)**
 
-For every new inward interface introduced in the diff, write — at least mentally — a no-dependency semantic fake that uses a `map`, slice, or simple struct as backing state and preserves the observable contract. If the fake can support business/use-case tests, continue the placement gate; this still does not automatically justify an Application command-side port. If the only meaningful fake is "pretend the external side effect succeeded", the interface is a mechanism adapter — hide it behind a Repository, QueryRepository, Saga/Process Manager, ACL, event/message publisher, or Infrastructure implementation ([modeling §0.1.1](ddd-modeling.md)).
+For every new inward interface introduced in the diff, write — at least mentally — a no-dependency semantic fake that uses a `map`, slice, or simple struct as backing state and preserves the observable contract. If the fake can support business/use-case tests, continue the placement gate; this still does not automatically justify an Application command-side port. If the only meaningful fake is "pretend the external side effect succeeded", the interface is a mechanism adapter — hide it behind a Repository, QueryRepository, named Application coordination service, ACL, event/message publisher, or Infrastructure implementation ([modeling §0.1.1](ddd-modeling.md)).
 
 **Recommended CI wiring**
 
-P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR, but AST-aware analyzers are required before treating them as hard CI gates. Audit-only R3 is a per-BC structural smell check for nightly runs or Level 3 changes. P2 handler pressure, P4 event/message extraction, and the P1 semantic fake sub-check remain review-time prose checks; encode them as required PR-description sections rather than brittle grep lints.
+P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR, but AST-aware analyzers are required before treating them as hard CI gates. Audit-only R3 is a per-BC structural smell check for nightly runs or Level 3 changes. P2 handler pressure, P4 event/message extraction, P5-P7 async handler checks, and the P1 semantic fake sub-check remain review-time prose checks; encode them as required PR-description sections rather than brittle grep lints.
 
 ---
 
@@ -356,9 +369,9 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 
 **Constraints**: see [ddd-core.md §3.1](ddd-core.md) for the full list (no concrete implementation dependencies; general-purpose libraries allowed; no cross-context Domain imports; state changes through domain methods; Version is a read-only token incremented by Infrastructure; IDs generated in Domain via UUID/ULID/Snowflake). Go-specific deltas:
 
-- **Canonical Go component libraries are requirements, not suggestions.** When this guide names a Go library for a DDD concern, use that library and its public interfaces instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed only when existing repository code already standardized on it or the user explicitly approves the exception.
+- **Canonical Go component libraries are project defaults, not DDD concepts.** When this guide names a Go library for a concern, use that library and its public interfaces in repositories that have adopted this stack instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed when existing repository code already standardized on it or the user explicitly approves the exception.
 - **Concrete prohibition list for Go imports**: no `import` of `pkg/gen/...` (generated proto), `connectrpc.com/connect`, `google.golang.org/grpc`, `net/http`'s server side, `xorm.io/xorm`, `gorm.io/gorm`, database/sql drivers, `franz-go` / Kafka / NATS / RocketMQ / Redis clients, `internal/pkg/*` adapters, `internal/.../infrastructure`, or another bounded context's `internal/business/<ctx>/domain`. Allowed: `github.com/google/uuid`, `time`, `errors`, `fmt`, `strings`, `github.com/samber/oops`, and the in-package `github.com/go-jimu/components/ddd/event` (event types only, no dispatcher implementation).
-- **No anemic aggregates.** An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/command/` or `application/handler/` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. When fields must be exported for XORM/copier mapping, keep mutation methods as the only sanctioned mutation path and treat direct external assignment as a code-review failure.
+- **No anemic aggregates.** An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, or `application/messagepublisher/` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. When fields must be exported for XORM/copier mapping, keep mutation methods as the only sanctioned mutation path and treat direct external assignment as a code-review failure.
 - **Version increment lives in SQL.** The Domain `Version int` field is read-only; the `version = version + 1` mutation happens in the Repository's `UPDATE` statement (see §3.4). Do not increment `Version` in Domain methods or factories.
 
 **Business Field Validation** — implements the Validation Contract defined in [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). Go-specific notes:
@@ -608,7 +621,9 @@ type Repository interface {
 - **Application Service**: Use-case orchestration, coordinating multiple aggregates/domain services
 - **Command + Command Handler** (`application/command/<use_case>.go`): Write operation intent and handling
 - **Query + Query Handler** (`application/query/<use_case>.go`): Read operation intent and handling
-- **Event Handler** (`application/handler/<event>.go`): In-process Domain Event consumers — subscribe to Domain Events emitted within the same bounded context and execute side-effect logic (e.g., send notification, update read model, trigger follow-up workflow within this context)
+- **Domain Event Handler** (`application/eventhandler/<event>.go`): In-process Domain Event consumers — subscribe to Domain Events emitted within the same bounded context and execute side-effect logic (e.g., send notification, update read model, trigger follow-up workflow within this context)
+- **Boundary Publisher** (`application/messagepublisher/<event>_publisher.go`): Same-BC Domain Event consumer that maps selected Domain Events to Integration Messages
+- **Integration Message Handler** (`application/messagehandler/<message>.go`): Cross-context Integration Message consumer in the receiving bounded context
 - **QueryRepository Interface**: Defined in Application layer, returns DTOs, bypasses Domain model
 - **Consumer-specific ports**: Small reader/writer/facade/coordination interfaces needed by a use case; never storage-shaped omnibus stores
 - **DTO**: Data Transfer Objects, decoupling internal and external models
@@ -617,12 +632,12 @@ type Repository interface {
 **Constraints** (see [ddd-core.md §3.2](ddd-core.md) for the full list, including the prohibition on implementing validation or owning technical-capability domain rules):
 
 - No business rules (those belong in the Domain layer)
-- Depends only on the Domain layer
+- Use-case packages depend only on the Domain layer and Application-owned ports; `application/application.go` may additionally import generated RPC/proto packages only for the Go RPC shortcut boundary mapping
 - Transaction boundaries are controlled here
-- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.2](ddd-core.md); do not implement one in Go merely because `xorm.Session` or another transaction API makes it easy.
+- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a named Application coordination service, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.2](ddd-core.md); do not implement one in Go merely because `xorm.Session` or another transaction API makes it easy.
 - The Application layer is the sole drainer of `event.Collection` (see §3.1 "Domain Event Collection Contract"): after a successful `Save()` it calls `dispatcher.DispatchAll(user.Events.Drain())` exactly once. Repository never drains. `Drain()` is one-shot — never call it twice on the same aggregate instance.
 - After `Save()`, the in-memory aggregate is stale — reload via `Get()` if further operations are needed
-- **File organization**: always use `application/command/`, `application/query/`, and `application/handler/` for Go DDD application code. Put command types, command handlers, and command-side ports in `application/command/`; put query types, query handlers, query DTOs/read models, and query-side ports in `application/query/`; put event handlers in `application/handler/`. Do not create an `application/port/` package — ports live beside the use case that owns them. `application.go` remains the single entry point that wires everything and imports the subpackages; subpackages must not import the root `application` package.
+- **File organization**: always use `application/command/`, `application/query/`, `application/eventhandler/`, `application/messagehandler/`, and `application/messagepublisher/` for Go DDD application code. Put command types, command handlers, and command-side ports in `application/command/`; put query types, query handlers, query DTOs/read models, and query-side ports in `application/query/`; put same-BC Domain Event handlers in `application/eventhandler/`; put Integration Message consumers in `application/messagehandler/`; put Domain Event -> Integration Message boundary publishers in `application/messagepublisher/`. Do not create an `application/port/` package — ports live beside the use case that owns them. `application.go` remains the single entry point that wires everything and imports the subpackages; subpackages must not import the root `application` package.
 
 #### CQRS Port Granularity
 
@@ -631,11 +646,11 @@ Apply [ddd-core.md §3.2](ddd-core.md) before adding or expanding any Go interfa
 Prefer read-side examples first; command-side Application ports need an explicit placement-gate exception.
 
 ```go
-// application/query/activity_replay_reader.go — consumer replay query side.
+// application/query/activity_history_reader.go — consumer history query side.
 package query
 
-type ActivityReplayReader interface {
-    ListReplay(ctx context.Context, streamID string, cursor ReplayCursor) ([]*activityv1.ActivityRecord, error)
+type ActivityHistoryReader interface {
+    ListHistory(ctx context.Context, streamID string, cursor HistoryCursor) ([]*activityv1.ActivityRecord, error)
 }
 ```
 
@@ -665,7 +680,7 @@ Avoid this:
 // Wrong inward port: it follows the storage adapter, not one caller's use case.
 type ActivityLogStore interface {
     Append(ctx context.Context, record *activityv1.ActivityRecord) error
-    ListReplay(ctx context.Context, streamID string, cursor ReplayCursor) ([]*activityv1.ActivityRecord, error)
+    ListHistory(ctx context.Context, streamID string, cursor HistoryCursor) ([]*activityv1.ActivityRecord, error)
     ListByCorrelation(ctx context.Context, q CorrelationQuery) ([]*activityv1.ActivityRecord, error)
     MaxProjectionSeq(ctx context.Context, streamID string) (uint64, error)
 }
@@ -678,8 +693,8 @@ fx.Provide(func(conn storage.Conn) *infrastructure.ActivityLogAdapter {
     return infrastructure.NewActivityLogAdapter(conn)
 })
 fx.Provide(func(log *infrastructure.ActivityLogAdapter) command.ActivityLogWriter { return log })
-fx.Provide(func(log *infrastructure.ActivityLogAdapter) query.ActivityReplayReader {
-    return infrastructure.NewReplayReader(log)
+fx.Provide(func(log *infrastructure.ActivityLogAdapter) query.ActivityHistoryReader {
+    return infrastructure.NewHistoryReader(log)
 })
 fx.Provide(func(log *infrastructure.ActivityLogAdapter) query.ActivityCorrelationReader {
     return infrastructure.NewCorrelationReader(log)
@@ -708,16 +723,30 @@ This avoids circular imports: `application.go` may import `application/query`, I
 
 **Domain Event Handler Contract**:
 - Implements `event.Handler` interface: `Listening() []event.Kind` + `Handle(context.Context, event.Event)`
-- Lives in the **same bounded context** as the Domain Event producer, usually in `application/handler/`
+- Lives in the **same bounded context** as the Domain Event producer, in `application/eventhandler/`
 - Handles repeated same-BC reactions to a domain fact after the aggregate is saved and events are drained
-- Each EventHandler owns its own transaction — failures do not roll back the producing command
+- Each Domain Event Handler owns its own transaction — failures do not roll back the producing command
 - Error handling: log and continue (or retry); never propagate errors back to the event producer. `Dispatch` / `DispatchAll` only return admission/enqueue errors (`event.ErrDispatcherClosed` during shutdown), never handler execution, panic, or unhandled-event outcomes — handlers own their own error policy
 - Registered during module initialization via `subscriber.Subscribe(handler)`. Inject `event.Subscriber` for the same-BC subscribing side and `event.Dispatcher` for the dispatching side; the `*event.InMemoryDispatcher` returned by `eventbus.NewDispatcher` implements both
 
+**Boundary Publisher Contract**:
+- Lives in the producing bounded context's `application/messagepublisher/` package
+- Implements `event.Handler`; registers only with the same-BC `event.Subscriber`
+- May import both `ddd/event` and `ddd/message` because its single job is boundary translation
+- Maps selected Domain Events to Integration Message payloads and calls `message.Publisher`
+- Must not consume Integration Messages, mutate aggregates, advance workflow state, or mix unrelated local side effects with publication
+
 **Integration Message Subscriber Contract**:
-- Lives in the consuming bounded context's Application layer
+- Lives in the consuming bounded context's `application/messagehandler/` package
 - Handles stable cross-context Integration Message payloads, never another context's internal Domain Event type
 - Owns idempotency and transaction boundaries for the consuming context
+
+**Async Handler Role and Granularity Rules**:
+- Name concrete types after the inbound fact or contract family: `ExecutorConnectedHandler`, `OrderCompletedHandler`, `OrderCompletedPublisher`. Avoid umbrella names such as `EventHandler`, `MessageHandler`, or `Handler`.
+- Default: one `Listening()` kind per concrete handler. Multiple kinds are allowed only when they share the same role, source context or contract family, target side effect / projection / published contract, transaction boundary, failure policy, and dependency set; write that reason in the Architecture Gate or review note.
+- Do not implement both `event.Handler` and `message.Handler` on the same concrete type. `Boundary Publisher` is the allowed bridge, and it is still an `event.Handler`, not a `message.Handler`.
+- Do not dispatch unrelated event/message variants with a large `switch` or a chain of type assertions inside one `Handle`; create named handlers instead.
+- Handler failure semantics stay lightweight by default: best-effort, log-and-continue, return the subscriber/adapter error, or `n/a` for pure mapping. Do not add stronger delivery machinery unless the use case explicitly asks for stronger delivery semantics.
 
 `DispatchAll` admission error policy:
 - Best-effort follow-up only: log the admission/enqueue error and continue.
@@ -729,7 +758,7 @@ This avoids circular imports: `application.go` may import `application/query`, I
 
 The in-memory `event.Dispatcher` is best-effort only: it has no persistence, no retry, and no at-least-once guarantee. Do not introduce deduplication tables or other delivery machinery for ordinary Domain Event handlers by default.
 
-Still write handlers so repeated execution is harmless when practical: prefer set/update operations, deterministic business keys, and guards on externally visible side effects. If a handler is later moved to a replayable or persistent delivery path, design the idempotency key and storage mechanism as part of that adapter-backed flow rather than assuming `event.Event` has a standard global ID.
+Still write handlers so repeated execution is harmless when practical: prefer set/update operations, deterministic business keys, and guards on externally visible side effects. If a handler is later moved to a stronger delivery path, design the idempotency key and storage mechanism as part of that adapter-backed flow rather than assuming `event.Event` has a standard global ID.
 
 ```go
 // application/command/change_password.go
@@ -837,12 +866,12 @@ Litmus test: read the body of `Handle`. If it is one delegating call to `QueryRe
 
 **Role**: Adapt external protocols that require hand-written routing and request/response mapping (e.g., REST with chi/gin/echo, custom WebSocket handlers). In Go this layer is named `interfaces/` rather than ddd-core's `adapter/`.
 
-**Skip this layer for gRPC / ConnectRPC.** The code generator emits a handler interface (e.g., `userv1connect.UserServiceHandler`) — the `Application` struct implements it directly, and a separate `interfaces/` directory only adds indirection.
+**Skip this layer for gRPC / ConnectRPC only through the Go RPC shortcut.** The code generator emits a handler interface (e.g., `userv1connect.UserServiceHandler`) — `application/application.go` may implement it directly, and a separate `interfaces/` directory only adds indirection when the method only maps protocol DTOs to Application commands/queries. Keep generated RPC imports out of use-case subpackages.
 
 **Contents (when used)**: HTTP handler, request/response structs, input format validation (business validation belongs in Domain).
 **Constraints**: depends only on Application and Domain; no business logic; owns protocol details (status codes, error mapping).
 
-#### gRPC/ConnectRPC: Application struct implements the generated stub directly
+#### gRPC/ConnectRPC Shortcut: `application.go` implements the generated stub directly
 
 ```go
 // application/application.go
@@ -1087,14 +1116,14 @@ func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderComman
 
 Cross-context state propagation publishes **Integration Messages** through the `github.com/go-jimu/components/ddd/message` port (see [ddd-core.md §5.3](ddd-core.md) for the language-neutral concept). The Application layer of the **producing context** maps selected Domain Events into protobuf-typed Integration Message payloads, packages each as a `message.Message` value, and publishes through `message.Publisher`. The **consuming context** implements `message.Handler` and registers it with a `message.Subscriber`; Kafka is only the default adapter used in this guide. Subscribing directly to the producer's Domain Event from another context — via `event.Subscriber.Subscribe` — is prohibited; that couples the consumer to the publisher's internal model and violates [ddd-core.md §5.3](ddd-core.md). Domain Events stay inside one bounded context; this Go guide's `ddd/event` dispatcher is the in-memory, same-process implementation of that internal delivery path.
 
-> **Terminology.** This guide uses *Integration Message* — not `Integration Event` — for the cross-context fact carrying a stable contract payload, deliberately separating it from *Domain Event* (which lives inside one bounded context and uses the publisher's ubiquitous language). The Go library `ddd/message` already names this layer `message`; using "Integration Message" keeps doc and library vocabulary aligned and avoids overloading "Event" across two semantic layers. `message.Message` is the transport-neutral envelope passed through publisher/subscriber adapters; Kafka records, topics, partitions, offsets, retries, and DLQs belong to the Kafka adapter.
+> **Terminology.** This guide uses *Integration Message* — not `Integration Event` — for the cross-context fact carrying a stable contract payload, deliberately separating it from *Domain Event* (which lives inside one bounded context and uses the publisher's ubiquitous language). The Go library `ddd/message` already names this layer `message`; using "Integration Message" keeps doc and library vocabulary aligned and avoids overloading "Event" across two semantic layers. `message.Message` is the transport-neutral envelope passed through publisher/subscriber adapters; Kafka records, topics, partitions, offsets, retries, and delivery failure handling belong to the Kafka adapter.
 
 Keep four layers separate:
 
 - **Concept**: Integration Message means a cross-context fact with a stable published-language payload.
 - **Contract**: protobuf payload type, `message.Kind`, versioning, and compatibility rules.
 - **Port**: `message.Publisher`, `message.Handler`, `message.Subscriber`, and `message.Message`.
-- **Adapter**: `github.com/go-jimu/contrib/message/kafka` maps the port to Kafka records, topics, commits, retry, and DLQ behavior.
+- **Adapter**: `github.com/go-jimu/contrib/message/kafka` maps the port to Kafka records, topics, commits, retry, and delivery failure behavior.
 
 `message.Kind` is the semantic contract identifier used for handler routing and payload resolution. Default: derive Kind from the protobuf full name with `message.KindOf(&pb.MessageType{})` so the contract identifier and the schema cannot drift apart. A semantic string literal (e.g. `"orders.paid"`) is also valid for simple setups or migration paths; pick one form per integration. Kind is **not** a Kafka topic, partition, or routing key — those are provider-side concerns and may be remapped via `kafka.WithTopicResolver`.
 
@@ -1163,8 +1192,8 @@ func (h *CompleteOrderHandler) Handle(ctx context.Context, id domain.OrderID) er
 ```
 
 ```go
-// application/handler/order_completed_publisher.go
-package handler
+// application/messagepublisher/order_completed_publisher.go
+package messagepublisher
 
 import (
     "context"
@@ -1226,8 +1255,8 @@ The Domain method `Complete()` records its Domain Event internally; mapping that
 **Consumer side** — the consuming context implements `message.Handler` and registers it with a `Subscriber`. Check the selected subscriber adapter's delivery semantics: when it can redeliver the same Integration Message, the handler must be idempotent through natural convergence, deterministic business keys, or an application-level dedup mechanism chosen for that use case. Do not add a processed-message table by default.
 
 ```go
-// internal/business/user/application/handler/order_completed.go
-package handler
+// internal/business/user/application/messagehandler/order_completed.go
+package messagehandler
 
 import (
     "context"
@@ -1298,11 +1327,11 @@ func NewKafkaConsumer(client *kgo.Client, handlers []message.Handler) (*kafka.Co
 Operational facts that come with the adapter (do not re-implement these in Application):
 
 - Default Kafka topic equals `Kind` — override with `kafka.WithTopicResolver` when topic naming differs from semantic kinds
-- Consumer requires `kgo.DisableAutoCommit()`; the adapter commits offsets manually after handler success / retry publish / DLQ publish
-- Handler errors trigger retry on `<topic>.retry`; exhaustion goes to `<topic>.dlq` (defaults: 3 attempts; tune with `kafka.WithRetryPolicy` / `WithDLQTopicResolver` / `WithDLQDisabled` / `WithErrorHandler`)
+- Consumer requires `kgo.DisableAutoCommit()`; the adapter commits offsets manually after handler success or the adapter's configured failure handling accepts the record
+- Handler errors use the adapter's configured retry/failure policy; tune it in Infrastructure, not in Application handlers
 - `Message.Key()` maps to the Kafka record key — use it for per-key partition affinity and ordering when the consumer relies on per-aggregate sequence
 
-> **When pre-publish loss is unacceptable** (payment, inventory, regulatory compliance), the upstream `github.com/go-jimu/components/ddd/message/outbox` submodule and external transactional-outbox / change-data-capture patterns exist for this purpose. This guide does not prescribe an implementation; whichever mechanism is chosen, hide it behind the Repository or an Infrastructure adapter so it does not leak as a Domain or Application port (see [ddd-core.md §3.4](ddd-core.md)).
+> **When pre-publish loss is unacceptable** (payment, inventory, regulatory compliance), use an explicit stronger-delivery design. This guide does not prescribe an implementation; whichever mechanism is chosen, hide it behind the Repository or an Infrastructure adapter so it does not leak as a Domain or Application port (see [ddd-core.md §3.4](ddd-core.md)).
 
 ### 5.3 Cross-Context Queries
 
@@ -1353,7 +1382,9 @@ If an operation records or mutates a Domain fact, the recording/mutation port re
 | Command Handler | `Command` + Action + `Handler` | `CommandChangePasswordHandler` |
 | Query | `Query` + Name | `QueryFindUserList` |
 | Query Handler | Name + `Handler` | `FindUserListHandler` |
-| Event Handler | Event name + `Handler` | `UserCreatedHandler` |
+| Domain Event Handler | Event name + `Handler` | `UserCreatedHandler` |
+| Boundary Publisher | Event name + `Publisher` | `OrderCompletedPublisher` |
+| Integration Message Handler | Message/contract name + `Handler` | `OrderCompletedHandler` |
 | State Label | Entity + `State` + Name | `OrderStatePending` |
 | State Action | Entity + `Action` + Verb | `OrderActionPay` |
 | Repository Interface | `Repository` | `Repository` |
@@ -1379,7 +1410,9 @@ Production files only. Test file placement is governed by §6.3 and is not requi
 | `application/query/repository.go` | QueryRepository / reader interfaces owned by query use cases |
 | `application/query/dto.go` | Query DTOs/read models |
 | `application/query/<capability>_reader.go` | Consumer-specific read/facade port when `QueryRepository` is too broad or the reader is not an aggregate read model |
-| `application/handler/<event>.go` | Event Handler for domain event consumers |
+| `application/eventhandler/<event>.go` | Domain Event Handler for same-BC event consumers |
+| `application/messagepublisher/<event>_publisher.go` | Boundary Publisher mapping same-BC Domain Events to Integration Messages |
+| `application/messagehandler/<message>.go` | Integration Message Handler for cross-context message consumers |
 | `application/assembler.go` | Object conversion (DTO ↔ Domain, Proto ↔ Domain) |
 | `interfaces/http/handler.go` | REST handler (optional, hand-written protocols only) |
 | `api/queries.go` | Cross-context Reader / Facade ports (optional, only when this context publishes read-side facades; §5.3) |
@@ -1414,11 +1447,11 @@ Layer-specific placement:
 
 ---
 
-## 7. Technology Stack
+## 7. Project Default Technology Stack
 
-Unless an existing repository has already standardized on a different implementation or the user explicitly approves an exception, these are the required libraries for the concerns listed below. Do not create project-local substitutes for their core interfaces (`event.Event`, `event.Collection`, `message.Publisher`, `message.Handler`, `fsm.StateContext`, `sloghelper.Error`, config loader options, and similar).
+These are the default libraries for repositories that adopt this Go guide's project stack. They are not DDD requirements. Unless an existing repository has already standardized on a different implementation or the user explicitly approves an exception, use these libraries for the concerns listed below and do not create project-local substitutes for their core interfaces (`event.Event`, `event.Collection`, `message.Publisher`, `message.Handler`, `fsm.StateContext`, `sloghelper.Error`, config loader options, and similar).
 
-| Purpose | Required Library |
+| Purpose | Default Library |
 |---------|---------------------|
 | Dependency Injection | `go.uber.org/fx` |
 | RPC/HTTP | `connectrpc.com/connect` |
@@ -1569,7 +1602,8 @@ import (
     "go.uber.org/fx"
 
     "github.com/example/project/internal/business/user/application"
-    "github.com/example/project/internal/business/user/application/handler"
+    "github.com/example/project/internal/business/user/application/eventhandler"
+    "github.com/example/project/internal/business/user/application/messagepublisher"
     "github.com/example/project/internal/business/user/infrastructure"
     userv1connect "github.com/example/project/pkg/gen/proto/user/v1/userv1connect"
 )
@@ -1579,15 +1613,15 @@ var Module = fx.Module(
     fx.Provide(infrastructure.NewUserRepository),
     fx.Provide(infrastructure.NewUserQueryRepository),
     fx.Provide(infrastructure.NewOrderPublisher), // provides message.Publisher via the selected adapter
-    fx.Provide(handler.NewWelcomeEmailHandler), // in-process Domain Event Handler (event.Handler impl in application/handler/<event>.go)
-    fx.Provide(handler.NewOrderCompletedPublisher), // boundary publisher: Domain Event -> Integration Message
+    fx.Provide(eventhandler.NewWelcomeEmailHandler), // in-process Domain Event Handler (event.Handler impl in application/eventhandler/<event>.go)
+    fx.Provide(messagepublisher.NewOrderCompletedPublisher), // boundary publisher: Domain Event -> Integration Message
     fx.Provide(application.NewApplication),
     // Register in-process Domain Event Handlers with the dispatcher's Subscriber face.
-    // Repeat for each event.Handler the context owns. See §3.2 "Event Handler Contract".
-    fx.Invoke(func(sub event.Subscriber, h *handler.WelcomeEmailHandler) {
+    // Repeat for each event.Handler the context owns. See §3.2 "Domain Event Handler Contract".
+    fx.Invoke(func(sub event.Subscriber, h *eventhandler.WelcomeEmailHandler) {
         sub.Subscribe(h)
     }),
-    fx.Invoke(func(sub event.Subscriber, h *handler.OrderCompletedPublisher) {
+    fx.Invoke(func(sub event.Subscriber, h *messagepublisher.OrderCompletedPublisher) {
         sub.Subscribe(h)
     }),
     fx.Invoke(func(app *application.Application, mux *http.ServeMux) {
