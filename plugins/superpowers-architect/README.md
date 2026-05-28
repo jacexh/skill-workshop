@@ -76,9 +76,13 @@ Files with the same name in a higher layer override the lower layer.
 See the `design-patterns/` directory:
 - `database.md` — schema conventions, index strategy, migrations
 - `rest-api.md` — URL naming, status codes, pagination, error format
+- `ddd-agent-contract.md` — agent execution contract for DDD, Go runtime, and taskqueue work
 - `ddd-modeling.md` — strategic bounded-context, aggregate, and architecture gate guidance
 - `ddd-core.md` — dependency direction, bounded contexts, and service layer boundaries
 - `ddd-golang.md` — Go-specific implementation guidance for the DDD core standard
+- `ddd-golang-events-messages.md` — Go event/message guidance for Domain Events, Boundary Publishers, Integration Messages, and Kafka adapter wiring
+- `ddd-golang-runtime.md` — Go runtime guidance for config, fx lifecycle, graceful shutdown, and Kubernetes
+- `ddd-golang-taskqueue.md` — Go taskqueue guidance for polling jobs, TaskType/schema registry, processors, asynq wiring, and middleware
 - `ddd-python.md` — Python-specific implementation guidance for the DDD core standard
 - `ddd-typescript.md` — TypeScript-specific implementation guidance for the DDD core standard
 - `frontend-patterns.md` — frontend development patterns for React, Next.js, and UI architecture

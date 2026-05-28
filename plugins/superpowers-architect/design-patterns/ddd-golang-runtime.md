@@ -1,6 +1,6 @@
 ---
 name: ddd-golang-runtime
-description: Go runtime patterns for DDD services — fx-based configuration management, graceful shutdown, lifecycle hooks, and Kubernetes deployment. Use when editing cmd/**/main.go, internal/pkg/<middleware>/**.go (mysql, redis, kafka, httpsrv, grpcsrv, eventbus, etc.), fx.Module assembly, fx.Lifecycle hooks, OnStart/OnStop logic, shutdown ordering, or Kubernetes preStop hooks in Go DDD services. Complements ddd-golang.md (layers, aggregates, repositories, events, integration messages).
+description: Go runtime patterns for DDD services — fx-based configuration management, graceful shutdown, lifecycle hooks, and Kubernetes deployment. Use when editing cmd/**/main.go, internal/pkg/<middleware>/**.go (mysql, redis, kafka, taskqueue, httpsrv, grpcsrv, eventbus, etc.), fx.Module assembly, fx.Lifecycle hooks, OnStart/OnStop logic, shutdown ordering, or Kubernetes preStop hooks in Go DDD services. Complements ddd-golang.md (layers, aggregates, repositories), ddd-golang-events-messages.md (events/messages), and ddd-golang-taskqueue.md (task queues, polling jobs, asynq workers).
 ---
 
 # Go Runtime Patterns for DDD
@@ -12,12 +12,15 @@ description: Go runtime patterns for DDD services — fx-based configuration man
 **Prerequisites**:
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first.
 - **Go implementation**: [`ddd-golang.md`](ddd-golang.md) — Layer responsibilities, directory layout, naming, error handling. This runtime guide covers what `ddd-golang.md` defers to: config plumbing, process lifecycle, graceful shutdown, k8s.
+- **Events / messages**: [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Domain Event / Integration Message semantics, handler roles, and message adapter boundaries.
+- **Task queues / polling**: [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) — Task-specific placement, `TaskType`, schema registry, processors, asynq worker wiring, and middleware.
 
 > **Code blocks are illustrative**, not copy-paste templates. Imports may be omitted and identifiers may reference types defined elsewhere in the project. See [`ddd-agent-contract.md` §6](ddd-agent-contract.md).
 
 > **When to read this file**:
 > - Editing `cmd/server/main.go` or any `cmd/**/main.go`
 > - Editing `internal/pkg/<middleware>/*.go` (adding a new shared middleware client)
+> - Editing `internal/pkg/taskqueue/**`, task worker lifecycle hooks, or asynq client/worker wiring
 > - Adding `fx.Lifecycle` hooks or `OnStart` / `OnStop` logic anywhere
 > - Designing graceful shutdown for a component with in-flight work
 > - Wiring fx.Module / fx.Provide / fx.Supply at the top level
@@ -39,7 +42,7 @@ Each component owns its `Option`; the top-level `main` only aggregates and distr
 
 #### Shared Middleware Client Ownership
 
-- Initialize shared middleware clients in `internal/pkg/<middleware>`: `internal/pkg/mysql`, `internal/pkg/redis`, `internal/pkg/kafka`, etc.
+- Initialize shared middleware clients in `internal/pkg/<middleware>`: `internal/pkg/mysql`, `internal/pkg/redis`, `internal/pkg/kafka`, `internal/pkg/taskqueue`, etc.
 - Each middleware package owns its `Option`, constructor, health/lifecycle hooks, and fx provider.
 - Bounded-context Infrastructure packages must not read shared middleware config, open connections, or close clients.
 - Repository / QueryRepository / Publisher / Consumer constructors receive initialized clients and adapt them to Domain/Application interfaces.
@@ -217,6 +220,7 @@ Components that have **in-flight work** at shutdown time must register `fx.Lifec
 | gRPC Server | RPC calls being processed | `server.GracefulStop()` — stop accepting, drain in-flight calls |
 | EventBus (Dispatcher) | Queued event batches + the handler invocation currently running on the worker | `dispatcher.Close(ctx)` — wait `delayClose`, reject new events, drain queued/in-flight batches |
 | Message queue consumer | Messages being processed | Stop consuming, finish current batch |
+| Task queue worker | Task processors currently running | `worker.Shutdown(ctx)` — stop accepting new tasks, wait for in-flight processors |
 
 Pure connection clients (MySQL, Redis, HTTP Client) do not need drain-style OnStop hooks — they have no in-flight work of their own. They may still register cleanup hooks such as `client.Close()`.
 
@@ -347,5 +351,7 @@ Kubernetes initiates Pod deletion
 **References:**
 - [`ddd-agent-contract.md`](ddd-agent-contract.md) — Agent execution contract (read first)
 - [`ddd-golang.md`](ddd-golang.md) — Go DDD implementation (layers, aggregates, events, integration messages, module assembly)
+- [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Go Domain Events, Boundary Publishers, Integration Messages, Kafka adapter wiring
+- [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) — Go taskqueue and polling patterns
 - [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification
 - [`ddd-modeling.md`](ddd-modeling.md) — Strategic domain modeling
