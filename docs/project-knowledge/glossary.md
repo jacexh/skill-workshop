@@ -26,6 +26,10 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Project-Default Go Component Stack** — Go libraries named by `ddd-golang.md` for DDD concerns in projects adopting this guide; agents should use their public interfaces instead of local substitutes unless the repo/user establishes an exception. → `plugins/superpowers-architect/design-patterns/ddd-golang.md`
 
+**TaskType** — Semantic task contract identifier for Go taskqueue payload schemas; processors are one TaskType each under Application, with asynq runtime wiring in `internal/pkg/taskqueue`. → `plugins/superpowers-architect/design-patterns/ddd-golang-taskqueue.md`
+
+**Task Schema Registry** — Service-owned registry mapping `TaskType` values to Go payload structs for task serialization/deserialization; not a global singleton. → `plugins/superpowers-architect/design-patterns/ddd-golang-taskqueue.md`
+
 **KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/project-knowledge/`; acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild`. Same lock file used by both tracks (Claude and Codex naturally share when running on same repo). → ADR-010
 
 **Rich Injection** — Hook output pattern: a multi-section `additionalContext` block (diff scope + imperative MUST language + numbered checklist) used in place of `decision: "block"`; designed to make compliance the path of least resistance without forcing a halt. → ADR-011

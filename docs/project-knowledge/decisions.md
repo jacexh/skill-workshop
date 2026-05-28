@@ -6,13 +6,23 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 # Decisions
 
+## ADR-018: DDD Go events/messages split as standalone pattern file
+**Decision:** Add `ddd-golang-events-messages.md` as a sibling design-pattern file on both Claude and Codex tracks. It owns Go event/message guidance: Domain Event collection, same-BC Domain Event Handlers, Boundary Publishers, Integration Messages, message handler contracts, Kafka adapter wiring, module registration, idempotency, and event/message failure semantics. `ddd-golang.md`, `ddd-agent-contract.md`, runtime references, and plugin READMEs now route event/message work to this guide.
+**Trade-off:** Pattern-file count grows from 11 to 12 and the Go guidance has another sibling to keep synchronized. Accepted because event/message rules were the largest remaining cross-cutting chunk in `ddd-golang.md`, have clear trigger terms, and are a common LLM failure area distinct from the Go layer/layout skeleton.
+→ [adr/ADR-018-ddd-golang-events-messages-split.md](adr/ADR-018-ddd-golang-events-messages-split.md)
+
+## ADR-017: DDD Go taskqueue and polling split as standalone pattern file
+**Decision:** Add `ddd-golang-taskqueue.md` as a sibling design-pattern file on both Claude and Codex tracks. It owns Go taskqueue/polling guidance: `TaskType`, schema registry, one processor per task type, Application-layer processor placement, `internal/pkg/taskqueue` asynq runtime ownership, middleware, graceful shutdown, and polling-vs-retry policy. `ddd-agent-contract.md`, `ddd-golang.md`, `ddd-golang-runtime.md`, and plugin READMEs now route taskqueue/asynq work to this guide.
+**Trade-off:** Pattern-file count grows from 10 to 11 and the Go guidance has another sibling to keep in sync across tracks. Accepted because putting polling/asynq rules into the already-long `ddd-golang.md` would recreate the selective-reading problem ADR-015 solved, while relying only on component/contrib package docs would not teach agents the DDD layer-placement rules.
+→ [adr/ADR-017-ddd-golang-taskqueue-split.md](adr/ADR-017-ddd-golang-taskqueue-split.md)
+
 ## ADR-016: Progressive KB layout and playbook removal
 **Decision:** Remove the `playbooks.md` lazy slot from superpowers-memory and replace non-index line/token constraints with advisory `retrievalCost` plus vertical `<slot>-<domain>.md` shard support. `index.md` remains the only strict hot-path size constraint because it is injected at SessionStart.
 **Trade-off:** Large projects may produce more KB files and require better index routing. Accepted because preserving valid knowledge is more important than satisfying global caps, and playbooks had no observed practical value.
 → [adr/ADR-016-progressive-kb-layout.md](adr/ADR-016-progressive-kb-layout.md)
 
 ## ADR-015: DDD agent contract and Go runtime split as standalone pattern files
-**Decision:** Add `ddd-agent-contract.md` (agent execution behavior: trigger conditions, task classification, stop protocol, 23 must-not rules including dependency-inversion-only Application-port rejection, routing/topology Application-port rejection, umbrella async handler rejection, mixed event/message handler rejection, adopted Go component-stack usage, dual-track self-check, compact output template) and `ddd-golang-runtime.md` (Go config + fx.Lifecycle + graceful shutdown + Kubernetes) as siblings under `design-patterns/` on both Claude and Codex tracks. `ddd-golang.md` shrinks to layer/aggregate/event content with a stub linking into the runtime guide. Promotion of the contract to a standalone skill is deferred with explicit re-evaluation criteria.
+**Decision:** Add `ddd-agent-contract.md` (agent execution behavior: trigger conditions, task classification, stop protocol, 23 must-not rules including dependency-inversion-only Application-port rejection, routing/topology Application-port rejection, umbrella async handler rejection, mixed event/message handler rejection, adopted Go component-stack usage, completion self-checks, compact output template) and `ddd-golang-runtime.md` (Go config + fx.Lifecycle + graceful shutdown + Kubernetes) as siblings under `design-patterns/` on both Claude and Codex tracks. `ddd-golang.md` shrinks to layer/aggregate/event content with a stub linking into the runtime guide; ADR-017 and ADR-018 later move taskqueue and events/messages into sibling guides. Promotion of the contract to a standalone skill is deferred with explicit re-evaluation criteria.
 **Trade-off:** Pattern-file count grows from 8 to 10 and the contract introduces a drift risk against the underlying spec rules. Accepted because agent-selective-absorption of a 1723-line `ddd-golang.md` and recurring must-not violations had higher cost than pattern-count growth.
 → [adr/ADR-015-ddd-agent-contract-and-runtime-split.md](adr/ADR-015-ddd-agent-contract-and-runtime-split.md)
 

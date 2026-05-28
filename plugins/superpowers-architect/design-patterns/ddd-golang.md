@@ -1,6 +1,6 @@
 ---
 name: ddd-golang
-description: Go implementation guide for DDD + Clean Architecture. Use when editing Go business files under internal/business/<context>/**.go or pkg/gen/** contracts, or when implementing aggregates, repositories, domain events, integration messages, CQRS, cross-context query ports, module assembly, or Go package boundaries. For cmd/**/main.go, internal/pkg/**, config, fx.Lifecycle, graceful shutdown, or Kubernetes runtime work, use ddd-golang-runtime.md. Code agents must read ddd-agent-contract.md first.
+description: Go implementation guide for DDD + Clean Architecture. Use when editing Go business files under internal/business/<context>/**.go or pkg/gen/** contracts, or when implementing aggregates, repositories, CQRS, cross-context query ports, module assembly, or Go package boundaries. For Domain Events, Integration Messages, Boundary Publishers, event/message handlers, Kafka message adapters, or event.Collection semantics, use ddd-golang-events-messages.md. For cmd/**/main.go, internal/pkg/**, config, fx.Lifecycle, graceful shutdown, or Kubernetes runtime work, use ddd-golang-runtime.md. For taskqueue, polling/reconciliation jobs, asynq workers, TaskType/schema registry, or internal/pkg/taskqueue work, use ddd-golang-taskqueue.md. Code agents must read ddd-agent-contract.md first.
 ---
 
 # Go Web System Architecture Guide
@@ -13,6 +13,8 @@ description: Go implementation guide for DDD + Clean Architecture. Use when edit
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first; defines trigger conditions, stop protocol, and prohibited actions. Do not skip.
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
 - **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).
+- **Events / messages**: [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Use this for Domain Events, `event.Collection`, Domain Event Handlers, Boundary Publishers, Integration Messages, message handlers, Kafka adapter wiring, idempotency, and failure semantics.
+- **Task queues / polling**: [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) — Use this instead of expanding the current guide when adding task processors, `TaskType`, schema registry, asynq wiring, polling/reconciliation jobs, or `internal/pkg/taskqueue`.
 - This document is the Go implementation guide that builds on both.
 
 > **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. The Go guide also adds Go-specific workflow, placement, event/message, testing, and module-assembly sections.
@@ -25,7 +27,7 @@ description: Go implementation guide for DDD + Clean Architecture. Use when edit
 
 Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Go-specific** items.
 
-Every Go backend plan must also include the `Architecture Gate` core block from [ddd-modeling.md §0](ddd-modeling.md), plus the placement extension when §0 requires it. For technical-facing packages, explicitly classify the capability before choosing between `domain`, `application`, `interfaces`, `infrastructure`, `internal/pkg`, or root `pkg`.
+Every Go DDD/business backend plan must also include the `Architecture Gate` core block from [ddd-modeling.md §0](ddd-modeling.md), plus the placement extension when §0 requires it. Runtime-only work follows the classification matrix in [`ddd-agent-contract.md`](ddd-agent-contract.md) and reports runtime ownership/lifecycle/config/shutdown impact instead of fabricating DDD gate values. For technical-facing packages, explicitly classify the capability before choosing between `domain`, `application`, `interfaces`, `infrastructure`, `internal/pkg`, or root `pkg`.
 
 ### Level 1 (Local Change)
 
@@ -39,7 +41,7 @@ Plan must additionally state:
 
 Plan must additionally state:
 
-- file placement under the bounded context (`application/command/<use_case>.go`, `application/query/<use_case>.go`, `application/query/repository.go`, `application/eventhandler/<event>.go`, `application/messagehandler/<message>.go`, `application/messagepublisher/<event>_publisher.go`, consumer-specific reader/writer/coordination ports, etc. — see §6.2)
+- file placement under the bounded context (`application/command/<use_case>.go`, `application/query/<use_case>.go`, `application/query/repository.go`, `application/eventhandler/<event>.go`, `application/messagehandler/<message>.go`, `application/messagepublisher/<event>_publisher.go`, `application/taskprocessor/<task>.go` for taskqueue processors, consumer-specific reader/writer/coordination ports, etc. — see §6.2 and [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md))
 - whether each new port is Command-side, Query-side, cross-context facade, or coordination; do not combine unrelated producer and consumer needs in one interface
 - import-boundary impact: generated proto, ConnectRPC, storage, queue, and framework imports stay out of Domain
 - new mock generation requirements (§6.3 "Generated mocks")
@@ -61,6 +63,7 @@ Follow the multi-side planning rule in [ddd-modeling.md §7.4](ddd-modeling.md).
 - producing context's `application/eventhandler/<event>.go` or `application/messagepublisher/<event>_publisher.go`
 - consuming context's `application/messagehandler/<message>.go` and its idempotency strategy
 - `proto/` files and `pkg/gen/` regeneration if a new protocol contract is introduced
+- event/message-specific rules from [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) when the change touches Domain Events, Boundary Publishers, Integration Messages, or message adapters
 
 ---
 
@@ -142,6 +145,7 @@ project/
 │   │       └── <module>.go      # Module assembly (fx Module)
 │   └── pkg/                     # Infrastructure adapters — third-party libs wrapped + fx providers
 │       ├── eventbus/            # event.Dispatcher wrapper + lifecycle hooks
+│       ├── taskqueue/           # taskqueue/asynq client, worker, middleware + lifecycle hooks
 │       ├── mysql/               # MySQL / XORM client wrapper + config
 │       ├── redis/               # Redis client wrapper + config
 │       ├── kafka/               # Kafka producer/consumer wrapper + config
@@ -155,7 +159,12 @@ project/
     └── sql/                     # Database migration scripts
 ```
 
-**`internal/business/` vs `internal/pkg/`** — `business/` holds bounded contexts (the DDD four-layer structure); `internal/pkg/` holds shared technical adapters (DB, HTTP/gRPC server, event bus, validator …). Business may depend on `internal/pkg/`; `internal/pkg/` must never import `internal/business/*`.
+**`internal/business/` vs `internal/pkg/`** — `business/` holds bounded contexts (the DDD four-layer structure); `internal/pkg/` holds shared technical adapters (DB, HTTP/gRPC server, event bus, validator …). Dependency direction is layer-specific:
+
+- Domain must never import `internal/pkg`.
+- Application use-case packages must not import `internal/pkg` adapters. They may import provider-neutral public contracts from the adopted component stack (for example `ddd/event`, `ddd/message`, or `taskqueue`) when those contracts are part of the Application boundary.
+- Bounded-context Infrastructure may depend on initialized clients or runtime components from `internal/pkg/<capability>` while implementing Domain/Application ports.
+- `internal/pkg` must never import `internal/business/*` or own business/domain rules.
 
 **One directory under `internal/business/` = one bounded context.** The directory name (`<module>`) is the bounded context's name, and its `domain/`, `application/`, `interfaces/`, `infrastructure/` sub-tree is the full DDD four-layer slice for that context. Do not split a single bounded context across sibling directories, and do not collapse two bounded contexts into one directory.
 
@@ -250,7 +259,7 @@ Use this checklist before accepting a package layout or import graph:
 
 - A package path ending in `/domain` contains only domain concepts: aggregates, entities, value objects, domain services, write repository interfaces, domain events, and domain errors.
 - Domain packages do not import `pkg/gen`, ConnectRPC/gRPC/HTTP packages, storage drivers, queue clients, framework packages, `internal/pkg` adapters, `internal/.../infrastructure`, or another bounded context's Domain package.
-- Application use-case packages may import Domain and Application-owned ports; they must not import generated RPC stubs, concrete storage, queue, or network clients. The Go RPC shortcut is limited to `application/application.go`, which may import generated protocol packages to implement the generated server stub or map DTOs at the boundary.
+- Application use-case packages may import Domain, Application-owned ports, and provider-neutral public contracts from the adopted component stack; they must not import generated RPC stubs, concrete storage, queue, network clients, or `internal/pkg` adapters. The Go RPC shortcut is limited to `application/application.go`, which may import generated protocol packages to implement the generated server stub or map DTOs at the boundary.
 - Infrastructure packages may import Domain/Application interfaces they implement, generated protocol packages, and external clients.
 - `internal/pkg/<capability>` is only for shared technical adapters. It must not import `internal/business/*` or own business/domain rules.
 - Root `pkg/` is not a dumping ground. Use it for generated code or stable libraries intended for external repository consumers.
@@ -369,7 +378,7 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 
 **Constraints**: see [ddd-core.md §3.1](ddd-core.md) for the full list (no concrete implementation dependencies; general-purpose libraries allowed; no cross-context Domain imports; state changes through domain methods; Version is a read-only token incremented by Infrastructure; IDs generated in Domain via UUID/ULID/Snowflake). Go-specific deltas:
 
-- **Canonical Go component libraries are project defaults, not DDD concepts.** When this guide names a Go library for a concern, use that library and its public interfaces in repositories that have adopted this stack instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed when existing repository code already standardized on it or the user explicitly approves the exception.
+- **Canonical Go component libraries are project defaults, not DDD concepts.** When a repository has adopted this guide's Go stack (by repository convention, existing code, or explicit user/team direction), use the named library and its public interfaces for that concern instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; task queues use `github.com/go-jimu/components/taskqueue` plus `github.com/go-jimu/contrib/taskqueue/asynq`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed when existing repository code already standardized on it or the user explicitly approves the exception.
 - **Concrete prohibition list for Go imports**: no `import` of `pkg/gen/...` (generated proto), `connectrpc.com/connect`, `google.golang.org/grpc`, `net/http`'s server side, `xorm.io/xorm`, `gorm.io/gorm`, database/sql drivers, `franz-go` / Kafka / NATS / RocketMQ / Redis clients, `internal/pkg/*` adapters, `internal/.../infrastructure`, or another bounded context's `internal/business/<ctx>/domain`. Allowed: `github.com/google/uuid`, `time`, `errors`, `fmt`, `strings`, `github.com/samber/oops`, and the in-package `github.com/go-jimu/components/ddd/event` (event types only, no dispatcher implementation).
 - **No anemic aggregates.** An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, or `application/messagepublisher/` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. When fields must be exported for XORM/copier mapping, keep mutation methods as the only sanctioned mutation path and treat direct external assignment as a code-review failure.
 - **Version increment lives in SQL.** The Domain `Version int` field is read-only; the `version = version + 1` mutation happens in the Repository's `UPDATE` statement (see §3.4). Do not increment `Version` in Domain methods or factories.
@@ -386,13 +395,7 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 - Simple cases: use the Aggregate Root's own constructor (`NewXxx`)
 - Complex cases (assembling multiple Value Objects, cross-entity validation): extract an independent Domain Factory struct within the domain package
 
-**Domain Event Collection Contract** (using `event.Collection`):
-- Aggregate Root holds an `Events event.Collection` field
-- Domain methods append events via `Events.Add(event)` — they never dispatch directly
-- The Application layer is the sole drainer. After a successful `Save()` returns, Application calls `dispatcher.DispatchAll(user.Events.Drain())` exactly once. The Repository must not drain.
-- `Drain()` is one-shot — a subsequent call on the same in-memory instance returns `nil`. After `Save()` succeeds, the in-memory aggregate is stale; if the use case needs further mutations, reload via `Repository.Get()` first (§3.2). Never retry `Save()` on an already-drained instance.
-
-> This is the Go-specific implementation of the language-agnostic event collection pattern described in [ddd-core.md §3.1 "Domain Event Collection"](ddd-core.md). Domain Events are bounded-context-internal facts; the current `github.com/go-jimu/components/ddd/event` dispatcher is the in-memory, same-process implementation for handling them. The `event.Collection` exposes `Add`/`Drain`/`Len` with a one-shot drain guarantee. `Dispatch` / `DispatchAll` only enqueue events into the in-memory worker — the returned `error` reflects admission/enqueue (`event.ErrDispatcherClosed` during shutdown), never handler execution, panic, or unhandled-event outcomes. Handlers own their own error policy. Subscription is a separate `event.Subscriber` interface; the in-memory dispatcher implements both. Cross-process Integration Messages use the separate `ddd/message` port — see §5.2.
+**Domain Event Collection Contract**: aggregates may record same-BC Domain Events through `event.Collection`, but they never dispatch directly. The Application layer drains once after successful `Save()`; Repository never drains. See [`ddd-golang-events-messages.md §2`](ddd-golang-events-messages.md) for `event.Collection`, one-shot `Drain()`, dispatcher admission errors, handler failure policy, and Integration Message separation.
 
 **State Machine Contract** (optional, using `github.com/go-jimu/components/fsm`):
 
@@ -470,32 +473,7 @@ func (o *Order) Pay() error {
 }
 ```
 
-```go
-// domain/event.go
-package domain
-
-import "github.com/go-jimu/components/ddd/event"
-
-// Event kind constants
-const (
-    EventKindUserCreated     event.Kind = "user.created"
-    EventKindPasswordChanged event.Kind = "user.password_changed"
-)
-
-// Domain events implement event.Event (Kind() method).
-// Rich Event style: carry ID + minimum necessary fields.
-type EventUserCreated struct {
-    ID    string
-    Name  string
-    Email string
-}
-
-func (e EventUserCreated) Kind() event.Kind { return EventKindUserCreated }
-
-type EventPasswordChanged struct{ ID string }
-
-func (e EventPasswordChanged) Kind() event.Kind { return EventKindPasswordChanged }
-```
+Domain Event structs implement `event.Event` and live beside the aggregate in `domain/event.go`; see [`ddd-golang-events-messages.md §2`](ddd-golang-events-messages.md) for event shape and handler rules.
 
 ```go
 // domain/user.go
@@ -721,44 +699,7 @@ var _ query.Repository = (*activityQueryRepository)(nil)
 
 This avoids circular imports: `application.go` may import `application/query`, Infrastructure imports `application/query` to implement the interface, and `application/query` imports neither Infrastructure nor the root `application` package.
 
-**Domain Event Handler Contract**:
-- Implements `event.Handler` interface: `Listening() []event.Kind` + `Handle(context.Context, event.Event)`
-- Lives in the **same bounded context** as the Domain Event producer, in `application/eventhandler/`
-- Handles repeated same-BC reactions to a domain fact after the aggregate is saved and events are drained
-- Each Domain Event Handler owns its own transaction — failures do not roll back the producing command
-- Error handling: log and continue (or retry); never propagate errors back to the event producer. `Dispatch` / `DispatchAll` only return admission/enqueue errors (`event.ErrDispatcherClosed` during shutdown), never handler execution, panic, or unhandled-event outcomes — handlers own their own error policy
-- Registered during module initialization via `subscriber.Subscribe(handler)`. Inject `event.Subscriber` for the same-BC subscribing side and `event.Dispatcher` for the dispatching side; the `*event.InMemoryDispatcher` returned by `eventbus.NewDispatcher` implements both
-
-**Boundary Publisher Contract**:
-- Lives in the producing bounded context's `application/messagepublisher/` package
-- Implements `event.Handler`; registers only with the same-BC `event.Subscriber`
-- May import both `ddd/event` and `ddd/message` because its single job is boundary translation
-- Maps selected Domain Events to Integration Message payloads and calls `message.Publisher`
-- Must not consume Integration Messages, mutate aggregates, advance workflow state, or mix unrelated local side effects with publication
-
-**Integration Message Subscriber Contract**:
-- Lives in the consuming bounded context's `application/messagehandler/` package
-- Handles stable cross-context Integration Message payloads, never another context's internal Domain Event type
-- Owns idempotency and transaction boundaries for the consuming context
-
-**Async Handler Role and Granularity Rules**:
-- Name concrete types after the inbound fact or contract family: `ExecutorConnectedHandler`, `OrderCompletedHandler`, `OrderCompletedPublisher`. Avoid umbrella names such as `EventHandler`, `MessageHandler`, or `Handler`.
-- Default: one `Listening()` kind per concrete handler. Multiple kinds are allowed only when they share the same role, source context or contract family, target side effect / projection / published contract, transaction boundary, failure policy, and dependency set; write that reason in the Architecture Gate or review note.
-- Do not implement both `event.Handler` and `message.Handler` on the same concrete type. `Boundary Publisher` is the allowed bridge, and it is still an `event.Handler`, not a `message.Handler`.
-- Do not dispatch unrelated event/message variants with a large `switch` or a chain of type assertions inside one `Handle`; create named handlers instead.
-- Handler failure semantics stay lightweight by default: best-effort, log-and-continue, return the subscriber/adapter error, or `n/a` for pure mapping. Do not add stronger delivery machinery unless the use case explicitly asks for stronger delivery semantics.
-
-`DispatchAll` admission error policy:
-- Best-effort follow-up only: log the admission/enqueue error and continue.
-- Caller or operator must observe missed follow-up dispatch: return the admission/enqueue error after adding useful context.
-- Returning this error after `Save()` never implies persistence rollback; it only reports that follow-up dispatch was not accepted.
-- Handler execution failures are not reported by `DispatchAll`; handlers own their own failure policy.
-
-#### Event Handler Idempotency
-
-The in-memory `event.Dispatcher` is best-effort only: it has no persistence, no retry, and no at-least-once guarantee. Do not introduce deduplication tables or other delivery machinery for ordinary Domain Event handlers by default.
-
-Still write handlers so repeated execution is harmless when practical: prefer set/update operations, deterministic business keys, and guards on externally visible side effects. If a handler is later moved to a stronger delivery path, design the idempotency key and storage mechanism as part of that adapter-backed flow rather than assuming `event.Event` has a standard global ID.
+**Event/message handler contracts**: Domain Event Handler, Boundary Publisher, Integration Message Handler, handler granularity, `DispatchAll` admission policy, and idempotency rules live in [`ddd-golang-events-messages.md §3`](ddd-golang-events-messages.md). This current guide only records placement: same-BC event handlers under `application/eventhandler`, Domain Event -> Integration Message translators under `application/messagepublisher`, and cross-context message consumers under `application/messagehandler`.
 
 ```go
 // application/command/change_password.go
@@ -1114,224 +1055,20 @@ func (s *OrderAppService) CreateOrder(ctx context.Context, cmd CreateOrderComman
 
 ### 5.2 Integration Messages (default for cross-context state propagation)
 
-Cross-context state propagation publishes **Integration Messages** through the `github.com/go-jimu/components/ddd/message` port (see [ddd-core.md §5.3](ddd-core.md) for the language-neutral concept). The Application layer of the **producing context** maps selected Domain Events into protobuf-typed Integration Message payloads, packages each as a `message.Message` value, and publishes through `message.Publisher`. The **consuming context** implements `message.Handler` and registers it with a `message.Subscriber`; Kafka is only the default adapter used in this guide. Subscribing directly to the producer's Domain Event from another context — via `event.Subscriber.Subscribe` — is prohibited; that couples the consumer to the publisher's internal model and violates [ddd-core.md §5.3](ddd-core.md). Domain Events stay inside one bounded context; this Go guide's `ddd/event` dispatcher is the in-memory, same-process implementation of that internal delivery path.
+Cross-context state propagation uses **Integration Messages**, not another context's Domain Events. The producing context maps selected same-BC Domain Events or explicit published facts into stable payload contracts; the consuming context handles those payloads through `message.Handler`.
 
-> **Terminology.** This guide uses *Integration Message* — not `Integration Event` — for the cross-context fact carrying a stable contract payload, deliberately separating it from *Domain Event* (which lives inside one bounded context and uses the publisher's ubiquitous language). The Go library `ddd/message` already names this layer `message`; using "Integration Message" keeps doc and library vocabulary aligned and avoids overloading "Event" across two semantic layers. `message.Message` is the transport-neutral envelope passed through publisher/subscriber adapters; Kafka records, topics, partitions, offsets, retries, and delivery failure handling belong to the Kafka adapter.
+**See [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md).**
 
-Keep four layers separate:
+| Topic | Where it lives now |
+|---|---|
+| Domain Event vs Integration Message vocabulary | [`ddd-golang-events-messages.md §1`](ddd-golang-events-messages.md) |
+| Domain Event collection and one-shot drain | [`ddd-golang-events-messages.md §2`](ddd-golang-events-messages.md) |
+| Domain Event Handler / Boundary Publisher / Integration Message Handler contracts | [`ddd-golang-events-messages.md §3`](ddd-golang-events-messages.md) |
+| `message.Kind`, protobuf payloads, publisher/handler/subscriber ports | [`ddd-golang-events-messages.md §4`](ddd-golang-events-messages.md) |
+| Kafka adapter wiring and operational semantics | [`ddd-golang-events-messages.md §4.3`](ddd-golang-events-messages.md) |
+| Handler idempotency, delivery/failure semantics, review checklist | [`ddd-golang-events-messages.md §6`](ddd-golang-events-messages.md) |
 
-- **Concept**: Integration Message means a cross-context fact with a stable published-language payload.
-- **Contract**: protobuf payload type, `message.Kind`, versioning, and compatibility rules.
-- **Port**: `message.Publisher`, `message.Handler`, `message.Subscriber`, and `message.Message`.
-- **Adapter**: `github.com/go-jimu/contrib/message/kafka` maps the port to Kafka records, topics, commits, retry, and delivery failure behavior.
-
-`message.Kind` is the semantic contract identifier used for handler routing and payload resolution. Default: derive Kind from the protobuf full name with `message.KindOf(&pb.MessageType{})` so the contract identifier and the schema cannot drift apart. A semantic string literal (e.g. `"orders.paid"`) is also valid for simple setups or migration paths; pick one form per integration. Kind is **not** a Kafka topic, partition, or routing key — those are provider-side concerns and may be remapped via `kafka.WithTopicResolver`.
-
-**Producer side** — the command handler stays ordinary Application orchestration. It saves the aggregate and dispatches drained Domain Events inside the bounded context; a separate boundary publisher translates selected Domain Events into Integration Messages. The sample focuses on the `ddd/event`, `ddd/message`, and Kafka adapter API shape; repository, aggregate, and generated protobuf details are intentionally minimal.
-
-```go
-// domain/event.go
-package domain
-
-import (
-    "time"
-
-    "github.com/go-jimu/components/ddd/event"
-)
-
-const EventKindOrderCompleted event.Kind = "order.completed"
-
-type EventOrderCompleted struct {
-    OrderID     string
-    UserID      string
-    TotalAmount int64
-    OccurredAt  time.Time
-}
-
-func (e EventOrderCompleted) Kind() event.Kind { return EventKindOrderCompleted }
-```
-
-```go
-// application/command/complete_order.go
-package command
-
-import (
-    "context"
-
-    "github.com/go-jimu/components/ddd/event"
-
-    "github.com/example/project/internal/business/order/domain"
-)
-
-type CompleteOrderHandler struct {
-    repo       domain.Repository
-    dispatcher event.Dispatcher  // BC-internal Domain Events; ddd/event is in-memory
-}
-
-func (h *CompleteOrderHandler) Handle(ctx context.Context, id domain.OrderID) error {
-    order, err := h.repo.Get(ctx, id)
-    if err != nil {
-        return err
-    }
-    if err := order.Complete(); err != nil {
-        return err
-    }
-    if err := h.repo.Save(ctx, order); err != nil {
-        return err
-    }
-
-    // BC-internal Domain Event dispatch through the in-memory ddd/event implementation.
-    // This only reports admission/enqueue errors; handler failures are owned by handlers.
-    // Returning this error after Save() does not roll back persistence; it only reports
-    // that follow-up dispatch was not accepted by the in-memory dispatcher.
-    if err := h.dispatcher.DispatchAll(order.Events.Drain()); err != nil {
-        return err
-    }
-    return nil
-}
-```
-
-```go
-// application/messagepublisher/order_completed_publisher.go
-package messagepublisher
-
-import (
-    "context"
-    "log/slog"
-
-    "github.com/go-jimu/components/ddd/event"
-    "github.com/go-jimu/components/ddd/message"
-    "google.golang.org/protobuf/types/known/timestamppb"
-
-    "github.com/example/project/internal/business/order/domain"
-    orderv1 "github.com/example/project/pkg/gen/proto/order/v1"
-)
-
-// OrderCompletedPublisher is a boundary translator inside the producing bounded context.
-// It maps an internal Domain Event to the public Integration Message contract.
-type OrderCompletedPublisher struct {
-    publisher message.Publisher
-    logger    *slog.Logger
-}
-
-func (p *OrderCompletedPublisher) Listening() []event.Kind {
-    return []event.Kind{domain.EventKindOrderCompleted}
-}
-
-func (p *OrderCompletedPublisher) Handle(ctx context.Context, evt event.Event) {
-    completed, ok := evt.(domain.EventOrderCompleted)
-    if !ok {
-        return
-    }
-
-    // Cross-context Integration Message — protobuf payload wrapped in the transport-neutral message envelope.
-    msg, err := message.New(
-        message.KindOf(&orderv1.OrderCompletedV1{}),
-        &orderv1.OrderCompletedV1{
-            OrderId:     completed.OrderID,
-            UserId:      completed.UserID,
-            TotalAmount: completed.TotalAmount,
-            OccurredAt:  timestamppb.New(completed.OccurredAt),
-        },
-        message.WithKey(completed.OrderID),
-    )
-    if err != nil {
-        p.logger.WarnContext(ctx, "integration message build failed",
-            slog.String("event_kind", string(completed.Kind())),
-            slog.String("error", err.Error()))
-        return
-    }
-    if err := p.publisher.Publish(ctx, msg); err != nil {
-        p.logger.WarnContext(ctx, "integration message publish failed",
-            slog.String("message_kind", string(msg.Kind())),
-            slog.String("message_id", msg.ID()),
-            slog.String("error", err.Error()))
-    }
-}
-```
-
-The Domain method `Complete()` records its Domain Event internally; mapping that Domain Event into an Integration Message payload is a boundary translation, not a Domain rule. Keep payload conversion in a same-context Application event handler or Infrastructure adapter; if the mapping starts making business decisions (whether the event is valid, whether to publish, what transition happened), move that decision back into Domain or Application policy. `message.Publisher.Publish` returns the publisher adapter's admission / delivery error and respects `context` cancellation. In the in-memory Domain Event path above, publish failure cannot roll back the original command; if pre-publish loss is unacceptable, use an explicit reliability design rather than hiding that requirement in the command handler.
-
-**Consumer side** — the consuming context implements `message.Handler` and registers it with a `Subscriber`. Check the selected subscriber adapter's delivery semantics: when it can redeliver the same Integration Message, the handler must be idempotent through natural convergence, deterministic business keys, or an application-level dedup mechanism chosen for that use case. Do not add a processed-message table by default.
-
-```go
-// internal/business/user/application/messagehandler/order_completed.go
-package messagehandler
-
-import (
-    "context"
-    "fmt"
-
-    "github.com/go-jimu/components/ddd/message"
-
-    orderv1 "github.com/example/project/pkg/gen/proto/order/v1"
-)
-
-type OrderCompletedHandler struct{ /* deps */ }
-
-func (h *OrderCompletedHandler) Listening() []message.Kind {
-    return []message.Kind{message.KindOf(&orderv1.OrderCompletedV1{})}
-}
-
-func (h *OrderCompletedHandler) Handle(ctx context.Context, msg message.Message) error {
-    payload, ok := msg.Payload().(*orderv1.OrderCompletedV1)
-    if !ok {
-        return fmt.Errorf("unexpected payload kind=%s", msg.Kind())
-    }
-    // Idempotent side effect; owns its own transaction.
-    // Returning nil means the handler accepted and completed the message.
-    // Returning a non-nil error lets the subscriber adapter apply its failure policy.
-    _ = payload
-    return nil
-}
-```
-
-**Wiring** — Application code depends only on the upstream `message.Publisher` / `message.Handler` / `message.Subscriber` interfaces; the Kafka adapter lives in Infrastructure:
-
-```go
-// infrastructure/order_publisher.go
-package infrastructure
-
-import (
-    "github.com/go-jimu/components/ddd/message"
-    "github.com/go-jimu/contrib/message/kafka"
-    "github.com/twmb/franz-go/pkg/kgo"
-    "google.golang.org/protobuf/proto"
-
-    orderv1 "github.com/example/project/pkg/gen/proto/order/v1"
-)
-
-func NewOrderPublisher(client *kgo.Client) message.Publisher {
-    return kafka.NewPublisher(client)
-}
-
-func NewKafkaConsumer(client *kgo.Client, handlers []message.Handler) (*kafka.Consumer, error) {
-    registry := message.NewPayloadRegistry()
-    if err := registry.Register(
-        message.KindOf(&orderv1.OrderCompletedV1{}),
-        func() proto.Message { return &orderv1.OrderCompletedV1{} },
-    ); err != nil {
-        return nil, err
-    }
-
-    consumer := kafka.NewConsumer(client, kafka.WithPayloadResolver(registry))
-    for _, h := range handlers {
-        if err := consumer.Subscribe(h); err != nil {
-            return nil, err
-        }
-    }
-    return consumer, nil
-}
-```
-
-Operational facts that come with the adapter (do not re-implement these in Application):
-
-- Default Kafka topic equals `Kind` — override with `kafka.WithTopicResolver` when topic naming differs from semantic kinds
-- Consumer requires `kgo.DisableAutoCommit()`; the adapter commits offsets manually after handler success or the adapter's configured failure handling accepts the record
-- Handler errors use the adapter's configured retry/failure policy; tune it in Infrastructure, not in Application handlers
-- `Message.Key()` maps to the Kafka record key — use it for per-key partition affinity and ordering when the consumer relies on per-aggregate sequence
-
-> **When pre-publish loss is unacceptable** (payment, inventory, regulatory compliance), use an explicit stronger-delivery design. This guide does not prescribe an implementation; whichever mechanism is chosen, hide it behind the Repository or an Infrastructure adapter so it does not leak as a Domain or Application port (see [ddd-core.md §3.4](ddd-core.md)).
+Read `ddd-golang-events-messages.md` when adding `application/eventhandler`, `application/messagepublisher`, `application/messagehandler`, Integration Message payloads, Kafka message adapter wiring, or event/message module registration.
 
 ### 5.3 Cross-Context Queries
 
@@ -1385,6 +1122,8 @@ If an operation records or mutates a Domain fact, the recording/mutation port re
 | Domain Event Handler | Event name + `Handler` | `UserCreatedHandler` |
 | Boundary Publisher | Event name + `Publisher` | `OrderCompletedPublisher` |
 | Integration Message Handler | Message/contract name + `Handler` | `OrderCompletedHandler` |
+| Task Type | Capability + versioned semantic name | `document.review.v1` |
+| Task Processor | Task name + `Processor` | `ReviewDocumentProcessor` |
 | State Label | Entity + `State` + Name | `OrderStatePending` |
 | State Action | Entity + `Action` + Verb | `OrderActionPay` |
 | Repository Interface | `Repository` | `Repository` |
@@ -1413,6 +1152,7 @@ Production files only. Test file placement is governed by §6.3 and is not requi
 | `application/eventhandler/<event>.go` | Domain Event Handler for same-BC event consumers |
 | `application/messagepublisher/<event>_publisher.go` | Boundary Publisher mapping same-BC Domain Events to Integration Messages |
 | `application/messagehandler/<message>.go` | Integration Message Handler for cross-context message consumers |
+| `application/taskprocessor/<task>.go` | Task queue Processor for one `TaskType`; payload schema registration and polling policy live here or in a sibling `application/task` package (see `ddd-golang-taskqueue.md`) |
 | `application/assembler.go` | Object conversion (DTO ↔ Domain, Proto ↔ Domain) |
 | `interfaces/http/handler.go` | REST handler (optional, hand-written protocols only) |
 | `api/queries.go` | Cross-context Reader / Facade ports (optional, only when this context publishes read-side facades; §5.3) |
@@ -1449,7 +1189,7 @@ Layer-specific placement:
 
 ## 7. Project Default Technology Stack
 
-These are the default libraries for repositories that adopt this Go guide's project stack. They are not DDD requirements. Unless an existing repository has already standardized on a different implementation or the user explicitly approves an exception, use these libraries for the concerns listed below and do not create project-local substitutes for their core interfaces (`event.Event`, `event.Collection`, `message.Publisher`, `message.Handler`, `fsm.StateContext`, `sloghelper.Error`, config loader options, and similar).
+These are the default libraries for repositories that adopt this Go guide's project stack. They are not DDD requirements. Adoption is established by repository convention, existing code, or explicit user/team direction; once adopted, use these libraries for the concerns listed below and do not create project-local substitutes for their core interfaces (`event.Event`, `event.Collection`, `message.Publisher`, `message.Handler`, `taskqueue.TaskType`, `taskqueue.Processor`, `taskqueue.Enqueuer`, `taskqueue.SchemaRegistry`, `fsm.StateContext`, `sloghelper.Error`, config loader options, and similar) unless the repository has already standardized on a different implementation or the user explicitly approves an exception.
 
 | Purpose | Default Library |
 |---------|---------------------|
@@ -1463,6 +1203,8 @@ These are the default libraries for repositories that adopt this Go guide's proj
 | In-process Event Bus | `github.com/go-jimu/components/ddd/event` |
 | Integration Message port | `github.com/go-jimu/components/ddd/message` |
 | Integration Message Kafka adapter | `github.com/go-jimu/contrib/message/kafka` (franz-go backed) |
+| Task Queue port and schema registry | `github.com/go-jimu/components/taskqueue` |
+| Task Queue asynq adapter | `github.com/go-jimu/contrib/taskqueue/asynq` |
 | State Machine | `github.com/go-jimu/components/fsm` |
 | Configuration | `github.com/go-jimu/components/config` + `config/loader` |
 | Object Copying | `github.com/jinzhu/copier` |
@@ -1576,6 +1318,8 @@ The Go runtime concerns — fx-based **configuration management**, **`fx.Lifecyc
 
 **See [`ddd-golang-runtime.md`](ddd-golang-runtime.md).**
 
+Task queue and polling/reconciliation concerns also live in a separate guide. Read [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) when adding `TaskType`, payload schemas, task processors, delayed enqueueing, asynq workers, task middleware, `internal/pkg/taskqueue`, or polling/reconciliation policy.
+
 | Topic | Where it lives now |
 |---|---|
 | Component-owned `Option`, shared middleware client ownership (`internal/pkg/<middleware>`) | [`ddd-golang-runtime.md §1.1`](ddd-golang-runtime.md) |
@@ -1586,6 +1330,7 @@ The Go runtime concerns — fx-based **configuration management**, **`fx.Lifecyc
 | Which components need `OnStop`, Listen/Serve separation, EventBus drain | [`ddd-golang-runtime.md §2.2`](ddd-golang-runtime.md) |
 | Shutdown ordering (reverse-of-start) | [`ddd-golang-runtime.md §2.3`](ddd-golang-runtime.md) |
 | Kubernetes `preStop` race-condition workaround | [`ddd-golang-runtime.md §2.4`](ddd-golang-runtime.md) |
+| Task queues, polling jobs, asynq workers, task schema registry | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) |
 
 Read `ddd-golang-runtime.md` when you are editing `cmd/**/main.go`, `internal/pkg/<middleware>/**.go`, `fx.Lifecycle` hooks, or shutdown logic. For pure layer / aggregate / event work, this current document is sufficient.
 
@@ -1631,12 +1376,16 @@ var Module = fx.Module(
 )
 ```
 
+For event/message handler registration, Boundary Publisher rules, and Kafka adapter wiring, see [`ddd-golang-events-messages.md §5`](ddd-golang-events-messages.md).
+
 ---
 
 **References:**
 - [ddd-agent-contract.md](ddd-agent-contract.md) — Agent execution contract (read first)
 - [ddd-modeling.md](ddd-modeling.md) — Strategic domain modeling (bounded context discovery, aggregate design)
 - [ddd-core.md](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification
+- [ddd-golang-events-messages.md](ddd-golang-events-messages.md) — Go events/messages: Domain Events, Boundary Publishers, Integration Messages, Kafka adapter wiring
 - [ddd-golang-runtime.md](ddd-golang-runtime.md) — Go runtime: configuration, fx.Lifecycle, graceful shutdown, Kubernetes
+- [ddd-golang-taskqueue.md](ddd-golang-taskqueue.md) — Go taskqueue and polling patterns: TaskType, schema registry, processors, asynq wiring, middleware
 - [The Clean Architecture — Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [Domain-Driven Design Reference — Eric Evans](https://domainlanguage.com/ddd/reference/)

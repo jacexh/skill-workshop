@@ -17,7 +17,9 @@ description: Strategic domain modeling guide for DDD. Use BEFORE writing impleme
 
 ## 0. Mandatory Architecture Gate
 
-Use this document as the entry point for all backend, DDD, service-boundary, technical-capability, refactor, implementation planning, execution, and code review work. Do not start with tactical layer placement in `ddd-core.md` or a language guide until this gate has been answered.
+Use this document as the entry point for backend, DDD, service-boundary, business-capability, technical-capability, refactor, implementation planning, execution, and code review work when the change touches a bounded context, Domain/Application behavior, an inward interface, cross-context contracts, or a technical capability with stable language, state, ownership, policy, or invariant semantics. Do not start with tactical layer placement in `ddd-core.md` or a language guide until this gate has been answered.
+
+**Runtime-only exception.** Go runtime-only work, as classified by [`ddd-agent-contract.md`](ddd-agent-contract.md) (for example `cmd/**/main.go`, `internal/pkg/**`, config, `fx.Lifecycle`, graceful shutdown, or Kubernetes wiring that does not change a bounded context, aggregate, repository, command/query handler, event/message contract, task processor, or domain rule), does not emit this DDD Architecture Gate. It uses the runtime/taskqueue impact statement defined by the agent contract and the Go runtime/taskqueue guides. If the runtime component owns stable language, policies, ownership lifecycle, admission rules, routing policy, or business-visible state, it is no longer runtime-only; classify that capability here first.
 
 Choose the smallest gate level defined in §7 and emit the core block before planning, editing, or approving code:
 
