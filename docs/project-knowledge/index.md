@@ -2,7 +2,7 @@
 last_updated: 2026-05-28
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
-covers_branch: hotfix/handler@dccdf2d
+covers_branch: hotfix/handler@902037b
 ---
 
 # Project Knowledge Index
