@@ -20,14 +20,14 @@ Application command-side ports are exceptions. Before creating one, answer this 
 
 1. Rule on one aggregate? -> Aggregate method.
 2. Write-side aggregate collection? -> Domain Repository.
-3. Rule spanning aggregates? -> Domain Service, or Saga/Process Manager for long-running coordination.
+3. Rule spanning aggregates? -> Domain Service. Multi-step orchestration without a domain rule? -> named Application coordination service.
 4. Repeated reaction to one same-BC domain fact? -> Domain Event + one same-BC handler.
 5. Cross-context fact propagation? -> Integration Message.
 6. Read-only product view? -> Application QueryRepository/read facade returning DTOs.
 7. External protocol, storage, routing, retry, topology, or vendor translation? -> Infrastructure adapter or ACL.
 8. Only after all above are rejected -> exceptional Application command-side port with the rejection reason in the Architecture Gate.
 
-Semantic fake rule: if the only meaningful fake is "pretend the external side effect succeeded", do not create an inward port; keep the mechanism behind Repository, QueryRepository, ACL, event/message publisher, Saga/Process Manager, or Infrastructure.
+Semantic fake rule: if the only meaningful fake is "pretend the external side effect succeeded", do not create an inward port; keep the mechanism behind Repository, QueryRepository, ACL, event/message publisher, named Application coordination service, or Infrastructure.
 
 ---
 
@@ -60,14 +60,14 @@ Agents must follow this sequence. Do not jump to planning, editing, or reviewing
 
 Required spec matrix:
 
-- For **new bounded context or new aggregate** → read `ddd-modeling.md`, `ddd-core.md`, and the active language guide; emit the Architecture Gate block from modeling §0.
-- For **new use case inside an existing context** → read modeling §7.2, all of core, and the relevant language sections (file org, event/message wiring, error/logging); emit the Architecture Gate block from modeling §0.
-- For **local change inside an existing business layer** → read modeling §7.1, the affected core section, and the affected language sections; emit the Architecture Gate block from modeling §0 with true `n/a` values only for untouched fields.
-- For **cross-context change** → read modeling §7.4 and core §5 in addition to the language guide; emit one Architecture Gate block per affected side when the change spans producer and consumer contexts.
+- For **new bounded context or new aggregate** → read `ddd-modeling.md`, `ddd-core.md`, and the active language guide; emit the Architecture Gate core block and placement extension from modeling §0.
+- For **new use case inside an existing context** → read modeling §7.2, all of core, and the relevant language sections (file org, event/message wiring, error/logging); emit the Architecture Gate core block and placement extension from modeling §0.
+- For **local change inside an existing business layer** → read modeling §7.1, the affected core section, and the affected language sections; emit the Architecture Gate core block from modeling §0, adding the placement extension only when the change touches one of its fields.
+- For **cross-context change** → read modeling §7.4 and core §5 in addition to the language guide; emit one Architecture Gate core block and placement extension per affected side when the change spans producer and consumer contexts.
 - For **Go runtime-only work** (`cmd/**/main.go`, `internal/pkg/**`, `configs/**`, `fx.Lifecycle`, shutdown, Kubernetes) that does not change a bounded context, aggregate, repository, command/query handler, event/message contract, or domain rule → read `ddd-golang-runtime.md` and the relevant Go layout section in `ddd-golang.md`; do **not** emit the DDD Architecture Gate. Instead, state the runtime component, ownership, lifecycle hook, config, and shutdown impact.
 - For **mixed business + runtime work** → read both the DDD path above and `ddd-golang-runtime.md`; emit the DDD Architecture Gate for the business change and include runtime impact in the plan.
 
-If `ddd-modeling.md` defines a richer Architecture Gate block, emit that block, not the generic `standards` skill block. Never emit both.
+If `ddd-modeling.md` defines a richer Architecture Gate format, emit that format, not the generic `standards` skill block. Never emit both.
 
 ---
 
@@ -82,11 +82,11 @@ Before stopping, inspect the existing repository context first: current package 
 | Business invariant being protected | No named invariant → cannot justify aggregate grouping or transaction boundary | "What rule must always be true after this change?" |
 | Layer ownership (Domain / Application / Infra) | Wrong layer → import-boundary violations, leaked rules | "Is this a domain rule, an orchestration concern, or an external-system adapter?" |
 | Technical-capability classification (registry / dispatcher / scheduler / connector) | Misclassified → ends up in Infrastructure with hidden rules | "Does this capability own stable language / states / policies, or only adapt an external system?" |
-| Multi-aggregate write justification | Skipping the exception gate produces broken consistency boundaries | "Why does this need to write multiple aggregates in one transaction? Can it be split via Domain Events / Integration Messages / Saga?" |
+| Multi-aggregate write justification | Skipping the exception gate produces broken consistency boundaries | "Why does this need to write multiple aggregates in one transaction? Can it be split via Domain Events / Integration Messages / a named Application coordination service?" |
 | Integration Message contract & payload | Guessing breaks downstream consumers | "Is this a new Integration Message? Which consumers depend on it? What is the minimum required payload?" |
 | Port semantic name (when tempted to use `Cacher`, `RedisStore`, `Peer`, `Directory`, etc.) | Technology-shaped or routing-shaped port leaks Infrastructure inward | "What is the use-case semantic this port serves? (rate-limit / lease lifecycle / product read model / repository / ...), and which parts are only routing, transport, or topology mechanics?" |
 
-**Hard rule**: if any field in the Architecture Gate block would have to be `n/a — <reason>` only because the agent does not know the answer, that is a Stop condition. `n/a` is reserved for cases where the change genuinely does not touch that field (per modeling §0).
+**Hard rule**: if any required field in the Architecture Gate core block or required placement extension would have to be `n/a — <reason>` only because the agent does not know the answer, that is a Stop condition. `n/a` is reserved for cases where the change genuinely does not touch that field (per modeling §0).
 
 ---
 
@@ -94,8 +94,8 @@ Before stopping, inspect the existing repository context first: current package 
 
 These are the most common DDD failure patterns an LLM produces when it shortcuts the spec. Each one is rejected on review; do not commit any of them.
 
-1. **Create technology-shaped ports.** Do not add `Cacher`, `RedisStore`, `RedisClient`, `MysqlReader`, `LockClient`, `OutboxWriter`, `TransactionalEventPublisher`, or `BrokerPublisher` as Domain / Application interfaces. Compose those clients inside Infrastructure behind an existing `Repository` / `QueryRepository` / semantic port. (core §3.4, modeling §0.2)
-2. **Create omnibus read/write store ports.** Do not expose one `MessageStore`, `EventStore`, `AuditStore`, `DataStore`, or similar interface to multiple use cases when it mixes producer writes, UI/API replay, audit/correlation lookup, projection bootstrap, high-watermark reads, or other unrelated consumer views. Split by Command vs Query side and by consumer-specific semantics; one Infrastructure adapter may implement several semantic capability-lifecycle ports. (core §3.2, modeling §0.2)
+1. **Create technology-shaped ports.** Do not add `Cacher`, `RedisStore`, `RedisClient`, `MysqlReader`, `LockClient`, `TransactionalEventPublisher`, or `BrokerPublisher` as Domain / Application interfaces. Compose those clients inside Infrastructure behind an existing `Repository` / `QueryRepository` / semantic port. (core §3.4, modeling §0.2)
+2. **Create omnibus read/write store ports.** Do not expose one `MessageStore`, `EventStore`, `AuditStore`, `DataStore`, or similar interface to multiple use cases when it mixes producer writes, UI/API history, audit/correlation lookup, projection bootstrap, high-watermark reads, or other unrelated consumer views. Split by Command vs Query side and by consumer-specific semantics; one Infrastructure adapter may implement several semantic capability-lifecycle ports. (core §3.2, modeling §0.2)
 3. **Put generated proto / `pb.Message` into Domain.** Domain methods, value objects, repository interfaces, and domain events must use Domain-owned types. Convert `Proto ↔ Domain` at the Application or Infrastructure boundary. (core §5.7, golang §2.3)
 4. **Implement business validation in Application / Handler.** Application constructs Domain inputs and calls Domain `Validate()` / domain methods. It must not run `validator.Struct(req)` against Domain fields or reproduce field rules in handlers. (core §3.1, §3.2)
 5. **Load a full Aggregate to serve a UI read.** Use the read path — Application-owned `QueryRepository` returning DTOs. Aggregates are write-side. (core §3.2, §3.4)
@@ -109,12 +109,14 @@ These are the most common DDD failure patterns an LLM produces when it shortcuts
 13. **Define a Domain-facing port in Infrastructure and import it inward.** Inward layers define their ports; outer layers implement them. Never the reverse, even when the port "looks technical". (core §1.3, §3.1)
 14. **Use dependency inversion as the sole justification for an Application port.** Do not add a Domain/Application interface only because an inward layer triggers an outward implementation. Classify the capability first; if the interface exposes only routing, transport, storage, deployment, retry, or adapter-selection mechanics, keep it in Infrastructure. (modeling §0.1-§0.2, core §3.2-§3.4)
 15. **Promote routing/topology mechanics into Application ports.** Do not define `Peer`, `Directory`, `Router`, `Forwarder`, or `OwnershipLookup` as Domain/Application interfaces when they expose peer addresses, instance IDs used only for routing, cache/coordination ownership read models, RPC request/response forwarding, hop headers, retry/backoff knobs, queue subjects, storage tables/keys, replica selection, or deployment topology. Keep those in Infrastructure. A lease/ownership lifecycle port is allowed only when the Application use case observes stable lifecycle semantics; it must not also answer address lookup or forwarding questions. (modeling §0.1-§0.2, core §3.2-§3.4)
-16. **Invent local substitutes for canonical Go component libraries.** In Go DDD code, do not define project-local `DomainEvent`, `EventBus`, `EventDispatcher`, `MessagePublisher`, `StateMachine`, `LoggerHelper`, `ConfigLoader`, or similar equivalents for concerns already covered by `ddd-golang.md`'s required library table. Use the named library interfaces directly (`github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/ddd/message`, `github.com/go-jimu/contrib/message/kafka`, `github.com/go-jimu/components/fsm`, `github.com/go-jimu/components/sloghelper`, `github.com/go-jimu/components/config`, etc.) unless existing repository code or explicit user direction establishes an exception. (golang §3.1, §7)
+16. **Invent local substitutes for the adopted Go component libraries.** In Go DDD code using this guide's project-default stack, do not define project-local `DomainEvent`, `EventBus`, `EventDispatcher`, `MessagePublisher`, `StateMachine`, `LoggerHelper`, `ConfigLoader`, or similar equivalents for concerns already covered by `ddd-golang.md`'s default library table. Use the adopted library interfaces directly (`github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/ddd/message`, `github.com/go-jimu/contrib/message/kafka`, `github.com/go-jimu/components/fsm`, `github.com/go-jimu/components/sloghelper`, `github.com/go-jimu/components/config`, etc.) unless existing repository code or explicit user direction establishes an exception. (golang §3.1, §7)
 17. **Mechanism-operation-granular Application/Domain port.** Do not slice the lifecycle of one capability -- observe / mutate / publish / transfer / retire / recover / release -- into multiple `*Reader`, `*Writer`, `*Stream`, `*Opener`, `*Sender`, `*Fetcher`, or similarly verb-suffixed ports. If a single Application use case is about to inject two or more ports that look like different verbs on the same noun, review whether they are one lifecycle; at three or more, stop and re-group unless the semantic split is justified in writing. They usually belong on one capability-lifecycle port. Default naming starts from a domain noun plus lifecycle role; verb-suffix names require an explicit justification of why the capability is one-directional. (modeling §0.2.1)
-18. **Capability-fragmented port — a new use case is not automatically a new port.** When a new use case touches a semantic capability whose port already exists (same aggregate, same consistency boundary, same failure/authorization semantics), the default action is to add a method to that port, not to create a new one. Fork only when the new caller observes different freshness, ordering, authorization, pagination, failure, or consistency-window semantics, or operates on a different aggregate. This is the positive default of the "unless consumer semantics differ" clause in `ddd-core.md §3.2`. (modeling §0.2.2, core §3.2)
+18. **Capability-fragmented port — a new use case is not automatically a new port.** When a new use case touches a semantic capability whose port already exists (same aggregate, same consistency boundary, same failure/authorization semantics), the default action is to add a method to that port, not to create a new one. Fork only when the new caller observes different freshness, ordering, authorization, pagination, failure, consistency-window semantics, published API surface, dependency direction, test substitute, or aggregate. This preserves Go-style small interfaces when caller semantics truly differ, while rejecting one-method ports created only to mirror adapter operations. (modeling §0.2.2, core §3.2)
 19. **Application command-side port as default abstraction.** Do not create an Application command-side port merely because a Command Handler needs to call, mock, listen to, publish, route, or finalize something. First place the need as Domain Repository, Aggregate method, Domain Service, Domain Event handler, Integration Message, ACL, Application QueryRepository/read facade, or Infrastructure adapter. A command-side Application port that survives must have an Architecture Gate exception explaining why none of those mechanisms owns the semantic need. (modeling §0, §0.2.3; core §3.1 Domain Mechanism Placement)
 20. **Repeated side-effect handling without a Domain Event.** Do not duplicate the same post-state-change side effect across multiple Command Handlers, subscribers, adapters, or local listeners. If the reaction is triggered by the same same-BC domain fact, emit one Domain Event from the aggregate and handle it with one Domain Event Handler after `Save()`. If the reaction crosses bounded contexts, translate the Domain Event or explicit published fact into an Integration Message. Direct per-use-case side-effect calls are allowed only when the side effect is an explicit output of that command and the Architecture Gate says why it is not event/message-driven. (core §3.1 Domain Event Collection, §5.3, §6)
 21. **Suspicious naming without placement justification.** Do not name an Application/Domain interface `*Policy`, `*Specification`, `*Allocator`, `*Generator`, `*Resolver`, `*Finalizer`, `*Terminator`, `*Closer`, `*Calculator`, `*Scorer`, `*Pricer`, `*Decider`, `*Authorizer`, `*Validator` (outside Domain `Validate()`), `*Sink`, `*Hook`, `*Observer`, `*Client`, `*Directory`, `*Router`, or `*Forwarder` without an Architecture Gate entry under "Domain mechanism placement before Application ports". The entry must answer which DDD mechanism owns the need, not merely rename the interface. Application interfaces that survive must record the exception reason. (modeling §0.2.3)
+22. **Umbrella asynchronous handlers.** Do not create or grow a generic `EventHandler`, `MessageHandler`, or `Handler` concrete type that listens to unrelated Domain Events / Integration Messages and dispatches internally with a large `switch`, many `On*` methods, or chains of type assertions. Default to one inbound event/message kind per concrete handler. Multi-kind handlers require the same role, source context or contract family, target side effect, transaction boundary, failure policy, and dependency set to be stated in the Architecture Gate. (core §5.3 Async Reaction Roles; golang §3.2)
+23. **Mixed asynchronous handler roles.** Do not implement same-BC Domain Event consumption and Integration Message consumption on the same concrete type. Classify each asynchronous reaction as Domain Event Handler, Boundary Publisher, or Integration Message Handler. A Boundary Publisher may consume a same-BC Domain Event and publish an Integration Message, but it must not consume Integration Messages, mutate aggregates, or advance workflow state. (core §5.3 Async Reaction Roles; golang §3.2)
 
 > When uncertain whether a pattern is on this list, search this file for the keyword (`Cacher`, `proto`, `validation`, `drain`, `Policy`, `Allocator`, `Domain Event`, `Integration Message`, …) before committing.
 
@@ -126,12 +128,12 @@ Before claiming a task is done, run the matching checklist. Treat any applicable
 
 ### 5.1 DDD / Business-Code Self-Check
 
-- [ ] **Gate emitted**: the Architecture Gate block from modeling §0 (or the richer block when active) appears in the plan / PR description with concrete values, not `n/a` substituted for unknowns.
+- [ ] **Gate emitted**: the Architecture Gate core block from modeling §0 (plus the placement extension when required) appears in the plan / PR description with concrete values, not `n/a` substituted for unknowns.
 - [ ] **Layer imports clean**: `domain/` has no imports of frameworks, generated proto, storage drivers, queue clients, HTTP/gRPC packages, `internal/pkg/*` adapters, `internal/.../infrastructure`, or another context's `domain/`. (Grep before claiming done.)
 - [ ] **Capability before port ownership**: every new interface was classified first as Domain-facing, Application orchestration, or Infrastructure; dependency inversion alone was not used as the reason for an Application port.
 - [ ] **CQRS port granularity**: every new interface is named for a use-case semantic capability, command/query side, and consumer-specific product view. No item from §4(1), §4(2), the dependency-inversion-only prohibition, or the routing/topology prohibition was introduced.
 - [ ] **Capability lifecycle coherence**: every new port corresponds to the full lifecycle of one stable semantic capability; no capability has been sliced into per-mechanism-operation or per-verb ports. If two or more ports in this change look like different verbs on the same noun, they were reviewed as one lifecycle; if three or more appear, they were re-grouped or the split was explicitly justified.
-- [ ] **Port evolution path**: when touching an existing capability, the default was to add a method to the existing port. If a new port was introduced, the caller's freshness / ordering / authorization / pagination / failure / consistency-window difference from the existing port is named in writing.
+- [ ] **Port evolution path**: when touching an existing capability, the default was to add a method to the existing port. If a new port was introduced, the caller's freshness / ordering / authorization / pagination / failure / consistency-window / published API / dependency direction / test substitute difference from the existing port is named in writing.
 - [ ] **Transaction boundary**: each Command Handler writes one aggregate per transaction, or the multi-aggregate exception in core §3.2 is satisfied in writing.
 - [ ] **Event lifecycle**: events are collected inside domain methods, persisted before dispatch, drained once by Application after `Save()`, never by Repository.
 - [ ] **Cross-context paths**: any cross-context communication uses one of Integration Messages / cross-context query port / ACL / protocol contracts; no new direct import of a neighbor's `domain/`.
@@ -142,9 +144,12 @@ Before claiming a task is done, run the matching checklist. Treat any applicable
 - [ ] **P1 Port eligibility**: every new inward interface appears in the Architecture Gate with its semantic need and owner; suspicious names from modeling §0.2.3 have a written placement answer; command-side Application ports have an explicit exception; the semantic fake is meaningful beyond "pretend the external side effect succeeded".
 - [ ] **P2 Handler pressure**: no Command Handler injects four or more semantic outbound dependencies without satisfying the port-pressure review (`ddd-core.md §3.2`), including event/message extraction.
 - [ ] **P3 Read-side DTO**: no Application reader/query interface returns `*Aggregate` or `[]*Aggregate`; product reads return DTOs.
-- [ ] **P4 Event/message extraction**: repeated same-BC side effects route through one Domain Event + same-BC handler; cross-context facts route through Integration Messages; long-running multi-aggregate coordination uses Saga/Process Manager or compensating flow.
-- [ ] **Audit-only R3 when scope warrants it**: for Level 3, new BC, or architecture-audit work, command-side Application ports were compared with Domain Repositories, Domain Services, Domain Events, Integration Messages, ACLs, Saga/Process Managers, and Infrastructure adapters. Missing mechanisms were added only when the domain need exists.
-- [ ] **No `Must Not` violations**: each item in §4 above was reviewed against the diff — in particular §4.19 (Application command-side port default), §4.20 (repeated side-effect without Domain Event), and §4.21 (suspicious naming).
+- [ ] **P4 Event/message extraction**: repeated same-BC side effects route through one Domain Event + same-BC handler; cross-context facts route through Integration Messages; direct side effects remain only when the Architecture Gate says they are explicit command outputs.
+- [ ] **P5 Async role isolation**: every event/message handler is classified as Domain Event Handler, Boundary Publisher, or Integration Message Handler; no concrete type mixes same-BC Domain Event consumption with Integration Message consumption.
+- [ ] **P6 Handler kind granularity**: each new or modified handler defaults to one inbound kind; any multi-kind handler has the same role, source context or contract family, target side effect, transaction boundary, failure policy, and dependency set documented.
+- [ ] **P7 Lightweight failure semantics**: each handler states best-effort, log-and-continue, return subscriber/adapter error, or `n/a`; stronger delivery machinery is not introduced unless the use case explicitly requires it.
+- [ ] **Audit-only R3 when scope warrants it**: for Level 3, new BC, or architecture-audit work, command-side Application ports were compared with Domain Repositories, Domain Services, Domain Events, Integration Messages, named Application coordination services, ACLs, and Infrastructure adapters. Missing mechanisms were added only when the domain need exists.
+- [ ] **No `Must Not` violations**: each item in §4 above was reviewed against the diff — in particular §4.19 (Application command-side port default), §4.20 (repeated side-effect without Domain Event), §4.22 (umbrella asynchronous handlers), and §4.23 (mixed asynchronous handler roles).
 
 ### 5.2 Go Runtime Self-Check
 
@@ -194,7 +199,7 @@ Task classification:
 - <DDD/business | Go runtime-only | mixed>
 
 Architecture Gate:
-- <modeling §0 block for DDD/business changes, or "n/a — runtime-only; runtime component is ...">
+- <modeling §0 core block for DDD/business changes, plus the placement extension when required; or "n/a — runtime-only; runtime component is ...">
 
 Stop questions:
 - <none, or the exact unresolved questions>
@@ -215,7 +220,7 @@ For final summaries after straightforward implementation, keep this brief: menti
 | Need | Read |
 |---|---|
 | Identify bounded context / aggregate boundary | [`ddd-modeling.md`](ddd-modeling.md) §2, §3 |
-| Architecture Gate block format | [`ddd-modeling.md`](ddd-modeling.md) §0 |
+| Architecture Gate core / placement extension format | [`ddd-modeling.md`](ddd-modeling.md) §0 |
 | Planning gates by change size | [`ddd-modeling.md`](ddd-modeling.md) §7 |
 | Layer responsibilities & dependency rule | [`ddd-core.md`](ddd-core.md) §1, §3 |
 | Repository / `Save()` collection semantics | [`ddd-core.md`](ddd-core.md) §3.4 |

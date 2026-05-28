@@ -19,10 +19,10 @@ description: Strategic domain modeling guide for DDD. Use BEFORE writing impleme
 
 Use this document as the entry point for all backend, DDD, service-boundary, technical-capability, refactor, implementation planning, execution, and code review work. Do not start with tactical layer placement in `ddd-core.md` or a language guide until this gate has been answered.
 
-Choose the smallest gate level defined in §7 and emit this block before planning, editing, or approving code:
+Choose the smallest gate level defined in §7 and emit the core block before planning, editing, or approving code:
 
 ```text
-Architecture Gate:
+Architecture Gate (core):
 - Gate level: <see §7 for the level definitions>
 - Bounded context / business capability: <context and capability>
 - Stable language / data authority: <terms and owning source of truth>
@@ -30,29 +30,38 @@ Architecture Gate:
 - Invariants and rules: <rules guarded by this change>
 - Technical capability classification: <Domain-facing | Application | Infrastructure, with reason>
 - Layer ownership: <Domain / Application / Infrastructure>
+- Proceed / Stop: <proceed only if the core gate is complete>
+```
+
+Add this placement extension when the change adds an inward interface, modifies an event/message handler, touches a cross-aggregate decision, duplicates a reaction to the same domain fact, coordinates multiple aggregate writes, changes publication failure semantics, or is Level 2 / Level 3 / cross-context work:
+
+```text
+Architecture Gate (placement extension):
 - New inward interfaces introduced (count + names): <Domain Repository | Application QueryRepository/read facade | other Application port | none>
 - Domain mechanism placement before Application ports:
-  - <candidate need>: handled by <Aggregate X.method | Domain Repository Y | Domain Service Z | Domain Event E + handler | Integration Message M | Saga/Process Manager | ACL | Infrastructure adapter | Application QueryRepository/read facade | exceptional Application command-side port>
+  - <candidate need>: handled by <Aggregate X.method | Domain Repository Y | Domain Service Z | Domain Event E + handler | Integration Message M | named Application coordination service | ACL | Infrastructure adapter | Application QueryRepository/read facade | exceptional Application command-side port>
 - Placement per new inward interface:
   - <interface name>: encodes <one-sentence semantic contract>; rule lives in <Aggregate X.method | Domain Service Y | Domain Repository Z | Domain Event handler | Infrastructure adapter | "no rule — read model / pure side-effect adapter">
 - Cross-aggregate business decisions in this change:
   - <decision>: lives in <Aggregate X.method | Domain Service Y | "no cross-aggregate decision">
 - Repeated side effects / event candidates:
   - <side effect>: triggered by <Domain Event E | Integration Message M | explicit command output | "no repeated side effect">
-- Process coordination / reliability:
-  - <coordination need>: <none | Domain Event / Integration Message | Saga/Process Manager | compensating action>; reliability is <ordinary | admission-visible | pre-publish-loss unacceptable -> outbox/CDC/replay owner>
+- Async reaction handlers:
+  - <handler name>: role is <Domain Event Handler | Boundary Publisher | Integration Message Handler>; input kind is <event/message kind>; output is <same-BC side effect | Integration Message contract | consumer-side action>; granularity is <single-kind | multi-kind because...>; failure policy is <best-effort | log-and-continue | return subscriber/adapter error | n/a>
+- Process coordination / failure policy:
+  - <coordination need>: <none | Domain Event / Integration Message | named Application coordination service | explicit command output>; failure policy is <best-effort | log-and-continue | caller-visible admission error | explicit stronger reliability required by the use case>
 - Application command-side port exceptions:
-  - <port name>: kept because <why it is not Aggregate method / Domain Repository / Domain Service / Domain Event handler / Integration Message / Saga/Process Manager / ACL / Infrastructure adapter / QueryRepository/read facade>
-- Proceed / Stop: <proceed only if the gate is complete>
+  - <port name>: kept because <why it is not Aggregate method / Domain Repository / Domain Service / Domain Event handler / Integration Message / named Application coordination service / ACL / Infrastructure adapter / QueryRepository/read facade>
+- Proceed / Stop: <proceed only if the required extension fields are complete>
 ```
 
 Stop before implementation when any required answer is unknown. Missing gate answers are design work, not implementation details.
 
-Hot-path decision card before adding an Application command-side port: Aggregate method? Domain Repository? Domain Service or Saga/Process Manager? Domain Event for repeated same-BC reaction? Integration Message for cross-context fact? QueryRepository/read facade for read-only DTO view? Infrastructure adapter or ACL for mechanism/vendor translation? Only after all are rejected may an exceptional Application command-side port remain, and the rejection reason must be written in this gate.
+Hot-path decision card before adding an Application command-side port: Aggregate method? Domain Repository? Domain Service? Domain Event for repeated same-BC reaction? Integration Message for cross-context fact? Named Application coordination service for multi-step orchestration? QueryRepository/read facade for read-only DTO view? Infrastructure adapter or ACL for mechanism/vendor translation? Only after all are rejected may an exceptional Application command-side port remain, and the rejection reason must be written in this gate.
 
-For **Level 1 — Local Change** work, keep the Architecture Gate block but use explicit `n/a — <reason>` values for fields the change does not touch; do not invent bounded contexts, aggregates, invariants, or integration boundaries only to fill the form. Level 2, Level 3, and cross-context changes must fill every affected field with concrete answers.
+For **Level 1 — Local Change** work, emit the core block and add the placement extension only for fields the change actually touches. Use explicit `n/a — <reason>` values for untouched required extension fields; do not invent bounded contexts, aggregates, invariants, event handlers, or integration boundaries only to fill the form. Level 2, Level 3, and cross-context changes must include the placement extension and fill every affected field with concrete answers.
 
-The placement fields (`New inward interfaces introduced`, `Domain mechanism placement before Application ports`, `Placement per new inward interface`, `Repeated side effects / event candidates`, `Process coordination / reliability`, `Application command-side port exceptions`) are mandatory whenever the change adds an inward interface, touches a cross-aggregate decision, duplicates a reaction to the same domain fact, coordinates multiple aggregate writes, or changes publication reliability. Their purpose is to force the question "which DDD mechanism owns this need?" to be answered **before** any Application port is drawn, not discovered during review. Application command-side ports are exceptional: if one survives the gate, the plan must say why the need is not an Aggregate method, Domain Repository, Domain Service, Domain Event handler, Integration Message, Saga/Process Manager, ACL, Infrastructure adapter, or QueryRepository/read facade. Listing no candidates without a stated reason is treated as skipping the gate.
+The placement fields (`New inward interfaces introduced`, `Domain mechanism placement before Application ports`, `Placement per new inward interface`, `Repeated side effects / event candidates`, `Async reaction handlers`, `Process coordination / failure policy`, `Application command-side port exceptions`) are mandatory whenever the change adds an inward interface, touches a cross-aggregate decision, duplicates a reaction to the same domain fact, adds or modifies an event/message handler, coordinates multiple aggregate writes, or changes publication failure semantics. Their purpose is to force the question "which DDD mechanism owns this need?" to be answered **before** any Application port is drawn, not discovered during review. Application command-side ports are exceptional: if one survives the gate, the plan must say why the need is not an Aggregate method, Domain Repository, Domain Service, Domain Event handler, Integration Message, named Application coordination service, ACL, Infrastructure adapter, or QueryRepository/read facade. Listing no candidates without a stated reason is treated as skipping the gate.
 
 ### 0.1 Technical capability classification
 
@@ -80,12 +89,12 @@ When the classification table above does not yield a confident answer, apply thi
 
 | Outcome | Meaning | Where the port belongs |
 |---------|---------|------------------------|
-| Yes — the fake preserves state, transitions, decisions, admission/failure semantics, process coordination, or observable read-model behavior well enough for business/use-case tests | The interface may encode a semantic capability, not merely a mechanism | Continue classification: Aggregate method / Domain Repository / Domain Service / Domain Event handler / Integration Message / Saga-Process Manager / Application QueryRepository / published read facade / exceptional Application command-side port |
+| Yes — the fake preserves state, transitions, decisions, admission/failure semantics, process coordination, or observable read-model behavior well enough for business/use-case tests | The interface may encode a semantic capability, not merely a mechanism | Continue classification: Aggregate method / Domain Repository / Domain Service / Domain Event handler / Integration Message / named Application coordination service / Application QueryRepository / published read facade / exceptional Application command-side port |
 | No — the only meaningful test double is "pretend the database, broker, RPC, K8s, file system, or SDK call succeeded" with no semantic contract beyond the external side effect | The interface is modeling a mechanism operation | Infrastructure adapter; hide it behind the owning Repository, QueryRepository, event/message publisher implementation, ACL, or Application Handler implementation. Do not promote it to a new inward port |
 
 This test resolves most "should this interface exist inward?" disputes faster than walking the full classification table. It does **not** require the production implementation to be side-effect-free: payment authorization, inventory reservation, message publication, identity provisioning, or workspace execution may be real external side effects. The question is whether the inward contract has stable semantics that a fake can preserve. When the test says "no", the cure is not better naming — it is hiding the mechanism behind the DDD mechanism that owns the semantic need.
 
-The test is a necessary condition, not a sufficient one: passing it does not by itself justify an Application port. After the test confirms the interface has semantics, return to §0.1 and the Architecture Gate to choose the narrowest owner: Aggregate method, Domain Repository, Domain Service, Domain Event handler, Integration Message, Saga/Process Manager, ACL, Application QueryRepository/read facade, or only then an exceptional Application command-side port.
+The test is a necessary condition, not a sufficient one: passing it does not by itself justify an Application port. After the test confirms the interface has semantics, return to §0.1 and the Architecture Gate to choose the narrowest owner: Aggregate method, Domain Repository, Domain Service, Domain Event handler, Integration Message, named Application coordination service, ACL, Application QueryRepository/read facade, or only then an exceptional Application command-side port.
 
 ### 0.2 Port granularity
 
@@ -99,13 +108,13 @@ An Application/Domain port encloses the full lifecycle of one stable semantic ca
 
 Naming starts from a **domain noun + lifecycle role** (`AttachmentContentStore`, `WorkspaceArtifactStore`, `OrderRepository`, `PaymentSettlementGateway`, `NotificationDeliveryPort`). Do not default to verb-suffix names (`*Reader`, `*Writer`, `*Publisher`, `*Client`, `*Stream`, `*Opener`, `*Sender`, `*Fetcher`) for Application/Domain ports; those suffixes are inherently action-granular. A verb-suffix port is acceptable only when the capability is genuinely one-directional (a pure published read view, a pure outbound publisher, a fire-and-forget delivery sink) and you can state why the opposite lifecycle stages do not share aggregate identity, consistency, authorization, or failure semantics.
 
-ISP and SRP at the port boundary segregate **capabilities**, not methods. The unit of single responsibility is one coherent semantic lifecycle, not one operation; the unit of interface segregation is one consumer need, not one verb. A 3-method port serving one capability is more SRP-correct than three 1-method ports serving the same capability. Interface bloat means unrelated consumer semantics or lifecycle boundaries have been mixed, not that the method count is greater than one. Do not fragment ports to make tests or mocks smaller; tests should mock or stub the coherent capability the use case observes. `Repository` and `QueryRepository` are examples of lifecycle ports, not the only allowed multi-method ports -- non-repository semantic ports may also own the observe, mutate, publish, transfer, retire, release, recover, or retry methods for their capability.
+ISP and SRP at the port boundary segregate **capabilities**, not methods. The unit of single responsibility is one coherent semantic lifecycle, not one operation; the unit of interface segregation is one consumer need, not one verb. A 3-method port serving one capability is more SRP-correct than three 1-method ports serving the same capability. Interface bloat means unrelated consumer semantics or lifecycle boundaries have been mixed, not that the method count is greater than one. Do not fragment ports to make tests or mocks smaller; tests should mock or stub the coherent capability the use case observes. Go-style small interfaces remain appropriate when they represent distinct caller semantics, failure policies, published APIs, dependency direction, or test substitutes. `Repository` and `QueryRepository` are examples of lifecycle ports, not the only allowed multi-method ports -- non-repository semantic ports may also own the observe, mutate, publish, transfer, retire, release, recover, or retry methods for their capability.
 
 #### 0.2.2 Inward-defined ports evolve by adding methods, not by forking
 
 When a new use case touches an existing semantic capability, the default action is to add a method to the existing port — not to introduce a new one. Inward-defined ports have no external consumer to break, so the cost of extension is roughly equal to the cost of creation; defaulting to "new port per new use case" is what produces capability fragmentation.
 
-Fork into a new port only when the new caller observes **different** freshness, ordering, authorization, pagination, failure, or consistency-window semantics from the existing port, or operates on a different aggregate. If the only difference is "another method on the same capability", extend.
+Fork into a new port only when the new caller observes **different** freshness, ordering, authorization, pagination, failure, or consistency-window semantics from the existing port, operates on a different aggregate, has a different published API surface, or needs a different dependency direction / test substitute. If the only difference is "another method on the same capability", extend.
 
 **Modeling order (do not invert):**
 
@@ -120,7 +129,7 @@ Before adding a port, answer:
 
 - What semantic capability does the caller need? (name it in domain terms, not "calls Redis")
 - Is the caller on the Command/write side, the Query/read side, or a cross-context facade? Do not mix these in one port.
-- Which actor or consumer owns the need? (producer append, UI replay, audit lookup, projection bootstrap, billing lookup, etc.)
+- Which actor or consumer owns the need? (producer append, UI history, audit lookup, projection bootstrap, billing lookup, etc.)
 - Which layer owns the rule behind that capability? (apply §0.1's classification table — Domain-facing, Application orchestration, or Infrastructure)
 - Does the caller need a separate failure policy, consistency boundary, or replacement strategy?
 - Would the caller's code change if the implementation switched from Redis to MySQL, or from cache-aside to write-through?
@@ -131,7 +140,7 @@ If the caller still needs the same aggregate collection or read model, keep the 
 CQRS port boundaries are consumer-specific. The same physical table, stream, object store, or append-only log may back several ports, but the inward-facing ports must follow caller semantics:
 
 - A Command-side append, persistence, publication, delivery, or mutation concern is a command-side capability port with the command failure semantics; use a `*Writer`-style name only when the capability is genuinely one-directional.
-- A Query-side replay, listing, audit lookup, or projection read is a query/facade port returning the read model that consumer needs; use a `*Reader`-style name only when the capability is genuinely read-only.
+- A Query-side history, listing, audit lookup, or projection read is a query/facade port returning the read model that consumer needs; use a `*Reader`-style name only when the capability is genuinely read-only.
 - A projection high-watermark, lease, cursor, or sequence concern is a coordination port only when the use case observes that coordination semantics.
 
 A CQRS query port must answer an application/product read use case: UI/API DTOs, report rows, consumer-specific read facades, audit views, or current snapshots explicitly published by an owning context. Do not create a QueryRepository or query port merely to ask Infrastructure where work is routed, which peer owns a key, which address to forward to, which cache/coordination row exists, or which deployment instance is active. Those routing/topology queries stay in Infrastructure and may be composed behind a semantic command or query handler.
@@ -198,7 +207,7 @@ When choosing a name for a new Application or Domain interface, the following su
 | `*Client` | Infrastructure adapter, ACL, protocol contract, or published read facade (§5.5) | Application only sees a semantic facade name; technology/client vocabulary is not exposed inward |
 | `*Directory` / `*Router` / `*Forwarder` | Domain routing policy when it is ubiquitous language; otherwise Infrastructure routing/topology | The term is part of the domain's ubiquitous language and the interface excludes addresses, hop headers, replica choice, retry knobs, and deployment topology |
 
-The mechanical effect of this table during planning: when reaching for any name above, pause and run the Domain mechanism placement field in the Architecture Gate. If the need is a repeated reaction to a domain fact, use a Domain Event and one same-BC handler. If the need crosses bounded contexts, publish an Integration Message or a read facade. If the need coordinates a long-running multi-aggregate process, model a Saga/Process Manager or compensating action. If the need is a rule over domain state, use an Aggregate method or Domain Service. If the need is a storage/write-side collection, use a Domain Repository. Only after these homes are rejected may an Application command-side port remain.
+The mechanical effect of this table during planning: when reaching for any name above, pause and run the Domain mechanism placement field in the Architecture Gate. If the need is a repeated reaction to a domain fact, use a Domain Event and one same-BC handler. If the need crosses bounded contexts, publish an Integration Message or a read facade. If an inbound handler is accumulating multi-step orchestration, keep the handler thin and move the orchestration into a named Application coordination service. If the need is a rule over domain state, use an Aggregate method or Domain Service. If the need is a storage/write-side collection, use a Domain Repository. Only after these homes are rejected may an Application command-side port remain.
 
 Cross-context reads use a `<ctx>/api/queries.go`-style reader port owned by the producing context (see `ddd-core.md §5.5`), not a consumer-defined `*Client`. Routing/topology interfaces that expose peer addresses, hop headers, queue subjects, storage keys, retry/backoff knobs, or deployment shape remain Infrastructure even if an Application handler triggers the operation.
 
@@ -827,7 +836,7 @@ Plan must state:
 - technical capability classification, when the code is a dispatcher, registry, scheduler, router, connector, projection, ownership mechanism, delivery mechanism, or observability/audit mechanism
 - write path or read path
 - tests for the changed layer
-- **domain-mechanism placement audit**: if this Level 1 change touches an existing inward interface, adds a method, or duplicates a side-effect reaction, list the semantic need and confirm its owner has not shifted from Domain Repository / Aggregate / Domain Service / Domain Event / Integration Message / ACL / Infrastructure into an Application command-side port. When the change is purely renames, comments, or test-only, write `n/a — no rule surface touched`
+- **domain-mechanism placement audit**: if this Level 1 change touches an existing inward interface, adds a method, changes an event/message handler, or duplicates a side-effect reaction, list the semantic need and confirm its owner has not shifted from Domain Repository / Aggregate / Domain Service / Domain Event / Integration Message / named Application coordination service / ACL / Infrastructure into an Application command-side port. When the change is purely renames, comments, or test-only, write `n/a — no rule surface touched`
 
 Verify the change against the dependency rules ([ddd-core.md §1.3](ddd-core.md)) and layer responsibilities ([ddd-core.md §3](ddd-core.md)) — Domain keeps business rules, Application only orchestrates, Infrastructure stays technical, and Repository / QueryRepository responsibilities remain separate.
 
@@ -837,7 +846,7 @@ Use for a new command, query, event handler, repository method, QueryRepository,
 
 Plan must state:
 
-- use case kind: Command, Query, or Event Handler
+- use case kind: Command, Query, Domain Event Handler, Boundary Publisher, or Integration Message Handler
 - aggregate root and invariants involved
 - technical capability classification and rule owner, if the use case coordinates a technical-facing capability
 - Repository / QueryRepository interfaces needed
@@ -846,8 +855,9 @@ Plan must state:
 - Infrastructure implementation
 - Domain Events produced or consumed; Integration Messages published or subscribed for cross-context communication
 - transaction boundary and event dispatch timing; if the use case proposes one transaction that writes multiple aggregates, include the multi-aggregate exception evidence required by [ddd-core.md §3.2](ddd-core.md)
-- **domain-mechanism placement audit (mandatory at Level 2)**: list every new inward interface introduced by this use case, the one-sentence semantic contract each encodes, and the owner per the §0 Gate format. Before any Application command-side port is accepted, record why the need is not an Aggregate method, Domain Repository, Domain Service, Domain Event handler, Integration Message, Saga/Process Manager, ACL, Infrastructure adapter, or QueryRepository/read facade. Apply the §0.1.1 semantic fake litmus test to every new inward interface and record the outcome.
-- **event/message reuse audit**: if two or more commands, handlers, subscribers, or adapters react to the same domain fact or repeat the same side-effect handling, introduce or reuse one Domain Event and one same-BC Domain Event Handler. If the reaction crosses bounded contexts, translate the Domain Event into an Integration Message instead of duplicating side-effect calls.
+- **domain-mechanism placement audit (mandatory at Level 2)**: list every new inward interface introduced by this use case, the one-sentence semantic contract each encodes, and the owner per the §0 Gate format. Before any Application command-side port is accepted, record why the need is not an Aggregate method, Domain Repository, Domain Service, Domain Event handler, Integration Message, named Application coordination service, ACL, Infrastructure adapter, or QueryRepository/read facade. Apply the §0.1.1 semantic fake litmus test to every new inward interface and record the outcome.
+- **async handler card**: for every new or modified event/message handler, state its role (Domain Event Handler, Boundary Publisher, or Integration Message Handler), input kind, output side effect or published contract, transaction boundary, granularity (`single-kind` or justified `multi-kind`), and lightweight failure policy (`best-effort`, `log-and-continue`, `return subscriber/adapter error`, or `n/a`).
+- **event/message reuse audit**: if two or more commands, handlers, subscribers, or adapters react to the same domain fact or repeat the same side-effect handling, introduce or reuse one Domain Event and one same-BC Domain Event Handler. If the reaction crosses bounded contexts, translate the Domain Event into an Integration Message instead of duplicating side-effect calls. If the handler is accumulating unrelated phases or dependencies, extract a named Application coordination service and keep the inbound handler thin.
 - **port-pressure declaration**: if the new Command Handler injects four or more outbound ports, attach the port-pressure review answers required by [ddd-core.md §3.2](ddd-core.md) "Command Handler Port-Pressure Heuristic".
 
 Check against [ddd-core.md §3.1-§3.4](ddd-core.md), [§5](ddd-core.md), and the relevant language-specific implementation guide before implementation.
@@ -865,7 +875,7 @@ Spec must include:
 - Integration Messages and minimum required payload fields (see [ddd-core.md §5.4](ddd-core.md))
 - cross-context communication mechanism: Integration Messages, queries, ACL, or protocol contracts (see [ddd-core.md §5.2](ddd-core.md))
 - language-specific package layout (see the corresponding implementation guide: [ddd-golang.md](ddd-golang.md), [ddd-python.md](ddd-python.md), [ddd-typescript.md](ddd-typescript.md))
-- **Domain mechanism inventory**: list every Aggregate-owned rule, Domain Repository, Domain Service, Domain Event, Integration Message, Saga/Process Manager, ACL, Application QueryRepository/read facade, and exceptional Application command-side port this BC will own at the end of the change. A new bounded context with non-trivial business capability and no Domain Services or Domain Events is a flag — write the reason (e.g., "single aggregate with all rules on aggregate methods", "vendor-wrapper context per §1.1", or "no repeated/cross-aggregate facts").
+- **Domain mechanism inventory**: list every Aggregate-owned rule, Domain Repository, Domain Service, Domain Event, Integration Message, named Application coordination service, ACL, Application QueryRepository/read facade, and exceptional Application command-side port this BC will own at the end of the change. A new bounded context with non-trivial business capability and no Domain Services or Domain Events is a flag — write the reason (e.g., "single aggregate with all rules on aggregate methods", "vendor-wrapper context per §1.1", or "no repeated/cross-aggregate facts").
 - **domain-mechanism placement audit (mandatory at Level 3)**: same as Level 2 but applied to every inward interface and event/message flow the new BC introduces, plus the §0.1.1 litmus test applied to each.
 
 Check aggregate boundaries against §3, tactical rules against [ddd-core.md](ddd-core.md), and language-specific placement rules against the relevant implementation guide.
@@ -878,7 +888,7 @@ If a change adds or modifies cross-context communication (a new Integration Mess
 
 - Producing side: the new Integration Message / query / contract, its payload contract, and dispatch (or response) timing
 - Consuming side: the handler / consumer, idempotency strategy, and transaction boundary
-- Both sides apply the Level 2 domain-mechanism placement audit; the producer side states which Domain Event, if any, is translated to the Integration Message, and the consumer side states whether a new inward interface was introduced and whether it matches the published facade pattern (`ddd-core.md §5.5`) rather than a `*Client` interface owned by the consumer
+- Both sides apply the Level 2 domain-mechanism placement audit and async handler card; the producer side states which Domain Event, if any, is translated to the Integration Message, and the consumer side states whether a new inward interface was introduced and whether it matches the published facade pattern (`ddd-core.md §5.5`) rather than a `*Client` interface owned by the consumer
 
 If the change crosses three or more contexts, or if the contract itself is unstable, escalate to Level 3 and treat the contract as a first-class design artifact.
 
