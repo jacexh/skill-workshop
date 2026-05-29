@@ -55,9 +55,9 @@ Use `github.com/go-jimu/components/ddd/event` for in-process Domain Events.
 
 Contract:
 
-- Aggregate Root holds an `event.Collection`, preferably in an unexported field.
-- Domain methods append events via the aggregate's collection; they never dispatch directly.
-- The Application layer is the sole drainer. After a successful `Save()` returns, Application calls a narrow drain accessor such as `dispatcher.DispatchAll(aggregate.DrainEvents())` exactly once.
+- Aggregate Root holds an `Events event.Collection` field or equivalent narrow event collection accessor.
+- Domain methods append events via `Events.Add(event)`; they never dispatch directly.
+- The Application layer is the sole drainer. After a successful `Save()` returns, Application calls `dispatcher.DispatchAll(aggregate.Events.Drain())` exactly once.
 - Repository must not drain events.
 - `Drain()` is one-shot. A second call on the same in-memory instance returns nil.
 - After `Save()` succeeds, the in-memory aggregate is stale. If the use case needs further mutations, reload via `Repository.Get()` first. Never retry `Save()` on an already-drained aggregate instance.
@@ -94,10 +94,10 @@ Example aggregate method:
 
 ```go
 func (u *User) ChangePassword(oldRaw, newRaw string) error {
-    if u.status != UserStatusActive {
+    if u.Status != UserStatusActive {
         return ErrUserNotActive
     }
-    if !verifyPassword(oldRaw, u.hashedPassword) {
+    if !verifyPassword(oldRaw, u.HashedPassword) {
         return errors.New("old password incorrect")
     }
 
@@ -105,14 +105,10 @@ func (u *User) ChangePassword(oldRaw, newRaw string) error {
     if err != nil {
         return err
     }
-    u.hashedPassword = hashed
-    u.updatedAt = time.Now()
-    u.events.Add(EventPasswordChanged{ID: u.id})
+    u.HashedPassword = hashed
+    u.UpdatedAt = time.Now()
+    u.Events.Add(EventPasswordChanged{ID: u.ID})
     return nil
-}
-
-func (u *User) DrainEvents() []event.Event {
-    return u.events.Drain()
 }
 ```
 
@@ -151,7 +147,7 @@ func (h *CommandChangePasswordHandler) Handle(ctx context.Context, cmd *CommandC
         return err
     }
 
-    if err := h.dispatcher.DispatchAll(user.DrainEvents()); err != nil {
+    if err := h.dispatcher.DispatchAll(user.Events.Drain()); err != nil {
         h.logger.WarnContext(ctx, "domain event dispatch skipped",
             slog.String("operation", "user.change_password"),
             slog.String("user_id", cmd.ID),
