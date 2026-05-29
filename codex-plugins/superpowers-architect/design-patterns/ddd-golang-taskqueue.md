@@ -6,7 +6,7 @@ description: Go DDD taskqueue, polling-task, and periodic-task patterns. Use whe
 # Go Task Queue Patterns for DDD
 ## Polling, Reconciliation, Periodic Producers, and Asynq-backed Workers
 
-**Version**: v1.1
+**Version**: v1.2
 **Date**: 2026-05-29
 **Scope**: Go task queue patterns complementing [`ddd-golang.md`](ddd-golang.md) and [`ddd-golang-runtime.md`](ddd-golang-runtime.md)
 **Prerequisites**:
@@ -60,6 +60,11 @@ Repositories adopting this guide use:
 | Provider runtime | `github.com/hibiken/asynq`, hidden behind `internal/pkg/taskqueue` |
 
 Do not create project-local substitutes for `TaskType`, `Task`, `Enqueuer`, `Processor`, `Registrar`, `Worker`, `PeriodicTask`, `PeriodicTaskScheduler`, `SchemaRegistry`, task middleware, or asynq adapters when these components fit the use case.
+
+The periodic-task rules below assume `github.com/go-jimu/components` v0.9.7+
+for `components/taskqueue` and `github.com/go-jimu/contrib/taskqueue/asynq`
+v0.3.3+ or newer compatible versions. Earlier versions may not enforce
+interval-location and periodic enqueue-policy validation at construction time.
 
 Generics are optional. Prefer the non-generic `SchemaRegistry` and explicit type assertions unless a repository already has a local generic helper that improves clarity without leaking provider details.
 
@@ -187,21 +192,41 @@ Rules:
    as for any other task.
 2. Build a `taskqueue.PeriodicTask` from a stable semantic name, a
    `taskqueue.Schedule`, a concrete static `taskqueue.Task`, and enqueue
-   policy options.
-3. Use `taskqueue.CronSchedule` for standard five-field cron expressions and
+   policy options. This `name + Schedule + Task + EnqueuePolicy` shape is the
+   narrow contract; do not add `Enabled`, callback handlers, tenant resolvers,
+   run history, or provider runtime fields to `PeriodicTask`.
+3. For configuration-disabled periodic work, do not construct, provide, or
+   register the `PeriodicTask`. A disabled task should be absent from DI/module
+   registration rather than represented by `PeriodicTask{Enabled:false}`.
+4. Use `taskqueue.CronSchedule` for standard five-field cron expressions and
    `taskqueue.IntervalSchedule` for fixed intervals. Do not put provider
    extensions such as `CRON_TZ=` or `@every` into Application code; provider
    adapters compile the neutral schedule into provider syntax.
-4. Use `taskqueue.WithLocation` for IANA timezone names when the schedule is
-   location-specific.
-5. Treat `PeriodicTask.Name()` as the unique registration key. Duplicate
-   registration must fail with `taskqueue.ErrDuplicatePeriodicTask`.
-6. Keep `PeriodicTask` payloads static. If the job needs "today", "current
+5. Use `taskqueue.WithLocation` only with `CronSchedule` when the schedule is
+   location-specific. `IntervalSchedule(..., taskqueue.WithLocation(...))` is
+   invalid because an interval is duration-based, not wall-clock based.
+6. Keep periodic enqueue policy narrow. `WithUnique`, `WithMaxRetry`, and
+   `WithTimeout` are normal periodic-task policies. `WithDelay` is allowed only
+   when each scheduled fire should intentionally enqueue a task for later
+   processing. Do not use `WithProcessAt` or `WithDeadline` on
+   `PeriodicTask`; static absolute times become stale across repeated schedule
+   fires and are rejected by the component contract.
+7. Treat `PeriodicTask.Name()` as the duplicate key within one
+   `PeriodicTaskScheduler` / registrar instance. Duplicate registration in that
+   instance must fail with `taskqueue.ErrDuplicatePeriodicTask`. Cross-process
+   or cross-replica duplicate registration is a runtime/deployment concern:
+   use one scheduler deployment, leader election, a distributed lock, task
+   uniqueness, and idempotent processors as appropriate.
+8. Keep `PeriodicTask` payloads static. If the job needs "today", "current
    tenant set", or another dynamic value, enqueue a stable "run due work" task
    and derive dynamic inputs inside the processor or Application service using
    an injected clock/read model.
-7. Register periodic tasks during startup wiring, never lazily in request
+9. Register periodic tasks during startup wiring, never lazily in request
    handling or inside a processor.
+10. Leave jitter, misfire/catch-up, pause/resume, run history, and dynamic
+   schedule changes out of `PeriodicTask`. Add those as Application policy,
+   provider/runtime adapter behavior, or a separate control-plane interface
+   only when a real use case requires them.
 
 Do not add `HandleFunc` or callback APIs to the scheduler. The scheduler's only
 job is to enqueue the task; the already-registered `taskqueue.Processor`
@@ -270,6 +295,7 @@ func NewDailyGenerateInvoicesTask(registry *taskqueue.SchemaRegistry) (taskqueue
         task,
         taskqueue.WithUnique(25*time.Hour),
         taskqueue.WithMaxRetry(3),
+        taskqueue.WithTimeout(10*time.Minute),
     )
 }
 ```
@@ -296,6 +322,12 @@ compute dates, query tenants, or call business services.
 - cleanup hooks such as `client.Close()`;
 - provider config such as queues, concurrency, Redis connection, scheduler
   options, and shutdown timeout.
+
+When using the adopted asynq stack, `taskasynq.NewRedisScheduler` plus
+`RegisterPeriodicTask` is the recommended Redis-backed production entry for
+periodic enqueueing, not a temporary demo path. Keep that entry inside
+`internal/pkg/taskqueue`; bounded contexts contribute `PeriodicTask` values and
+never import the asynq adapter directly.
 
 `cmd/**/main.go` should only aggregate options, import modules, and call `app.Run()`. It should not manually register processors, periodic tasks, middleware, schemas, hooks, create asynq objects, or start/stop workers/schedulers.
 
@@ -486,6 +518,11 @@ Rules:
 - Use `WithMaxRetry`, `WithTimeout`, and `WithDeadline` to make failure policy explicit when defaults are not acceptable.
 - Do not pass asynq options through Application APIs. Provider-specific options stay in `internal/pkg/taskqueue`.
 
+These enqueueing rules apply to one-off or follow-up tasks. Periodic task
+policy is narrower: `PeriodicTask` must not use `WithProcessAt` or
+`WithDeadline`, and `WithDelay` needs an explicit reason because it delays every
+scheduled fire.
+
 If enqueueing is a direct consequence of a Domain state change, first consider whether the reaction should be modeled as a same-BC Domain Event handler or a Boundary Publisher. Use task enqueueing directly from a command only when the delayed/background task is an explicit output of that command and the Architecture Gate says why event/message extraction is not the better fit.
 
 ---
@@ -499,12 +536,16 @@ Test by layer:
 - Application periodic-task tests use the real `taskqueue.SchemaRegistry` and
   assert the `PeriodicTask` name, schedule, static task envelope, and enqueue
   policy. They do not test provider cron syntax.
+- Configuration-disabled periodic tasks are tested by asserting the producer is
+  not provided/registered, not by asserting an `Enabled` flag.
 - Runtime tests for `internal/pkg/taskqueue` verify processor registration,
   periodic task registration, middleware wrapping, and lifecycle hook behavior
   without depending on business processors.
 - Provider adapter tests verify schedule compilation and enqueue-policy mapping
-  to asynq options; provider integration tests may use Redis/asynq when the
-  repository already has integration-test infrastructure.
+  to asynq options, including rejecting interval schedules with locations and
+  rejecting periodic `WithProcessAt` / `WithDeadline` policies; provider
+  integration tests may use Redis/asynq when the repository already has
+  integration-test infrastructure.
 
 Do not test task payload handling by reimplementing JSON encoding logic in assertions. Create tasks with `SchemaRegistry.NewJSONTask`, process them through the real processor, and assert observable application behavior or enqueue calls.
 
@@ -528,6 +569,10 @@ Reject these in review:
 12. Application code passes provider-specific schedule strings such as `CRON_TZ=...` or `@every ...` instead of `CronSchedule`, `IntervalSchedule`, and `WithLocation`.
 13. Periodic task payload construction tries to compute dynamic values such as today's date, tenant lists, or external state during scheduler registration.
 14. `cmd/**/main.go` registers periodic tasks or starts/stops schedulers directly.
+15. `IntervalSchedule` is combined with `WithLocation`; use `CronSchedule` for wall-clock scheduling.
+16. `PeriodicTask` uses `WithProcessAt` or a static `WithDeadline`.
+17. A configuration toggle is modeled as `PeriodicTask.Enabled` instead of omitting registration.
+18. Code assumes `ErrDuplicatePeriodicTask` protects against multi-process or multi-replica duplicate schedulers without a runtime coordination mechanism.
 
 ---
 
@@ -541,6 +586,9 @@ Before claiming a taskqueue change is complete:
 - [ ] The processor lives under the bounded context's `application` subtree.
 - [ ] Periodic producers use `taskqueue.PeriodicTask`, `CronSchedule` / `IntervalSchedule`, and `PeriodicTaskScheduler`; no scheduler `HandleFunc` or provider-specific schedule string leaked into Application code.
 - [ ] Periodic tasks have stable names, static task envelopes, and explicit duplicate/idempotency policy when needed.
+- [ ] Periodic schedules use `WithLocation` only with `CronSchedule`; `IntervalSchedule` remains duration-based.
+- [ ] Periodic enqueue policy avoids `WithProcessAt` and `WithDeadline`; `WithDelay` has an explicit every-fire deferral reason.
+- [ ] Configuration-disabled periodic tasks are not registered, and duplicate-name expectations are scoped to one scheduler/registrar instance unless runtime coordination is documented.
 - [ ] `internal/pkg/taskqueue` owns asynq client/worker/scheduler creation, middleware, registration, and lifecycle hooks.
 - [ ] `cmd/**/main.go` remains a thin entry point.
 - [ ] Polling tasks distinguish normal waiting from transient failure retry.
