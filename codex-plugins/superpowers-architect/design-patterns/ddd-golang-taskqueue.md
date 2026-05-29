@@ -6,7 +6,7 @@ description: Go DDD taskqueue, polling-task, and periodic-task patterns. Use whe
 # Go Task Queue Patterns for DDD
 ## Polling, Reconciliation, Periodic Producers, and Asynq-backed Workers
 
-**Version**: v1.2
+**Version**: v1.3
 **Date**: 2026-05-29
 **Scope**: Go task queue patterns complementing [`ddd-golang.md`](ddd-golang.md) and [`ddd-golang-runtime.md`](ddd-golang-runtime.md)
 **Prerequisites**:
@@ -46,6 +46,27 @@ Domain must not import `components/taskqueue`, `contrib/taskqueue/asynq`, `githu
 Application code may import `github.com/go-jimu/components/taskqueue` because it is the provider-neutral task contract. Application code must not import `github.com/go-jimu/contrib/taskqueue/asynq` or `github.com/hibiken/asynq`.
 
 Infrastructure/runtime code may import `contrib/taskqueue/asynq` and `github.com/hibiken/asynq`, but it must not put provider mechanics behind new Domain/Application interfaces such as `AsynqClient`, `JobDispatcher`, or `RedisQueue`.
+
+### Business-visible scheduling and task state
+
+Before placing a scheduler, periodic producer, retry rule, deadline, pause /
+resume flag, catch-up rule, or task status in `application/taskprocessor`, ask
+whether the rule is visible to the business or operators as part of the product
+language:
+
+| Question | Placement |
+|---|---|
+| Is this only "enqueue this task every N minutes / at this cron time"? | `PeriodicTask` plus runtime scheduler wiring |
+| Does the schedule affect customer rights, billing, approval windows, contract deadlines, or compliance obligations? | Domain state/policy plus Application orchestration |
+| Does pause/resume, catch-up, retry eligibility, or deadline expiry have business-visible meaning? | Domain state/policy; taskqueue only triggers checks |
+| Does a missed fire only affect throughput or operational latency? | Runtime/provider policy, metrics, or deployment coordination |
+
+When the answer is business-visible, model the policy with Domain language
+first. The periodic task should enqueue a stable "check due work" task; the
+processor asks the Application service to evaluate Domain state and decide what
+is due. Do not hide customer-visible deadlines, eligibility, compensation
+state, or lifecycle transitions inside asynq options or processor-local
+conditionals.
 
 ---
 
@@ -586,6 +607,7 @@ Before claiming a taskqueue change is complete:
 - [ ] The processor lives under the bounded context's `application` subtree.
 - [ ] Periodic producers use `taskqueue.PeriodicTask`, `CronSchedule` / `IntervalSchedule`, and `PeriodicTaskScheduler`; no scheduler `HandleFunc` or provider-specific schedule string leaked into Application code.
 - [ ] Periodic tasks have stable names, static task envelopes, and explicit duplicate/idempotency policy when needed.
+- [ ] Business-visible scheduling, deadline, pause/resume, catch-up, retry eligibility, and compensation rules were modeled as Domain/Application policy before taskqueue runtime wiring.
 - [ ] Periodic schedules use `WithLocation` only with `CronSchedule`; `IntervalSchedule` remains duration-based.
 - [ ] Periodic enqueue policy avoids `WithProcessAt` and `WithDeadline`; `WithDelay` has an explicit every-fire deferral reason.
 - [ ] Configuration-disabled periodic tasks are not registered, and duplicate-name expectations are scoped to one scheduler/registrar instance unless runtime coordination is documented.

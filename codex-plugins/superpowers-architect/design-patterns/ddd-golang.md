@@ -6,7 +6,7 @@ description: Go implementation guide for DDD + Clean Architecture. Use when edit
 # Go Web System Architecture Guide
 ## DDD + Clean Architecture — Go Implementation
 
-**Version**: v2.5
+**Version**: v2.6
 **Date**: 2026-05-29
 **Scope**: Team backend service architecture standard
 **Prerequisites**:
@@ -260,6 +260,7 @@ Use this checklist before accepting a package layout or import graph:
 - A package path ending in `/domain` contains only domain concepts: aggregates, entities, value objects, domain services, write repository interfaces, domain events, and domain errors.
 - Domain packages do not import `pkg/gen`, ConnectRPC/gRPC/HTTP packages, storage drivers, queue clients, framework packages, `internal/pkg` adapters, `internal/.../infrastructure`, or another bounded context's Domain package.
 - Application use-case packages may import Domain, Application-owned ports, and provider-neutral public contracts from the adopted component stack; they must not import generated RPC stubs, concrete storage, queue, network clients, or `internal/pkg` adapters. The Go RPC shortcut is limited to `application/application.go`, which may import generated protocol packages to implement the generated server stub or map DTOs at the boundary.
+- `application/application.go` RPC methods stay at the protocol boundary: map request, delegate once, map response/error. Business branches, transaction control, repository calls, event/message dispatch, task enqueueing, and cross-port coordination move to use-case packages.
 - Infrastructure packages may import Domain/Application interfaces they implement, generated protocol packages, and external clients.
 - `internal/pkg/<capability>` is only for shared technical adapters. It must not import `internal/business/*` or own business/domain rules.
 - Root `pkg/` is not a dumping ground. Use it for generated code or stable libraries intended for external repository consumers.
@@ -380,7 +381,7 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 
 - **Canonical Go component libraries are project defaults, not DDD concepts.** When a repository has adopted this guide's Go stack (by repository convention, existing code, or explicit user/team direction), use the named library and its public interfaces for that concern instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; task queues and periodic task producers use `github.com/go-jimu/components/taskqueue` plus `github.com/go-jimu/contrib/taskqueue/asynq`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed when existing repository code already standardized on it or the user explicitly approves the exception.
 - **Concrete prohibition list for Go imports**: no `import` of `pkg/gen/...` (generated proto), `connectrpc.com/connect`, `google.golang.org/grpc`, `net/http`'s server side, `xorm.io/xorm`, `gorm.io/gorm`, database/sql drivers, `franz-go` / Kafka / NATS / RocketMQ / Redis clients, `internal/pkg/*` adapters, `internal/.../infrastructure`, or another bounded context's `internal/business/<ctx>/domain`. Allowed: `github.com/google/uuid`, `time`, `errors`, `fmt`, `strings`, `github.com/samber/oops`, and the in-package `github.com/go-jimu/components/ddd/event` (event types only, no dispatcher implementation).
-- **No anemic aggregates.** An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, or `application/messagepublisher/` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. When fields must be exported for XORM/copier mapping, keep mutation methods as the only sanctioned mutation path and treat direct external assignment as a code-review failure.
+- **No anemic aggregates.** Prefer unexported aggregate fields with getters and domain methods. An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, or `application/messagepublisher/` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. If existing repository constraints force exported fields for ORM/copier mapping, mark that as a mapping-only compromise, keep mutation methods as the only sanctioned mutation path, and treat direct external assignment as a code-review failure.
 - **Version increment lives in SQL.** The Domain `Version int` field is read-only; the `version = version + 1` mutation happens in the Repository's `UPDATE` statement (see §3.4). Do not increment `Version` in Domain methods or factories.
 
 **Business Field Validation** — implements the Validation Contract defined in [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). Go-specific notes:
@@ -395,7 +396,7 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 - Simple cases: use the Aggregate Root's own constructor (`NewXxx`)
 - Complex cases (assembling multiple Value Objects, cross-entity validation): extract an independent Domain Factory struct within the domain package
 
-**Domain Event Collection Contract**: aggregates may record same-BC Domain Events through `event.Collection`, but they never dispatch directly. The Application layer drains once after successful `Save()`; Repository never drains. See [`ddd-golang-events-messages.md §2`](ddd-golang-events-messages.md) for `event.Collection`, one-shot `Drain()`, dispatcher admission errors, handler failure policy, and Integration Message separation.
+**Domain Event Collection Contract**: aggregates may record same-BC Domain Events through `event.Collection`, but they never dispatch directly. The Application layer drains once after successful `Save()`; Repository never drains. With unexported fields, expose a narrow `DrainEvents()` method that delegates to the collection instead of exposing the collection for arbitrary mutation. See [`ddd-golang-events-messages.md §2`](ddd-golang-events-messages.md) for `event.Collection`, one-shot `Drain()`, dispatcher admission errors, handler failure policy, and Integration Message separation.
 
 **State Machine Contract** (optional, using `github.com/go-jimu/components/fsm`):
 
@@ -440,7 +441,7 @@ func NewOrderStateMachine() fsm.StateMachine {
 
     // Transition with a business guard
     sm.AddTransition(OrderStatePending, OrderStatePaid, OrderActionPay, func(sc fsm.StateContext) bool {
-        return sc.(*Order).TotalAmount > 0
+        return sc.(*Order).totalAmount > 0
     })
     if err := sm.Check(); err != nil {
         panic(err) // Fail fast on invalid definition
@@ -450,20 +451,20 @@ func NewOrderStateMachine() fsm.StateMachine {
 
 // Order Aggregate Root implements fsm.StateContext
 type Order struct {
-    ID          string
-    Status      fsm.State
-    TotalAmount int64
-    Events      event.Collection
-    Version     int
+    id          string
+    status      fsm.State
+    totalAmount int64
+    events      event.Collection
+    version     int
 }
 
-func (o *Order) CurrentState() fsm.State { return o.Status }
+func (o *Order) CurrentState() fsm.State { return o.status }
 
 func (o *Order) TransitionTo(next fsm.State, by fsm.Action) error {
-    prev := o.Status.Label()
+    prev := o.status.Label()
     next.SetContext(o)
-    o.Status = next
-    o.Events.Add(EventOrderStatusChanged{ID: o.ID, From: string(prev), To: string(next.Label())})
+    o.status = next
+    o.events.Add(EventOrderStatusChanged{ID: o.id, From: string(prev), To: string(next.Label())})
     return nil
 }
 
@@ -480,7 +481,9 @@ Domain Event structs implement `event.Event` and live beside the aggregate in `d
 package domain
 
 import (
+    "context"
     "errors"
+    "strings"
     "time"
 
     "github.com/go-jimu/components/ddd/event"
@@ -495,15 +498,15 @@ var (
 
 // User Aggregate Root
 type User struct {
-    ID             string
-    Name           string
-    Email          Email          // Value Object
-    HashedPassword Password       // Value Object
-    Status         UserStatus     // Value Object
-    Events         event.Collection  // Domain event collection
-    Version        int            // Optimistic lock version (read-only; Infrastructure increments)
-    CreatedAt      time.Time
-    UpdatedAt      time.Time
+    id             string
+    name           string
+    email          Email          // Value Object
+    hashedPassword Password       // Value Object
+    status         UserStatus     // Value Object
+    events         event.Collection
+    version        int            // Optimistic lock version (read-only; Infrastructure increments)
+    createdAt      time.Time
+    updatedAt      time.Time
 }
 
 // Value Object: Email
@@ -540,18 +543,18 @@ func NewUser(name, rawPassword string, email Email) (*User, error) {
     }
 
     user := &User{
-        ID:             uuid.Must(uuid.NewV7()).String(),  // ID generated in Domain
-        Name:           name,
-        Email:          email,
-        HashedPassword: hashed,
-        Status:         UserStatusInactive,
-        Events:         event.NewCollection(),
-        Version:        0,  // 0 = new object, not yet persisted
-        CreatedAt:      time.Now(),
+        id:             uuid.Must(uuid.NewV7()).String(),  // ID generated in Domain
+        name:           name,
+        email:          email,
+        hashedPassword: hashed,
+        status:         UserStatusInactive,
+        events:         event.NewCollection(),
+        version:        0,  // 0 = new object, not yet persisted
+        createdAt:      time.Now(),
     }
 
-    user.Events.Add(EventUserCreated{
-        ID:    user.ID,
+    user.events.Add(EventUserCreated{
+        ID:    user.id,
         Name:  name,
         Email: string(email),
     })
@@ -559,14 +562,51 @@ func NewUser(name, rawPassword string, email Email) (*User, error) {
     return user, nil
 }
 
+// RestoreUser reconstitutes persisted state. It does not emit creation events.
+func RestoreUser(
+    id string,
+    name string,
+    email Email,
+    hashedPassword Password,
+    status UserStatus,
+    version int,
+    createdAt time.Time,
+    updatedAt time.Time,
+) (*User, error) {
+    if err := email.Validate(); err != nil {
+        return nil, err
+    }
+    return &User{
+        id:             id,
+        name:           name,
+        email:          email,
+        hashedPassword: append(Password(nil), hashedPassword...),
+        status:         status,
+        events:         event.NewCollection(),
+        version:        version,
+        createdAt:      createdAt,
+        updatedAt:      updatedAt,
+    }, nil
+}
+
+func (u *User) ID() string { return u.id }
+func (u *User) Name() string { return u.name }
+func (u *User) Email() Email { return u.email }
+func (u *User) HashedPassword() Password { return append(Password(nil), u.hashedPassword...) }
+func (u *User) Status() UserStatus { return u.status }
+func (u *User) Version() int { return u.version }
+func (u *User) CreatedAt() time.Time { return u.createdAt }
+func (u *User) UpdatedAt() time.Time { return u.updatedAt }
+func (u *User) DrainEvents() []event.Event { return u.events.Drain() }
+
 // Domain Method: Change password
 // Note: does not increment Version — Infrastructure handles that via SQL
 func (u *User) ChangePassword(oldRaw, newRaw string) error {
-    if u.Status != UserStatusActive {
+    if u.status != UserStatusActive {
         return ErrUserNotActive
     }
 
-    if !verifyPassword(oldRaw, u.HashedPassword) {
+    if !verifyPassword(oldRaw, u.hashedPassword) {
         return errors.New("old password incorrect")
     }
 
@@ -575,10 +615,10 @@ func (u *User) ChangePassword(oldRaw, newRaw string) error {
         return err
     }
 
-    u.HashedPassword = hashed
-    u.UpdatedAt = time.Now()
+    u.hashedPassword = hashed
+    u.updatedAt = time.Now()
 
-    u.Events.Add(EventPasswordChanged{ID: u.ID})
+    u.events.Add(EventPasswordChanged{ID: u.id})
     return nil
 }
 
@@ -613,7 +653,7 @@ type Repository interface {
 - Use-case packages depend only on the Domain layer and Application-owned ports; `application/application.go` may additionally import generated RPC/proto packages only for the Go RPC shortcut boundary mapping
 - Transaction boundaries are controlled here
 - **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a named Application coordination service, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.2](ddd-core.md); do not implement one in Go merely because `xorm.Session` or another transaction API makes it easy.
-- The Application layer is the sole drainer of `event.Collection` (see §3.1 "Domain Event Collection Contract"): after a successful `Save()` it calls `dispatcher.DispatchAll(user.Events.Drain())` exactly once. Repository never drains. `Drain()` is one-shot — never call it twice on the same aggregate instance.
+- The Application layer is the sole drainer of `event.Collection` (see §3.1 "Domain Event Collection Contract"): after a successful `Save()` it calls `dispatcher.DispatchAll(user.DrainEvents())` (or the repository's established narrow drain accessor) exactly once. Repository never drains. `Drain()` is one-shot — never call it twice on the same aggregate instance.
 - After `Save()`, the in-memory aggregate is stale — reload via `Get()` if further operations are needed
 - **File organization**: always use `application/command/`, `application/query/`, `application/eventhandler/`, `application/messagehandler/`, and `application/messagepublisher/` for Go DDD application code. Put command types, command handlers, and command-side ports in `application/command/`; put query types, query handlers, query DTOs/read models, and query-side ports in `application/query/`; put same-BC Domain Event handlers in `application/eventhandler/`; put Integration Message consumers in `application/messagehandler/`; put Domain Event -> Integration Message boundary publishers in `application/messagepublisher/`. Do not create an `application/port/` package — ports live beside the use case that owns them. `application.go` remains the single entry point that wires everything and imports the subpackages; subpackages must not import the root `application` package.
 
@@ -740,7 +780,7 @@ func (h *CommandChangePasswordHandler) Handle(ctx context.Context, cmd *CommandC
     // 4. Best-effort dispatch after successful persist.
     // DispatchAll only reports admission/enqueue errors (event.ErrDispatcherClosed during
     // shutdown) — log and continue.
-    if err := h.dispatcher.DispatchAll(user.Events.Drain()); err != nil {
+    if err := h.dispatcher.DispatchAll(user.DrainEvents()); err != nil {
         h.logger.WarnContext(ctx, "domain event dispatch skipped",
             slog.String("operation", "user.change_password"),
             slog.String("user_id", cmd.ID),
@@ -854,6 +894,21 @@ func convertError(err error) error {
 }
 ```
 
+**Shortcut guardrails**:
+
+- Allowed: protocol request to command/query mapping, one delegate call to a
+  command/query handler or a trivial `QueryRepository` read, protocol response
+  mapping, protocol error mapping, and small actor/auth extraction needed to
+  build the command/query.
+- Prohibited: transaction control, repository calls, event/message dispatch,
+  task enqueueing, cross-port coordination, business condition branches,
+  aggregate mutation, and multi-step use-case orchestration.
+- Extraction rule: if an `application.go` RPC method grows beyond
+  "map -> delegate once -> map response/error", move the use case into
+  `application/command`, `application/query`, or a named Application
+  coordination service and keep `application.go` as the generated-protocol
+  adapter.
+
 #### REST: Interface layer handles manual routing
 
 ```go
@@ -898,6 +953,36 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 - Infrastructure implements technical mechanisms for domain rules, but it must not be the only place where those rules are expressed
 - Shared middleware clients are initialized in `internal/pkg/<middleware>`; bounded-context Infrastructure receives already constructed clients
 
+#### Transaction Orchestration Shapes
+
+Application owns the **semantic** transaction boundary; Infrastructure owns the
+storage transaction mechanism. Do not expose raw transactions, `*gorm.DB`,
+`*xorm.Session`, `TxManager`, or `UnitOfWork` as Domain/Application ports merely
+to share a database transaction.
+
+Use one of these shapes:
+
+1. **Single aggregate write** — the command handler loads one aggregate, calls
+   one or more domain methods, calls `repo.Save(ctx, aggregate)`, then drains
+   events after `Save()` succeeds. The Repository implementation opens and
+   commits the storage transaction needed to persist that aggregate.
+2. **One aggregate, multiple tables** — child rows, version increments,
+   aggregate-owned audit rows, and other persistence details still belong
+   inside the same Repository method. Application does not call separate
+   storage adapters to finish one aggregate save.
+3. **Multi-aggregate same-transaction exception** — only after satisfying the
+   gate in `ddd-core.md §3.2`, create a named semantic method that expresses
+   the business operation. Keep the transaction/session inside Infrastructure;
+   do not make the use case orchestrate raw transaction plumbing.
+
+Anti-patterns:
+
+- a command handler calls two repositories that each open their own transaction
+  and treats the result as atomic;
+- Application injects or passes raw transaction/session objects;
+- a `UnitOfWork` Application port exists only to expose database mechanics;
+- events are drained or dispatched before `Save()` returns successfully.
+
 **Soft Delete**:
 - **Business-driven logical deletion**: Domain has a status field (e.g., `Status = Cancelled`); `Save()` internally sets `deleted_at` based on the status
 - **Technical soft delete**: Domain is unaware; Infrastructure transparently manages `deleted_at`
@@ -937,7 +1022,6 @@ package infrastructure
 import (
     "context"
 
-    "github.com/jinzhu/copier"
     "xorm.io/xorm"
     "github.com/samber/oops"
 
@@ -972,7 +1056,7 @@ func (r *userRepository) Get(ctx context.Context, id string) (*domain.User, erro
 func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
     do := convertToDO(user)
 
-    if user.Version == 0 {
+    if user.Version() == 0 {
         // New object: INSERT, version starts at 1
         do.Version = 1
         _, err := r.db.Context(ctx).Insert(do)
@@ -980,10 +1064,10 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
     }
 
     // Existing object: UPDATE (optimistic lock: version incremented by SQL)
-    do.Version = user.Version + 1
+    do.Version = user.Version() + 1
     affected, err := r.db.Context(ctx).
-        Where("version = ?", user.Version).
-        ID(user.ID).
+        Where("version = ?", user.Version()).
+        ID(user.ID()).
         Update(do)
     if err != nil {
         return oops.Wrap(err)
@@ -996,19 +1080,31 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 }
 
 // converter.go
+// fromDBTime / toDBTime are project-local timestamp conversion helpers.
 func convertToEntity(do *UserDO) (*domain.User, error) {
-    user := new(domain.User)
-    if err := copier.Copy(user, do); err != nil {
-        return nil, oops.Wrap(err)
-    }
-    user.Events = event.NewCollection()  // Initialize event collection when loading from DB
-    return user, nil
+    return domain.RestoreUser(
+        do.ID,
+        do.Name,
+        domain.Email(do.Email),
+        domain.Password(do.Password),
+        domain.UserStatus(do.Status),
+        do.Version,
+        fromDBTime(do.CreatedAt),
+        fromDBTime(do.UpdatedAt),
+    )
 }
 
 func convertToDO(user *domain.User) *UserDO {
-    do := new(UserDO)
-    copier.Copy(do, user)
-    return do
+    return &UserDO{
+        ID:        user.ID(),
+        Name:      user.Name(),
+        Password:  user.HashedPassword(),
+        Email:     string(user.Email()),
+        Status:    int(user.Status()),
+        Version:   user.Version(),
+        CreatedAt: toDBTime(user.CreatedAt()),
+        UpdatedAt: toDBTime(user.UpdatedAt()),
+    }
 }
 ```
 
@@ -1018,7 +1114,7 @@ func convertToDO(user *domain.User) *UserDO {
 
 | DDD Concept | Layer | Go Implementation |
 |-------------|-------|-------------------|
-| **Aggregate** | Domain | `struct` + domain methods + `event.Collection` |
+| **Aggregate** | Domain | `struct` with unexported state + domain methods + `event.Collection` |
 | **Entity** | Domain | `struct` with ID |
 | **Value Object** | Domain | Immutable `struct` |
 | **Domain Service** | Domain | Stateless function / struct |
