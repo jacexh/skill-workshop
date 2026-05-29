@@ -1,20 +1,20 @@
 ---
 name: ddd-golang
-description: Go implementation guide for DDD + Clean Architecture. Use when editing Go business files under internal/business/<context>/**.go or pkg/gen/** contracts, or when implementing aggregates, repositories, CQRS, cross-context query ports, module assembly, or Go package boundaries. For Domain Events, Integration Messages, Boundary Publishers, event/message handlers, Kafka message adapters, or event.Collection semantics, use ddd-golang-events-messages.md. For cmd/**/main.go, internal/pkg/**, config, fx.Lifecycle, graceful shutdown, or Kubernetes runtime work, use ddd-golang-runtime.md. For taskqueue, polling/reconciliation jobs, asynq workers, TaskType/schema registry, or internal/pkg/taskqueue work, use ddd-golang-taskqueue.md. Code agents must read ddd-agent-contract.md first.
+description: Go implementation guide for DDD + Clean Architecture. Use when editing Go business files under internal/business/<context>/**.go or pkg/gen/** contracts, or when implementing aggregates, repositories, CQRS, cross-context query ports, module assembly, or Go package boundaries. For Domain Events, Integration Messages, Boundary Publishers, event/message handlers, Kafka message adapters, or event.Collection semantics, use ddd-golang-events-messages.md. For cmd/**/main.go, internal/pkg/**, config, fx.Lifecycle, graceful shutdown, or Kubernetes runtime work, use ddd-golang-runtime.md. For taskqueue, polling/reconciliation jobs, periodic task producers, asynq workers/schedulers, TaskType/schema registry, or internal/pkg/taskqueue work, use ddd-golang-taskqueue.md. Code agents must read ddd-agent-contract.md first.
 ---
 
 # Go Web System Architecture Guide
 ## DDD + Clean Architecture — Go Implementation
 
-**Version**: v2.4
-**Date**: 2026-05-21
+**Version**: v2.5
+**Date**: 2026-05-29
 **Scope**: Team backend service architecture standard
 **Prerequisites**:
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first; defines trigger conditions, stop protocol, and prohibited actions. Do not skip.
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
 - **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).
 - **Events / messages**: [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Use this for Domain Events, `event.Collection`, Domain Event Handlers, Boundary Publishers, Integration Messages, message handlers, Kafka adapter wiring, idempotency, and failure semantics.
-- **Task queues / polling**: [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) — Use this instead of expanding the current guide when adding task processors, `TaskType`, schema registry, asynq wiring, polling/reconciliation jobs, or `internal/pkg/taskqueue`.
+- **Task queues / polling / periodic producers**: [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) — Use this instead of expanding the current guide when adding task processors, `TaskType`, `PeriodicTask`, schema registry, asynq wiring, polling/reconciliation jobs, periodic producers, schedulers, or `internal/pkg/taskqueue`.
 - This document is the Go implementation guide that builds on both.
 
 > **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. The Go guide also adds Go-specific workflow, placement, event/message, testing, and module-assembly sections.
@@ -378,7 +378,7 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 
 **Constraints**: see [ddd-core.md §3.1](ddd-core.md) for the full list (no concrete implementation dependencies; general-purpose libraries allowed; no cross-context Domain imports; state changes through domain methods; Version is a read-only token incremented by Infrastructure; IDs generated in Domain via UUID/ULID/Snowflake). Go-specific deltas:
 
-- **Canonical Go component libraries are project defaults, not DDD concepts.** When a repository has adopted this guide's Go stack (by repository convention, existing code, or explicit user/team direction), use the named library and its public interfaces for that concern instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; task queues use `github.com/go-jimu/components/taskqueue` plus `github.com/go-jimu/contrib/taskqueue/asynq`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed when existing repository code already standardized on it or the user explicitly approves the exception.
+- **Canonical Go component libraries are project defaults, not DDD concepts.** When a repository has adopted this guide's Go stack (by repository convention, existing code, or explicit user/team direction), use the named library and its public interfaces for that concern instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; task queues and periodic task producers use `github.com/go-jimu/components/taskqueue` plus `github.com/go-jimu/contrib/taskqueue/asynq`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed when existing repository code already standardized on it or the user explicitly approves the exception.
 - **Concrete prohibition list for Go imports**: no `import` of `pkg/gen/...` (generated proto), `connectrpc.com/connect`, `google.golang.org/grpc`, `net/http`'s server side, `xorm.io/xorm`, `gorm.io/gorm`, database/sql drivers, `franz-go` / Kafka / NATS / RocketMQ / Redis clients, `internal/pkg/*` adapters, `internal/.../infrastructure`, or another bounded context's `internal/business/<ctx>/domain`. Allowed: `github.com/google/uuid`, `time`, `errors`, `fmt`, `strings`, `github.com/samber/oops`, and the in-package `github.com/go-jimu/components/ddd/event` (event types only, no dispatcher implementation).
 - **No anemic aggregates.** An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, or `application/messagepublisher/` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. When fields must be exported for XORM/copier mapping, keep mutation methods as the only sanctioned mutation path and treat direct external assignment as a code-review failure.
 - **Version increment lives in SQL.** The Domain `Version int` field is read-only; the `version = version + 1` mutation happens in the Repository's `UPDATE` statement (see §3.4). Do not increment `Version` in Domain methods or factories.
@@ -1152,7 +1152,7 @@ Production files only. Test file placement is governed by §6.3 and is not requi
 | `application/eventhandler/<event>.go` | Domain Event Handler for same-BC event consumers |
 | `application/messagepublisher/<event>_publisher.go` | Boundary Publisher mapping same-BC Domain Events to Integration Messages |
 | `application/messagehandler/<message>.go` | Integration Message Handler for cross-context message consumers |
-| `application/taskprocessor/<task>.go` | Task queue Processor for one `TaskType`; payload schema registration and polling policy live here or in a sibling `application/task` package (see `ddd-golang-taskqueue.md`) |
+| `application/taskprocessor/<task>.go` | Task queue Processor for one `TaskType`; payload schema registration, polling policy, and periodic task definitions live here or in a sibling `application/task` package (see `ddd-golang-taskqueue.md`) |
 | `application/assembler.go` | Object conversion (DTO ↔ Domain, Proto ↔ Domain) |
 | `interfaces/http/handler.go` | REST handler (optional, hand-written protocols only) |
 | `api/queries.go` | Cross-context Reader / Facade ports (optional, only when this context publishes read-side facades; §5.3) |
@@ -1189,7 +1189,7 @@ Layer-specific placement:
 
 ## 7. Project Default Technology Stack
 
-These are the default libraries for repositories that adopt this Go guide's project stack. They are not DDD requirements. Adoption is established by repository convention, existing code, or explicit user/team direction; once adopted, use these libraries for the concerns listed below and do not create project-local substitutes for their core interfaces (`event.Event`, `event.Collection`, `message.Publisher`, `message.Handler`, `taskqueue.TaskType`, `taskqueue.Processor`, `taskqueue.Enqueuer`, `taskqueue.SchemaRegistry`, `fsm.StateContext`, `sloghelper.Error`, config loader options, and similar) unless the repository has already standardized on a different implementation or the user explicitly approves an exception.
+These are the default libraries for repositories that adopt this Go guide's project stack. They are not DDD requirements. Adoption is established by repository convention, existing code, or explicit user/team direction; once adopted, use these libraries for the concerns listed below and do not create project-local substitutes for their core interfaces (`event.Event`, `event.Collection`, `message.Publisher`, `message.Handler`, `taskqueue.TaskType`, `taskqueue.Processor`, `taskqueue.Enqueuer`, `taskqueue.PeriodicTask`, `taskqueue.PeriodicTaskScheduler`, `taskqueue.SchemaRegistry`, `fsm.StateContext`, `sloghelper.Error`, config loader options, and similar) unless the repository has already standardized on a different implementation or the user explicitly approves an exception.
 
 | Purpose | Default Library |
 |---------|---------------------|
@@ -1203,8 +1203,8 @@ These are the default libraries for repositories that adopt this Go guide's proj
 | In-process Event Bus | `github.com/go-jimu/components/ddd/event` |
 | Integration Message port | `github.com/go-jimu/components/ddd/message` |
 | Integration Message Kafka adapter | `github.com/go-jimu/contrib/message/kafka` (franz-go backed) |
-| Task Queue port and schema registry | `github.com/go-jimu/components/taskqueue` |
-| Task Queue asynq adapter | `github.com/go-jimu/contrib/taskqueue/asynq` |
+| Task Queue port, schema registry, and periodic task contracts | `github.com/go-jimu/components/taskqueue` |
+| Task Queue asynq adapter and scheduler | `github.com/go-jimu/contrib/taskqueue/asynq` |
 | State Machine | `github.com/go-jimu/components/fsm` |
 | Configuration | `github.com/go-jimu/components/config` + `config/loader` |
 | Object Copying | `github.com/jinzhu/copier` |
@@ -1318,7 +1318,7 @@ The Go runtime concerns — fx-based **configuration management**, **`fx.Lifecyc
 
 **See [`ddd-golang-runtime.md`](ddd-golang-runtime.md).**
 
-Task queue and polling/reconciliation concerns also live in a separate guide. Read [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) when adding `TaskType`, payload schemas, task processors, delayed enqueueing, asynq workers, task middleware, `internal/pkg/taskqueue`, or polling/reconciliation policy.
+Task queue, polling/reconciliation, and periodic producer concerns also live in a separate guide. Read [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) when adding `TaskType`, `PeriodicTask`, payload schemas, task processors, delayed enqueueing, scheduled enqueueing, asynq workers/schedulers, task middleware, `internal/pkg/taskqueue`, or polling/reconciliation policy.
 
 | Topic | Where it lives now |
 |---|---|
@@ -1330,7 +1330,7 @@ Task queue and polling/reconciliation concerns also live in a separate guide. Re
 | Which components need `OnStop`, Listen/Serve separation, EventBus drain | [`ddd-golang-runtime.md §2.2`](ddd-golang-runtime.md) |
 | Shutdown ordering (reverse-of-start) | [`ddd-golang-runtime.md §2.3`](ddd-golang-runtime.md) |
 | Kubernetes `preStop` race-condition workaround | [`ddd-golang-runtime.md §2.4`](ddd-golang-runtime.md) |
-| Task queues, polling jobs, asynq workers, task schema registry | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) |
+| Task queues, polling jobs, periodic producers, asynq workers/schedulers, task schema registry | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) |
 
 Read `ddd-golang-runtime.md` when you are editing `cmd/**/main.go`, `internal/pkg/<middleware>/**.go`, `fx.Lifecycle` hooks, or shutdown logic. For pure layer / aggregate / event work, this current document is sufficient.
 
@@ -1386,6 +1386,6 @@ For event/message handler registration, Boundary Publisher rules, and Kafka adap
 - [ddd-core.md](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification
 - [ddd-golang-events-messages.md](ddd-golang-events-messages.md) — Go events/messages: Domain Events, Boundary Publishers, Integration Messages, Kafka adapter wiring
 - [ddd-golang-runtime.md](ddd-golang-runtime.md) — Go runtime: configuration, fx.Lifecycle, graceful shutdown, Kubernetes
-- [ddd-golang-taskqueue.md](ddd-golang-taskqueue.md) — Go taskqueue and polling patterns: TaskType, schema registry, processors, asynq wiring, middleware
+- [ddd-golang-taskqueue.md](ddd-golang-taskqueue.md) — Go taskqueue, polling, and periodic producer patterns: TaskType, PeriodicTask, schema registry, processors, asynq wiring, middleware
 - [The Clean Architecture — Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [Domain-Driven Design Reference — Eric Evans](https://domainlanguage.com/ddd/reference/)

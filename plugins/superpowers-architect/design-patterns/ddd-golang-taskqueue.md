@@ -1,13 +1,13 @@
 ---
 name: ddd-golang-taskqueue
-description: Go DDD taskqueue and polling-task patterns. Use when adding background tasks, polling/reconciliation jobs, asynq workers, task payload schemas, TaskType definitions, task processors, task enqueueing, task middleware, internal/pkg/taskqueue wiring, or task worker lifecycle in Go DDD services. Complements ddd-golang.md and ddd-golang-runtime.md.
+description: Go DDD taskqueue, polling-task, and periodic-task patterns. Use when adding background tasks, polling/reconciliation jobs, periodic task producers, asynq workers or schedulers, task payload schemas, TaskType definitions, task processors, task enqueueing, task middleware, internal/pkg/taskqueue wiring, or task worker lifecycle in Go DDD services. Complements ddd-golang.md and ddd-golang-runtime.md.
 ---
 
 # Go Task Queue Patterns for DDD
-## Polling, Reconciliation, and Asynq-backed Workers
+## Polling, Reconciliation, Periodic Producers, and Asynq-backed Workers
 
-**Version**: v1.0
-**Date**: 2026-05-28
+**Version**: v1.1
+**Date**: 2026-05-29
 **Scope**: Go task queue patterns complementing [`ddd-golang.md`](ddd-golang.md) and [`ddd-golang-runtime.md`](ddd-golang-runtime.md)
 **Prerequisites**:
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) - Code agents must read this first.
@@ -17,9 +17,9 @@ description: Go DDD taskqueue and polling-task patterns. Use when adding backgro
 > **Code blocks are illustrative**, not copy-paste templates. Imports may be omitted and identifiers may reference types defined elsewhere in the project. See [`ddd-agent-contract.md` §6](ddd-agent-contract.md).
 
 > **When to read this file**:
-> - Adding a task queue, background job, polling task, reconciliation task, scheduled task, or delayed retry flow.
-> - Editing `internal/pkg/taskqueue/**`, asynq wiring, task middleware, task schema registration, or worker lifecycle hooks.
-> - Adding a `TaskType`, task payload struct, task processor, task enqueue call, or task payload schema registry.
+> - Adding a task queue, background job, polling task, reconciliation task, periodic task producer, scheduled task, or delayed retry flow.
+> - Editing `internal/pkg/taskqueue/**`, asynq wiring, task middleware, task schema registration, scheduler registration, or worker lifecycle hooks.
+> - Adding a `TaskType`, task payload struct, task processor, task enqueue call, periodic task definition, or task payload schema registry.
 > - Reviewing whether a polling/reconciliation concern belongs in Domain, Application, Infrastructure, or runtime wiring.
 
 ---
@@ -36,9 +36,10 @@ Use these placement rules:
 | Polling/reconciliation use case and processor | `internal/business/<context>/application/taskprocessor` |
 | Task payload struct, `TaskType`, `taskqueue.Definition`, schema registration for that use case | Same bounded context, usually `application/taskprocessor` or `application/task` |
 | Enqueue decision from an application use case | Application layer, through `github.com/go-jimu/components/taskqueue.Enqueuer` |
-| Shared queue client, asynq worker, middleware, processor registration, worker lifecycle | `internal/pkg/taskqueue` |
+| Periodic task contract (`taskqueue.PeriodicTask`, `Schedule`, name, task envelope, enqueue policy) | Same bounded context as the task contract, usually `application/taskprocessor` or `application/task` |
+| Shared queue client, asynq worker/scheduler, middleware, processor registration, periodic task registration, lifecycle | `internal/pkg/taskqueue` |
 | Provider adapter | `github.com/go-jimu/contrib/taskqueue/asynq` |
-| Provider-specific asynq options/config | `internal/pkg/taskqueue` config and wiring |
+| Provider-specific asynq options/config, Redis connection, scheduler options | `internal/pkg/taskqueue` config and wiring |
 
 Domain must not import `components/taskqueue`, `contrib/taskqueue/asynq`, `github.com/hibiken/asynq`, Redis clients, worker routers, or runtime packages.
 
@@ -58,7 +59,7 @@ Repositories adopting this guide use:
 | Asynq adapter | `github.com/go-jimu/contrib/taskqueue/asynq` |
 | Provider runtime | `github.com/hibiken/asynq`, hidden behind `internal/pkg/taskqueue` |
 
-Do not create project-local substitutes for `TaskType`, `Task`, `Enqueuer`, `Processor`, `Registrar`, `Worker`, `SchemaRegistry`, task middleware, or asynq adapters when these components fit the use case.
+Do not create project-local substitutes for `TaskType`, `Task`, `Enqueuer`, `Processor`, `Registrar`, `Worker`, `PeriodicTask`, `PeriodicTaskScheduler`, `SchemaRegistry`, task middleware, or asynq adapters when these components fit the use case.
 
 Generics are optional. Prefer the non-generic `SchemaRegistry` and explicit type assertions unless a repository already has a local generic helper that improves clarity without leaking provider details.
 
@@ -173,22 +174,132 @@ The service above is an Application service. If it needs to mutate aggregates, i
 
 ---
 
-## 5. `internal/pkg/taskqueue` Runtime Boundary
+## 5. Periodic Task Producers
+
+A periodic task is a **scheduled enqueue** of a concrete `taskqueue.Task`. It is
+not a scheduler callback, not a second handler model, and not a place to run
+business logic. The work still belongs to the normal one-`TaskType`,
+one-payload-schema, one-`Processor` task contract from §§3-4.
+
+Rules:
+
+1. Define the `TaskType`, `Definition`, payload schema, and `Processor` exactly
+   as for any other task.
+2. Build a `taskqueue.PeriodicTask` from a stable semantic name, a
+   `taskqueue.Schedule`, a concrete static `taskqueue.Task`, and enqueue
+   policy options.
+3. Use `taskqueue.CronSchedule` for standard five-field cron expressions and
+   `taskqueue.IntervalSchedule` for fixed intervals. Do not put provider
+   extensions such as `CRON_TZ=` or `@every` into Application code; provider
+   adapters compile the neutral schedule into provider syntax.
+4. Use `taskqueue.WithLocation` for IANA timezone names when the schedule is
+   location-specific.
+5. Treat `PeriodicTask.Name()` as the unique registration key. Duplicate
+   registration must fail with `taskqueue.ErrDuplicatePeriodicTask`.
+6. Keep `PeriodicTask` payloads static. If the job needs "today", "current
+   tenant set", or another dynamic value, enqueue a stable "run due work" task
+   and derive dynamic inputs inside the processor or Application service using
+   an injected clock/read model.
+7. Register periodic tasks during startup wiring, never lazily in request
+   handling or inside a processor.
+
+Do not add `HandleFunc` or callback APIs to the scheduler. The scheduler's only
+job is to enqueue the task; the already-registered `taskqueue.Processor`
+handles the task when the worker receives it.
+
+Example periodic task definition:
+
+```go
+// internal/business/billing/application/taskprocessor/generate_invoices.go
+package taskprocessor
+
+import (
+    "context"
+    "fmt"
+    "time"
+
+    "github.com/go-jimu/components/taskqueue"
+)
+
+const GenerateInvoicesTaskType taskqueue.TaskType = "billing.generate_invoices.v1"
+
+var GenerateInvoicesTask = taskqueue.Definition{
+    Type:  GenerateInvoicesTaskType,
+    Queue: "billing",
+}
+
+type GenerateInvoicesPayload struct{}
+
+func RegisterGenerateInvoicesSchema(registry *taskqueue.SchemaRegistry) error {
+    return registry.Register(GenerateInvoicesTask, func() any { return &GenerateInvoicesPayload{} })
+}
+
+func NewGenerateInvoicesProcessor(
+    registry *taskqueue.SchemaRegistry,
+    service *InvoiceService,
+) taskqueue.Processor {
+    return taskqueue.NewProcessor(GenerateInvoicesTaskType, func(ctx context.Context, task taskqueue.Task) error {
+        decoded, err := registry.DecodeJSON(task)
+        if err != nil {
+            return err
+        }
+        if _, ok := decoded.(*GenerateInvoicesPayload); !ok {
+            return fmt.Errorf("%w: unexpected payload %T", taskqueue.ErrSkipRetry, decoded)
+        }
+        return service.GenerateDueInvoices(ctx)
+    })
+}
+
+func NewDailyGenerateInvoicesTask(registry *taskqueue.SchemaRegistry) (taskqueue.PeriodicTask, error) {
+    schedule, err := taskqueue.CronSchedule("0 2 * * *", taskqueue.WithLocation("Asia/Shanghai"))
+    if err != nil {
+        return taskqueue.PeriodicTask{}, err
+    }
+
+    task, err := registry.NewJSONTask(
+        &GenerateInvoicesPayload{},
+        taskqueue.WithKey("billing.generate_invoices.daily"),
+    )
+    if err != nil {
+        return taskqueue.PeriodicTask{}, err
+    }
+
+    return taskqueue.NewPeriodicTask(
+        "billing.generate_invoices.daily",
+        schedule,
+        task,
+        taskqueue.WithUnique(25*time.Hour),
+        taskqueue.WithMaxRetry(3),
+    )
+}
+```
+
+The example intentionally has an empty payload. The processor asks the
+Application service to generate currently due invoices; the scheduler does not
+compute dates, query tenants, or call business services.
+
+---
+
+## 6. `internal/pkg/taskqueue` Runtime Boundary
 
 `internal/pkg/taskqueue` owns the queue runtime for the service:
 
 - its own `Option` struct and config tags;
 - creation of asynq-backed `taskqueue.Enqueuer`;
 - creation of the asynq-backed `taskqueue.Worker`;
+- creation of the asynq-backed `taskqueue.PeriodicTaskScheduler` when the
+  service has periodic producers;
 - processor registration;
+- periodic task registration;
 - common middleware wrapping;
 - `fx.Lifecycle` hooks for `Start(ctx)` and `Shutdown(ctx)`;
 - cleanup hooks such as `client.Close()`;
-- provider config such as queues, concurrency, Redis connection, and shutdown timeout.
+- provider config such as queues, concurrency, Redis connection, scheduler
+  options, and shutdown timeout.
 
-`cmd/**/main.go` should only aggregate options, import modules, and call `app.Run()`. It should not manually register processors, install task middleware, create asynq objects, or start/stop workers.
+`cmd/**/main.go` should only aggregate options, import modules, and call `app.Run()`. It should not manually register processors, periodic tasks, middleware, schemas, hooks, create asynq objects, or start/stop workers/schedulers.
 
-Use task words for taskqueue runtime objects: `Worker`, `ProcessorRouter`, `Registrar`, `Processor`, `Enqueuer`. Do not introduce HTTP server, HTTP mux, or HTTP handler terminology for task workers.
+Use task words for taskqueue runtime objects: `Worker`, `ProcessorRouter`, `Registrar`, `PeriodicTaskScheduler`, `Processor`, `Enqueuer`. Do not introduce HTTP server, HTTP mux, or HTTP handler terminology for task workers or periodic producers.
 
 Example runtime shape:
 
@@ -217,6 +328,11 @@ type Option struct {
 type ProcessorIn struct {
     fx.In
     Processors []componenttaskqueue.Processor `group:"taskqueue.processors"`
+}
+
+type PeriodicTaskIn struct {
+    fx.In
+    PeriodicTasks []componenttaskqueue.PeriodicTask `group:"taskqueue.periodic_tasks"`
 }
 
 func NewSchemaRegistry() *componenttaskqueue.SchemaRegistry {
@@ -282,22 +398,61 @@ func NewWorker(
     })
     return worker, nil
 }
+
+func NewPeriodicTaskScheduler(
+    lc fx.Lifecycle,
+    opt Option,
+    in PeriodicTaskIn,
+) (componenttaskqueue.PeriodicTaskScheduler, error) {
+    scheduler := taskasynq.NewRedisScheduler(
+        asynq.RedisClientOpt{Addr: opt.RedisAddr},
+        &asynq.SchedulerOpts{},
+    )
+
+    for _, periodic := range in.PeriodicTasks {
+        if err := scheduler.RegisterPeriodicTask(periodic); err != nil {
+            return nil, err
+        }
+    }
+
+    lc.Append(fx.Hook{
+        OnStart: func(ctx context.Context) error {
+            return scheduler.Start(ctx)
+        },
+        OnStop: func(ctx context.Context) error {
+            if opt.ShutdownTimeout <= 0 {
+                return scheduler.Shutdown(ctx)
+            }
+            shutdownCtx, cancel := context.WithTimeout(ctx, opt.ShutdownTimeout)
+            defer cancel()
+            return scheduler.Shutdown(shutdownCtx)
+        },
+    })
+    return scheduler, nil
+}
 ```
 
-Bounded-context modules should contribute processors and schema registrations, not construct workers:
+Bounded-context modules should contribute processors, periodic task definitions,
+and schema registrations, not construct workers or schedulers:
 
 ```go
 var Module = fx.Module(
-    "domain.document",
+    "domain.billing",
     fx.Provide(
-        NewReviewService,
+        NewInvoiceService,
         fx.Annotate(
-            taskprocessor.NewReviewDocumentProcessor,
+            taskprocessor.NewGenerateInvoicesProcessor,
             fx.As(new(taskqueue.Processor)),
             fx.ResultTags(`group:"taskqueue.processors"`),
         ),
+        fx.Annotate(
+            taskprocessor.NewDailyGenerateInvoicesTask,
+            fx.ResultTags(`group:"taskqueue.periodic_tasks"`),
+        ),
     ),
-    fx.Invoke(taskprocessor.RegisterReviewDocumentSchema),
+    fx.Invoke(
+        taskprocessor.RegisterGenerateInvoicesSchema,
+    ),
 )
 ```
 
@@ -305,7 +460,7 @@ The exact `fx.Annotate` style may vary by repository. The invariant is stable: t
 
 ---
 
-## 6. Middleware and Observability
+## 7. Middleware and Observability
 
 Every worker should install at least:
 
@@ -318,7 +473,7 @@ Middleware belongs in `internal/pkg/taskqueue`, not in each processor. Add appli
 
 ---
 
-## 7. Enqueueing Rules
+## 8. Enqueueing Rules
 
 Application use cases may enqueue tasks through `taskqueue.Enqueuer`.
 
@@ -335,20 +490,27 @@ If enqueueing is a direct consequence of a Domain state change, first consider w
 
 ---
 
-## 8. Testing Rules
+## 9. Testing Rules
 
 Test by layer:
 
 - Domain tests cover business rules without taskqueue imports.
 - Application processor tests use a fake `taskqueue.Enqueuer` and real `taskqueue.SchemaRegistry` payload encoding/decoding.
-- Runtime tests for `internal/pkg/taskqueue` verify processor registration, middleware wrapping, and lifecycle hook behavior without depending on business processors.
-- Provider integration tests may use Redis/asynq when the repository already has integration-test infrastructure.
+- Application periodic-task tests use the real `taskqueue.SchemaRegistry` and
+  assert the `PeriodicTask` name, schedule, static task envelope, and enqueue
+  policy. They do not test provider cron syntax.
+- Runtime tests for `internal/pkg/taskqueue` verify processor registration,
+  periodic task registration, middleware wrapping, and lifecycle hook behavior
+  without depending on business processors.
+- Provider adapter tests verify schedule compilation and enqueue-policy mapping
+  to asynq options; provider integration tests may use Redis/asynq when the
+  repository already has integration-test infrastructure.
 
 Do not test task payload handling by reimplementing JSON encoding logic in assertions. Create tasks with `SchemaRegistry.NewJSONTask`, process them through the real processor, and assert observable application behavior or enqueue calls.
 
 ---
 
-## 9. Anti-patterns
+## 10. Anti-patterns
 
 Reject these in review:
 
@@ -362,10 +524,14 @@ Reject these in review:
 8. A project-local `AsynqClient`, `JobQueue`, `TaskDispatcher`, or `RedisQueue` duplicates the adopted component/contrib stack.
 9. Middleware is copied into every processor instead of installed once in `internal/pkg/taskqueue`.
 10. Provider metadata such as queue name, retry count, or asynq task ID drives Domain decisions.
+11. A scheduler exposes `HandleFunc`, callback registration, or business-service calls instead of enqueueing a `PeriodicTask`.
+12. Application code passes provider-specific schedule strings such as `CRON_TZ=...` or `@every ...` instead of `CronSchedule`, `IntervalSchedule`, and `WithLocation`.
+13. Periodic task payload construction tries to compute dynamic values such as today's date, tenant lists, or external state during scheduler registration.
+14. `cmd/**/main.go` registers periodic tasks or starts/stops schedulers directly.
 
 ---
 
-## 10. Completion Self-Check
+## 11. Completion Self-Check
 
 Before claiming a taskqueue change is complete:
 
@@ -373,7 +539,9 @@ Before claiming a taskqueue change is complete:
 - [ ] Every task has exactly one `TaskType`, one payload schema, and one processor.
 - [ ] The schema is registered during startup/module wiring, not lazily at processing time.
 - [ ] The processor lives under the bounded context's `application` subtree.
-- [ ] `internal/pkg/taskqueue` owns asynq client/worker creation, middleware, registration, and lifecycle hooks.
+- [ ] Periodic producers use `taskqueue.PeriodicTask`, `CronSchedule` / `IntervalSchedule`, and `PeriodicTaskScheduler`; no scheduler `HandleFunc` or provider-specific schedule string leaked into Application code.
+- [ ] Periodic tasks have stable names, static task envelopes, and explicit duplicate/idempotency policy when needed.
+- [ ] `internal/pkg/taskqueue` owns asynq client/worker/scheduler creation, middleware, registration, and lifecycle hooks.
 - [ ] `cmd/**/main.go` remains a thin entry point.
 - [ ] Polling tasks distinguish normal waiting from transient failure retry.
 - [ ] Polling has a max attempt, deadline, terminal state, or explicit exhaustion policy.
