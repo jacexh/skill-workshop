@@ -46,7 +46,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Prompt Router** — Codex UserPromptSubmit hook path that inspects raw user text and injects focused context for explicit workflow signals; used by memory and architect where skill-call hooks are unavailable. → `codex-plugins/*/hooks/codex-runtime.js`
 
-**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, hot-path Application-port decision card, P1-P7 self-checks, 24 must-not rules. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
+**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, hot-path Application-port decision card, P1-P7 self-checks, 25 must-not rules. → `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`, ADR-015
 
 **Application Command-Side Port** — Exceptional Application-owned command dependency allowed only after the gate rejects Domain Repository, Aggregate, Domain Service, Domain Event, Integration Message, named Application coordination service, ACL, and Infrastructure homes. → `plugins/superpowers-architect/design-patterns/ddd-modeling.md`
 

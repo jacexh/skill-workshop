@@ -2,7 +2,7 @@
 last_updated: 2026-05-29
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
-covers_branch: hotfix/taskqueue-periodic-contract-guidance@62cbec9
+covers_branch: hotfix/taskqueue-periodic-contract-guidance@3322f68
 ---
 
 # Project Knowledge Index
@@ -14,10 +14,10 @@ covers_branch: hotfix/taskqueue-periodic-contract-guidance@62cbec9
   Key points: Node.js + Bash + Markdown + JSON; Codex plugin runtime requires hooks/plugin_hooks flags and restart; release scripts use git + jq
 
 - [features.md](features.md) — Current capability map
-  Key points: DDD guidance separates Go event/message rules and hardened Go taskqueue/polling/periodic rules; progressive knowledge layout replaces playbooks
+  Key points: DDD guidance separates Go event/message rules, Go taskqueue/polling/periodic rules, and Go coding guardrails for transactions, aggregate behavior, and RPC shortcuts
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: taskqueue periodic producers use the components/asynq contract with cron-only locations, narrow enqueue policy, and instance-local duplicate detection; Codex prompt routers stay explicit-skill-only
+  Key points: Go DDD rules allow mapping-field access but require method-driven behavior, Infrastructure-owned transaction mechanics, thin RPC shortcut methods, and Domain-first business-visible scheduling
 
 - [decisions.md](decisions.md) — ADR summary log (18 ADRs, 0 superseded)
   Key points: ADR-018 DDD Go events/messages split; ADR-017 DDD Go taskqueue split; ADR-016 progressive KB layout + playbook removal
