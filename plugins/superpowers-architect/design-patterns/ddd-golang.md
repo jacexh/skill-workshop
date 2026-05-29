@@ -381,7 +381,7 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 
 - **Canonical Go component libraries are project defaults, not DDD concepts.** When a repository has adopted this guide's Go stack (by repository convention, existing code, or explicit user/team direction), use the named library and its public interfaces for that concern instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; task queues and periodic task producers use `github.com/go-jimu/components/taskqueue` plus `github.com/go-jimu/contrib/taskqueue/asynq`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed when existing repository code already standardized on it or the user explicitly approves the exception.
 - **Concrete prohibition list for Go imports**: no `import` of `pkg/gen/...` (generated proto), `connectrpc.com/connect`, `google.golang.org/grpc`, `net/http`'s server side, `xorm.io/xorm`, `gorm.io/gorm`, database/sql drivers, `franz-go` / Kafka / NATS / RocketMQ / Redis clients, `internal/pkg/*` adapters, `internal/.../infrastructure`, or another bounded context's `internal/business/<ctx>/domain`. Allowed: `github.com/google/uuid`, `time`, `errors`, `fmt`, `strings`, `github.com/samber/oops`, and the in-package `github.com/go-jimu/components/ddd/event` (event types only, no dispatcher implementation).
-- **No anemic aggregates.** Prefer unexported aggregate fields with getters and domain methods. An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, or `application/messagepublisher/` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. If existing repository constraints force exported fields for ORM/copier mapping, mark that as a mapping-only compromise, keep mutation methods as the only sanctioned mutation path, and treat direct external assignment as a code-review failure.
+- **No anemic aggregates.** Prefer behavior methods over external field mutation. Do not turn Go aggregates into JavaBeans with a getter for every field; expose only semantic read methods that use cases actually need (commonly `ID()`), plus a narrow snapshot/restore API for persistence mapping when fields are unexported. An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, or `application/messagepublisher/` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. If existing repository constraints force exported fields for ORM/copier mapping, mark that as a mapping-only compromise, keep mutation methods as the only sanctioned mutation path, and treat direct external assignment as a code-review failure.
 - **Version increment lives in SQL.** The Domain `Version int` field is read-only; the `version = version + 1` mutation happens in the Repository's `UPDATE` statement (see §3.4). Do not increment `Version` in Domain methods or factories.
 
 **Business Field Validation** — implements the Validation Contract defined in [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). Go-specific notes:
@@ -531,6 +531,20 @@ const (
     UserStatusSuspended
 )
 
+// UserSnapshot is for persistence mapping, not for business mutation.
+// It avoids Java-style getters for every field while keeping aggregate state
+// mutation behind domain methods.
+type UserSnapshot struct {
+    ID             string
+    Name           string
+    Email          Email
+    HashedPassword Password
+    Status         UserStatus
+    Version        int
+    CreatedAt      time.Time
+    UpdatedAt      time.Time
+}
+
 // Factory Method — ID generated in Domain layer, Version starts at 0
 func NewUser(name, rawPassword string, email Email) (*User, error) {
     if err := email.Validate(); err != nil {
@@ -563,41 +577,38 @@ func NewUser(name, rawPassword string, email Email) (*User, error) {
 }
 
 // RestoreUser reconstitutes persisted state. It does not emit creation events.
-func RestoreUser(
-    id string,
-    name string,
-    email Email,
-    hashedPassword Password,
-    status UserStatus,
-    version int,
-    createdAt time.Time,
-    updatedAt time.Time,
-) (*User, error) {
-    if err := email.Validate(); err != nil {
+func RestoreUser(snapshot UserSnapshot) (*User, error) {
+    if err := snapshot.Email.Validate(); err != nil {
         return nil, err
     }
     return &User{
-        id:             id,
-        name:           name,
-        email:          email,
-        hashedPassword: append(Password(nil), hashedPassword...),
-        status:         status,
+        id:             snapshot.ID,
+        name:           snapshot.Name,
+        email:          snapshot.Email,
+        hashedPassword: append(Password(nil), snapshot.HashedPassword...),
+        status:         snapshot.Status,
         events:         event.NewCollection(),
-        version:        version,
-        createdAt:      createdAt,
-        updatedAt:      updatedAt,
+        version:        snapshot.Version,
+        createdAt:      snapshot.CreatedAt,
+        updatedAt:      snapshot.UpdatedAt,
     }, nil
 }
 
 func (u *User) ID() string { return u.id }
-func (u *User) Name() string { return u.name }
-func (u *User) Email() Email { return u.email }
-func (u *User) HashedPassword() Password { return append(Password(nil), u.hashedPassword...) }
-func (u *User) Status() UserStatus { return u.status }
-func (u *User) Version() int { return u.version }
-func (u *User) CreatedAt() time.Time { return u.createdAt }
-func (u *User) UpdatedAt() time.Time { return u.updatedAt }
 func (u *User) DrainEvents() []event.Event { return u.events.Drain() }
+
+func (u *User) Snapshot() UserSnapshot {
+    return UserSnapshot{
+        ID:             u.id,
+        Name:           u.name,
+        Email:          u.email,
+        HashedPassword: append(Password(nil), u.hashedPassword...),
+        Status:         u.status,
+        Version:        u.version,
+        CreatedAt:      u.createdAt,
+        UpdatedAt:      u.updatedAt,
+    }
+}
 
 // Domain Method: Change password
 // Note: does not increment Version — Infrastructure handles that via SQL
@@ -1054,9 +1065,10 @@ func (r *userRepository) Get(ctx context.Context, id string) (*domain.User, erro
 }
 
 func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
-    do := convertToDO(user)
+    snapshot := user.Snapshot()
+    do := convertToDO(snapshot)
 
-    if user.Version() == 0 {
+    if snapshot.Version == 0 {
         // New object: INSERT, version starts at 1
         do.Version = 1
         _, err := r.db.Context(ctx).Insert(do)
@@ -1064,10 +1076,10 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
     }
 
     // Existing object: UPDATE (optimistic lock: version incremented by SQL)
-    do.Version = user.Version() + 1
+    do.Version = snapshot.Version + 1
     affected, err := r.db.Context(ctx).
-        Where("version = ?", user.Version()).
-        ID(user.ID()).
+        Where("version = ?", snapshot.Version).
+        ID(snapshot.ID).
         Update(do)
     if err != nil {
         return oops.Wrap(err)
@@ -1082,28 +1094,28 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 // converter.go
 // fromDBTime / toDBTime are project-local timestamp conversion helpers.
 func convertToEntity(do *UserDO) (*domain.User, error) {
-    return domain.RestoreUser(
-        do.ID,
-        do.Name,
-        domain.Email(do.Email),
-        domain.Password(do.Password),
-        domain.UserStatus(do.Status),
-        do.Version,
-        fromDBTime(do.CreatedAt),
-        fromDBTime(do.UpdatedAt),
-    )
+    return domain.RestoreUser(domain.UserSnapshot{
+        ID:             do.ID,
+        Name:           do.Name,
+        Email:          domain.Email(do.Email),
+        HashedPassword: domain.Password(do.Password),
+        Status:         domain.UserStatus(do.Status),
+        Version:        do.Version,
+        CreatedAt:      fromDBTime(do.CreatedAt),
+        UpdatedAt:      fromDBTime(do.UpdatedAt),
+    })
 }
 
-func convertToDO(user *domain.User) *UserDO {
+func convertToDO(snapshot domain.UserSnapshot) *UserDO {
     return &UserDO{
-        ID:        user.ID(),
-        Name:      user.Name(),
-        Password:  user.HashedPassword(),
-        Email:     string(user.Email()),
-        Status:    int(user.Status()),
-        Version:   user.Version(),
-        CreatedAt: toDBTime(user.CreatedAt()),
-        UpdatedAt: toDBTime(user.UpdatedAt()),
+        ID:        snapshot.ID,
+        Name:      snapshot.Name,
+        Password:  snapshot.HashedPassword,
+        Email:     string(snapshot.Email),
+        Status:    int(snapshot.Status),
+        Version:   snapshot.Version,
+        CreatedAt: toDBTime(snapshot.CreatedAt),
+        UpdatedAt: toDBTime(snapshot.UpdatedAt),
     }
 }
 ```
@@ -1114,7 +1126,7 @@ func convertToDO(user *domain.User) *UserDO {
 
 | DDD Concept | Layer | Go Implementation |
 |-------------|-------|-------------------|
-| **Aggregate** | Domain | `struct` with unexported state + domain methods + `event.Collection` |
+| **Aggregate** | Domain | `struct` with behavior methods, optional snapshot/restore for persistence, and `event.Collection` |
 | **Entity** | Domain | `struct` with ID |
 | **Value Object** | Domain | Immutable `struct` |
 | **Domain Service** | Domain | Stateless function / struct |
