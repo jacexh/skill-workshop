@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-28
+last_updated: 2026-05-29
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -27,6 +27,8 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 **Project-Default Go Component Stack** — Go libraries named by `ddd-golang.md` for DDD concerns in projects adopting this guide; agents should use their public interfaces instead of local substitutes unless the repo/user establishes an exception. → `plugins/superpowers-architect/design-patterns/ddd-golang.md`
 
 **TaskType** — Semantic task contract identifier for Go taskqueue payload schemas; processors are one TaskType each under Application, with asynq runtime wiring in `internal/pkg/taskqueue`. → `plugins/superpowers-architect/design-patterns/ddd-golang-taskqueue.md`
+
+**PeriodicTask** — Provider-neutral scheduled enqueue contract for a static Go task envelope; the scheduler enqueues it and the normal `taskqueue.Processor` handles execution. → `plugins/superpowers-architect/design-patterns/ddd-golang-taskqueue.md`
 
 **Task Schema Registry** — Service-owned registry mapping `TaskType` values to Go payload structs for task serialization/deserialization; not a global singleton. → `plugins/superpowers-architect/design-patterns/ddd-golang-taskqueue.md`
 
