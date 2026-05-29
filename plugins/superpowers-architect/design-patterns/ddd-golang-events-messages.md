@@ -6,7 +6,7 @@ description: Go DDD events and messages patterns. Use when adding or reviewing D
 # Go Events and Messages Patterns for DDD
 ## Domain Events, Boundary Publishers, and Integration Messages
 
-**Version**: v1.0
+**Version**: v1.1
 **Date**: 2026-05-28
 **Scope**: Go event/message patterns complementing [`ddd-golang.md`](ddd-golang.md)
 **Prerequisites**:
@@ -55,7 +55,7 @@ Use `github.com/go-jimu/components/ddd/event` for in-process Domain Events.
 
 Contract:
 
-- Aggregate Root holds an `Events event.Collection` field.
+- Aggregate Root holds an `Events event.Collection` field or equivalent narrow event collection accessor.
 - Domain methods append events via `Events.Add(event)`; they never dispatch directly.
 - The Application layer is the sole drainer. After a successful `Save()` returns, Application calls `dispatcher.DispatchAll(aggregate.Events.Drain())` exactly once.
 - Repository must not drain events.

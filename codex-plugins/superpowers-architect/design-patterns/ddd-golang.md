@@ -6,7 +6,7 @@ description: Go implementation guide for DDD + Clean Architecture. Use when edit
 # Go Web System Architecture Guide
 ## DDD + Clean Architecture — Go Implementation
 
-**Version**: v2.5
+**Version**: v2.6
 **Date**: 2026-05-29
 **Scope**: Team backend service architecture standard
 **Prerequisites**:
@@ -260,6 +260,7 @@ Use this checklist before accepting a package layout or import graph:
 - A package path ending in `/domain` contains only domain concepts: aggregates, entities, value objects, domain services, write repository interfaces, domain events, and domain errors.
 - Domain packages do not import `pkg/gen`, ConnectRPC/gRPC/HTTP packages, storage drivers, queue clients, framework packages, `internal/pkg` adapters, `internal/.../infrastructure`, or another bounded context's Domain package.
 - Application use-case packages may import Domain, Application-owned ports, and provider-neutral public contracts from the adopted component stack; they must not import generated RPC stubs, concrete storage, queue, network clients, or `internal/pkg` adapters. The Go RPC shortcut is limited to `application/application.go`, which may import generated protocol packages to implement the generated server stub or map DTOs at the boundary.
+- `application/application.go` RPC methods stay at the protocol boundary: map request, delegate once, map response/error. Business branches, transaction control, repository calls, event/message dispatch, task enqueueing, and cross-port coordination move to use-case packages.
 - Infrastructure packages may import Domain/Application interfaces they implement, generated protocol packages, and external clients.
 - `internal/pkg/<capability>` is only for shared technical adapters. It must not import `internal/business/*` or own business/domain rules.
 - Root `pkg/` is not a dumping ground. Use it for generated code or stable libraries intended for external repository consumers.
@@ -380,7 +381,7 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 
 - **Canonical Go component libraries are project defaults, not DDD concepts.** When a repository has adopted this guide's Go stack (by repository convention, existing code, or explicit user/team direction), use the named library and its public interfaces for that concern instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; task queues and periodic task producers use `github.com/go-jimu/components/taskqueue` plus `github.com/go-jimu/contrib/taskqueue/asynq`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed when existing repository code already standardized on it or the user explicitly approves the exception.
 - **Concrete prohibition list for Go imports**: no `import` of `pkg/gen/...` (generated proto), `connectrpc.com/connect`, `google.golang.org/grpc`, `net/http`'s server side, `xorm.io/xorm`, `gorm.io/gorm`, database/sql drivers, `franz-go` / Kafka / NATS / RocketMQ / Redis clients, `internal/pkg/*` adapters, `internal/.../infrastructure`, or another bounded context's `internal/business/<ctx>/domain`. Allowed: `github.com/google/uuid`, `time`, `errors`, `fmt`, `strings`, `github.com/samber/oops`, and the in-package `github.com/go-jimu/components/ddd/event` (event types only, no dispatcher implementation).
-- **No anemic aggregates.** An Aggregate Root that exposes only exported fields and getters/setters while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, or `application/messagepublisher/` is prohibited. Every state transition must be a method on the Aggregate Root (or Value Object) that enforces the relevant invariant. When fields must be exported for XORM/copier mapping, keep mutation methods as the only sanctioned mutation path and treat direct external assignment as a code-review failure.
+- **No anemic aggregates.** Go aggregates do not need Java-style getters for every field. Exported fields are acceptable when they serve mapping boundaries (`DTO <-> Domain`, `DO <-> Domain`, copier/ORM adapters), but business decisions and state changes must go through Aggregate/Entity methods. An Aggregate Root that exposes fields while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, `application/messagepublisher/`, processors, or protocol handlers is prohibited. Outside Domain, direct field reads are allowed for mechanical mapping/serialization only; do not branch on fields such as `Status`, `Version`, or deadline flags to decide business behavior, and do not assign fields to perform a state transition.
 - **Version increment lives in SQL.** The Domain `Version int` field is read-only; the `version = version + 1` mutation happens in the Repository's `UPDATE` statement (see §3.4). Do not increment `Version` in Domain methods or factories.
 
 **Business Field Validation** — implements the Validation Contract defined in [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). Go-specific notes:
@@ -480,7 +481,9 @@ Domain Event structs implement `event.Event` and live beside the aggregate in `d
 package domain
 
 import (
+    "context"
     "errors"
+    "strings"
     "time"
 
     "github.com/go-jimu/components/ddd/event"
@@ -493,7 +496,10 @@ var (
     ErrUserNotActive   = errors.New("user is not active")
 )
 
-// User Aggregate Root
+// User Aggregate Root.
+// Fields are exported to keep DTO/DO mapping simple. They are not an invitation
+// for Application/handler code to make business decisions by reading fields or
+// to mutate state by assignment. Business behavior still goes through methods.
 type User struct {
     ID             string
     Name           string
@@ -854,6 +860,21 @@ func convertError(err error) error {
 }
 ```
 
+**Shortcut guardrails**:
+
+- Allowed: protocol request to command/query mapping, one delegate call to a
+  command/query handler or a trivial `QueryRepository` read, protocol response
+  mapping, protocol error mapping, and small actor/auth extraction needed to
+  build the command/query.
+- Prohibited: transaction control, repository calls, event/message dispatch,
+  task enqueueing, cross-port coordination, business condition branches,
+  aggregate mutation, and multi-step use-case orchestration.
+- Extraction rule: if an `application.go` RPC method grows beyond
+  "map -> delegate once -> map response/error", move the use case into
+  `application/command`, `application/query`, or a named Application
+  coordination service and keep `application.go` as the generated-protocol
+  adapter.
+
 #### REST: Interface layer handles manual routing
 
 ```go
@@ -897,6 +918,36 @@ func (h *UserHandler) RegisterRoutes(r chi.Router) {
 - Adding a technical client does not imply adding a new Application/Domain interface. If Redis, another cache, or a coordination store only accelerates a repository or routing directory, compose Redis inside the Infrastructure implementation; do not add a separate `Cacher`, `Directory`, `Peer`, or equivalent routing-shaped port. Add a separate port only after classification, for a named use-case capability such as lease ownership lifecycle, distributed locking, explicit cache invalidation, rate limiting, or event publication. Keep address lookup, hop headers, peer forwarding, queue subjects, retry/backoff, storage keys, and deployment topology out of that semantic port.
 - Infrastructure implements technical mechanisms for domain rules, but it must not be the only place where those rules are expressed
 - Shared middleware clients are initialized in `internal/pkg/<middleware>`; bounded-context Infrastructure receives already constructed clients
+
+#### Transaction Orchestration Shapes
+
+Application owns the **semantic** transaction boundary; Infrastructure owns the
+storage transaction mechanism. Do not expose raw transactions, `*gorm.DB`,
+`*xorm.Session`, `TxManager`, or `UnitOfWork` as Domain/Application ports merely
+to share a database transaction.
+
+Use one of these shapes:
+
+1. **Single aggregate write** — the command handler loads one aggregate, calls
+   one or more domain methods, calls `repo.Save(ctx, aggregate)`, then drains
+   events after `Save()` succeeds. The Repository implementation opens and
+   commits the storage transaction needed to persist that aggregate.
+2. **One aggregate, multiple tables** — child rows, version increments,
+   aggregate-owned audit rows, and other persistence details still belong
+   inside the same Repository method. Application does not call separate
+   storage adapters to finish one aggregate save.
+3. **Multi-aggregate same-transaction exception** — only after satisfying the
+   gate in `ddd-core.md §3.2`, create a named semantic method that expresses
+   the business operation. Keep the transaction/session inside Infrastructure;
+   do not make the use case orchestrate raw transaction plumbing.
+
+Anti-patterns:
+
+- a command handler calls two repositories that each open their own transaction
+  and treats the result as atomic;
+- Application injects or passes raw transaction/session objects;
+- a `UnitOfWork` Application port exists only to expose database mechanics;
+- events are drained or dispatched before `Save()` returns successfully.
 
 **Soft Delete**:
 - **Business-driven logical deletion**: Domain has a status field (e.g., `Status = Cancelled`); `Save()` internally sets `deleted_at` based on the status
@@ -995,7 +1046,6 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
     return nil
 }
 
-// converter.go
 func convertToEntity(do *UserDO) (*domain.User, error) {
     user := new(domain.User)
     if err := copier.Copy(user, do); err != nil {
@@ -1018,7 +1068,7 @@ func convertToDO(user *domain.User) *UserDO {
 
 | DDD Concept | Layer | Go Implementation |
 |-------------|-------|-------------------|
-| **Aggregate** | Domain | `struct` + domain methods + `event.Collection` |
+| **Aggregate** | Domain | `struct` + behavior methods; exported fields are mapping-only, not a business decision API |
 | **Entity** | Domain | `struct` with ID |
 | **Value Object** | Domain | Immutable `struct` |
 | **Domain Service** | Domain | Stateless function / struct |
