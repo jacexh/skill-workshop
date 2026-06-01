@@ -116,7 +116,11 @@ type Option struct {
 
 func main() {
     var opt Option
-    err := loader.Load(&opt)
+    err := loader.Load(
+        &opt,
+        loader.WithConfigurationDirectory("./configs", "default"),
+        loader.WithEnvVarsPrefix("APP"),
+    )
     // Always log the resolved config — even on partial failure it helps diagnose.
     slog.Info("load config", slog.Any("config", opt))
     if err != nil {
@@ -136,25 +140,42 @@ func main() {
 
 ### 1.3 Configuration Files & Profiles
 
-Configuration files are stored in the `configs/` directory. `loader.Load` automatically discovers and merges them:
+Configuration files are stored under the `configs/` directory. `loader.Load` uses these defaults unless the service passes explicit loader options:
+
+- Configuration directory: `./configs`
+- Base config file name without extension: `default`
+- Environment variable prefix: empty
+- Profile source: `JIMU_PROFILES_ACTIVE`, applied automatically by `loader.Load`
+
+Prefer passing `loader.WithConfigurationDirectory("./configs", "default")` in `main` even when using the defaults. The explicit call documents the runtime contract and makes non-standard command layouts obvious during review.
+
+`loader.Load` discovers files by file-name stem, not by a hard-coded `default_<profile>` pattern:
 
 ```
 configs/
-├── default.yml          # Base configuration (always loaded)
-└── default_prod.yml     # Profile override (loaded when JIMU_PROFILES_ACTIVE=prod)
+├── default.yml          # Base configuration, loaded first when present
+├── default_prod.yml     # Profile override because the stem ends with "_prod"
+├── mysql_prod.yml       # Also loaded for the prod profile
+└── logging_staging.toml # Loaded for the staging profile
 ```
 
-Profile switching via environment variable:
+Profile switching uses a single profile alias. At startup `loader.Load` applies `loader.WithProfilesActiveFromEnvVar()` after caller-supplied options, so the environment variable overrides any `loader.WithProfilesAlias(...)` value in code:
 
 ```bash
-export JIMU_PROFILES_ACTIVE=prod   # Loads default.yml, then default_prod.yml overrides
+export JIMU_PROFILES_ACTIVE=prod
 ```
 
-Supported formats: YAML, TOML, JSON. The file extension determines the codec.
+With `JIMU_PROFILES_ACTIVE=prod`, the loader reads the base file whose stem is exactly `default`, then every file under the configured directory whose stem ends with `_prod`. Profile files are merged on top of the base file, so they should contain only the environment-specific deltas. Keep profile names simple (`dev`, `test`, `staging`, `prod`); do not rely on comma-separated multi-profile semantics unless the adopted `config/loader` version explicitly documents splitting.
+
+Supported formats include YAML, TOML, JSON, and any registered config codec. The file extension determines the codec.
 
 ### 1.4 Environment Variable Override
 
-Environment variables do **not** automatically map to nested config keys (unlike Spring Boot's convention). Instead, use **placeholder syntax** `${VAR:default}` in config files to reference environment variables:
+`loader.Load` appends an environment-variable source after file sources. `loader.WithEnvVarsPrefix("APP")` makes the env source read only variables with the `APP_` prefix and strips that prefix before inserting keys into the config map. The profile selector `JIMU_PROFILES_ACTIVE` is read separately and is not affected by this prefix.
+
+The env source is flat. It can override a config key only when the remaining env key matches the config path the loader understands; it does not translate conventional shell names such as `APP_MYSQL_DSN` into nested `mysql.dsn`. For nested service settings, prefer **placeholder syntax** `${VAR:default}` in config files:
+
+With the `loader.WithEnvVarsPrefix("APP")` example in §1.2, set variables such as `APP_LOG_LEVEL` or `APP_MYSQL_DSN`; the prefix is stripped before placeholder resolution, so the YAML still references `${LOG_LEVEL:...}` and `${MYSQL_DSN:...}`.
 
 ```yaml
 # configs/default.yml
@@ -178,10 +199,13 @@ eventbus:
 
 Loading and resolution order:
 
-1. `default.yml` — base configuration
-2. `default_<profile>.yml` — profile-specific overrides (merged on top)
-3. Environment variables — collected into a flat key-value pool
-4. **Resolve phase** — `${VAR:default}` placeholders in the merged config are expanded using the environment variable pool; if the variable is unset, the default value after `:` is used
+1. Loader options are resolved. Defaults are `./configs`, `default`, no env prefix; `JIMU_PROFILES_ACTIVE` then overrides any code-supplied profile alias.
+2. Base file source — the file whose stem equals the configured default name, loaded first when present.
+3. Profile file sources — files whose stems end with `_<profile>`, merged on top of the base file.
+4. Environment source — variables collected into a flat key-value pool, optionally filtered and trimmed by `WithEnvVarsPrefix`.
+5. Resolve phase — `${VAR:default}` placeholders in the merged config are expanded using the config map, including values contributed by the env source. If the key is absent, the default value after `:` is used.
+
+Do not branch in `main` on deployment environment names. Express environment differences as profile files plus placeholders, then load once into the aggregate `Option` and supply it to `fx`.
 
 ---
 

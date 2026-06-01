@@ -169,7 +169,7 @@ Use this checklist when editing `cmd/**/main.go`, `internal/pkg/**`, `configs/**
 - [ ] **Lifecycle hooks fit in-flight work**: servers, dispatchers, consumers, and workers with in-flight work have `OnStop` drain behavior; pure clients only close resources when the library exposes cleanup.
 - [ ] **Startup failure is observable**: listeners bind synchronously in `OnStart` before serving in a goroutine, so port conflicts fail startup instead of disappearing into background logs.
 - [ ] **Shutdown ordering considered**: fx dependency order leaves dependencies available while servers, consumers, workers, and event dispatchers drain.
-- [ ] **Config resolution documented**: new config keys are added to `configs/default.yml` (or documented profile files) and use the placeholder convention when env overrides are required.
+- [ ] **Config resolution documented**: new config keys are added to `configs/default.yml` (or documented suffix-matched profile files), loader directory/default/profile/env-prefix choices are explicit, and placeholder convention is used when env overrides are required.
 - [ ] **Kubernetes impact checked**: high-traffic services that may receive traffic during termination have `preStop` / termination-grace-period considerations documented.
 - [ ] **Runtime verification run**: build/tests or the relevant runtime test script were run; for docs-only changes, links and duplicated plugin copies were checked.
 
