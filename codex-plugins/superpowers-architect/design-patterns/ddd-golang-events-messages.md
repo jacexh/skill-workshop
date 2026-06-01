@@ -6,8 +6,8 @@ description: Go DDD events and messages patterns. Use when adding or reviewing D
 # Go Events and Messages Patterns for DDD
 ## Domain Events, Boundary Publishers, and Integration Messages
 
-**Version**: v1.1
-**Date**: 2026-05-28
+**Version**: v1.2
+**Date**: 2026-06-01
 **Scope**: Go event/message patterns complementing [`ddd-golang.md`](ddd-golang.md)
 **Prerequisites**:
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) - Code agents must read this first.
@@ -20,7 +20,7 @@ description: Go DDD events and messages patterns. Use when adding or reviewing D
 > **When to read this file**:
 > - Adding or changing Domain Events, `event.Collection`, `event.Dispatcher`, `event.Subscriber`, or same-BC Domain Event handlers.
 > - Adding a Boundary Publisher that maps Domain Events to Integration Messages.
-> - Adding or changing Integration Message payloads, `message.Kind`, `message.Publisher`, `message.Handler`, `message.Subscriber`, or Kafka adapter wiring.
+> - Adding or changing Integration Message payloads, `message.Kind`, `message.Publisher`, `message.Handler`, `message.Subscriber`, `message.Runner`, or Kafka adapter wiring.
 > - Editing `application/eventhandler`, `application/messagepublisher`, `application/messagehandler`, or event/message registration in a bounded-context module.
 > - Reviewing async handler role isolation, handler granularity, idempotency, delivery/failure semantics, or pre-publish-loss behavior.
 
@@ -46,6 +46,8 @@ Hard rules:
 - A Boundary Publisher may consume same-BC Domain Events and publish Integration Messages; it must not consume Integration Messages, mutate aggregates, or advance workflow state.
 - Application code depends on `github.com/go-jimu/components/ddd/event` and `github.com/go-jimu/components/ddd/message` ports; Kafka/provider mechanics live in Infrastructure.
 - Kafka topics, partitions, offsets, commits, retries, and dead-letter behavior are adapter concerns, not Domain or Application vocabulary.
+- `message.Subscriber` means handler registration only. A provider that actively consumes messages exposes its runtime loop separately through `message.Runner`; lifecycle and shutdown wiring belong to Infrastructure/runtime packages.
+- `message.Handler.Handle` errors are message-level failures for one delivered Integration Message. They are not runtime-loop failures by themselves; provider adapters apply an explicit failure policy.
 
 ---
 
@@ -225,12 +227,16 @@ Keep four layers separate:
 
 - **Concept**: Integration Message means a cross-context fact with a stable published-language payload.
 - **Contract**: protobuf payload type, `message.Kind`, versioning, and compatibility rules.
-- **Port**: `message.Publisher`, `message.Handler`, `message.Subscriber`, and `message.Message`.
-- **Adapter**: `github.com/go-jimu/contrib/message/kafka` maps the port to Kafka records, topics, commits, retry, and delivery failure behavior.
+- **Port**: `message.Publisher`, `message.Handler`, `message.Subscriber`, optional `message.Runner`, and the concrete `message.Message` envelope.
+- **Adapter**: `github.com/go-jimu/contrib/message/kafka` maps the port to Kafka records, topics, commits, retry/DLQ, and delivery failure behavior.
 
 `message.Kind` is the semantic contract identifier used for handler routing and payload resolution. Default: derive Kind from the protobuf full name with `message.KindOf(&pb.MessageType{})` so the contract identifier and the schema cannot drift apart. A semantic string literal such as `"orders.paid"` is also valid for simple setups or migration paths; pick one form per integration.
 
 `message.Kind` is not a Kafka topic, partition, or routing key. Those are provider-side concerns and may be remapped through `kafka.WithTopicResolver`.
+
+`message.Message` wraps a non-empty `Kind`, a non-nil protobuf payload, generated or supplied ID, optional key, occurred-at timestamp, and transport-neutral headers. `Payload()` returns `proto.Message`; consumer handlers type assert to the expected generated payload after the adapter resolves and unmarshals it.
+
+`message.Subscriber.Subscribe` only registers handlers. It does not start polling, commit offsets, or join a consumer group. Components that own an active receive loop implement `message.Runner`; wire `Run(ctx)` through `fx.Lifecycle` or the service runtime, not through a bounded-context Application module.
 
 ### 4.1 Producer Side
 
@@ -286,6 +292,7 @@ func (p *OrderCompletedPublisher) Handle(ctx context.Context, evt event.Event) {
             OccurredAt:  timestamppb.New(completed.OccurredAt),
         },
         message.WithKey(completed.OrderID),
+        message.WithOccurredAt(completed.OccurredAt),
     )
     if err != nil {
         p.logger.WarnContext(ctx, "integration message build failed",
@@ -304,7 +311,7 @@ func (p *OrderCompletedPublisher) Handle(ctx context.Context, evt event.Event) {
 
 Mapping a Domain Event into an Integration Message payload is a boundary translation, not a Domain rule. Keep payload conversion in a same-context Application handler or Infrastructure adapter. If the mapping starts making business decisions (whether the event is valid, whether to publish, what transition happened), move that decision back into Domain or Application policy.
 
-`message.Publisher.Publish` returns the publisher adapter's admission/delivery error and respects context cancellation. In the in-memory Domain Event path, publish failure cannot roll back the original command. If pre-publish loss is unacceptable, use an explicit stronger-delivery design rather than hiding that requirement in the command handler.
+`message.Publisher.Publish` returns the publisher adapter's admission/delivery error and respects context cancellation. Kafka publishing performs one produce attempt by default; tune transient produce retries in Infrastructure with adapter options such as `kafka.WithPublishRetry`. In the in-memory Domain Event path, publish failure cannot roll back the original command. If pre-publish loss is unacceptable, use an explicit stronger-delivery design rather than hiding that requirement in the command handler.
 
 ### 4.2 Consumer Side
 
@@ -332,6 +339,12 @@ func (h *OrderCompletedHandler) Handle(ctx context.Context, msg message.Message)
 
 Check the selected subscriber adapter's delivery semantics. When it can redeliver the same Integration Message, the handler must be idempotent through natural convergence, deterministic business keys, or an application-level dedup mechanism chosen for that use case. Do not add a processed-message table by default.
 
+Handler return values control message-level handling:
+
+- return `nil` when processing is complete and the provider may mark delivery complete;
+- return an error when the provider should apply its configured message failure policy;
+- handle ordinary business rejections inside the handler and return `nil` when redelivery, retry, or DLQ is not desired.
+
 ### 4.3 Kafka Adapter Wiring
 
 Application code depends only on `message.Publisher`, `message.Handler`, and `message.Subscriber`. The Kafka adapter lives in Infrastructure or shared runtime wiring:
@@ -353,7 +366,16 @@ func NewKafkaConsumer(client *kgo.Client, handlers []message.Handler) (*kafka.Co
         return nil, err
     }
 
-    consumer := kafka.NewConsumer(client, kafka.WithPayloadResolver(registry))
+    consumer, err := kafka.NewConsumer(
+        client,
+        kafka.RetryThenDLQPolicy(kafka.RetryThenDLQConfig{MaxAttempts: 3}),
+        kafka.WithPayloadResolver(registry),
+        kafka.WithDefaultFailureTopics(),
+    )
+    if err != nil {
+        return nil, err
+    }
+
     for _, h := range handlers {
         if err := consumer.Subscribe(h); err != nil {
             return nil, err
@@ -366,9 +388,13 @@ func NewKafkaConsumer(client *kgo.Client, handlers []message.Handler) (*kafka.Co
 Operational facts that come with the adapter:
 
 - Default Kafka topic equals `Kind`; override with `kafka.WithTopicResolver` when topic naming differs from semantic kinds.
-- Consumer requires `kgo.DisableAutoCommit()`; the adapter commits offsets manually after handler success or the adapter's configured failure handling accepts the record.
-- Handler errors use the adapter's configured retry/failure policy; tune it in Infrastructure, not in Application handlers.
+- Consumers must configure franz-go with `kgo.ConsumerGroup`, `kgo.ConsumeTopics`, and `kgo.DisableAutoCommit()`. The adapter commits offsets manually after handler success, an explicit drop, or a successful retry/DLQ publication.
+- `kafka.NewConsumer` requires a `FailurePolicy`. Built-ins are `DropAndCommitPolicy`, `DLQPolicy`, and `RetryThenDLQPolicy`; choose intentionally in Infrastructure/runtime code.
+- Retry and DLQ are disabled until the caller configures failure topics through `kafka.WithDefaultFailureTopics`, `kafka.WithRetryTopicResolver`, or `kafka.WithDLQTopicResolver`.
+- Handler errors are message-level failures. The consumer applies the configured `FailurePolicy`; `Consumer.Run` returns only when the runtime cannot continue, the context is canceled, commit fails, or failure publishing fails with the stop fallback.
+- Use `kafka.WithErrorObserver` for metrics/logging of provider failures. `WithErrorHandler`, `WithRetryPolicy`, and `WithDLQDisabled` are deprecated in new code.
 - `Message.Key()` maps to the Kafka record key; use it for per-key partition affinity and ordering when the consumer relies on per-aggregate sequence.
+- `Consumer.Close` closes the franz-go client only when created with `kafka.WithCloseClient(true)`; otherwise client ownership remains with the runtime package.
 
 Do not reimplement these adapter behaviors in Application.
 
@@ -386,6 +412,7 @@ var Module = fx.Module(
     fx.Provide(infrastructure.NewOrderPublisher),
     fx.Provide(eventhandler.NewWelcomeEmailHandler),
     fx.Provide(messagepublisher.NewOrderCompletedPublisher),
+    fx.Provide(messagehandler.NewOrderCompletedHandler),
     fx.Provide(application.NewApplication),
     fx.Invoke(func(sub event.Subscriber, h *eventhandler.WelcomeEmailHandler) {
         sub.Subscribe(h)
@@ -393,10 +420,13 @@ var Module = fx.Module(
     fx.Invoke(func(sub event.Subscriber, h *messagepublisher.OrderCompletedPublisher) {
         sub.Subscribe(h)
     }),
+    fx.Invoke(func(sub message.Subscriber, h *messagehandler.OrderCompletedHandler) error {
+        return sub.Subscribe(h)
+    }),
 )
 ```
 
-Repeat registration for each concrete handler the context owns. Do not build a generic handler registry that discovers unrelated handlers by reflection or switches over unrelated event/message kinds.
+Repeat registration for each concrete handler the context owns. Do not build a generic handler registry that discovers unrelated handlers by reflection or switches over unrelated event/message kinds. Do not start provider loops from bounded-context modules; runtime packages wire `message.Runner.Run(ctx)` with lifecycle/shutdown handling.
 
 ---
 
@@ -409,7 +439,7 @@ Layer-specific testing:
 - Domain Event Handler tests exercise the handler with real Domain Event structs and fake/mocked dependencies.
 - Boundary Publisher tests assert the Integration Message kind, payload, and key.
 - Integration Message Handler tests assert idempotency and transaction behavior for duplicate or redelivered messages.
-- Kafka adapter tests belong to Infrastructure and may use real adapter/test-container infrastructure when the repository supports it.
+- Kafka adapter tests belong to Infrastructure and may use real adapter/test-container infrastructure when the repository supports it; they verify explicit `FailurePolicy`, retry/DLQ topic configuration, commit behavior, and `Runner` lifecycle expectations.
 
 Review checklist:
 
@@ -421,6 +451,8 @@ Review checklist:
 - [ ] Boundary Publishers only translate and publish; they do not mutate aggregates or advance workflow.
 - [ ] Message payload schemas and `message.Kind` values are stable contracts.
 - [ ] Kafka topics/retries/commits/dead-letter behavior stay in the adapter.
+- [ ] `message.Subscriber` is treated as registration only; `message.Runner` lifecycle is wired in runtime code.
+- [ ] Kafka consumers choose an explicit `FailurePolicy`; retry/DLQ topic configuration is not assumed.
 - [ ] Idempotency strategy matches the selected delivery semantics.
 
 ---
@@ -439,6 +471,8 @@ Reject these in review:
 8. Application code knows Kafka topics, partitions, commits, offsets, or retry knobs.
 9. A processed-message table is added by default without delivery semantics requiring it.
 10. Publish reliability requirements are hidden in an ordinary command handler instead of an explicit stronger-delivery design.
+11. Code calls `Subscribe` and assumes a broker consumer has started polling.
+12. New Kafka consumer code uses deprecated `WithRetryPolicy`, `WithDLQDisabled`, or flow-controlling `WithErrorHandler` instead of `FailurePolicy` and `WithErrorObserver`.
 
 ---
 

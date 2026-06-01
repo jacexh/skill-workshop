@@ -1208,7 +1208,7 @@ Production files only. Test file placement is governed by §6.3 and is not requi
 | `api/queries.go` | Cross-context Reader / Facade ports (optional, only when this context publishes read-side facades; §5.3) |
 | `infrastructure/<aggregate>_repository.go` | Write repository implementation |
 | `infrastructure/<read_model>_query_repository.go` | Read repository implementation |
-| `infrastructure/<message>_publisher.go` | Conditional: `message.Publisher` / `message.Subscriber` wiring against the selected adapter (§5.2) |
+| `infrastructure/<message>_publisher.go` | Conditional: `message.Publisher` / `message.Subscriber` registration / `message.Runner` runtime wiring against the selected adapter (§5.2) |
 | `infrastructure/do.go` | Database models shared by Infrastructure adapters |
 | `infrastructure/converter.go` | Conversion functions shared by Infrastructure adapters |
 
@@ -1239,7 +1239,7 @@ Layer-specific placement:
 
 ## 7. Project Default Technology Stack
 
-These are the default libraries for repositories that adopt this Go guide's project stack. They are not DDD requirements. Adoption is established by repository convention, existing code, or explicit user/team direction; once adopted, use these libraries for the concerns listed below and do not create project-local substitutes for their core interfaces (`event.Event`, `event.Collection`, `message.Publisher`, `message.Handler`, `taskqueue.TaskType`, `taskqueue.Processor`, `taskqueue.Enqueuer`, `taskqueue.PeriodicTask`, `taskqueue.PeriodicTaskScheduler`, `taskqueue.SchemaRegistry`, `fsm.StateContext`, `sloghelper.Error`, config loader options, and similar) unless the repository has already standardized on a different implementation or the user explicitly approves an exception.
+These are the default libraries for repositories that adopt this Go guide's project stack. They are not DDD requirements. Adoption is established by repository convention, existing code, or explicit user/team direction; once adopted, use these libraries for the concerns listed below and do not create project-local substitutes for their core interfaces (`event.Event`, `event.Collection`, `message.Publisher`, `message.Handler`, `message.Subscriber`, `message.Runner`, Kafka `FailurePolicy`, `taskqueue.TaskType`, `taskqueue.Processor`, `taskqueue.Enqueuer`, `taskqueue.PeriodicTask`, `taskqueue.PeriodicTaskScheduler`, `taskqueue.SchemaRegistry`, `fsm.StateContext`, `sloghelper.Error`, config loader options, and similar) unless the repository has already standardized on a different implementation or the user explicitly approves an exception.
 
 | Purpose | Default Library |
 |---------|---------------------|
@@ -1251,8 +1251,8 @@ These are the default libraries for repositories that adopt this Go guide's proj
 | Logging | `log/slog` + `github.com/go-jimu/components/sloghelper` |
 | Error Handling | `github.com/samber/oops` |
 | In-process Event Bus | `github.com/go-jimu/components/ddd/event` |
-| Integration Message port | `github.com/go-jimu/components/ddd/message` |
-| Integration Message Kafka adapter | `github.com/go-jimu/contrib/message/kafka` (franz-go backed) |
+| Integration Message port and runner contracts | `github.com/go-jimu/components/ddd/message` |
+| Integration Message Kafka adapter and failure policy | `github.com/go-jimu/contrib/message/kafka` (franz-go backed) |
 | Task Queue port, schema registry, and periodic task contracts | `github.com/go-jimu/components/taskqueue` |
 | Task Queue asynq adapter and scheduler | `github.com/go-jimu/contrib/taskqueue/asynq` |
 | State Machine | `github.com/go-jimu/components/fsm` |
