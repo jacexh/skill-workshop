@@ -132,8 +132,8 @@ project/
 │   └── client/
 │       └── main.go              # CLI client (if applicable)
 ├── configs/
-│   ├── default.yml              # Default configuration
-│   └── default_prod.yml         # Example prod profile file; loader matches suffixes (see ddd-golang-runtime.md §1.3)
+│   ├── defaults.yml             # Default configuration
+│   └── app_prod.yml             # Example prod profile file; loader matches prefix+profile (see ddd-golang-runtime.md §1.3)
 ├── internal/
 │   ├── business/                # Business code — bounded contexts (vertical slices)
 │   │   └── <module>/            # One bounded context
@@ -1374,7 +1374,7 @@ Task queue, polling/reconciliation, and periodic producer concerns also live in 
 |---|---|
 | Component-owned `Option`, shared middleware client ownership (`internal/pkg/<middleware>`) | [`ddd-golang-runtime.md §1.1`](ddd-golang-runtime.md) |
 | Aggregate `Option` in `cmd/server/main.go`, `fx.Out` distribution, bootstrap log | [`ddd-golang-runtime.md §1.2`](ddd-golang-runtime.md) |
-| `config/loader` options, suffix-based profile files, `JIMU_PROFILES_ACTIVE` precedence | [`ddd-golang-runtime.md §1.3`](ddd-golang-runtime.md) |
+| `config/loader` options, `defaults` base file, prefix+profile files, `JIMU_PROFILES_ACTIVE` precedence | [`ddd-golang-runtime.md §1.3`](ddd-golang-runtime.md) |
 | `${VAR:default}` placeholder expansion | [`ddd-golang-runtime.md §1.4`](ddd-golang-runtime.md) |
 | `app.Run()` entry point, fx.Module wiring | [`ddd-golang-runtime.md §2.1`](ddd-golang-runtime.md) |
 | Which components need `OnStop`, Listen/Serve separation, EventBus drain | [`ddd-golang-runtime.md §2.2`](ddd-golang-runtime.md) |

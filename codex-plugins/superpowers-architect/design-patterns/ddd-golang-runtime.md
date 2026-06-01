@@ -79,7 +79,7 @@ func NewClient(lc fx.Lifecycle, opt Option) *redis.Client {
 }
 ```
 
-Then: register `fx.Provide(redis.NewClient)` in `internal/pkg/module.go`, add a `Redis redis.Option` field (with `yaml:"redis"` tag) to the top-level `Option` in `cmd/server/main.go` (see §1.2), and add a `redis:` block to `configs/default.yml`. The component never imports anything from `cmd/`, and `main` never imports `redis.Client` — `fx` wires both ends through the typed `Option`.
+Then: register `fx.Provide(redis.NewClient)` in `internal/pkg/module.go`, add a `Redis redis.Option` field (with `yaml:"redis"` tag) to the top-level `Option` in `cmd/server/main.go` (see §1.2), and add a `redis:` block to `configs/defaults.yml`. The component never imports anything from `cmd/`, and `main` never imports `redis.Client` — `fx` wires both ends through the typed `Option`.
 
 ### 1.2 Aggregate Configuration in `main`
 
@@ -118,7 +118,8 @@ func main() {
     var opt Option
     err := loader.Load(
         &opt,
-        loader.WithConfigurationDirectory("./configs", "default"),
+        loader.WithConfigurationDirectory("./configs", "defaults"),
+        loader.WithConfigFilePrefix("app"),
         loader.WithEnvVarsPrefix("APP"),
     )
     // Always log the resolved config — even on partial failure it helps diagnose.
@@ -143,20 +144,20 @@ func main() {
 Configuration files are stored under the `configs/` directory. `loader.Load` uses these defaults unless the service passes explicit loader options:
 
 - Configuration directory: `./configs`
-- Base config file name without extension: `default`
+- Base config file name without extension: `defaults`
+- Profile file prefix: empty by default; required when a profile is active
 - Environment variable prefix: empty
 - Profile source: `JIMU_PROFILES_ACTIVE`, applied automatically by `loader.Load`
 
-Prefer passing `loader.WithConfigurationDirectory("./configs", "default")` in `main` even when using the defaults. The explicit call documents the runtime contract and makes non-standard command layouts obvious during review.
+Prefer passing `loader.WithConfigurationDirectory("./configs", "defaults")` in `main` even when using the defaults. The explicit call documents the runtime contract and makes non-standard command layouts obvious during review. If the service supports environment profiles, also pass `loader.WithConfigFilePrefix("<service-or-app-name>")`; otherwise setting `JIMU_PROFILES_ACTIVE` makes startup fail because the loader cannot identify which profile file belongs to the process.
 
-`loader.Load` discovers files by file-name stem, not by a hard-coded `default_<profile>` pattern:
+`loader.Load` discovers the base file by exact stem and the profile file by exact `prefix + "_" + profile` stem:
 
 ```
 configs/
-├── default.yml          # Base configuration, loaded first when present
-├── default_prod.yml     # Profile override because the stem ends with "_prod"
-├── mysql_prod.yml       # Also loaded for the prod profile
-└── logging_staging.toml # Loaded for the staging profile
+├── defaults.yml         # Base configuration, loaded first when present
+├── app_prod.yml         # Profile override when prefix=app and profile=prod
+└── app_staging.toml     # Profile override when prefix=app and profile=staging
 ```
 
 Profile switching uses a single profile alias. At startup `loader.Load` applies `loader.WithProfilesActiveFromEnvVar()` after caller-supplied options, so the environment variable overrides any `loader.WithProfilesAlias(...)` value in code:
@@ -165,7 +166,7 @@ Profile switching uses a single profile alias. At startup `loader.Load` applies 
 export JIMU_PROFILES_ACTIVE=prod
 ```
 
-With `JIMU_PROFILES_ACTIVE=prod`, the loader reads the base file whose stem is exactly `default`, then every file under the configured directory whose stem ends with `_prod`. Profile files are merged on top of the base file, so they should contain only the environment-specific deltas. Keep profile names simple (`dev`, `test`, `staging`, `prod`); do not rely on comma-separated multi-profile semantics unless the adopted `config/loader` version explicitly documents splitting.
+With `JIMU_PROFILES_ACTIVE=prod` and `loader.WithConfigFilePrefix("app")`, the loader reads the base file whose stem is exactly `defaults`, then the profile file whose stem is exactly `app_prod`. Profile files are merged on top of the base file, so they should contain only the environment-specific deltas. Keep profile names simple (`dev`, `test`, `staging`, `prod`); do not rely on comma-separated multi-profile semantics unless the adopted `config/loader` version explicitly documents splitting.
 
 Supported formats include YAML, TOML, JSON, and any registered config codec. The file extension determines the codec.
 
@@ -178,7 +179,7 @@ The env source is flat. It can override a config key only when the remaining env
 With the `loader.WithEnvVarsPrefix("APP")` example in §1.2, set variables such as `APP_LOG_LEVEL` or `APP_MYSQL_DSN`; the prefix is stripped before placeholder resolution, so the YAML still references `${LOG_LEVEL:...}` and `${MYSQL_DSN:...}`.
 
 ```yaml
-# configs/default.yml
+# configs/defaults.yml
 logger:
   level: "${LOG_LEVEL:info}"
 
@@ -199,9 +200,9 @@ eventbus:
 
 Loading and resolution order:
 
-1. Loader options are resolved. Defaults are `./configs`, `default`, no env prefix; `JIMU_PROFILES_ACTIVE` then overrides any code-supplied profile alias.
+1. Loader options are resolved. Defaults are `./configs`, `defaults`, no profile file prefix, and no env prefix; `JIMU_PROFILES_ACTIVE` then overrides any code-supplied profile alias.
 2. Base file source — the file whose stem equals the configured default name, loaded first when present.
-3. Profile file sources — files whose stems end with `_<profile>`, merged on top of the base file.
+3. Profile file source — when a profile is active, the file whose stem equals `WithConfigFilePrefix(...) + "_" + profile`, merged on top of the base file. Startup fails if a profile is active and no config-file prefix was configured.
 4. Environment source — variables collected into a flat key-value pool, optionally filtered and trimmed by `WithEnvVarsPrefix`.
 5. Resolve phase — `${VAR:default}` placeholders in the merged config are expanded using the config map, including values contributed by the env source. If the key is absent, the default value after `:` is used.
 
