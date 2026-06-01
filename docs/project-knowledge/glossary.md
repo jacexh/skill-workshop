@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-05-29
+last_updated: 2026-06-01
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -20,11 +20,15 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Domain Event** — DDD fact recorded inside one bounded context; cross-context contracts must be Integration Messages. → `plugins/superpowers-architect/design-patterns/ddd-core.md`
 
-**Integration Message** — Stable cross-context semantic contract for state propagation; Go guidance uses `ddd/message` as the publish/subscribe port. → `plugins/superpowers-architect/design-patterns/ddd-core.md`
+**Integration Message** — Stable cross-context semantic contract for state propagation; Go guidance uses protobuf-first `ddd/message` envelopes. → `plugins/superpowers-architect/design-patterns/ddd-core.md`
 
 **Boundary Publisher** — Same-BC Domain Event consumer that maps selected Domain Events to Integration Messages; it does not consume Integration Messages or mutate aggregates. → `plugins/superpowers-architect/design-patterns/ddd-core.md`
 
 **Project-Default Go Component Stack** — Go libraries named by `ddd-golang.md` for DDD concerns in projects adopting this guide; agents should use their public interfaces instead of local substitutes unless the repo/user establishes an exception. → `plugins/superpowers-architect/design-patterns/ddd-golang.md`
+
+**Message Runner** — Optional `ddd/message` runtime-loop contract; `message.Subscriber` only registers handlers and does not start broker polling. → `plugins/superpowers-architect/design-patterns/ddd-golang-events-messages.md`
+
+**Kafka FailurePolicy** — Kafka adapter decision contract for message-level failures; consumers choose it explicitly instead of relying on retry/DLQ defaults. → `plugins/superpowers-architect/design-patterns/ddd-golang-events-messages.md`
 
 **TaskType** — Semantic task contract identifier for Go taskqueue payload schemas; processors are one TaskType each under Application, with asynq runtime wiring in `internal/pkg/taskqueue`. → `plugins/superpowers-architect/design-patterns/ddd-golang-taskqueue.md`
 
