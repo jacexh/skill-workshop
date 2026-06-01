@@ -6,8 +6,8 @@ description: Go runtime patterns for DDD services — fx-based configuration man
 # Go Runtime Patterns for DDD
 ## Configuration, Lifecycle, Graceful Shutdown
 
-**Version**: v1.0
-**Date**: 2026-05-11
+**Version**: v1.1
+**Date**: 2026-06-01
 **Scope**: Go runtime patterns complementing [`ddd-golang.md`](ddd-golang.md)
 **Prerequisites**:
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first.
@@ -233,7 +233,95 @@ app.Run()
 
 **When to use manual Start/Wait/Stop instead**: only when you need post-shutdown logic before exit (e.g., flushing telemetry). For most services, `app.Run()` is sufficient.
 
-### 2.2 Lifecycle Hooks
+### 2.2 Fx Module Assembly Guardrails
+
+`cmd/<service>/main.go` is the process entry point, not the place where provider details accumulate. It loads config, logs the resolved config, supplies the aggregate `Option`, selects modules, sets process-level fx options, and runs the app. Provider construction belongs to modules.
+
+Use this ownership split:
+
+- `cmd/<service>/main.go` — config load, `fx.Supply(opt)` or `fx.Provide(parseOption)`, module selection, `fx.StopTimeout`, `fx.NopLogger`, `app.Run()`.
+- `internal/pkg/module.go` — shared runtime module assembly. It registers middleware clients, servers, telemetry, taskqueue/message runtime, and named service runtime modules when a multi-service repo needs different shared runtime sets.
+- `internal/business/<context>/<context>.go` — bounded-context module assembly: repositories, query repositories, application service, event/message handlers, handler registration, and context-scoped Infrastructure adapters.
+- `internal/business/<context>/infrastructure` or an explicit ACL package — adapter implementation details for context-owned ports and cross-context/client translations. `cmd` must not implement those adapters as inline `fx.Provide(func(...) SomePort { ... })` closures.
+
+For a multi-service project, keep the service-to-service runtime difference in `internal/pkg/module.go`, not spread across `cmd/**/main.go`. Define multiple module variables such as `FooModule`, `BarModule`, `DispatcherModule`, or `SandboxModule` in that file; each entry point imports `internal/pkg` and loads the one it needs.
+
+```go
+// internal/pkg/module.go
+package pkg
+
+import (
+    "github.com/example/project/internal/pkg/httpserver"
+    "github.com/example/project/internal/pkg/kafka"
+    "github.com/example/project/internal/pkg/mysql"
+    "github.com/example/project/internal/pkg/redis"
+    "github.com/example/project/internal/pkg/taskqueue"
+    "go.uber.org/fx"
+)
+
+var DispatcherModule = fx.Module(
+    "internal.pkg.dispatcher",
+    fx.Provide(httpserver.New),
+    fx.Provide(redis.NewClient),
+    fx.Provide(kafka.NewProducer),
+    fx.Provide(kafka.NewConsumerFactory),
+    fx.Provide(mysql.NewClient),
+)
+
+var SandboxModule = fx.Module(
+    "internal.pkg.sandbox",
+    fx.Provide(httpserver.New),
+    fx.Provide(redis.NewClient),
+    taskqueue.Module,
+    fx.Provide(mysql.NewClient),
+)
+```
+
+Then the entry point stays thin:
+
+```go
+app := fx.New(
+    fx.Supply(opt),
+    fx.Provide(sloghelper.NewLog),
+    pkg.DispatcherModule, // service runtime difference is selected here
+    dispatcher.Module,    // bounded context owns its own providers
+    fx.StopTimeout(30*time.Second),
+    fx.NopLogger,
+)
+app.Run()
+```
+
+Review signals that require a rewrite or a written exception:
+
+- `cmd/**/main.go` imports a bounded context's `infrastructure`, `application/command`, `application/query`, `application/eventhandler`, `application/messagehandler`, or `application/messagepublisher` package.
+- `cmd/**/main.go` imports generated Connect/gRPC handler packages to register routes directly. Handler registration belongs to the bounded-context module.
+- `cmd/**/main.go` contains provider closures that return Domain/Application ports, repositories, query repositories, ACL clients, routing directories, peer clients, publishers, or handler wrappers.
+- `cmd/**/main.go` manually supplies many config fields such as `fx.Supply(opt.Redis)`, `fx.Supply(opt.Kafka)`, or `fx.Supply(opt.HTTPServer)` instead of supplying one aggregate `Option` with `fx.Out`.
+- A repo has multiple shared runtime packages under `internal/pkg/*` but no `internal/pkg/module.go` that names the public runtime modules.
+- Service-specific runtime choices are encoded as repeated provider lists in each `cmd/<service>/main.go` instead of named modules in `internal/pkg/module.go`.
+
+Lightweight smoke scans before approving runtime wiring:
+
+```bash
+# cmd should select modules, not import inner business implementation packages.
+rg -n 'internal/.*/(infrastructure|application/(command|query|eventhandler|messagehandler|messagepublisher))' cmd
+
+# handler registration should live in bounded-context modules.
+rg -n 'pkg/gen/.*(connect|grpc)|connectrpc.com/connect|google.golang.org/grpc' cmd
+
+# per-field option supply usually means the aggregate Option is not doing its job.
+rg -n 'fx\.Supply\(opt\.' cmd
+
+# provider-heavy cmd files are review targets; most should have only config/bootstrap providers.
+rg -n 'fx\.Provide\(' cmd
+
+# shared runtime packages should have a public module assembly point.
+test -f internal/pkg/module.go || rg -n 'fx\.Module|fx\.Provide' internal/pkg
+```
+
+Treat these scans as review targets, not proof. A hit is acceptable only when the Architecture Gate or runtime impact note states why the provider is truly process-owned and cannot live in `internal/pkg/module.go`, a bounded-context module, or an ACL/infrastructure package.
+
+### 2.3 Lifecycle Hooks
 
 Components that have **in-flight work** at shutdown time must register `fx.Lifecycle` hooks to drain gracefully. Pure connection clients do not need drain-style hooks, but they may register `Close` hooks for cleanup when the library exposes one.
 
@@ -325,7 +413,7 @@ func NewDispatcher(lc fx.Lifecycle, opt Option, logger *slog.Logger) (event.Disp
 
 The example wires only the YAML-friendly options. `event` also exposes callback-shaped hooks that don't belong in config but are wired here when needed: `event.WithContextFactory` (per-dispatch context derivation, e.g. propagate trace IDs), `event.WithUnhandledEventHandler` (events with no registered handler — useful for surfacing typos and dead kinds), `event.WithPanicHandler` (recovered handler panics — forward to metrics/alerting), and `event.WithCloseInterruptedHandler` (snapshot of accepted-but-unhandled batches when `Close` is cut short by `ctx.Done()`).
 
-### 2.3 Shutdown Ordering
+### 2.4 Shutdown Ordering
 
 `fx` executes OnStop hooks in **reverse order of OnStart**. The dependency graph naturally produces the correct shutdown sequence:
 
@@ -343,7 +431,7 @@ Stop order (automatic reverse):
 
 MySQL has no in-flight work to drain, so it remains available while Server and EventBus handlers finish. If the MySQL package registers a `Close` cleanup hook, it must run after consumers have stopped.
 
-### 2.4 Kubernetes Deployment
+### 2.5 Kubernetes Deployment
 
 When deploying to Kubernetes, there is a **race condition** between SIGTERM delivery to the Pod and kube-proxy removing the Pod from the Service's Endpoints. During this window (typically a few seconds), new requests may still be routed to a Pod that is already shutting down.
 
