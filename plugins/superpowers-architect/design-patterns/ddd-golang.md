@@ -132,8 +132,8 @@ project/
 │   └── client/
 │       └── main.go              # CLI client (if applicable)
 ├── configs/
-│   ├── default.yml              # Default configuration
-│   └── default_prod.yml         # Profile-specific overrides (optional, see ddd-golang-runtime.md §1)
+│   ├── defaults.yml             # Default configuration
+│   └── app_prod.yml             # Example prod profile file; loader matches prefix+profile (see ddd-golang-runtime.md §1.3)
 ├── internal/
 │   ├── business/                # Business code — bounded contexts (vertical slices)
 │   │   └── <module>/            # One bounded context
@@ -1374,12 +1374,13 @@ Task queue, polling/reconciliation, and periodic producer concerns also live in 
 |---|---|
 | Component-owned `Option`, shared middleware client ownership (`internal/pkg/<middleware>`) | [`ddd-golang-runtime.md §1.1`](ddd-golang-runtime.md) |
 | Aggregate `Option` in `cmd/server/main.go`, `fx.Out` distribution, bootstrap log | [`ddd-golang-runtime.md §1.2`](ddd-golang-runtime.md) |
-| `configs/` directory, profile selection via `JIMU_PROFILES_ACTIVE` | [`ddd-golang-runtime.md §1.3`](ddd-golang-runtime.md) |
+| `config/loader` options, `defaults` base file, prefix+profile files, `JIMU_PROFILES_ACTIVE` precedence | [`ddd-golang-runtime.md §1.3`](ddd-golang-runtime.md) |
 | `${VAR:default}` placeholder expansion | [`ddd-golang-runtime.md §1.4`](ddd-golang-runtime.md) |
 | `app.Run()` entry point, fx.Module wiring | [`ddd-golang-runtime.md §2.1`](ddd-golang-runtime.md) |
-| Which components need `OnStop`, Listen/Serve separation, EventBus drain | [`ddd-golang-runtime.md §2.2`](ddd-golang-runtime.md) |
-| Shutdown ordering (reverse-of-start) | [`ddd-golang-runtime.md §2.3`](ddd-golang-runtime.md) |
-| Kubernetes `preStop` race-condition workaround | [`ddd-golang-runtime.md §2.4`](ddd-golang-runtime.md) |
+| Fx Module Assembly Guardrails, thin `cmd`, `internal/pkg/module.go` service modules | [`ddd-golang-runtime.md §2.2`](ddd-golang-runtime.md) |
+| Which components need `OnStop`, Listen/Serve separation, EventBus drain | [`ddd-golang-runtime.md §2.3`](ddd-golang-runtime.md) |
+| Shutdown ordering (reverse-of-start) | [`ddd-golang-runtime.md §2.4`](ddd-golang-runtime.md) |
+| Kubernetes `preStop` race-condition workaround | [`ddd-golang-runtime.md §2.5`](ddd-golang-runtime.md) |
 | Task queues, polling jobs, periodic producers, asynq workers/schedulers, task schema registry | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) |
 
 Read `ddd-golang-runtime.md` when you are editing `cmd/**/main.go`, `internal/pkg/<middleware>/**.go`, `fx.Lifecycle` hooks, or shutdown logic. For pure layer / aggregate / event work, this current document is sufficient.

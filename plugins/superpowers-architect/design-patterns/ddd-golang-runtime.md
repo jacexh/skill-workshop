@@ -6,8 +6,8 @@ description: Go runtime patterns for DDD services — fx-based configuration man
 # Go Runtime Patterns for DDD
 ## Configuration, Lifecycle, Graceful Shutdown
 
-**Version**: v1.0
-**Date**: 2026-05-11
+**Version**: v1.1
+**Date**: 2026-06-01
 **Scope**: Go runtime patterns complementing [`ddd-golang.md`](ddd-golang.md)
 **Prerequisites**:
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first.
@@ -79,7 +79,7 @@ func NewClient(lc fx.Lifecycle, opt Option) *redis.Client {
 }
 ```
 
-Then: register `fx.Provide(redis.NewClient)` in `internal/pkg/module.go`, add a `Redis redis.Option` field (with `yaml:"redis"` tag) to the top-level `Option` in `cmd/server/main.go` (see §1.2), and add a `redis:` block to `configs/default.yml`. The component never imports anything from `cmd/`, and `main` never imports `redis.Client` — `fx` wires both ends through the typed `Option`.
+Then: register `fx.Provide(redis.NewClient)` in `internal/pkg/module.go`, add a `Redis redis.Option` field (with `yaml:"redis"` tag) to the top-level `Option` in `cmd/server/main.go` (see §1.2), and add a `redis:` block to `configs/defaults.yml`. The component never imports anything from `cmd/`, and `main` never imports `redis.Client` — `fx` wires both ends through the typed `Option`.
 
 ### 1.2 Aggregate Configuration in `main`
 
@@ -116,7 +116,12 @@ type Option struct {
 
 func main() {
     var opt Option
-    err := loader.Load(&opt)
+    err := loader.Load(
+        &opt,
+        loader.WithConfigurationDirectory("./configs", "defaults"),
+        loader.WithConfigFilePrefix("app"),
+        loader.WithEnvVarsPrefix("APP"),
+    )
     // Always log the resolved config — even on partial failure it helps diagnose.
     slog.Info("load config", slog.Any("config", opt))
     if err != nil {
@@ -136,28 +141,45 @@ func main() {
 
 ### 1.3 Configuration Files & Profiles
 
-Configuration files are stored in the `configs/` directory. `loader.Load` automatically discovers and merges them:
+Configuration files are stored under the `configs/` directory. `loader.Load` uses these defaults unless the service passes explicit loader options:
+
+- Configuration directory: `./configs`
+- Base config file name without extension: `defaults`
+- Profile file prefix: empty by default; required when a profile is active
+- Environment variable prefix: empty
+- Profile source: `JIMU_PROFILES_ACTIVE`, applied automatically by `loader.Load`
+
+Prefer passing `loader.WithConfigurationDirectory("./configs", "defaults")` in `main` even when using the defaults. The explicit call documents the runtime contract and makes non-standard command layouts obvious during review. If the service supports environment profiles, also pass `loader.WithConfigFilePrefix("<service-or-app-name>")`; otherwise setting `JIMU_PROFILES_ACTIVE` makes startup fail because the loader cannot identify which profile file belongs to the process.
+
+`loader.Load` discovers the base file by exact stem and the profile file by exact `prefix + "_" + profile` stem:
 
 ```
 configs/
-├── default.yml          # Base configuration (always loaded)
-└── default_prod.yml     # Profile override (loaded when JIMU_PROFILES_ACTIVE=prod)
+├── defaults.yml         # Base configuration, loaded first when present
+├── app_prod.yml         # Profile override when prefix=app and profile=prod
+└── app_staging.toml     # Profile override when prefix=app and profile=staging
 ```
 
-Profile switching via environment variable:
+Profile switching uses a single profile alias. At startup `loader.Load` applies `loader.WithProfilesActiveFromEnvVar()` after caller-supplied options, so the environment variable overrides any `loader.WithProfilesAlias(...)` value in code:
 
 ```bash
-export JIMU_PROFILES_ACTIVE=prod   # Loads default.yml, then default_prod.yml overrides
+export JIMU_PROFILES_ACTIVE=prod
 ```
 
-Supported formats: YAML, TOML, JSON. The file extension determines the codec.
+With `JIMU_PROFILES_ACTIVE=prod` and `loader.WithConfigFilePrefix("app")`, the loader reads the base file whose stem is exactly `defaults`, then the profile file whose stem is exactly `app_prod`. Profile files are merged on top of the base file, so they should contain only the environment-specific deltas. Keep profile names simple (`dev`, `test`, `staging`, `prod`); do not rely on comma-separated multi-profile semantics unless the adopted `config/loader` version explicitly documents splitting.
+
+Supported formats include YAML, TOML, JSON, and any registered config codec. The file extension determines the codec.
 
 ### 1.4 Environment Variable Override
 
-Environment variables do **not** automatically map to nested config keys (unlike Spring Boot's convention). Instead, use **placeholder syntax** `${VAR:default}` in config files to reference environment variables:
+`loader.Load` appends an environment-variable source after file sources. `loader.WithEnvVarsPrefix("APP")` makes the env source read only variables with the `APP_` prefix and strips that prefix before inserting keys into the config map. The profile selector `JIMU_PROFILES_ACTIVE` is read separately and is not affected by this prefix.
+
+The env source is flat. It can override a config key only when the remaining env key matches the config path the loader understands; it does not translate conventional shell names such as `APP_MYSQL_DSN` into nested `mysql.dsn`. For nested service settings, prefer **placeholder syntax** `${VAR:default}` in config files:
+
+With the `loader.WithEnvVarsPrefix("APP")` example in §1.2, set variables such as `APP_LOG_LEVEL` or `APP_MYSQL_DSN`; the prefix is stripped before placeholder resolution, so the YAML still references `${LOG_LEVEL:...}` and `${MYSQL_DSN:...}`.
 
 ```yaml
-# configs/default.yml
+# configs/defaults.yml
 logger:
   level: "${LOG_LEVEL:info}"
 
@@ -178,10 +200,13 @@ eventbus:
 
 Loading and resolution order:
 
-1. `default.yml` — base configuration
-2. `default_<profile>.yml` — profile-specific overrides (merged on top)
-3. Environment variables — collected into a flat key-value pool
-4. **Resolve phase** — `${VAR:default}` placeholders in the merged config are expanded using the environment variable pool; if the variable is unset, the default value after `:` is used
+1. Loader options are resolved. Defaults are `./configs`, `defaults`, no profile file prefix, and no env prefix; `JIMU_PROFILES_ACTIVE` then overrides any code-supplied profile alias.
+2. Base file source — the file whose stem equals the configured default name, loaded first when present.
+3. Profile file source — when a profile is active, the file whose stem equals `WithConfigFilePrefix(...) + "_" + profile`, merged on top of the base file. Startup fails if a profile is active and no config-file prefix was configured.
+4. Environment source — variables collected into a flat key-value pool, optionally filtered and trimmed by `WithEnvVarsPrefix`.
+5. Resolve phase — `${VAR:default}` placeholders in the merged config are expanded using the config map, including values contributed by the env source. If the key is absent, the default value after `:` is used.
+
+Do not branch in `main` on deployment environment names. Express environment differences as profile files plus placeholders, then load once into the aggregate `Option` and supply it to `fx`.
 
 ---
 
@@ -208,7 +233,95 @@ app.Run()
 
 **When to use manual Start/Wait/Stop instead**: only when you need post-shutdown logic before exit (e.g., flushing telemetry). For most services, `app.Run()` is sufficient.
 
-### 2.2 Lifecycle Hooks
+### 2.2 Fx Module Assembly Guardrails
+
+`cmd/<service>/main.go` is the process entry point, not the place where provider details accumulate. It loads config, logs the resolved config, supplies the aggregate `Option`, selects modules, sets process-level fx options, and runs the app. Provider construction belongs to modules.
+
+Use this ownership split:
+
+- `cmd/<service>/main.go` — config load, `fx.Supply(opt)` or `fx.Provide(parseOption)`, module selection, `fx.StopTimeout`, `fx.NopLogger`, `app.Run()`.
+- `internal/pkg/module.go` — shared runtime module assembly. It registers middleware clients, servers, telemetry, taskqueue/message runtime, and named service runtime modules when a multi-service repo needs different shared runtime sets.
+- `internal/business/<context>/<context>.go` — bounded-context module assembly: repositories, query repositories, application service, event/message handlers, handler registration, and context-scoped Infrastructure adapters.
+- `internal/business/<context>/infrastructure` or an explicit ACL package — adapter implementation details for context-owned ports and cross-context/client translations. `cmd` must not implement those adapters as inline `fx.Provide(func(...) SomePort { ... })` closures.
+
+For a multi-service project, keep the service-to-service runtime difference in `internal/pkg/module.go`, not spread across `cmd/**/main.go`. Define multiple module variables such as `FooModule`, `BarModule`, `DispatcherModule`, or `SandboxModule` in that file; each entry point imports `internal/pkg` and loads the one it needs.
+
+```go
+// internal/pkg/module.go
+package pkg
+
+import (
+    "github.com/example/project/internal/pkg/httpserver"
+    "github.com/example/project/internal/pkg/kafka"
+    "github.com/example/project/internal/pkg/mysql"
+    "github.com/example/project/internal/pkg/redis"
+    "github.com/example/project/internal/pkg/taskqueue"
+    "go.uber.org/fx"
+)
+
+var DispatcherModule = fx.Module(
+    "internal.pkg.dispatcher",
+    fx.Provide(httpserver.New),
+    fx.Provide(redis.NewClient),
+    fx.Provide(kafka.NewProducer),
+    fx.Provide(kafka.NewConsumerFactory),
+    fx.Provide(mysql.NewClient),
+)
+
+var SandboxModule = fx.Module(
+    "internal.pkg.sandbox",
+    fx.Provide(httpserver.New),
+    fx.Provide(redis.NewClient),
+    taskqueue.Module,
+    fx.Provide(mysql.NewClient),
+)
+```
+
+Then the entry point stays thin:
+
+```go
+app := fx.New(
+    fx.Supply(opt),
+    fx.Provide(sloghelper.NewLog),
+    pkg.DispatcherModule, // service runtime difference is selected here
+    dispatcher.Module,    // bounded context owns its own providers
+    fx.StopTimeout(30*time.Second),
+    fx.NopLogger,
+)
+app.Run()
+```
+
+Review signals that require a rewrite or a written exception:
+
+- `cmd/**/main.go` imports a bounded context's `infrastructure`, `application/command`, `application/query`, `application/eventhandler`, `application/messagehandler`, or `application/messagepublisher` package.
+- `cmd/**/main.go` imports generated Connect/gRPC handler packages to register routes directly. Handler registration belongs to the bounded-context module.
+- `cmd/**/main.go` contains provider closures that return Domain/Application ports, repositories, query repositories, ACL clients, routing directories, peer clients, publishers, or handler wrappers.
+- `cmd/**/main.go` manually supplies many config fields such as `fx.Supply(opt.Redis)`, `fx.Supply(opt.Kafka)`, or `fx.Supply(opt.HTTPServer)` instead of supplying one aggregate `Option` with `fx.Out`.
+- A repo has multiple shared runtime packages under `internal/pkg/*` but no `internal/pkg/module.go` that names the public runtime modules.
+- Service-specific runtime choices are encoded as repeated provider lists in each `cmd/<service>/main.go` instead of named modules in `internal/pkg/module.go`.
+
+Lightweight smoke scans before approving runtime wiring:
+
+```bash
+# cmd should select modules, not import inner business implementation packages.
+rg -n 'internal/.*/(infrastructure|application/(command|query|eventhandler|messagehandler|messagepublisher))' cmd
+
+# handler registration should live in bounded-context modules.
+rg -n 'pkg/gen/.*(connect|grpc)|connectrpc.com/connect|google.golang.org/grpc' cmd
+
+# per-field option supply usually means the aggregate Option is not doing its job.
+rg -n 'fx\.Supply\(opt\.' cmd
+
+# provider-heavy cmd files are review targets; most should have only config/bootstrap providers.
+rg -n 'fx\.Provide\(' cmd
+
+# shared runtime packages should have a public module assembly point.
+test -f internal/pkg/module.go || rg -n 'fx\.Module|fx\.Provide' internal/pkg
+```
+
+Treat these scans as review targets, not proof. A hit is acceptable only when the Architecture Gate or runtime impact note states why the provider is truly process-owned and cannot live in `internal/pkg/module.go`, a bounded-context module, or an ACL/infrastructure package.
+
+### 2.3 Lifecycle Hooks
 
 Components that have **in-flight work** at shutdown time must register `fx.Lifecycle` hooks to drain gracefully. Pure connection clients do not need drain-style hooks, but they may register `Close` hooks for cleanup when the library exposes one.
 
@@ -300,7 +413,7 @@ func NewDispatcher(lc fx.Lifecycle, opt Option, logger *slog.Logger) (event.Disp
 
 The example wires only the YAML-friendly options. `event` also exposes callback-shaped hooks that don't belong in config but are wired here when needed: `event.WithContextFactory` (per-dispatch context derivation, e.g. propagate trace IDs), `event.WithUnhandledEventHandler` (events with no registered handler — useful for surfacing typos and dead kinds), `event.WithPanicHandler` (recovered handler panics — forward to metrics/alerting), and `event.WithCloseInterruptedHandler` (snapshot of accepted-but-unhandled batches when `Close` is cut short by `ctx.Done()`).
 
-### 2.3 Shutdown Ordering
+### 2.4 Shutdown Ordering
 
 `fx` executes OnStop hooks in **reverse order of OnStart**. The dependency graph naturally produces the correct shutdown sequence:
 
@@ -318,7 +431,7 @@ Stop order (automatic reverse):
 
 MySQL has no in-flight work to drain, so it remains available while Server and EventBus handlers finish. If the MySQL package registers a `Close` cleanup hook, it must run after consumers have stopped.
 
-### 2.4 Kubernetes Deployment
+### 2.5 Kubernetes Deployment
 
 When deploying to Kubernetes, there is a **race condition** between SIGTERM delivery to the Pod and kube-proxy removing the Pod from the Service's Endpoints. During this window (typically a few seconds), new requests may still be routed to a Pod that is already shutting down.
 
