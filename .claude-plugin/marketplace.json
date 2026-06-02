@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.12.37"
+    "version": "1.12.38"
   },
   "plugins": [
     {
