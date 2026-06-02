@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-06-01
+last_updated: 2026-06-02
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -27,9 +27,9 @@ Skill Workshop is a dual-track plugin marketplace. Each track exposes the same t
 | `plugins/designing-tests/` | Claude track: architecture-aware, intent-first test design guidance | Skill (`designing-tests`), Hook (`pre-tool-use`), reference files for architecture testing, integration quality, hand-off gates, layer selection, risk catalog, test patterns, and review | Claude Code plugin runtime, Node.js |
 | `plugins/designing-tests/hooks/pre-tool-use` | Tiered injection for planning / execution / full TDD / hand-off evidence | Targets `writing-plans`, `executing-plans`, `subagent-driven-development`, `test-driven-development`, `verification-before-completion`, code-review skills, and `finishing-a-development-branch` | Node.js, bash |
 | `codex-plugins/superpowers-memory/` | Codex track: equivalent KB persistence + write-lock | Skills (`load`, `update`, `rebuild`, `cleanup`), Hooks (`session-start`, `user-prompt-submit`, `pre-tool-use`) | Codex CLI plugin runtime, Node.js, git |
-| `codex-plugins/superpowers-memory/hooks/codex-runtime.js` | Codex-side runtime: same business logic as Claude `hook-runtime.js`, platform-adapted (no `${CLAUDE_PLUGIN_ROOT}`, `user-prompt-submit` mode replaces `user-prompt-expansion`, PreToolUse matcher checks `apply_patch` and `mcp__filesystem__.*` instead of `Write`/`Edit`/…) | Same JSON protocol, output via `hookSpecificOutput` | Node.js, git |
+| `codex-plugins/superpowers-memory/hooks/codex-runtime.js` | Codex-side runtime: same business logic as Claude `hook-runtime.js`, platform-adapted (does not rely on Claude compatibility env vars, `user-prompt-submit` mode replaces `user-prompt-expansion`, PreToolUse matcher checks `apply_patch` and `mcp__filesystem__.*` instead of `Write`/`Edit`/…) | Same JSON protocol, output via `hookSpecificOutput` | Node.js, git |
 | `codex-plugins/<name>/.codex-plugin/plugin.json` | Codex plugin manifest | Declares skills and a plugin-local native lifecycle hook config (ADR-014) | Codex CLI plugin runtime |
-| `codex-plugins/<name>/hooks/hooks.json` | Primary Codex native lifecycle hook config | `${PLUGIN_ROOT}` placeholder + strict JSON hook entries with bounded `timeout` and `statusMessage`, loaded by Codex when `hooks` and `plugin_hooks` are enabled (ADR-014) | None |
+| `codex-plugins/<name>/hooks/hooks.json` | Primary Codex native lifecycle hook config | `${PLUGIN_ROOT}` placeholder + strict JSON hook entries with bounded `timeout` and no `statusMessage` noise, loaded by Codex when `hooks` and `plugin_hooks` are enabled (ADR-014) | None |
 | `codex-plugins/<name>/codex-hooks-snippet.json` | Legacy compatibility hook config retained while installer tests still validate fallback migration | Mirrors the native hook file (ADR-014) | None |
 | `codex-plugins/<name>/scripts/install-codex-hooks.js` | Legacy fallback installer and cleanup tool; resolves the installed plugin root, removes stale entries for the same plugin, backs up and rewrites `~/.codex/hooks.json` as strict JSON | Invoked by `$<plugin>:cleanup` in `remove` mode to remove stale fallback entries | Node.js |
 | `codex-plugins/superpowers-architect/` | Codex track: design patterns via SessionStart, prompt-time routing, and explicit standards skill | Hooks + `cleanup` / `standards` skills | Codex CLI plugin runtime, Node.js |
