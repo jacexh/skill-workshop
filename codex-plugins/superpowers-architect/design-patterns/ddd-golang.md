@@ -608,8 +608,8 @@ type Repository interface {
 - **Domain Event Handler** (`application/eventhandler/<event>.go`): In-process Domain Event consumers — subscribe to Domain Events emitted within the same bounded context and execute side-effect logic (e.g., send notification, update read model, trigger follow-up workflow within this context)
 - **Boundary Publisher** (`application/messagepublisher/<event>_publisher.go`): Same-BC Domain Event consumer that maps selected Domain Events to Integration Messages
 - **Integration Message Handler** (`application/messagehandler/<message>.go`): Cross-context Integration Message consumer in the receiving bounded context
-- **QueryRepository Interface**: Defined in Application layer, returns DTOs, bypasses Domain model
-- **Consumer-specific ports**: Small reader/writer/facade/coordination interfaces needed by a use case; never storage-shaped omnibus stores
+- **QueryRepository Interface**: Defined in Application layer, returns DTOs, bypasses Domain model; default one interface per bounded-context product read-model family, with new query scenarios added as methods
+- **Consumer-specific ports**: Small reader/writer/facade/coordination interfaces needed by a use case only when semantics differ; never storage-shaped omnibus stores or one port per minor query variation
 - **DTO**: Data Transfer Objects, decoupling internal and external models
 - **Assembler**: DTO ↔ Domain object conversion
 
@@ -627,23 +627,26 @@ type Repository interface {
 
 Apply [ddd-core.md §3.2](ddd-core.md) before adding or expanding any Go interface in `application/`.
 
-Prefer read-side examples first; command-side Application ports need an explicit placement-gate exception.
+Prefer read-side examples first; command-side Application ports need an explicit placement-gate exception. On the read side, do not create one interface per query scenario. Start with one QueryRepository for the bounded context's product read-model family and add methods unless the new read path has distinct read-model/runtime semantics.
 
 ```go
-// application/query/activity_history_reader.go — consumer history query side.
+// application/query/repository.go — product read-model family query side.
 package query
 
-type ActivityHistoryReader interface {
+type ActivityQueryRepository interface {
     ListHistory(ctx context.Context, streamID string, cursor HistoryCursor) ([]*activityv1.ActivityRecord, error)
+    ListByCorrelation(ctx context.Context, q CorrelationQuery) ([]*activityv1.ActivityRecord, error)
 }
 ```
 
+Split only when the read model or runtime semantics differ. For example, if activity history reads current OLTP rows while activity metrics read ClickHouse analytics buckets, keep the ports separate and name them by product semantics:
+
 ```go
-// application/query/activity_correlation_reader.go — audit/correlation query side.
+// application/query/metrics_repository.go — analytics read-model family.
 package query
 
-type ActivityCorrelationReader interface {
-    ListByCorrelation(ctx context.Context, q CorrelationQuery) ([]*activityv1.ActivityRecord, error)
+type ActivityMetricRepository interface {
+    GetMetricBuckets(ctx context.Context, q MetricQuery) ([]*activityv1.ActivityMetricBucket, error)
 }
 ```
 
@@ -670,22 +673,17 @@ type ActivityLogStore interface {
 }
 ```
 
-One Infrastructure struct may implement all of the small ports:
+One Infrastructure struct may implement multiple semantic ports, but a normal product read-model family should usually bind as one QueryRepository:
 
 ```go
 fx.Provide(func(conn storage.Conn) *infrastructure.ActivityLogAdapter {
     return infrastructure.NewActivityLogAdapter(conn)
 })
 fx.Provide(func(log *infrastructure.ActivityLogAdapter) command.ActivityLogWriter { return log })
-fx.Provide(func(log *infrastructure.ActivityLogAdapter) query.ActivityHistoryReader {
-    return infrastructure.NewHistoryReader(log)
-})
-fx.Provide(func(log *infrastructure.ActivityLogAdapter) query.ActivityCorrelationReader {
-    return infrastructure.NewCorrelationReader(log)
-})
+fx.Provide(func(log *infrastructure.ActivityLogAdapter) query.ActivityQueryRepository { return log })
 ```
 
-The concrete adapter can keep helper methods for SQL reuse, but inward packages depend only on the interface matching their use case. Split command-side ports only after the placement gate confirms the need is not better expressed as a Domain Event, Integration Message, Repository, ACL, or Infrastructure detail.
+The concrete adapter can keep helper methods for SQL reuse, but inward packages depend on product-semantic interfaces, not storage-shaped interfaces. Split query ports only for distinct read-model families or runtime semantics. Split command-side ports only after the placement gate confirms the need is not better expressed as a Domain Event, Integration Message, Repository, ACL, or Infrastructure detail.
 
 Concrete QueryRepository implementations stay in Infrastructure even when their interfaces live in `application/query/`:
 
@@ -1196,9 +1194,9 @@ Production files only. Test file placement is governed by §6.3 and is not requi
 | `application/command/<use_case>.go` | Command type + Handler; exceptional command-side ports only when the Architecture Gate rejects Domain/Event/Message/ACL/Infrastructure homes |
 | `application/command/<capability>_port.go` | Exceptional command-side coordination port for sequence, cursor, lease, ownership, or high-watermark semantics after placement-gate classification; not for address lookup, peer forwarding, or routing topology |
 | `application/query/<use_case>.go` | Query type + Handler for a read use case |
-| `application/query/repository.go` | QueryRepository / reader interfaces owned by query use cases |
+| `application/query/repository.go` | QueryRepository interfaces, default one per bounded-context product read-model family; add methods for new query scenarios with the same read semantics |
 | `application/query/dto.go` | Query DTOs/read models |
-| `application/query/<capability>_reader.go` | Consumer-specific read/facade port when `QueryRepository` is too broad or the reader is not an aggregate read model |
+| `application/query/<capability>_reader.go` | Consumer-specific read/facade port only when the read is not part of the main QueryRepository family or has distinct freshness, authorization, pagination, failure, consistency-window, data-source, or test-substitute semantics |
 | `application/eventhandler/<event>.go` | Domain Event Handler for same-BC event consumers |
 | `application/messagepublisher/<event>_publisher.go` | Boundary Publisher mapping same-BC Domain Events to Integration Messages |
 | `application/messagehandler/<message>.go` | Integration Message Handler for cross-context message consumers |
