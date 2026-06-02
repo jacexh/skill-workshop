@@ -69,15 +69,20 @@ for i in $(seq 0 $((count - 1))); do
     echo "FAIL $name lifecycle config must contain a hooks object, got $hooks_shape"
     exit 1
   }
+  # Codex plugin skills must use the Codex root/runtime, not copied Claude hook commands.
+  if grep -R -n -E 'CLAUDE_PLUGIN_ROOT|hook-runtime\.js' "$ROOT/${path#./}" >/dev/null; then
+    echo "FAIL $name Codex plugin source must not reference CLAUDE_PLUGIN_ROOT or hook-runtime.js"
+    exit 1
+  fi
   jq -e '
     .hooks
     | to_entries[]
     | .value[]
     | (.hooks // [])[]
     | select(.type == "command")
-    | select((.timeout | type) != "number" or .timeout <= 0 or (.statusMessage | type) != "string" or .statusMessage == "")
+    | select((.timeout | type) != "number" or .timeout <= 0 or has("statusMessage"))
   ' "$hooks_file" >/dev/null && {
-    echo "FAIL $name command hooks must set positive timeout and non-empty statusMessage"
+    echo "FAIL $name command hooks must set positive timeout and omit statusMessage"
     exit 1
   }
 
