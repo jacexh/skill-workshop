@@ -7,8 +7,7 @@
           {
             "type": "command",
             "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" session-start",
-            "timeout": 30,
-            "statusMessage": "Loading architecture standards"
+            "timeout": 30
           }
         ]
       }
@@ -19,8 +18,7 @@
           {
             "type": "command",
             "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" user-prompt-submit",
-            "timeout": 30,
-            "statusMessage": "Checking architecture standards"
+            "timeout": 30
           }
         ]
       }

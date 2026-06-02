@@ -79,7 +79,7 @@ Files outside the mapping are out of scope — for example, `adr/ADR-NNN-<slug>.
 `docs/project-knowledge/` is write-protected by a PreToolUse hook. Acquire the lock before any KB edit, otherwise every Write/Edit/MultiEdit on a KB file will be blocked:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" lock superpowers-memory:rebuild
+node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" lock superpowers-memory:rebuild
 ```
 
 Lock has a 60-minute TTL — if this skill aborts midway, the lock auto-expires and writes are blocked again.
@@ -201,7 +201,7 @@ Always regenerate `docs/project-knowledge/index.md` — in both modes — since 
 Run the automated verification script first, then do manual spot-checks:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
+node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" verify
 ```
 
 The script checks: stale path references, content-shape violations, ADR summary/detail integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, and git commit readiness. Fix any `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` it reports before proceeding. `retrievalCost` and `splitCandidates` are advisory; use them to improve routing or split valid content by domain, never to delete valid knowledge.
@@ -266,7 +266,7 @@ If the commit fails (e.g., pre-commit hook), report the error to the user. Do no
 ### 10. Release write lock
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" unlock
+node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" unlock
 ```
 
 Always run this — even if the commit in Step 8 failed or earlier steps surfaced errors. Releasing the lock is courtesy cleanup; the 60-minute TTL is the safety net if the skill aborts before reaching this step.
