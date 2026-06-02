@@ -227,9 +227,12 @@ Rules:
    location-specific. `IntervalSchedule(..., taskqueue.WithLocation(...))` is
    invalid because an interval is duration-based, not wall-clock based.
 6. Keep periodic enqueue policy narrow. `WithUnique`, `WithMaxRetry`, and
-   `WithTimeout` are normal periodic-task policies. `WithDelay` is allowed only
-   when each scheduled fire should intentionally enqueue a task for later
-   processing. Do not use `WithProcessAt` or `WithDeadline` on
+   `WithTimeout` are normal periodic-task policies. Use `WithUnique` only for a
+   short duplicate-suppression window; for a static periodic task key, the
+   uniqueness TTL must be shorter than the schedule interval unless the
+   component/provider explicitly scopes uniqueness per scheduled fire. `WithDelay`
+   is allowed only when each scheduled fire should intentionally enqueue a task
+   for later processing. Do not use `WithProcessAt` or `WithDeadline` on
    `PeriodicTask`; static absolute times become stale across repeated schedule
    fires and are rejected by the component contract.
 7. Treat `PeriodicTask.Name()` as the duplicate key within one
@@ -314,7 +317,7 @@ func NewDailyGenerateInvoicesTask(registry *taskqueue.SchemaRegistry) (taskqueue
         "billing.generate_invoices.daily",
         schedule,
         task,
-        taskqueue.WithUnique(25*time.Hour),
+        taskqueue.WithUnique(5*time.Minute), // short duplicate suppression; shorter than the daily schedule
         taskqueue.WithMaxRetry(3),
         taskqueue.WithTimeout(10*time.Minute),
     )

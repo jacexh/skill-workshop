@@ -352,7 +352,11 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option) *http.Server {
             if err != nil {
                 return err
             }
-            go srv.Serve(ln)
+            go func() {
+                if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+                    slog.Error("http server stopped unexpectedly", sloghelper.Error(err))
+                }
+            }()
             return nil
         },
         OnStop: func(ctx context.Context) error {
@@ -363,7 +367,7 @@ func NewHTTPServer(lc fx.Lifecycle, opt Option) *http.Server {
 }
 ```
 
-gRPC Server follows the same pattern: OnStart binds listener + `go server.Serve(ln)`; OnStop calls `server.GracefulStop()`.
+gRPC Server follows the same pattern: OnStart binds listener + starts `server.Serve(ln)` in a goroutine that records unexpected serve errors; OnStop calls `server.GracefulStop()`.
 
 #### EventBus: Drain Queued Event Batches
 
@@ -415,13 +419,13 @@ The example wires only the YAML-friendly options. `event` also exposes callback-
 
 ### 2.4 Shutdown Ordering
 
-`fx` executes OnStop hooks in **reverse order of OnStart**. The dependency graph naturally produces the correct shutdown sequence:
+`fx` executes OnStop hooks in **reverse order of OnStart**. Correct shutdown order comes from actual constructor dependencies, `fx.Invoke` wiring, and lifecycle hook registration order; it is not implied by the conceptual architecture diagram. Encode the dependencies that must remain available during drain, so servers/consumers/workers stop before event dispatchers and storage clients they may still use:
 
 ```
-Start order (determined by dependency graph):
+Start order (must be encoded by dependency graph / invokes):
   EventBus → MySQL → Application → Server
 
-Stop order (automatic reverse):
+Stop order (automatic reverse of the encoded start order):
   Server.OnStop        → drain in-flight requests
                           (last requests may dispatch final events via dispatcher.DispatchAll(events.Drain()))
   EventBus.OnStop      → drain queued/in-flight event batches (single worker, sequential)

@@ -2167,7 +2167,7 @@ dev = [
 7. **ID generation in Domain** — use a time-sortable identifier (stdlib `uuid.uuid7()` on Python 3.14+; third-party UUIDv7 / ULID library or `uuid.uuid4()` on 3.12 / 3.13); database auto-increment IDs are prohibited
 8. **Disciplined cross-context communication** — Integration Messages (default for cross-context state propagation), cross-context queries (read-only DTOs through a published facade port, never another context's internal `QueryRepository`), ACL, or protocol contracts; direct imports of another context's Domain model are prohibited; Integration Message payloads carry the ID plus minimum necessary facts
 9. **Event collection** — aggregates collect events in `_events` list; Application calls `collect_events()` after successful `save()` to drain and dispatch
-10. **CQRS** — Commands go through the Domain model; product/application Queries go through consumer-specific QueryRepository/reader ports and return Pydantic DTOs. Routing/topology lookup is not a CQRS query port
+10. **CQRS** — Commands go through the Domain model; product/application Queries go through product-read QueryRepository/reader ports and return Pydantic DTOs. Default to adding query methods to the existing QueryRepository for the same bounded-context read-model family; split only for distinct read-model/runtime semantics. Routing/topology lookup is not a CQRS query port
 11. **Transaction boundary** — one Command Handler owns one transaction; one transaction modifies one aggregate only
 12. **Repository collection semantics** — `save()` covers create, update, and state-driven soft delete; never split by SQL operation type
 13. **Soft delete** — business-driven deletion is modeled as Domain state; `deleted_at` is always an Infrastructure concern
