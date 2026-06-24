@@ -4,7 +4,7 @@ updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
 ---
 
-<!-- OWNER: ADR summary log (always loaded at session start).
+<!-- OWNER: ADR summary log (indexed/routed from `index.md`; loaded on demand when decision context is needed).
      This file carries decision SUMMARIES only. Full context / alternatives /
      consequences live in `adr/ADR-NNN-<slug>.md`, loaded on demand.
 
