@@ -48,6 +48,8 @@ triggered_by_plan: null
 <!-- ADR summaries below — add new decisions at the top. Do not delete old ADRs;
      collapse superseded ones to the 1-line supersede format. -->
 
+<!-- Decision summaries should link to ADR detail files and any owner entries affected by the decision. Query relies on these links to traverse from current behavior to rationale. -->
+
 <!--
 SUMMARY FORMAT (default — 4 lines per ADR):
 

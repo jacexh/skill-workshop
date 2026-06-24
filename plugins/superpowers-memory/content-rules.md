@@ -67,6 +67,17 @@ Entry files should keep a short overview plus links to shards. Shards own their 
 
 When `verify` reports high retrieval cost or split candidates, treat it as an advisory. The correct response is to improve routing, split by stable boundaries, remove duplicates, or fix shape violations — not to delete valid current project knowledge.
 
+## Query-Grade Traversal
+
+The Project Knowledge Base must support `query`, not only session-start orientation.
+
+- `index.md` is the router. It lists owner files, shards, useful aliases, and 1-3 routing key points per file.
+- Owner entries that claim durable behavior include a source reference: spec, plan, ADR, README, canonical source file, or another owner entry.
+- Cross-owner relationships use `See:` or `Related:` pointers. Do not duplicate expanded facts across owner files.
+- Shards must be reachable from `index.md`; if a parent owner file exists, it also links to its shards.
+- Optional aliases are plain Markdown such as `Aliases: native hooks, Codex hooks, prompt router`.
+- Query answers should be supported by read owner/source entries, not by search snippets alone.
+
 ## Per-File Format Rules
 
 ### architecture.md — structure view

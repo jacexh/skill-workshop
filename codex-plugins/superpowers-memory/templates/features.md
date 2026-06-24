@@ -43,6 +43,9 @@ triggered_by_plan: null
 
 ## Implemented
 
+<!-- Each implemented capability should include stable References.
+     Use See:/Related: pointers for cross-owner relationships instead of duplicating architecture, decision, or glossary content. -->
+
 <!-- Group implemented capabilities in this order when content exists:
      1. Product Capabilities
      2. User / Operator Workflows
