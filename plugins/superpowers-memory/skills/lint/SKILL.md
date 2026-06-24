@@ -20,7 +20,9 @@ node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" l
 
 3. Interpret the JSON output for the requested scope: whole KB, one owner file, or one topic.
 4. Report issues by severity.
-5. Report suggested ingest targets instead of editing files.
+5. Review LLM Wiki health for the requested scope: contradictions, stale claims, orphan/unreachable shards, missing owner/concept pages, missing cross-references, source/data gaps, and answerability coverage.
+6. Flag advisory coverage gaps when a high-frequency object is referenced by index/features/architecture/decisions/glossary/source refs but has no direct owner entry or shard, when a global architecture map exists but a core bounded context lacks layering details, or when `query` would need broad cross-file inference to answer a normal project question.
+7. Report suggested ingest targets instead of editing files.
 
 ## Output
 
@@ -31,10 +33,10 @@ Issues:
 Suggested ingest targets:
 - Owner: docs/project-knowledge/<owner>.md
   Source: <spec/plan/ADR/source>
-  Reason: <missing | stale | contradiction | weak source | routing gap>
+  Reason: <missing | stale | contradiction | weak source | routing gap | orphan shard | missing owner | missing cross-reference | source gap | answerability gap>
 
 Advisory:
-- [retrieval cost, split candidates, or non-blocking notes]
+- [retrieval cost, split candidates, wiki health gap, coverage gap, or non-blocking notes]
 ```
 
 ## Rules

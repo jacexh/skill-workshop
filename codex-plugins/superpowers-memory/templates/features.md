@@ -37,14 +37,17 @@ triggered_by_plan: null
      - Externally meaningful current capability
      - Actors, entry points, routes, services, or code paths
      - Capability boundary and use-shaping constraints
-     - Pointers to owner files for architecture, ADRs, tech, conventions, glossary -->
+     - Pointers to owner files for architecture, ADRs, tech, conventions, glossary
+     - For high-value objects or flows, point to the architecture owner/shard
+       that carries responsibility, layers/components, interactions, state/flow rules, and source refs. -->
 
 # Features
 
 ## Implemented
 
 <!-- Each implemented capability should include stable References.
-     Use See:/Related: pointers for cross-owner relationships instead of duplicating architecture, decision, or glossary content. -->
+     Use See:/Related: pointers for cross-owner relationships instead of duplicating architecture, decision, or glossary content.
+     When a capability depends on a high-value object or cross-service flow, References should name the architecture owner/shard that answers structural query questions. -->
 
 <!-- Group implemented capabilities in this order when content exists:
      1. Product Capabilities
@@ -65,7 +68,7 @@ triggered_by_plan: null
 
 **Capability Boundary** — [what this capability covers; point structural detail to architecture.md.]
 
-**References** — [architecture section, ADRs, specs/plans if useful.]
+**References** — [architecture owner/shard for core objects or flows, ADRs, specs/plans if useful.]
 
 ### User / Operator Workflows
 
@@ -77,7 +80,7 @@ triggered_by_plan: null
 
 **Capability Boundary** — [what the workflow covers; point sequencing detail to architecture.md.]
 
-**References** — [owner-file pointers.]
+**References** — [owner-file pointers, including architecture owner/shard for core flow sequencing.]
 
 ### Platform Capabilities
 
@@ -89,7 +92,7 @@ triggered_by_plan: null
 
 **Capability Boundary** — [externally meaningful boundary.]
 
-**References** — [owner-file pointers.]
+**References** — [owner-file pointers, including architecture owner/shard for core platform object structure.]
 
 ### Operations
 
