@@ -6,6 +6,7 @@ description: Use before exploring the codebase, planning, architecture decisions
 # Query Project Knowledge
 
 Read `docs/project-knowledge/` to answer a concrete project question. This skill is read-only.
+When no concrete question is supplied, use this skill for orientation: read `index.md`, then the smallest useful owner files before planning or exploration.
 
 **Announce at start:** "I'm querying the project knowledge base."
 

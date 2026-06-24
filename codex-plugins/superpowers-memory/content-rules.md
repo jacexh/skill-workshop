@@ -187,7 +187,7 @@ Describes **what the system can do now**. It is the current capability map for h
 
 ### decisions.md — ADR summary log
 
-Carries **decision summaries only**. Indexed at SessionStart via `index.md`; the file itself is loaded by `superpowers-memory:load` or `Read` when an agent needs decision context. Because `load` reads it on most architectural sessions, it must stay short and scannable. Full rationale (context, alternatives, consequences) lives in per-ADR detail files under `docs/project-knowledge/adr/` — loaded on demand by `Read`, never auto-loaded.
+Carries **decision summaries only**. Indexed through `index.md` on the hot path; `superpowers-memory:query` loads this file only when on-demand routing needs decision context. Keep it short and scannable so `query` can orient from `index.md` first, then read the smallest useful owner files. Full rationale (context, alternatives, consequences) lives in per-ADR detail files under `docs/project-knowledge/adr/` — loaded on demand by `Read`, never auto-loaded.
 
 **Granularity gate — all three must hold** to record an ADR:
 

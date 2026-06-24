@@ -139,7 +139,7 @@ function getBaseBranch() {
 }
 
 // Builds an architect-style rich-context block telling the model it MUST
-// invoke `superpowers-memory:update` as its very next tool call.
+// invoke `$superpowers-memory:ingest` as its very next tool call.
 // Used by finishing-a-development-branch when KB does not yet cover HEAD.
 function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolvedStoredSHA, reasonDetail }) {
   const shortCurrent = currentSHA ? currentSHA.slice(0, 12) : "(unknown)";
@@ -163,10 +163,10 @@ function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolve
   }
 
   const sections = [
-    "====== Memory: Finishing-Branch Update Required ======",
+    "====== Memory: Finishing-Branch Ingest Required ======",
     "Your project knowledge base does not yet cover the latest commits on this branch.",
-    "You MUST invoke `superpowers-memory:update` as your VERY NEXT tool call.",
-    "Do not call `superpowers:finishing-a-development-branch` again until the update completes.",
+    "You MUST invoke `$superpowers-memory:ingest` as your VERY NEXT tool call.",
+    "Do not call `$superpowers:finishing-a-development-branch` again until the ingest completes.",
     "",
     "Context:",
     "- Current branch: " + (currentBranch || "(unknown)") + "@" + shortCurrent,
@@ -188,14 +188,14 @@ function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolve
 
   sections.push("");
   sections.push("Required workflow:");
-  sections.push("  1. Invoke `superpowers-memory:update` (it will read the diff above and refresh docs/project-knowledge/).");
+  sections.push("  1. Invoke `$superpowers-memory:ingest` (it will read the diff above and refresh docs/project-knowledge/).");
   sections.push("  2. Wait for it to complete (the KB write-lock will be released automatically).");
-  sections.push("  3. Re-invoke `superpowers:finishing-a-development-branch` to continue.");
+  sections.push("  3. Re-invoke `$superpowers:finishing-a-development-branch` to continue.");
   sections.push("");
   sections.push("Escape hatch:");
   sections.push("  If you have inspected the diff above and are confident none of it changes architecture, conventions,");
   sections.push("  features, dependencies, decisions, or glossary terms (e.g., pure formatting, comment-only edits),");
-  sections.push("  state that explicitly in your next message and proceed. Otherwise, run update first.");
+  sections.push("  state that explicitly in your next message and proceed. Otherwise, run ingest first.");
   sections.push("======================================================");
 
   return sections.join("\n");
@@ -748,7 +748,7 @@ function formatKnowledgeStatusForContext(status) {
     lines.push("- Uncommitted KB files: " + status.uncommittedKbFiles.slice(0, 10).join(", "));
   }
   if (status.stale) {
-    lines.push("- Before finishing, committing, merging, or opening a PR: run $superpowers-memory:update.");
+    lines.push("- Before finishing, committing, merging, or opening a PR: run $superpowers-memory:ingest.");
   }
   return lines.join("\n");
 }
@@ -779,16 +779,16 @@ function readStdin() {
 
 const STANDING_PRIMER =
   "\n\n## Project KB workflow (Codex)\n" +
-  "- After completing development and before merging: invoke $superpowers-memory:update to sync KB\n" +
-  "- Before invoking $superpowers:finishing-a-development-branch: confirm KB reflects HEAD; if not, run $superpowers-memory:update first\n" +
-  "- When uncertain about project structure or conventions: invoke $superpowers-memory:load for detail files\n" +
-  "- Before $superpowers:writing-plans / executing-plans / subagent-driven-development: load KB so planning is grounded\n";
+  "- After completing development and before merging: invoke $superpowers-memory:ingest to sync KB\n" +
+  "- Before invoking $superpowers:finishing-a-development-branch: confirm KB reflects HEAD; if not, run $superpowers-memory:ingest first\n" +
+  "- When uncertain about project structure or conventions: invoke $superpowers-memory:query for detail files\n" +
+  "- Before $superpowers:writing-plans / $superpowers:executing-plans / $superpowers:subagent-driven-development: invoke $superpowers-memory:query so planning is grounded\n";
 
 function buildSessionStartOutput() {
   if (!hasKnowledgeBase()) {
     return hookPayload(
       "SessionStart",
-      "Project knowledge base not initialized. Run superpowers-memory:rebuild to generate it from the codebase." +
+      "Project knowledge base not initialized. Run $superpowers-memory:ingest bootstrap to create it." +
         STANDING_PRIMER
     );
   }
@@ -797,7 +797,7 @@ function buildSessionStartOutput() {
   if (!indexPath) {
     return hookPayload(
       "SessionStart",
-      "Project knowledge base exists but no index file was found. Run superpowers-memory:rebuild to regenerate the knowledge base." +
+      "Project knowledge base exists but no index file was found. Run $superpowers-memory:ingest full-refresh to regenerate the knowledge base." +
         STANDING_PRIMER
     );
   }
@@ -813,13 +813,13 @@ function buildSessionStartOutput() {
 // Per-skill advisory messages. Adding a new skill = adding one map entry.
 const skillAdvisory = {
   "superpowers:brainstorming":
-    "Run superpowers-memory:load before brainstorming to understand the project context.",
+    "Run $superpowers-memory:query before brainstorming to understand the project context.",
   "superpowers:writing-plans":
-    "Run superpowers-memory:load before writing plans to understand the project context.",
+    "Run $superpowers-memory:query before writing plans to understand the project context.",
   "superpowers:executing-plans":
-    "Run superpowers-memory:load before executing this plan to understand the project context.",
+    "Run $superpowers-memory:query before executing this plan to understand the project context.",
   "superpowers:subagent-driven-development":
-    "Run superpowers-memory:load before dispatching subagents to understand the project context.",
+    "Run $superpowers-memory:query before dispatching subagents to understand the project context.",
   // Sentinel: actual content is built by buildFinishingRichContext() inside
   // buildPreToolUseOutput when KB does not cover HEAD. When KB does cover,
   // this string is used as the soft reminder.
@@ -909,8 +909,8 @@ function buildPreToolUseOutput(input) {
 
   if (!kbReady) {
     const reason = kbExists
-      ? "Project knowledge base exists but the index file is missing. You MUST run superpowers-memory:rebuild before using this workflow."
-      : "Project knowledge base not initialized. You MUST run superpowers-memory:rebuild before using this workflow.";
+      ? "Project knowledge base exists but the index file is missing. You MUST run $superpowers-memory:ingest full-refresh before using this workflow."
+      : "Project knowledge base not initialized. You MUST run $superpowers-memory:ingest bootstrap before using this workflow.";
     return { decision: "block", reason };
   }
 
@@ -940,10 +940,14 @@ function buildUserPromptSubmitOutput(input) {
     const indexPath = findIndexPath();
     const kbReady = kbExists && indexPath;
     if (!kbReady) {
+      const message = kbExists
+        ? "Project knowledge base exists but no index file was found. " +
+          "Run $superpowers-memory:ingest full-refresh before invoking $superpowers:finishing-a-development-branch."
+        : "Knowledge base missing at docs/project-knowledge/. " +
+          "Run $superpowers-memory:ingest bootstrap before invoking $superpowers:finishing-a-development-branch.";
       return hookPayload(
         "UserPromptSubmit",
-        "Knowledge base missing at docs/project-knowledge/. " +
-          "Run $superpowers-memory:rebuild before invoking finishing-a-development-branch."
+        message
       );
     }
     return classifyFinishingState("UserPromptSubmit");
@@ -952,7 +956,7 @@ function buildUserPromptSubmitOutput(input) {
   if (BRAINSTORM.test(prompt)) {
     return hookPayload(
       "UserPromptSubmit",
-      "Before brainstorming, invoke $superpowers-memory:load to ground the discussion in current project knowledge."
+      "Before brainstorming, invoke $superpowers-memory:query to ground the discussion in current project knowledge."
     );
   }
 
@@ -1137,10 +1141,9 @@ function handleWritePreToolUse(toolName, toolInput) {
       permissionDecision: "deny",
       permissionDecisionReason:
         "Direct edits to docs/project-knowledge/ are forbidden. " +
-        "This directory is owned by superpowers-memory:update " +
-        "(or superpowers-memory:rebuild for full regeneration). " +
+        "This directory is owned by $superpowers-memory:ingest. " +
         "To record an architectural decision: document it in your plan/spec under " +
-        "docs/superpowers/plans/, then run superpowers-memory:update to materialize " +
+        "docs/superpowers/plans/, then run $superpowers-memory:ingest to materialize " +
         "the entry per content-rules.md. " +
         "(blocked tool=" + toolName + ", path=" + relFromRepo + ")",
     },
