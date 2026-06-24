@@ -797,6 +797,42 @@ function countSequenceDiagramsMissingSourceRefs(content) {
   return missing;
 }
 
+function isArchitectureDetailShard(filename) {
+  return /^architecture-.+\.md$/.test(filename) &&
+    filename !== "architecture-contexts.md" &&
+    filename !== "architecture-flows.md";
+}
+
+function isScenarioArchitectureShard(filename, content) {
+  if (!isArchitectureDetailShard(filename)) return false;
+  return /\bsequenceDiagram\b/i.test(content) ||
+    /\b(Participants|Sequence Phases|Authority Boundaries|Ordering \/ Idempotency \/ Failure Rules)\b/i.test(content);
+}
+
+function isModuleArchitectureShard(filename, content) {
+  if (!isArchitectureDetailShard(filename) || isScenarioArchitectureShard(filename, content)) return false;
+  return /\b(Module Identity|Internal Architecture Model|Responsibility|Path \/ entry|Scenario refs?)\b/i.test(content);
+}
+
+function hasModuleScenarioRefs(content) {
+  return /^.*\bScenario refs?:.*architecture-[a-z0-9][a-z0-9-]*\.md.*$/im.test(content);
+}
+
+function hasScenarioModuleRefs(content) {
+  return /^.*\bModule refs?:.*architecture-[a-z0-9][a-z0-9-]*\.md.*$/im.test(content);
+}
+
+function missingScenarioArchitectureFields(content) {
+  const missing = [];
+  if (!/\bParticipants\b/i.test(content)) missing.push("Participants");
+  if (!/\b(?:Sequence Phases|Phases)\b/i.test(content)) missing.push("Sequence Phases");
+  if (!/\bAuthority Boundaries\b/i.test(content)) missing.push("Authority Boundaries");
+  if (!/\b(?:Ordering \/ Idempotency \/ Failure Rules|Ordering|Idempotency|Failure Rules|Failure)\b/i.test(content)) {
+    missing.push("Ordering / Idempotency / Failure Rules");
+  }
+  return missing;
+}
+
 function lintArchitectureCoverage(files) {
   const signals = inspectRepoArchitectureSignals();
   if (!signals.isComplex) return [];
@@ -817,6 +853,8 @@ function lintArchitectureCoverage(files) {
   const legacyViewShardFiles = architectureFiles
     .map(([filename]) => filename)
     .filter((filename) => filename === "architecture-contexts.md" || filename === "architecture-flows.md");
+  const moduleShardFiles = architectureFiles.filter(([filename, content]) => isModuleArchitectureShard(filename, content));
+  const scenarioShardFiles = architectureFiles.filter(([filename, content]) => isScenarioArchitectureShard(filename, content));
 
   const architectureText = architectureFiles.map(([, content]) => content).join("\n\n");
   const sequenceCount = (architectureText.match(/\bsequenceDiagram\b/g) || []).length;
@@ -857,6 +895,15 @@ function lintArchitectureCoverage(files) {
     });
   }
 
+  if (expectedCards > 0 && moduleShardFiles.length === 0) {
+    findings.push({
+      kind: "architecture_module_shards_missing",
+      sample: "Complex repo architecture has no dedicated module shard; create architecture-<module>.md files for high-value services/bounded contexts that need direct query answers",
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture-<module>.md",
+    });
+  }
+
   if (serviceCardCount >= expectedCards && shallowServiceCardCount > 0) {
     findings.push({
       kind: "architecture_service_cards_shallow",
@@ -876,6 +923,15 @@ function lintArchitectureCoverage(files) {
     });
   }
 
+  if (expectedSequences > 0 && scenarioShardFiles.length === 0) {
+    findings.push({
+      kind: "architecture_scenario_shards_missing",
+      sample: "Complex repo architecture has no dedicated named scenario shard; create architecture-<scenario>.md files for high-value cross-service flows",
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
+    });
+  }
+
   if (scenarioWithoutRefsCount > 0) {
     findings.push({
       kind: "architecture_scenario_refs_missing",
@@ -883,6 +939,44 @@ function lintArchitectureCoverage(files) {
       signals,
       suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
     });
+  }
+
+  if (moduleShardFiles.length > 0 && scenarioShardFiles.length > 0) {
+    const modulesMissingScenarioRefs = moduleShardFiles
+      .filter(([, content]) => !hasModuleScenarioRefs(content))
+      .map(([filename]) => filename);
+    if (modulesMissingScenarioRefs.length > 0) {
+      findings.push({
+        kind: "architecture_module_scenario_refs_missing",
+        sample: `Module shard(s) missing Scenario refs back to named scenario shards: ${modulesMissingScenarioRefs.join(", ")}`,
+        signals,
+        suggestedOwner: "docs/project-knowledge/architecture-<module>.md",
+      });
+    }
+
+    const scenariosMissingModuleRefs = scenarioShardFiles
+      .filter(([, content]) => !hasScenarioModuleRefs(content))
+      .map(([filename]) => filename);
+    if (scenariosMissingModuleRefs.length > 0) {
+      findings.push({
+        kind: "architecture_scenario_module_refs_missing",
+        sample: `Scenario shard(s) missing Module refs back to participating module shards: ${scenariosMissingModuleRefs.join(", ")}`,
+        signals,
+        suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
+      });
+    }
+  }
+
+  for (const [filename, content] of scenarioShardFiles) {
+    const missing = missingScenarioArchitectureFields(content);
+    if (missing.length > 0) {
+      findings.push({
+        kind: "architecture_scenario_fields_missing",
+        sample: `${filename} missing scenario field(s): ${missing.join(", ")}`,
+        signals,
+        suggestedOwner: `docs/project-knowledge/${filename}`,
+      });
+    }
   }
 
   if (signals.dddContextCount > 0 && stateDiagramCount === 0) {

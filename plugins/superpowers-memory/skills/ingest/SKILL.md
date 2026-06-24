@@ -61,12 +61,12 @@ If any answer requires broad cross-file inference, add or refine the relevant ow
 Use existing owner files first, but architecture full-refresh should converge on a module-first + named scenario layout:
 
 - `architecture.md` — overview/router: topology, context map, shard links, compact cards/scenarios only when they fit.
-- `architecture-<module>.md` — one high-value service, bounded context, or main module. Example: `architecture-orchestrator.md`.
-- `architecture-<scenario>.md` — one stable cross-service scenario or flow family. Example: `architecture-runtime-message-chain.md`.
+- `architecture-<module>.md` — one high-value service, bounded context, or main module. Use `templates/architecture-module.md`. Example: `architecture-orchestrator.md`.
+- `architecture-<scenario>.md` — one stable cross-service scenario or flow family. Use `templates/architecture-scenario.md`. Example: `architecture-runtime-message-chain.md`.
 
 Do not create shards by document view or diagram type. `architecture-contexts.md` and `architecture-flows.md` are legacy view shards: if full-refresh sees them, migrate durable facts into module shards and named scenario shards, then route those shards from `index.md`.
 
-For cross-service features such as "Portal to Executor complete message chain", do not split the end-to-end sequence across participating service shards. Put the complete chain in one `architecture-<scenario>.md` shard with participants, phases, authority boundaries, ordering/idempotency/failure rules, and source refs. Each participating `architecture-<module>.md` shard should link back to that scenario shard.
+For cross-service features such as "Portal to Executor complete message chain", do not split the end-to-end sequence across participating service shards. Put the complete chain in one `architecture-<scenario>.md` shard with `Participants`, `Sequence Phases`, `Authority boundaries`, `Ordering / Idempotency / Failure Rules`, `Module refs`, and `Source refs`. Each participating `architecture-<module>.md` shard should include `Scenario refs` that link back to that scenario shard.
 
 Create or refresh a shard only when a high-value object cannot be answered cleanly from the canonical owner file without making it noisy. Do not create shards for every package, helper, or low-risk implementation detail.
 

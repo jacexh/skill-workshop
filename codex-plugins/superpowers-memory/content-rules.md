@@ -66,8 +66,8 @@ Split by stable domain, bounded context, submodule, platform capability, deploy 
 Architecture splitting has a stricter rule: use a **module-first + named scenario** layout.
 
 - `architecture.md` is the architecture overview and router: topology, context map, shard links, and only the cards/scenarios that are small enough to keep the overview useful.
-- `architecture-<module>.md` owns one high-value service, bounded context, or main module, for example `architecture-orchestrator.md` or `architecture-dispatcher.md`.
-- `architecture-<scenario>.md` owns one stable cross-service scenario or flow family, for example `architecture-runtime-message-chain.md` or `architecture-portal-to-executor.md`.
+- `architecture-<module>.md` owns one high-value service, bounded context, or main module, for example `architecture-orchestrator.md` or `architecture-dispatcher.md`. Use `templates/architecture-module.md`.
+- `architecture-<scenario>.md` owns one stable cross-service scenario or flow family, for example `architecture-runtime-message-chain.md` or `architecture-portal-to-executor.md`. Use `templates/architecture-scenario.md`.
 
 Do not create architecture shards by document view or diagram type. `architecture-contexts.md` and `architecture-flows.md` are legacy view shards: keep them readable if already present, but full-refresh ingest should migrate their durable facts into module shards and named scenario shards.
 
@@ -121,6 +121,8 @@ When the calibration applies, `architecture.md` plus reachable module/scenario s
 5. **Source traceability** — every module card and scenario has stable source refs: ADR/spec/plan/doc paths plus canonical source/proto/config paths.
 
 Before finalizing architecture files, run an answerability self-check for the top 3-5 high-value services/bounded contexts and flows. The KB should directly answer their internal architecture/layering, participating scenarios, key state/lifecycle/invariants, and validation source refs. If the answer requires broad cross-file inference, refine the owner entry or shard.
+
+Module shards should include `Scenario refs` linking to named scenario shards they participate in. Scenario shards should include `Module refs` linking back to participating module shards. Scenario shards must preserve `Authority Boundaries` and `Ordering / Idempotency / Failure Rules`; a sequence diagram plus source refs is not enough for query-grade architecture when those rules shape future changes.
 
 Use these discovery cues during bootstrap/full-refresh:
 
@@ -395,7 +397,7 @@ Never delete still-valid project knowledge solely to satisfy a line count or tok
 - `sizeWarnings` — hot-path `index.md` line threshold only.
 - `retrievalCost` — advisory estimated retrieval cost for recognized KB entry files and shards.
 - `splitCandidates` — advisory list of large non-index files that may deserve vertical splitting.
-- `coverageGaps` — advisory architecture answerability gaps for complex repos, such as missing module cards/shards, shallow cards that only name generic code layers, too few named cross-service scenarios, scenario diagrams missing local source refs, legacy view shards (`architecture-contexts.md` / `architecture-flows.md`), missing lifecycle/FSM coverage, or missing source refs. These do not affect `verify.ok`; they are suggested ingest targets.
+- `coverageGaps` — advisory architecture answerability gaps for complex repos, such as missing module cards/shards, missing scenario shards, shallow cards that only name generic code layers, too few named cross-service scenarios, scenario diagrams missing local source refs, legacy view shards (`architecture-contexts.md` / `architecture-flows.md`), missing module/scenario cross-references, scenario authority/order/failure field gaps, missing lifecycle/FSM coverage, or missing source refs. These do not affect `verify.ok`; they are suggested ingest targets.
 
 ## Retrieval Cost
 

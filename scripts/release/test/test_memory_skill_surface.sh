@@ -54,6 +54,16 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing module architecture shard guidance"
   grep -q "architecture-<scenario>.md" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing named scenario shard guidance"
+  grep -q "architecture-module.md" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing dedicated module template guidance"
+  grep -q "architecture-scenario.md" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing dedicated scenario template guidance"
+  grep -q "Module refs" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing scenario-to-module reference guidance"
+  grep -q "Scenario refs" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing module-to-scenario reference guidance"
+  grep -q "Authority boundaries" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing scenario authority boundary guidance"
   if grep -Eq '^- `architecture-(contexts|flows)\.md` —' "$base/ingest/SKILL.md"; then
     fail "$track ingest still recommends legacy architecture view shards"
   fi
@@ -69,6 +79,10 @@ for track in plugins codex-plugins; do
   grep -q "answerability gap" "$base/lint/SKILL.md" || fail "$track lint missing answerability gap reason"
   grep -q "legacy view shards" "$base/lint/SKILL.md" \
     || fail "$track lint missing legacy architecture shard advisory"
+  grep -q "module/scenario cross-references" "$base/lint/SKILL.md" \
+    || fail "$track lint missing module/scenario cross-reference advisory"
+  grep -q "scenario authority/order/failure" "$base/lint/SKILL.md" \
+    || fail "$track lint missing scenario semantic field advisory"
   grep -q "orphan/unreachable shards" "$base/lint/SKILL.md" \
     || fail "$track lint missing orphan shard health check"
   grep -q "missing cross-references" "$base/lint/SKILL.md" \
@@ -104,6 +118,23 @@ for track in plugins codex-plugins; do
     || fail "$track architecture template missing per-scenario source refs guidance"
   grep -q "architecture owner/shard" "$templates/features.md" \
     || fail "$track features template missing architecture owner/shard references"
+
+  # Dedicated shard templates should make module/scenario files stronger than
+  # loose copies of architecture.md sections.
+  [ -f "$templates/architecture-module.md" ] \
+    || fail "$track missing architecture-module.md template"
+  [ -f "$templates/architecture-scenario.md" ] \
+    || fail "$track missing architecture-scenario.md template"
+  grep -q "Internal Architecture Model" "$templates/architecture-module.md" \
+    || fail "$track module template missing internal architecture model"
+  grep -q "Scenario refs" "$templates/architecture-module.md" \
+    || fail "$track module template missing scenario refs"
+  grep -q "Authority Boundaries" "$templates/architecture-scenario.md" \
+    || fail "$track scenario template missing authority boundaries"
+  grep -q "Ordering / Idempotency / Failure Rules" "$templates/architecture-scenario.md" \
+    || fail "$track scenario template missing ordering/idempotency/failure rules"
+  grep -q "Module refs" "$templates/architecture-scenario.md" \
+    || fail "$track scenario template missing module refs"
 done
 
 # Runtime hook guidance should mention only primary memory skills, not compatibility names.
@@ -137,6 +168,10 @@ grep -q "module-first" "$ROOT/plugins/superpowers-memory/content-rules.md" \
   || fail "content-rules missing module-first architecture split rule"
 grep -q "named scenario" "$ROOT/plugins/superpowers-memory/content-rules.md" \
   || fail "content-rules missing named scenario architecture split rule"
+grep -q "architecture-module.md" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing dedicated module template"
+grep -q "architecture-scenario.md" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing dedicated scenario template"
 if grep -Eq '^- `architecture-(contexts|flows)\.md` —' "$ROOT/plugins/superpowers-memory/content-rules.md"; then
   fail "content-rules still recommends legacy architecture view shards"
 fi

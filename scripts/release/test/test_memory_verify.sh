@@ -171,11 +171,33 @@ shallow_architecture_out="$(cd "$shallow_architecture" && node "$ROOT/plugins/su
 echo "$shallow_architecture_out" | jq -e '.ok == true' >/dev/null
 echo "$shallow_architecture_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_shallow")' >/dev/null
 echo "$shallow_architecture_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_refs_missing")' >/dev/null
+echo "$shallow_architecture_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_module_shards_missing")' >/dev/null
+echo "$shallow_architecture_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_shards_missing")' >/dev/null
 
 shallow_architecture_codex_out="$(cd "$shallow_architecture" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
 echo "$shallow_architecture_codex_out" | jq -e '.ok == true' >/dev/null
 echo "$shallow_architecture_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_shallow")' >/dev/null
 echo "$shallow_architecture_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_refs_missing")' >/dev/null
+echo "$shallow_architecture_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_module_shards_missing")' >/dev/null
+echo "$shallow_architecture_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_shards_missing")' >/dev/null
+
+# Intent: dedicated module/scenario shards should not be hollow files. Module
+# shards must link to participating scenarios, scenario shards must link back
+# to modules, and scenario shards must preserve authority/order/failure
+# semantics that affect safe future changes.
+shard_crossrefs_gap="$TMPDIR/architecture-shard-crossrefs-gap"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/architecture-shard-crossrefs-gap" "$shard_crossrefs_gap"
+shard_crossrefs_gap_out="$(cd "$shard_crossrefs_gap" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$shard_crossrefs_gap_out" | jq -e '.ok == true' >/dev/null
+echo "$shard_crossrefs_gap_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_module_scenario_refs_missing")' >/dev/null
+echo "$shard_crossrefs_gap_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_module_refs_missing")' >/dev/null
+echo "$shard_crossrefs_gap_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_fields_missing")' >/dev/null
+
+shard_crossrefs_gap_codex_out="$(cd "$shard_crossrefs_gap" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$shard_crossrefs_gap_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$shard_crossrefs_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_module_scenario_refs_missing")' >/dev/null
+echo "$shard_crossrefs_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_module_refs_missing")' >/dev/null
+echo "$shard_crossrefs_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_fields_missing")' >/dev/null
 
 # Intent: architecture coverage should not be split only by document view
 # (`contexts` vs `flows`). Even when counts and source refs look complete,
