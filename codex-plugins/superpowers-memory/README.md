@@ -54,7 +54,7 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 
 `superpowers-memory` evaluates project knowledge by **Code Agent outcome**, not by document shape. A KB is valuable when it lets an agent answer real project questions more accurately, use fewer tokens, avoid wrong edits, and detect stale or uncertain facts. Markdown slots, ADR files, frontmatter, indexes, or shards are implementation mechanisms; they are not quality signals by themselves.
 
-For high-value project objects such as bounded contexts, services, major modules, product capabilities, or cross-service flows, the KB should support direct query answers about responsibility, internal layers, interactions, key state/flow rules, and source references. `ingest` applies this as Core Query Coverage during bootstrap/full-refresh, while `lint` reports advisory coverage gaps.
+For high-value project objects such as bounded contexts, services, major modules, product capabilities, or cross-service flows, the KB should support direct query answers about responsibility, internal layers, interactions, key state/flow rules, and source references. `ingest` applies this as Core Query Coverage during bootstrap/full-refresh and targeted incremental updates, while `lint` reports advisory wiki health and coverage gaps.
 
 If a sub-metric is not natural for a project's documentation shape, look for equivalent evidence. Mark it `N/A` only when the form is inapplicable and the underlying agent outcome is not harmed. Do not use `N/A` to hide missing capability.
 
@@ -86,9 +86,9 @@ Use the same 0-5 anchor for every dimension:
 
 - `index.md`, optional shard files, and lazy ADR detail files target retrieval and token efficiency.
 - `content-rules.md` defines fact ownership, exclusion rules, ADR gates, progressive knowledge layout, and per-file content boundaries.
-- `$superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work, and produces structured Memory candidates when a durable answer is missing; `$superpowers-memory:load` remains a compatibility alias.
-- `$superpowers-memory:ingest` writes stable project facts by forcing source review, owner routing, Core Query Coverage, exclusion checks, index regeneration, and verification before commit; `$superpowers-memory:update` and `$superpowers-memory:rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
-- `$superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory answerability gaps.
+- `$superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work, and produces structured Memory candidates when a durable answer is missing or a reusable durable synthesis should be preserved; `$superpowers-memory:load` remains a compatibility alias.
+- `$superpowers-memory:ingest` writes stable project facts by forcing source review, owner routing, targeted Core Query Coverage, exclusion checks, index regeneration, and verification before commit; `$superpowers-memory:update` and `$superpowers-memory:rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
+- `$superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
 - The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; KB writes must go through `$superpowers-memory:ingest` or its compatibility aliases.
 - `codex-runtime.js status` reports `covers_branch` versus current HEAD so Codex has stale-KB evidence even on prompt paths that cannot fire JIT hooks.
 - `codex-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, and commit readiness.

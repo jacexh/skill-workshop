@@ -21,6 +21,7 @@ When no concrete question is supplied, use this skill for orientation: read `ind
 7. Follow `See:`, `Related:`, ADR, spec, plan, or source references only when evidence is not yet sufficient.
 8. Stop when at least one owner entry answers the question, linked references do not contradict it, and the answer can name its source.
 9. If no owner entry directly answers a durable project question, answer with low confidence from the best evidence and emit a structured Memory candidate for `ingest`.
+10. If the answer creates a durable synthesis, comparison, or analysis that is likely to be reused, emit a structured Memory candidate even when the current answer is complete.
 
 ## Output
 
@@ -39,7 +40,8 @@ Next:
 [Optional source files or actions.]
 
 Memory candidate:
-[Optional; include only when a durable fact is missing, stale, contradictory, or not directly answerable.]
+[Optional; include only when a durable fact is missing, stale, contradictory, not directly answerable, or when a reusable durable synthesis should be preserved.]
+- Candidate type: <answerability gap | stale fact | contradiction | durable synthesis>
 - Missing answerability coverage: <question or high-value object not directly answered>
 - Suggested owner/shard: docs/project-knowledge/<owner-or-shard>.md
 - Candidate outline: <durable facts to add: responsibility, layers/components, interactions, state/flow/invariants, source refs>

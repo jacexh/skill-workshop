@@ -11,7 +11,7 @@ Write durable project facts into `docs/project-knowledge/`. This is the only nor
 
 ## Modes
 
-- **Incremental ingest:** default after a spec, plan, PR, or implementation branch. Read source documents first and update only affected owner files.
+- **Incremental ingest:** default after a spec, plan, PR, or implementation branch. Read source documents first and update only affected owner files. If changed sources introduce or materially change a high-value object, run targeted Core Query Coverage for that object.
 - **Bootstrap ingest:** use when `docs/project-knowledge/` does not exist. Read the project and create the initial owner files plus compact `index.md`.
 - **Full-refresh ingest:** use when `superpowers-memory:lint` reports high drift, owner-file structure is obsolete, or the user explicitly asks to regenerate target files.
 
@@ -29,7 +29,7 @@ Read sources in this order:
 
 ## Core Query Coverage
 
-During bootstrap and full-refresh, run a Core Query Coverage pass before writing target files. The goal is not to document every module; it is to make high-value project objects directly answerable by `query`.
+During bootstrap and full-refresh, run a Core Query Coverage pass before writing target files. During incremental ingest, run the same coverage check only for changed or newly introduced high-value objects. The goal is not to document every module; it is to make high-value project objects directly answerable by `query`.
 
 Treat an object as high-value when it is a bounded context, service, major module, product capability, or cross-service flow that is referenced by multiple specs, plans, ADRs, features, glossary terms, or source entry points.
 
@@ -53,7 +53,7 @@ node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" l
 
 2. Identify changed or requested source documents.
 3. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
-4. For bootstrap/full-refresh, run Core Query Coverage and add only targeted facts or shards needed for high-value objects.
+4. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. Add only targeted facts or shards needed for direct query answers.
 5. Route each fact to exactly one owner file per `content-rules.md`.
 6. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
 7. Update only affected owner files.

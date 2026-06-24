@@ -23,6 +23,10 @@ for track in plugins codex-plugins; do
     || fail "$track query missing answerability Memory candidate"
   grep -q "Suggested owner/shard" "$base/query/SKILL.md" \
     || fail "$track query missing suggested owner/shard"
+  grep -q "durable synthesis" "$base/query/SKILL.md" \
+    || fail "$track query missing durable synthesis candidate"
+  grep -q "Candidate type" "$base/query/SKILL.md" \
+    || fail "$track query missing Memory candidate type"
   grep -Eiq "no concrete question|no-question|no question" "$base/query/SKILL.md" \
     || fail "$track query missing no-question orientation behavior"
   grep -Eiq "orient" "$base/query/SKILL.md" \
@@ -36,6 +40,8 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing Core Query Coverage"
   grep -q "high-value" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing high-value object rule"
+  grep -q "changed/new high-value objects" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing incremental Core Query Coverage"
   grep -q "Internal layers/main components" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing core object layering question"
   grep -q "Upstream/downstream interactions" "$base/ingest/SKILL.md" \
@@ -46,6 +52,12 @@ for track in plugins codex-plugins; do
   grep -q "suggested ingest targets" "$base/lint/SKILL.md" || fail "$track lint missing ingest target output"
   grep -q "coverage gap" "$base/lint/SKILL.md" || fail "$track lint missing coverage gap advisory"
   grep -q "answerability gap" "$base/lint/SKILL.md" || fail "$track lint missing answerability gap reason"
+  grep -q "orphan/unreachable shards" "$base/lint/SKILL.md" \
+    || fail "$track lint missing orphan shard health check"
+  grep -q "missing cross-references" "$base/lint/SKILL.md" \
+    || fail "$track lint missing cross-reference health check"
+  grep -q "source/data gaps" "$base/lint/SKILL.md" \
+    || fail "$track lint missing source gap health check"
 
   # Compatibility aliases must continue to point at the LLM Wiki-aligned primary skills.
   grep -q "superpowers-memory:query" "$base/load/SKILL.md" || fail "$track load not pointing to query"
