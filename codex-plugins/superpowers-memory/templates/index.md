@@ -16,7 +16,7 @@ covers_branch: <branch>@<short-sha>
 
 - [architecture.md](architecture.md) — System topology, service cards, data/message flows
   Key points: [1-2 facts that help AI decide whether to load this file in full.
-               Good: "System topology here; Orchestrator card in architecture-contexts.md; delivery flows in architecture-flows.md"
+               Good: "System topology here; Orchestrator internals in architecture-orchestrator.md; Portal-to-Executor chain in architecture-runtime-message-chain.md"
                Bad: "system architecture information"]
 
 - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
@@ -37,9 +37,15 @@ covers_branch: <branch>@<short-sha>
   Key points: [1-2 facts. Good: "12 domain terms across 4 contexts"]
 
 <!-- Include split shard files ONLY when they exist and help route retrieval.
-     Use stable slot-domain names, e.g. architecture-runtime.md,
-     features-admin.md, conventions-testing.md. Omit placeholders. -->
+     Use stable slot-domain names. For architecture, prefer module-first and
+     named scenario shards, e.g. architecture-orchestrator.md,
+     architecture-runtime-message-chain.md, features-admin.md,
+     conventions-testing.md. Omit placeholders. -->
 
-- [architecture-<domain>.md](architecture-<domain>.md) — Focused architecture detail
+- [architecture-<module>.md](architecture-<module>.md) — Focused module/service architecture
   Key points: [1-2 facts that distinguish when to load this shard.
                Good: "Orchestrator responsibility, internal layers, upstream/downstream events, lifecycle rules, source refs"]
+
+- [architecture-<scenario>.md](architecture-<scenario>.md) — Focused cross-service scenario architecture
+  Key points: [1-2 facts that distinguish when to load this shard.
+               Good: "Portal-to-Executor runtime message chain phases, participants, authority boundaries, ordering rules, source refs"]

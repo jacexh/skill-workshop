@@ -16,6 +16,8 @@ No git init required — the `committable` field is only meaningful in a real re
 - **clean/** — minimal valid KB; all checks return empty violations. Includes `cmd/server/main.go` stub so staleRef check is quiet.
 - **architecture-coverage-gap/** — complex multi-service/DDD-shaped repo with a thin architecture summary; triggers advisory `coverageGaps` without failing `verify.ok`.
 - **architecture-shallow-coverage/** — complex multi-service/DDD-shaped repo whose card/diagram counts pass but service cards only name generic code layers and scenarios lack local source refs; triggers advisory answerability gaps without failing `verify.ok`.
+- **architecture-shard-crossrefs-gap/** — complex repo with dedicated module/scenario shards that miss required cross-links and scenario authority/order/failure fields; triggers module/scenario advisory gaps without failing `verify.ok`.
+- **architecture-view-shards-legacy/** — complex multi-service/DDD-shaped repo whose card/diagram counts and source refs pass but architecture detail is split by legacy view shards (`architecture-contexts.md`, `architecture-flows.md`); triggers advisory migration to module-first and named scenario shards without failing `verify.ok`.
 - **dense-features/** — `features.md` capability compressed into one oversized paragraph; triggers `feature_entry_too_dense`.
 - **legacy-adr-inline/** — old-style inline ADR rationale in `decisions.md`; triggers `legacy_adr_inline`.
 - **missing-adr-detail/** — ADR summary points to a missing on-demand detail file; triggers `adr_detail_missing`.

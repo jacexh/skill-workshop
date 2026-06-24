@@ -118,9 +118,17 @@ Density rules:
 
 - Do not compress away durable facts just to keep every file short.
 - Do not move hot-path detail into `index.md`.
-- If an owner file becomes too large, split by stable domain or subsystem, for example `features-runtime.md`, `features-marketplace.md`, or `architecture-hooks.md`.
+- If an owner file becomes too large, split by stable domain or subsystem, for example `features-runtime.md`, `features-marketplace.md`, or `conventions-testing.md`.
 - Shards must still have one owner category. A feature shard remains feature-owned; it should not mix decisions and glossary definitions.
 - Do not duplicate facts across owner files. Cross-reference the owner instead.
+
+Architecture has an additional shard rule for complex engineering repositories:
+
+- `architecture.md` is the overview/router: system topology, context map, shard links, and compact cards/scenarios only when they fit.
+- `architecture-<module>.md` owns one high-value service, bounded context, or main module, such as `architecture-orchestrator.md`, and should follow `templates/architecture-module.md`.
+- `architecture-<scenario>.md` owns one named cross-service scenario or flow family, such as `architecture-runtime-message-chain.md`, and should follow `templates/architecture-scenario.md`.
+- `architecture-contexts.md` and `architecture-flows.md` are legacy view shards. They may remain readable in old knowledge bases, but full-refresh ingest should migrate durable facts into module shards and named scenario shards.
+- Cross-service features such as "Portal to Executor complete message chain" are not split across each participating service page. The complete end-to-end sequence belongs in one named scenario shard, and each module shard links back to it. Module shards use `Scenario refs`; scenario shards use `Module refs`.
 
 Traversal rules:
 
@@ -218,10 +226,13 @@ Default ingest flow:
 1. Identify changed or requested source documents.
 2. Extract durable facts: capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle changes.
 3. Route facts to owner files.
-4. Validate factual anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
-5. Update only affected owner files.
-6. Regenerate `index.md` key points and routing if the changed facts affect routing.
-7. Optionally append a compact maintenance entry to `docs/project-knowledge/log.md` if the project has enabled a log.
+4. For architecture facts, run a coverage inventory: topology, module/service candidates, named cross-service scenarios, lifecycle objects, and source refs.
+5. Validate factual anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
+6. Update only affected owner files.
+7. Regenerate `index.md` key points and routing if the changed facts affect routing.
+8. Optionally append a compact maintenance entry to `docs/project-knowledge/log.md` if the project has enabled a log.
+
+Architecture ingest should not stop at generic service cards or isolated diagrams when the source material names richer structure. Module shards should preserve design-doc planes, subsystems, workflows, processors, policies, projections, scenario refs, and invariants when they exist. Named scenario shards should preserve participants, phases, authority boundaries, module refs, ordering/idempotency/failure rules, and source refs.
 
 `ingest` should not perform a full repository scan unless:
 
@@ -267,6 +278,7 @@ Default lint checks:
 - missing traversal links for shards or related owner entries
 - readiness warnings
 - retrieval cost and split candidates
+- architecture coverage gaps: missing module/scenario shards, shallow service cards, too few named scenarios, legacy view shards, missing module/scenario cross-refs, scenario semantic field gaps, scenario source-ref gaps, lifecycle gaps
 - likely ingest targets
 
 `lint` can run at three scopes:

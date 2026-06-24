@@ -20,7 +20,7 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 ## What This Plugin Does
 
-1. **Project Knowledge Base** — Maintains 6 core knowledge entry files (`docs/project-knowledge/`) covering architecture, tech stack, features, conventions, decisions, and domain glossary. Large projects can split any non-index entry file into focused shard files such as `architecture-runtime.md` or `features-admin.md`. Updated incrementally after each development iteration.
+1. **Project Knowledge Base** — Maintains 6 core knowledge entry files (`docs/project-knowledge/`) covering architecture, tech stack, features, conventions, decisions, and domain glossary. Large projects can split any non-index entry file into focused shard files. Architecture uses a stricter module-first + named scenario layout, such as `architecture-orchestrator.md` and `architecture-runtime-message-chain.md`; other slots use stable domain shards such as `features-admin.md`. Updated incrementally after each development iteration.
 
 2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading the underlying files.
 
@@ -89,16 +89,16 @@ docs/project-knowledge/
 ├── decisions.md      # Architecture Decision Records (summaries)
 ├── adr/              # Per-ADR rationale details (on-demand load)
 ├── glossary.md       # Domain terminology (Ubiquitous Language)
-└── <slot>-<domain>.md # Optional focused shards, e.g. architecture-runtime.md
+└── <slot>-<domain>.md # Optional focused shards, e.g. architecture-orchestrator.md
 ```
 
-`adr/` appears only when ADR details exist. Split shard files are optional and should be created by stable domain, submodule, bounded context, platform capability, or workflow boundary — never by arbitrary pagination.
+`adr/` appears only when ADR details exist. Split shard files are optional and should be created by stable domain, submodule, bounded context, platform capability, or workflow boundary — never by arbitrary pagination. Architecture shards should be module-first (`architecture-<module>.md`) or named scenario shards (`architecture-<scenario>.md`), not legacy view shards like `architecture-contexts.md` or `architecture-flows.md`.
 
 ## KB Quality Evaluation
 
 `superpowers-memory` evaluates project knowledge by **Code Agent outcome**, not by document shape. A KB is valuable when it lets an agent answer real project questions more accurately, use fewer tokens, avoid wrong edits, and detect stale or uncertain facts. Markdown slots, ADR files, frontmatter, indexes, or shards are implementation mechanisms; they are not quality signals by themselves.
 
-For high-value project objects such as bounded contexts, services, major modules, product capabilities, or cross-service flows, the KB should support direct query answers about responsibility, internal layers, interactions, key state/flow rules, and source references. For complex engineering repositories, architecture coverage should include a query-grade system topology, service architecture cards, core scenario sequences, lifecycle/FSM coverage, and source refs without becoming a full code tour. Service cards should capture stable architecture models from design docs, such as planes, subsystems, workflows, policies, processors, or projections, instead of stopping at generic code-layer labels when richer source material exists. Scenario diagrams should carry local source refs. `ingest` applies this as Core Query Coverage during bootstrap/full-refresh and targeted incremental updates, while `lint` reports advisory wiki health and coverage gaps.
+For high-value project objects such as bounded contexts, services, major modules, product capabilities, or cross-service flows, the KB should support direct query answers about responsibility, internal layers, interactions, key state/flow rules, and source references. For complex engineering repositories, architecture coverage should include a query-grade system topology, module/service architecture shards or compact cards, named scenario sequences, lifecycle/FSM coverage, and source refs without becoming a full code tour. Module shards should capture stable architecture models from design docs, such as planes, subsystems, workflows, policies, processors, or projections, instead of stopping at generic code-layer labels when richer source material exists. Named scenario shards should carry complete cross-service chains, authority boundaries, ordering/idempotency/failure rules, module refs, and local source refs. `ingest` applies this as Core Query Coverage during bootstrap/full-refresh and targeted incremental updates, while `lint` reports advisory wiki health and coverage gaps.
 
 If a sub-metric is not natural for a project's documentation shape, look for equivalent evidence. Mark it `N/A` only when the form is inapplicable and the underlying agent outcome is not harmed. Do not use `N/A` to hide missing capability.
 
@@ -134,7 +134,7 @@ Use the same 0-5 anchor for every dimension:
 - `superpowers-memory:ingest` forces source review, owner routing, targeted Core Query Coverage, architecture answerability self-checks, exclusion checks, index regeneration, and verification before commit; `update` and `rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
 - `superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
 - The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; KB writes must go through `superpowers-memory:ingest` or its compatibility aliases.
-- `hook-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, architecture coverage gaps including shallow service cards and missing scenario refs, and commit readiness.
+- `hook-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.
 - For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, advisory `coverageGaps`, and KB write-lock status.
 
 ## License
