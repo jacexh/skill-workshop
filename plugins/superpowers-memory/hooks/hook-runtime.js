@@ -814,6 +814,10 @@ function lintArchitectureCoverage(files) {
     return findings;
   }
 
+  const legacyViewShardFiles = architectureFiles
+    .map(([filename]) => filename)
+    .filter((filename) => filename === "architecture-contexts.md" || filename === "architecture-flows.md");
+
   const architectureText = architectureFiles.map(([, content]) => content).join("\n\n");
   const sequenceCount = (architectureText.match(/\bsequenceDiagram\b/g) || []).length;
   const stateDiagramCount = (architectureText.match(/\bstateDiagram-v2\b/g) || []).length;
@@ -834,13 +838,22 @@ function lintArchitectureCoverage(files) {
     });
   }
 
+  if (legacyViewShardFiles.length > 0) {
+    findings.push({
+      kind: "architecture_view_shards_legacy",
+      sample: `Found legacy architecture view shard(s): ${legacyViewShardFiles.join(", ")}. Prefer module-first shards such as architecture-orchestrator.md plus named scenario shards such as architecture-runtime-message-chain.md; do not split architecture detail by diagram/view type.`,
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture.md",
+    });
+  }
+
   const expectedCards = Math.min(3, Math.max(signals.deployableCount, signals.dddContextCount));
   if (expectedCards > 0 && serviceCardCount < expectedCards) {
     findings.push({
       kind: "architecture_service_cards_sparse",
       sample: `Found ${serviceCardCount} service architecture card(s); expected at least ${expectedCards} high-value card(s) for complex repo signals`,
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-contexts.md",
+      suggestedOwner: "docs/project-knowledge/architecture-<module>.md",
     });
   }
 
@@ -849,7 +862,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_service_cards_shallow",
       sample: `Found ${shallowServiceCardCount} service architecture card(s) whose internal components mostly name generic code layers; add named planes, subsystems, workflows, processors, projections, or other stable architecture components when source docs support them`,
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-contexts.md",
+      suggestedOwner: "docs/project-knowledge/architecture-<module>.md",
     });
   }
 
@@ -859,7 +872,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_scenarios_sparse",
       sample: `Found ${sequenceCount} sequenceDiagram(s); expected at least ${expectedSequences} high-value cross-service scenario(s) for complex repo signals`,
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-flows.md",
+      suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
     });
   }
 
@@ -868,7 +881,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_scenario_refs_missing",
       sample: `Found ${scenarioWithoutRefsCount} sequenceDiagram scenario(s) without local Source refs; each high-value flow should cite its ADR/spec/doc/source basis`,
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-flows.md",
+      suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
     });
   }
 
@@ -877,7 +890,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_lifecycle_missing",
       sample: "DDD/context signals found but no cross-context lifecycle/FSM coverage is present",
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-flows.md",
+      suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
     });
   }
 

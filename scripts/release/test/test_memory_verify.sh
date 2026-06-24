@@ -177,6 +177,20 @@ echo "$shallow_architecture_codex_out" | jq -e '.ok == true' >/dev/null
 echo "$shallow_architecture_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_shallow")' >/dev/null
 echo "$shallow_architecture_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_refs_missing")' >/dev/null
 
+# Intent: architecture coverage should not be split only by document view
+# (`contexts` vs `flows`). Even when counts and source refs look complete,
+# complex repos need module shards and named scenario shards so query can route
+# directly to service internals or an end-to-end message chain.
+legacy_view_shards="$TMPDIR/architecture-view-shards-legacy"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/architecture-view-shards-legacy" "$legacy_view_shards"
+legacy_view_shards_out="$(cd "$legacy_view_shards" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$legacy_view_shards_out" | jq -e '.ok == true' >/dev/null
+echo "$legacy_view_shards_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_view_shards_legacy")' >/dev/null
+
+legacy_view_shards_codex_out="$(cd "$legacy_view_shards" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$legacy_view_shards_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$legacy_view_shards_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_view_shards_legacy")' >/dev/null
+
 # Intent: index.md remains the only strict size-constrained hot-path file
 # because it is injected at session start.
 oversized_index="$TMPDIR/oversized-index"

@@ -50,6 +50,13 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing architecture answerability self-check"
   grep -q "generic \`domain/application/infrastructure\` labels" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing generic layer depth guard"
+  grep -q "architecture-<module>.md" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing module architecture shard guidance"
+  grep -q "architecture-<scenario>.md" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing named scenario shard guidance"
+  if grep -Eq '^- `architecture-(contexts|flows)\.md` —' "$base/ingest/SKILL.md"; then
+    fail "$track ingest still recommends legacy architecture view shards"
+  fi
 
   # Lint must remain read-only while surfacing coverage gaps as suggested ingest work.
   grep -q "without writing" "$base/lint/SKILL.md" || fail "$track lint missing read-only rule"
@@ -60,6 +67,8 @@ for track in plugins codex-plugins; do
   grep -q "local source refs" "$base/lint/SKILL.md" \
     || fail "$track lint missing local scenario source-ref advisory"
   grep -q "answerability gap" "$base/lint/SKILL.md" || fail "$track lint missing answerability gap reason"
+  grep -q "legacy view shards" "$base/lint/SKILL.md" \
+    || fail "$track lint missing legacy architecture shard advisory"
   grep -q "orphan/unreachable shards" "$base/lint/SKILL.md" \
     || fail "$track lint missing orphan shard health check"
   grep -q "missing cross-references" "$base/lint/SKILL.md" \
@@ -75,8 +84,16 @@ for track in plugins codex-plugins; do
   # Templates must route high-value objects to query-answerable owner files or shards.
   grep -q "high-value project objects" "$templates/index.md" \
     || fail "$track index template missing high-value object routing"
+  grep -q "architecture-<module>.md" "$templates/index.md" \
+    || fail "$track index template missing module architecture shard route"
+  grep -q "architecture-<scenario>.md" "$templates/index.md" \
+    || fail "$track index template missing scenario architecture shard route"
   grep -q "CORE QUERY COVERAGE" "$templates/architecture.md" \
     || fail "$track architecture template missing Core Query Coverage"
+  grep -q "module-first" "$templates/architecture.md" \
+    || fail "$track architecture template missing module-first guidance"
+  grep -q "named scenario" "$templates/architecture.md" \
+    || fail "$track architecture template missing named scenario guidance"
   grep -q "Interactions:" "$templates/architecture.md" \
     || fail "$track architecture template missing interactions field"
   grep -q "Source refs:" "$templates/architecture.md" \
@@ -116,6 +133,13 @@ grep -q "Core Query Coverage" "$ROOT/plugins/superpowers-memory/content-rules.md
   || fail "content-rules missing Core Query Coverage"
 grep -q "high-value project objects" "$ROOT/plugins/superpowers-memory/content-rules.md" \
   || fail "content-rules missing high-value object coverage"
+grep -q "module-first" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing module-first architecture split rule"
+grep -q "named scenario" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing named scenario architecture split rule"
+if grep -Eq '^- `architecture-(contexts|flows)\.md` —' "$ROOT/plugins/superpowers-memory/content-rules.md"; then
+  fail "content-rules still recommends legacy architecture view shards"
+fi
 
 # Skill examples must invoke the matching runtime for each plugin track.
 grep -q 'hook-runtime.js" lint' "$ROOT/plugins/superpowers-memory/skills/lint/SKILL.md" \

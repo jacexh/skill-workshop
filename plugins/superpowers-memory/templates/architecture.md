@@ -36,10 +36,20 @@ triggered_by_plan: null
      async flows, runtime orchestration, plugin/runtime extension points, or
      many ADRs), architecture must be a query-grade map:
      - system topology / context map
-     - service architecture cards for high-value services/BCs
-     - scenario sequences for core cross-service flows
+     - module-first service/BC/main-module shards or compact cards
+     - named scenario shards or sections for core cross-service flows
      - lifecycle/FSM coverage for cross-context state
      - source refs for every card and local Source refs after each scenario diagram
+
+     SPLIT RULE:
+     - architecture.md is the overview/router.
+     - Use architecture-<module>.md for one high-value service, bounded context,
+       or main module: architecture-orchestrator.md, architecture-dispatcher.md.
+     - Use architecture-<scenario>.md for one named cross-service flow:
+       architecture-runtime-message-chain.md, architecture-portal-to-executor.md.
+     - Do NOT split by document view or diagram type. architecture-contexts.md
+       and architecture-flows.md are legacy view shards; full-refresh should
+       migrate durable facts into module and named scenario shards.
 
      This is NOT a full code tour. Do not document every package, helper,
      method, enum, route, SQL table, or config constant.
@@ -95,11 +105,11 @@ graph TD
 - [e.g., "Upper layers call lower directly (ConnectRPC); lower layers publish events, never call back"]
 - [e.g., "Within a BC, Domain has no storage/transport/framework imports"]
 
-## Service Architecture Cards
+## Module Architecture Cards
 
 <!-- Conditional but expected for complex repos.
 
-     For each high-value service/bounded context:
+     For each high-value service/bounded context/main module:
      - responsibility and explicit non-responsibility
      - path/entry
      - internal layers/main components (names only; no method signatures or field lists)
@@ -111,9 +121,11 @@ graph TD
 
      GRANULARITY RULE:
      - Use cards only for high-value services/BCs/modules, not every package.
-     - Split to `architecture-<domain>.md` when cards plus flows would make this
-       overview noisy. Link the shard from index.md and this section.
-     - A service card should usually fit in 6-9 short lines. -->
+     - Split to `architecture-<module>.md` when a module's internal architecture,
+       planes, policies, workflows, processors, read models, or invariants need
+       direct query-grade explanation.
+     - Link module shards from index.md and this section.
+     - A compact card should usually fit in 6-9 short lines. -->
 
 #### [Service / Bounded Context Name]
 **Responsibility:** [what it owns; include "does not own ..." when that prevents wrong edits]
@@ -121,9 +133,10 @@ graph TD
 **Internal layers / components:** [Domain/Application/Infrastructure/read-model/worker/projection names only]
 **Interactions:** [upstream/downstream callers, events, APIs, storage, or external systems]
 **State / invariants:** [owned state, lifecycle, ordering, idempotency, authorization, or consistency rule]
-**Source refs:** [ADR/spec/plan/docs/source paths, or focused `architecture-<domain>.md` shard]
+**Scenario refs:** [named `architecture-<scenario>.md` shards this module participates in, if any]
+**Source refs:** [ADR/spec/plan/docs/source paths, or focused `architecture-<module>.md` shard]
 
-## Scenario Sequences
+## Named Scenario Sequences
 
 <!-- Use See:/Related: links to decisions, features, conventions, and source files when a query reader needs to traverse from structure to rationale or behavior. -->
 
@@ -133,7 +146,12 @@ graph TD
      architectural lifecycle. Prefer scenarios that exercise call direction,
      ownership transfer, async delivery, read-model projection, auth, runtime
      execution, ingest, artifact/file handling, or observability rules.
-     Every scenario should include Source refs after the diagram. -->
+     Every scenario should include Source refs after the diagram.
+
+     A cross-service feature such as Portal -> Executor runtime delivery should
+     NOT be scattered across service shards. Put the complete end-to-end chain in
+     a named scenario shard such as architecture-runtime-message-chain.md, then
+     link that shard back to the participating module shards. -->
 
 ### [Scenario A name]
 
