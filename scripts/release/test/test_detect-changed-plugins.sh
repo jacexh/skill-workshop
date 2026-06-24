@@ -35,7 +35,7 @@ echo change >> "$dir/plugins/foo/x.md"
 git -C "$dir" add -A && git -C "$dir" commit -q -m c
 out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
 assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
-assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS="
+assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
 
 # Case 2: change Claude + Codex plugins (different names) + a docs file
 dir=$(setup_repo)
@@ -45,7 +45,7 @@ echo c >> "$dir/codex-plugins/baz/x.md"
 echo c >> "$dir/docs/x.md"
 git -C "$dir" add -A && git -C "$dir" commit -q -m c
 out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
-assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=bar"
+assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=bar foo"
 assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=baz foo"
 
 # Case 3: only docs change → both lists empty
@@ -64,5 +64,6 @@ echo c2 >> "$dir/plugins/foo/y.md"
 git -C "$dir" add -A && git -C "$dir" commit -q -m c2
 out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
 assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
+assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
 
 echo "  4 cases passed"

@@ -79,4 +79,13 @@ hash1=$(find "$dir" -name '*.json' | sort | xargs sha256sum | sha256sum)
 hash2=$(find "$dir" -name '*.json' | sort | xargs sha256sum | sha256sum)
 assert_eq "$hash1" "$hash2"
 
-echo "  5 cases passed"
+# Case 6: codex-only same-name change also bumps Claude manifest and marketplace entry
+dir=$(setup_repo)
+( cd "$dir" && NEXT=6.0.0 CLAUDE_PLUGINS= CODEX_PLUGINS=foo bash "$SCRIPT" )
+assert_eq "$(jq -r .metadata.version "$dir/.claude-plugin/marketplace.json")" "6.0.0"
+assert_eq "$(jq -r '.plugins[]|select(.name=="foo").version' "$dir/.claude-plugin/marketplace.json")" "6.0.0"
+assert_eq "$(jq -r .version "$dir/plugins/foo/.claude-plugin/plugin.json")" "6.0.0"
+assert_eq "$(jq -r .version "$dir/codex-plugins/foo/.codex-plugin/plugin.json")" "6.0.0"
+assert_eq "$(jq -r .version "$dir/codex-plugins/foo/codex-hooks-snippet.json")" "6.0.0"
+
+echo "  6 cases passed"
