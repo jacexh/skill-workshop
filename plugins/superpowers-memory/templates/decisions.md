@@ -23,7 +23,13 @@ triggered_by_plan: null
      to the detail file.
 
      SUPERSEDE: collapse the entry to a single heading line; keep the detail file
-     with `superseded_by: ADR-MMM` added to its frontmatter. -->
+     with `superseded_by: ADR-MMM` added to its frontmatter.
+
+     Decision Query Coverage:
+     - Can query answer "why this design?" by reading the summary, then one ADR detail?
+     - Can query see the trade-off, affected owner files, and affected modules
+       without broad search?
+     - Do active ADR summaries link to on-demand `adr/ADR-NNN-*.md` detail files? -->
 
 # Decisions
 
@@ -56,6 +62,7 @@ SUMMARY FORMAT (default — 4 lines per ADR):
 ## ADR-NNN: [Decision Title]
 **Decision:** [What was decided, one sentence]
 **Trade-off:** [Known cost or limitation. "None" if none]
+**Affects:** [owner files or affects modules/features/conventions when useful]
 → [adr/ADR-NNN-<slug>.md](adr/ADR-NNN-<slug>.md)
 
 SUPERSEDE (1-line collapsed — replaces original when superseded):

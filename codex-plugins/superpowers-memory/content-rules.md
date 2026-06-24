@@ -38,6 +38,24 @@ Every fact in the KB has exactly one owner file. Other files reference the owner
 
 **Rule:** any claim ≥3 lines appearing in 2+ KB files MUST move to its owner, and the other files get a pointer (≤1 line).
 
+## Raw Source Authority
+
+Project Knowledge is generated from durable project sources, not from chat logs.
+For superpowers-based projects, specs/plans/ADRs are the primary raw sources:
+
+1. `docs/superpowers/specs/*.md` — durable design intent, boundaries, and trade-offs.
+2. `docs/superpowers/plans/*.md` — implementation scope and landed work; do not copy temporary step lists as long-term knowledge.
+3. ADRs and `docs/design/*.md` — stable decisions, rejected alternatives, consequences, and architecture background.
+4. README, user docs, runbooks, and operation docs — externally visible behavior and supported workflows.
+5. Code and diffs — validation sources for paths, names, contracts, and implementation status.
+6. Commit messages — weak hints only.
+
+Conversation is not a KB slot. Chat, transcript, meeting-note, or ad hoc discussion
+content can only become Project Knowledge after it is distilled into durable facts
+and routed to an existing owner file such as `features.md`, `architecture.md`,
+`decisions.md`, `conventions.md`, `glossary.md`, or a spec/plan/ADR. Prefer adding
+or updating a spec/plan/ADR before ingesting a conversational conclusion.
+
 ## Progressive Knowledge Layout
 
 `index.md` is the only always-injected hot-path file. Keep it small and scannable. All other KB files are storage and retrieval targets: valid knowledge MUST NOT be deleted merely to satisfy a line count or token estimate.
@@ -85,6 +103,98 @@ The Project Knowledge Base must support `query`, not only session-start orientat
 - Shards must be reachable from `index.md`; if a parent owner file exists, it also links to its shards.
 - Optional aliases are plain Markdown such as `Aliases: native hooks, Codex hooks, prompt router`.
 - Query answers should be supported by read owner/source entries, not by search snippets alone.
+
+## Incremental Ingest Guardrails
+
+Incremental ingest is for maintaining an already-good knowledge base. It should
+not pretend a narrow edit can repair a thin or poorly routed topic. Use these
+guardrails before writing:
+
+### Impact Radius
+
+For each durable changed fact, identify the owner file plus adjacent knowledge
+that must stay navigable:
+
+- Feature change → `features*.md`, related architecture owner/shard, related ADRs,
+  and `index.md` routing when the capability name, entry point, or domain changes.
+- Architecture module change → module shard/card, participating scenario shards,
+  `decisions.md` affected routing, and parent `architecture.md`/`index.md`.
+- Architecture scenario change → scenario shard, all participating module shards,
+  authority/order/failure rules, and `index.md`.
+- ADR change → `decisions.md`, ADR detail file, affected owner/shard references,
+  and any feature/convention/architecture entry that cites the ADR.
+- Convention/glossary/tech-stack change → the reference owner plus source refs,
+  affected ADR or architecture/feature entries, and glossary aliases when terms move.
+
+### Topic-scope refresh
+
+Topic-scope refresh is an `ingest` behavior, not a separate skill. Use it when
+incremental ingest touches a high-value module, scenario, capability, or decision
+family whose nearby owner files are too thin or poorly cross-linked. Refresh only
+the topic radius: the owner entry, direct shards, parent/index routes, affected
+ADR summaries, and source refs needed for query-grade answers.
+
+### Escalation Triggers
+
+Escalate from narrow incremental ingest to Topic-scope refresh when any of these
+remain true after the first pass:
+
+- Touched high-value object lacks responsibility, internal components, interactions,
+  state/flow/invariants, or source refs.
+- Touched architecture module and scenario shards lack bidirectional refs.
+- Touched feature domain has platform/operations facts but no product capability
+  or user/operator workflow coverage.
+- Touched ADR family has multiple active decisions without affected owner/module
+  routing, detail links, or explicit trade-offs.
+- Touched reference topic lacks convention source refs, glossary owner refs, or
+  tech-stack rationale.
+
+After incremental ingest or Topic-scope refresh, run targeted lint over the touched
+owner files and related shards. If targeted lint still reports answerability gaps,
+either fix the topic radius or record that a full-refresh is needed.
+
+### Feature Query Coverage
+
+Feature knowledge should answer product and workflow questions, not only name
+platform mechanisms. For non-trivial products, `features.md` and reachable
+`features-<domain>.md` shards should let `query` answer:
+
+- What can users/operators do now?
+- Which user workflow completes the capability end to end?
+- Which actor, route, RPC, CLI, job, or service is the entry point?
+- What is explicitly outside the capability boundary?
+- Which architecture shard, ADR, spec, or plan validates the answer?
+
+If implemented features contain platform/operations entries but no product
+capability entries, or enough surface area exists without any user/operator
+workflow entry, report an answerability gap instead of pretending the capability
+map is complete.
+
+### Decision Query Coverage
+
+Decision knowledge should answer "why this design?" and "what decision constrains
+this module?" without loading every ADR. `decisions.md` should keep each active ADR
+summary small, but each active ADR should still expose:
+
+- The decision in one sentence.
+- The trade-off or limitation in one sentence.
+- A link to the on-demand `adr/ADR-NNN-*.md` detail file when the decision passes
+  the ADR granularity gate.
+- Optional owner-file routing such as affected modules, features, or conventions
+  when that helps query traverse from current behavior to rationale.
+
+### Reference Query Coverage
+
+Reference slots (`conventions.md`, `glossary.md`, `tech-stack.md`) should be terse
+but anchored. Query should be able to move from a rule, term, or dependency to the
+canonical source that owns it:
+
+- Cross-cutting convention entries should point to the canonical implementation,
+  config, CI check, design-pattern file, or ADR.
+- Glossary entries should include owner/source refs (`→ path` or ADR) unless the
+  term is an explicit tombstone.
+- Tech-stack entries should include purpose and selection rationale for critical
+  dependencies, not only names and versions.
 
 ## Core Query Coverage
 

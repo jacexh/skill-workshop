@@ -12,6 +12,12 @@ triggered_by_plan: null
      Choose whichever fits the project better.
      Core constraint: every technology choice must include version and selection rationale. -->
 
+<!-- Reference Query Coverage:
+     - Can query answer what each critical dependency is for?
+     - Can query answer why the dependency or platform was chosen?
+     - Can query route from dependency to config, package manifest, ADR, or owner
+       file when the choice constrains future changes? -->
+
 # Tech Stack
 
 ## Languages & Frameworks

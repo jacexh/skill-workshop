@@ -15,6 +15,7 @@ for track in plugins codex-plugins; do
   for skill in query ingest lint load update rebuild; do
     [ -f "$base/$skill/SKILL.md" ] || fail "$track missing $skill skill"
   done
+  [ ! -e "$base/cleanup" ] || fail "$track must not publish cleanup skill"
 
   # Query must stay read-only while producing actionable ingest candidates for coverage gaps.
   grep -q "read-only" "$base/query/SKILL.md" || fail "$track query missing read-only rule"
@@ -25,6 +26,10 @@ for track in plugins codex-plugins; do
     || fail "$track query missing suggested owner/shard"
   grep -q "durable synthesis" "$base/query/SKILL.md" \
     || fail "$track query missing durable synthesis candidate"
+  grep -q "spec/plan/ADR" "$base/query/SKILL.md" \
+    || fail "$track query missing durable-source routing guidance"
+  grep -q "conversation is not a KB slot" "$base/query/SKILL.md" \
+    || fail "$track query missing conversation non-slot rule"
   grep -q "Candidate type" "$base/query/SKILL.md" \
     || fail "$track query missing Memory candidate type"
   grep -Eiq "no concrete question|no-question|no question" "$base/query/SKILL.md" \
@@ -36,12 +41,32 @@ for track in plugins codex-plugins; do
   grep -q "bootstrap" "$base/ingest/SKILL.md" || fail "$track ingest missing bootstrap mode"
   grep -q "full-refresh" "$base/ingest/SKILL.md" || fail "$track ingest missing full-refresh mode"
   grep -q "weak hints" "$base/ingest/SKILL.md" || fail "$track ingest missing commit-message downgrade"
+  grep -q "specs/plans/ADRs are the primary raw sources" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing primary raw-source rule"
+  grep -q "Conversation/chat/transcript is not a Project Knowledge slot" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing conversation non-slot rule"
   grep -q "Core Query Coverage" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing Core Query Coverage"
+  grep -q "Feature Query Coverage" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing feature query coverage"
+  grep -q "Decision Query Coverage" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing decision query coverage"
+  grep -q "Reference Query Coverage" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing reference query coverage"
   grep -q "high-value" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing high-value object rule"
   grep -q "changed/new high-value objects" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing incremental Core Query Coverage"
+  grep -q "Impact Radius" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing incremental Impact Radius"
+  grep -q "Topic-scope refresh" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing topic-scope refresh mode"
+  grep -q "Related owner sweep" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing related owner sweep"
+  grep -q "targeted lint" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing targeted lint after incremental ingest"
+  grep -q "Escalate to topic-scope refresh" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing topic refresh escalation trigger"
   grep -q "Internal layers/main components" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing core object layering question"
   grep -q "Upstream/downstream interactions" "$base/ingest/SKILL.md" \
@@ -83,12 +108,22 @@ for track in plugins codex-plugins; do
     || fail "$track lint missing module/scenario cross-reference advisory"
   grep -q "scenario authority/order/failure" "$base/lint/SKILL.md" \
     || fail "$track lint missing scenario semantic field advisory"
+  grep -q "feature product/workflow coverage" "$base/lint/SKILL.md" \
+    || fail "$track lint missing feature product/workflow advisory"
+  grep -q "decision detail/trade-off routing" "$base/lint/SKILL.md" \
+    || fail "$track lint missing decision routing advisory"
+  grep -q "reference owner/source gaps" "$base/lint/SKILL.md" \
+    || fail "$track lint missing non-architecture reference advisory"
   grep -q "orphan/unreachable shards" "$base/lint/SKILL.md" \
     || fail "$track lint missing orphan shard health check"
   grep -q "missing cross-references" "$base/lint/SKILL.md" \
     || fail "$track lint missing cross-reference health check"
   grep -q "source/data gaps" "$base/lint/SKILL.md" \
     || fail "$track lint missing source gap health check"
+  grep -q "topic-scope refresh" "$base/lint/SKILL.md" \
+    || fail "$track lint missing topic refresh escalation guidance"
+  grep -q "affected routing" "$base/lint/SKILL.md" \
+    || fail "$track lint missing decision affected routing advisory"
 
   # Compatibility aliases must continue to point at the LLM Wiki-aligned primary skills.
   grep -q "superpowers-memory:query" "$base/load/SKILL.md" || fail "$track load not pointing to query"
@@ -118,6 +153,20 @@ for track in plugins codex-plugins; do
     || fail "$track architecture template missing per-scenario source refs guidance"
   grep -q "architecture owner/shard" "$templates/features.md" \
     || fail "$track features template missing architecture owner/shard references"
+  grep -q "Feature Query Coverage" "$templates/features.md" \
+    || fail "$track features template missing feature query coverage"
+  grep -q "user workflow" "$templates/features.md" \
+    || fail "$track features template missing workflow answerability"
+  grep -q "Decision Query Coverage" "$templates/decisions.md" \
+    || fail "$track decisions template missing decision query coverage"
+  grep -q "affects modules" "$templates/decisions.md" \
+    || fail "$track decisions template missing affected-module routing"
+  grep -q "Reference Query Coverage" "$templates/conventions.md" \
+    || fail "$track conventions template missing reference query coverage"
+  grep -q "Reference Query Coverage" "$templates/glossary.md" \
+    || fail "$track glossary template missing reference query coverage"
+  grep -q "Reference Query Coverage" "$templates/tech-stack.md" \
+    || fail "$track tech-stack template missing reference query coverage"
 
   # Dedicated shard templates should make module/scenario files stronger than
   # loose copies of architecture.md sections.
@@ -172,6 +221,22 @@ grep -q "architecture-module.md" "$ROOT/plugins/superpowers-memory/content-rules
   || fail "content-rules missing dedicated module template"
 grep -q "architecture-scenario.md" "$ROOT/plugins/superpowers-memory/content-rules.md" \
   || fail "content-rules missing dedicated scenario template"
+grep -q "Conversation is not a KB slot" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing conversation non-slot rule"
+grep -q "Feature Query Coverage" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing feature query coverage"
+grep -q "Decision Query Coverage" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing decision query coverage"
+grep -q "Reference Query Coverage" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing reference query coverage"
+grep -q "Incremental Ingest Guardrails" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing incremental ingest guardrails"
+grep -q "Impact Radius" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing impact radius"
+grep -q "Topic-scope refresh" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing topic-scope refresh"
+grep -q "Escalation Triggers" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing escalation triggers"
 if grep -Eq '^- `architecture-(contexts|flows)\.md` —' "$ROOT/plugins/superpowers-memory/content-rules.md"; then
   fail "content-rules still recommends legacy architecture view shards"
 fi

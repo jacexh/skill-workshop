@@ -199,6 +199,34 @@ echo "$shard_crossrefs_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind ==
 echo "$shard_crossrefs_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_module_refs_missing")' >/dev/null
 echo "$shard_crossrefs_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_fields_missing")' >/dev/null
 
+# Intent: non-architecture KB slots must also surface query-answerability
+# gaps. A legal-looking KB that only has platform features, thin ADR
+# summaries, and unreferenced reference entries should produce ingest targets
+# without making verify fail.
+non_architecture_query_gaps="$TMPDIR/non-architecture-query-gaps"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/non-architecture-query-gaps" "$non_architecture_query_gaps"
+non_architecture_query_gaps_out="$(cd "$non_architecture_query_gaps" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$non_architecture_query_gaps_out" | jq -e '.ok == true' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "features_product_coverage_missing")' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "features_workflow_coverage_missing")' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_detail_links_missing")' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_tradeoffs_missing")' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_affected_routing_missing")' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "conventions_source_refs_missing")' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "tech_stack_rationale_missing")' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "glossary_owner_refs_missing")' >/dev/null
+
+non_architecture_query_gaps_codex_out="$(cd "$non_architecture_query_gaps" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "features_product_coverage_missing")' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "features_workflow_coverage_missing")' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_detail_links_missing")' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_tradeoffs_missing")' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_affected_routing_missing")' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "conventions_source_refs_missing")' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "tech_stack_rationale_missing")' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "glossary_owner_refs_missing")' >/dev/null
+
 # Intent: architecture coverage should not be split only by document view
 # (`contexts` vs `flows`). Even when counts and source refs look complete,
 # complex repos need module shards and named scenario shards so query can route

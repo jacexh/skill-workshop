@@ -10,7 +10,13 @@ triggered_by_plan: null
      System-level error strategy belongs in architecture.md.
 
      CONTENT EXCLUSION: Do not repeat rules already enforced by formatter/linter.
-     Principle: if the formatter handles it, don't repeat it here. -->
+     Principle: if the formatter handles it, don't repeat it here.
+
+     Reference Query Coverage:
+     - Can query move from each cross-cutting rule to the canonical source,
+       config, CI check, design pattern, or ADR?
+     - Does each non-obvious convention explain the boundary it protects without
+       duplicating architecture, feature, or generic design-pattern content? -->
 
 # Conventions
 

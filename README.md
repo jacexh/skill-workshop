@@ -138,8 +138,8 @@ This repo uses an automated release pipeline triggered when a pull request merge
    | `breaking/...`, `major/...` | major |
    | `fix/`, `hotfix/`, `bugfix/`, `feat/`, `feature/`, anything else | patch |
 
-2. Detects which plugins changed under `plugins/<name>/` and `codex-plugins/<name>/` (the two tracks are **independent** — same-named plugins on both sides may have divergent versions).
-3. Bumps the matching `version` fields in `marketplace.json` and each affected `plugin.json`. The marketplace's `metadata.version` always advances.
+2. Detects which plugins changed under `plugins/<name>/` and `codex-plugins/<name>/`. Same-named Claude Code and Codex plugin tracks are synchronized: changing either track bumps both manifests when both tracks exist.
+3. Bumps the matching `version` fields in `marketplace.json`, each affected `plugin.json`, and Codex hook snippets when present. The marketplace's `metadata.version` always advances.
 4. Commits the bump as `github-actions[bot]`, tags the new commit `vX.Y.Z`, and publishes a GitHub Release with auto-generated notes.
 
 > **Tag naming convention:** only `vX.Y.Z` semver tags should ever be created in this repo. Other tag patterns will confuse the auto-release pipeline's "latest tag" lookup.

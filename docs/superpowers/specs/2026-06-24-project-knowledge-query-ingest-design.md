@@ -75,9 +75,9 @@ The implementation should preserve old skill names as compatibility aliases:
 | `superpowers-memory:ingest` | `superpowers-memory:rebuild` | Bootstrap or full-refresh project knowledge |
 | `superpowers-memory:lint` | runtime `verify` behavior | Report structural, semantic, and retrieval defects |
 
-`cleanup` remains a maintenance-only hook cleanup skill where a platform still needs it. It is not part of the primary memory vocabulary.
+No `cleanup` skill is published by `superpowers-memory`. Platform cleanup remains script-only where needed, for example stale hook removal helpers, and is not part of the memory skill surface.
 
-The user-facing documentation should gradually prefer `query`, `ingest`, and `lint`. Existing automation may continue to call `load`, `update`, and `rebuild` until migrated.
+The user-facing documentation should prefer `query`, `ingest`, and `lint`. Existing automation may continue to call `load`, `update`, and `rebuild` through compatibility aliases until migrated.
 
 ## Terminology
 
@@ -90,8 +90,19 @@ The user-facing documentation should gradually prefer `query`, `ingest`, and `li
 - Memory candidate: a small proposed knowledge update emitted by `query` when it finds a gap or contradiction.
 - Query-grade density: enough content in owner files for an agent to answer useful repo questions before opening source code.
 - Traversal link: a Markdown link or named pointer that lets `query` move from an index entry to an owner entry, source document, ADR detail, shard, or source path.
+- Conversation: weak input material only. It is never a Project Knowledge slot. Durable conclusions from chat must be promoted into a spec, plan, ADR, source document, or an existing owner file before they become Project Knowledge.
 
 Avoid using "wiki" in generated project knowledge text unless the project domain itself uses that term.
+
+## Three-Layer Model
+
+This design implements the LLM Wiki three-layer pattern without renaming the product surface to "wiki":
+
+1. **Raw sources** — durable source material such as `docs/superpowers/specs/*.md`, `docs/superpowers/plans/*.md`, ADRs, design docs, READMEs, runbooks, public docs, and validated source code paths. Specs/plans/ADRs are the strongest raw sources for superpowers-based projects. Commit messages and conversations are weak hints only.
+2. **The Project Knowledge Base** — maintained Markdown owner files and shards under `docs/project-knowledge/`, optimized for agent query and traversal.
+3. **The schema** — `content-rules.md`, templates, runtime `verify`/`lint` checks, and skill instructions that define ownership, routing, answerability, and accepted file shapes.
+
+`query` reads the Project Knowledge Base and follows references back to raw sources when needed. `ingest` moves stable raw-source facts into the owner files. `lint` checks whether the Project Knowledge Base still satisfies the schema and can support query-grade answers.
 
 ## Knowledge Model
 
@@ -138,6 +149,14 @@ Traversal rules:
 - Optional aliases are plain Markdown, for example `Aliases: native hooks, Codex hooks, prompt router`. Do not add a separate alias database.
 - `query` may use text search over the Project Knowledge Base as a routing helper, but it answers from read owner/source entries, not from match snippets alone.
 - Source references should be stable enough for follow-up reads. Prefer docs, ADRs, plans, public entry points, and canonical source files over transient commit hashes.
+
+Non-architecture owner files have their own query-grade minimums:
+
+- `features.md` should include enough product/workflow capability coverage to answer "what can users or operators do now?", not only platform mechanisms.
+- `decisions.md` should keep compact ADR summaries with explicit trade-offs and links to ADR detail when detail is needed.
+- `conventions.md`, `glossary.md`, and `tech-stack.md` should stay terse but anchored with owner/source references and rationale for critical choices.
+
+Conversation, meeting notes, and transcript files are not owner files or shards. If a conversation produces a durable conclusion, `query` may emit a Memory candidate, but `ingest` should route it to a spec/plan/ADR or an existing owner file after validation.
 
 ## Query Behavior
 
@@ -203,11 +222,12 @@ Memory candidate:
 
 `ingest` replaces the mental model of "infer from recent git history" with "sync from stable source facts".
 
-`ingest` has three modes:
+`ingest` has four modes:
 
 1. Incremental ingest: default mode after a spec, plan, PR, or implementation branch. Reads source documents first and updates affected owner files.
-2. Bootstrap ingest: used when `docs/project-knowledge/` does not exist. Performs a full project read and creates the initial Project Knowledge Base.
-3. Full-refresh ingest: used when `lint` reports high drift, owner-file structure is obsolete, or the user explicitly asks to regenerate a target file or the whole knowledge base.
+2. Topic-scope refresh: bounded refresh of one high-value module, scenario, capability, or decision family when narrow incremental ingest exposes thin or poorly linked nearby knowledge.
+3. Bootstrap ingest: used when `docs/project-knowledge/` does not exist. Performs a full project read and creates the initial Project Knowledge Base.
+4. Full-refresh ingest: used when `lint` reports high drift, owner-file structure is obsolete, or the user explicitly asks to regenerate a target file or the whole knowledge base.
 
 The old `update` name maps to incremental ingest. The old `rebuild` name maps to bootstrap ingest when no knowledge base exists, or full-refresh ingest when one already exists.
 
@@ -225,14 +245,29 @@ Default ingest flow:
 
 1. Identify changed or requested source documents.
 2. Extract durable facts: capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle changes.
-3. Route facts to owner files.
-4. For architecture facts, run a coverage inventory: topology, module/service candidates, named cross-service scenarios, lifecycle objects, and source refs.
-5. Validate factual anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
-6. Update only affected owner files.
-7. Regenerate `index.md` key points and routing if the changed facts affect routing.
-8. Optionally append a compact maintenance entry to `docs/project-knowledge/log.md` if the project has enabled a log.
+3. For incremental ingest, run an Impact Radius pass before writing: identify the direct owner plus adjacent owner files/shards that must stay navigable.
+4. Route facts to owner files.
+5. For architecture facts, run a coverage inventory: topology, module/service candidates, named cross-service scenarios, lifecycle objects, and source refs.
+6. For feature facts, check product capability coverage and at least one user/operator workflow when the project has non-trivial surface area.
+7. For decision facts, check summary/detail routing, explicit trade-offs, and affected owner/module routing when multiple active decisions exist.
+8. For reference facts, check convention source refs, glossary owner refs, and tech-stack selection rationale.
+9. Validate factual anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
+10. Update only affected owner files, or the bounded topic radius when escalation is needed.
+11. Regenerate `index.md` key points and routing if the changed facts affect routing.
+12. Run targeted lint over touched owner files and related shards; fix relevant answerability gaps or record that topic/full refresh is needed.
+13. Optionally append a compact maintenance entry to `docs/project-knowledge/log.md` if the project has enabled a log.
 
 Architecture ingest should not stop at generic service cards or isolated diagrams when the source material names richer structure. Module shards should preserve design-doc planes, subsystems, workflows, processors, policies, projections, scenario refs, and invariants when they exist. Named scenario shards should preserve participants, phases, authority boundaries, module refs, ordering/idempotency/failure rules, and source refs.
+
+Incremental Impact Radius uses the smallest useful related set:
+
+- Feature change → `features*.md`, related architecture owner/shard, related ADRs, and `index.md` when routing changes.
+- Architecture module change → module shard/card, participating scenario shards, affected ADR routing, and parent `architecture.md`/`index.md`.
+- Architecture scenario change → scenario shard, participating module shards, authority/order/failure rules, and `index.md`.
+- ADR change → `decisions.md`, ADR detail file, affected owner/shard refs, and any feature/convention/architecture entry that cites the ADR.
+- Convention/glossary/tech-stack change → reference owner plus source refs, affected ADR or architecture/feature entries, and glossary aliases when terms move.
+
+Escalate from narrow incremental ingest to topic-scope refresh when a touched high-value object remains thin or poorly linked: missing responsibility, internal components, interactions, state/flow/invariants, source refs, bidirectional module/scenario refs, product/workflow feature coverage, ADR detail/trade-off/affected routing, or reference owner/source anchors.
 
 `ingest` should not perform a full repository scan unless:
 
@@ -279,6 +314,9 @@ Default lint checks:
 - readiness warnings
 - retrieval cost and split candidates
 - architecture coverage gaps: missing module/scenario shards, shallow service cards, too few named scenarios, legacy view shards, missing module/scenario cross-refs, scenario semantic field gaps, scenario source-ref gaps, lifecycle gaps
+- feature coverage gaps: platform/operations entries without product capability coverage, or non-trivial capability surface without user/operator workflow coverage
+- decision coverage gaps: active ADR summaries without detail links, explicit trade-off routing, or affected owner/module routing
+- reference coverage gaps: conventions without source refs, glossary terms without owner refs, or tech-stack entries without critical selection rationale
 - likely ingest targets
 
 `lint` can run at three scopes:
@@ -286,6 +324,8 @@ Default lint checks:
 1. Whole KB: inspect all project knowledge files.
 2. Owner scope: inspect one owner file or owner-file shard.
 3. Topic scope: inspect the owner files and source references related to a named subsystem or capability.
+
+For topic scope, lint should recommend whether normal incremental ingest is enough or whether to use topic-scope refresh. Topic-scope refresh is preferred when affected routing, bidirectional module/scenario refs, owner/source anchors, or high-value object answerability remain incomplete after a narrow update.
 
 Default output shape:
 
@@ -378,10 +418,10 @@ Skill descriptions carry the main adoption pressure. `query` should say it is us
 - Make it a thin alias, not a separate long procedure.
 - Keep this as a real minimal skill directory, not a symlink, for marketplace portability.
 
-`cleanup/SKILL.md`:
+No `cleanup/SKILL.md`:
 
-- Keep only where the platform needs hook cleanup.
-- Do not describe it as a primary memory skill.
+- Do not publish cleanup as a memory skill.
+- Keep platform cleanup as script-only maintenance when needed.
 
 ## Content Rule Changes
 
@@ -393,8 +433,11 @@ Update content rules and templates with the following principles:
 - Traversal links are part of the answerability contract.
 - Split large owner files into owner-category shards instead of deleting durable facts.
 - Preserve feature capability fields for implemented capabilities.
+- Preserve product/workflow feature coverage when platform capabilities exist.
 - Preserve decision trade-offs because agents otherwise re-propose rejected alternatives.
+- Preserve ADR detail routing because agents need the "why" without loading every decision in the hot path.
 - Preserve glossary terms that affect naming, product language, or architecture discussions.
+- Preserve convention/source, glossary/source, and tech-stack/rationale anchors so query can traverse from a terse reference entry to evidence.
 - Allow optional plain-Markdown aliases/tags only when they improve query routing.
 
 The soft size warning should distinguish:
@@ -443,24 +486,27 @@ Recommended checks:
 
 1. `query` skill documentation is read-only and contains the output contract.
 2. `ingest` skill documentation prioritizes spec/plan sources over commit messages.
-3. `ingest` defines incremental, bootstrap, and full-refresh modes.
+3. `ingest` defines incremental, topic-scope refresh, bootstrap, and full-refresh modes.
 4. `lint` skill documentation is read-only and reports suggested ingest targets.
 5. Compatibility aliases exist for `load`, `update`, and `rebuild`.
 6. Content rules describe query-grade density, traversal links, aliases, and owner-file sharding.
-7. Verify runtime still treats `index.md` as hot path.
-8. Existing structural KB checks continue passing.
-9. Claude Code and Codex same-name plugin version metadata stays synchronized when either track changes.
+7. Content rules state that conversation is not a Project Knowledge slot.
+8. Verify runtime still treats `index.md` as hot path.
+9. Verify runtime reports advisory non-architecture query coverage gaps for features, decisions, conventions, glossary, and tech-stack, including ADR affected routing when multiple active decisions need traversal.
+10. Existing structural KB checks continue passing.
+11. Claude Code and Codex same-name plugin version metadata stays synchronized when either track changes.
 
 Manual acceptance scenarios:
 
 1. Given a question about a known feature, `query` reads `index.md` and the relevant owner file, then answers without source search.
 2. Given a question that exposes stale knowledge, `query` emits a Memory candidate without writing.
-3. Given a completed plan, `ingest` updates `features.md`, `decisions.md`, or `architecture.md` from the plan/spec first, then validates names and paths from code.
+3. Given a completed plan, `ingest` updates `features.md`, `decisions.md`, or `architecture.md` from the plan/spec first, checks the Impact Radius, then validates names and paths from code.
 4. Given a project without `docs/project-knowledge/`, `ingest` bootstrap creates the initial owner files and compact index.
 5. Given a stale existing knowledge base, `ingest` full-refresh regenerates the requested owner files or whole KB.
 6. Given only commit messages and no source document, `ingest` treats them as hints and reports lower confidence.
 7. Given an oversized owner file, `lint` suggests sharding instead of deleting durable content.
 8. Given stale references or SSOT duplication, `lint` reports issues and suggested ingest targets without writing.
+9. Given a touched high-value topic whose nearby owner files are thin, `ingest` escalates from narrow incremental ingest to topic-scope refresh instead of pretending the narrow edit is enough.
 
 ## Rollout
 
@@ -468,6 +514,7 @@ Manual acceptance scenarios:
 
 - Add `query`, `ingest`, and `lint` skill directories.
 - Update existing `load`, `update`, and `rebuild` docs to point to the new names/modes.
+- Ensure no `cleanup` skill is published.
 - Update README and marketplace/plugin descriptions to prefer `query`, `ingest`, and `lint`.
 - Update SessionStart primer.
 - Update templates/content rules for query-grade density.
@@ -478,7 +525,7 @@ Manual acceptance scenarios:
 
 - Make `query` support question mode, traversal, sufficiency checks, and Memory candidates.
 - Make `ingest` select spec/plan files as primary sources.
-- Make `ingest` support incremental, bootstrap, and full-refresh modes.
+- Make `ingest` support incremental, topic-scope refresh, bootstrap, and full-refresh modes.
 - Make `lint` wrap deterministic verify checks and produce suggested ingest targets.
 - Remove the old long update-from-git procedure from the primary path; keep `update` as a thin alias.
 - Add focused tests.
@@ -521,7 +568,7 @@ Mitigation: skill descriptions, SessionStart primer, and workflow docs make `que
 - Health checks use `lint`, not `query`.
 - No explicit `query --health` mode in the first implementation.
 - `load`, `update`, and `rebuild` remain real minimal skill directories for marketplace portability, not symlinks.
-- `cleanup` remains maintenance-only and is not part of the primary memory skill surface.
+- No `cleanup` skill is published by `superpowers-memory`; stale hook cleanup remains script-only maintenance.
 - Same-name Claude Code and Codex plugin tracks should share the same version after this rollout; changing either track bumps both.
 
 ## Acceptance Criteria
@@ -533,10 +580,14 @@ Mitigation: skill descriptions, SessionStart primer, and workflow docs make `que
 - `query` is read-only and cheap by default.
 - `query` can traverse index entries, owner files, shards, aliases, and source references until evidence is sufficient or bounded reads are exhausted.
 - `ingest` uses spec/plan files as primary facts and commit messages only as weak hints.
-- `ingest` supports incremental, bootstrap, and full-refresh modes.
+- `ingest` supports incremental, topic-scope refresh, bootstrap, and full-refresh modes.
 - `update` is a thin alias for incremental ingest, not the old long commit/diff-driven procedure.
 - `lint` is read-only and reports issues plus suggested ingest targets.
+- Incremental ingest runs Impact Radius and targeted lint over touched owner files and related shards.
 - Owner files are dense enough to answer useful project questions, while `index.md` remains compact.
+- Feature, decision, and reference owner files have explicit query-grade coverage checks, not only architecture files.
+- Conversation/chat/transcript content is not represented as a Project Knowledge slot.
+- No cleanup skill is published by the memory plugin.
 - Claude Code and Codex versions for `superpowers-memory` are synchronized after implementation.
 - Release automation preserves same-name Claude Code/Codex plugin version synchronization for future changes.
 - No new primary skill is introduced beyond `query`, `ingest`, and `lint`.
