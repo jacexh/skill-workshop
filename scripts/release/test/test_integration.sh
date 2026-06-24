@@ -49,7 +49,7 @@ out=$(bash "$SCRIPTS/detect-changed-plugins.sh" "$PREV")
 CLAUDE=$(echo "$out" | grep ^CLAUDE_PLUGINS= | cut -d= -f2-)
 CODEX=$(echo "$out" | grep ^CODEX_PLUGINS= | cut -d= -f2-)
 [ "$CLAUDE" = "alpha" ] || { echo "FAIL CLAUDE=$CLAUDE"; exit 1; }
-[ "$CODEX" = "" ] || { echo "FAIL CODEX=$CODEX"; exit 1; }
+[ "$CODEX" = "alpha" ] || { echo "FAIL CODEX=$CODEX"; exit 1; }
 
 # Step 4: bump
 NEXT="$NEXT" CLAUDE_PLUGINS="$CLAUDE" CODEX_PLUGINS="$CODEX" \
