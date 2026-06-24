@@ -4,9 +4,11 @@ updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
 ---
 
-<!-- OWNER: ADR summary log (indexed/routed from `index.md`; loaded on demand when decision context is needed).
-     This file carries decision SUMMARIES only. Full context / alternatives /
-     consequences live in `adr/ADR-NNN-<slug>.md`, loaded on demand.
+<!-- OWNER: Decision index / ADR summary index (indexed/routed from `index.md`;
+     loaded on demand when decision context is needed).
+     This file carries decision SUMMARIES and decision-shard routes only. Full
+     context / alternatives / consequences live in `adr/ADR-NNN-<slug>.md`,
+     loaded on demand.
 
      GRANULARITY GATE (see content-rules.md §decisions.md) — all three must hold:
        1. Cross-module scope (≥2 bounded contexts / services / packages)
@@ -29,6 +31,7 @@ triggered_by_plan: null
      - Can query answer "why this design?" by reading the summary, then one ADR detail?
      - Can query see the trade-off, affected owner files, and affected modules
        without broad search?
+     - Are `decisions-<domain>.md` shards linked from this file or index.md?
      - Do active ADR summaries link to on-demand `adr/ADR-NNN-*.md` detail files? -->
 
 # Decisions
@@ -55,6 +58,8 @@ triggered_by_plan: null
      collapse superseded ones to the 1-line supersede format. -->
 
 <!-- Decision summaries should link to ADR detail files and any owner entries affected by the decision. Query relies on these links to traverse from current behavior to rationale. -->
+<!-- If this file delegates to `decisions-<domain>.md` shards, list those shard
+     links before ADR summaries so query can route to the smallest decision family. -->
 
 <!--
 SUMMARY FORMAT (default — 4 lines per ADR):

@@ -23,6 +23,21 @@ assert_feature_template_group_order() {
   [ "$platform" -lt "$operations" ] || { echo "FAIL Platform must precede Operations in $template"; exit 1; }
 }
 
+migrate_fixture_memory_dir() {
+  local repo="$1"
+  if [ -d "$repo/docs/project-knowledge" ] && [ ! -d "$repo/docs/superpowers/memory" ]; then
+    mkdir -p "$repo/docs/superpowers"
+    mv "$repo/docs/project-knowledge" "$repo/docs/superpowers/memory"
+  fi
+}
+
+copy_fixture() {
+  local fixture="$1"
+  local dest="$2"
+  cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/$fixture" "$dest"
+  migrate_fixture_memory_dir "$dest"
+}
+
 # The features template should keep product capabilities ahead of workflow,
 # platform, and operations groups so generated maps do not start with runtime
 # components when product capabilities exist.
@@ -35,7 +50,7 @@ diff -u "$ROOT/plugins/superpowers-memory/content-rules.md" "$ROOT/codex-plugins
 diff -qr "$ROOT/plugins/superpowers-memory/templates" "$ROOT/codex-plugins/superpowers-memory/templates" >/dev/null
 
 clean="$TMPDIR/clean"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$clean"
+copy_fixture "clean" "$clean"
 
 clean_out="$(cd "$clean" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$clean_out" | jq -e '.shapeViolations | length == 0' >/dev/null
@@ -52,21 +67,21 @@ echo "$clean_codex_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations"
 # Current ADR summaries may include a short "Why" line without becoming legacy
 # inline ADRs. Legacy detection is limited to fields from the old detail format.
 why_summary="$TMPDIR/why-summary"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$why_summary"
-sed -i.bak '/^\*\*Decision:/a **Why:** Team familiarity makes maintenance cheaper.' "$why_summary/docs/project-knowledge/decisions.md"
-rm "$why_summary/docs/project-knowledge/decisions.md.bak"
+copy_fixture "clean" "$why_summary"
+sed -i.bak '/^\*\*Decision:/a **Why:** Team familiarity makes maintenance cheaper.' "$why_summary/docs/superpowers/memory/decisions.md"
+rm "$why_summary/docs/superpowers/memory/decisions.md.bak"
 why_out="$(cd "$why_summary" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$why_out" | jq -e '[.shapeViolations[] | select(.kind == "legacy_adr_inline")] | length == 0' >/dev/null
 why_codex_out="$(cd "$why_summary" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
 echo "$why_codex_out" | jq -e '[.shapeViolations[] | select(.kind == "legacy_adr_inline")] | length == 0' >/dev/null
 
 missing="$TMPDIR/missing-feature-fields"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/missing-feature-fields" "$missing"
+copy_fixture "missing-feature-fields" "$missing"
 
 # Larger product capability maps and architecture summaries should remain below
 # the relaxed warning threshold so agents do not delete useful product context.
 large="$TMPDIR/large-capability-map"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$large"
+copy_fixture "clean" "$large"
 {
   printf '%s\n' '---'
   printf '%s\n' 'last_updated: 2026-05-13'
@@ -81,7 +96,7 @@ cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$large"
     printf '**Capability Boundary** — Keeps product behavior %02d distinct from runtime implementation detail.\n\n' "$i"
     printf '**References** — Product spec %02d.\n\n' "$i"
   done
-} > "$large/docs/project-knowledge/features.md"
+} > "$large/docs/superpowers/memory/features.md"
 {
   printf '%s\n' '---'
   printf '%s\n' 'last_updated: 2026-05-13'
@@ -92,7 +107,7 @@ cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$large"
   for i in $(seq 1 252); do
     printf 'Architecture summary line %03d describes a cross-module structure without implementation catalogs.\n' "$i"
   done
-} > "$large/docs/project-knowledge/architecture.md"
+} > "$large/docs/superpowers/memory/architecture.md"
 
 large_out="$(cd "$large" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$large_out" | jq -e '[.sizeWarnings[] | select(.file == "features.md" or .file == "architecture.md")] | length == 0' >/dev/null
@@ -103,8 +118,8 @@ echo "$large_codex_out" | jq -e '[.sizeWarnings[] | select(.file == "features.md
 # Intent: legacy playbooks.md files should no longer be treated as a
 # canonical KB slot, so broken playbook links do not create verify failures.
 legacy_playbooks="$TMPDIR/legacy-playbooks"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$legacy_playbooks"
-mkdir -p "$legacy_playbooks/docs/project-knowledge/playbooks"
+copy_fixture "clean" "$legacy_playbooks"
+mkdir -p "$legacy_playbooks/docs/superpowers/memory/playbooks"
 {
   printf '%s\n' '---'
   printf '%s\n' 'last_updated: 2026-05-27'
@@ -113,7 +128,7 @@ mkdir -p "$legacy_playbooks/docs/project-knowledge/playbooks"
   printf '%s\n' '---'
   printf '\n# Playbooks\n\n'
   printf '%s\n' '- [Missing legacy recipe](playbooks/missing.md) — When: old projects still carry this file.'
-} > "$legacy_playbooks/docs/project-knowledge/playbooks.md"
+} > "$legacy_playbooks/docs/superpowers/memory/playbooks.md"
 
 legacy_out="$(cd "$legacy_playbooks" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$legacy_out" | jq -e '[.shapeViolations[] | select(.kind | startswith("playbook_"))] | length == 0' >/dev/null
@@ -124,7 +139,7 @@ echo "$legacy_codex_out" | jq -e '[.shapeViolations[] | select(.kind | startswit
 # Intent: large non-index KB shards are valid storage and should be reported as
 # retrieval/split advisories without making verify fail.
 split="$TMPDIR/split-architecture"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$split"
+copy_fixture "clean" "$split"
 {
   printf '%s\n' '---'
   printf '%s\n' 'last_updated: 2026-05-27'
@@ -135,7 +150,7 @@ cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$split"
   for i in $(seq 1 360); do
     printf 'Runtime architecture sequence line %03d documents a valid cross-module flow.\n' "$i"
   done
-} > "$split/docs/project-knowledge/architecture-runtime.md"
+} > "$split/docs/superpowers/memory/architecture-runtime.md"
 
 split_out="$(cd "$split" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$split_out" | jq -e '.ok == true' >/dev/null
@@ -150,7 +165,7 @@ echo "$split_codex_out" | jq -e '.splitCandidates[] | select(.file == "architect
 # Intent: complex repos with only thin architecture summaries should produce
 # advisory ingest targets without making verify fail.
 architecture_gap="$TMPDIR/architecture-coverage-gap"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/architecture-coverage-gap" "$architecture_gap"
+copy_fixture "architecture-coverage-gap" "$architecture_gap"
 architecture_gap_out="$(cd "$architecture_gap" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$architecture_gap_out" | jq -e '.ok == true' >/dev/null
 echo "$architecture_gap_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_sparse")' >/dev/null
@@ -166,7 +181,7 @@ echo "$architecture_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "a
 # prompt deeper architecture answerability, and scenario diagrams should carry
 # local source refs so query can cite the flow directly.
 shallow_architecture="$TMPDIR/architecture-shallow-coverage"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/architecture-shallow-coverage" "$shallow_architecture"
+copy_fixture "architecture-shallow-coverage" "$shallow_architecture"
 shallow_architecture_out="$(cd "$shallow_architecture" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$shallow_architecture_out" | jq -e '.ok == true' >/dev/null
 echo "$shallow_architecture_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_shallow")' >/dev/null
@@ -186,7 +201,7 @@ echo "$shallow_architecture_codex_out" | jq -e '.coverageGaps[] | select(.kind =
 # to modules, and scenario shards must preserve authority/order/failure
 # semantics that affect safe future changes.
 shard_crossrefs_gap="$TMPDIR/architecture-shard-crossrefs-gap"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/architecture-shard-crossrefs-gap" "$shard_crossrefs_gap"
+copy_fixture "architecture-shard-crossrefs-gap" "$shard_crossrefs_gap"
 shard_crossrefs_gap_out="$(cd "$shard_crossrefs_gap" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$shard_crossrefs_gap_out" | jq -e '.ok == true' >/dev/null
 echo "$shard_crossrefs_gap_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_module_scenario_refs_missing")' >/dev/null
@@ -204,35 +219,41 @@ echo "$shard_crossrefs_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind ==
 # summaries, and unreferenced reference entries should produce ingest targets
 # without making verify fail.
 non_architecture_query_gaps="$TMPDIR/non-architecture-query-gaps"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/non-architecture-query-gaps" "$non_architecture_query_gaps"
+copy_fixture "non-architecture-query-gaps" "$non_architecture_query_gaps"
 non_architecture_query_gaps_out="$(cd "$non_architecture_query_gaps" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
-echo "$non_architecture_query_gaps_out" | jq -e '.ok == true' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.ok == false' >/dev/null
 echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "features_product_coverage_missing")' >/dev/null
 echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "features_workflow_coverage_missing")' >/dev/null
 echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_detail_links_missing")' >/dev/null
 echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_tradeoffs_missing")' >/dev/null
 echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_affected_routing_missing")' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "knowledge_shards_unrouted" and (.sample | contains("decisions-runtime.md")))' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "knowledge_shards_unrouted" and (.sample | contains("conventions-frontend.md")))' >/dev/null
 echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "conventions_source_refs_missing")' >/dev/null
 echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "tech_stack_rationale_missing")' >/dev/null
 echo "$non_architecture_query_gaps_out" | jq -e '.coverageGaps[] | select(.kind == "glossary_owner_refs_missing")' >/dev/null
+echo "$non_architecture_query_gaps_out" | jq -e '.shapeViolations[] | select(.kind == "forbidden_kb_slot" and .file == "conversation.md")' >/dev/null
 
 non_architecture_query_gaps_codex_out="$(cd "$non_architecture_query_gaps" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
-echo "$non_architecture_query_gaps_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.ok == false' >/dev/null
 echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "features_product_coverage_missing")' >/dev/null
 echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "features_workflow_coverage_missing")' >/dev/null
 echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_detail_links_missing")' >/dev/null
 echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_tradeoffs_missing")' >/dev/null
 echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_affected_routing_missing")' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "knowledge_shards_unrouted" and (.sample | contains("decisions-runtime.md")))' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "knowledge_shards_unrouted" and (.sample | contains("conventions-frontend.md")))' >/dev/null
 echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "conventions_source_refs_missing")' >/dev/null
 echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "tech_stack_rationale_missing")' >/dev/null
 echo "$non_architecture_query_gaps_codex_out" | jq -e '.coverageGaps[] | select(.kind == "glossary_owner_refs_missing")' >/dev/null
+echo "$non_architecture_query_gaps_codex_out" | jq -e '.shapeViolations[] | select(.kind == "forbidden_kb_slot" and .file == "conversation.md")' >/dev/null
 
 # Intent: architecture coverage should not be split only by document view
 # (`contexts` vs `flows`). Even when counts and source refs look complete,
 # complex repos need module shards and named scenario shards so query can route
 # directly to service internals or an end-to-end message chain.
 legacy_view_shards="$TMPDIR/architecture-view-shards-legacy"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/architecture-view-shards-legacy" "$legacy_view_shards"
+copy_fixture "architecture-view-shards-legacy" "$legacy_view_shards"
 legacy_view_shards_out="$(cd "$legacy_view_shards" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$legacy_view_shards_out" | jq -e '.ok == true' >/dev/null
 echo "$legacy_view_shards_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_view_shards_legacy")' >/dev/null
@@ -244,9 +265,9 @@ echo "$legacy_view_shards_codex_out" | jq -e '.coverageGaps[] | select(.kind == 
 # Intent: index.md remains the only strict size-constrained hot-path file
 # because it is injected at session start.
 oversized_index="$TMPDIR/oversized-index"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$oversized_index"
+copy_fixture "clean" "$oversized_index"
 for i in $(seq 1 60); do
-  printf -- '- extra index route %03d\n' "$i" >> "$oversized_index/docs/project-knowledge/index.md"
+  printf -- '- extra index route %03d\n' "$i" >> "$oversized_index/docs/superpowers/memory/index.md"
 done
 
 oversized_index_out="$(cd "$oversized_index" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
@@ -268,7 +289,7 @@ assert_verify_kind_for_both_runtimes() {
   local field="$2"
   local kind="$3"
   local scenario="$TMPDIR/$fixture"
-  cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/$fixture" "$scenario"
+  copy_fixture "$fixture" "$scenario"
 
   local claude_out codex_verify_out
   claude_out="$(cd "$scenario" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
@@ -285,7 +306,7 @@ assert_verify_kind_for_both_runtimes "dense-features" "shapeViolations" "feature
 # Intent: duplicated multi-line KB facts should be caught so the ownership
 # matrix remains enforceable across both host runtimes.
 ssot="$TMPDIR/ssot-violation"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/ssot-violation" "$ssot"
+copy_fixture "ssot-violation" "$ssot"
 ssot_out="$(cd "$ssot" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$ssot_out" | jq -e '.ssotViolations | length > 0' >/dev/null
 ssot_codex_out="$(cd "$ssot" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
@@ -306,7 +327,7 @@ assert_verify_kind_for_both_runtimes "readiness-warning" "readinessWarnings" "ca
 # Intent: Codex status should expose whether KB coverage matches HEAD, giving
 # Codex a lightweight compensation for prompt paths that cannot fire JIT hooks.
 status_repo="$TMPDIR/status-repo"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$status_repo"
+copy_fixture "clean" "$status_repo"
 (
   cd "$status_repo"
   git init -q
@@ -316,9 +337,9 @@ cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$status_repo"
   git commit -q -m "initial"
   covered_sha="$(git rev-parse --short HEAD)"
   branch="$(git branch --show-current)"
-  sed -i.bak "s/^covers_branch:.*/covers_branch: ${branch}@${covered_sha}/" docs/project-knowledge/index.md
-  rm docs/project-knowledge/index.md.bak
-  git add docs/project-knowledge/index.md
+  sed -i.bak "s/^covers_branch:.*/covers_branch: ${branch}@${covered_sha}/" docs/superpowers/memory/index.md
+  rm docs/superpowers/memory/index.md.bak
+  git add docs/superpowers/memory/index.md
   git commit -q -m "docs: record coverage"
   printf 'change\n' > src-new.txt
   git add src-new.txt
@@ -332,14 +353,17 @@ cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$status_repo"
 )
 
 # Intent: Codex KB write protection should use the current PreToolUse deny
-# protocol so direct docs/project-knowledge edits are blocked by Codex itself.
+# protocol so direct canonical and legacy memory edits are blocked by Codex itself.
 pretool_repo="$TMPDIR/pretool-repo"
-cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/clean" "$pretool_repo"
+copy_fixture "clean" "$pretool_repo"
 (
   cd "$pretool_repo"
+  printf '%s' '{"tool_name":"apply_patch","tool_input":{"patch":"*** Update File: docs/superpowers/memory/index.md\n@@\n-old\n+new\n"}}' |
+    node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" pre-tool-use |
+    jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and .hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | contains("Direct edits to docs/superpowers/memory/")) and (.hookSpecificOutput.permissionDecisionReason | contains("legacy docs/project-knowledge"))' >/dev/null
   printf '%s' '{"tool_name":"apply_patch","tool_input":{"patch":"*** Update File: docs/project-knowledge/index.md\n@@\n-old\n+new\n"}}' |
     node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" pre-tool-use |
-    jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and .hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | contains("Direct edits to docs/project-knowledge/ are forbidden"))' >/dev/null
+    jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and .hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | contains("legacy docs/project-knowledge"))' >/dev/null
 )
 
 echo "  memory verify: feature fixed-field lint correct"

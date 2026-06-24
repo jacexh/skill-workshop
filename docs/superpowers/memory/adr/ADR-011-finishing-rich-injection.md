@@ -11,7 +11,7 @@ superseded_by: null
 
 ## Context
 
-The `superpowers:finishing-a-development-branch` skill marks the end of a development branch — at that point the project KB should reflect the work done on the branch, otherwise downstream consumers (the next session, ultrareview, anyone reading `docs/project-knowledge/`) will see stale state.
+The `superpowers:finishing-a-development-branch` skill marks the end of a development branch — at that point the project KB should reflect the work done on the branch, otherwise downstream consumers (the next session, ultrareview, anyone reading `docs/superpowers/memory/`) will see stale state.
 
 Up through v1.9.0 the memory PreToolUse hook implemented two distinct behaviors when this skill was invoked:
 
@@ -32,7 +32,7 @@ When `superpowers:finishing-a-development-branch` is invoked, the hook now uses 
 
 | Condition | Hook output |
 |--|--|
-| KB missing (no `docs/project-knowledge/index.md`) | `decision: "block"` (catastrophic — unchanged) |
+| KB missing (no `docs/superpowers/memory/index.md`) | `decision: "block"` (catastrophic — unchanged) |
 | On base branch / detached HEAD | `{}` (no-op — finishing-a-development-branch does not apply, and no KB-coverage check is possible) |
 | Feature branch, KB does not cover HEAD | architect-style rich-context block from `buildFinishingRichContext()` |
 | Feature branch, KB covers HEAD | soft 1-line reminder ("Knowledge base already covers this branch...") |
@@ -79,4 +79,4 @@ Why rejected: That skill lives in the `superpowers` plugin (external), not in th
 
 ### Neutral
 
-- The KB-missing case is still a hard block. That deliberately stays — without `docs/project-knowledge/index.md` there is no SHA to compare and no rich context to inject; rebuild is genuinely the only path forward.
+- The KB-missing case is still a hard block. That deliberately stays — without `docs/superpowers/memory/index.md` there is no SHA to compare and no rich context to inject; rebuild is genuinely the only path forward.

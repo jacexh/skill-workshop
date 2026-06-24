@@ -8,6 +8,8 @@ triggered_by_plan: null
      Architecture Rules here are PROJECT-SPECIFIC constraints only.
      For general DDD/Clean Architecture rules, reference design-pattern documents — do not duplicate.
      System-level error strategy belongs in architecture.md.
+     This file is current guardrails, not dependency inventory, decision history,
+     or feature description.
 
      CONTENT EXCLUSION: Do not repeat rules already enforced by formatter/linter.
      Principle: if the formatter handles it, don't repeat it here.
@@ -16,7 +18,10 @@ triggered_by_plan: null
      - Can query move from each cross-cutting rule to the canonical source,
        config, CI check, design pattern, or ADR?
      - Does each non-obvious convention explain the boundary it protects without
-       duplicating architecture, feature, or generic design-pattern content? -->
+       duplicating architecture, feature, tech-stack, ADR rationale, or generic
+       design-pattern content?
+     - If `conventions-<domain>.md` shards exist, are they linked from this file
+       or index.md and scoped to stable practice areas? -->
 
 # Conventions
 
@@ -84,6 +89,13 @@ triggered_by_plan: null
      N/A: <reason> -->
 
 **<topic>:** <one-line rule> → `<canonical impl path>`
+
+## Convention Shards [OPTIONAL]
+
+<!-- Link `conventions-<domain>.md` shards only when a stable practice area has
+     multiple reusable current guardrails and canonical source refs.
+     Good domains: backend, frontend, operations, testing, security, data.
+     Small projects should keep conventions in this file. -->
 
 ## Domain-Specific Conventions [OPTIONAL]
 

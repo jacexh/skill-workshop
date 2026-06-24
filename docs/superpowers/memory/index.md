@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-06-02
+last_updated: 2026-06-24
 updated_by: superpowers-memory:update
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 covers_branch: hotfix/hook@e7dbcc5
@@ -19,11 +19,11 @@ covers_branch: hotfix/hook@e7dbcc5
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
   Key points: Codex plugin sources avoid Claude runtime syntax; Go DDD rules require QueryRepository-per-read-model-family defaults and explicit runtime shutdown dependencies
 
-- [decisions.md](decisions.md) — ADR summary log (18 ADRs, 0 superseded)
-  Key points: ADR-018 DDD Go events/messages split; ADR-017 DDD Go taskqueue split; ADR-016 progressive KB layout + playbook removal
+- [decisions.md](decisions.md) — Decision index / ADR summaries (19 ADRs, 0 superseded)
+  Key points: ADR-019 canonical memory directory; ADR-018 DDD Go events/messages split; ADR-017 DDD Go taskqueue split
 
 - [adr/](adr/) — On-demand ADR detail files (loaded via `Read`, not at session start)
-  Currently: ADR-001 through ADR-018
+  Currently: ADR-001 through ADR-019
 
 - [glossary.md](glossary.md) — Domain terminology
   Key points: includes Boundary Publisher, Message Runner, Kafka FailurePolicy, TaskType, PeriodicTask, Codex Native Hooks, Prompt Router, Knowledge Shard

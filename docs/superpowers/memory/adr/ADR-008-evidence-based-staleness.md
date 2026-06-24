@@ -14,7 +14,7 @@ Commit-message based staleness detection missed meaningful changes without conve
 
 ## Decision
 
-The stop hook checks file-level changes outside `docs/project-knowledge/` using committed, staged, unstaged, and untracked git queries. It emits reminders only when non-KB changes exist.
+The stop hook checks file-level changes outside `docs/superpowers/memory/` using committed, staged, unstaged, and untracked git queries. It emits reminders only when non-KB changes exist.
 
 ## Alternatives Rejected
 

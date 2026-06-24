@@ -20,7 +20,9 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 ## What This Plugin Does
 
-1. **Project Knowledge Base** — Maintains 6 core knowledge entry files (`docs/project-knowledge/`) covering architecture, tech stack, features, conventions, decisions, and domain glossary. Large projects can split any non-index entry file into focused shard files. Architecture uses a stricter module-first + named scenario layout, such as `architecture-orchestrator.md` and `architecture-runtime-message-chain.md`; other slots use stable domain shards such as `features-admin.md`. Updated incrementally after each development iteration.
+1. **Project Knowledge Base** — Maintains 6 core knowledge entry files (`docs/superpowers/memory/`) covering architecture, tech stack, features, conventions, decisions, and domain glossary. Large projects can split any non-index entry file into focused shard files. Architecture uses a stricter module-first + named scenario layout, such as `architecture-orchestrator.md` and `architecture-runtime-message-chain.md`; other slots use stable domain shards such as `features-admin.md`. Updated incrementally after each development iteration.
+
+   Legacy `docs/project-knowledge/` installations are hard-migrated by memory skills with `git mv docs/project-knowledge docs/superpowers/memory` when the new directory does not already exist.
 
 2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading the underlying files.
 
@@ -59,11 +61,11 @@ Compatibility aliases:
 |------|-------|----------|
 | SessionStart | startup, clear, compact | Injects the KB index when it exists, or prompts the user to run `superpowers-memory:ingest` bootstrap mode (or the `rebuild` compatibility alias) when the KB is missing |
 | PreToolUse (Skill) | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `superpowers-memory:query` before work and `superpowers-memory:ingest` before finishing a branch; blocks when the KB does not exist, or when finishing a branch whose `covers_branch` (branch name + HEAD SHA) does not match current `HEAD` |
-| PreToolUse (Write/Edit/MultiEdit/NotebookEdit) | any file write under `docs/project-knowledge/` | Blocks the write unless a write-lock is held. The lock is acquired/released only by `superpowers-memory:ingest` or its `update`/`rebuild` compatibility aliases, so KB content can never drift from the canonical update flow (no ad-hoc ADR commits, no manual edits). Lock has a 60-min TTL to prevent permanent lockout if a skill aborts midway. |
+| PreToolUse (Write/Edit/MultiEdit/NotebookEdit) | any file write under `docs/superpowers/memory/` | Blocks the write unless a write-lock is held. The lock is acquired/released only by `superpowers-memory:ingest` or its `update`/`rebuild` compatibility aliases, so KB content can never drift from the canonical update flow (no ad-hoc ADR commits, no manual edits). Lock has a 60-min TTL to prevent permanent lockout if a skill aborts midway. |
 
 ### KB Write Lock
 
-`docs/project-knowledge/` is owned by `superpowers-memory:ingest`. Direct edits via Write/Edit/MultiEdit/NotebookEdit are blocked unless a lock file (`.git/superpowers-memory.lock`) is present. `ingest` and its `update`/`rebuild` compatibility aliases acquire the lock at the start of their `Process` and release it at the end:
+`docs/superpowers/memory/` is owned by `superpowers-memory:ingest`. Direct edits via Write/Edit/MultiEdit/NotebookEdit are blocked unless a lock file (`.git/superpowers-memory.lock`) is present. `ingest` and its `update`/`rebuild` compatibility aliases acquire the lock at the start of their `Process` and release it at the end:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/hooks/hook-runtime.js" lock <skill-name>
@@ -80,19 +82,19 @@ There is **no escape hatch** — even one-line typo fixes go through `superpower
 After running `superpowers-memory:ingest` in bootstrap mode (or the `rebuild` compatibility alias), your project will have:
 
 ```
-docs/project-knowledge/
+docs/superpowers/memory/
 ├── index.md          # Lightweight index — injected at every session start
 ├── architecture.md   # System structure, modules, data flow
 ├── tech-stack.md     # Languages, frameworks, dependencies
 ├── features.md       # Implemented and in-progress features
 ├── conventions.md    # Coding standards, architecture rules
-├── decisions.md      # Architecture Decision Records (summaries)
+├── decisions.md      # Decision index / ADR summaries
 ├── adr/              # Per-ADR rationale details (on-demand load)
 ├── glossary.md       # Domain terminology (Ubiquitous Language)
 └── <slot>-<domain>.md # Optional focused shards, e.g. architecture-orchestrator.md
 ```
 
-`adr/` appears only when ADR details exist. Split shard files are optional and should be created by stable domain, submodule, bounded context, platform capability, or workflow boundary — never by arbitrary pagination. Architecture shards should be module-first (`architecture-<module>.md`) or named scenario shards (`architecture-<scenario>.md`), not legacy view shards like `architecture-contexts.md` or `architecture-flows.md`.
+`adr/` appears only when ADR details exist. Split shard files are optional and should be created by stable domain, submodule, bounded context, platform capability, practice area, decision family, deploy unit, or workflow boundary — never by arbitrary pagination. Shards must be reachable from `index.md` or the parent owner file. Architecture shards should be module-first (`architecture-<module>.md`) or named scenario shards (`architecture-<scenario>.md`), not legacy view shards like `architecture-contexts.md` or `architecture-flows.md`. `decisions.md` is a decision index; it is not LLM Wiki's operation `log.md`.
 
 ## KB Quality Evaluation
 
@@ -133,8 +135,8 @@ Use the same 0-5 anchor for every dimension:
 - `superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work, and produces structured Memory candidates when a durable answer is missing or a reusable durable synthesis should be preserved; `load` remains a compatibility alias.
 - `superpowers-memory:ingest` forces source review, owner routing, targeted Core Query Coverage, architecture answerability self-checks, exclusion checks, index regeneration, and verification before commit; `update` and `rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
 - `superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
-- The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; KB writes must go through `superpowers-memory:ingest` or its compatibility aliases.
-- `hook-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.
+- The KB write lock prevents ad-hoc edits under `docs/superpowers/memory/`; KB writes must go through `superpowers-memory:ingest` or its compatibility aliases.
+- `hook-runtime.js verify` checks stale path references, shape violations including forbidden conversation/chat/transcript KB slots, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, unrouted shards, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.
 - For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, advisory `coverageGaps`, and KB write-lock status.
 
 ## License
