@@ -37,7 +37,7 @@ out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
 assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
 assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
 
-# Case 2: change Claude + Codex plugins (different names) + a docs file
+# Case 2: change one Claude plugin, one same-name Codex plugin, one Codex-only plugin, and docs
 dir=$(setup_repo)
 echo c >> "$dir/plugins/bar/x.md"
 echo c >> "$dir/codex-plugins/foo/x.md"

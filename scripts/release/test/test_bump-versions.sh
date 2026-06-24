@@ -85,6 +85,8 @@ dir=$(setup_repo)
 assert_eq "$(jq -r .metadata.version "$dir/.claude-plugin/marketplace.json")" "6.0.0"
 assert_eq "$(jq -r '.plugins[]|select(.name=="foo").version' "$dir/.claude-plugin/marketplace.json")" "6.0.0"
 assert_eq "$(jq -r .version "$dir/plugins/foo/.claude-plugin/plugin.json")" "6.0.0"
+assert_eq "$(jq -r '.plugins[]|select(.name=="bar").version' "$dir/.claude-plugin/marketplace.json")" "1.0.0"
+assert_eq "$(jq -r .version "$dir/plugins/bar/.claude-plugin/plugin.json")" "1.0.0"
 assert_eq "$(jq -r .version "$dir/codex-plugins/foo/.codex-plugin/plugin.json")" "6.0.0"
 assert_eq "$(jq -r .version "$dir/codex-plugins/foo/codex-hooks-snippet.json")" "6.0.0"
 
