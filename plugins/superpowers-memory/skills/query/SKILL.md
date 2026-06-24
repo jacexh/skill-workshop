@@ -44,7 +44,7 @@ Memory candidate:
 - Candidate type: <answerability gap | stale fact | contradiction | durable synthesis>
 - Missing answerability coverage: <question or high-value object not directly answered>
 - Suggested owner/shard: docs/project-knowledge/<owner-or-shard>.md
-- Candidate outline: <durable facts to add: responsibility, layers/components, interactions, state/flow/invariants, source refs>
+- Candidate outline: <durable facts to add: system topology, service card, scenario sequence, responsibility, layers/components, interactions, state/flow/invariants, source refs>
 - Source refs: <spec/plan/ADR/doc/source paths to validate>
 ```
 

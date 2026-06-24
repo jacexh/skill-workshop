@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-06-02
-updated_by: superpowers-memory:update
+last_updated: 2026-06-24
+updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
 
@@ -28,7 +28,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Capability Boundary** — Codex entries use object-form `source`, `policy`, and `category`; native plugin hooks require restart, `[features] hooks = true`, `plugin_hooks = true`, and `/hooks` review/trust when hooks do not appear.
 
-**References** — ADR-013, ADR-014; see `conventions.md` for Codex hook and fallback cleanup rules.
+**References** — ADR-013, ADR-014; see `conventions.md` for Codex hook and fallback removal rules.
 
 #### Product-First Capability Maps
 
@@ -76,11 +76,11 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 #### Knowledge Verification
 
-**Enables** — Operators can check KB shape, stale path references, retrieval cost, split candidates, index size, and commit readiness before committing.
+**Enables** — Operators can check KB shape, stale path references, architecture coverage gaps, retrieval cost, split candidates, index size, and commit readiness before committing.
 
 **Actors / Entry Points** — `node plugins/superpowers-memory/hooks/hook-runtime.js verify` and the Codex equivalent.
 
-**Capability Boundary** — Verify treats only `index.md` as a strict hot-path size constraint. `retrievalCost` and `splitCandidates` are advisory for non-index files; legacy `playbooks.md` files are ignored because the playbook slot is no longer part of the schema.
+**Capability Boundary** — Verify treats only `index.md` as a strict hot-path size constraint. `coverageGaps`, `retrievalCost`, and `splitCandidates` are advisory for non-index files; legacy `playbooks.md` files are ignored because the playbook slot is no longer part of the schema.
 
 **References** — `plugins/superpowers-memory/hooks/fixtures/`; see `content-rules.md` for shape rules.
 
@@ -154,15 +154,15 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **References** — ADR-014; see `conventions.md` for native hook contract.
 
-#### Codex Fallback Cleanup
+#### Codex Fallback Hook Removal Helper
 
-**Enables** — Users who previously installed fallback hooks can migrate back to native Codex hooks and remove stale cache-path entries that break after plugin upgrades.
+**Enables** — Users who previously installed fallback hooks can remove stale cache-path entries that break after plugin upgrades while native Codex hooks remain the public install/upgrade path.
 
-**Actors / Entry Points** — `$<plugin>:cleanup` calls `codex-plugins/<name>/scripts/install-codex-hooks.js remove` for that plugin.
+**Actors / Entry Points** — Advanced users or tests run `codex-plugins/<name>/scripts/install-codex-hooks.js remove` from the installed plugin directory; README also allows manual removal from `~/.codex/hooks.json`.
 
-**Capability Boundary** — Cleanup removes only matching skill-workshop fallback hook commands from `~/.codex/hooks.json`, deletes empty hook-event arrays, preserves unrelated user hooks, and requires a Codex restart.
+**Capability Boundary** — The removal helper is script-only and no longer exposed as a public skill. It removes only matching skill-workshop fallback hook commands from `~/.codex/hooks.json`, deletes empty hook-event arrays, preserves unrelated user hooks, and requires a Codex restart.
 
-**References** — `codex-plugins/*/skills/cleanup/SKILL.md`; see `conventions.md` for installer `remove` mode.
+**References** — `codex-plugins/superpowers-memory/scripts/install-codex-hooks.js`; see `conventions.md` for installer `remove` mode.
 
 ### Operations
 
@@ -182,7 +182,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Actors / Entry Points** — `scripts/release/test/run-tests.sh` and fixture directories under `plugins/superpowers-memory/hooks/fixtures/`.
 
-**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; Codex manifest tests guard canonical hook feature-flag docs and command hook metadata, designing-tests runtime tests guard hand-off/architecture guidance injection, while memory verify covers canonical PreToolUse deny behavior, legacy playbook ignore behavior, shard split advisories, and strict index size. They do not replace full host-runtime acceptance testing.
+**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; Codex manifest tests guard canonical hook feature-flag docs and command hook metadata, designing-tests runtime tests guard hand-off/architecture guidance injection, while memory verify covers canonical PreToolUse deny behavior, legacy playbook ignore behavior, architecture coverage advisories, shard split advisories, and strict index size. They do not replace full host-runtime acceptance testing.
 
 **References** — `scripts/release/test/`; `plugins/superpowers-memory/hooks/fixtures/README.md`.
 

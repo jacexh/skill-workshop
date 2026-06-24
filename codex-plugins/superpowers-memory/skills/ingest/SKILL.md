@@ -33,6 +33,14 @@ During bootstrap and full-refresh, run a Core Query Coverage pass before writing
 
 Treat an object as high-value when it is a bounded context, service, major module, product capability, or cross-service flow that is referenced by multiple specs, plans, ADRs, features, glossary terms, or source entry points.
 
+For complex engineering repositories, run an architecture coverage inventory before writing architecture files:
+
+1. **System topology inventory:** identify deployable services/entry points, bounded contexts, external actors/systems, stores, buses, runtime substrates, and trust boundaries.
+2. **Service card inventory:** identify high-value services/bounded contexts that need direct cards. Use docs/specs/ADRs/features first, then validate paths from code (`cmd/`, `apps/`, `services/`, `api/`, `internal/<context>/...`).
+3. **Scenario inventory:** identify core cross-service scenarios that shape future changes. Prefer 4-7 for complex repos and 2-3 for smaller repos. Favor execution/orchestration, provisioning, delivery/messaging, auth, ingest, artifact/file handling, comments/signals/decisions, trace/metrics, and ownership-transfer flows when they exist.
+4. **Lifecycle inventory:** identify aggregates or runtime objects whose state transitions cross contexts, publish messages, update read models, or affect user-visible workflow.
+5. **Source traceability:** attach stable source refs to every service card and scenario: ADR/spec/plan/docs plus canonical source/proto/config paths.
+
 For each high-value object, ensure one owner entry or shard can directly answer:
 
 - Responsibility: what the object owns and what it explicitly does not own.
@@ -42,6 +50,14 @@ For each high-value object, ensure one owner entry or shard can directly answer:
 - Source refs: related ADRs, specs, plans, docs, and canonical source paths.
 
 Use existing owner files first. Create or refresh a shard only when a high-value object cannot be answered cleanly from the canonical owner file without making it noisy. Do not create shards for every package, helper, or low-risk implementation detail.
+
+For complex repos, prefer these shard shapes when needed:
+
+- `architecture-contexts.md` — service/bounded-context architecture cards.
+- `architecture-flows.md` — scenario sequences and cross-context lifecycle diagrams.
+- `architecture-<domain>.md` — a focused domain/runtime shard only when one service family or platform subsystem would otherwise dominate the overview.
+
+Do not treat service cards as a full code tour. Record stable architectural layers/components and invariants; route package-level details to source refs.
 
 ## Process
 
@@ -53,7 +69,7 @@ node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" l
 
 2. Identify changed or requested source documents.
 3. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
-4. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. Add only targeted facts or shards needed for direct query answers.
+4. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, and source refs needed for direct query answers.
 5. Route each fact to exactly one owner file per `content-rules.md`.
 6. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
 7. Update only affected owner files.

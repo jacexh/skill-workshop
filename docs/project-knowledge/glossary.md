@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-06-01
-updated_by: superpowers-memory:update
+last_updated: 2026-06-24
+updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
 
@@ -42,7 +42,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Codex Native Hooks** — Manifest-declared lifecycle hooks loaded from each Codex plugin root when `hooks` and `plugin_hooks` are enabled. → `codex-plugins/superpowers-memory/hooks/hooks.json`, ADR-014
 
-**Codex Cleanup Skill** — Per-Codex-plugin migration helper that removes that plugin's old fallback hook entries from `~/.codex/hooks.json` after native Codex hooks are enabled. → `codex-plugins/superpowers-memory/skills/cleanup/SKILL.md`, ADR-014
+**Codex Fallback Hook Removal Helper** — Script-only migration path for deleting stale skill-workshop fallback hook entries from `~/.codex/hooks.json` after native Codex hooks are enabled. → `codex-plugins/superpowers-memory/scripts/install-codex-hooks.js`, ADR-014
 
 **Auto Release Pipeline** — GitHub Actions flow that runs after PR merge, bumps path-affected plugin manifests/snippets, pushes a bump commit, tags it, and publishes a release. → `.github/workflows/auto-release.yml`
 

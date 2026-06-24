@@ -94,6 +94,33 @@ For each high-value object, one owner entry or shard should directly answer:
 
 This is a coverage rule, not a completeness mandate. Do not create a file for every package or helper. Add detail only when a normal agent query about a high-value object would otherwise require broad code search or cross-file inference.
 
+### Architecture Coverage Calibration
+
+For complex engineering repositories, architecture knowledge must be deeper than a few isolated sequence diagrams. The target is a **query-grade architecture map**, not a full code tour.
+
+This calibration applies when the project has any of these signals:
+
+- ≥3 deployable services, entry points, apps, or major packages (`cmd/`, `apps/`, `services/`, `packages/`, `api/`, generated protocol contracts, deployment manifests).
+- DDD, bounded contexts, CQRS/read models, event/message flows, runtime orchestration, plugin/runtime extension points, or multi-stage execution workflows.
+- Multiple specs, plans, ADRs, or feature entries reference the same service, bounded context, cross-service flow, or aggregate lifecycle.
+
+When the calibration applies, `architecture.md` or reachable `architecture-*.md` shards should cover:
+
+1. **System topology / context map** — the main services, trust boundaries, data stores, message buses, runtime substrates, and call/event direction rules.
+2. **Service architecture cards** — for each high-value service or bounded context, responsibility/non-responsibility, internal layers/main components, upstream/downstream interactions, owned state/read models, invariants, and source refs.
+3. **Scenario sequence coverage** — the core cross-service scenarios that shape future changes. Prefer 4-7 high-value scenarios for complex repos; 2-3 is enough only for small repos.
+4. **State / lifecycle coverage** — Mermaid FSMs or lifecycle cards for aggregates whose state transitions affect other contexts, messages, read models, runtime execution, or user-visible workflow.
+5. **Source traceability** — every service card and scenario has stable source refs: ADR/spec/plan/doc paths plus canonical source/proto/config paths.
+
+Use these discovery cues during bootstrap/full-refresh:
+
+- Entry points and deploy units: `cmd/*`, `apps/*`, `services/*`, `package.json` scripts/bin, `Dockerfile`, Helm/Kubernetes manifests.
+- Cross-context contracts: `api/**`, `proto/**`, OpenAPI/GraphQL schemas, event/message definitions, queue topics, stream processors.
+- Internal module boundaries: `internal/<context>/domain`, `application`, `infrastructure`, `adapters`, `projections`, `readmodels`, `handlers`, `workers`.
+- High-risk flows: specs/plans/ADRs mentioning orchestration, execution, provisioning, delivery, authorization, ingest, artifact/file handling, trace/metrics, comments/signals/decisions, async retries, or ownership transfer.
+
+Do **not** document every package, helper, handler method, struct field, enum value, SQL table, route, or configuration constant. If a query asks for that depth, `query` should route to source refs after the architecture map has narrowed the search.
+
 ## Per-File Format Rules
 
 ### architecture.md — structure view
@@ -104,10 +131,11 @@ Describes how modules/services are wired, how they interact over time, and how c
 
 1. **Pattern Overview** — architecture paradigm + 2–3 key characteristics, one paragraph. Elevator pitch for a cold reader.
 2. **System Context** — external actors + external systems (databases, MQ, external services). List form, ≤10 lines. Enumerate, don't narrate.
-3. **Layering** — architectural layers or bounded contexts. For each: name + one-sentence responsibility + `path/` + key abstraction names only. State call-direction rules at the end of the section. No method signatures, no struct fields, no enum value catalogs. **Granularity rule:** if the project has **≥3 independent top-level modules** (deploy units / services / major packages — discovery cues: count of `main` packages in Go, `bin` entries in `package.json`, `__main__.py` files, top-level service directories under `cmd/`/`apps/`/`services/`, distinct deploy manifests), each module gets its own `####` subsection capped at 3 lines (responsibility / `path/` + entry / key abstraction names). For ≤2 modules or a single-deployable project, a flat bullet list is sufficient.
-4. **Scenario Sequences** — 2–3 Mermaid `sequenceDiagram` for cross-module flows of 3+ components. Single-module internal flows do NOT belong here.
-5. **Key Object FSMs** — Mermaid `stateDiagram-v2` for aggregates whose transitions cross module boundaries (typically via cross-BC event emission). **Must be rendered as transition diagrams with trigger + emitted-event labels, not bullet lists of state names.** Bullet-list FSM enumerations are Exclusion List violations — they duplicate what code owns without capturing the cross-BC contract that makes the FSM architectural.
-6. **Key Design Decisions** — pointer list only, 3–5 entries in the form `**[title]** — see ADR-NNN`. Full rationale lives in `decisions.md` + `adr/ADR-NNN-*.md` — never expand inline here.
+3. **System Topology / Context Map** — static system map: services, bounded contexts, runtime substrates, stores, buses, trust boundaries, and call/event direction rules. For small single-deployable projects, this may be a short bullet list; for multi-service repos, use a Mermaid graph or table.
+4. **Service Architecture Cards** — conditional but expected for complex repos. For each high-value service/bounded context: responsibility/non-responsibility, path/entry, internal layers/main components, upstream/downstream interactions, state/read models/invariants, and source refs. Keep each card compact; split to `architecture-<domain>.md` when a card plus flows would make `architecture.md` noisy.
+5. **Scenario Sequences** — Mermaid `sequenceDiagram` for cross-module flows of 3+ components. Complex repos should cover 4-7 high-value scenarios; small repos can cover 2-3. Single-module internal flows do NOT belong here unless they encode a stable architectural lifecycle.
+6. **Key Object FSMs** — Mermaid `stateDiagram-v2` for aggregates whose transitions cross module boundaries (typically via cross-BC event emission). **Must be rendered as transition diagrams with trigger + emitted-event labels, not bullet lists of state names.** Bullet-list FSM enumerations are Exclusion List violations — they duplicate what code owns without capturing the cross-BC contract that makes the FSM architectural.
+7. **Key Design Decisions** — pointer list only, 3–5 entries in the form `**[title]** — see ADR-NNN`. Full rationale lives in `decisions.md` + `adr/ADR-NNN-*.md` — never expand inline here.
 
 **architecture.md Exclusion List (in addition to the global Exclusion List):**
 
@@ -335,6 +363,7 @@ All other KB files and shards are storage/read-on-demand artifacts. They do not 
 - `retrievalCost` — estimated bytes/tokens for recognized top-level KB files and shards. Advisory only.
 - `splitCandidates` — large non-index files that may be easier to use if split by stable domain or submodule. Advisory only.
 - `sizeWarnings` — hot-path `index.md` size warnings only.
+- `coverageGaps` — architecture answerability gaps for complex repos. Advisory only.
 
 When a non-index file becomes large, decide whether the content is valid:
 
@@ -356,6 +385,7 @@ Never delete still-valid project knowledge solely to satisfy a line count or tok
 - `sizeWarnings` — hot-path `index.md` line threshold only.
 - `retrievalCost` — advisory estimated retrieval cost for recognized KB entry files and shards.
 - `splitCandidates` — advisory list of large non-index files that may deserve vertical splitting.
+- `coverageGaps` — advisory architecture answerability gaps for complex repos, such as missing service cards, too few cross-service scenarios, missing lifecycle/FSM coverage, or missing source refs. These do not affect `verify.ok`; they are suggested ingest targets.
 
 ## Retrieval Cost
 

@@ -1,6 +1,6 @@
 ---
-last_updated: 2026-06-02
-updated_by: superpowers-memory:update
+last_updated: 2026-06-24
+updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
 
@@ -48,7 +48,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ## Testing Conventions
 
 - No automated test suite. Verification is done manually per plan task acceptance criteria.
-- The `verify` command in `hook-runtime.js` / `codex-runtime.js` provides automated checks for KB files (stale path references, content-shape lint, ADR integrity, readiness, SSOT drift, retrieval-cost reporting, split candidates, and strict `index.md` size). Codex variant runs the same `verify` logic.
+- The `verify` command in `hook-runtime.js` / `codex-runtime.js` provides automated checks for KB files (stale path references, content-shape lint, ADR integrity, readiness, SSOT drift, retrieval-cost reporting, split candidates, advisory `coverageGaps`, and strict `index.md` size). Codex variant runs the same `verify` logic.
 - Fixture-based runtime testing: `plugins/superpowers-memory/hooks/fixtures/<scenario>/` (clean, dense-features, missing-feature-fields, shape-violation, ssot-violation, codex-apply-patch). `scripts/release/test/test_memory_verify.sh` copies fixtures to temporary non-repo directories so both `hook-runtime.js` (Claude) and `codex-runtime.js` (Codex) verify the same scenarios; Codex coverage includes canonical `PreToolUse` deny output for KB write protection.
 
 ## Git & Workflow
@@ -75,9 +75,9 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 - **Native Codex hook contract:** Each Codex plugin manifest declares its plugin-local native hook file. Native hook files use `{ "version": "<semver>", "hooks": { ... } }` and commands use `node "${PLUGIN_ROOT}/hooks/codex-runtime.js" ...` with bounded `timeout` and no `statusMessage`. Users need `[features] hooks = true` and `plugin_hooks = true`, then review/trust plugin hooks via `/hooks` and restart after install/upgrade.
 - **Fallback hook snippet contract:** `codex-hooks-snippet.json` mirrors the native hook file for legacy fallback installer compatibility. Tests guard version/schema drift between manifest, native hook file, and fallback snippet while the legacy installer remains in tree.
-- **Legacy hook installer protocol:** Each Codex plugin ships an installer; representative path: `codex-plugins/superpowers-memory/scripts/install-codex-hooks.js`. The public setup skill has been removed; the script remains for cleanup and legacy migration tests. The installer supports `install` (legacy/private) and `remove`, prefers the native hook file, falls back to `codex-hooks-snippet.json`, infers the plugin name from source-tree and versioned cache layouts, removes stale entries for that plugin by runtime command path, writes strict JSON, and backs up `~/.codex/hooks.json`.
-- **Fallback cleanup protocol:** Each Codex plugin ships `$<plugin>:cleanup`, which runs the same installer in `remove` mode. Cleanup removes only matching skill-workshop fallback commands from `~/.codex/hooks.json`, preserves unrelated hooks, deletes empty event arrays, and is the migration path after enabling native hooks.
-- **Marketplace upgrade flow:** Codex `plugin marketplace upgrade` updates plugin files; native hooks take effect after restart. Current Codex users do not run setup after install or upgrade. Users with stale fallback entries run `$<plugin>:cleanup` once and restart. README of each Codex plugin documents this.
+- **Legacy hook installer protocol:** Each Codex plugin ships an installer; representative path: `codex-plugins/superpowers-memory/scripts/install-codex-hooks.js`. Public setup and cleanup skills are removed; the script remains for legacy migration tests and manual stale-hook removal. The installer supports `install` (legacy/private) and `remove`, prefers the native hook file, falls back to `codex-hooks-snippet.json`, infers the plugin name from source-tree and versioned cache layouts, removes stale entries for that plugin by runtime command path, writes strict JSON, and backs up `~/.codex/hooks.json`.
+- **Fallback removal protocol:** There is no public `$<plugin>:cleanup` skill. Stale skill-workshop fallback commands in `~/.codex/hooks.json` are removed manually or by running `scripts/install-codex-hooks.js remove` from the installed plugin directory. The remove mode preserves unrelated hooks and deletes empty hook-event arrays.
+- **Marketplace upgrade flow:** Codex `plugin marketplace upgrade` updates plugin files; native hooks take effect after restart. Current Codex users do not run setup after install or upgrade. Users with stale fallback entries remove them manually or run the script-only remove helper, then restart. README of each Codex plugin documents this.
 - **Skill mention syntax:** Codex uses `$plugin:skill-name` (not `/`); UserPromptSubmit hook regex matches accordingly.
 - **Architect prompt router:** Codex architect UserPromptSubmit must stay non-blocking and trigger only on explicit upstream `superpowers` workflow skill mentions; natural-language architecture discussion returns `{}`. Injected content stays a dynamic pattern index + Architecture Gate; DDD-specific guidance is conditional on the active pattern set, not assumed globally.
 - **Designing-tests prompt router:** Codex designing-tests UserPromptSubmit must stay non-blocking and trigger only on explicit upstream `superpowers` workflow skill mentions; natural-language prompts return `{}`. Injected content is the compact standing primer plus reference index, not the full skill.

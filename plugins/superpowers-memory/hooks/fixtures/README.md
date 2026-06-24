@@ -14,6 +14,7 @@ No git init required — the `committable` field is only meaningful in a real re
 ## Scenarios
 
 - **clean/** — minimal valid KB; all checks return empty violations. Includes `cmd/server/main.go` stub so staleRef check is quiet.
+- **architecture-coverage-gap/** — complex multi-service/DDD-shaped repo with a thin architecture summary; triggers advisory `coverageGaps` without failing `verify.ok`.
 - **dense-features/** — `features.md` capability compressed into one oversized paragraph; triggers `feature_entry_too_dense`.
 - **legacy-adr-inline/** — old-style inline ADR rationale in `decisions.md`; triggers `legacy_adr_inline`.
 - **missing-adr-detail/** — ADR summary points to a missing on-demand detail file; triggers `adr_detail_missing`.
