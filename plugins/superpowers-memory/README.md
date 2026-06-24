@@ -24,7 +24,7 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading the underlying files.
 
-3. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `superpowers-memory:load` before planning/execution, and to run `superpowers-memory:update` after execution completes or when finishing a development branch.
+3. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `superpowers-memory:query` before planning/execution, and to run `superpowers-memory:ingest` after execution completes or when finishing a development branch. Compatibility aliases (`load`, `update`, `rebuild`) continue to route to those primary workflows.
 
 4. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
 
@@ -37,25 +37,33 @@ Install via the Skill Workshop marketplace:
 /plugin install superpowers-memory@skill-workshop
 ```
 
-## Skills
+## Primary Skills
 
 | Skill | Purpose | When to Use |
 |-------|---------|------------|
-| `superpowers-memory:load` | Read and present project knowledge | Before brainstorming |
-| `superpowers-memory:update` | Incremental knowledge update | After completing a development branch |
-| `superpowers-memory:rebuild` | Full knowledge regeneration | First setup, or when knowledge has drifted |
+| `superpowers-memory:query` | Read Project Knowledge Base owner files and answer from grounded sources | Before exploring, planning, architecture decisions, broad search, or answering project questions |
+| `superpowers-memory:ingest` | Create, incrementally update, or full-refresh Project Knowledge Base facts | After a spec, plan, PR, or implementation branch; when bootstrap or full-refresh is needed |
+| `superpowers-memory:lint` | Check Project Knowledge Base health without writing | When stale refs, shape violations, SSOT issues, retrieval cost, or suggested ingest targets need review |
+
+Compatibility aliases:
+
+| Alias | Primary workflow |
+|-------|------------------|
+| `superpowers-memory:load` | `query` |
+| `superpowers-memory:update` | `ingest` incremental mode |
+| `superpowers-memory:rebuild` | `ingest` bootstrap/full-refresh mode |
 
 ## Hooks
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| SessionStart | startup, clear, compact | Injects the KB index when it exists, or prompts the user to run `superpowers-memory:rebuild` when the KB is missing |
-| PreToolUse (Skill) | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `superpowers-memory:load` before work and `superpowers-memory:update` before finishing a branch; blocks when the KB does not exist, or when finishing a branch whose `covers_branch` (branch name + HEAD SHA) does not match current `HEAD` |
-| PreToolUse (Write/Edit/MultiEdit/NotebookEdit) | any file write under `docs/project-knowledge/` | Blocks the write unless a write-lock is held. The lock is acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild`, so KB content can never drift from the canonical update flow (no ad-hoc ADR commits, no manual edits). Lock has a 60-min TTL to prevent permanent lockout if a skill aborts midway. |
+| SessionStart | startup, clear, compact | Injects the KB index when it exists, or prompts the user to run `superpowers-memory:ingest` bootstrap mode (or the `rebuild` compatibility alias) when the KB is missing |
+| PreToolUse (Skill) | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `superpowers-memory:query` before work and `superpowers-memory:ingest` before finishing a branch; blocks when the KB does not exist, or when finishing a branch whose `covers_branch` (branch name + HEAD SHA) does not match current `HEAD` |
+| PreToolUse (Write/Edit/MultiEdit/NotebookEdit) | any file write under `docs/project-knowledge/` | Blocks the write unless a write-lock is held. The lock is acquired/released only by `superpowers-memory:ingest` or its `update`/`rebuild` compatibility aliases, so KB content can never drift from the canonical update flow (no ad-hoc ADR commits, no manual edits). Lock has a 60-min TTL to prevent permanent lockout if a skill aborts midway. |
 
 ### KB Write Lock
 
-`docs/project-knowledge/` is owned by `superpowers-memory:update` (incremental) and `superpowers-memory:rebuild` (full). Direct edits via Write/Edit/MultiEdit/NotebookEdit are blocked unless a lock file (`.git/superpowers-memory.lock`) is present. Both skills acquire the lock at the start of their `Process` and release it at the end:
+`docs/project-knowledge/` is owned by `superpowers-memory:ingest`. Direct edits via Write/Edit/MultiEdit/NotebookEdit are blocked unless a lock file (`.git/superpowers-memory.lock`) is present. `ingest` and its `update`/`rebuild` compatibility aliases acquire the lock at the start of their `Process` and release it at the end:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/hooks/hook-runtime.js" lock <skill-name>
@@ -65,11 +73,11 @@ node "${CLAUDE_PLUGIN_ROOT}/hooks/hook-runtime.js" unlock
 
 The lock auto-expires after 60 minutes, so an aborted run can't leave the KB permanently writable. To inspect lock state: `node hook-runtime.js lock-status`.
 
-There is **no escape hatch** — even one-line typo fixes go through `superpowers-memory:update`. This is intentional: the update skill re-applies the Exclusion Gate and Single-Owner Principle, so manual edits would just be silently re-shaped (or overwritten) on the next run.
+There is **no escape hatch** — even one-line typo fixes go through `superpowers-memory:ingest`. This is intentional: the ingest skill re-applies the Exclusion Gate and Single-Owner Principle, so manual edits would just be silently re-shaped (or overwritten) on the next run.
 
 ## Knowledge Base Structure
 
-After running `superpowers-memory:rebuild`, your project will have:
+After running `superpowers-memory:ingest` in bootstrap mode (or the `rebuild` compatibility alias), your project will have:
 
 ```
 docs/project-knowledge/
@@ -120,9 +128,10 @@ Use the same 0-5 anchor for every dimension:
 
 - `index.md`, optional shard files, and lazy ADR detail files target retrieval and token efficiency.
 - `content-rules.md` defines fact ownership, exclusion rules, ADR gates, progressive knowledge layout, and per-file content boundaries.
-- `superpowers-memory:load` gives agents a lightweight entry point before planning or architectural work.
-- `superpowers-memory:update` and `superpowers-memory:rebuild` force source review, owner routing, exclusion checks, index regeneration, and verification before commit.
-- The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; updates must go through the memory skills.
+- `superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work; `load` remains a compatibility alias.
+- `superpowers-memory:ingest` forces source review, owner routing, exclusion checks, index regeneration, and verification before commit; `update` and `rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
+- `superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets.
+- The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; KB writes must go through `superpowers-memory:ingest` or its compatibility aliases.
 - `hook-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, and commit readiness.
 - For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, and KB write-lock status.
 
