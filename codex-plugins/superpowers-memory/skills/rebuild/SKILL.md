@@ -10,4 +10,4 @@ description: Compatibility alias for superpowers-memory:ingest bootstrap or full
 - If `docs/project-knowledge/` does not exist, use ingest bootstrap mode.
 - If the knowledge base exists, use ingest full-refresh mode for the requested owner file or whole KB.
 
-Use the `ingest` process from `plugins/superpowers-memory/skills/ingest/SKILL.md`.
+Invoke `superpowers-memory:ingest` directly.

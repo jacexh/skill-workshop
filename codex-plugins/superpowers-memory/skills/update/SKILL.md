@@ -7,4 +7,4 @@ description: Compatibility alias for superpowers-memory:ingest incremental mode 
 
 `update` is a compatibility alias for incremental `superpowers-memory:ingest`.
 
-Use the `ingest` process from `plugins/superpowers-memory/skills/ingest/SKILL.md` with incremental mode.
+Invoke `superpowers-memory:ingest` directly and use incremental mode.

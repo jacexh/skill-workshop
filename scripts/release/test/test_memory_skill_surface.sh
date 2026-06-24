@@ -25,6 +25,13 @@ for track in plugins codex-plugins; do
   grep -q "superpowers-memory:ingest" "$base/rebuild/SKILL.md" || fail "$track rebuild not pointing to ingest"
 done
 
+# Codex compatibility aliases must not route agents back to Claude-track skill files.
+for skill in load update rebuild; do
+  if grep -Eq '(^|[^[:alnum:]_-])plugins/superpowers-memory/skills/' "$ROOT/codex-plugins/superpowers-memory/skills/$skill/SKILL.md"; then
+    fail "Codex $skill alias points to Claude-track skill path"
+  fi
+done
+
 diff -u "$ROOT/plugins/superpowers-memory/content-rules.md" "$ROOT/codex-plugins/superpowers-memory/content-rules.md" >/dev/null \
   || fail "content-rules differ between Claude and Codex"
 
