@@ -66,4 +66,20 @@ out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
 assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
 assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
 
-echo "  4 cases passed"
+# Case 5: deleted Claude plugin still reports raw change and existing Codex counterpart
+dir=$(setup_repo)
+rm -rf "$dir/plugins/foo"
+git -C "$dir" add -A && git -C "$dir" commit -q -m c
+out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
+assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
+assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
+
+# Case 6: deleted Codex plugin still reports raw change and existing Claude counterpart
+dir=$(setup_repo)
+rm -rf "$dir/codex-plugins/foo"
+git -C "$dir" add -A && git -C "$dir" commit -q -m c
+out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
+assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
+assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
+
+echo "  6 cases passed"

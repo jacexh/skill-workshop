@@ -33,10 +33,10 @@ sync_existing_counterparts() {
 
   {
     for name in $own_list; do
-      [ -d "$own_prefix/$name" ] && printf '%s\n' "$name"
+      printf '%s\n' "$name"
     done
     for name in $other_list; do
-      [ -d "$own_prefix/$name" ] && [ -d "$other_prefix/$name" ] && printf '%s\n' "$name"
+      [ -d "$own_prefix/$name" ] && printf '%s\n' "$name"
     done
     true
   } | sort -u | tr '\n' ' ' | sed 's/ $//'
