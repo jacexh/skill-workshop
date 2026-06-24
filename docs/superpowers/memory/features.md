@@ -46,7 +46,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Enables** — Agents can load a lightweight project knowledge index before code exploration, planning, or architectural work.
 
-**Actors / Entry Points** — `superpowers-memory:load`, SessionStart hooks, and `docs/project-knowledge/index.md`.
+**Actors / Entry Points** — `superpowers-memory:load`, SessionStart hooks, and `docs/superpowers/memory/index.md`.
 
 **Capability Boundary** — The index is the default context; full KB files are loaded on demand to avoid unnecessary token use.
 
@@ -54,7 +54,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 #### Project Knowledge Update And Rebuild
 
-**Enables** — Agents can incrementally update or fully/scoped rebuild `docs/project-knowledge/` from code, plans, specs, and ADRs.
+**Enables** — Agents can incrementally update or fully/scoped rebuild `docs/superpowers/memory/` from code, plans, specs, and ADRs.
 
 **Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/templates/`, and `plugins/superpowers-memory/content-rules.md`.
 

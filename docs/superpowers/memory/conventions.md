@@ -23,7 +23,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ## Architecture Rules
 
 - **Zero-modification principle:** Never modify upstream `superpowers` core files. Influence agent behavior through hook context injection and independent skills only (ADR-002).
-- **Project-local knowledge base:** `docs/project-knowledge/` lives in target project repos, not in this plugin repo. Plugins ship templates only.
+- **Project-local knowledge base:** `docs/superpowers/memory/` lives in target project repos, not in this plugin repo. Plugins ship templates only. Legacy `docs/project-knowledge/` is a migration source only and is hard-moved with `git mv` by memory skills when needed (ADR-019).
 - **No external dependencies beyond Node.js and git:** Hook scripts may only use tools present in standard Claude Code / Codex environments.
 - **Cross-platform hooks:** Any new hook must work on Unix and Windows. The `run-hook.cmd` polyglot wrapper handles dispatch on Claude side. Codex side uses direct Node.js (no shell wrapper needed).
 - **Strategy A for Codex track (ADR-013):** `codex-plugins/` is a parallel tree; never modify `plugins/` from Codex-side work. Designing-tests reference files are duplicated and must stay semantically aligned across tracks; release tests guard reference parity.
@@ -68,7 +68,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 - **Exclusion Gate** in `update` / `rebuild` skills checks every new entry against content-shape rules before write.
 - **Progressive knowledge layout** — `index.md` is the only strict hot-path file and must stay small enough for SessionStart injection. All other canonical entry files may split into `<slot>-<domain>.md` shards when a domain/submodule grows large. Do not delete valid knowledge merely to satisfy line or token pressure.
 - **`verify` surfaces** `ssotViolations`, `shapeViolations`, `readinessWarnings`, `retrievalCost`, `splitCandidates`, and `sizeWarnings` only for `index.md`. `retrievalCost` and `splitCandidates` are advisory; `index_too_large` is a shape violation. `committable` reflects git state only.
-- **KB writes go through `superpowers-memory:update` / `superpowers-memory:rebuild` only** (ADR-010). PreToolUse hook blocks Write/Edit on `docs/project-knowledge/` paths unless write-lock (`.git/superpowers-memory.lock`, 60-min TTL) is held. No escape hatch — manual typo fixes also go through `superpowers-memory:update`.
+- **KB writes go through `superpowers-memory:ingest` or compatibility aliases only** (ADR-010, ADR-019). PreToolUse hook blocks Write/Edit on `docs/superpowers/memory/` and legacy `docs/project-knowledge/` paths unless write-lock (`.git/superpowers-memory.lock`, 60-min TTL) is held. No escape hatch — manual typo fixes also go through `superpowers-memory:ingest`.
 - **Schema meta-rule (slots vs topics)** — `content-rules.md` defines schema slots (file names, sections, ownership), not content topics. Concrete lists inside a slot (e.g., cross-cutting concern topics, implementation-constant examples) are discovery cues, not contracts; per-project content is discovered by reading the codebase. The former playbook lazy slot is removed and should not be regenerated.
 
 ## Codex-track-specific conventions (ADR-013)

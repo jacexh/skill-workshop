@@ -45,9 +45,10 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 
 ## Capabilities
 
-- **SessionStart hook** — injects KB index from `docs/project-knowledge/index.md`, lightweight KB freshness status, plus standing primer for KB workflow
+- **SessionStart hook** — injects KB index from `docs/superpowers/memory/index.md`, lightweight KB freshness status, plus standing primer for KB workflow
+- **Storage path** — uses `docs/superpowers/memory/`; legacy `docs/project-knowledge/` installations are hard-migrated by memory skills with `git mv docs/project-knowledge docs/superpowers/memory` when the new directory does not already exist
 - **UserPromptSubmit hook** — when user types `$superpowers:brainstorming` or `$superpowers:finishing-a-development-branch`, JIT-injects relevant context (query advisory or finishing-readiness rich injection)
-- **PreToolUse hook** — blocks `apply_patch` and `mcp__filesystem__.*` writes to `docs/project-knowledge/` unless write-lock is held by `$superpowers-memory:ingest` or its `$superpowers-memory:update`/`$superpowers-memory:rebuild` compatibility aliases
+- **PreToolUse hook** — blocks `apply_patch` and `mcp__filesystem__.*` writes to `docs/superpowers/memory/` unless write-lock is held by `$superpowers-memory:ingest` or its `$superpowers-memory:update`/`$superpowers-memory:rebuild` compatibility aliases
 - **Skills:** primary `$superpowers-memory:query`, `$superpowers-memory:ingest`, `$superpowers-memory:lint`; compatibility aliases `$superpowers-memory:load` -> `query`, `$superpowers-memory:update` -> `ingest` incremental mode, `$superpowers-memory:rebuild` -> `ingest` bootstrap/full-refresh mode
 
 ## KB Quality Evaluation
@@ -89,9 +90,9 @@ Use the same 0-5 anchor for every dimension:
 - `$superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work, and produces structured Memory candidates when a durable answer is missing or a reusable durable synthesis should be preserved; `$superpowers-memory:load` remains a compatibility alias.
 - `$superpowers-memory:ingest` writes stable project facts by forcing source review, owner routing, targeted Core Query Coverage, architecture answerability self-checks, exclusion checks, index regeneration, and verification before commit; `$superpowers-memory:update` and `$superpowers-memory:rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
 - `$superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
-- The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; KB writes must go through `$superpowers-memory:ingest` or its compatibility aliases.
+- The KB write lock prevents ad-hoc edits under `docs/superpowers/memory/`; KB writes must go through `$superpowers-memory:ingest` or its compatibility aliases.
 - `codex-runtime.js status` reports `covers_branch` versus current HEAD so Codex has stale-KB evidence even on prompt paths that cannot fire JIT hooks.
-- `codex-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.
+- `codex-runtime.js verify` checks stale path references, shape violations including forbidden conversation/chat/transcript KB slots, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, unrouted shards, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.
 - For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, advisory `coverageGaps`, and KB write-lock status.
 
 ## Known Codex protocol gaps

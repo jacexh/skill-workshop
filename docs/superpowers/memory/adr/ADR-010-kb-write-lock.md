@@ -9,19 +9,19 @@ status: Accepted
 
 ## Context
 
-`docs/project-knowledge/` is the Single Source of Truth for cross-session project memory in superpowers-memory. Content rules already designate `superpowers-memory:update` and `superpowers-memory:rebuild` as the sole editors (per the Ownership Matrix in `content-rules.md`), but enforcement was advisory: the PreToolUse hook only matched the `Skill` tool, leaving `Write`, `Edit`, `MultiEdit`, and `NotebookEdit` on KB paths completely unguarded.
+`docs/superpowers/memory/` is the Single Source of Truth for cross-session project memory in superpowers-memory. Content rules already designate `superpowers-memory:update` and `superpowers-memory:rebuild` as the sole editors (per the Ownership Matrix in `content-rules.md`), but enforcement was advisory: the PreToolUse hook only matched the `Skill` tool, leaving `Write`, `Edit`, `MultiEdit`, and `NotebookEdit` on KB paths completely unguarded.
 
-Field evidence from a downstream project (talgent) showed the failure mode: AI assistants implementing features routinely judged "this is significant enough to record as an ADR" and used `Write` directly on `docs/project-knowledge/decisions.md` and `docs/project-knowledge/adr/`. The next `superpowers-memory:update` run then re-applied the Exclusion Gate and Single-Owner audit (Step 4 of the update SKILL.md: "Apply ... per-file format rule to ALL entries in any file you touch ... rewrite [violators] to comply") — silently overwriting or restructuring the standalone entries. Result: unpredictable churn, lost authorial intent, and a mental model split where users couldn't rely on the update skill as the canonical edit path.
+Field evidence from a downstream project (talgent) showed the failure mode: AI assistants implementing features routinely judged "this is significant enough to record as an ADR" and used `Write` directly on `docs/superpowers/memory/decisions.md` and `docs/superpowers/memory/adr/`. The next `superpowers-memory:update` run then re-applied the Exclusion Gate and Single-Owner audit (Step 4 of the update SKILL.md: "Apply ... per-file format rule to ALL entries in any file you touch ... rewrite [violators] to comply") — silently overwriting or restructuring the standalone entries. Result: unpredictable churn, lost authorial intent, and a mental model split where users couldn't rely on the update skill as the canonical edit path.
 
 The same risk applies to manual user edits (typo fixes, in-IDE tweaks). Without a hard gate, "use `superpowers-memory:update`" is documented convention only.
 
 ## Decision
 
-Extend the superpowers-memory PreToolUse hook to match `Skill|Write|Edit|MultiEdit|NotebookEdit`. For Write-family tools, inspect the resolved file path: if it falls inside `docs/project-knowledge/`, return `decision: "block"` with a remediation message unless a write-lock is held.
+Extend the superpowers-memory PreToolUse hook to match `Skill|Write|Edit|MultiEdit|NotebookEdit`. For Write-family tools, inspect the resolved file path: if it falls inside `docs/superpowers/memory/`, return `decision: "block"` with a remediation message unless a write-lock is held.
 
 The lock is a file at `<gitDir>/superpowers-memory.lock` (typically `.git/superpowers-memory.lock`) containing `{ acquired_at, skill }`. It is acquired and released only by the `superpowers-memory:update` and `superpowers-memory:rebuild` skills via three new `hook-runtime.js` subcommands: `lock <skill-name>`, `unlock`, `lock-status`. Stale locks (mtime older than 60 minutes) are ignored and auto-cleaned, so an aborted skill run cannot permanently lock the KB.
 
-Protection scope is the entire `docs/project-knowledge/` tree, not just `decisions.md` / `adr/`. There is no environment-variable bypass and no user escape hatch — all KB edits, including one-line typo fixes, must go through `superpowers-memory:update`.
+Protection scope is the entire `docs/superpowers/memory/` tree, not just `decisions.md` / `adr/`. There is no environment-variable bypass and no user escape hatch — all KB edits, including one-line typo fixes, must go through `superpowers-memory:update`.
 
 ## Alternatives Rejected
 
@@ -35,7 +35,7 @@ Protection scope is the entire `docs/project-knowledge/` tree, not just `decisio
 
 ## Consequences
 
-KB integrity is now mechanically enforced: no path through Claude Code's standard tool surface can modify `docs/project-knowledge/` outside `superpowers-memory:update` / `superpowers-memory:rebuild`. Write attempts return a structured block message pointing at the canonical workflow.
+KB integrity is now mechanically enforced: no path through Claude Code's standard tool surface can modify `docs/superpowers/memory/` outside `superpowers-memory:update` / `superpowers-memory:rebuild`. Write attempts return a structured block message pointing at the canonical workflow.
 
 Existing projects upgrading to superpowers-memory v1.9.0 will see all direct KB edits blocked at the hook layer until they re-install the plugin and let `superpowers-memory:update` acquire the lock. This is a breaking change in user contract — flagged with a minor version bump (v1.8.x → v1.9.0) and a `KB Write Lock` README section. Plugins not yet on v1.9.0 retain prior behavior.
 

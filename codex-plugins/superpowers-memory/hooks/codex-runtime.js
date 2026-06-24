@@ -6,7 +6,7 @@ const cp = require("child_process");
 const mode = process.argv[2];
 
 // Resolve repoRoot to the worktree top-level so the hook reads the correct
-// docs/project-knowledge/ when invoked from a subdir or a linked worktree.
+// docs/superpowers/memory/ when invoked from a subdir or a linked worktree.
 // Falls back to process.cwd() if git is unavailable or the dir is not a repo.
 function resolveRepoRoot() {
   const result = cp.spawnSync("git", ["rev-parse", "--show-toplevel"], {
@@ -20,7 +20,23 @@ function resolveRepoRoot() {
   return process.cwd();
 }
 const repoRoot = resolveRepoRoot();
-const knowledgeDir = path.join(repoRoot, "docs", "project-knowledge");
+const MEMORY_REL_DIR = "docs/superpowers/memory";
+const LEGACY_MEMORY_REL_DIR = "docs/project-knowledge";
+const knowledgeDir = path.join(repoRoot, ...MEMORY_REL_DIR.split("/"));
+const legacyKnowledgeDir = path.join(repoRoot, ...LEGACY_MEMORY_REL_DIR.split("/"));
+
+function nonKnowledgePathspecs() {
+  return [".", ":!" + MEMORY_REL_DIR, ":!" + LEGACY_MEMORY_REL_DIR];
+}
+
+function isInsideDir(rootDir, absTarget) {
+  const rel = path.relative(rootDir, absTarget);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+function isInsideKnowledgeTree(absTarget) {
+  return isInsideDir(knowledgeDir, absTarget) || isInsideDir(legacyKnowledgeDir, absTarget);
+}
 
 // Lock file lives in .git/ so it's per-repo, never tracked, and survives across
 // hook invocations within a single update/rebuild run. 60-min TTL prevents
@@ -152,11 +168,11 @@ function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolve
   let fileLines = [];
   if (resolvedStoredSHA) {
     const range = resolvedStoredSHA + "..HEAD";
-    const logResult = run("git", ["log", "--oneline", "--no-merges", "-n", "20", range, "--", ".", ":!docs/project-knowledge"]);
+    const logResult = run("git", ["log", "--oneline", "--no-merges", "-n", "20", range, "--", ...nonKnowledgePathspecs()]);
     if (logResult.code === 0 && logResult.stdout.trim()) {
       commitLines = logResult.stdout.trim().split("\n");
     }
-    const diffResult = run("git", ["diff", "--name-only", range, "--", ".", ":!docs/project-knowledge"]);
+    const diffResult = run("git", ["diff", "--name-only", range, "--", ...nonKnowledgePathspecs()]);
     if (diffResult.code === 0 && diffResult.stdout.trim()) {
       fileLines = diffResult.stdout.trim().split("\n").slice(0, 30);
     }
@@ -188,7 +204,7 @@ function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolve
 
   sections.push("");
   sections.push("Required workflow:");
-  sections.push("  1. Invoke `$superpowers-memory:ingest` (it will read the diff above and refresh docs/project-knowledge/).");
+  sections.push("  1. Invoke `$superpowers-memory:ingest` (it will read the diff above and refresh docs/superpowers/memory/).");
   sections.push("  2. Wait for it to complete (the KB write-lock will be released automatically).");
   sections.push("  3. Re-invoke `$superpowers:finishing-a-development-branch` to continue.");
   sections.push("");
@@ -214,6 +230,8 @@ const KNOWLEDGE_SLOT_PREFIXES = [
   "glossary",
 ];
 
+const FORBIDDEN_KB_SLOT_PATTERN = /^(conversation|conversations|chat|chats|transcript|transcripts)(-|\.md$)/i;
+
 function knowledgeSlotForFile(filename) {
   if (filename === "index.md") return "index";
   for (const prefix of KNOWLEDGE_SLOT_PREFIXES) {
@@ -229,6 +247,16 @@ function listKnowledgeEntryFiles() {
     .filter((filename) => {
       const filePath = path.join(knowledgeDir, filename);
       return fs.statSync(filePath).isFile() && knowledgeSlotForFile(filename);
+    })
+    .sort();
+}
+
+function listKnowledgeMarkdownFiles() {
+  if (!hasKnowledgeBase()) return [];
+  return fs.readdirSync(knowledgeDir)
+    .filter((filename) => {
+      const filePath = path.join(knowledgeDir, filename);
+      return fs.statSync(filePath).isFile() && filename.endsWith(".md");
     })
     .sort();
 }
@@ -701,7 +729,7 @@ function inspectRepoArchitectureSignals() {
       .some((layer) => fs.existsSync(path.join(abs, layer)));
   }).length;
 
-  const adrCount = countFilesUnder(path.join("docs", "project-knowledge", "adr"), (file) => file.endsWith(".md"), 100);
+  const adrCount = countFilesUnder(path.join(MEMORY_REL_DIR, "adr"), (file) => file.endsWith(".md"), 100);
   const manifestCount =
     countFilesUnder("deploy", (file) => /\.(ya?ml|json|toml)$/.test(file), 100) +
     countFilesUnder("k8s", (file) => /\.(ya?ml|json|toml)$/.test(file), 100) +
@@ -845,7 +873,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_owner_missing",
       sample: "Complex repo signals found but no architecture owner file exists",
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture.md",
+      suggestedOwner: "docs/superpowers/memory/architecture.md",
     });
     return findings;
   }
@@ -872,7 +900,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_topology_missing",
       sample: "Complex repo architecture should expose a system topology/context map and call/event direction rules",
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture.md",
+      suggestedOwner: "docs/superpowers/memory/architecture.md",
     });
   }
 
@@ -881,7 +909,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_view_shards_legacy",
       sample: `Found legacy architecture view shard(s): ${legacyViewShardFiles.join(", ")}. Prefer module-first shards such as architecture-orchestrator.md plus named scenario shards such as architecture-runtime-message-chain.md; do not split architecture detail by diagram/view type.`,
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture.md",
+      suggestedOwner: "docs/superpowers/memory/architecture.md",
     });
   }
 
@@ -891,7 +919,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_service_cards_sparse",
       sample: `Found ${serviceCardCount} service architecture card(s); expected at least ${expectedCards} high-value card(s) for complex repo signals`,
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-<module>.md",
+      suggestedOwner: "docs/superpowers/memory/architecture-<module>.md",
     });
   }
 
@@ -900,7 +928,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_module_shards_missing",
       sample: "Complex repo architecture has no dedicated module shard; create architecture-<module>.md files for high-value services/bounded contexts that need direct query answers",
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-<module>.md",
+      suggestedOwner: "docs/superpowers/memory/architecture-<module>.md",
     });
   }
 
@@ -909,7 +937,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_service_cards_shallow",
       sample: `Found ${shallowServiceCardCount} service architecture card(s) whose internal components mostly name generic code layers; add named planes, subsystems, workflows, processors, projections, or other stable architecture components when source docs support them`,
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-<module>.md",
+      suggestedOwner: "docs/superpowers/memory/architecture-<module>.md",
     });
   }
 
@@ -919,7 +947,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_scenarios_sparse",
       sample: `Found ${sequenceCount} sequenceDiagram(s); expected at least ${expectedSequences} high-value cross-service scenario(s) for complex repo signals`,
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
+      suggestedOwner: "docs/superpowers/memory/architecture-<scenario>.md",
     });
   }
 
@@ -928,7 +956,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_scenario_shards_missing",
       sample: "Complex repo architecture has no dedicated named scenario shard; create architecture-<scenario>.md files for high-value cross-service flows",
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
+      suggestedOwner: "docs/superpowers/memory/architecture-<scenario>.md",
     });
   }
 
@@ -937,7 +965,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_scenario_refs_missing",
       sample: `Found ${scenarioWithoutRefsCount} sequenceDiagram scenario(s) without local Source refs; each high-value flow should cite its ADR/spec/doc/source basis`,
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
+      suggestedOwner: "docs/superpowers/memory/architecture-<scenario>.md",
     });
   }
 
@@ -950,7 +978,7 @@ function lintArchitectureCoverage(files) {
         kind: "architecture_module_scenario_refs_missing",
         sample: `Module shard(s) missing Scenario refs back to named scenario shards: ${modulesMissingScenarioRefs.join(", ")}`,
         signals,
-        suggestedOwner: "docs/project-knowledge/architecture-<module>.md",
+        suggestedOwner: "docs/superpowers/memory/architecture-<module>.md",
       });
     }
 
@@ -962,7 +990,7 @@ function lintArchitectureCoverage(files) {
         kind: "architecture_scenario_module_refs_missing",
         sample: `Scenario shard(s) missing Module refs back to participating module shards: ${scenariosMissingModuleRefs.join(", ")}`,
         signals,
-        suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
+        suggestedOwner: "docs/superpowers/memory/architecture-<scenario>.md",
       });
     }
   }
@@ -974,7 +1002,7 @@ function lintArchitectureCoverage(files) {
         kind: "architecture_scenario_fields_missing",
         sample: `${filename} missing scenario field(s): ${missing.join(", ")}`,
         signals,
-        suggestedOwner: `docs/project-knowledge/${filename}`,
+        suggestedOwner: `docs/superpowers/memory/${filename}`,
       });
     }
   }
@@ -984,7 +1012,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_lifecycle_missing",
       sample: "DDD/context signals found but no cross-context lifecycle/FSM coverage is present",
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture-<scenario>.md",
+      suggestedOwner: "docs/superpowers/memory/architecture-<scenario>.md",
     });
   }
 
@@ -993,7 +1021,7 @@ function lintArchitectureCoverage(files) {
       kind: "architecture_source_refs_missing",
       sample: "Architecture entries should include source refs for service cards and scenario diagrams",
       signals,
-      suggestedOwner: "docs/project-knowledge/architecture.md",
+      suggestedOwner: "docs/superpowers/memory/architecture.md",
     });
   }
 
@@ -1036,7 +1064,7 @@ function lintFeatureQueryCoverage(files) {
     findings.push({
       kind: "features_product_coverage_missing",
       sample: "Implemented feature map has platform/operations entries but no Product Capabilities; query may not answer what users can do now",
-      suggestedOwner: "docs/project-knowledge/features.md",
+      suggestedOwner: "docs/superpowers/memory/features.md",
     });
   }
 
@@ -1044,7 +1072,7 @@ function lintFeatureQueryCoverage(files) {
     findings.push({
       kind: "features_workflow_coverage_missing",
       sample: "Implemented feature map has enough capability surface to need at least one User / Operator Workflows entry for end-to-end query answers",
-      suggestedOwner: "docs/project-knowledge/features.md",
+      suggestedOwner: "docs/superpowers/memory/features.md",
     });
   }
 
@@ -1095,7 +1123,7 @@ function lintDecisionQueryCoverage(files) {
       findings.push({
         kind: "decisions_detail_links_missing",
         sample: `${filename} ADR summary block(s) missing on-demand adr/ detail links: ${missingDetail.map((block) => block.heading.replace(/^##\s+/, "")).join(", ")}`,
-        suggestedOwner: `docs/project-knowledge/${filename}`,
+        suggestedOwner: `docs/superpowers/memory/${filename}`,
       });
     }
 
@@ -1103,7 +1131,7 @@ function lintDecisionQueryCoverage(files) {
       findings.push({
         kind: "decisions_tradeoffs_missing",
         sample: `${filename} ADR summary block(s) missing explicit Trade-off lines: ${missingTradeoff.map((block) => block.heading.replace(/^##\s+/, "")).join(", ")}`,
-        suggestedOwner: `docs/project-knowledge/${filename}`,
+        suggestedOwner: `docs/superpowers/memory/${filename}`,
       });
     }
 
@@ -1111,7 +1139,32 @@ function lintDecisionQueryCoverage(files) {
       findings.push({
         kind: "decisions_affected_routing_missing",
         sample: `${filename} ADR summary block(s) missing affected owner/module routing for topic-scope refresh: ${missingAffectedRouting.map((block) => block.heading.replace(/^##\s+/, "")).join(", ")}`,
-        suggestedOwner: `docs/project-knowledge/${filename}`,
+        suggestedOwner: `docs/superpowers/memory/${filename}`,
+      });
+    }
+  }
+
+  return findings;
+}
+
+function lintShardRoutingCoverage(files) {
+  const findings = [];
+  const byName = new Map(files);
+  const indexContent = byName.get("index.md") || "";
+
+  for (const [filename] of files) {
+    const slot = knowledgeSlotForFile(filename);
+    if (!slot || slot === "index") continue;
+    if (filename === `${slot}.md`) continue;
+
+    const ownerContent = byName.get(`${slot}.md`) || "";
+    const routedByIndex = indexContent.includes(filename);
+    const routedByOwner = ownerContent.includes(filename);
+    if (!routedByIndex && !routedByOwner) {
+      findings.push({
+        kind: "knowledge_shards_unrouted",
+        sample: `${filename} is a recognized ${slot} shard but is not linked from index.md or ${slot}.md; incremental ingest must keep shard routes discoverable`,
+        suggestedOwner: `docs/superpowers/memory/index.md and docs/superpowers/memory/${slot}.md`,
       });
     }
   }
@@ -1131,7 +1184,7 @@ function lintReferenceQueryCoverage(files) {
       findings.push({
         kind: "conventions_source_refs_missing",
         sample: `${filename} cross-cutting concern lacks canonical source reference: ${unreferencedConcern.trim().slice(0, 120)}`,
-        suggestedOwner: `docs/project-knowledge/${filename}`,
+        suggestedOwner: `docs/superpowers/memory/${filename}`,
       });
     }
   }
@@ -1145,7 +1198,7 @@ function lintReferenceQueryCoverage(files) {
       findings.push({
         kind: "tech_stack_rationale_missing",
         sample: "tech-stack.md lists multiple technologies without explicit selection rationale; query can name dependencies but not why they matter",
-        suggestedOwner: "docs/project-knowledge/tech-stack.md",
+        suggestedOwner: "docs/superpowers/memory/tech-stack.md",
       });
     }
   }
@@ -1159,7 +1212,7 @@ function lintReferenceQueryCoverage(files) {
       findings.push({
         kind: "glossary_owner_refs_missing",
         sample: `glossary.md term(s) lack owner/source refs: ${unreferencedTerms.slice(0, 3).map((line) => line.trim().slice(0, 60)).join("; ")}`,
-        suggestedOwner: "docs/project-knowledge/glossary.md",
+        suggestedOwner: "docs/superpowers/memory/glossary.md",
       });
     }
   }
@@ -1169,6 +1222,7 @@ function lintReferenceQueryCoverage(files) {
 
 function lintQueryCoverage(files) {
   return [
+    ...lintShardRoutingCoverage(files),
     ...lintArchitectureCoverage(files),
     ...lintFeatureQueryCoverage(files),
     ...lintDecisionQueryCoverage(files),
@@ -1198,11 +1252,11 @@ function buildKnowledgeStatus() {
     uncommittedKbFiles: [],
   };
 
-  const nonKbStatus = run("git", ["status", "--porcelain", "--", ".", ":!docs/project-knowledge"]);
+  const nonKbStatus = run("git", ["status", "--porcelain", "--", ...nonKnowledgePathspecs()]);
   if (nonKbStatus.code === 0 && nonKbStatus.stdout.trim()) {
     status.uncommittedNonKbFiles = nonKbStatus.stdout.trim().split("\n").map(parsePorcelainPath);
   }
-  const kbStatus = run("git", ["status", "--porcelain", "--", "docs/project-knowledge"]);
+  const kbStatus = run("git", ["status", "--porcelain", "--", MEMORY_REL_DIR, LEGACY_MEMORY_REL_DIR]);
   if (kbStatus.code === 0 && kbStatus.stdout.trim()) {
     status.uncommittedKbFiles = kbStatus.stdout.trim().split("\n").map(parsePorcelainPath);
   }
@@ -1241,8 +1295,8 @@ function buildKnowledgeStatus() {
   }
 
   const range = resolvedStoredSHA + "..HEAD";
-  const logResult = run("git", ["log", "--oneline", "--no-merges", range, "--", ".", ":!docs/project-knowledge"]);
-  const diffResult = run("git", ["diff", "--name-only", range, "--", ".", ":!docs/project-knowledge"]);
+  const logResult = run("git", ["log", "--oneline", "--no-merges", range, "--", ...nonKnowledgePathspecs()]);
+  const diffResult = run("git", ["diff", "--name-only", range, "--", ...nonKnowledgePathspecs()]);
   const commitLines = logResult.code === 0 && logResult.stdout.trim()
     ? logResult.stdout.trim().split("\n")
     : [];
@@ -1392,11 +1446,11 @@ function classifyFinishingState(eventName) {
   }
 
   // KB-only commits don't count as staleness — if the only changes since
-  // covers_branch@SHA are inside docs/project-knowledge/ (e.g., the KB-update
+  // covers_branch@SHA are inside docs/superpowers/memory/ (e.g., the KB-update
   // commit itself), treat as covered. Mirrors ADR-008's stop-hook exclusion.
   if (resolvedStoredSHA) {
     const nonKBCheck = run("git", ["log", "--oneline", "--no-merges", "-n", "1",
-      resolvedStoredSHA + "..HEAD", "--", ".", ":!docs/project-knowledge"]);
+      resolvedStoredSHA + "..HEAD", "--", ...nonKnowledgePathspecs()]);
     if (nonKBCheck.code === 0 && !nonKBCheck.stdout.trim()) {
       return hookPayload(eventName, advisory);
     }
@@ -1478,7 +1532,7 @@ function buildUserPromptSubmitOutput(input) {
       const message = kbExists
         ? "Project knowledge base exists but no index file was found. " +
           "Run $superpowers-memory:ingest full-refresh before invoking $superpowers:finishing-a-development-branch."
-        : "Knowledge base missing at docs/project-knowledge/. " +
+        : "Knowledge base missing at docs/superpowers/memory/. " +
           "Run $superpowers-memory:ingest bootstrap before invoking $superpowers:finishing-a-development-branch.";
       return hookPayload(
         "UserPromptSubmit",
@@ -1533,7 +1587,7 @@ function buildVerifyOutput() {
     let match;
     while ((match = refPattern.exec(content)) !== null) {
       const ref = match[1];
-      if (ref.includes("://") || ref.startsWith("docs/project-knowledge/") || ref.includes("<")) continue;
+      if (ref.includes("://") || ref.startsWith(MEMORY_REL_DIR + "/") || ref.startsWith(LEGACY_MEMORY_REL_DIR + "/") || ref.includes("<")) continue;
 
       const rawSegments = ref.split("/");
       const segments = rawSegments.filter(Boolean);
@@ -1566,6 +1620,16 @@ function buildVerifyOutput() {
   // SSOT check — detect near-duplicate 3-line blocks across KB files
   const ssotViolations = ssotCheckKnowledgeBase(fileContents);
   const shapeViolations = contentShapeLintKnowledgeBase(fileContents);
+  for (const filename of listKnowledgeMarkdownFiles()) {
+    if (!knowledgeSlotForFile(filename) && FORBIDDEN_KB_SLOT_PATTERN.test(filename)) {
+      shapeViolations.push({
+        file: filename,
+        line: 1,
+        kind: "forbidden_kb_slot",
+        sample: `${filename} is not a Project Knowledge slot; route durable conclusions to specs/plans/ADRs or existing owner files`,
+      });
+    }
+  }
   if (indexFile) {
     const lines = indexFile[1].split("\n").length;
     if (lines > INDEX_LINE_THRESHOLD) {
@@ -1665,9 +1729,7 @@ function handleWritePreToolUse(toolName, toolInput) {
   const absTarget = path.isAbsolute(targetPath)
     ? targetPath
     : path.resolve(repoRoot, targetPath);
-  const rel = path.relative(knowledgeDir, absTarget);
-  const insideKB = rel !== "" && !rel.startsWith("..") && !path.isAbsolute(rel);
-  if (!insideKB) return {};
+  if (!isInsideKnowledgeTree(absTarget)) return {};
 
   if (isLockHeld()) return {};
 
@@ -1677,7 +1739,7 @@ function handleWritePreToolUse(toolName, toolInput) {
       hookEventName: "PreToolUse",
       permissionDecision: "deny",
       permissionDecisionReason:
-        "Direct edits to docs/project-knowledge/ are forbidden. " +
+        "Direct edits to docs/superpowers/memory/ (or legacy docs/project-knowledge/) are forbidden. " +
         "This directory is owned by $superpowers-memory:ingest. " +
         "To record an architectural decision: document it in your plan/spec under " +
         "docs/superpowers/plans/, then run $superpowers-memory:ingest to materialize " +

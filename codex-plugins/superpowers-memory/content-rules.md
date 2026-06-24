@@ -30,7 +30,7 @@ Every fact in the KB has exactly one owner file. Other files reference the owner
 | Structure: components, boundaries, how modules are wired, data flows | `architecture.md` | "see architecture.md §<section>" |
 | **Capability: what the system can DO (current state, not history)** | `features.md` | "see features.md §<capability>" |
 | **Decision summary** (what was decided + one-line trade-off) | `decisions.md` (ADR-NNN) | "see ADR-NNN" |
-| **Decision rationale detail** (context, rejected alternatives, consequences) | `docs/project-knowledge/adr/ADR-NNN-<slug>.md` | "see adr/ADR-NNN-*.md" |
+| **Decision rationale detail** (context, rejected alternatives, consequences) | `docs/superpowers/memory/adr/ADR-NNN-<slug>.md` | "see adr/ADR-NNN-*.md" |
 | Dependency version + selection rationale | `tech-stack.md` | "see tech-stack.md" |
 | Coding, workflow, CI rules | `conventions.md` | "see conventions.md §<section>" |
 | Domain term definitions | `glossary.md` | "see glossary" |
@@ -54,7 +54,8 @@ Conversation is not a KB slot. Chat, transcript, meeting-note, or ad hoc discuss
 content can only become Project Knowledge after it is distilled into durable facts
 and routed to an existing owner file such as `features.md`, `architecture.md`,
 `decisions.md`, `conventions.md`, `glossary.md`, or a spec/plan/ADR. Prefer adding
-or updating a spec/plan/ADR before ingesting a conversational conclusion.
+or updating a spec/plan/ADR before ingesting a conversational conclusion. Never
+create `conversation.md`, `chat.md`, or `transcript.md`.
 
 ## Progressive Knowledge Layout
 
@@ -89,7 +90,7 @@ Architecture splitting has a stricter rule: use a **module-first + named scenari
 
 Do not create architecture shards by document view or diagram type. `architecture-contexts.md` and `architecture-flows.md` are legacy view shards: keep them readable if already present, but full-refresh ingest should migrate their durable facts into module shards and named scenario shards.
 
-Entry files should keep a short overview plus links to shards. Shards own their detailed content and follow the same per-file rules as their parent slot. `index.md` should list important shards with 1-2 key points so agents can load only the relevant file.
+Entry files should keep a short overview plus links to shards. Shards own their detailed content and follow the same per-file rules as their parent slot. `index.md` should list important shards with 1-2 key points so agents can load only the relevant file. Every `<slot>-<domain>.md` shard must be reachable from `index.md` or the corresponding `<slot>.md`; preferably both for high-value shards.
 
 When `verify` reports high retrieval cost or split candidates, treat it as an advisory. The correct response is to improve routing, split by stable boundaries, remove duplicates, or fix shape violations — not to delete valid current project knowledge.
 
@@ -100,7 +101,7 @@ The Project Knowledge Base must support `query`, not only session-start orientat
 - `index.md` is the router. It lists owner files, shards, useful aliases, and 1-2 routing key points per file.
 - Owner entries that claim durable behavior include a source reference: spec, plan, ADR, README, canonical source file, or another owner entry.
 - Cross-owner relationships use `See:` or `Related:` pointers. Do not duplicate expanded facts across owner files.
-- Shards must be reachable from `index.md`; if a parent owner file exists, it also links to its shards.
+- Shards must be reachable from `index.md` or the parent owner file; high-value shards should be linked from both.
 - Optional aliases are plain Markdown such as `Aliases: native hooks, Codex hooks, prompt router`.
 - Query answers should be supported by read owner/source entries, not by search snippets alone.
 
@@ -116,15 +117,22 @@ For each durable changed fact, identify the owner file plus adjacent knowledge
 that must stay navigable:
 
 - Feature change → `features*.md`, related architecture owner/shard, related ADRs,
-  and `index.md` routing when the capability name, entry point, or domain changes.
+  and `index.md`/`features.md` routing when the capability name, entry point, domain, or shard set changes.
 - Architecture module change → module shard/card, participating scenario shards,
   `decisions.md` affected routing, and parent `architecture.md`/`index.md`.
 - Architecture scenario change → scenario shard, all participating module shards,
   authority/order/failure rules, and `index.md`.
 - ADR change → `decisions.md`, ADR detail file, affected owner/shard references,
-  and any feature/convention/architecture entry that cites the ADR.
+  any `decisions-<domain>.md` shard in the same decision family, and any
+  feature/convention/architecture entry that cites the ADR.
 - Convention/glossary/tech-stack change → the reference owner plus source refs,
   affected ADR or architecture/feature entries, and glossary aliases when terms move.
+
+After writing an incremental update, run a related-owner sweep for the topic radius:
+parent owner file, newly touched shard, `index.md`, affected ADR summaries,
+affected feature/architecture/convention entries, and source refs. If a new shard
+exists but is not reachable from `index.md` or the parent owner file, the update is
+not query-grade yet.
 
 ### Topic-scope refresh
 
@@ -173,15 +181,24 @@ map is complete.
 ### Decision Query Coverage
 
 Decision knowledge should answer "why this design?" and "what decision constrains
-this module?" without loading every ADR. `decisions.md` should keep each active ADR
-summary small, but each active ADR should still expose:
+this module?" without loading every ADR. `decisions.md` is a **decision index**,
+not LLM Wiki's operation `log.md` and not a chat/history slot. It keeps active ADR
+summaries small and routes query to affected owners and on-demand ADR detail files.
+Each active ADR summary should expose:
 
 - The decision in one sentence.
 - The trade-off or limitation in one sentence.
 - A link to the on-demand `adr/ADR-NNN-*.md` detail file when the decision passes
   the ADR granularity gate.
-- Optional owner-file routing such as affected modules, features, or conventions
-  when that helps query traverse from current behavior to rationale.
+- Affected owner-file routing such as modules, scenarios, features, conventions,
+  or tech-stack entries. Use `Affects: Global` only for genuinely cross-cutting
+  decisions.
+
+Large projects may split decision summaries into `decisions-<domain>.md` shards
+when a stable decision family would otherwise make the root index hard to scan.
+The root `decisions.md` remains the decision router and must link to every
+decision shard it delegates to; `index.md` should route high-value decision shards
+directly. Do not split decisions by chronology alone.
 
 ### Reference Query Coverage
 
@@ -351,9 +368,9 @@ Describes **what the system can do now**. It is the current capability map for h
 - Pointers to owner files for structure, decisions, technology, conventions, or terminology
 - ADR reference(s) that gate the capability
 
-### decisions.md — ADR summary log
+### decisions.md — Decision index / ADR summary index
 
-Carries **decision summaries only**. Indexed through `index.md` on the hot path; `superpowers-memory:query` loads this file only when on-demand routing needs decision context. Keep it short and scannable so `query` can orient from `index.md` first, then read the smallest useful owner files. Full rationale (context, alternatives, consequences) lives in per-ADR detail files under `docs/project-knowledge/adr/` — loaded on demand by `Read`, never auto-loaded.
+Carries **decision summaries and decision-shard routes only**. Indexed through `index.md` on the hot path; `superpowers-memory:query` loads this file only when on-demand routing needs decision context. Keep it short and scannable so `query` can orient from `index.md` first, then read the smallest useful owner files. Full rationale (context, alternatives, consequences) lives in per-ADR detail files under `docs/superpowers/memory/adr/` — loaded on demand by `Read`, never auto-loaded.
 
 **Granularity gate — all three must hold** to record an ADR:
 
@@ -376,10 +393,11 @@ Carries **decision summaries only**. Indexed through `index.md` on the hot path;
 ## ADR-NNN: [Decision Title]
 **Decision:** [What was decided, one sentence]
 **Trade-off:** [Known cost or limitation, one sentence. "None" if none]
+**Affects:** [owner files, modules, scenarios, features, conventions, or Global]
 → [adr/ADR-NNN-<slug>.md](adr/ADR-NNN-<slug>.md)
 ```
 
-Maximum **6 non-blank lines per ADR** in the summary file (heading + Decision + Trade-off + pointer = 4 typical; 2 extra lines allowed for multi-part decisions). Beyond 6 lines → move rationale to the detail file.
+Maximum **6 non-blank lines per ADR** in the summary file (heading + Decision + Trade-off + Affects + pointer = 5 typical; 1 extra line allowed for multi-part decisions). Beyond 6 lines → move rationale to the detail file.
 
 **Supersede format (1 line in summary):**
 
@@ -388,6 +406,15 @@ Maximum **6 non-blank lines per ADR** in the summary file (heading + Decision + 
 ```
 
 No body in the summary. The detail file at `adr/ADR-NNN-<slug>.md` stays (historical record) with `superseded_by: ADR-MMM` added to its frontmatter.
+
+### decisions-<domain>.md — Decision family shard
+
+Use only when a stable decision family makes the root `decisions.md` hard to scan.
+Examples: `decisions-runtime.md`, `decisions-auth.md`, `decisions-files.md`.
+The root `decisions.md` remains the decision router and links to decision shards;
+`index.md` links high-value decision shards directly. Do not split decisions by
+date range or arbitrary page size. Each ADR summary inside a decision shard uses
+the same Decision / Trade-off / Affects / detail-link format as `decisions.md`.
 
 ### adr/ADR-NNN-<slug>.md — ADR detail (on-demand load)
 
@@ -447,9 +474,22 @@ The `update` skill detects v1 format and offers interactive migration.
 
 ### conventions.md
 
-- Project-specific rules only. Do NOT duplicate rules enforced by formatter/linter.
+- Project-specific current guardrails only. Do NOT duplicate rules enforced by formatter/linter.
 - Do NOT duplicate general design-pattern rules (DDD, Clean Architecture, etc.) — reference the pattern doc.
+- Do NOT list technology names, versions, or selection rationale here; that belongs in `tech-stack.md`.
+- Do NOT record irreversible cross-module decision rationale here; that belongs in `decisions.md` + `adr/`.
+- Do NOT describe user-visible capabilities here; that belongs in `features*.md`.
 - **Cross-cutting concerns section (required, may be N/A):** include a `## Cross-cutting concerns` section that indexes rules applying across most code paths in the project. Format per concern: `**<topic>:** <one-line rule> → \`<canonical impl path>\``. Topics are **discovered per project** — not a fixed list. Typical discovery cues: middlewares/decorators imported across many files; utility modules with broad fan-in; CI-enforced cross-file checks; framework hooks wired globally. Common topic names when present include auth, logging, tracing, error handling, config, observability, persistence, caching, rate limiting, i18n — but only list what the project actually has. If the project has no cross-cutting concerns (pure library, plugin/skill repo, docs site), write `N/A: <reason>` as the sole content under the heading.
+
+### conventions-<domain>.md — Practice-area shard
+
+Use only when a stable practice area has multiple reusable guardrails, canonical
+source refs, and would otherwise make `conventions.md` noisy. Good domains are
+work surfaces such as backend, frontend, operations, testing, security, or data.
+Small projects should keep conventions in one file. Every convention shard must
+be linked from `conventions.md` or `index.md`; high-value shards should be linked
+from both. Each non-obvious rule needs a source ref to a canonical implementation,
+config, CI check, design-pattern file, ADR, or owner entry.
 
 ### index.md
 

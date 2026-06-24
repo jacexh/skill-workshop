@@ -5,15 +5,26 @@ description: Use to create, incrementally update, or full-refresh Project Knowle
 
 # Ingest Project Knowledge
 
-Write durable project facts into `docs/project-knowledge/`. This is the only normal knowledge-writing path.
+Write durable project facts into `docs/superpowers/memory/`. This is the only normal knowledge-writing path.
 
 **Announce at start:** "I'm ingesting project knowledge."
+
+## Legacy Hard Migration
+
+At skill start, hard-cut legacy storage before choosing an ingest mode. If `docs/project-knowledge/` exists and `docs/superpowers/memory/` does not exist, run:
+
+```bash
+mkdir -p docs/superpowers
+git mv docs/project-knowledge docs/superpowers/memory
+```
+
+If both directories exist, stop and report the path conflict instead of merging.
 
 ## Modes
 
 - **Incremental ingest:** default after a spec, plan, PR, or implementation branch. Read source documents first and update only affected owner files. If changed sources introduce or materially change a high-value object, run targeted Core Query Coverage for that object.
 - **Topic-scope refresh:** use inside `ingest` when an incremental update touches a high-value module, scenario, capability, or decision family whose nearby owner files are too thin or poorly cross-linked. Refresh only the topic radius, not the whole KB.
-- **Bootstrap ingest:** use when `docs/project-knowledge/` does not exist. Read the project and create the initial owner files plus compact `index.md`.
+- **Bootstrap ingest:** use when `docs/superpowers/memory/` does not exist. Read the project and create the initial owner files plus compact `index.md`.
 - **Full-refresh ingest:** use when `superpowers-memory:lint` reports high drift, owner-file structure is obsolete, or the user explicitly asks to regenerate target files.
 
 ## Source Authority
@@ -45,13 +56,13 @@ Treat an object as high-value when it is a bounded context, service, major modul
 
 Before writing incremental updates, run an Impact Radius pass. Identify the direct owner file plus adjacent owner files/shards that must stay navigable:
 
-- Feature change → `features*.md`, related architecture owner/shard, related ADRs, and `index.md` when routing changes.
+- Feature change → `features*.md`, related architecture owner/shard, related ADRs, and `index.md`/`features.md` when routing, domain, or shard set changes.
 - Architecture module change → module shard/card, participating scenario shards, affected ADR routing, and parent `architecture.md`/`index.md`.
 - Architecture scenario change → scenario shard, all participating module shards, authority/order/failure rules, and `index.md`.
-- ADR change → `decisions.md`, ADR detail file, affected owner/shard refs, and any feature/convention/architecture entry that cites the ADR.
+- ADR change → `decisions.md`, ADR detail file, any `decisions-<domain>.md` shard in the same decision family, affected owner/shard refs, and any feature/convention/architecture entry that cites the ADR.
 - Convention/glossary/tech-stack change → reference owner plus source refs, affected ADR or architecture/feature entries, and glossary aliases when terms move.
 
-Run a Related owner sweep after the first write: check parent/index routes, scenario/module bidirectional refs, ADR affected routing, feature references, and reference-slot source anchors for the touched topic.
+Run a Related owner sweep after the first write: check parent/index routes, scenario/module bidirectional refs, ADR affected routing, feature references, and reference-slot source anchors for the touched topic. If incremental ingest creates or touches any `<slot>-<domain>.md` shard, the update is incomplete until `index.md` or the parent `<slot>.md` links to that shard. High-value shards should be linked from both.
 
 Escalate to topic-scope refresh when the touched high-value topic is still thin after the narrow update: missing responsibility, internal components, interactions, state/flow/invariants, source refs, bidirectional module/scenario refs, product/workflow feature coverage, ADR detail/trade-off/affected routing, or reference owner/source anchors.
 
@@ -103,40 +114,43 @@ Run Feature Query Coverage before finalizing `features.md` or `features-<domain>
 
 Run Decision Query Coverage before finalizing `decisions.md` or `adr/`:
 
-- Does each active ADR summary include a decision, trade-off, and detail link when it passes the ADR granularity gate?
+- Does each active ADR summary include a decision, trade-off, affected owner/module routing, and detail link when it passes the ADR granularity gate?
 - Can `query` traverse from the decision to affected owner files, affected modules, features, or conventions without broad search?
+- If a `decisions-<domain>.md` shard exists, is it linked from `decisions.md` or `index.md`, and is the shard split by decision family rather than date/page size?
 - Are single-module choices, tool picks, temporary workarounds, and workflow rules routed away from ADRs per `content-rules.md`?
 
 Run Reference Query Coverage before finalizing `conventions.md`, `glossary.md`, or `tech-stack.md`:
 
 - Cross-cutting conventions point to canonical source/config/CI/design-pattern/ADR refs.
+- `conventions-<domain>.md` shards exist only for stable practice areas with multiple reusable current guardrails, and they are linked from `conventions.md` or `index.md`.
 - Glossary terms include owner/source refs unless they are deleted-term tombstones.
 - Critical tech-stack entries include purpose and selection rationale, not only names or versions.
 
 ## Process
 
-1. Acquire the write lock:
+1. Complete the legacy hard-migration check above.
+2. Acquire the write lock:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" lock superpowers-memory:ingest
 ```
 
-2. Identify changed or requested source documents.
-3. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
-4. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, answerability self-check fixes, and source refs needed for direct query answers.
-5. For incremental ingest, run Impact Radius and a Related owner sweep. If the touched topic remains thin or poorly linked, Escalate to topic-scope refresh before finalizing.
-6. Route each fact to exactly one owner file per `content-rules.md`.
-7. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
-8. Update only affected owner files or the bounded topic radius.
-9. Regenerate `docs/project-knowledge/index.md` when routing or key points changed.
-10. Run targeted lint mentally over touched owner files and related shards; then run verification:
+3. Identify changed or requested source documents.
+4. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
+5. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, answerability self-check fixes, and source refs needed for direct query answers.
+6. For incremental ingest, run Impact Radius and a Related owner sweep. If the touched topic remains thin, poorly linked, or creates an unrouted shard, Escalate to topic-scope refresh before finalizing.
+7. Route each fact to exactly one owner file per `content-rules.md`.
+8. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
+9. Update only affected owner files or the bounded topic radius.
+10. Regenerate `docs/superpowers/memory/index.md` when routing or key points changed.
+11. Run targeted lint mentally over touched owner files and related shards; then run verification:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
 ```
 
-11. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing. Treat relevant `coverageGaps` as targeted lint escalation targets: fix the topic radius, or note that full-refresh is needed.
-12. Release the write lock:
+12. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing. Treat relevant `coverageGaps` as targeted lint escalation targets: fix the topic radius, or note that full-refresh is needed. Do not leave `knowledge_shards_unrouted`, decision affected-routing, or reference source-anchor gaps for a touched topic after incremental ingest.
+13. Release the write lock:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" unlock

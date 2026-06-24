@@ -10,11 +10,11 @@ alternatives_inferred: true
 
 ## Context
 
-Agents need to know that a project KB exists without eagerly loading every detail file. Older installations used `MEMORY.md`; newer KBs use `docs/project-knowledge/index.md`.
+Agents need to know that a project KB exists without eagerly loading every detail file. Older installations used `MEMORY.md`; newer KBs use `docs/superpowers/memory/index.md`.
 
 ## Decision
 
-Use `docs/project-knowledge/index.md` as a structured, ≤50-line index. SessionStart injects it for passive awareness, while workflow hooks and the `load` skill direct agents to detail files on demand. Legacy `MEMORY.md` remains a read fallback.
+Use `docs/superpowers/memory/index.md` as a structured, ≤50-line index. SessionStart injects it for passive awareness, while workflow hooks and the `load` skill direct agents to detail files on demand. Legacy `MEMORY.md` remains a read fallback.
 
 ## Alternatives Rejected
 

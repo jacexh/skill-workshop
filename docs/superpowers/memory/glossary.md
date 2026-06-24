@@ -6,7 +6,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 # Glossary
 
-**Knowledge Base (KB)** — The set of Markdown files in `docs/project-knowledge/` of a target project that persist cross-session understanding of architecture, conventions, and decisions. Not the plugin's own templates. → `docs/project-knowledge/`
+**Knowledge Base (KB)** — The set of Markdown files in `docs/superpowers/memory/` of a target project that persist cross-session understanding of architecture, conventions, and decisions. Legacy `docs/project-knowledge/` is only a migration source. Not the plugin's own templates. → `docs/superpowers/memory/`, ADR-019
 
 **Progressive Loading** — Pattern used by both plugins: inject a lightweight index (names + descriptions + paths) at injection time; the agent loads full content on demand via `Read`. Avoids token bloat from dumping all content into every prompt. → ADR-005, ADR-006
 
@@ -36,7 +36,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Task Schema Registry** — Service-owned registry mapping `TaskType` values to Go payload structs for task serialization/deserialization; not a global singleton. → `plugins/superpowers-architect/design-patterns/ddd-golang-taskqueue.md`
 
-**KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/project-knowledge/`; acquired/released only by `superpowers-memory:update` and `superpowers-memory:rebuild`. Same lock file used by both tracks (Claude and Codex naturally share when running on same repo). → ADR-010
+**KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/superpowers/memory/`; acquired/released only by `superpowers-memory:ingest` or compatibility aliases. The lock also prevents manual legacy-path edits during migration. Same lock file used by both tracks. → ADR-010, ADR-019
 
 **Rich Injection** — Hook output pattern: a multi-section `additionalContext` block (diff scope + imperative MUST language + numbered checklist) used in place of `decision: "block"`; designed to make compliance the path of least resistance without forcing a halt. → ADR-011
 

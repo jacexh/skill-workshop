@@ -10,6 +10,7 @@ fail() {
 for track in plugins codex-plugins; do
   base="$ROOT/$track/superpowers-memory/skills"
   templates="$ROOT/$track/superpowers-memory/templates"
+  readme="$ROOT/$track/superpowers-memory/README.md"
 
   # Primary and compatibility skills must exist in both plugin tracks.
   for skill in query ingest lint load update rebuild; do
@@ -19,6 +20,10 @@ for track in plugins codex-plugins; do
 
   # Query must stay read-only while producing actionable ingest candidates for coverage gaps.
   grep -q "read-only" "$base/query/SKILL.md" || fail "$track query missing read-only rule"
+  grep -q "docs/superpowers/memory" "$base/query/SKILL.md" \
+    || fail "$track query missing canonical memory path"
+  grep -q "git mv docs/project-knowledge docs/superpowers/memory" "$base/query/SKILL.md" \
+    || fail "$track query missing legacy hard-migration command"
   grep -q "Memory candidate" "$base/query/SKILL.md" || fail "$track query missing Memory candidate"
   grep -q "Missing answerability coverage" "$base/query/SKILL.md" \
     || fail "$track query missing answerability Memory candidate"
@@ -38,6 +43,10 @@ for track in plugins codex-plugins; do
     || fail "$track query missing orientation behavior"
 
   # Ingest must support full rebuilds and add targeted coverage for high-value query objects.
+  grep -q "docs/superpowers/memory" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing canonical memory path"
+  grep -q "git mv docs/project-knowledge docs/superpowers/memory" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing legacy hard-migration command"
   grep -q "bootstrap" "$base/ingest/SKILL.md" || fail "$track ingest missing bootstrap mode"
   grep -q "full-refresh" "$base/ingest/SKILL.md" || fail "$track ingest missing full-refresh mode"
   grep -q "weak hints" "$base/ingest/SKILL.md" || fail "$track ingest missing commit-message downgrade"
@@ -95,6 +104,10 @@ for track in plugins codex-plugins; do
 
   # Lint must remain read-only while surfacing coverage gaps as suggested ingest work.
   grep -q "without writing" "$base/lint/SKILL.md" || fail "$track lint missing read-only rule"
+  grep -q "docs/superpowers/memory" "$base/lint/SKILL.md" \
+    || fail "$track lint missing canonical memory path"
+  grep -q "git mv docs/project-knowledge docs/superpowers/memory" "$base/lint/SKILL.md" \
+    || fail "$track lint missing legacy hard-migration command"
   grep -q "suggested ingest targets" "$base/lint/SKILL.md" || fail "$track lint missing ingest target output"
   grep -q "coverage gap" "$base/lint/SKILL.md" || fail "$track lint missing coverage gap advisory"
   grep -q "shallow service cards" "$base/lint/SKILL.md" \
@@ -131,6 +144,8 @@ for track in plugins codex-plugins; do
   grep -q "superpowers-memory:ingest" "$base/rebuild/SKILL.md" || fail "$track rebuild not pointing to ingest"
 
   # Templates must route high-value objects to query-answerable owner files or shards.
+  grep -q "docs/superpowers/memory" "$readme" \
+    || fail "$track README missing canonical memory path"
   grep -q "high-value project objects" "$templates/index.md" \
     || fail "$track index template missing high-value object routing"
   grep -q "architecture-<module>.md" "$templates/index.md" \
