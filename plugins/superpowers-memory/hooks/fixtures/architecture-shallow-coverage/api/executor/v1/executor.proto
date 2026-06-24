@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+package executor.v1;
+
+service ExecutorService {}

@@ -39,15 +39,24 @@ For complex engineering repositories, run an architecture coverage inventory bef
 2. **Service card inventory:** identify high-value services/bounded contexts that need direct cards. Use docs/specs/ADRs/features first, then validate paths from code (`cmd/`, `apps/`, `services/`, `api/`, `internal/<context>/...`).
 3. **Scenario inventory:** identify core cross-service scenarios that shape future changes. Prefer 4-7 for complex repos and 2-3 for smaller repos. Favor execution/orchestration, provisioning, delivery/messaging, auth, ingest, artifact/file handling, comments/signals/decisions, trace/metrics, and ownership-transfer flows when they exist.
 4. **Lifecycle inventory:** identify aggregates or runtime objects whose state transitions cross contexts, publish messages, update read models, or affect user-visible workflow.
-5. **Source traceability:** attach stable source refs to every service card and scenario: ADR/spec/plan/docs plus canonical source/proto/config paths.
+5. **Source traceability:** attach stable source refs to every service card and every scenario section: ADR/spec/plan/docs plus canonical source/proto/config paths.
 
 For each high-value object, ensure one owner entry or shard can directly answer:
 
 - Responsibility: what the object owns and what it explicitly does not own.
-- Internal layers/main components: the main layers, collaborators, or implementation parts.
+- Internal layers/main components: the main layers, collaborators, or implementation parts. Prefer stable architecture structure from design docs when it exists: planes, subsystems, workflows, processors, policies, gates, projections, or named runtime components. Do not stop at generic `domain/application/infrastructure` labels when sources provide richer structure.
 - Upstream/downstream interactions: callers, callees, events, APIs, storage, or external systems.
 - Key state/flow/invariants: lifecycle, ordering, state transitions, or constraints that shape changes.
 - Source refs: related ADRs, specs, plans, docs, and canonical source paths.
+
+Before writing or finalizing architecture files, run an architecture answerability self-check for the top 3-5 high-value services/bounded contexts and flows:
+
+- Can `query` answer "what is its internal architecture/layering?" from the KB without broad code search?
+- Can `query` answer "which core scenarios does it participate in?" from direct owner entries or shards?
+- Can `query` answer "what state, lifecycle, ordering, or invariant matters for changes?"
+- Does every service card and every scenario section cite enough source refs to validate the answer?
+
+If any answer requires broad cross-file inference, add or refine the relevant owner entry/shard before verification.
 
 Use existing owner files first. Create or refresh a shard only when a high-value object cannot be answered cleanly from the canonical owner file without making it noisy. Do not create shards for every package, helper, or low-risk implementation detail.
 
@@ -69,7 +78,7 @@ node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" l
 
 2. Identify changed or requested source documents.
 3. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
-4. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, and source refs needed for direct query answers.
+4. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, answerability self-check fixes, and source refs needed for direct query answers.
 5. Route each fact to exactly one owner file per `content-rules.md`.
 6. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
 7. Update only affected owner files.

@@ -46,11 +46,19 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing core object layering question"
   grep -q "Upstream/downstream interactions" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing core object interaction question"
+  grep -q "architecture answerability self-check" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing architecture answerability self-check"
+  grep -q "generic \`domain/application/infrastructure\` labels" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing generic layer depth guard"
 
   # Lint must remain read-only while surfacing coverage gaps as suggested ingest work.
   grep -q "without writing" "$base/lint/SKILL.md" || fail "$track lint missing read-only rule"
   grep -q "suggested ingest targets" "$base/lint/SKILL.md" || fail "$track lint missing ingest target output"
   grep -q "coverage gap" "$base/lint/SKILL.md" || fail "$track lint missing coverage gap advisory"
+  grep -q "shallow service cards" "$base/lint/SKILL.md" \
+    || fail "$track lint missing shallow service-card advisory"
+  grep -q "local source refs" "$base/lint/SKILL.md" \
+    || fail "$track lint missing local scenario source-ref advisory"
   grep -q "answerability gap" "$base/lint/SKILL.md" || fail "$track lint missing answerability gap reason"
   grep -q "orphan/unreachable shards" "$base/lint/SKILL.md" \
     || fail "$track lint missing orphan shard health check"
@@ -73,6 +81,10 @@ for track in plugins codex-plugins; do
     || fail "$track architecture template missing interactions field"
   grep -q "Source refs:" "$templates/architecture.md" \
     || fail "$track architecture template missing source refs field"
+  grep -q "design-doc planes/subsystems/workflows/processors/projections" "$templates/architecture.md" \
+    || fail "$track architecture template missing design-doc architecture model guidance"
+  grep -q "Source refs after each scenario diagram" "$templates/architecture.md" \
+    || fail "$track architecture template missing per-scenario source refs guidance"
   grep -q "architecture owner/shard" "$templates/features.md" \
     || fail "$track features template missing architecture owner/shard references"
 done

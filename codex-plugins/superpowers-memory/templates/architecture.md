@@ -26,6 +26,9 @@ triggered_by_plan: null
      or cross-service flows, make one architecture owner entry or shard directly
      answer responsibility, internal layers/main components, upstream/downstream
      interactions, key state/flow/invariants, and source refs.
+     When design docs define architecture planes, subsystems, workflows,
+     processors, policies, gates, projections, or named runtime components,
+     capture those names instead of only listing generic code layers.
      Do not add this depth for every package or helper.
 
      ARCHITECTURE COVERAGE CALIBRATION:
@@ -36,7 +39,7 @@ triggered_by_plan: null
      - service architecture cards for high-value services/BCs
      - scenario sequences for core cross-service flows
      - lifecycle/FSM coverage for cross-context state
-     - source refs for every card and scenario
+     - source refs for every card and local Source refs after each scenario diagram
 
      This is NOT a full code tour. Do not document every package, helper,
      method, enum, route, SQL table, or config constant.
@@ -100,6 +103,8 @@ graph TD
      - responsibility and explicit non-responsibility
      - path/entry
      - internal layers/main components (names only; no method signatures or field lists)
+       Prefer design-doc planes/subsystems/workflows/processors/projections over
+       bare `domain/application/infrastructure` directory labels when available.
      - upstream/downstream interactions
      - owned state/read models/invariants
      - source refs
