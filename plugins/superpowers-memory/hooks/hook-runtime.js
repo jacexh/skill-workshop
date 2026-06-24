@@ -1125,7 +1125,7 @@ async function main() {
     return;
   }
 
-  if (mode === "verify") {
+  if (mode === "verify" || mode === "lint") {
     process.stdout.write(JSON.stringify(buildVerifyOutput(), null, 2) + "\n");
     return;
   }
