@@ -1,6 +1,6 @@
 {
   "name": "superpowers-memory",
-  "version": "1.13.5",
+  "version": "1.13.6",
   "description": "Project Knowledge Base query, ingest, and lint for Codex superpowers workflows",
   "author": {
     "name": "xuhao"
