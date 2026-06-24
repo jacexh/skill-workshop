@@ -27,6 +27,22 @@ Read sources in this order:
 6. Code/diff inspection for validation, paths, names, and implementation status
 7. Commit messages as weak hints only
 
+## Core Query Coverage
+
+During bootstrap and full-refresh, run a Core Query Coverage pass before writing target files. The goal is not to document every module; it is to make high-value project objects directly answerable by `query`.
+
+Treat an object as high-value when it is a bounded context, service, major module, product capability, or cross-service flow that is referenced by multiple specs, plans, ADRs, features, glossary terms, or source entry points.
+
+For each high-value object, ensure one owner entry or shard can directly answer:
+
+- Responsibility: what the object owns and what it explicitly does not own.
+- Internal layers/main components: the main layers, collaborators, or implementation parts.
+- Upstream/downstream interactions: callers, callees, events, APIs, storage, or external systems.
+- Key state/flow/invariants: lifecycle, ordering, state transitions, or constraints that shape changes.
+- Source refs: related ADRs, specs, plans, docs, and canonical source paths.
+
+Use existing owner files first. Create or refresh a shard only when a high-value object cannot be answered cleanly from the canonical owner file without making it noisy. Do not create shards for every package, helper, or low-risk implementation detail.
+
 ## Process
 
 1. Acquire the write lock:
@@ -37,18 +53,19 @@ node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" l
 
 2. Identify changed or requested source documents.
 3. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
-4. Route each fact to exactly one owner file per `content-rules.md`.
-5. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
-6. Update only affected owner files.
-7. Regenerate `docs/project-knowledge/index.md` when routing or key points changed.
-8. Run verification:
+4. For bootstrap/full-refresh, run Core Query Coverage and add only targeted facts or shards needed for high-value objects.
+5. Route each fact to exactly one owner file per `content-rules.md`.
+6. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
+7. Update only affected owner files.
+8. Regenerate `docs/project-knowledge/index.md` when routing or key points changed.
+9. Run verification:
 
 ```bash
 node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" verify
 ```
 
-9. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing.
-10. Release the write lock:
+10. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing.
+11. Release the write lock:
 
 ```bash
 node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" unlock

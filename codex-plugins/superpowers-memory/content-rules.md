@@ -78,6 +78,22 @@ The Project Knowledge Base must support `query`, not only session-start orientat
 - Optional aliases are plain Markdown such as `Aliases: native hooks, Codex hooks, prompt router`.
 - Query answers should be supported by read owner/source entries, not by search snippets alone.
 
+## Core Query Coverage
+
+Query-grade knowledge must preserve answerability for high-value project objects, not just a compact overview.
+
+High-value objects are discovered from project sources. They are usually bounded contexts, services, major modules, product capabilities, or cross-service flows that appear in multiple specs, plans, ADRs, feature entries, glossary terms, or source entry points.
+
+For each high-value object, one owner entry or shard should directly answer:
+
+- Responsibility: what it owns and what it explicitly does not own.
+- Internal layers/main components: the main layers, collaborators, or implementation parts.
+- Upstream/downstream interactions: callers, callees, events, APIs, storage, or external systems.
+- Key state/flow/invariants: lifecycle, ordering, state transitions, or constraints that shape changes.
+- Source refs: related ADRs, specs, plans, docs, and canonical source paths.
+
+This is a coverage rule, not a completeness mandate. Do not create a file for every package or helper. Add detail only when a normal agent query about a high-value object would otherwise require broad code search or cross-file inference.
+
 ## Per-File Format Rules
 
 ### architecture.md — structure view

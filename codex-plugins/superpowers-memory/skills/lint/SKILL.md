@@ -20,7 +20,8 @@ node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" l
 
 3. Interpret the JSON output for the requested scope: whole KB, one owner file, or one topic.
 4. Report issues by severity.
-5. Report suggested ingest targets instead of editing files.
+5. Review answerability coverage for the requested scope. Flag advisory coverage gaps when a high-frequency object is referenced by index/features/architecture/decisions/glossary/source refs but has no direct owner entry or shard, when a global architecture map exists but a core bounded context lacks layering details, or when `query` would need broad cross-file inference to answer a normal project question.
+6. Report suggested ingest targets instead of editing files.
 
 ## Output
 
@@ -31,10 +32,10 @@ Issues:
 Suggested ingest targets:
 - Owner: docs/project-knowledge/<owner>.md
   Source: <spec/plan/ADR/source>
-  Reason: <missing | stale | contradiction | weak source | routing gap>
+  Reason: <missing | stale | contradiction | weak source | routing gap | answerability gap>
 
 Advisory:
-- [retrieval cost, split candidates, or non-blocking notes]
+- [retrieval cost, split candidates, coverage gap, or non-blocking notes]
 ```
 
 ## Rules

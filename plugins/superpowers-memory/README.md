@@ -4,9 +4,9 @@ A Claude Code plugin that adds project knowledge persistence and plan checkpoint
 
 ## Primary Memory Skills
 
-- `superpowers-memory:query` — read Project Knowledge Base, traverse owner files/source references, answer with confidence, and optionally emit Memory candidates.
-- `superpowers-memory:ingest` — write Project Knowledge Base from stable source facts; supports incremental, bootstrap, and full-refresh modes.
-- `superpowers-memory:lint` — read-only health check over stale refs, shape violations, SSOT duplication, retrieval cost, split candidates, and suggested ingest targets.
+- `superpowers-memory:query` — read Project Knowledge Base, traverse owner files/source references, answer with confidence, and emit structured Memory candidates when coverage is missing.
+- `superpowers-memory:ingest` — write Project Knowledge Base from stable source facts; supports incremental, bootstrap, full-refresh, and targeted Core Query Coverage.
+- `superpowers-memory:lint` — read-only health check over stale refs, shape violations, SSOT duplication, retrieval cost, split candidates, coverage gaps, and suggested ingest targets.
 
 Compatibility aliases:
 
@@ -98,6 +98,8 @@ docs/project-knowledge/
 
 `superpowers-memory` evaluates project knowledge by **Code Agent outcome**, not by document shape. A KB is valuable when it lets an agent answer real project questions more accurately, use fewer tokens, avoid wrong edits, and detect stale or uncertain facts. Markdown slots, ADR files, frontmatter, indexes, or shards are implementation mechanisms; they are not quality signals by themselves.
 
+For high-value project objects such as bounded contexts, services, major modules, product capabilities, or cross-service flows, the KB should support direct query answers about responsibility, internal layers, interactions, key state/flow rules, and source references. `ingest` applies this as Core Query Coverage during bootstrap/full-refresh, while `lint` reports advisory coverage gaps.
+
 If a sub-metric is not natural for a project's documentation shape, look for equivalent evidence. Mark it `N/A` only when the form is inapplicable and the underlying agent outcome is not harmed. Do not use `N/A` to hide missing capability.
 
 ### Scoring Anchor
@@ -128,9 +130,9 @@ Use the same 0-5 anchor for every dimension:
 
 - `index.md`, optional shard files, and lazy ADR detail files target retrieval and token efficiency.
 - `content-rules.md` defines fact ownership, exclusion rules, ADR gates, progressive knowledge layout, and per-file content boundaries.
-- `superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work; `load` remains a compatibility alias.
-- `superpowers-memory:ingest` forces source review, owner routing, exclusion checks, index regeneration, and verification before commit; `update` and `rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
-- `superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets.
+- `superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work, and produces structured Memory candidates when a durable answer is missing; `load` remains a compatibility alias.
+- `superpowers-memory:ingest` forces source review, owner routing, Core Query Coverage, exclusion checks, index regeneration, and verification before commit; `update` and `rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
+- `superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory answerability gaps.
 - The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; KB writes must go through `superpowers-memory:ingest` or its compatibility aliases.
 - `hook-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, and commit readiness.
 - For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, and KB write-lock status.
