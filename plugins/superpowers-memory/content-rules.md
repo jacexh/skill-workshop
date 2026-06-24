@@ -71,7 +71,7 @@ When `verify` reports high retrieval cost or split candidates, treat it as an ad
 
 The Project Knowledge Base must support `query`, not only session-start orientation.
 
-- `index.md` is the router. It lists owner files, shards, useful aliases, and 1-3 routing key points per file.
+- `index.md` is the router. It lists owner files, shards, useful aliases, and 1-2 routing key points per file.
 - Owner entries that claim durable behavior include a source reference: spec, plan, ADR, README, canonical source file, or another owner entry.
 - Cross-owner relationships use `See:` or `Related:` pointers. Do not duplicate expanded facts across owner files.
 - Shards must be reachable from `index.md`; if a parent owner file exists, it also links to its shards.
