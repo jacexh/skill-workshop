@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.13.4"
+    "version": "1.13.5"
   },
   "plugins": [
     {
       "name": "superpowers-memory",
       "source": "./plugins/superpowers-memory",
       "description": "Project Knowledge Base query, ingest, and lint for superpowers workflows",
-      "version": "1.13.4",
+      "version": "1.13.5",
       "author": {
         "name": "xuhao"
       },
