@@ -44,10 +44,10 @@ clean_codex_out="$(cd "$clean" && node "$ROOT/codex-plugins/superpowers-memory/h
 echo "$clean_codex_out" | jq -e '.shapeViolations | length == 0' >/dev/null
 
 clean_lint_out="$(cd "$clean" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" lint)"
-echo "$clean_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost")' >/dev/null
+echo "$clean_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost") and has("coverageGaps")' >/dev/null
 
 clean_codex_lint_out="$(cd "$clean" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" lint)"
-echo "$clean_codex_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost")' >/dev/null
+echo "$clean_codex_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost") and has("coverageGaps")' >/dev/null
 
 # Current ADR summaries may include a short "Why" line without becoming legacy
 # inline ADRs. Legacy detection is limited to fields from the old detail format.
@@ -146,6 +146,20 @@ split_codex_out="$(cd "$split" && node "$ROOT/codex-plugins/superpowers-memory/h
 echo "$split_codex_out" | jq -e '.ok == true' >/dev/null
 echo "$split_codex_out" | jq -e '.retrievalCost.perFile[] | select(.file == "architecture-runtime.md")' >/dev/null
 echo "$split_codex_out" | jq -e '.splitCandidates[] | select(.file == "architecture-runtime.md")' >/dev/null
+
+# Intent: complex repos with only thin architecture summaries should produce
+# advisory ingest targets without making verify fail.
+architecture_gap="$TMPDIR/architecture-coverage-gap"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/architecture-coverage-gap" "$architecture_gap"
+architecture_gap_out="$(cd "$architecture_gap" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$architecture_gap_out" | jq -e '.ok == true' >/dev/null
+echo "$architecture_gap_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_sparse")' >/dev/null
+echo "$architecture_gap_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenarios_sparse")' >/dev/null
+
+architecture_gap_codex_out="$(cd "$architecture_gap" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$architecture_gap_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$architecture_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_sparse")' >/dev/null
+echo "$architecture_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenarios_sparse")' >/dev/null
 
 # Intent: index.md remains the only strict size-constrained hot-path file
 # because it is injected at session start.

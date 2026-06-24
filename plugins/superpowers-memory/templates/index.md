@@ -14,9 +14,9 @@ covers_branch: <branch>@<short-sha>
      or cross-service flows, name the owner file/shard that directly answers
      responsibility, layers/components, interactions, key state/flow rules, and source refs. -->
 
-- [architecture.md](architecture.md) — System boundaries, components, data flows
+- [architecture.md](architecture.md) — System topology, service cards, data/message flows
   Key points: [1-2 facts that help AI decide whether to load this file in full.
-               Good: "Orchestrator layering in architecture-orchestrator.md; billing flow sequence here"
+               Good: "System topology here; Orchestrator card in architecture-contexts.md; delivery flows in architecture-flows.md"
                Bad: "system architecture information"]
 
 - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
@@ -42,4 +42,4 @@ covers_branch: <branch>@<short-sha>
 
 - [architecture-<domain>.md](architecture-<domain>.md) — Focused architecture detail
   Key points: [1-2 facts that distinguish when to load this shard.
-               Good: "Orchestrator responsibility, internal layers, upstream/downstream events, source refs"]
+               Good: "Orchestrator responsibility, internal layers, upstream/downstream events, lifecycle rules, source refs"]

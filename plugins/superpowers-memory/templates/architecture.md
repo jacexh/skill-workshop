@@ -28,6 +28,19 @@ triggered_by_plan: null
      interactions, key state/flow/invariants, and source refs.
      Do not add this depth for every package or helper.
 
+     ARCHITECTURE COVERAGE CALIBRATION:
+     For complex engineering repos (3+ services/entry points, DDD/CQRS,
+     async flows, runtime orchestration, plugin/runtime extension points, or
+     many ADRs), architecture must be a query-grade map:
+     - system topology / context map
+     - service architecture cards for high-value services/BCs
+     - scenario sequences for core cross-service flows
+     - lifecycle/FSM coverage for cross-context state
+     - source refs for every card and scenario
+
+     This is NOT a full code tour. Do not document every package, helper,
+     method, enum, route, SQL table, or config constant.
+
      TARGET: ≤200 lines. -->
 
 # Architecture
@@ -57,56 +70,65 @@ triggered_by_plan: null
 - [e.g., "Kafka — cross-BC event bus"]
 - [e.g., "Kubernetes — deployment target + workload runtime"]
 
-## Layering
+## System Topology / Context Map
 
-<!-- Architectural layers or bounded contexts. The static-structure view.
+<!-- Static system map: services, bounded contexts, runtime substrates, stores,
+     buses, trust boundaries, and call/event direction rules.
 
-     For each layer/BC:
-     - name + one-sentence responsibility
-     - location: `path/to/module/`
-     - key abstraction names only (aggregate root names, core interface names — no signatures, no field lists)
-     - for high-value objects only: interactions + source refs, or a pointer to the focused shard that owns them
+     For small single-deployable projects, a short bullet list is enough.
+     For multi-service repos, prefer a Mermaid graph or table.
+     State call direction rules at the end.
+     DO NOT duplicate capability descriptions that belong in features.md. -->
 
-     State call direction rules at the end (e.g., upper → lower direct; lower → upper via events).
-     DO NOT duplicate capability descriptions that belong in features.md.
-
-     GRANULARITY RULE:
-     - ≥3 independent top-level modules (deploy units / services / major packages):
-       use a `####` subsection per module, each capped at 3 lines by default.
-       Add Interactions/Source refs only for high-value modules, or point to a
-       focused `architecture-<domain>.md` shard when the detail would make the
-       overview noisy.
-       Discovery cues: count of `main` packages (Go), `bin` entries (package.json),
-       `__main__.py` files (Python), top-level service directories (`cmd/`/`apps/`/
-       `services/`), distinct deploy manifests.
-     - ≤2 modules or a single-deployable project: flat bullet list (the form below). -->
-
-**[Layer / BC Name]** — [one-sentence responsibility]. Location: `path/to/module/`
-- Key abstractions: [AggregateRoot names, interface names — names only]
-- Interactions: [for high-value objects only: upstream/downstream callers, events, APIs, storage, or external systems]
-- Source refs: [for high-value objects only: ADR/spec/plan/source paths, or `architecture-<domain>.md`]
-
-<!-- For ≥3 modules, use this `####` form instead of the flat bullet above:
-
-#### [Module / Service Name]
-**Responsibility:** [one sentence]
-**Path / entry:** `path/to/module/` → `path/to/entry`
-**Key abstractions:** [AggregateRoot names, interface names — names only]
-**Interactions:** [for high-value modules only; otherwise omit or point to `architecture-<domain>.md`]
-**Source refs:** [for high-value modules only; otherwise omit]
--->
+```mermaid
+graph TD
+    Actor[Actor / Client] --> Gateway[Gateway / API]
+    Gateway --> ServiceA[Service / BC A]
+    ServiceA --> Store[(Store)]
+    ServiceA -. event/message .-> ServiceB[Service / BC B]
+```
 
 **Call direction rules:**
 - [e.g., "Upper layers call lower directly (ConnectRPC); lower layers publish events, never call back"]
-- [e.g., "Within a BC, services communicate freely"]
+- [e.g., "Within a BC, Domain has no storage/transport/framework imports"]
+
+## Service Architecture Cards
+
+<!-- Conditional but expected for complex repos.
+
+     For each high-value service/bounded context:
+     - responsibility and explicit non-responsibility
+     - path/entry
+     - internal layers/main components (names only; no method signatures or field lists)
+     - upstream/downstream interactions
+     - owned state/read models/invariants
+     - source refs
+
+     GRANULARITY RULE:
+     - Use cards only for high-value services/BCs/modules, not every package.
+     - Split to `architecture-<domain>.md` when cards plus flows would make this
+       overview noisy. Link the shard from index.md and this section.
+     - A service card should usually fit in 6-9 short lines. -->
+
+#### [Service / Bounded Context Name]
+**Responsibility:** [what it owns; include "does not own ..." when that prevents wrong edits]
+**Path / entry:** `path/to/service/` → `path/to/entry`
+**Internal layers / components:** [Domain/Application/Infrastructure/read-model/worker/projection names only]
+**Interactions:** [upstream/downstream callers, events, APIs, storage, or external systems]
+**State / invariants:** [owned state, lifecycle, ordering, idempotency, authorization, or consistency rule]
+**Source refs:** [ADR/spec/plan/docs/source paths, or focused `architecture-<domain>.md` shard]
 
 ## Scenario Sequences
 
 <!-- Use See:/Related: links to decisions, features, conventions, and source files when a query reader needs to traverse from structure to rationale or behavior. -->
 
-<!-- 2-3 Mermaid sequenceDiagram for cross-module scenarios (3+ components).
-     Single-module internal flows do NOT belong here — they're implementation detail.
-     Prefer scenarios that exercise the call direction rules above. -->
+<!-- Mermaid sequenceDiagram for cross-module scenarios (3+ components).
+     Complex repos should cover 4-7 high-value scenarios; small repos can cover 2-3.
+     Single-module internal flows do NOT belong here unless they encode a stable
+     architectural lifecycle. Prefer scenarios that exercise call direction,
+     ownership transfer, async delivery, read-model projection, auth, runtime
+     execution, ingest, artifact/file handling, or observability rules.
+     Every scenario should include Source refs after the diagram. -->
 
 ### [Scenario A name]
 
@@ -120,12 +142,16 @@ sequenceDiagram
     C-->>A: [response]
 ```
 
+**Source refs:** [ADR/spec/plan/source paths]
+
 ### [Scenario B name]
 
 ```mermaid
 sequenceDiagram
     ...
 ```
+
+**Source refs:** [ADR/spec/plan/source paths]
 
 ## Key Object FSMs
 

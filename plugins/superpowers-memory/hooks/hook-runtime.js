@@ -641,6 +641,178 @@ function lintReadinessWarnings(files) {
   return warnings;
 }
 
+function listChildDirs(relPath) {
+  const abs = path.join(repoRoot, relPath);
+  if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) return [];
+  return fs.readdirSync(abs)
+    .map((name) => path.join(relPath, name).replace(/\\/g, "/"))
+    .filter((child) => {
+      try {
+        return fs.statSync(path.join(repoRoot, child)).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+}
+
+function countFilesUnder(relPath, predicate, limit = 200) {
+  const abs = path.join(repoRoot, relPath);
+  if (!fs.existsSync(abs) || !fs.statSync(abs).isDirectory()) return 0;
+  let count = 0;
+  const stack = [abs];
+  while (stack.length > 0 && count < limit) {
+    const dir = stack.pop();
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (![".git", "node_modules", "vendor", "dist", "build"].includes(entry.name)) {
+          stack.push(full);
+        }
+      } else if (predicate(full)) {
+        count++;
+        if (count >= limit) break;
+      }
+    }
+  }
+  return count;
+}
+
+function inspectRepoArchitectureSignals() {
+  const serviceDirs = [
+    ...listChildDirs("cmd"),
+    ...listChildDirs("apps"),
+    ...listChildDirs("services"),
+  ];
+  const packageDirs = listChildDirs("packages");
+  const protoFiles =
+    countFilesUnder("api", (file) => file.endsWith(".proto")) +
+    countFilesUnder("proto", (file) => file.endsWith(".proto"));
+
+  const internalContexts = listChildDirs("internal");
+  const dddContextCount = internalContexts.filter((contextPath) => {
+    const abs = path.join(repoRoot, contextPath);
+    return ["domain", "application", "infrastructure", "adapters", "readmodels", "projections"]
+      .some((layer) => fs.existsSync(path.join(abs, layer)));
+  }).length;
+
+  const adrCount = countFilesUnder(path.join("docs", "project-knowledge", "adr"), (file) => file.endsWith(".md"), 100);
+  const manifestCount =
+    countFilesUnder("deploy", (file) => /\.(ya?ml|json|toml)$/.test(file), 100) +
+    countFilesUnder("k8s", (file) => /\.(ya?ml|json|toml)$/.test(file), 100) +
+    countFilesUnder("helm", (file) => /\.(ya?ml|json|toml)$/.test(file), 100);
+
+  const deployableCount = serviceDirs.length + packageDirs.length;
+  const isComplex =
+    deployableCount >= 3 ||
+    protoFiles >= 3 ||
+    dddContextCount >= 3 ||
+    (deployableCount >= 2 && (protoFiles > 0 || manifestCount > 0 || adrCount >= 3)) ||
+    (dddContextCount > 0 && adrCount >= 5);
+
+  return {
+    isComplex,
+    deployableCount,
+    serviceDirs,
+    packageDirs,
+    protoFiles,
+    dddContextCount,
+    adrCount,
+    manifestCount,
+  };
+}
+
+function countArchitectureCards(content) {
+  const chunks = content.split(/^####\s+/m).slice(1);
+  return chunks.filter((chunk) =>
+    /\*\*Responsibility:\*\*/.test(chunk) &&
+    /\*\*(?:Internal layers \/ components|Internal components|Key abstractions):\*\*/.test(chunk) &&
+    /\*\*Interactions:\*\*/.test(chunk) &&
+    /\*\*Source refs:\*\*/.test(chunk)
+  ).length;
+}
+
+function lintArchitectureCoverage(files) {
+  const signals = inspectRepoArchitectureSignals();
+  if (!signals.isComplex) return [];
+
+  const architectureFiles = files.filter(([filename]) => knowledgeSlotForFile(filename) === "architecture");
+  const findings = [];
+
+  if (architectureFiles.length === 0) {
+    findings.push({
+      kind: "architecture_owner_missing",
+      sample: "Complex repo signals found but no architecture owner file exists",
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture.md",
+    });
+    return findings;
+  }
+
+  const architectureText = architectureFiles.map(([, content]) => content).join("\n\n");
+  const sequenceCount = (architectureText.match(/\bsequenceDiagram\b/g) || []).length;
+  const stateDiagramCount = (architectureText.match(/\bstateDiagram-v2\b/g) || []).length;
+  const serviceCardCount = architectureFiles.reduce((sum, [, content]) => sum + countArchitectureCards(content), 0);
+  const sourceRefCount = (architectureText.match(/\bSource refs?:/gi) || []).length;
+  const hasTopology =
+    /\b(System Topology|Context Map|System Context)\b/i.test(architectureText) &&
+    (/\bgraph\s+(?:TD|LR|BT|RL)\b/.test(architectureText) || /\bCall direction rules:\b/i.test(architectureText));
+
+  if (!hasTopology) {
+    findings.push({
+      kind: "architecture_topology_missing",
+      sample: "Complex repo architecture should expose a system topology/context map and call/event direction rules",
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture.md",
+    });
+  }
+
+  const expectedCards = Math.min(3, Math.max(signals.deployableCount, signals.dddContextCount));
+  if (expectedCards > 0 && serviceCardCount < expectedCards) {
+    findings.push({
+      kind: "architecture_service_cards_sparse",
+      sample: `Found ${serviceCardCount} service architecture card(s); expected at least ${expectedCards} high-value card(s) for complex repo signals`,
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture-contexts.md",
+    });
+  }
+
+  const expectedSequences = signals.deployableCount >= 3 || signals.protoFiles >= 3 ? 4 : 2;
+  if (sequenceCount < expectedSequences) {
+    findings.push({
+      kind: "architecture_scenarios_sparse",
+      sample: `Found ${sequenceCount} sequenceDiagram(s); expected at least ${expectedSequences} high-value cross-service scenario(s) for complex repo signals`,
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture-flows.md",
+    });
+  }
+
+  if (signals.dddContextCount > 0 && stateDiagramCount === 0) {
+    findings.push({
+      kind: "architecture_lifecycle_missing",
+      sample: "DDD/context signals found but no cross-context lifecycle/FSM coverage is present",
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture-flows.md",
+    });
+  }
+
+  if (sourceRefCount === 0) {
+    findings.push({
+      kind: "architecture_source_refs_missing",
+      sample: "Architecture entries should include source refs for service cards and scenario diagrams",
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture.md",
+    });
+  }
+
+  return findings;
+}
+
 function buildKnowledgeStatus() {
   const currentBranch = getCurrentBranch();
   const currentSHA = getCurrentSHA();
@@ -1022,6 +1194,7 @@ function buildVerifyOutput() {
     }
   }
   const readinessWarnings = lintReadinessWarnings(fileContents);
+  const coverageGaps = lintArchitectureCoverage(fileContents);
 
   const totalBytes = fileContents.reduce((sum, [, content]) => sum + Buffer.byteLength(content, "utf8"), 0);
   const estimatedTokens = Math.ceil(totalBytes / 4);
@@ -1074,6 +1247,7 @@ function buildVerifyOutput() {
     ssotViolations,
     shapeViolations,
     readinessWarnings,
+    coverageGaps,
     retrievalCost,
     splitCandidates,
     committable,

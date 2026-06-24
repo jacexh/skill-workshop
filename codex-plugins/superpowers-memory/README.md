@@ -31,7 +31,7 @@ codex plugin install superpowers-memory
 
 Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.
 
-If hooks do not appear after restart, confirm both `hooks = true` and `plugin_hooks = true` are enabled, open `/hooks` to review and trust plugin hooks, and upgrade Codex. If you previously used fallback hooks in `~/.codex/hooks.json`, run `$superpowers-memory:cleanup` once to remove the old entries.
+If hooks do not appear after restart, confirm both `hooks = true` and `plugin_hooks = true` are enabled, open `/hooks` to review and trust plugin hooks, and upgrade Codex. If old fallback hooks in `~/.codex/hooks.json` still point at deleted plugin cache paths, remove those stale entries manually or run the plugin's `scripts/install-codex-hooks.js remove` helper from the installed plugin directory.
 
 ## Upgrade
 
@@ -41,20 +41,20 @@ codex plugin marketplace upgrade jacexh/skill-workshop
 
 Restart Codex. Current Codex versions do not require any setup step after upgrade.
 
-Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`. If stale fallback entries point at an old deleted cache version and cause `SessionStart hook (failed)`, run `$superpowers-memory:cleanup` and restart Codex.
+Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`. If stale fallback entries point at an old deleted cache version and cause `SessionStart hook (failed)`, remove the stale fallback entries from `~/.codex/hooks.json` and restart Codex.
 
 ## Capabilities
 
 - **SessionStart hook** — injects KB index from `docs/project-knowledge/index.md`, lightweight KB freshness status, plus standing primer for KB workflow
 - **UserPromptSubmit hook** — when user types `$superpowers:brainstorming` or `$superpowers:finishing-a-development-branch`, JIT-injects relevant context (query advisory or finishing-readiness rich injection)
 - **PreToolUse hook** — blocks `apply_patch` and `mcp__filesystem__.*` writes to `docs/project-knowledge/` unless write-lock is held by `$superpowers-memory:ingest` or its `$superpowers-memory:update`/`$superpowers-memory:rebuild` compatibility aliases
-- **Skills:** primary `$superpowers-memory:query`, `$superpowers-memory:ingest`, `$superpowers-memory:lint`; compatibility aliases `$superpowers-memory:load` -> `query`, `$superpowers-memory:update` -> `ingest` incremental mode, `$superpowers-memory:rebuild` -> `ingest` bootstrap/full-refresh mode; maintenance-only `$superpowers-memory:cleanup`
+- **Skills:** primary `$superpowers-memory:query`, `$superpowers-memory:ingest`, `$superpowers-memory:lint`; compatibility aliases `$superpowers-memory:load` -> `query`, `$superpowers-memory:update` -> `ingest` incremental mode, `$superpowers-memory:rebuild` -> `ingest` bootstrap/full-refresh mode
 
 ## KB Quality Evaluation
 
 `superpowers-memory` evaluates project knowledge by **Code Agent outcome**, not by document shape. A KB is valuable when it lets an agent answer real project questions more accurately, use fewer tokens, avoid wrong edits, and detect stale or uncertain facts. Markdown slots, ADR files, frontmatter, indexes, or shards are implementation mechanisms; they are not quality signals by themselves.
 
-For high-value project objects such as bounded contexts, services, major modules, product capabilities, or cross-service flows, the KB should support direct query answers about responsibility, internal layers, interactions, key state/flow rules, and source references. `ingest` applies this as Core Query Coverage during bootstrap/full-refresh and targeted incremental updates, while `lint` reports advisory wiki health and coverage gaps.
+For high-value project objects such as bounded contexts, services, major modules, product capabilities, or cross-service flows, the KB should support direct query answers about responsibility, internal layers, interactions, key state/flow rules, and source references. For complex engineering repositories, architecture coverage should include a query-grade system topology, service architecture cards, core scenario sequences, lifecycle/FSM coverage, and source refs without becoming a full code tour. `ingest` applies this as Core Query Coverage during bootstrap/full-refresh and targeted incremental updates, while `lint` reports advisory wiki health and coverage gaps.
 
 If a sub-metric is not natural for a project's documentation shape, look for equivalent evidence. Mark it `N/A` only when the form is inapplicable and the underlying agent outcome is not harmed. Do not use `N/A` to hide missing capability.
 
@@ -91,8 +91,8 @@ Use the same 0-5 anchor for every dimension:
 - `$superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
 - The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; KB writes must go through `$superpowers-memory:ingest` or its compatibility aliases.
 - `codex-runtime.js status` reports `covers_branch` versus current HEAD so Codex has stale-KB evidence even on prompt paths that cannot fire JIT hooks.
-- `codex-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, and commit readiness.
-- For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, and KB write-lock status.
+- `codex-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, architecture coverage gaps, and commit readiness.
+- For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, advisory `coverageGaps`, and KB write-lock status.
 
 ## Known Codex protocol gaps
 
