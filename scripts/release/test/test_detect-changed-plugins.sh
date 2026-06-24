@@ -35,9 +35,9 @@ echo change >> "$dir/plugins/foo/x.md"
 git -C "$dir" add -A && git -C "$dir" commit -q -m c
 out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
 assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
-assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS="
+assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
 
-# Case 2: change Claude + Codex plugins (different names) + a docs file
+# Case 2: change one Claude plugin, one same-name Codex plugin, one Codex-only plugin, and docs
 dir=$(setup_repo)
 echo c >> "$dir/plugins/bar/x.md"
 echo c >> "$dir/codex-plugins/foo/x.md"
@@ -45,7 +45,7 @@ echo c >> "$dir/codex-plugins/baz/x.md"
 echo c >> "$dir/docs/x.md"
 git -C "$dir" add -A && git -C "$dir" commit -q -m c
 out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
-assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=bar"
+assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=bar foo"
 assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=baz foo"
 
 # Case 3: only docs change → both lists empty
@@ -64,5 +64,22 @@ echo c2 >> "$dir/plugins/foo/y.md"
 git -C "$dir" add -A && git -C "$dir" commit -q -m c2
 out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
 assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
+assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
 
-echo "  4 cases passed"
+# Case 5: deleted Claude plugin still reports raw change and existing Codex counterpart
+dir=$(setup_repo)
+rm -rf "$dir/plugins/foo"
+git -C "$dir" add -A && git -C "$dir" commit -q -m c
+out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
+assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
+assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
+
+# Case 6: deleted Codex plugin still reports raw change and existing Claude counterpart
+dir=$(setup_repo)
+rm -rf "$dir/codex-plugins/foo"
+git -C "$dir" add -A && git -C "$dir" commit -q -m c
+out=$(cd "$dir" && bash "$SCRIPT" v1.0.0)
+assert_eq "$(echo "$out" | grep ^CLAUDE_PLUGINS=)" "CLAUDE_PLUGINS=foo"
+assert_eq "$(echo "$out" | grep ^CODEX_PLUGINS=)" "CODEX_PLUGINS=foo"
+
+echo "  6 cases passed"

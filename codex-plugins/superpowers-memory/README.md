@@ -2,6 +2,18 @@
 
 Project knowledge persistence + KB write-lock for Codex superpowers workflows.
 
+## Primary Memory Skills
+
+- `superpowers-memory:query` — read Project Knowledge Base, traverse owner files/source references, answer with confidence, and optionally emit Memory candidates.
+- `superpowers-memory:ingest` — write Project Knowledge Base from stable source facts; supports incremental, bootstrap, and full-refresh modes.
+- `superpowers-memory:lint` — read-only health check over stale refs, shape violations, SSOT duplication, retrieval cost, split candidates, and suggested ingest targets.
+
+Compatibility aliases:
+
+- `superpowers-memory:load` → `query`
+- `superpowers-memory:update` → `ingest` incremental mode
+- `superpowers-memory:rebuild` → `ingest` bootstrap/full-refresh mode
+
 ## Installation
 
 Codex hooks require this feature flag in `~/.codex/config.toml`:
@@ -34,9 +46,9 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 ## Capabilities
 
 - **SessionStart hook** — injects KB index from `docs/project-knowledge/index.md`, lightweight KB freshness status, plus standing primer for KB workflow
-- **UserPromptSubmit hook** — when user types `$superpowers:brainstorming` or `$superpowers:finishing-a-development-branch`, JIT-injects relevant context (load advisory or finishing-readiness rich injection)
-- **PreToolUse hook** — blocks `apply_patch` and `mcp__filesystem__.*` writes to `docs/project-knowledge/` unless write-lock is held by `$superpowers-memory:update` or `$superpowers-memory:rebuild`
-- **Skills:** `load`, `update`, `rebuild`, `cleanup`
+- **UserPromptSubmit hook** — when user types `$superpowers:brainstorming` or `$superpowers:finishing-a-development-branch`, JIT-injects relevant context (query advisory or finishing-readiness rich injection)
+- **PreToolUse hook** — blocks `apply_patch` and `mcp__filesystem__.*` writes to `docs/project-knowledge/` unless write-lock is held by `$superpowers-memory:ingest` or its `$superpowers-memory:update`/`$superpowers-memory:rebuild` compatibility aliases
+- **Skills:** primary `$superpowers-memory:query`, `$superpowers-memory:ingest`, `$superpowers-memory:lint`; compatibility aliases `$superpowers-memory:load` -> `query`, `$superpowers-memory:update` -> `ingest` incremental mode, `$superpowers-memory:rebuild` -> `ingest` bootstrap/full-refresh mode; maintenance-only `$superpowers-memory:cleanup`
 
 ## KB Quality Evaluation
 
@@ -72,9 +84,10 @@ Use the same 0-5 anchor for every dimension:
 
 - `index.md`, optional shard files, and lazy ADR detail files target retrieval and token efficiency.
 - `content-rules.md` defines fact ownership, exclusion rules, ADR gates, progressive knowledge layout, and per-file content boundaries.
-- `$superpowers-memory:load` gives agents a lightweight entry point before planning or architectural work.
-- `$superpowers-memory:update` and `$superpowers-memory:rebuild` force source review, owner routing, exclusion checks, index regeneration, and verification before commit.
-- The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; updates must go through the memory skills.
+- `$superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work; `$superpowers-memory:load` remains a compatibility alias.
+- `$superpowers-memory:ingest` writes stable project facts by forcing source review, owner routing, exclusion checks, index regeneration, and verification before commit; `$superpowers-memory:update` and `$superpowers-memory:rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
+- `$superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets.
+- The KB write lock prevents ad-hoc edits under `docs/project-knowledge/`; KB writes must go through `$superpowers-memory:ingest` or its compatibility aliases.
 - `codex-runtime.js status` reports `covers_branch` versus current HEAD so Codex has stale-KB evidence even on prompt paths that cannot fire JIT hooks.
 - `codex-runtime.js verify` checks stale path references, shape violations, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, and commit readiness.
 - For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, and KB write-lock status.
@@ -83,6 +96,6 @@ Use the same 0-5 anchor for every dimension:
 
 The following coverage exists on Claude Code but **cannot be implemented on Codex** due to protocol limitations:
 
-1. **Agent-self-decided invocation of `$superpowers:finishing-a-development-branch`** does not fire any hook in Codex. The agent only receives the standing primer from SessionStart, not the JIT diff evidence (commits since `covers_branch`, files changed). User-typed slash invocation IS covered via UserPromptSubmit.
+1. **Agent-self-decided invocation of `$superpowers:finishing-a-development-branch`** does not fire any hook in Codex. The agent only receives the standing primer from SessionStart, not the JIT diff evidence (commits since `covers_branch`, files changed). User-typed `$superpowers:...` skill mention IS covered via UserPromptSubmit.
 
 2. **Auto-triggered planning skills** (`writing-plans`, `executing-plans`, `subagent-driven-development`, `requesting-code-review`, `receiving-code-review`) cannot receive a per-skill JIT advisory in Codex because native skill invocation is not exposed as a hookable tool or event. Coverage falls back to SessionStart standing primer.

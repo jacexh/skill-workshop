@@ -87,6 +87,8 @@ triggered_by_plan: null
 
 ## Scenario Sequences
 
+<!-- Use See:/Related: links to decisions, features, conventions, and source files when a query reader needs to traverse from structure to rationale or behavior. -->
+
 <!-- 2-3 Mermaid sequenceDiagram for cross-module scenarios (3+ components).
      Single-module internal flows do NOT belong here — they're implementation detail.
      Prefer scenarios that exercise the call direction rules above. -->

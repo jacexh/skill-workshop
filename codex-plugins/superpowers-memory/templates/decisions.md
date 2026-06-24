@@ -4,7 +4,7 @@ updated_by: superpowers-memory:<skill-name>
 triggered_by_plan: null
 ---
 
-<!-- OWNER: ADR summary log (always loaded at session start).
+<!-- OWNER: ADR summary log (indexed/routed from `index.md`; loaded on demand when decision context is needed).
      This file carries decision SUMMARIES only. Full context / alternatives /
      consequences live in `adr/ADR-NNN-<slug>.md`, loaded on demand.
 
@@ -47,6 +47,8 @@ triggered_by_plan: null
 
 <!-- ADR summaries below — add new decisions at the top. Do not delete old ADRs;
      collapse superseded ones to the 1-line supersede format. -->
+
+<!-- Decision summaries should link to ADR detail files and any owner entries affected by the decision. Query relies on these links to traverse from current behavior to rationale. -->
 
 <!--
 SUMMARY FORMAT (default — 4 lines per ADR):

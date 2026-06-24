@@ -49,7 +49,7 @@ out=$(bash "$SCRIPTS/detect-changed-plugins.sh" "$PREV")
 CLAUDE=$(echo "$out" | grep ^CLAUDE_PLUGINS= | cut -d= -f2-)
 CODEX=$(echo "$out" | grep ^CODEX_PLUGINS= | cut -d= -f2-)
 [ "$CLAUDE" = "alpha" ] || { echo "FAIL CLAUDE=$CLAUDE"; exit 1; }
-[ "$CODEX" = "" ] || { echo "FAIL CODEX=$CODEX"; exit 1; }
+[ "$CODEX" = "alpha" ] || { echo "FAIL CODEX=$CODEX"; exit 1; }
 
 # Step 4: bump
 NEXT="$NEXT" CLAUDE_PLUGINS="$CLAUDE" CODEX_PLUGINS="$CODEX" \
@@ -66,8 +66,8 @@ NEXT="$NEXT" CLAUDE_PLUGINS="$CLAUDE" CODEX_PLUGINS="$CODEX" \
   || { echo "FAIL alpha plugin.json"; exit 1; }
 [ "$(jq -r .version plugins/beta/.claude-plugin/plugin.json)" = "1.6.2" ] \
   || { echo "FAIL beta plugin.json should stay"; exit 1; }
-[ "$(jq -r .version codex-plugins/alpha/.codex-plugin/plugin.json)" = "1.11.0" ] \
-  || { echo "FAIL codex/alpha (R-X: only Claude side changed)"; exit 1; }
+[ "$(jq -r .version codex-plugins/alpha/.codex-plugin/plugin.json)" = "1.12.1" ] \
+  || { echo "FAIL codex/alpha should sync with Claude alpha"; exit 1; }
 [ "$(cat .agents/plugins/marketplace.json)" = '{"name":"test-mk-codex"}' ] \
   || { echo "FAIL .agents marketplace must not be touched"; exit 1; }
 

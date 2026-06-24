@@ -43,6 +43,12 @@ echo "$clean_out" | jq -e '.shapeViolations | length == 0' >/dev/null
 clean_codex_out="$(cd "$clean" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
 echo "$clean_codex_out" | jq -e '.shapeViolations | length == 0' >/dev/null
 
+clean_lint_out="$(cd "$clean" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" lint)"
+echo "$clean_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost")' >/dev/null
+
+clean_codex_lint_out="$(cd "$clean" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" lint)"
+echo "$clean_codex_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost")' >/dev/null
+
 # Current ADR summaries may include a short "Why" line without becoming legacy
 # inline ADRs. Legacy detection is limited to fields from the old detail format.
 why_summary="$TMPDIR/why-summary"

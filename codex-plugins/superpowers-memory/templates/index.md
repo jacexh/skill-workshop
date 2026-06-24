@@ -7,6 +7,10 @@ covers_branch: <branch>@<short-sha>
 
 # Project Knowledge Index
 
+<!-- Keep this file compact. It routes query to owner files and shards.
+     Include aliases only when user-facing vocabulary differs from implementation vocabulary.
+     Do not move owner-file detail into this hot path. -->
+
 - [architecture.md](architecture.md) — System boundaries, components, data flows
   Key points: [1-2 facts that help AI decide whether to load this file in full.
                Good: "6 bounded contexts; DDD + Clean Architecture"
