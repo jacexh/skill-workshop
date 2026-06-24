@@ -1000,6 +1000,182 @@ function lintArchitectureCoverage(files) {
   return findings;
 }
 
+function countCapabilitiesInFeatureGroup(content, groupName) {
+  const lines = content.split("\n");
+  let inGroup = false;
+  let count = 0;
+  for (const line of lines) {
+    const groupMatch = /^###\s+(.+?)\s*$/.exec(line.trim());
+    if (groupMatch) {
+      inGroup = groupMatch[1] === groupName;
+      continue;
+    }
+    if (/^##\s+/.test(line.trim())) {
+      inGroup = false;
+      continue;
+    }
+    if (inGroup && /^####\s+/.test(line.trim())) count += 1;
+  }
+  return count;
+}
+
+function lintFeatureQueryCoverage(files) {
+  const featureFiles = files.filter(([filename]) => knowledgeSlotForFile(filename) === "features");
+  if (featureFiles.length === 0) return [];
+
+  const findings = [];
+  const text = featureFiles.map(([, content]) => content).join("\n\n");
+  if (!/\n##\s+Implemented\b/i.test(text)) return findings;
+
+  const productCount = featureFiles.reduce((sum, [, content]) => sum + countCapabilitiesInFeatureGroup(content, "Product Capabilities"), 0);
+  const workflowCount = featureFiles.reduce((sum, [, content]) => sum + countCapabilitiesInFeatureGroup(content, "User / Operator Workflows"), 0);
+  const platformCount = featureFiles.reduce((sum, [, content]) => sum + countCapabilitiesInFeatureGroup(content, "Platform Capabilities"), 0);
+  const operationsCount = featureFiles.reduce((sum, [, content]) => sum + countCapabilitiesInFeatureGroup(content, "Operations"), 0);
+
+  if (productCount === 0 && (platformCount > 0 || operationsCount > 0)) {
+    findings.push({
+      kind: "features_product_coverage_missing",
+      sample: "Implemented feature map has platform/operations entries but no Product Capabilities; query may not answer what users can do now",
+      suggestedOwner: "docs/project-knowledge/features.md",
+    });
+  }
+
+  if (workflowCount === 0 && (platformCount > 0 || operationsCount > 0 || productCount >= 3)) {
+    findings.push({
+      kind: "features_workflow_coverage_missing",
+      sample: "Implemented feature map has enough capability surface to need at least one User / Operator Workflows entry for end-to-end query answers",
+      suggestedOwner: "docs/project-knowledge/features.md",
+    });
+  }
+
+  return findings;
+}
+
+function parseDecisionAdrBlocks(content) {
+  const lines = content.split("\n");
+  const blocks = [];
+  let current = null;
+
+  function flush(endLine) {
+    if (!current) return;
+    current.endLine = endLine;
+    current.text = lines.slice(current.startIndex, endLine).join("\n");
+    blocks.push(current);
+    current = null;
+  }
+
+  lines.forEach((line, index) => {
+    if (ADR_HEADING_PATTERN.test(line)) {
+      flush(index);
+      current = {
+        heading: line.trim(),
+        line: index + 1,
+        startIndex: index,
+      };
+    }
+  });
+  flush(lines.length);
+  return blocks;
+}
+
+function lintDecisionQueryCoverage(files) {
+  const decisionFiles = files.filter(([filename]) => knowledgeSlotForFile(filename) === "decisions");
+  const findings = [];
+
+  for (const [filename, content] of decisionFiles) {
+    const activeBlocks = parseDecisionAdrBlocks(content)
+      .filter((block) => !SUPERSEDE_HEADING_PATTERN.test(block.heading));
+    const missingDetail = activeBlocks.filter((block) => !/\]\(adr\/ADR-[^)]+\.md\)/.test(block.text));
+    const missingTradeoff = activeBlocks.filter((block) => !/^\*\*Trade-off:\*\*/m.test(block.text));
+    const missingAffectedRouting = activeBlocks.length >= 2
+      ? activeBlocks.filter((block) => !/^\*\*Affects:\*\*/m.test(block.text))
+      : [];
+
+    if (missingDetail.length > 0) {
+      findings.push({
+        kind: "decisions_detail_links_missing",
+        sample: `${filename} ADR summary block(s) missing on-demand adr/ detail links: ${missingDetail.map((block) => block.heading.replace(/^##\s+/, "")).join(", ")}`,
+        suggestedOwner: `docs/project-knowledge/${filename}`,
+      });
+    }
+
+    if (missingTradeoff.length > 0) {
+      findings.push({
+        kind: "decisions_tradeoffs_missing",
+        sample: `${filename} ADR summary block(s) missing explicit Trade-off lines: ${missingTradeoff.map((block) => block.heading.replace(/^##\s+/, "")).join(", ")}`,
+        suggestedOwner: `docs/project-knowledge/${filename}`,
+      });
+    }
+
+    if (missingAffectedRouting.length > 0) {
+      findings.push({
+        kind: "decisions_affected_routing_missing",
+        sample: `${filename} ADR summary block(s) missing affected owner/module routing for topic-scope refresh: ${missingAffectedRouting.map((block) => block.heading.replace(/^##\s+/, "")).join(", ")}`,
+        suggestedOwner: `docs/project-knowledge/${filename}`,
+      });
+    }
+  }
+
+  return findings;
+}
+
+function lintReferenceQueryCoverage(files) {
+  const findings = [];
+  const byName = new Map(files);
+
+  const conventions = [...files].filter(([filename]) => knowledgeSlotForFile(filename) === "conventions");
+  for (const [filename, content] of conventions) {
+    const unreferencedConcern = content.split("\n")
+      .find((line) => /^\*\*[^*]+:\*\*/.test(line.trim()) && !line.includes("→") && !/`[^`]+`/.test(line));
+    if (unreferencedConcern) {
+      findings.push({
+        kind: "conventions_source_refs_missing",
+        sample: `${filename} cross-cutting concern lacks canonical source reference: ${unreferencedConcern.trim().slice(0, 120)}`,
+        suggestedOwner: `docs/project-knowledge/${filename}`,
+      });
+    }
+  }
+
+  const techStack = byName.get("tech-stack.md");
+  if (techStack) {
+    const meaningfulRows = techStack.split("\n")
+      .filter((line) => /^-\s+\S/.test(line.trim()) || (/^\|/.test(line.trim()) && !/^\|\s*-/.test(line.trim()) && !/Technology|Package|Purpose|Role|Version/i.test(line)));
+    const hasRationale = /\b(Why Chosen|Why chosen|selection rationale|rationale|chosen because)\b/i.test(techStack);
+    if (meaningfulRows.length >= 3 && !hasRationale) {
+      findings.push({
+        kind: "tech_stack_rationale_missing",
+        sample: "tech-stack.md lists multiple technologies without explicit selection rationale; query can name dependencies but not why they matter",
+        suggestedOwner: "docs/project-knowledge/tech-stack.md",
+      });
+    }
+  }
+
+  const glossary = byName.get("glossary.md");
+  if (glossary) {
+    const unreferencedTerms = glossary.split("\n")
+      .filter((line) => /^\*\*[^*]+\*\*\s+—/.test(line.trim()))
+      .filter((line) => !line.includes("→") && !/`[^`]+`/.test(line));
+    if (unreferencedTerms.length > 0) {
+      findings.push({
+        kind: "glossary_owner_refs_missing",
+        sample: `glossary.md term(s) lack owner/source refs: ${unreferencedTerms.slice(0, 3).map((line) => line.trim().slice(0, 60)).join("; ")}`,
+        suggestedOwner: "docs/project-knowledge/glossary.md",
+      });
+    }
+  }
+
+  return findings;
+}
+
+function lintQueryCoverage(files) {
+  return [
+    ...lintArchitectureCoverage(files),
+    ...lintFeatureQueryCoverage(files),
+    ...lintDecisionQueryCoverage(files),
+    ...lintReferenceQueryCoverage(files),
+  ];
+}
+
 function buildKnowledgeStatus() {
   const currentBranch = getCurrentBranch();
   const currentSHA = getCurrentSHA();
@@ -1407,7 +1583,7 @@ function buildVerifyOutput() {
     }
   }
   const readinessWarnings = lintReadinessWarnings(fileContents);
-  const coverageGaps = lintArchitectureCoverage(fileContents);
+  const coverageGaps = lintQueryCoverage(fileContents);
 
   const totalBytes = fileContents.reduce((sum, [, content]) => sum + Buffer.byteLength(content, "utf8"), 0);
   const estimatedTokens = Math.ceil(totalBytes / 4);

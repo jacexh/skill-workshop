@@ -22,6 +22,7 @@ When no concrete question is supplied, use this skill for orientation: read `ind
 8. Stop when at least one owner entry answers the question, linked references do not contradict it, and the answer can name its source.
 9. If no owner entry directly answers a durable project question, answer with low confidence from the best evidence and emit a structured Memory candidate for `ingest`.
 10. If the answer creates a durable synthesis, comparison, or analysis that is likely to be reused, emit a structured Memory candidate even when the current answer is complete.
+11. conversation is not a KB slot: do not suggest `conversation.md`. If the reusable fact came from chat/transcript context, route the Memory candidate to a spec/plan/ADR first when appropriate, or to the existing owner file that owns the durable fact.
 
 ## Output
 
@@ -45,7 +46,7 @@ Memory candidate:
 - Missing answerability coverage: <question or high-value object not directly answered>
 - Suggested owner/shard: docs/project-knowledge/<owner-or-shard>.md
 - Candidate outline: <durable facts to add: system topology, service card, scenario sequence, responsibility, layers/components, interactions, state/flow/invariants, source refs>
-- Source refs: <spec/plan/ADR/doc/source paths to validate>
+- Source refs: <spec/plan/ADR/doc/source paths to validate; chat/transcript only as weak source when no durable source exists>
 ```
 
 ## Skip Conditions

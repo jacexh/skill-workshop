@@ -29,6 +29,13 @@ triggered_by_plan: null
 
      TARGET: ≤80 lines. -->
 
+<!-- Reference Query Coverage:
+     - Can query answer what the term means and who owns it?
+     - Does each current term include `→ path` or ADR routing unless it is a
+       deleted-term tombstone?
+     - If the definition needs more than two lines, move the context to the owner
+       file and keep only a pointer here. -->
+
 # Glossary
 
 **TermName** — One-line business definition. → `path/to/code` (ADR-NNN)

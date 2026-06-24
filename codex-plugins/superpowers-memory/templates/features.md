@@ -39,7 +39,14 @@ triggered_by_plan: null
      - Capability boundary and use-shaping constraints
      - Pointers to owner files for architecture, ADRs, tech, conventions, glossary
      - For high-value objects or flows, point to the architecture owner/shard
-       that carries responsibility, layers/components, interactions, state/flow rules, and source refs. -->
+       that carries responsibility, layers/components, interactions, state/flow rules, and source refs.
+
+     Feature Query Coverage:
+     - Can query answer "what can users/operators do now?"
+     - Can query answer at least one end-to-end user workflow when the product has
+       multiple capabilities or platform/operations entries?
+     - Can query name entry points, capability boundaries, and the owner files
+       that validate each high-value capability? -->
 
 # Features
 
