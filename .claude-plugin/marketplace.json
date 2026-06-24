@@ -11,8 +11,8 @@
     {
       "name": "superpowers-memory",
       "source": "./plugins/superpowers-memory",
-      "description": "Project knowledge persistence and plan checkpoint tracking for superpowers workflows",
-      "version": "1.12.30",
+      "description": "Project Knowledge Base query, ingest, and lint for superpowers workflows",
+      "version": "1.12.39",
       "author": {
         "name": "xuhao"
       },

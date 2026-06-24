@@ -2,6 +2,18 @@
 
 A Claude Code plugin that adds project knowledge persistence and plan checkpoint tracking to [superpowers](https://github.com/obra/superpowers) workflows.
 
+## Primary Memory Skills
+
+- `superpowers-memory:query` — read Project Knowledge Base, traverse owner files/source references, answer with confidence, and optionally emit Memory candidates.
+- `superpowers-memory:ingest` — write Project Knowledge Base from stable source facts; supports incremental, bootstrap, and full-refresh modes.
+- `superpowers-memory:lint` — read-only health check over stale refs, shape violations, SSOT duplication, retrieval cost, split candidates, and suggested ingest targets.
+
+Compatibility aliases:
+
+- `superpowers-memory:load` → `query`
+- `superpowers-memory:update` → `ingest` incremental mode
+- `superpowers-memory:rebuild` → `ingest` bootstrap/full-refresh mode
+
 ## Problem
 
 Superpowers' workflow (brainstorming → writing-plans → executing-plans → finishing) lacks cross-iteration memory. Each new session starts from scratch with no context about existing architecture, conventions, or past decisions.

@@ -2,6 +2,18 @@
 
 Project knowledge persistence + KB write-lock for Codex superpowers workflows.
 
+## Primary Memory Skills
+
+- `superpowers-memory:query` — read Project Knowledge Base, traverse owner files/source references, answer with confidence, and optionally emit Memory candidates.
+- `superpowers-memory:ingest` — write Project Knowledge Base from stable source facts; supports incremental, bootstrap, and full-refresh modes.
+- `superpowers-memory:lint` — read-only health check over stale refs, shape violations, SSOT duplication, retrieval cost, split candidates, and suggested ingest targets.
+
+Compatibility aliases:
+
+- `superpowers-memory:load` → `query`
+- `superpowers-memory:update` → `ingest` incremental mode
+- `superpowers-memory:rebuild` → `ingest` bootstrap/full-refresh mode
+
 ## Installation
 
 Codex hooks require this feature flag in `~/.codex/config.toml`:
