@@ -160,20 +160,6 @@ Memory candidate:
 
 `query` must be read-only. A Memory candidate is only a proposal; it is written later by `ingest`.
 
-## Search Is Not Query
-
-Do not depend on a UI search bar, chat history search, or generic file search as the project memory experience.
-
-Those tools usually have one or more of these limits:
-
-- They search literal text instead of following the Project Knowledge Base routing model.
-- They may not index local workspace files.
-- They may not search generated plugin cache content or project docs consistently.
-- They do not understand owner-file boundaries or source authority.
-- They return matches, not an answer with confidence, next files, and Memory candidates.
-
-`query` is an agent behavior, not a search widget. It must explicitly read `docs/project-knowledge/index.md`, route to owner files, and answer from the maintained knowledge structure. Code search remains useful after `query` has identified likely source locations or when the question is purely local.
-
 ## Ingest Behavior
 
 `ingest` replaces the mental model of "infer from recent git history" with "sync from stable source facts".
