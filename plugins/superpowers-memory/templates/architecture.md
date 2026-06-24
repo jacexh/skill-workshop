@@ -21,6 +21,13 @@ triggered_by_plan: null
      - Capability descriptions (what each component does for a user) → features.md
      - Single-module implementation details → code comments or design docs
 
+     CORE QUERY COVERAGE:
+     For high-value bounded contexts, services, major modules, product capabilities,
+     or cross-service flows, make one architecture owner entry or shard directly
+     answer responsibility, internal layers/main components, upstream/downstream
+     interactions, key state/flow/invariants, and source refs.
+     Do not add this depth for every package or helper.
+
      TARGET: ≤200 lines. -->
 
 # Architecture
@@ -58,13 +65,17 @@ triggered_by_plan: null
      - name + one-sentence responsibility
      - location: `path/to/module/`
      - key abstraction names only (aggregate root names, core interface names — no signatures, no field lists)
+     - for high-value objects only: interactions + source refs, or a pointer to the focused shard that owns them
 
      State call direction rules at the end (e.g., upper → lower direct; lower → upper via events).
      DO NOT duplicate capability descriptions that belong in features.md.
 
      GRANULARITY RULE:
      - ≥3 independent top-level modules (deploy units / services / major packages):
-       use a `####` subsection per module, each capped at 3 lines.
+       use a `####` subsection per module, each capped at 3 lines by default.
+       Add Interactions/Source refs only for high-value modules, or point to a
+       focused `architecture-<domain>.md` shard when the detail would make the
+       overview noisy.
        Discovery cues: count of `main` packages (Go), `bin` entries (package.json),
        `__main__.py` files (Python), top-level service directories (`cmd/`/`apps/`/
        `services/`), distinct deploy manifests.
@@ -72,6 +83,8 @@ triggered_by_plan: null
 
 **[Layer / BC Name]** — [one-sentence responsibility]. Location: `path/to/module/`
 - Key abstractions: [AggregateRoot names, interface names — names only]
+- Interactions: [for high-value objects only: upstream/downstream callers, events, APIs, storage, or external systems]
+- Source refs: [for high-value objects only: ADR/spec/plan/source paths, or `architecture-<domain>.md`]
 
 <!-- For ≥3 modules, use this `####` form instead of the flat bullet above:
 
@@ -79,6 +92,8 @@ triggered_by_plan: null
 **Responsibility:** [one sentence]
 **Path / entry:** `path/to/module/` → `path/to/entry`
 **Key abstractions:** [AggregateRoot names, interface names — names only]
+**Interactions:** [for high-value modules only; otherwise omit or point to `architecture-<domain>.md`]
+**Source refs:** [for high-value modules only; otherwise omit]
 -->
 
 **Call direction rules:**

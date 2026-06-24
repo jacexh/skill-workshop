@@ -9,6 +9,7 @@ fail() {
 
 for track in plugins codex-plugins; do
   base="$ROOT/$track/superpowers-memory/skills"
+  templates="$ROOT/$track/superpowers-memory/templates"
 
   # Primary and compatibility skills must exist in both plugin tracks.
   for skill in query ingest lint load update rebuild; do
@@ -50,6 +51,18 @@ for track in plugins codex-plugins; do
   grep -q "superpowers-memory:query" "$base/load/SKILL.md" || fail "$track load not pointing to query"
   grep -q "superpowers-memory:ingest" "$base/update/SKILL.md" || fail "$track update not pointing to ingest"
   grep -q "superpowers-memory:ingest" "$base/rebuild/SKILL.md" || fail "$track rebuild not pointing to ingest"
+
+  # Templates must route high-value objects to query-answerable owner files or shards.
+  grep -q "high-value project objects" "$templates/index.md" \
+    || fail "$track index template missing high-value object routing"
+  grep -q "CORE QUERY COVERAGE" "$templates/architecture.md" \
+    || fail "$track architecture template missing Core Query Coverage"
+  grep -q "Interactions:" "$templates/architecture.md" \
+    || fail "$track architecture template missing interactions field"
+  grep -q "Source refs:" "$templates/architecture.md" \
+    || fail "$track architecture template missing source refs field"
+  grep -q "architecture owner/shard" "$templates/features.md" \
+    || fail "$track features template missing architecture owner/shard references"
 done
 
 # Runtime hook guidance should mention only primary memory skills, not compatibility names.
