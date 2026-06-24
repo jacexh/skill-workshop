@@ -727,14 +727,74 @@ function inspectRepoArchitectureSignals() {
   };
 }
 
+function architectureCardChunks(content) {
+  return content.split(/^####\s+/m).slice(1);
+}
+
 function countArchitectureCards(content) {
-  const chunks = content.split(/^####\s+/m).slice(1);
+  const chunks = architectureCardChunks(content);
   return chunks.filter((chunk) =>
     /\*\*Responsibility:\*\*/.test(chunk) &&
     /\*\*(?:Internal layers \/ components|Internal components|Key abstractions):\*\*/.test(chunk) &&
     /\*\*Interactions:\*\*/.test(chunk) &&
     /\*\*Source refs:\*\*/.test(chunk)
   ).length;
+}
+
+function architectureCardInternalField(chunk) {
+  const match = chunk.match(/\*\*(?:Internal layers \/ components|Internal components|Key abstractions):\*\*\s*([^\n]+)/);
+  return match ? match[1].trim() : "";
+}
+
+function architectureCardIsShallow(chunk) {
+  const field = architectureCardInternalField(chunk);
+  if (!field) return false;
+
+  const genericLayer = /^(?:domain|application|infrastructure|adapter|adapters|interface|interfaces|api|handler|handlers|worker|workers|repository|repositories|readmodel|read model|readmodels|read models|projection|projections|service|services|controller|controllers|usecase|use case|usecases|use cases|port|ports|facade|facades|cmd|internal|package|packages|module|modules|layer|layers)$/i;
+  const codeRefs = (field.match(/`([^`]+)`/g) || [])
+    .map((ref) => ref.replace(/`/g, "").trim())
+    .filter((ref) => ref && !genericLayer.test(ref) && !/^(?:cmd|internal|api|apps|services|packages)\//.test(ref));
+
+  if (codeRefs.length >= 2) return false;
+
+  const namedArchitecturePattern = /\b(?:plane|subsystem|workflow|processor|policy|gate|mailbox|projection|reducer|coordinator|sequencer|runtime|resolver|publisher|subscriber|scheduler|poller|syncer|state machine|read model|materializer|dispatcher|router|bridge|registry|catalog|adapter strategy|boundary)\b/i;
+  const cleaned = field
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/[.;]+$/g, "")
+    .trim();
+  if (namedArchitecturePattern.test(cleaned)) return false;
+
+  const parts = cleaned
+    .split(/[,;/]|(?:\s+\+\s+)|(?:\s+and\s+)|(?:\s+&\s+)/i)
+    .map((part) => part.trim().replace(/^[`"']|[`"']$/g, ""))
+    .filter(Boolean);
+
+  return parts.length > 0 && parts.every((part) => genericLayer.test(part));
+}
+
+function countShallowArchitectureCards(content) {
+  return architectureCardChunks(content).filter((chunk) =>
+    /\*\*Responsibility:\*\*/.test(chunk) &&
+    /\*\*(?:Internal layers \/ components|Internal components|Key abstractions):\*\*/.test(chunk) &&
+    architectureCardIsShallow(chunk)
+  ).length;
+}
+
+function countSequenceDiagramsMissingSourceRefs(content) {
+  const sequenceMatches = [...content.matchAll(/\bsequenceDiagram\b/g)];
+  if (sequenceMatches.length === 0) return 0;
+
+  const headingPositions = [...content.matchAll(/^#{2,4}\s+/gm)].map((match) => match.index);
+  let missing = 0;
+
+  for (const match of sequenceMatches) {
+    const start = headingPositions.filter((position) => position <= match.index).pop() ?? 0;
+    const end = headingPositions.find((position) => position > match.index) ?? content.length;
+    const section = content.slice(start, end);
+    if (!/\bSource refs?:/i.test(section)) missing += 1;
+  }
+
+  return missing;
 }
 
 function lintArchitectureCoverage(files) {
@@ -758,6 +818,8 @@ function lintArchitectureCoverage(files) {
   const sequenceCount = (architectureText.match(/\bsequenceDiagram\b/g) || []).length;
   const stateDiagramCount = (architectureText.match(/\bstateDiagram-v2\b/g) || []).length;
   const serviceCardCount = architectureFiles.reduce((sum, [, content]) => sum + countArchitectureCards(content), 0);
+  const shallowServiceCardCount = architectureFiles.reduce((sum, [, content]) => sum + countShallowArchitectureCards(content), 0);
+  const scenarioWithoutRefsCount = architectureFiles.reduce((sum, [, content]) => sum + countSequenceDiagramsMissingSourceRefs(content), 0);
   const sourceRefCount = (architectureText.match(/\bSource refs?:/gi) || []).length;
   const hasTopology =
     /\b(System Topology|Context Map|System Context)\b/i.test(architectureText) &&
@@ -782,11 +844,29 @@ function lintArchitectureCoverage(files) {
     });
   }
 
+  if (serviceCardCount >= expectedCards && shallowServiceCardCount > 0) {
+    findings.push({
+      kind: "architecture_service_cards_shallow",
+      sample: `Found ${shallowServiceCardCount} service architecture card(s) whose internal components mostly name generic code layers; add named planes, subsystems, workflows, processors, projections, or other stable architecture components when source docs support them`,
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture-contexts.md",
+    });
+  }
+
   const expectedSequences = signals.deployableCount >= 3 || signals.protoFiles >= 3 ? 4 : 2;
   if (sequenceCount < expectedSequences) {
     findings.push({
       kind: "architecture_scenarios_sparse",
       sample: `Found ${sequenceCount} sequenceDiagram(s); expected at least ${expectedSequences} high-value cross-service scenario(s) for complex repo signals`,
+      signals,
+      suggestedOwner: "docs/project-knowledge/architecture-flows.md",
+    });
+  }
+
+  if (scenarioWithoutRefsCount > 0) {
+    findings.push({
+      kind: "architecture_scenario_refs_missing",
+      sample: `Found ${scenarioWithoutRefsCount} sequenceDiagram scenario(s) without local Source refs; each high-value flow should cite its ADR/spec/doc/source basis`,
       signals,
       suggestedOwner: "docs/project-knowledge/architecture-flows.md",
     });

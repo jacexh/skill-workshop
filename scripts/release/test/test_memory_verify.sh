@@ -161,6 +161,22 @@ echo "$architecture_gap_codex_out" | jq -e '.ok == true' >/dev/null
 echo "$architecture_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_sparse")' >/dev/null
 echo "$architecture_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenarios_sparse")' >/dev/null
 
+# Intent: architecture coverage should not pass just because card and
+# diagram counts are high. Cards that only name generic code layers should
+# prompt deeper architecture answerability, and scenario diagrams should carry
+# local source refs so query can cite the flow directly.
+shallow_architecture="$TMPDIR/architecture-shallow-coverage"
+cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/architecture-shallow-coverage" "$shallow_architecture"
+shallow_architecture_out="$(cd "$shallow_architecture" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$shallow_architecture_out" | jq -e '.ok == true' >/dev/null
+echo "$shallow_architecture_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_shallow")' >/dev/null
+echo "$shallow_architecture_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_refs_missing")' >/dev/null
+
+shallow_architecture_codex_out="$(cd "$shallow_architecture" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$shallow_architecture_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$shallow_architecture_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_shallow")' >/dev/null
+echo "$shallow_architecture_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenario_refs_missing")' >/dev/null
+
 # Intent: index.md remains the only strict size-constrained hot-path file
 # because it is injected at session start.
 oversized_index="$TMPDIR/oversized-index"

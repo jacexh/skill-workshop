@@ -87,7 +87,7 @@ High-value objects are discovered from project sources. They are usually bounded
 For each high-value object, one owner entry or shard should directly answer:
 
 - Responsibility: what it owns and what it explicitly does not own.
-- Internal layers/main components: the main layers, collaborators, or implementation parts.
+- Internal layers/main components: the main layers, collaborators, or implementation parts. Prefer stable architecture structure from design docs when it exists: planes, subsystems, workflows, processors, policies, gates, projections, or named runtime components. Do not stop at generic `domain/application/infrastructure` labels when sources provide richer structure.
 - Upstream/downstream interactions: callers, callees, events, APIs, storage, or external systems.
 - Key state/flow/invariants: lifecycle, ordering, state transitions, or constraints that shape changes.
 - Source refs: related ADRs, specs, plans, docs, and canonical source paths.
@@ -107,10 +107,12 @@ This calibration applies when the project has any of these signals:
 When the calibration applies, `architecture.md` or reachable `architecture-*.md` shards should cover:
 
 1. **System topology / context map** — the main services, trust boundaries, data stores, message buses, runtime substrates, and call/event direction rules.
-2. **Service architecture cards** — for each high-value service or bounded context, responsibility/non-responsibility, internal layers/main components, upstream/downstream interactions, owned state/read models, invariants, and source refs.
-3. **Scenario sequence coverage** — the core cross-service scenarios that shape future changes. Prefer 4-7 high-value scenarios for complex repos; 2-3 is enough only for small repos.
+2. **Service architecture cards** — for each high-value service or bounded context, responsibility/non-responsibility, internal layers/main components, upstream/downstream interactions, owned state/read models, invariants, and source refs. If design docs define internal planes, subsystems, policies, processors, workflows, or projections, capture that architecture model instead of only listing code-layer directories.
+3. **Scenario sequence coverage** — the core cross-service scenarios that shape future changes. Prefer 4-7 high-value scenarios for complex repos; 2-3 is enough only for small repos. Every scenario section must carry local source refs after the diagram.
 4. **State / lifecycle coverage** — Mermaid FSMs or lifecycle cards for aggregates whose state transitions affect other contexts, messages, read models, runtime execution, or user-visible workflow.
 5. **Source traceability** — every service card and scenario has stable source refs: ADR/spec/plan/doc paths plus canonical source/proto/config paths.
+
+Before finalizing architecture files, run an answerability self-check for the top 3-5 high-value services/bounded contexts and flows. The KB should directly answer their internal architecture/layering, participating scenarios, key state/lifecycle/invariants, and validation source refs. If the answer requires broad cross-file inference, refine the owner entry or shard.
 
 Use these discovery cues during bootstrap/full-refresh:
 
@@ -132,8 +134,8 @@ Describes how modules/services are wired, how they interact over time, and how c
 1. **Pattern Overview** — architecture paradigm + 2–3 key characteristics, one paragraph. Elevator pitch for a cold reader.
 2. **System Context** — external actors + external systems (databases, MQ, external services). List form, ≤10 lines. Enumerate, don't narrate.
 3. **System Topology / Context Map** — static system map: services, bounded contexts, runtime substrates, stores, buses, trust boundaries, and call/event direction rules. For small single-deployable projects, this may be a short bullet list; for multi-service repos, use a Mermaid graph or table.
-4. **Service Architecture Cards** — conditional but expected for complex repos. For each high-value service/bounded context: responsibility/non-responsibility, path/entry, internal layers/main components, upstream/downstream interactions, state/read models/invariants, and source refs. Keep each card compact; split to `architecture-<domain>.md` when a card plus flows would make `architecture.md` noisy.
-5. **Scenario Sequences** — Mermaid `sequenceDiagram` for cross-module flows of 3+ components. Complex repos should cover 4-7 high-value scenarios; small repos can cover 2-3. Single-module internal flows do NOT belong here unless they encode a stable architectural lifecycle.
+4. **Service Architecture Cards** — conditional but expected for complex repos. For each high-value service/bounded context: responsibility/non-responsibility, path/entry, internal layers/main components, upstream/downstream interactions, state/read models/invariants, and source refs. Prefer named planes/subsystems/workflows/processors/projections from design docs over bare directory-layer labels when available. Keep each card compact; split to `architecture-<domain>.md` when a card plus flows would make `architecture.md` noisy.
+5. **Scenario Sequences** — Mermaid `sequenceDiagram` for cross-module flows of 3+ components. Complex repos should cover 4-7 high-value scenarios; small repos can cover 2-3. Single-module internal flows do NOT belong here unless they encode a stable architectural lifecycle. Put local `Source refs` after each scenario diagram.
 6. **Key Object FSMs** — Mermaid `stateDiagram-v2` for aggregates whose transitions cross module boundaries (typically via cross-BC event emission). **Must be rendered as transition diagrams with trigger + emitted-event labels, not bullet lists of state names.** Bullet-list FSM enumerations are Exclusion List violations — they duplicate what code owns without capturing the cross-BC contract that makes the FSM architectural.
 7. **Key Design Decisions** — pointer list only, 3–5 entries in the form `**[title]** — see ADR-NNN`. Full rationale lives in `decisions.md` + `adr/ADR-NNN-*.md` — never expand inline here.
 
@@ -385,7 +387,7 @@ Never delete still-valid project knowledge solely to satisfy a line count or tok
 - `sizeWarnings` — hot-path `index.md` line threshold only.
 - `retrievalCost` — advisory estimated retrieval cost for recognized KB entry files and shards.
 - `splitCandidates` — advisory list of large non-index files that may deserve vertical splitting.
-- `coverageGaps` — advisory architecture answerability gaps for complex repos, such as missing service cards, too few cross-service scenarios, missing lifecycle/FSM coverage, or missing source refs. These do not affect `verify.ok`; they are suggested ingest targets.
+- `coverageGaps` — advisory architecture answerability gaps for complex repos, such as missing service cards, shallow service cards that only name generic code layers, too few cross-service scenarios, scenario diagrams missing local source refs, missing lifecycle/FSM coverage, or missing source refs. These do not affect `verify.ok`; they are suggested ingest targets.
 
 ## Retrieval Cost
 

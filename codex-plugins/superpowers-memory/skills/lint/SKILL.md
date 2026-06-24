@@ -21,8 +21,8 @@ node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" l
 3. Interpret the JSON output for the requested scope: whole KB, one owner file, or one topic.
 4. Report issues by severity.
 5. Review LLM Wiki health for the requested scope: contradictions, stale claims, orphan/unreachable shards, missing owner/concept pages, missing cross-references, source/data gaps, and answerability coverage.
-6. Interpret `coverageGaps` as advisory ingest targets. These do not make `verify.ok` false; they indicate likely query-answerability gaps for complex repos.
-7. Flag additional advisory coverage gaps when a high-frequency object is referenced by index/features/architecture/decisions/glossary/source refs but has no direct owner entry or shard, when a global architecture map exists but a core bounded context lacks service-card layering details, when core scenarios lack sequence coverage/source refs, or when `query` would need broad cross-file inference to answer a normal project question.
+6. Interpret `coverageGaps` as advisory ingest targets. These do not make `verify.ok` false; they indicate likely query-answerability gaps for complex repos, including shallow service cards that only name generic code layers and scenario diagrams without local source refs.
+7. Flag additional advisory coverage gaps when a high-frequency object is referenced by index/features/architecture/decisions/glossary/source refs but has no direct owner entry or shard, when a global architecture map exists but a core bounded context lacks service-card layering details or design-doc planes/subsystems, when core scenarios lack sequence coverage/source refs, or when `query` would need broad cross-file inference to answer a normal project question.
 8. Report suggested ingest targets instead of editing files.
 
 ## Output
