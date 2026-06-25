@@ -126,6 +126,39 @@ Run Reference Query Coverage before finalizing `conventions.md`, `glossary.md`, 
 - Glossary terms include owner/source refs unless they are deleted-term tombstones.
 - Critical tech-stack entries include purpose and selection rationale, not only names or versions.
 
+## Rebuild decision and glossary routers
+
+Use this compatibility path when upgrading an existing KB whose root
+`decisions.md` or `glossary.md` has become a large default read target. This is
+a targeted full-refresh of those owner families, not a manual edit.
+
+For `decisions.md`:
+
+1. Preserve existing ADR numbers, titles, status, and detail files.
+2. Re-run the ADR granularity gate from `content-rules.md`.
+3. Collapse superseded ADRs in the root file to one-line supersede headings.
+4. Move stable active decision families into `decisions-<domain>.md` shards.
+5. Keep root `decisions.md` as the decision router: shard links, global active
+   decisions only when useful, and no long rationale blocks.
+6. Update `index.md`, affected architecture/features/conventions owners, and
+   `adr/` detail links so query can traverse module to decision family to detail.
+
+For `glossary.md`:
+
+1. Preserve term meanings through aliases, owner/source refs, and tombstones.
+2. Keep only cross-context, ambiguous, renamed, or high-risk aliases in root
+   `glossary.md`.
+3. Move domain-local terms into `glossary-<domain>.md` shards.
+4. Move entries that explain lifecycle, state, ownership, or invariants into the
+   relevant architecture owner/shard, leaving a one-line alias in the glossary.
+5. Link glossary shards from root `glossary.md`; link high-value shards from
+   `index.md`.
+
+Run `node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify`
+after the rebuild. `decisions_family_shards_recommended` and
+`glossary_alias_router_recommended` should disappear when the routing surface is
+query-grade.
+
 ## Process
 
 1. Complete the legacy hard-migration check above.

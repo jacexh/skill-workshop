@@ -162,6 +162,64 @@ echo "$split_codex_out" | jq -e '.ok == true' >/dev/null
 echo "$split_codex_out" | jq -e '.retrievalCost.perFile[] | select(.file == "architecture-runtime.md")' >/dev/null
 echo "$split_codex_out" | jq -e '.splitCandidates[] | select(.file == "architecture-runtime.md")' >/dev/null
 
+# Intent: a root decisions.md with many active ADR summaries should remain
+# valid storage, but verify should recommend stable decision-family shards so
+# query does not have to scan a chronological decision wall.
+decision_router="$TMPDIR/decision-router"
+copy_fixture "clean" "$decision_router"
+{
+  printf '%s\n' '---'
+  printf '%s\n' 'last_updated: 2026-06-25'
+  printf '%s\n' 'updated_by: superpowers-memory:ingest'
+  printf '%s\n' 'triggered_by_plan: null'
+  printf '%s\n' '---'
+  printf '\n# Decisions\n\n'
+  for i in $(seq 1 10); do
+    printf '## ADR-%03d: Runtime decision %03d\n' "$i" "$i"
+    printf '**Decision:** Choose runtime design %03d for cross-module delivery.\n' "$i"
+    printf '**Trade-off:** Adds routing discipline for decision family %03d.\n' "$i"
+    printf '**Affects:** architecture-runtime.md, conventions.md\n'
+    printf '→ [adr/ADR-%03d-runtime-decision.md](adr/ADR-%03d-runtime-decision.md)\n\n' "$i" "$i"
+  done
+} > "$decision_router/docs/superpowers/memory/decisions.md"
+mkdir -p "$decision_router/docs/superpowers/memory/adr"
+for i in $(seq 1 10); do
+  printf '# ADR-%03d\n' "$i" > "$decision_router/docs/superpowers/memory/adr/ADR-$(printf '%03d' "$i")-runtime-decision.md"
+done
+
+decision_router_out="$(cd "$decision_router" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$decision_router_out" | jq -e '.ok == true' >/dev/null
+echo "$decision_router_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_family_shards_recommended")' >/dev/null
+
+decision_router_codex_out="$(cd "$decision_router" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$decision_router_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$decision_router_codex_out" | jq -e '.coverageGaps[] | select(.kind == "decisions_family_shards_recommended")' >/dev/null
+
+# Intent: a large global glossary whose terms all have owner refs is still a
+# query problem. Verify should recommend turning the root glossary into an
+# alias router with stable glossary-<domain>.md shards.
+glossary_router="$TMPDIR/glossary-router"
+copy_fixture "clean" "$glossary_router"
+{
+  printf '%s\n' '---'
+  printf '%s\n' 'last_updated: 2026-06-25'
+  printf '%s\n' 'updated_by: superpowers-memory:ingest'
+  printf '%s\n' 'triggered_by_plan: null'
+  printf '%s\n' '---'
+  printf '\n# Glossary\n\n'
+  for i in $(seq 1 90); do
+    printf '**Runtime Term %03d** — Runtime-owned business alias %03d. → `cmd/server/`\n' "$i" "$i"
+  done
+} > "$glossary_router/docs/superpowers/memory/glossary.md"
+
+glossary_router_out="$(cd "$glossary_router" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$glossary_router_out" | jq -e '.ok == true' >/dev/null
+echo "$glossary_router_out" | jq -e '.coverageGaps[] | select(.kind == "glossary_alias_router_recommended")' >/dev/null
+
+glossary_router_codex_out="$(cd "$glossary_router" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$glossary_router_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$glossary_router_codex_out" | jq -e '.coverageGaps[] | select(.kind == "glossary_alias_router_recommended")' >/dev/null
+
 # Intent: complex repos with only thin architecture summaries should produce
 # advisory ingest targets without making verify fail.
 architecture_gap="$TMPDIR/architecture-coverage-gap"

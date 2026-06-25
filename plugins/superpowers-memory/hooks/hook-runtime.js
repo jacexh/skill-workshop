@@ -1109,6 +1109,8 @@ function parseDecisionAdrBlocks(content) {
 function lintDecisionQueryCoverage(files) {
   const decisionFiles = files.filter(([filename]) => knowledgeSlotForFile(filename) === "decisions");
   const findings = [];
+  const rootDecisions = new Map(files).get("decisions.md");
+  const hasDecisionShard = decisionFiles.some(([filename]) => filename !== "decisions.md");
 
   for (const [filename, content] of decisionFiles) {
     const activeBlocks = parseDecisionAdrBlocks(content)
@@ -1140,6 +1142,18 @@ function lintDecisionQueryCoverage(files) {
         kind: "decisions_affected_routing_missing",
         sample: `${filename} ADR summary block(s) missing affected owner/module routing for topic-scope refresh: ${missingAffectedRouting.map((block) => block.heading.replace(/^##\s+/, "")).join(", ")}`,
         suggestedOwner: `docs/superpowers/memory/${filename}`,
+      });
+    }
+  }
+
+  if (rootDecisions && !hasDecisionShard) {
+    const rootActiveBlocks = parseDecisionAdrBlocks(rootDecisions)
+      .filter((block) => !SUPERSEDE_HEADING_PATTERN.test(block.heading));
+    if (rootActiveBlocks.length >= 8) {
+      findings.push({
+        kind: "decisions_family_shards_recommended",
+        sample: `decisions.md has ${rootActiveBlocks.length} active ADR summaries and no decisions-<domain>.md shard routes; rebuild decision families so query can load the smallest decision context`,
+        suggestedOwner: "docs/superpowers/memory/decisions.md and docs/superpowers/memory/decisions-<domain>.md",
       });
     }
   }
@@ -1213,6 +1227,20 @@ function lintReferenceQueryCoverage(files) {
         kind: "glossary_owner_refs_missing",
         sample: `glossary.md term(s) lack owner/source refs: ${unreferencedTerms.slice(0, 3).map((line) => line.trim().slice(0, 60)).join("; ")}`,
         suggestedOwner: "docs/superpowers/memory/glossary.md",
+      });
+    }
+
+    const hasGlossaryShard = files.some(([filename]) =>
+      knowledgeSlotForFile(filename) === "glossary" && filename !== "glossary.md"
+    );
+    const termCount = glossary.split("\n")
+      .filter((line) => /^\*\*[^*]+\*\*\s+—/.test(line.trim()))
+      .length;
+    if (termCount >= 60 && !hasGlossaryShard) {
+      findings.push({
+        kind: "glossary_alias_router_recommended",
+        sample: `glossary.md has ${termCount} terms and no glossary-<domain>.md shard routes; rebuild it as an alias router plus domain term shards`,
+        suggestedOwner: "docs/superpowers/memory/glossary.md and docs/superpowers/memory/glossary-<domain>.md",
       });
     }
   }

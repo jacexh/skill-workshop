@@ -6,7 +6,8 @@ triggered_by_plan: null
 
 <!-- OWNER: Decision index / ADR summary index (indexed/routed from `index.md`;
      loaded on demand when decision context is needed).
-     This file carries decision SUMMARIES and decision-shard routes only. Full
+     This file is the decision router. It carries decision-shard routes and
+     only the smallest useful decision SUMMARIES. Full
      context / alternatives / consequences live in `adr/ADR-NNN-<slug>.md`,
      loaded on demand.
 
@@ -32,6 +33,9 @@ triggered_by_plan: null
      - Can query see the trade-off, affected owner files, and affected modules
        without broad search?
      - Are `decisions-<domain>.md` shards linked from this file or index.md?
+     - If root decisions.md has many active summaries, has ingest rebuilt stable
+       decision families into `decisions-<domain>.md` shards instead of leaving
+       a chronological wall?
      - Do active ADR summaries link to on-demand `adr/ADR-NNN-*.md` detail files? -->
 
 # Decisions
@@ -60,6 +64,14 @@ triggered_by_plan: null
 <!-- Decision summaries should link to ADR detail files and any owner entries affected by the decision. Query relies on these links to traverse from current behavior to rationale. -->
 <!-- If this file delegates to `decisions-<domain>.md` shards, list those shard
      links before ADR summaries so query can route to the smallest decision family. -->
+
+## Decision Families
+
+<!-- Optional. Link stable family shards here when they exist.
+     Format:
+     - [decisions-runtime.md](decisions-runtime.md) — Runtime delivery decisions.
+       Key points: ADR-050, ADR-051, ADR-053.
+-->
 
 <!--
 SUMMARY FORMAT (default — 4 lines per ADR):

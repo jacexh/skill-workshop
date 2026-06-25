@@ -41,6 +41,14 @@ for track in plugins codex-plugins; do
     || fail "$track query missing no-question orientation behavior"
   grep -Eiq "orient" "$base/query/SKILL.md" \
     || fail "$track query missing orientation behavior"
+  grep -q "Question classification" "$base/query/SKILL.md" \
+    || fail "$track query missing question classification stage"
+  grep -q "Retrieval route" "$base/query/SKILL.md" \
+    || fail "$track query missing retrieval route output"
+  grep -q "Skipped" "$base/query/SKILL.md" \
+    || fail "$track query missing skipped-source reporting"
+  grep -q "Code search seeds" "$base/query/SKILL.md" \
+    || fail "$track query missing code search seed output"
 
   # Ingest must support full rebuilds and add targeted coverage for high-value query objects.
   grep -q "docs/superpowers/memory" "$base/ingest/SKILL.md" \
@@ -76,6 +84,12 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing targeted lint after incremental ingest"
   grep -q "Escalate to topic-scope refresh" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing topic refresh escalation trigger"
+  grep -q "Rebuild decision and glossary routers" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing decision/glossary rebuild compatibility guidance"
+  grep -q "decisions-<domain>.md" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing decision shard rebuild guidance"
+  grep -q "glossary-<domain>.md" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing glossary shard rebuild guidance"
   grep -q "Internal layers/main components" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing core object layering question"
   grep -q "Upstream/downstream interactions" "$base/ingest/SKILL.md" \
@@ -244,6 +258,12 @@ grep -q "Decision Query Coverage" "$ROOT/plugins/superpowers-memory/content-rule
   || fail "content-rules missing decision query coverage"
 grep -q "Reference Query Coverage" "$ROOT/plugins/superpowers-memory/content-rules.md" \
   || fail "content-rules missing reference query coverage"
+grep -q "Query Routing Output" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing query routing output contract"
+grep -q "Decision Router Rebuild" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing decision router rebuild guidance"
+grep -q "Glossary Alias Router Rebuild" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing glossary alias router rebuild guidance"
 grep -q "Incremental Ingest Guardrails" "$ROOT/plugins/superpowers-memory/content-rules.md" \
   || fail "content-rules missing incremental ingest guardrails"
 grep -q "Impact Radius" "$ROOT/plugins/superpowers-memory/content-rules.md" \
