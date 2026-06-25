@@ -105,6 +105,28 @@ The Project Knowledge Base must support `query`, not only session-start orientat
 - Optional aliases are plain Markdown such as `Aliases: native hooks, Codex hooks, prompt router`.
 - Query answers should be supported by read owner/source entries, not by search snippets alone.
 
+### Query Routing Output
+
+`superpowers-memory:query` should expose its retrieval route before or alongside
+the final answer. The route is evidence that the agent avoided unnecessary
+context and selected the smallest useful owner files.
+
+Every non-trivial query should report:
+
+- Question classification: exact-code, architecture-or-constraint,
+  implementation-routing, term-or-alias, decision-or-history, or orientation.
+- Retrieval route: files read, targeted searches used, and why each file was
+  selected.
+- Skipped: large or irrelevant owner files deliberately not loaded, especially
+  `decisions.md` and `glossary.md` when a shard, ADR detail, owner entry, or
+  direct source search is enough.
+- Code search seeds: source refs, symbols, paths, or `rg` terms for follow-up
+  implementation work.
+
+This does not replace answering the user's question. It makes the answer's
+retrieval path auditable and prevents answer generation from silently expanding
+into broad KB reads.
+
 ## Incremental Ingest Guardrails
 
 Incremental ingest is for maintaining an already-good knowledge base. It should
@@ -200,6 +222,26 @@ The root `decisions.md` remains the decision router and must link to every
 decision shard it delegates to; `index.md` should route high-value decision shards
 directly. Do not split decisions by chronology alone.
 
+### Decision Router Rebuild
+
+For existing KBs, a full-refresh or targeted ingest may rebuild decision routing
+without changing ADR meaning:
+
+1. Run the ADR granularity gate for every root summary.
+2. Collapse superseded ADRs in the root router to one-line tombstones.
+3. Move active summaries into `decisions-<domain>.md` shards when a stable
+   decision family has enough entries to make the root hard to scan.
+4. Keep `decisions.md` as a route table with shard links and only globally
+   important active summaries.
+5. Keep or create `adr/ADR-NNN-<slug>.md` detail files for decisions that pass
+   the granularity gate.
+6. Update `index.md` and affected owner entries so query can traverse from a
+   module/capability to the decision family and back.
+
+Compatibility rule: do not delete historical decisions merely because the root
+file is large. Rebuild the routing surface first; preserve detail files and
+supersession links.
+
 ### Reference Query Coverage
 
 Reference slots (`conventions.md`, `glossary.md`, `tech-stack.md`) should be terse
@@ -212,6 +254,26 @@ canonical source that owns it:
   term is an explicit tombstone.
 - Tech-stack entries should include purpose and selection rationale for critical
   dependencies, not only names and versions.
+
+### Glossary Alias Router Rebuild
+
+For existing KBs, a large `glossary.md` should be rebuilt as an alias router
+rather than compressed by deleting useful terms:
+
+1. Keep only cross-context, ambiguous, renamed, or high-risk aliases in the root
+   `glossary.md`.
+2. Move domain-local term sets into `glossary-<domain>.md` shards such as
+   `glossary-runtime.md`, `glossary-work.md`, or `glossary-auth.md`.
+3. Move entries that need lifecycle, state, ownership, or invariant explanation
+   to the relevant `architecture-<module>.md` or scenario owner, leaving only a
+   one-line glossary alias and source ref.
+4. Link glossary shards from `glossary.md` and high-value shards from `index.md`.
+5. Keep deleted or renamed terms as one-line tombstones that point to the
+   replacement term or ADR.
+
+Compatibility rule: full-refresh may reshape `glossary.md` and create
+`glossary-<domain>.md` files, but it must preserve current term meanings through
+aliases, owner refs, and tombstones.
 
 ## Core Query Coverage
 
@@ -566,9 +628,9 @@ This is an observability metric, not a budget. High retrieval cost should lead t
 
 When retrieval-cost advisories or content-shape warnings fire, suggest specific actions:
 
-- `decisions.md` large → (1) run every ADR through the 3-criteria granularity gate — downgrade tool/library picks to `tech-stack.md`, convention-shaped rules to `conventions.md`; (2) collapse superseded ADRs to 1-line supersede format; (3) move any remaining rationale detail from `decisions.md` into `adr/ADR-NNN-*.md` so the summary file carries only 4-6 lines per ADR.
+- `decisions.md` large → rebuild it as a decision router: (1) run every ADR through the 3-criteria granularity gate — downgrade tool/library picks to `tech-stack.md`, convention-shaped rules to `conventions.md`; (2) collapse superseded ADRs to 1-line supersede format; (3) move any remaining rationale detail from `decisions.md` into `adr/ADR-NNN-*.md`; (4) split stable decision families into `decisions-<domain>.md` shards and link them from `decisions.md`/`index.md`.
 - `features.md` large → strip changelog blocks, commit SHAs, and test counts; merge redundant capability groups; move wiring/flow detail to `architecture.md` and rationale to ADRs. If valid product capabilities remain large, split by stable product domain rather than deleting capabilities.
-- `glossary.md` large → compress each entry to ≤2 lines; move context to owner file per Matrix.
+- `glossary.md` large → rebuild it as an alias router: keep cross-context aliases/tombstones in root, move domain-local terms to `glossary-<domain>.md`, and move lifecycle/state/invariant explanations to architecture owners.
 - `architecture.md` large → remove implementation details and duplicate capability prose; split valid detail into module-first shards (`architecture-<module>.md`) and named scenario shards (`architecture-<scenario>.md`), not generic `contexts` / `flows` view files.
 - `conventions.md` large → remove rules already enforced by formatter/linter and rules duplicated from design patterns; split by stable practice area if needed.
 - `tech-stack.md` large → remove transitive deps; split by backend/frontend/runtime/tooling if a multi-stack project needs it.

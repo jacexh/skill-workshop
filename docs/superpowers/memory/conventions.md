@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-06-24
+last_updated: 2026-06-25
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
@@ -16,7 +16,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 - **Hook scripts (designing-tests Codex):** Direct Node.js (`codex-runtime.js`) with `session-start` and `user-prompt-submit` modes. UserPromptSubmit triggers only on explicit upstream `$superpowers:*` workflow skill mentions and returns `{}` for unrelated natural language.
 - **Markdown files:** Skills use YAML frontmatter with `name` and `description`. Knowledge base files use `last_updated` (YYYY-MM-DD), `updated_by`, `triggered_by_plan`.
 - **`triggered_by_plan` rule:** Only update this field when a concrete plan filename can be identified as the trigger. If no plan triggered the update, **preserve the existing value — never overwrite with `null`**.
-- **Content rules (KB):** `content-rules.md` is the shared SSOT for `rebuild` and `update` skills. Defines language, inclusion/exclusion criteria, ownership matrix, feature capability reconciliation, quality standards, progressive shard layout, and retrieval-cost guidance.
+- **Content rules (KB):** `content-rules.md` is the shared SSOT for `rebuild`, `update`, and query routing. Defines language, inclusion/exclusion criteria, ownership matrix, feature capability reconciliation, quality standards, progressive shard layout, retrieval-cost guidance, query output fields, and decision/glossary router rebuild compatibility.
 - **JSON manifests:** `plugin.json`, native Codex hook files such as `codex-plugins/superpowers-memory/hooks/hooks.json`, Claude `hooks.json`, `marketplace.json`, and `codex-hooks-snippet.json` use 2-space indentation. Arrays/objects expand multi-line (one element per line) — both Claude and Codex tracks aligned. Codex command hooks set bounded `timeout` and omit optional `statusMessage` to keep the console quiet; native hook files and fallback snippets stay byte-shape aligned by release tests. `~/.codex/hooks.json` must remain strict JSON; never write JSON comments into it.
 - **No linter configs present** — conventions followed by practice.
 
@@ -48,7 +48,7 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ## Testing Conventions
 
 - No automated test suite. Verification is done manually per plan task acceptance criteria.
-- The `verify` command in `hook-runtime.js` / `codex-runtime.js` provides automated checks for KB files (stale path references, content-shape lint, ADR integrity, readiness, SSOT drift, retrieval-cost reporting, split candidates, advisory `coverageGaps`, and strict `index.md` size). Codex variant runs the same `verify` logic.
+- The `verify` command in `hook-runtime.js` / `codex-runtime.js` provides automated checks for KB files (stale path references, content-shape lint, ADR integrity, readiness, SSOT drift, retrieval-cost reporting, split candidates, advisory `coverageGaps`, decision/glossary router advisories, and strict `index.md` size). Codex variant runs the same `verify` logic.
 - Fixture-based runtime testing: `plugins/superpowers-memory/hooks/fixtures/<scenario>/` (clean, dense-features, missing-feature-fields, shape-violation, ssot-violation, codex-apply-patch). `scripts/release/test/test_memory_verify.sh` copies fixtures to temporary non-repo directories so both `hook-runtime.js` (Claude) and `codex-runtime.js` (Codex) verify the same scenarios; Codex coverage includes canonical `PreToolUse` deny output for KB write protection.
 
 ## Git & Workflow
@@ -64,10 +64,10 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 - **Ownership matrix** — see `plugins/superpowers-memory/content-rules.md`. Each fact has ONE owner file; others reference by pointer (≤1 line).
 - **ADR granularity gate** — new ADRs only when a future reader without this record would re-propose the opposite (NORMAL 3-line default; CRITICAL only when ≥2 rejected alts with substantive analysis).
 - **`features.md` is current capability map** — implemented capability groups follow `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`; each `####` entry uses `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`. No dense single-paragraph entries, missing implemented fields, commit SHAs, test counts, timestamps, or changelog narrative.
-- **`glossary.md` entries ≤2 lines** — one-line business definition + 1 path.
+- **`glossary.md` is an alias router when large** — root entries stay ≤2 lines with one-line business definition + 1 path. Cross-context, ambiguous, renamed, or high-risk aliases stay in root; domain-local term clusters move to `glossary-<domain>.md`.
 - **Exclusion Gate** in `update` / `rebuild` skills checks every new entry against content-shape rules before write.
-- **Progressive knowledge layout** — `index.md` is the only strict hot-path file and must stay small enough for SessionStart injection. All other canonical entry files may split into `<slot>-<domain>.md` shards when a domain/submodule grows large. Do not delete valid knowledge merely to satisfy line or token pressure.
-- **`verify` surfaces** `ssotViolations`, `shapeViolations`, `readinessWarnings`, `retrievalCost`, `splitCandidates`, and `sizeWarnings` only for `index.md`. `retrievalCost` and `splitCandidates` are advisory; `index_too_large` is a shape violation. `committable` reflects git state only.
+- **Progressive knowledge layout** — `index.md` is the only strict hot-path file and must stay small enough for SessionStart injection. All other canonical entry files may split into `<slot>-<domain>.md` shards when a domain/submodule grows large. Large `decisions.md` roots become decision routers with stable families in `decisions-<domain>.md`; large `glossary.md` roots become alias routers with domain terms in `glossary-<domain>.md`. Do not delete valid knowledge merely to satisfy line or token pressure.
+- **`verify` surfaces** `ssotViolations`, `shapeViolations`, `readinessWarnings`, `retrievalCost`, `splitCandidates`, advisory `coverageGaps`, and `sizeWarnings` only for `index.md`. `retrievalCost`, `splitCandidates`, `decisions_family_shards_recommended`, and `glossary_alias_router_recommended` are advisory; `index_too_large` is a shape violation. `committable` reflects git state only.
 - **KB writes go through `superpowers-memory:ingest` or compatibility aliases only** (ADR-010, ADR-019). PreToolUse hook blocks Write/Edit on `docs/superpowers/memory/` and legacy `docs/project-knowledge/` paths unless write-lock (`.git/superpowers-memory.lock`, 60-min TTL) is held. No escape hatch — manual typo fixes also go through `superpowers-memory:ingest`.
 - **Schema meta-rule (slots vs topics)** — `content-rules.md` defines schema slots (file names, sections, ownership), not content topics. Concrete lists inside a slot (e.g., cross-cutting concern topics, implementation-constant examples) are discovery cues, not contracts; per-project content is discovered by reading the codebase. The former playbook lazy slot is removed and should not be regenerated.
 

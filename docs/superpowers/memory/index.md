@@ -1,8 +1,8 @@
 ---
-last_updated: 2026-06-24
-updated_by: superpowers-memory:update
+last_updated: 2026-06-25
+updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
-covers_branch: hotfix/hook@e7dbcc5
+covers_branch: hotfix/memory-query-routing@3f793a6
 ---
 
 # Project Knowledge Index
@@ -14,13 +14,13 @@ covers_branch: hotfix/hook@e7dbcc5
   Key points: Node.js + Bash + Markdown + JSON; Codex plugin runtime requires hooks/plugin_hooks flags and restart; release scripts use git + jq
 
 - [features.md](features.md) — Current capability map
-  Key points: DDD guidance separates Go event/message, taskqueue, runtime, and CQRS QueryRepository default-merge rules
+  Key points: memory query classifies questions and reports retrieval routes; ingest can rebuild decision/glossary roots into router + shard layouts
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: Codex plugin sources avoid Claude runtime syntax; Go DDD rules require QueryRepository-per-read-model-family defaults and explicit runtime shutdown dependencies
+  Key points: KB content rules require query routing output, decision-family shards, glossary alias-router rebuilds, and dual Claude/Codex parity
 
-- [decisions.md](decisions.md) — Decision index / ADR summaries (19 ADRs, 0 superseded)
-  Key points: ADR-019 canonical memory directory; ADR-018 DDD Go events/messages split; ADR-017 DDD Go taskqueue split
+- [decisions.md](decisions.md) — Decision router / ADR family index
+  Key points: routes to decisions-memory, decisions-architect, decisions-codex, and decisions-foundation shards; ADR details stay under adr/
 
 - [adr/](adr/) — On-demand ADR detail files (loaded via `Read`, not at session start)
   Currently: ADR-001 through ADR-019
