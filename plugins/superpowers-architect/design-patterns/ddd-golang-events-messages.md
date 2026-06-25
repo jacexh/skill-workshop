@@ -175,6 +175,7 @@ Domain Event Handlers:
 - handle repeated same-BC reactions to a domain fact after the aggregate is saved and events are drained;
 - own their own transaction; failures do not roll back the producing command;
 - use lightweight failure behavior by default: best-effort, log-and-continue, return subscriber/adapter error, or `n/a`;
+- log one completion summary for each handled event with `operation`, `outcome`, `duration_ms`, `event_kind`, and relevant aggregate/business IDs; idempotent duplicates, missing targets, and no-op guards use `outcome=skipped` with a stable `skip_reason`;
 - register during module initialization through `event.Subscriber.Subscribe(handler)`.
 
 Inject `event.Subscriber` for same-BC subscription and `event.Dispatcher` for dispatch. The in-memory dispatcher returned by the project eventbus wrapper implements both faces.
@@ -188,6 +189,7 @@ Boundary Publishers:
 - register only with the same-BC `event.Subscriber`;
 - may import both `ddd/event` and `ddd/message` because their job is boundary translation;
 - map selected Domain Events to Integration Message payloads and call `message.Publisher`;
+- log one completion summary for each publication attempt with `operation`, `outcome`, `duration_ms`, `event_kind`, `message_kind` when built, and relevant aggregate/business IDs;
 - must not consume Integration Messages, mutate aggregates, advance workflow state, or mix unrelated local side effects with publication.
 
 ### 3.4 Integration Message Handler Contract
@@ -197,7 +199,8 @@ Integration Message Handlers:
 - live in the consuming bounded context's `application/messagehandler/` package;
 - implement `message.Handler`;
 - handle stable cross-context Integration Message payloads, never another context's internal Domain Event type;
-- own idempotency and transaction boundaries for the consuming context.
+- own idempotency and transaction boundaries for the consuming context;
+- log one completion summary for each consumed message with `operation`, `outcome`, `duration_ms`, `message_kind`, `message_id` or correlation key when available, and relevant aggregate/business IDs; duplicate, stale, missing-target, or not-applicable messages use `outcome=skipped` with `skip_reason`.
 
 ### 3.5 Handler Role and Granularity
 

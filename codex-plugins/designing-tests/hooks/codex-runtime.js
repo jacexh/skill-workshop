@@ -17,10 +17,10 @@ const EXECUTION_TIER_BODY =
   "7. **Hand-off gate**: before claiming completion, report commands run, test labels, skipped/unavailable tests, and residual risk. Skipped integration/E2E tests do not count as verification evidence.\n";
 
 const PROMPT_TRIGGERS = [
-  /\$superpowers:(?:writing-plans|executing-plans|subagent-driven-development|test-driven-development|verification-before-completion|requesting-code-review|receiving-code-review|finishing-a-development-branch)\b/i,
+  /\$superpowers:(?:writing-plans|executing-plans|subagent-driven-development|test-driven-development|verification-before-completion|requesting-code-review|receiving-code-review)\b/i,
 ];
 
-function buildSessionStartOutput() {
+function buildPromptPrimer() {
   const refsDir = path.join(__dirname, "..", "references");
   const refs = [];
   if (fs.existsSync(refsDir)) {
@@ -37,9 +37,7 @@ function buildSessionStartOutput() {
   }
   body += "\nFull SKILL.md available via $designing-tests:designing-tests when test work begins.\n";
 
-  return {
-    hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: body },
-  };
+  return body;
 }
 
 function parsePrompt(input) {
@@ -60,11 +58,10 @@ function buildUserPromptSubmitOutput(input) {
   if (!prompt || !shouldTriggerForPrompt(prompt)) {
     return {};
   }
-  const sessionOutput = buildSessionStartOutput();
   return {
     hookSpecificOutput: {
       hookEventName: "UserPromptSubmit",
-      additionalContext: sessionOutput.hookSpecificOutput.additionalContext,
+      additionalContext: buildPromptPrimer(),
     },
   };
 }
@@ -80,10 +77,6 @@ function readStdin() {
 }
 
 async function main() {
-  if (mode === "session-start") {
-    process.stdout.write(JSON.stringify(buildSessionStartOutput(), null, 2) + "\n");
-    return;
-  }
   if (mode === "user-prompt-submit") {
     const input = await readStdin();
     process.stdout.write(JSON.stringify(buildUserPromptSubmitOutput(input), null, 2) + "\n");
