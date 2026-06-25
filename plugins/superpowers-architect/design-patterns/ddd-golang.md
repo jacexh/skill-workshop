@@ -373,7 +373,7 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 - **Entity**: Object with unique identity
 - **Value Object**: Defined by attributes, no identity, immutable
 - **Domain Service**: Cross-aggregate logic that doesn't belong to a single entity
-- **State Machine** (optional): Lifecycle management for aggregates with complex state transitions
+- **State Machine**: Lifecycle management for aggregates with complex state transitions; optional only for simple, small, mostly linear lifecycles
 - **Repository Interface**: Persistence abstraction (write operations only)
 - **Domain Event**: Records significant domain occurrences
 
@@ -381,7 +381,7 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 
 - **Canonical Go component libraries are project defaults, not DDD concepts.** When a repository has adopted this guide's Go stack (by repository convention, existing code, or explicit user/team direction), use the named library and its public interfaces for that concern instead of inventing local equivalents. Examples: Domain Events use `github.com/go-jimu/components/ddd/event`; Integration Messages use `github.com/go-jimu/components/ddd/message`; Kafka messaging uses `github.com/go-jimu/contrib/message/kafka`; task queues and periodic task producers use `github.com/go-jimu/components/taskqueue` plus `github.com/go-jimu/contrib/taskqueue/asynq`; state machines use `github.com/go-jimu/components/fsm`; logging helpers use `github.com/go-jimu/components/sloghelper`; configuration uses `github.com/go-jimu/components/config` and `config/loader`. A different library is allowed when existing repository code already standardized on it or the user explicitly approves the exception.
 - **Concrete prohibition list for Go imports**: no `import` of `pkg/gen/...` (generated proto), `connectrpc.com/connect`, `google.golang.org/grpc`, `net/http`'s server side, `xorm.io/xorm`, `gorm.io/gorm`, database/sql drivers, `franz-go` / Kafka / NATS / RocketMQ / Redis clients, `internal/pkg/*` adapters, `internal/.../infrastructure`, or another bounded context's `internal/business/<ctx>/domain`. Allowed: `github.com/google/uuid`, `time`, `errors`, `fmt`, `strings`, `github.com/samber/oops`, and the in-package `github.com/go-jimu/components/ddd/event` (event types only, no dispatcher implementation).
-- **No anemic aggregates.** Go aggregates do not need Java-style getters for every field. Exported fields are acceptable when they serve mapping boundaries (`DTO <-> Domain`, `DO <-> Domain`, copier/ORM adapters), but business decisions and state changes must go through Aggregate/Entity methods. An Aggregate Root that exposes fields while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, `application/messagepublisher/`, processors, or protocol handlers is prohibited. Outside Domain, direct field reads are allowed for mechanical mapping/serialization only; do not branch on fields such as `Status`, `Version`, or deadline flags to decide business behavior, and do not assign fields to perform a state transition.
+- **No anemic aggregates.** Go aggregates do not need Java-style getters for every field. Exported fields are acceptable when they serve mapping boundaries (`DTO <-> Domain`, `DO <-> Domain`, proto conversion, copier/ORM adapters), read-model assembly, persistence mapping, or log field enrichment, but business decisions and state changes must go through Aggregate/Entity methods or Domain policies. An Aggregate Root that exposes fields while the rules live in `application/command/`, `application/eventhandler/`, `application/messagehandler/`, `application/messagepublisher/`, processors, or protocol handlers is prohibited. Outside Domain, direct field reads are allowed for mechanical mapping/serialization/read-model/logging only; do not branch on fields such as `State`, `Status`, `Version`, or deadline flags to decide business behavior, and do not assign fields to perform a state transition. State classification helpers such as `IsTerminal`, `CountsAsActive`, `HasLiveRuntime`, `CanAccept...`, or `RequiresCleanup` belong on the Aggregate, an Entity, a Value Object, or a Domain policy by default.
 - **Version increment lives in SQL.** The Domain `Version int` field is read-only; the `version = version + 1` mutation happens in the Repository's `UPDATE` statement (see §3.4). Do not increment `Version` in Domain methods or factories.
 
 **Business Field Validation** — implements the Validation Contract defined in [ddd-core.md §3.1 "Validation Contract"](ddd-core.md). Go-specific notes:
@@ -398,18 +398,19 @@ P1 naming and P3 DTO scans are useful grep smoke checks and can run on every PR,
 
 **Domain Event Collection Contract**: aggregates may record same-BC Domain Events through `event.Collection`, but they never dispatch directly. The Application layer drains once after successful `Save()`; Repository never drains. See [`ddd-golang-events-messages.md §2`](ddd-golang-events-messages.md) for `event.Collection`, one-shot `Drain()`, dispatcher admission errors, handler failure policy, and Integration Message separation.
 
-**State Machine Contract** (optional, using `github.com/go-jimu/components/fsm`):
+**State Machine Contract** (using `github.com/go-jimu/components/fsm` when the threshold is met):
 
 Not every aggregate needs a state machine. Use the following criteria to decide:
 
 | Scenario | Recommended Approach |
 |----------|---------------------|
-| Few states (2-3), simple transition logic | Enum + guards in domain methods, no FSM needed |
-| Many states (4+), complex rules, conditional guards | Use FSM |
-| Multiple roles/actions driving one entity (approval, ticket) | Use FSM |
-| Need visualization or dynamic transition configuration | Use FSM |
+| 2-4 states, linear transition logic, no meaningful guards | Enum + domain methods, no FSM needed |
+| 5+ business states and any guard / condition / forbidden transition | Use FSM |
+| Multiple roles, commands, events, or actors driving one aggregate lifecycle | Use FSM |
+| Explicit state diagram, transition table, invariant list, or review/debug need for lifecycle visualization | Use FSM |
+| Transitions affect capacity, resource release, idempotency, retry, archive, billing, or permission outcomes | Use FSM |
 
-When an Aggregate Root has a complex lifecycle with multiple state transitions and guard conditions (e.g., Order, Task, Approval), use a finite state machine to enforce transition rules.
+When an Aggregate Root reaches the FSM threshold, use a finite state machine to enforce transition rules. Hand-written transition maps or large `switch` blocks are local FSM substitutes and are not acceptable in repositories that have adopted this guide's Go stack. If a repository's local architecture tests or project standards forbid `github.com/go-jimu/components/fsm`, report the conflict in the Architecture Gate's repository convention / conflict check and stop for user direction instead of silently bypassing the component.
 
 - **States, Actions, Conditions** are all defined in the Domain layer — they are business invariants
 - **Aggregate Root implements `fsm.StateContext`** — the entity itself is the state context
@@ -418,6 +419,8 @@ When an Aggregate Root has a complex lifecycle with multiple state transitions a
 - **Domain methods call `sm.TransitionToNext(aggregate, action)`** — never manipulate state directly
 - **Transitions can trigger domain events** — append events inside `TransitionTo()` when state changes
 - **Infrastructure only persists `fsm.StateLabel`** — it does not know about transition rules or conditions
+
+When the threshold is not met, enum + domain methods remain acceptable, but the state-changing methods still own the guards and emitted Domain Events. Application, event handlers, message handlers, task processors, and protocol handlers must not assemble their own transition tables or classify aggregate state to decide business behavior.
 
 ```go
 // domain/order.go — minimal viable shape; replicate the same idiom for additional states / transitions
@@ -1299,7 +1302,19 @@ Completion logs must include stable structured fields:
 | `outcome` | One of `success`, `failed`, `skipped`, `retrying` |
 | `duration_ms` | Wall-clock duration for the operation |
 | `error` | `sloghelper.Error(err)` on failed outcomes |
-| Business IDs | Add available identifiers such as `user_id`, `order_id`, `aggregate_id`, `event_id`, `event_kind`, `consumer` |
+| Business IDs | Add available identifiers such as `tenant_id`, `user_id`, `aggregate_id`, `entity_id`, `event_id`, `event_kind`, `message_id`, `correlation_id`, `consumer` |
+| State transition fields | For lifecycle changes, include `state_from`, `state_to`, `action`, and `reason` when known |
+
+`requested`, `started`, or preflight logs are useful breadcrumbs, but they do not replace the completion log. Each execution boundary should log exactly one completion summary for the operation outcome, with optional additional branch logs only when they add diagnostic value.
+
+The execution-boundary completion rule applies to:
+
+- Application command / use-case handlers
+- RPC / protocol adapter boundaries when no outer middleware already logs the operation
+- Domain Event handlers
+- Integration Message handlers
+- taskqueue processors, scheduler ticks, and reconcilers
+- Infrastructure loops or external-system call wrappers that own retry, polling, or long-running work
 
 Use context-aware logging at runtime:
 
@@ -1336,6 +1351,7 @@ Use `logger.InfoContext` / `logger.ErrorContext` when a request or job context e
 For Event Handlers and workers, logging is the primary observable result because there is no synchronous caller. They must log a completion summary:
 
 - idempotent duplicate / already-processed event: `outcome=skipped`
+- missing target, not applicable, or no-op guard: `outcome=skipped` with a stable `skip_reason`
 - transient publish / storage failure that will retry: `outcome=retrying`
 - exhausted retries / dead-letter / unrecoverable error: `outcome=failed`
 - worker tick summary: include counts such as `attempted`, `processed`, `failed`, `skipped`

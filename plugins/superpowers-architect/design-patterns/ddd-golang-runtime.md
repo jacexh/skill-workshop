@@ -417,6 +417,20 @@ func NewDispatcher(lc fx.Lifecycle, opt Option, logger *slog.Logger) (event.Disp
 
 The example wires only the YAML-friendly options. `event` also exposes callback-shaped hooks that don't belong in config but are wired here when needed: `event.WithContextFactory` (per-dispatch context derivation, e.g. propagate trace IDs), `event.WithUnhandledEventHandler` (events with no registered handler — useful for surfacing typos and dead kinds), `event.WithPanicHandler` (recovered handler panics — forward to metrics/alerting), and `event.WithCloseInterruptedHandler` (snapshot of accepted-but-unhandled batches when `Close` is cut short by `ctx.Done()`).
 
+#### Runtime Execution Boundary Logs
+
+Runtime components that own execution without an outer request middleware must log one completion summary per operation. This includes consumer loops, scheduler ticks, reconcilers, task processors, lifecycle hooks that perform work, and external-system call wrappers that own retry or polling behavior.
+
+Use the same fields as `ddd-golang.md §8.2`:
+
+- `operation`: stable operation name such as `kafka.consumer.tick`, `work.reconcile`, or `task.process`
+- `outcome`: `success`, `failed`, `skipped`, or `retrying`
+- `duration_ms`: wall-clock duration
+- `error`: `sloghelper.Error(err)` on failed or retrying outcomes
+- relevant IDs: aggregate/entity IDs, `event_kind`, `message_id`, `correlation_id`, consumer name, task type, or scheduler name
+
+`started` / `requested` logs may appear when useful, but they do not replace the completion summary. Missing targets, already-applied inputs, disabled work, and no-op guards are observable outcomes and should be logged as `outcome=skipped` with a stable `skip_reason`.
+
 ### 2.4 Shutdown Ordering
 
 `fx` executes OnStop hooks in **reverse order of OnStart**. Correct shutdown order comes from actual constructor dependencies, `fx.Invoke` wiring, and lifecycle hook registration order; it is not implied by the conceptual architecture diagram. Encode the dependencies that must remain available during drain, so servers/consumers/workers stop before event dispatchers and storage clients they may still use:
