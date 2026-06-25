@@ -1,6 +1,6 @@
 {
   "name": "designing-tests",
-  "version": "1.13.2",
+  "version": "1.13.8",
   "description": "Risk-driven test design from architecture docs, sequence diagrams, and hand-off evidence gates for Codex",
   "author": {
     "name": "xuhao"

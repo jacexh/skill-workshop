@@ -1,7 +1,7 @@
 {
   "name": "designing-tests",
   "description": "Risk-driven test design guidance for choosing the right boundary, coverage, and regression-protective test cases",
-  "version": "1.13.2",
+  "version": "1.13.8",
   "author": {
     "name": "xuhao"
   },
