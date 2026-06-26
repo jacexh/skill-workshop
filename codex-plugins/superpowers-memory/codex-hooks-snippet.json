@@ -1,5 +1,5 @@
 {
-  "version": "1.13.7",
+  "version": "1.13.10",
   "hooks": {
     "SessionStart": [
       {
