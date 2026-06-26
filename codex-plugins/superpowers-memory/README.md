@@ -45,7 +45,7 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 
 ## Capabilities
 
-- **SessionStart hook** — injects KB index from `docs/superpowers/memory/index.md`, lightweight KB freshness status, plus standing primer for KB workflow
+- **SessionStart hook** — reports KB availability, lightweight KB freshness status, plus standing primer for using `$superpowers-memory:query`; `index.md` is read on demand by the query skill
 - **Storage path** — uses `docs/superpowers/memory/`; legacy `docs/project-knowledge/` installations are hard-migrated by memory skills with `git mv docs/project-knowledge docs/superpowers/memory` when the new directory does not already exist
 - **UserPromptSubmit hook** — when user types `$superpowers:brainstorming` or `$superpowers:finishing-a-development-branch`, JIT-injects relevant context (query advisory or finishing-readiness rich injection)
 - **PreToolUse hook** — blocks `apply_patch` and `mcp__filesystem__.*` writes to `docs/superpowers/memory/` unless write-lock is held by `$superpowers-memory:ingest` or its `$superpowers-memory:update`/`$superpowers-memory:rebuild` compatibility aliases
@@ -95,7 +95,7 @@ Use the same 0-5 anchor for every dimension:
 - The KB write lock prevents ad-hoc edits under `docs/superpowers/memory/`; KB writes must go through `$superpowers-memory:ingest` or its compatibility aliases.
 - `codex-runtime.js status` reports `covers_branch` versus current HEAD so Codex has stale-KB evidence even on prompt paths that cannot fire JIT hooks.
 - `codex-runtime.js verify` checks stale path references, shape violations including forbidden conversation/chat/transcript KB slots, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, unrouted shards, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.
-- For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, advisory `coverageGaps`, and KB write-lock status.
+- For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, query-router index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, advisory `coverageGaps`, and KB write-lock status.
 
 ## Known Codex protocol gaps
 

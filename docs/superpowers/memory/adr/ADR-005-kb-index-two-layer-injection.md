@@ -2,7 +2,7 @@
 adr: 005
 title: KB index with two-layer injection
 date: 2026-04-01
-status: Accepted
+status: Accepted; superseded in part by ADR-020
 alternatives_inferred: true
 ---
 
@@ -14,7 +14,9 @@ Agents need to know that a project KB exists without eagerly loading every detai
 
 ## Decision
 
-Use `docs/superpowers/memory/index.md` as a structured, ≤50-line index. SessionStart injects it for passive awareness, while workflow hooks and the `load` skill direct agents to detail files on demand. Legacy `MEMORY.md` remains a read fallback.
+Use `docs/superpowers/memory/index.md` as a structured, ≤50-line index. SessionStart originally injected it for passive awareness, while workflow hooks and the `load` skill directed agents to detail files on demand. Legacy `MEMORY.md` remains a read fallback.
+
+ADR-020 supersedes the SessionStart injection portion: current SessionStart emits KB availability/status and query guidance only; `query` reads `index.md` on demand.
 
 ## Alternatives Rejected
 
@@ -25,4 +27,4 @@ Reconstructed during the 2026-05-18 inline-to-detail migration; not recorded in 
 
 ## Consequences
 
-The index is an extra artifact to regenerate, but it keeps SessionStart context small while still making detailed files discoverable.
+The index is an extra artifact to regenerate, but it keeps detailed files discoverable. After ADR-020, it no longer contributes its content to SessionStart context.

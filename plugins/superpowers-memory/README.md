@@ -24,7 +24,7 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
    Legacy `docs/project-knowledge/` installations are hard-migrated by memory skills with `git mv docs/project-knowledge docs/superpowers/memory` when the new directory does not already exist.
 
-2. **index.md** — A lightweight index file injected into every session via the `SessionStart` hook, giving the agent passive KB awareness without loading the underlying files.
+2. **index.md** — A lightweight router read on demand by `superpowers-memory:query`, giving the agent a way to find the smallest useful owner files without loading the whole KB.
 
 3. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `superpowers-memory:query` before planning/execution, and to run `superpowers-memory:ingest` after execution completes or when finishing a development branch. Compatibility aliases (`load`, `update`, `rebuild`) continue to route to those primary workflows.
 
@@ -59,7 +59,7 @@ Compatibility aliases:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| SessionStart | startup, clear, compact | Injects the KB index when it exists, or prompts the user to run `superpowers-memory:ingest` bootstrap mode (or the `rebuild` compatibility alias) when the KB is missing |
+| SessionStart | startup, clear, compact | Reports that the KB is available, adds lightweight freshness status and `superpowers-memory:query` guidance, or prompts the user to run `superpowers-memory:ingest` bootstrap mode (or the `rebuild` compatibility alias) when the KB is missing |
 | PreToolUse (Skill) | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `superpowers-memory:query` before work and `superpowers-memory:ingest` before finishing a branch; blocks when the KB does not exist, or when finishing a branch whose `covers_branch` (branch name + HEAD SHA) does not match current `HEAD` |
 | PreToolUse (Write/Edit/MultiEdit/NotebookEdit) | any file write under `docs/superpowers/memory/` | Blocks the write unless a write-lock is held. The lock is acquired/released only by `superpowers-memory:ingest` or its `update`/`rebuild` compatibility aliases, so KB content can never drift from the canonical update flow (no ad-hoc ADR commits, no manual edits). Lock has a 60-min TTL to prevent permanent lockout if a skill aborts midway. |
 
@@ -83,7 +83,7 @@ After running `superpowers-memory:ingest` in bootstrap mode (or the `rebuild` co
 
 ```
 docs/superpowers/memory/
-├── index.md          # Lightweight index — injected at every session start
+├── index.md          # Lightweight query router, read on demand
 ├── architecture.md   # System structure, modules, data flow
 ├── tech-stack.md     # Languages, frameworks, dependencies
 ├── features.md       # Implemented and in-progress features
@@ -139,7 +139,7 @@ Use the same 0-5 anchor for every dimension:
 - `superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
 - The KB write lock prevents ad-hoc edits under `docs/superpowers/memory/`; KB writes must go through `superpowers-memory:ingest` or its compatibility aliases.
 - `hook-runtime.js verify` checks stale path references, shape violations including forbidden conversation/chat/transcript KB slots, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, unrouted shards, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.
-- For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, hot-path index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, advisory `coverageGaps`, and KB write-lock status.
+- For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, query-router index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, advisory `coverageGaps`, and KB write-lock status.
 
 ## License
 

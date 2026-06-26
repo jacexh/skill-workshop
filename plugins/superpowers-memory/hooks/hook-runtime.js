@@ -1413,11 +1413,13 @@ function buildSessionStartOutput() {
     );
   }
 
-  const content = fs.readFileSync(indexPath, "utf8");
   const statusContext = formatKnowledgeStatusForContext(buildKnowledgeStatus());
   return hookPayload(
     "SessionStart",
-    "Project knowledge index loaded from " + relativePath(indexPath) + ":\n\n" + content + statusContext
+    "Project KB available at docs/superpowers/memory/.\n" +
+      "Index: " + relativePath(indexPath) + " (read on demand by superpowers-memory:query).\n" +
+      "Before broad code search, planning, architecture judgment, unfamiliar repo work, or answering project questions, run superpowers-memory:query." +
+      statusContext
   );
 }
 

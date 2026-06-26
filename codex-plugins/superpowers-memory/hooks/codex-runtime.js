@@ -1396,10 +1396,8 @@ function readStdin() {
 
 const STANDING_PRIMER =
   "\n\n## Project KB workflow (Codex)\n" +
-  "- After completing development and before merging: invoke $superpowers-memory:ingest to sync KB\n" +
-  "- Before invoking $superpowers:finishing-a-development-branch: confirm KB reflects HEAD; if not, run $superpowers-memory:ingest first\n" +
-  "- When uncertain about project structure or conventions: invoke $superpowers-memory:query for detail files\n" +
-  "- Before $superpowers:writing-plans / $superpowers:executing-plans / $superpowers:subagent-driven-development: invoke $superpowers-memory:query so planning is grounded\n";
+  "- Before broad code search, planning, architecture judgment, unfamiliar repo work, or answering project questions: invoke $superpowers-memory:query; it reads index.md and routes to owner files.\n" +
+  "- Before finishing, committing, merging, or opening a PR: ensure KB reflects HEAD; if stale, invoke $superpowers-memory:ingest.\n";
 
 function buildSessionStartOutput() {
   if (!hasKnowledgeBase()) {
@@ -1419,11 +1417,13 @@ function buildSessionStartOutput() {
     );
   }
 
-  const content = fs.readFileSync(indexPath, "utf8");
   const statusContext = formatKnowledgeStatusForContext(buildKnowledgeStatus());
   return hookPayload(
     "SessionStart",
-    "Project knowledge index loaded from " + relativePath(indexPath) + ":\n\n" + content + statusContext + STANDING_PRIMER
+    "Project KB available at docs/superpowers/memory/.\n" +
+      "Index: " + relativePath(indexPath) + " (read on demand by $superpowers-memory:query)." +
+      statusContext +
+      STANDING_PRIMER
   );
 }
 
