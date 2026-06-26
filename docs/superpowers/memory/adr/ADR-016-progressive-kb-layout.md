@@ -1,7 +1,7 @@
 ---
 id: ADR-016
 title: Progressive KB layout and playbook removal
-status: Accepted
+status: Accepted; superseded in part by ADR-020
 date: 2026-05-27
 ---
 
@@ -17,7 +17,7 @@ The plugin also carried a `playbooks.md` lazy slot for recurring procedural code
 
 Remove the playbook slot from superpowers-memory across both Claude and Codex tracks: templates, runtime shape checks, update/rebuild instructions, and content rules no longer generate or validate `playbooks.md`.
 
-Keep `index.md` as the only strict hot-path size constraint because SessionStart injects it by default. All other recognized entry files may split vertically by domain or submodule using `<slot>-<domain>.md` names, for example `architecture-runtime.md` or `features-release.md`. Agents must update `index.md` routing when they create or maintain shards.
+Keep `index.md` as the only strict query-router size constraint because `query` reads it first on demand. All other recognized entry files may split vertically by domain or submodule using `<slot>-<domain>.md` names, for example `architecture-runtime.md` or `features-release.md`. Agents must update `index.md` routing when they create or maintain shards.
 
 Verification reports `retrievalCost` and `splitCandidates` as advisory signals. These guide loading and splitting decisions but are not a reason to delete valid knowledge. Legacy `playbooks.md` files are ignored rather than treated as schema errors.
 
@@ -30,8 +30,8 @@ Verification reports `retrievalCost` and `splitCandidates` as advisory signals. 
 ## Consequences
 
 **Positive.**
-- Large projects can preserve valid knowledge while keeping the injected `index.md` small.
-- Runtime verification becomes aligned with retrieval behavior: cost and split candidates are advisory, while only the injected index has a hard size gate.
+- Large projects can preserve valid knowledge while keeping the query-router `index.md` small.
+- Runtime verification becomes aligned with retrieval behavior: cost and split candidates are advisory, while only the first query-router index has a hard size gate.
 - The KB schema loses the speculative playbook concept and the maintenance burden around recipe detection.
 
 **Negative.**

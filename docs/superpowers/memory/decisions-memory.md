@@ -6,6 +6,12 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 # Decisions — Memory
 
+## ADR-020: SessionStart no longer injects index content
+**Decision:** Memory SessionStart no longer inlines `docs/superpowers/memory/index.md`. It emits only KB availability, the index path, freshness status, and short query/ingest guidance; `superpowers-memory:query` reads `index.md` on demand and routes to owner files/shards.
+**Trade-off:** Agents lose passive project-map text on turns that never invoke `query`, but SessionStart becomes smaller and avoids duplicating the `query` workflow's first read. Accepted because `query` is now the preferred project-knowledge entry point and skill descriptions plus the primer carry adoption pressure.
+**Affects:** `plugins/superpowers-memory/hooks/hook-runtime.js`, `codex-plugins/superpowers-memory/hooks/codex-runtime.js`, `plugins/superpowers-memory/content-rules.md`, `codex-plugins/superpowers-memory/content-rules.md`, SessionStart tests.
+→ [adr/ADR-020-sessionstart-query-router.md](adr/ADR-020-sessionstart-query-router.md)
+
 ## ADR-019: Canonical memory directory under docs/superpowers
 **Decision:** Move the Project Knowledge Base from `docs/project-knowledge/` to `docs/superpowers/memory/` and treat the new directory as the only canonical storage path. Each memory skill performs a one-time hard migration with `git mv docs/project-knowledge docs/superpowers/memory` when the legacy directory exists and the canonical directory does not. Runtime reading, verification, owner suggestions, and status checks use the canonical path; write protection still blocks both canonical and legacy paths so the old directory cannot be maintained by hand.
 **Trade-off:** Query/lint gain one allowed write side effect during upgrade, and users with both directories must resolve the conflict manually. Accepted because a hard cut keeps the mental model simple, places memory beside superpowers specs/plans, and avoids long-term dual-path drift.
@@ -13,7 +19,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 → [adr/ADR-019-canonical-memory-directory.md](adr/ADR-019-canonical-memory-directory.md)
 
 ## ADR-016: Progressive KB layout and playbook removal
-**Decision:** Remove the `playbooks.md` lazy slot from superpowers-memory and replace non-index line/token constraints with advisory `retrievalCost` plus vertical `<slot>-<domain>.md` shard support. `index.md` remains the only strict hot-path size constraint because it is injected at SessionStart.
+**Decision:** Remove the `playbooks.md` lazy slot from superpowers-memory and replace non-index line/token constraints with advisory `retrievalCost` plus vertical `<slot>-<domain>.md` shard support. `index.md` remains the only strict query-router size constraint because `query` reads it first on demand.
 **Trade-off:** Large projects may produce more KB files and require better index routing. Accepted because preserving valid knowledge is more important than satisfying global caps, and playbooks had no observed practical value.
 **Affects:** `plugins/superpowers-memory/`, `codex-plugins/superpowers-memory/`, `docs/superpowers/memory/index.md`, KB shard routing rules.
 → [adr/ADR-016-progressive-kb-layout.md](adr/ADR-016-progressive-kb-layout.md)
@@ -55,13 +61,13 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 → [adr/ADR-007-node-hook-runtime.md](adr/ADR-007-node-hook-runtime.md)
 
 ## ADR-005: MEMORY.md as KB index with two-layer injection
-**Decision:** `docs/superpowers/memory/index.md` (or legacy `MEMORY.md`) serves as a structured index (≤50 lines). Injected at session-start for passive awareness and referenced by pre-tool-use for enforced reading before brainstorming/writing-plans.
+**Decision:** `docs/superpowers/memory/index.md` (or legacy `MEMORY.md`) serves as a structured index (≤50 lines). Superseded in part by ADR-020: SessionStart no longer inlines index content; `query` reads it on demand before owner-file routing.
 **Trade-off:** The index is an extra artifact to regenerate, but it keeps SessionStart context small while still making detailed files discoverable.
 **Affects:** `docs/superpowers/memory/index.md`, memory session-start behavior, query/load routing.
 → [adr/ADR-005-kb-index-two-layer-injection.md](adr/ADR-005-kb-index-two-layer-injection.md)
 
 ## ADR-004: PreToolUse hook over SessionStart for KB context injection
-**Decision:** Inject KB context at the exact moment a relevant skill is called (PreToolUse) rather than at session start. SessionStart retains only the index injection.
+**Decision:** Inject KB context at the exact moment a relevant skill is called (PreToolUse) rather than at session start. Superseded in part by ADR-020: SessionStart now retains only KB availability/status and query guidance.
 **Trade-off:** Coverage depends on hookable tool invocations; the benefit is lower background context and more task-specific instructions.
 **Affects:** `plugins/superpowers-memory/hooks/`, memory skill trigger behavior.
 → [adr/ADR-004-pretooluse-kb-context.md](adr/ADR-004-pretooluse-kb-context.md)
