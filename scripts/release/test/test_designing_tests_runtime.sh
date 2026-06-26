@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 CLAUDE_HOOK="$ROOT/plugins/designing-tests/hooks/pre-tool-use"
 CODEX_RUNTIME="$ROOT/codex-plugins/designing-tests/hooks/codex-runtime.js"
+CODEX_HOOKS="$ROOT/codex-plugins/designing-tests/hooks/hooks.json"
+CODEX_SNIPPET="$ROOT/codex-plugins/designing-tests/codex-hooks-snippet.json"
 
 fail() {
   echo "FAIL $1" >&2
@@ -46,16 +48,27 @@ planning_context="$(claude_skill_context superpowers:writing-plans)"
 grep -q "hand-off verification step" <<<"$planning_context" || fail "planning tier missing hand-off step"
 grep -q "skipped tests" <<<"$planning_context" || fail "planning tier missing skipped-test reporting"
 
-codex_context="$(node "$CODEX_RUNTIME" session-start | extract_context)"
+CODEX_HOOKS="$CODEX_HOOKS" CODEX_SNIPPET="$CODEX_SNIPPET" node <<'NODE'
+const fs = require("fs");
 
-# Intent: Codex primer should apply to test work and completion claims, not only four
-# implementation skills that might not run at final hand-off.
-grep -q "Test work and completion claims must follow" <<<"$codex_context" || fail "codex primer scope too narrow"
-grep -q "Hand-off gate" <<<"$codex_context" || fail "codex primer missing hand-off gate"
-grep -q "Skipped integration/E2E tests do not count" <<<"$codex_context" || fail "codex primer missing skipped-test evidence rule"
-grep -q "handoff-gate" <<<"$codex_context" || fail "codex primer missing handoff-gate reference"
-grep -q "integration-quality" <<<"$codex_context" || fail "codex primer missing integration-quality reference"
-grep -q "architecture-test-design" <<<"$codex_context" || fail "codex primer missing architecture-test-design reference"
+function fail(message) {
+  console.error(`FAIL ${message}`);
+  process.exit(1);
+}
+
+for (const [label, file] of [
+  ["native hooks", process.env.CODEX_HOOKS],
+  ["fallback snippet", process.env.CODEX_SNIPPET],
+]) {
+  const cfg = JSON.parse(fs.readFileSync(file, "utf8"));
+  if (cfg.hooks?.SessionStart) {
+    fail(`Codex designing-tests ${label} must not register SessionStart`);
+  }
+  if (!Array.isArray(cfg.hooks?.UserPromptSubmit)) {
+    fail(`Codex designing-tests ${label} must register UserPromptSubmit`);
+  }
+}
+NODE
 
 codex_prompt_context="$(
   printf '{"prompt":"Please use $superpowers:writing-plans for this ADR and sequence diagram test strategy"}\n' |

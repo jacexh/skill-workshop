@@ -1,12 +1,12 @@
 # Skill Workshop
 
-A [Claude Code](https://claude.ai/code) plugin marketplace for productivity and development workflow extensions.
+A dual-track [Claude Code](https://claude.ai/code) and Codex CLI plugin marketplace for productivity and development workflow extensions.
 
 ## Overview
 
-Skill Workshop is a curated collection of plugins that enhance Claude Code's capabilities for software development workflows. Each plugin is self-contained under `plugins/<name>/` with its own hooks, skills, templates, and documentation.
+Skill Workshop is a curated collection of plugins that enhance agentic software development workflows. Claude Code remains the primary supported track under `plugins/<name>/`; the experimental Codex CLI track lives under `codex-plugins/<name>/`. Each plugin is self-contained with its own hooks, skills, templates, and documentation.
 
-## Usage
+## Claude Code Usage
 
 ### Add this marketplace to Claude Code
 
@@ -42,29 +42,31 @@ By default, third-party marketplaces do not auto-update. To automatically receiv
 
 ## Available Plugins
 
+Current versions are declared in `.claude-plugin/marketplace.json` and each Codex plugin's `.codex-plugin/plugin.json`. The release pipeline bumps those manifests; this README intentionally avoids duplicating version numbers.
+
 ### superpowers-memory
 
-Project knowledge persistence and plan checkpoint tracking for superpowers workflows.
+Project Knowledge Base query, ingest, lint, and write-lock support for superpowers workflows.
 
-- **Version:** 1.5.5
 - **License:** MIT
-- **Details:** [plugins/superpowers-memory/README.md](plugins/superpowers-memory/README.md)
+- **Claude details:** [plugins/superpowers-memory/README.md](plugins/superpowers-memory/README.md)
+- **Codex details:** [codex-plugins/superpowers-memory/README.md](codex-plugins/superpowers-memory/README.md)
 
 ### superpowers-architect
 
 Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows. Bundled patterns load automatically on install; customize via three-layer override (`SPA_DEFAULTS`, `SPA_GLOBAL`, project `docs/design-patterns/`).
 
-- **Version:** 1.5.6
 - **License:** MIT
-- **Details:** [plugins/superpowers-architect/README.md](plugins/superpowers-architect/README.md)
+- **Claude details:** [plugins/superpowers-architect/README.md](plugins/superpowers-architect/README.md)
+- **Codex details:** [codex-plugins/superpowers-architect/README.md](codex-plugins/superpowers-architect/README.md)
 
 ### designing-tests
 
-Risk-driven test design guidance for choosing the right boundary, coverage, and regression-protective test cases.
+Risk-driven test design guidance for architecture-aware coverage, integration quality, and hand-off evidence.
 
-- **Version:** 1.5.7
 - **License:** MIT
-- **Details:** [plugins/designing-tests/README.md](plugins/designing-tests/README.md)
+- **Claude details:** [plugins/designing-tests/README.md](plugins/designing-tests/README.md)
+- **Codex details:** [codex-plugins/designing-tests/README.md](codex-plugins/designing-tests/README.md)
 
 ---
 
@@ -73,25 +75,42 @@ Risk-driven test design guidance for choosing the right boundary, coverage, and 
 ```
 .
 ├── .claude-plugin/
-│   └── marketplace.json          # Marketplace catalog definition
+│   └── marketplace.json          # Claude Code marketplace catalog
+├── .agents/
+│   └── plugins/
+│       └── marketplace.json      # Codex marketplace catalog
 ├── plugins/
-│   ├── superpowers-memory/       # Project knowledge persistence
+│   ├── superpowers-memory/       # Claude track: project knowledge persistence
 │   ├── superpowers-architect/    # Architectural design patterns
 │   └── designing-tests/          # Test design guidance
-└── docs/
-    └── superpowers/
-        ├── specs/                # Plugin design specifications
-        └── plans/                # Implementation plans
+├── codex-plugins/
+│   ├── superpowers-memory/       # Codex track: project knowledge persistence
+│   ├── superpowers-architect/    # Codex track: architectural design patterns
+│   └── designing-tests/          # Codex track: test design guidance
+├── docs/
+│   └── superpowers/
+│       ├── specs/                # Plugin design specifications
+│       ├── plans/                # Implementation plans
+│       └── memory/               # Project Knowledge Base
+├── scripts/
+│   └── release/                  # Release automation and tests
+└── .github/
+    └── workflows/
+        └── auto-release.yml      # PR-merge release workflow
 ```
 
 ## Contributing
 
-### Adding a new plugin
+### Adding or changing plugins
 
-1. Create a new directory under `plugins/<plugin-name>/`
-2. Add `.claude-plugin/plugin.json` with plugin metadata
-3. Update `.claude-plugin/marketplace.json` to include the new plugin
-4. Add design specs and implementation plans under `docs/superpowers/`
+1. For Claude Code support, create or update `plugins/<plugin-name>/`, add `.claude-plugin/plugin.json`, and update `.claude-plugin/marketplace.json`.
+2. For Codex support, create or update `codex-plugins/<plugin-name>/`, add `.codex-plugin/plugin.json`, add native hooks under `hooks/hooks.json` when needed, and update `.agents/plugins/marketplace.json`.
+3. Add or update design specs and implementation plans under `docs/superpowers/` when behavior changes.
+4. Keep same-named Claude Code and Codex plugin tracks semantically aligned unless the difference is intentionally host-specific.
+
+### README synchronization rule
+
+When any plugin README under `plugins/<name>/README.md` or `codex-plugins/<name>/README.md` changes, review the root `README.md` in the same change. Update it when install flow, capabilities, marketplace schema, hook behavior, repository structure, release flow, or cross-track support changed. If no root README update is needed, state that explicitly in the PR or change summary.
 
 ### Plugin structure requirements
 
@@ -106,6 +125,18 @@ plugins/<plugin-name>/
 └── ...                       # Plugin-specific files
 ```
 
+Codex plugins follow the native Codex plugin layout:
+
+```
+codex-plugins/<plugin-name>/
+├── .codex-plugin/
+│   └── plugin.json           # Required: Codex plugin manifest
+├── hooks/
+│   └── hooks.json            # Optional: native lifecycle hook config
+├── skills/                   # Optional: skill definitions
+└── ...                       # Plugin-specific files
+```
+
 ## Codex Marketplace (Experimental)
 
 This repository also publishes Codex-compatible variants of the three plugins under `codex-plugins/`. The Codex marketplace catalog lives at `.agents/plugins/marketplace.json` (object-form `source` + `policy` + `category`, distinct from Claude's `.claude-plugin/marketplace.json` schema).
@@ -114,15 +145,31 @@ This repository also publishes Codex-compatible variants of the three plugins un
 codex plugin marketplace add jacexh/skill-workshop
 ```
 
-Then in Codex, register each plugin's hooks into `~/.codex/hooks.json`:
+Enable plugin hooks in `~/.codex/config.toml`:
 
-```
-$superpowers-memory:setup
-$superpowers-architect:setup
-$designing-tests:setup
+```toml
+[features]
+hooks = true
+plugin_hooks = true
 ```
 
-Restart Codex. Each plugin has its own README under `codex-plugins/<name>/README.md` with capabilities, upgrade flow, and known protocol gaps relative to the Claude Code variant.
+Install the Codex plugins you need:
+
+```bash
+codex plugin install superpowers-memory
+codex plugin install superpowers-architect
+codex plugin install designing-tests
+```
+
+Restart Codex. Current Codex versions load plugin lifecycle hooks from each plugin's `.codex-plugin/plugin.json` and `hooks/hooks.json`; users do not run setup skills after install or upgrade. If hooks do not appear after restart, open `/hooks` to review and trust plugin hooks, confirm both feature flags are enabled, and upgrade Codex if needed.
+
+Upgrade the Codex marketplace with:
+
+```bash
+codex plugin marketplace upgrade jacexh/skill-workshop
+```
+
+Each plugin has its own README under `codex-plugins/<name>/README.md` with capabilities, upgrade flow, stale fallback-hook cleanup guidance, and known protocol gaps relative to the Claude Code variant.
 
 The Claude Code variants under `plugins/` and the marketplace at `.claude-plugin/marketplace.json` are unchanged and remain the primary supported track.
 

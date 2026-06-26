@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-06-25
+last_updated: 2026-06-26
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 ---
@@ -126,11 +126,11 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 #### Codex Architecture Standards Guidance
 
-**Enables** — Codex agents receive standing architecture pattern context plus explicit standards workflow support.
+**Enables** — Codex agents receive a lightweight architecture standards reminder plus explicit just-in-time standards workflow support.
 
 **Actors / Entry Points** — Codex SessionStart, UserPromptSubmit router, and `$superpowers-architect:standards`.
 
-**Capability Boundary** — The Codex architect plugin intentionally does not register Stop hooks; legacy stop mode is a no-op for older installed configs. Runtime guidance emits a generic Architecture Gate and adds DDD-specific instructions only when `ddd-modeling.md` is present.
+**Capability Boundary** — SessionStart intentionally injects only a short on-demand standards reminder. Full dynamic pattern indexes and Architecture Gate guidance are injected by UserPromptSubmit when users explicitly mention upstream `$superpowers:*` workflow skills, or by invoking `$superpowers-architect:standards`. The Codex architect plugin intentionally does not register Stop hooks; legacy stop mode is a no-op for older installed configs. Runtime prompt guidance emits a generic Architecture Gate and adds DDD-specific instructions only when `ddd-modeling.md` is present.
 
 **References** — `codex-plugins/superpowers-architect/`, ADR-013, ADR-014.
 
@@ -138,9 +138,9 @@ triggered_by_plan: "2026-05-13-features-capability-reconciliation.md"
 
 **Enables** — Agents can design tests from intent, architecture docs, ADRs, message flows, and sequence diagrams before implementation or hand-off.
 
-**Actors / Entry Points** — `designing-tests` skill, Claude `PreToolUse` guidance, Codex SessionStart/UserPromptSubmit guidance, and references for architecture-test design, integration quality, hand-off gates, layer selection, risk catalog, test-case patterns, and test-quality review.
+**Actors / Entry Points** — `designing-tests` skill, Claude `PreToolUse` guidance, Codex UserPromptSubmit guidance, and references for architecture-test design, integration quality, hand-off gates, layer selection, risk catalog, test-case patterns, and test-quality review.
 
-**Capability Boundary** — The skill turns architecture goals into reviewable test evidence through goal coverage matrices, state-ownership gates, quality-threshold assumptions, real/shallow/fake labels, and skipped/unrun residual-risk reporting. Claude uses tiered PreToolUse injection for planning/execution/TDD/hand-off skills; Codex uses SessionStart plus explicit `$superpowers:*` UserPromptSubmit routing and the full skill on demand.
+**Capability Boundary** — The skill turns architecture goals into reviewable test evidence through goal coverage matrices, state-ownership gates, quality-threshold assumptions, real/shallow/fake labels, and skipped/unrun residual-risk reporting. Claude uses tiered PreToolUse injection for planning/execution/TDD/hand-off skills. Codex intentionally does not register SessionStart; it uses explicit `$superpowers:*` UserPromptSubmit routing plus the full skill on demand.
 
 **References** — `plugins/designing-tests/`, `codex-plugins/designing-tests/`, `scripts/release/test/test_designing_tests_runtime.sh`, ADR-013, ADR-014.
 
