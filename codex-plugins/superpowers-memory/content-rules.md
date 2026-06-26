@@ -59,7 +59,7 @@ create `conversation.md`, `chat.md`, or `transcript.md`.
 
 ## Progressive Knowledge Layout
 
-`index.md` is the only always-injected hot-path file. Keep it small and scannable. All other KB files are storage and retrieval targets: valid knowledge MUST NOT be deleted merely to satisfy a line count or token estimate.
+`index.md` is the first query-router file, read on demand by `query` rather than injected at every SessionStart. Keep it small and scannable. All other KB files are storage and retrieval targets: valid knowledge MUST NOT be deleted merely to satisfy a line count or token estimate.
 
 Each canonical file is an **entry file**, not a capacity ceiling:
 
@@ -578,7 +578,7 @@ config, CI check, design-pattern file, ADR, or owner entry.
 
 ## Retrieval Cost And Split Guidance
 
-`index.md` is the only file with a strict line threshold because it is injected at SessionStart. Keep it ≤50 lines. If it exceeds that, `verify` reports `index_too_large` as a shape violation.
+`index.md` is the only file with a strict line threshold because `query` reads it first for routing. Keep it ≤50 lines. If it exceeds that, `verify` reports `index_too_large` as a shape violation.
 
 All other KB files and shards are storage/read-on-demand artifacts. They do not have hard line caps, and retrieval-cost output does not affect `verify.ok`.
 

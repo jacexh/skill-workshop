@@ -405,9 +405,9 @@ copy_fixture "clean" "$status_repo"
   node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" status |
     jq -e '.stale == true and .nonKbCommitCount == 1 and (.changedFiles[] == "src-new.txt")' >/dev/null
   node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" session-start |
-    jq -e '.additional_context | contains("Project KB status") and contains("stale")' >/dev/null
+    jq -e '.additional_context | contains("Project KB available at docs/superpowers/memory/") and contains("Project KB status") and contains("stale") and contains("superpowers-memory:query") and (contains("# Project Knowledge Index") | not)' >/dev/null
   node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" session-start |
-    jq -e '.hookSpecificOutput.additionalContext | contains("Project KB status") and contains("stale")' >/dev/null
+    jq -e '.hookSpecificOutput.additionalContext | contains("Project KB available at docs/superpowers/memory/") and contains("Project KB status") and contains("stale") and contains("$superpowers-memory:query") and (contains("# Project Knowledge Index") | not)' >/dev/null
 )
 
 # Intent: Codex KB write protection should use the current PreToolUse deny
