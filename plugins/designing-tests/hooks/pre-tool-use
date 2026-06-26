@@ -24,7 +24,8 @@ case "$skill_name" in
         ;;
     superpowers:verification-before-completion|\
     superpowers:requesting-code-review|\
-    superpowers:receiving-code-review)
+    superpowers:receiving-code-review|\
+    superpowers:finishing-a-development-branch)
         tier="handoff"
         ;;
     *)

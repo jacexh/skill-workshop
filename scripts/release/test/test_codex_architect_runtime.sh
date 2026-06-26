@@ -60,35 +60,25 @@ session_context="$(
   HOME="$TMP/home" SPA_GLOBAL="$TMP/global" node "$RUNTIME" session-start | extract_context
 )"
 
-# Intent: project-level design patterns must override global and bundled patterns.
-grep -q "Project Database" <<<"$session_context" || fail "project database pattern missing"
-! grep -q "Global Database" <<<"$session_context" || fail "global database pattern was not overridden"
-grep -q "Project Only" <<<"$session_context" || fail "project-only pattern missing"
-
-# Intent: session-start guidance must include the architecture gate, not just a pattern index.
-grep -q "Architecture Gate" <<<"$session_context" || fail "session-start missing architecture gate"
-grep -q "Read ddd-modeling first" <<<"$session_context" || fail "session-start missing ddd-modeling-first rule"
-grep -q "technical capability classification" <<<"$session_context" || fail "session-start missing technical capability classification"
-grep -q "Proceed / Stop" <<<"$session_context" || fail "session-start missing proceed/stop gate"
-
-# Intent: when DDD addendum fires, it must point to ddd-modeling §0 as the replacement block source so
-# AI doesn't emit both the generic and DDD blocks.
-grep -q "ddd-modeling §0" <<<"$session_context" || fail "session-start missing replacement-block reference to ddd-modeling §0"
-grep -q "REPLACE the generic" <<<"$session_context" || fail "session-start missing replace-not-append instruction"
+# Intent: SessionStart must stay lightweight. Full pattern indexes and gates are injected
+# through explicit prompt triggers or the standards skill.
+grep -q "Architecture standards are available on demand" <<<"$session_context" || fail "session-start missing lightweight architect reminder"
+grep -q '\$superpowers-architect:standards' <<<"$session_context" || fail "session-start missing standards skill pointer"
+! grep -q "Project Database" <<<"$session_context" || fail "session-start should not inject project pattern index"
+! grep -q "Project Only" <<<"$session_context" || fail "session-start should not inject project-only pattern index"
+! grep -q "Architecture Gate" <<<"$session_context" || fail "session-start should not inject architecture gate"
+! grep -q "Read ddd-modeling first" <<<"$session_context" || fail "session-start should not inject DDD addendum"
 
 no_defaults_context="$(
   HOME="$TMP/home" SPA_DEFAULTS=false node "$RUNTIME" session-start | extract_context
 )"
 
-# Intent: disabling bundled defaults should leave only explicit global/project patterns.
-grep -q "Project Database" <<<"$no_defaults_context" || fail "project pattern missing with SPA_DEFAULTS=false"
+# Intent: disabling bundled defaults should not affect the lightweight SessionStart reminder.
+grep -q "Architecture standards are available on demand" <<<"$no_defaults_context" || fail "lightweight session-start reminder missing with SPA_DEFAULTS=false"
+! grep -q "Project Database" <<<"$no_defaults_context" || fail "session-start should not inject project pattern index with SPA_DEFAULTS=false"
 ! grep -q "DDD + Clean Architecture" <<<"$no_defaults_context" || fail "bundled defaults included despite SPA_DEFAULTS=false"
 ! grep -q "Read ddd-modeling first" <<<"$no_defaults_context" || fail "DDD-specific gate injected without DDD patterns"
-
-# Intent: the generic Architecture Gate workflow must still fire when only non-DDD project patterns exist.
-grep -q "Architecture Gate workflow" <<<"$no_defaults_context" || fail "generic gate workflow missing when only project patterns exist"
-grep -q "Required response block" <<<"$no_defaults_context" || fail "generic response block missing when only project patterns exist"
-grep -q "Proceed / Stop" <<<"$no_defaults_context" || fail "generic proceed/stop missing when only project patterns exist"
+! grep -q "Architecture Gate workflow" <<<"$no_defaults_context" || fail "session-start should not inject generic gate workflow"
 
 project_ddd_dir="$TMP/repo_project_ddd"
 mkdir -p "$project_ddd_dir/docs/design-patterns"
@@ -107,11 +97,13 @@ MD
 
 project_ddd_context="$(
   cd "$project_ddd_dir"
-  HOME="$TMP/home" SPA_DEFAULTS=false node "$RUNTIME" session-start | extract_context
+  printf '{"prompt":"Please use $superpowers:writing-plans for this DDD modeling change"}' |
+    HOME="$TMP/home" SPA_DEFAULTS=false node "$RUNTIME" user-prompt-submit |
+    extract_context
 )"
 
-# Intent: DDD addendum is triggered by the filename `ddd-modeling.md`, but a project-supplied
-# pattern without the bundled §0 block must not be described as having the bundled §0 contract.
+# Intent: just-in-time prompt guidance is triggered by the filename `ddd-modeling.md`, but a
+# project-supplied pattern without the bundled §0 block must not be described as having that contract.
 grep -q "Project DDD Modeling" <<<"$project_ddd_context" || fail "project-supplied ddd-modeling pattern missing"
 grep -q "Read ddd-modeling first" <<<"$project_ddd_context" || fail "DDD addendum missing for project-supplied ddd-modeling.md"
 grep -q "follow its own gate" <<<"$project_ddd_context" || fail "project-supplied DDD path missing own-gate instruction"
@@ -123,8 +115,9 @@ empty_context="$(
   HOME="$TMP/home" SPA_DEFAULTS=false node "$RUNTIME" session-start | extract_context
 )"
 
-# Intent: without any configured patterns, the runtime should not inject stale bundled guidance.
-[ -z "$empty_context" ] || fail "empty pattern set should inject empty context"
+# Intent: without any configured patterns, the runtime should still inject only the static lightweight reminder.
+grep -q "Architecture standards are available on demand" <<<"$empty_context" || fail "empty pattern set should still inject lightweight reminder"
+! grep -q "Architecture Gate" <<<"$empty_context" || fail "empty pattern set should not inject stale gate guidance"
 
 writing_plans_context="$(
   printf '{"prompt":"Please use $superpowers:writing-plans for this REST API and database schema change"}' |

@@ -6,12 +6,12 @@ const cp = require("child_process");
 
 const mode = process.argv[2];
 
-const FUSED_HEADER =
+const SESSION_START_CONTEXT =
   "## Project Architecture Standards\n" +
-  "For architecture, API, database, backend, frontend, refactoring, implementation planning, " +
-  "execution, and code review work, treat the patterns below as strict standards. " +
-  "Before acting, identify which patterns apply, read the relevant full pattern files, " +
-  "state which patterns do not apply, and call out conflicts explicitly.\n\n";
+  "Architecture standards are available on demand. Use `$superpowers-architect:standards` " +
+  "before architecture-sensitive design, implementation, refactoring, or review. Explicit " +
+  "`$superpowers:*` workflow skill mentions also trigger just-in-time pattern guidance; " +
+  "SessionStart intentionally stays lightweight.\n";
 
 const PROMPT_HEADER =
   "====== Architect Standards ======\n" +
@@ -165,10 +165,11 @@ function renderPatternIndex(files, header) {
 }
 
 function buildSessionStartOutput() {
-  const body = renderPatternIndex(listPatternFiles(), FUSED_HEADER);
-
   return {
-    hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: body },
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: SESSION_START_CONTEXT,
+    },
   };
 }
 
