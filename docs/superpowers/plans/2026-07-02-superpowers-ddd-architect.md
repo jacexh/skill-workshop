@@ -4,7 +4,7 @@
 
 **Goal:** Add a dedicated `superpowers-ddd-architect` plugin and make the existing `superpowers-architect` explicit-only.
 
-**Architecture:** Create parallel Claude and Codex plugin tracks by following the existing `superpowers-architect` layout, but keep only DDD/backend patterns in the new plugin and make its hot path a DDD Risk Router. Remove automatic hook injection and migrated DDD/database bundled files from the old architect plugin so one workflow cannot receive both old and new architecture guidance.
+**Architecture:** Create parallel Claude and Codex plugin tracks by following the existing `superpowers-architect` layout, but keep only DDD/backend patterns in the new plugin and make its hot path a DDD Risk Router. The design phase starts from product semantics intake and spec-to-model traceability, then uses risk-router/modeling/core as the default reference budget; database guidance remains an on-demand support reference for explicit persistence concerns. Remove automatic hook injection and migrated DDD/database bundled files from the old architect plugin so one workflow cannot receive both old and new architecture guidance.
 
 **Tech Stack:** Markdown skills/patterns, Bash Claude hook, Node.js Codex hook runtime, JSON manifests, release shell tests.
 

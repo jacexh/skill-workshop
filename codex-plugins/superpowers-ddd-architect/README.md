@@ -33,7 +33,7 @@ Restart Codex after upgrade.
 
 - **SessionStart hook** — injects only a lightweight reminder that DDD/backend guardrails are available on demand through `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, and `$superpowers-ddd-architect:review`
 - **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions and injects the matching DDD design, implementation, or boundary-review reference budget with repo-calibration guidance
-- **`$superpowers-ddd-architect:design` skill** — explicit DDD/backend boundary design workflow
+- **`$superpowers-ddd-architect:design` skill** — explicit product-semantics-to-DDD boundary design workflow
 - **`$superpowers-ddd-architect:implement` skill** — explicit DDD/backend code-placement workflow
 - **`$superpowers-ddd-architect:review` skill** — explicit DDD/backend boundary audit workflow
 - **References** — canonical files live under `references/`
@@ -45,6 +45,7 @@ Natural-language architecture prompts stay quiet unless they explicitly mention 
 Use this plugin for:
 
 - bounded contexts and context boundaries
+- product-semantic backend modeling before implementation
 - Domain/Application/Infrastructure ownership
 - Domain and Application port eligibility
 - generated protocol DTO boundaries
@@ -52,7 +53,7 @@ Use this plugin for:
 - Python and TypeScript backend DDD module/layer placement
 - Domain Events, Boundary Publishers, Integration Messages, and async handlers
 - taskqueue/runtime boundaries in DDD services
-- database-backed backend persistence design
+- database-backed backend persistence design when schema, query, migration, transaction, or storage concerns are explicit
 
 Do not use this plugin for frontend architecture, browser QA, product UI design, or general dynamic standards lookup. Use `superpowers-architect` explicitly for general standards.
 
@@ -70,7 +71,7 @@ Canonical references live under `references/`:
 - `ddd-golang-events-messages.md` — Domain Events, Boundary Publishers, Integration Messages, and Kafka adapter wiring
 - `ddd-golang-runtime.md` — Go runtime guidance for config, fx lifecycle, graceful shutdown, and Kubernetes
 - `ddd-golang-taskqueue.md` — polling jobs, TaskType/schema registry, processors, asynq wiring, and middleware
-- `database.md` — schema conventions, index strategy, migrations, and persistence rules
+- `database.md` — on-demand schema conventions, index strategy, migrations, and persistence rules
 
 This plugin intentionally does not scan generic `design-patterns/` directories. Project-specific architecture facts should be read from explicit project docs or Project Knowledge; generic team standards remain the responsibility of `superpowers-architect`.
 

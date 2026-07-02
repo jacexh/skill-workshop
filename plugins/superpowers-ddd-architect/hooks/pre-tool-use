@@ -46,7 +46,7 @@ const dir=path.join(pluginRoot,'references');
 const files={};
 const allowed=f=>f==='database.md'||f.startsWith('ddd-');
 const budgets={
-  design:new Set(['ddd-risk-router.md','ddd-modeling.md','ddd-core.md','database.md']),
+  design:new Set(['ddd-risk-router.md','ddd-modeling.md','ddd-core.md']),
   implement:new Set(['ddd-risk-router.md','ddd-agent-contract.md','ddd-core.md','ddd-golang.md']),
   review:new Set(['ddd-risk-router.md','ddd-agent-contract.md','ddd-core.md','ddd-golang.md'])
 };
@@ -81,7 +81,7 @@ for(const [fname,fpath] of sorted){
 }
 if(!entries.length)process.exit(0);
 let title='DDD Design Guidance';
-let header='Reference budget: design. Only the risk router, modeling guide, core rules, and database support reference are listed by default.\nThe following DDD/backend design guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or the Architecture Gate.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your design:\n- define bounded context / capability,\n- identify stable language and data authority,\n- classify technical capabilities,\n- assign layer ownership before implementation.';
+let header='Reference budget: design. Only the risk router, modeling guide, and core rules are listed by default. Persistence/database support is on-demand when the spec or a risk card raises schema, query, migration, transaction, or storage concerns.\nThe following DDD/backend design guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or the Architecture Gate.\n\nProduct semantics intake comes before file placement, schema design, or layer decisions. Keep a Spec trace from product requirements to model decisions. Model commands, queries, Domain Events, Integration Messages, and state lifecycle before selecting aggregate/policy/service boundaries and layer ownership.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your design:\n- complete the Product semantics intake,\n- keep the Spec trace visible,\n- define bounded context / capability,\n- identify stable language and data authority,\n- classify technical capabilities,\n- assign layer ownership before implementation.';
 if(skillType==='implement'){
   title='DDD Implementation Guardrails';
   header='Reference budget: implement. Only the risk router, agent contract, core rules, and primary Go guide are listed by default; load deeper support files only when a triggered risk card or touched code path requires them.\nThe following DDD/backend implementation guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or touched code paths.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your implementation:\n- calibrate repository shape,\n- place code by layer,\n- preserve dependency direction,\n- map DTO/proto at boundaries,\n- keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.';

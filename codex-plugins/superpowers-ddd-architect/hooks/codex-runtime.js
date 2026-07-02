@@ -20,7 +20,7 @@ const PROMPT_MODES = [
 ];
 
 const REFERENCE_BUDGETS = {
-  design: new Set(["ddd-risk-router.md", "ddd-modeling.md", "ddd-core.md", "database.md"]),
+  design: new Set(["ddd-risk-router.md", "ddd-modeling.md", "ddd-core.md"]),
   implement: new Set(["ddd-risk-router.md", "ddd-agent-contract.md", "ddd-core.md", "ddd-golang.md"]),
   review: new Set(["ddd-risk-router.md", "ddd-agent-contract.md", "ddd-core.md", "ddd-golang.md"]),
 };
@@ -85,8 +85,8 @@ function promptHeader(mode) {
   if (mode === "design") {
     return (
       "====== DDD Design Guidance ======\n" +
-      "Reference budget: design. Only the risk router, modeling guide, core rules, and database support reference are listed by default.\n\n" +
-      "The current user request invokes a planning workflow. Focus on bounded context, business capability, stable language, data authority, aggregate/policy/service boundaries, technical capability classification, and layer ownership.\n\n" +
+      "Reference budget: design. Only the risk router, modeling guide, and core rules are listed by default. Persistence/database support is on-demand when the spec or a risk card raises schema, query, migration, transaction, or storage concerns.\n\n" +
+      "The current user request invokes a planning workflow. Start from Product semantics intake before file placement or schema design; keep a Spec trace from product requirements to model decisions. Model commands, queries, Domain Events, Integration Messages, and state lifecycle before selecting aggregate/policy/service boundaries and layer ownership.\n\n" +
       "Repo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\n" +
       "You MUST read ddd-risk-router.md first when present, then read only the design references required by triggered risk cards or the Architecture Gate.\n\n"
     );

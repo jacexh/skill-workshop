@@ -47,6 +47,7 @@ This is not a soft migration. The old plugin skips the short-term "keep automati
 3. Prevent old and new plugins from both injecting architecture guidance into the same workflow.
 4. Keep database guidance as backend support, not as a separate top-level product identity.
 5. Preserve explicit access to general standards through `superpowers-architect`.
+6. Make the design phase start from product semantics intake and spec-to-model traceability rather than from a passive list of references to read.
 
 ## Non-Goals
 
@@ -94,12 +95,14 @@ After this migration:
 
 ### DDD Plugin Hot Path
 
-The new plugin does not ask "which architecture standard might apply?" first. It starts with DDD risk.
+The new plugin does not ask "which architecture standard might apply?" first. For design work, it starts by modeling product semantics into DDD decisions; for all phases, it uses DDD risk as the compact routing surface.
 
-1. Load the DDD Risk Router.
-2. Match the task or review against compact cards.
-3. Load detailed references only when a card, task, or gate requires them.
-4. Emit a short Architecture Standards note with applicable DDD/backend constraints.
+1. For design work, complete Product semantics intake: actors/users, business capability, user actions/system triggers, product-visible outcomes, business rules/invariants, data authority, state lifecycle, external collaborators, and read/query needs.
+2. Keep a Spec trace from product requirement statements to bounded context, invariant, command, query, event/message, and stop-question decisions.
+3. Load the DDD Risk Router.
+4. Match the task or review against compact cards.
+5. Load detailed references only when a card, task, or gate requires them.
+6. Emit a short phase-specific note with applicable DDD/backend constraints.
 
 Risk cards use this shape:
 
@@ -154,7 +157,7 @@ references/
 
 The new plugin should not use a root `design-patterns/` directory. That directory belongs to the old generic standards-loader model. The DDD plugin is skill-native: `design`, `implement`, and `review` skills all point to shared explicit references, with `ddd-risk-router.md` as the first read.
 
-The new plugin may keep database as a support reference, but the DDD Risk Router stays first. Database standards should load only for schema/query/migration/persistence design or when a DDD persistence question needs them.
+The new plugin may keep database as a support reference, but the DDD Risk Router stays first. Database standards should load only for schema/query/migration/transaction/storage design or when a DDD persistence question needs them. The design-phase default reference budget is risk-router/modeling/core; `database.md` is not listed by default.
 
 `superpowers-architect` should not keep bundled copies of migrated DDD/backend or database references. Its README should mark DDD/backend material as moved.
 
@@ -198,9 +201,10 @@ Requirements:
 - `superpowers-architect` automatic dynamic injection is removed, so one workflow should not receive both old and new architecture injections.
 - DDD reference files live under plugin-root `references/`, shared by `design`, `implement`, and `review`; they do not live under a single `standards` skill or a root dynamic `design-patterns/` directory.
 - Hook injection uses phase-specific reference budgets instead of listing every DDD reference; deeper runtime/taskqueue/event support files are loaded only when the risk router or touched path requires them.
+- Design hook guidance stays compact: it points agents toward Product semantics intake, Spec trace, and command/query/event/lifecycle modeling, while the full method lives in `$superpowers-ddd-architect:design`.
 - Probe examples require a short repo calibration before the agent treats hits as evidence.
 - New DDD guidance must replace or compress existing DDD prose; it must not create a second full explanation beside the old one.
-- Database stays support-level and must not become a second default router.
+- Database stays support-level, on-demand, and must not become a second default router.
 
 ## Migration Plan
 
