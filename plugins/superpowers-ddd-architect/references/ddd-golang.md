@@ -1,6 +1,6 @@
 ---
 name: ddd-golang
-description: Go implementation guide for DDD + Clean Architecture. Use when editing Go business files under internal/business/<context>/**.go or pkg/gen/** contracts, or when implementing aggregates, repositories, CQRS, cross-context query ports, module assembly, or Go package boundaries. For Domain Events, Integration Messages, Boundary Publishers, event/message handlers, Kafka message adapters, or event.Collection semantics, use ddd-golang-events-messages.md. For cmd/**/main.go, internal/pkg/**, config, fx.Lifecycle, graceful shutdown, or Kubernetes runtime work, use ddd-golang-runtime.md. For taskqueue, polling/reconciliation jobs, periodic task producers, asynq workers/schedulers, TaskType/schema registry, or internal/pkg/taskqueue work, use ddd-golang-taskqueue.md. Code agents must read ddd-agent-contract.md first.
+description: Go implementation guide for DDD + Clean Architecture. Use when a phase playbook or DDD risk card routes to Go business files under internal/business/<context>/**.go, pkg/gen/** contracts, aggregates, repositories, CQRS, cross-context query ports, module assembly, or Go package boundaries.
 ---
 
 # Go Web System Architecture Guide
@@ -9,8 +9,9 @@ description: Go implementation guide for DDD + Clean Architecture. Use when edit
 **Version**: v2.6
 **Date**: 2026-05-29
 **Scope**: Team backend service architecture standard
-**Prerequisites**:
-- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first; defines trigger conditions, stop protocol, and prohibited actions. Do not skip.
+**Phase routing**:
+- **Phase playbook**: Start from [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), or [`ddd-review-playbook.md`](ddd-review-playbook.md). Load this file only when the active phase needs Go-specific DDD placement, package, naming, testing, or module-assembly rules.
+- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs task classification, stop protocol, prohibited actions, or completion self-checks.
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
 - **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).
 - **Events / messages**: [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Use this for Domain Events, `event.Collection`, Domain Event Handlers, Boundary Publishers, Integration Messages, message handlers, Kafka adapter wiring, idempotency, and failure semantics.
@@ -25,7 +26,7 @@ description: Go implementation guide for DDD + Clean Architecture. Use when edit
 
 ## 0. Go DDD Planning Workflow
 
-Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Go-specific** items.
+When the active phase needs Go-specific planning detail, apply the gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Go-specific** items.
 
 Every Go DDD/business backend plan must also include the `Architecture Gate` core block from [ddd-modeling.md §0](ddd-modeling.md), plus the placement extension when §0 requires it. Runtime-only work follows the classification matrix in [`ddd-agent-contract.md`](ddd-agent-contract.md) and reports runtime ownership/lifecycle/config/shutdown impact instead of fabricating DDD gate values. For technical-facing packages, explicitly classify the capability before choosing between `domain`, `application`, `interfaces`, `infrastructure`, `internal/pkg`, or root `pkg`.
 
@@ -1448,7 +1449,8 @@ For event/message handler registration, Boundary Publisher rules, and Kafka adap
 ---
 
 **References:**
-- [ddd-agent-contract.md](ddd-agent-contract.md) — Agent execution contract (read first)
+- [ddd-design-playbook.md](ddd-design-playbook.md) / [ddd-implement-playbook.md](ddd-implement-playbook.md) / [ddd-review-playbook.md](ddd-review-playbook.md) — Phase entrypoints
+- [ddd-agent-contract.md](ddd-agent-contract.md) — Agent prohibited actions and self-checks
 - [ddd-modeling.md](ddd-modeling.md) — Strategic domain modeling (bounded context discovery, aggregate design)
 - [ddd-core.md](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification
 - [ddd-golang-events-messages.md](ddd-golang-events-messages.md) — Go events/messages: Domain Events, Boundary Publishers, Integration Messages, Kafka adapter wiring

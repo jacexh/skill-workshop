@@ -3,9 +3,9 @@ name: design
 description: Use when designing DDD/backend behavior before implementation from a product-oriented spec, change request, or unclear backend boundary.
 ---
 
-# Design DDD Boundaries From Product Semantics
+# Design DDD Model
 
-Use this skill to turn product semantics into explicit DDD boundaries before code is placed.
+Use this skill as the design-phase entry point. It routes the agent to the design playbook and keeps the output contract small.
 
 ## When To Use
 
@@ -16,27 +16,15 @@ Use this skill to turn product semantics into explicit DDD boundaries before cod
 ## Workflow
 
 1. Confirm the work is DDD/backend architecture-sensitive. For non-backend work, stop using this plugin.
-2. Build the Product semantics intake from the request/spec before file placement, schema design, or layer decisions:
-   - actors/users;
-   - business capability;
-   - user actions and system triggers;
-   - product-visible outcomes;
-   - business rules and invariants;
-   - data authority/source of truth;
-   - state lifecycle;
-   - external collaborators;
-   - read/query needs;
-   - unknowns that would change the model.
-3. Read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) first as the reference router. Use it to identify likely design risks; its probe examples are calibration aids, not fixed commands.
-4. Do not scan generic `design-patterns/` directories for this plugin. This plugin's shared references live under [../../references/](../../references/).
-5. Read [../../references/ddd-modeling.md](../../references/ddd-modeling.md) as the modeling method for bounded contexts, stable language, aggregate boundaries, technical capability classification, and Architecture Gate fields. Do not treat the reference list as a substitute for modeling the spec.
-6. Read [../../references/ddd-core.md](../../references/ddd-core.md) when design choices involve layer ownership, commands, queries, ports, Domain Events, Integration Messages, or generated protocol boundaries.
-7. Read the active language reference only when the design decision needs implementation-shape constraints:
-   - [../../references/ddd-golang.md](../../references/ddd-golang.md) for Go.
-   - [../../references/ddd-python.md](../../references/ddd-python.md) for Python.
-   - [../../references/ddd-typescript.md](../../references/ddd-typescript.md) for TypeScript.
-8. Read Go runtime/taskqueue/event-message or database references only when the design decision explicitly needs those constraints. Database guidance is not part of the default design intake; load it after data authority and aggregate/read-model boundaries are clear.
-9. Keep a Spec trace: every bounded context, invariant, command, query, event/message, and stop question should point back to a product requirement or an explicit unknown.
+2. Read the default entry pair: [../../references/ddd-design-playbook.md](../../references/ddd-design-playbook.md) for the design thinking framework and [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) for risk-card routing. Router probes are calibration aids, not fixed commands.
+3. Follow the playbook's Product semantics intake, Spec trace, semantic classification, boundary decision, and stop/proceed gate.
+4. Use the playbook's Minimum Output Contract: keep small changes small, use the full template only when the model changes, and emit stop questions instead of guesses.
+5. Do not scan generic `design-patterns/` directories for this plugin. This plugin's shared references live under [../../references/](../../references/).
+6. Read deeper references only when the design playbook, risk card, or unresolved decision requires them:
+   - [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for bounded context, aggregate, state, and technical-capability classification.
+   - [../../references/ddd-core.md](../../references/ddd-core.md) for layer ownership, ports, Domain Events, Integration Messages, and generated protocol boundaries.
+   - [../../references/database.md](../../references/database.md) after data authority and aggregate/read-model boundaries are clear.
+   - Active language or Go support references only when implementation shape constrains the design.
 
 ## Output
 

@@ -2,7 +2,7 @@
 
 DDD-first backend architecture guardrails for Codex.
 
-This plugin is an active DDD/backend architecture guardrail. It uses a compact DDD Risk Router first, then points Codex to deeper references only when a risk card, task, or Architecture Gate requires them.
+This plugin is an active DDD/backend architecture guardrail. Its default prompt-time budget is the compact DDD Risk Router plus the active phase playbook; deeper references load only when a risk card, task, or Architecture Gate requires them.
 
 ## Installation
 
@@ -63,10 +63,13 @@ Do not use this plugin for frontend architecture, browser QA, product UI design,
 
 Canonical references live under `references/`:
 
-- `ddd-risk-router.md` — first-read DDD/backend risk cards
-- `ddd-agent-contract.md` — agent execution contract for DDD, Go runtime, and taskqueue work
-- `ddd-modeling.md` — strategic bounded-context, aggregate, and architecture gate guidance
-- `ddd-core.md` — dependency direction, bounded contexts, and service layer boundaries
+- `ddd-risk-router.md` — default DDD/backend risk cards read with the active phase playbook
+- `ddd-design-playbook.md` — design-phase product-semantics-to-model method
+- `ddd-implement-playbook.md` — implementation-phase model-to-code placement method
+- `ddd-review-playbook.md` — review-phase evidence-to-judgment method
+- `ddd-agent-contract.md` — on-demand agent prohibited actions, classification, and self-checks
+- `ddd-modeling.md` — on-demand strategic bounded-context, aggregate, and architecture gate guidance
+- `ddd-core.md` — on-demand dependency direction, bounded contexts, and service layer boundaries
 - `ddd-golang.md` — Go-specific implementation guidance
 - `ddd-python.md` — Python-specific DDD implementation guidance
 - `ddd-typescript.md` — TypeScript-specific DDD implementation guidance

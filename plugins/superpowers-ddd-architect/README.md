@@ -2,7 +2,7 @@
 
 DDD-first backend architecture guardrails for Claude Code.
 
-This plugin is an active DDD/backend architecture guardrail. It uses a compact DDD Risk Router first, then points Claude to deeper references only when a risk card, task, or Architecture Gate requires them.
+This plugin is an active DDD/backend architecture guardrail. Its default prompt-time budget is the compact DDD Risk Router plus the active phase playbook; deeper references load only when a risk card, task, or Architecture Gate requires them.
 
 ## How It Works
 
@@ -12,7 +12,7 @@ When a superpowers planning, execution, subagent, or code-review workflow runs, 
 - implementation workflows load DDD implementation guardrails
 - code-review workflows load DDD boundary review guidance
 
-Claude must read `references/ddd-risk-router.md` first, then load only the deeper references needed for the triggered risks. Design guidance starts from product semantics intake and spec-to-model traceability; implementation guidance maps accepted model decisions into code placement; review guidance maps concrete evidence into boundary judgments. Hook injection uses a phase-specific reference budget instead of listing every DDD reference by default, and probe-derived conclusions require a short repo calibration first.
+Claude reads `references/ddd-risk-router.md` and the active phase playbook by default, then loads only the deeper references needed for the triggered risks. Design guidance starts from product semantics intake and spec-to-model traceability; implementation guidance maps accepted model decisions into code placement; review guidance maps concrete evidence into boundary judgments. Hook injection uses a phase-specific reference budget instead of listing every DDD reference by default, and probe-derived conclusions require a short repo calibration first.
 
 You can also invoke the skills explicitly:
 
@@ -45,10 +45,13 @@ Do not use this plugin for frontend architecture, browser QA, product UI design,
 
 Canonical references live under `references/`:
 
-- `ddd-risk-router.md` — first-read DDD/backend risk cards
-- `ddd-agent-contract.md` — agent execution contract for DDD, Go runtime, and taskqueue work
-- `ddd-modeling.md` — strategic bounded-context, aggregate, and architecture gate guidance
-- `ddd-core.md` — dependency direction, bounded contexts, and service layer boundaries
+- `ddd-risk-router.md` — default DDD/backend risk cards read with the active phase playbook
+- `ddd-design-playbook.md` — design-phase product-semantics-to-model method
+- `ddd-implement-playbook.md` — implementation-phase model-to-code placement method
+- `ddd-review-playbook.md` — review-phase evidence-to-judgment method
+- `ddd-agent-contract.md` — on-demand agent prohibited actions, classification, and self-checks
+- `ddd-modeling.md` — on-demand strategic bounded-context, aggregate, and architecture gate guidance
+- `ddd-core.md` — on-demand dependency direction, bounded contexts, and service layer boundaries
 - `ddd-golang.md` — Go-specific implementation guidance
 - `ddd-python.md` — Python-specific DDD implementation guidance
 - `ddd-typescript.md` — TypeScript-specific DDD implementation guidance

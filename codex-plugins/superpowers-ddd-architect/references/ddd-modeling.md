@@ -1,6 +1,6 @@
 ---
 name: ddd-modeling
-description: Strategic domain modeling guide for DDD. Use BEFORE writing implementation plans to identify bounded contexts, aggregate roots, and aggregate boundaries from business requirements. Provides decision trees, heuristics, and worked examples for domain discovery. Prerequisite to ddd-core and language-specific implementation guides. Code agents must read ddd-agent-contract.md first.
+description: Strategic domain modeling guide for DDD. Use when ddd-design-playbook.md or a DDD risk card routes to bounded context, aggregate root, aggregate boundary, invariant, Architecture Gate, or technical capability classification decisions from business requirements.
 ---
 
 # Strategic Domain Modeling Guide
@@ -9,15 +9,15 @@ description: Strategic domain modeling guide for DDD. Use BEFORE writing impleme
 **Version**: v1.2
 **Date**: 2026-05-21
 **Scope**: All backend services using DDD
-**Usage**: Complete this modeling phase BEFORE writing implementation plans. The output feeds into [`ddd-core.md`](ddd-core.md) and language-specific guides ([`ddd-golang.md`](ddd-golang.md), [`ddd-python.md`](ddd-python.md), [`ddd-typescript.md`](ddd-typescript.md)).
+**Usage**: This is a strategic modeling rule source, not the default agent entrypoint. Start from the active phase playbook: [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), or [`ddd-review-playbook.md`](ddd-review-playbook.md). Load this file when that phase needs bounded-context, aggregate, invariant, Architecture Gate, or technical-capability classification decisions.
 
-> **Agents — read this first**: [`ddd-agent-contract.md`](ddd-agent-contract.md) defines the mandatory execution order, stop protocol, and prohibited actions for code agents working on DDD tasks. Do not skip it.
+> **Phase routing**: Agent entrypoints are the phase playbooks. Use this document only when a phase playbook or [`ddd-risk-router.md`](ddd-risk-router.md) routes to strategic modeling or Architecture Gate decisions.
 
 ---
 
 ## 0. Mandatory Architecture Gate
 
-Use this document as the entry point for backend, DDD, service-boundary, business-capability, technical-capability, refactor, implementation planning, execution, and code review work when the change touches a bounded context, Domain/Application behavior, an inward interface, cross-context contracts, or a technical capability with stable language, state, ownership, policy, or invariant semantics. Do not start with tactical layer placement in `ddd-core.md` or a language guide until this gate has been answered.
+Use this document as the canonical modeling rule source when the active phase playbook routes to service-boundary, business-capability, technical-capability, refactor, implementation planning, execution, or code-review decisions that touch a bounded context, Domain/Application behavior, an inward interface, cross-context contracts, or a technical capability with stable language, state, ownership, policy, or invariant semantics. Do not start with tactical layer placement in `ddd-core.md` or a language guide until this gate has been answered.
 
 **Runtime-only exception.** Go runtime-only work, as classified by [`ddd-agent-contract.md`](ddd-agent-contract.md) (for example `cmd/**/main.go`, `internal/pkg/**`, config, `fx.Lifecycle`, graceful shutdown, or Kubernetes wiring that does not change a bounded context, aggregate, repository, command/query handler, event/message contract, task processor, or domain rule), does not emit this DDD Architecture Gate. It uses the runtime/taskqueue impact statement defined by the agent contract and the Go runtime/taskqueue guides. If the runtime component owns stable language, policies, ownership lifecycle, admission rules, routing policy, or business-visible state, it is no longer runtime-only; classify that capability here first.
 

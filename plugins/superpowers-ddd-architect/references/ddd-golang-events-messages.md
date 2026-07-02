@@ -9,8 +9,9 @@ description: Go DDD events and messages patterns. Use when adding or reviewing D
 **Version**: v1.2
 **Date**: 2026-06-01
 **Scope**: Go event/message patterns complementing [`ddd-golang.md`](ddd-golang.md)
-**Prerequisites**:
-- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) - Code agents must read this first.
+**Phase routing**:
+- **Phase playbook**: Start from [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), or [`ddd-review-playbook.md`](ddd-review-playbook.md). Load this file only when the active phase needs Go Domain Event, Boundary Publisher, Integration Message, message adapter, idempotency, or failure-semantics rules.
+- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) - Load when the phase needs async-work classification, prohibited actions, or self-checks.
 - **DDD core**: [`ddd-core.md`](ddd-core.md) - Language-neutral Domain Event vs Integration Message boundaries.
 - **Go implementation**: [`ddd-golang.md`](ddd-golang.md) - Layer responsibilities, package layout, naming, module assembly.
 - **Go runtime**: [`ddd-golang-runtime.md`](ddd-golang-runtime.md) - Load only when editing shared eventbus/message adapter lifecycle, config, or graceful shutdown wiring.
@@ -480,7 +481,8 @@ Reject these in review:
 ---
 
 **References:**
-- [`ddd-agent-contract.md`](ddd-agent-contract.md) - Agent execution contract (read first)
+- [`ddd-design-playbook.md`](ddd-design-playbook.md) / [`ddd-implement-playbook.md`](ddd-implement-playbook.md) / [`ddd-review-playbook.md`](ddd-review-playbook.md) - Phase entrypoints
+- [`ddd-agent-contract.md`](ddd-agent-contract.md) - Async-work prohibited actions and self-checks
 - [`ddd-core.md`](ddd-core.md) - Language-agnostic Domain Event / Integration Message rules
 - [`ddd-golang.md`](ddd-golang.md) - Go DDD implementation (layers, aggregates, repositories, naming, file organization)
 - [`ddd-golang-runtime.md`](ddd-golang-runtime.md) - Go runtime: config, lifecycle, graceful shutdown

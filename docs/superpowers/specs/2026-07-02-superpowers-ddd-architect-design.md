@@ -43,7 +43,7 @@ This is not a soft migration. The old plugin skips the short-term "keep automati
 ## Goals
 
 1. Make DDD/backend architecture a focused plugin identity rather than one mode inside a general standards loader.
-2. Reduce default loaded context by replacing broad pattern discovery with a DDD Risk Router.
+2. Reduce default loaded context by replacing broad pattern discovery with phase playbooks plus a DDD Risk Router.
 3. Prevent old and new plugins from both injecting architecture guidance into the same workflow.
 4. Keep database guidance as backend support, not as a separate top-level product identity.
 5. Preserve explicit access to general standards through `superpowers-architect`.
@@ -99,16 +99,18 @@ After this migration:
 
 ### DDD Plugin Hot Path
 
-The new plugin does not ask "which architecture standard might apply?" first. Each phase starts from its own thinking framework, and DDD risk remains the compact routing surface for deeper references.
+The new plugin does not ask "which architecture standard might apply?" first. Each phase starts from its own thinking framework, captured in a phase playbook. DDD risk remains the compact routing surface for deeper references.
 
-1. For design work, complete Product semantics intake: actors/users, business capability, user actions/system triggers, product-visible outcomes, business rules/invariants, data authority, state lifecycle, external collaborators, and read/query needs.
-2. Keep a Spec trace from product requirement statements to bounded context, invariant, command, query, event/message, and stop-question decisions.
-3. For implementation work, run a Design input check, build a Model-to-code placement plan, and keep an Implementation trace from model decisions to touched files and tests.
-4. For review work, build an Evidence map, compare Expected model vs observed code, and run Finding triage before reporting issues.
-5. Load the DDD Risk Router.
-6. Match the task or review against compact cards.
-7. Load detailed references only when a card, task, or gate requires them.
-8. Emit a short phase-specific note with applicable DDD/backend constraints.
+1. Load the active phase playbook by time: `ddd-design-playbook.md`, `ddd-implement-playbook.md`, or `ddd-review-playbook.md`.
+2. Load the DDD Risk Router.
+3. For design work, complete Product semantics intake: actors/users, business capability, user actions/system triggers, product-visible outcomes, business rules/invariants, data authority, state lifecycle, external collaborators, and read/query needs.
+4. Keep a Spec trace from product requirement statements to bounded context, invariant, command, query, event/message, and stop-question decisions.
+5. For implementation work, run a Design input check, build a Model-to-code placement plan, and keep an Implementation trace from model decisions to touched files and tests.
+6. For review work, build an Evidence map, compare Expected model vs observed code, and run Finding triage before reporting issues.
+7. Match the task or review against compact risk cards.
+8. Load detailed references only when a playbook, card, task, or gate requires them.
+9. Use the phase playbook's minimum output contract so small changes stay small, full templates are reserved for real boundary/model changes, and missing material facts produce stop questions instead of guessed fields.
+10. Emit a short phase-specific note with applicable DDD/backend constraints.
 
 Risk cards use this shape:
 
@@ -120,6 +122,8 @@ Decision: <default DDD placement or boundary rule>
 Allowed exception: <written evidence required>
 Reference: <deep pattern section>
 ```
+
+The Risk Router also maintains a routing matrix: Risk card -> required references -> required evidence -> allowed exception. A card hit does not become a finding until the required evidence exists and the required references have been loaded.
 
 Probe examples are calibration aids, not fixed audit commands. Agents must first identify the repository's bounded-context roots, layer names, generated-code locations, RPC/runtime wiring, and local architecture docs/tests, then adapt the examples before treating any hit as evidence.
 
@@ -149,6 +153,9 @@ skills/
   review/SKILL.md
 references/
   ddd-risk-router.md
+  ddd-design-playbook.md
+  ddd-implement-playbook.md
+  ddd-review-playbook.md
   ddd-agent-contract.md
   ddd-modeling.md
   ddd-core.md
@@ -161,9 +168,9 @@ references/
   database.md
 ```
 
-The new plugin should not use a root `design-patterns/` directory. That directory belongs to the old generic standards-loader model. The DDD plugin is skill-native: `design`, `implement`, and `review` skills all point to shared explicit references, with `ddd-risk-router.md` as the first read.
+The new plugin should not use a root `design-patterns/` directory. That directory belongs to the old generic standards-loader model. The DDD plugin is skill-native: `design`, `implement`, and `review` skills point to phase playbooks plus shared explicit references.
 
-The new plugin may keep database as a support reference, but the DDD Risk Router stays first. Database standards should load only for schema/query/migration/transaction/storage design or when a DDD persistence question needs them. The design-phase default reference budget is risk-router/modeling/core; `database.md` is not listed by default.
+The new plugin may keep database as a support reference, but default prompt-time budgets stay phase-specific: `ddd-risk-router.md` plus exactly one phase playbook. Database standards should load only for schema/query/migration/transaction/storage design or when a DDD persistence question needs them. `ddd-modeling.md`, `ddd-core.md`, `ddd-agent-contract.md`, language guides, runtime/taskqueue/event guides, and `database.md` are not listed by default.
 
 `superpowers-architect` should not keep bundled copies of migrated DDD/backend or database references. Its README should mark DDD/backend material as moved.
 
@@ -173,7 +180,7 @@ The new plugin may keep database as a support reference, but the DDD Risk Router
 
 `superpowers-ddd-architect`:
 
-- May inject a compact DDD Risk Router index for architecture-related upstream workflow skills.
+- May inject a compact DDD Risk Router plus the active phase playbook for architecture-related upstream workflow skills.
 - Should not inject full reference files.
 - Should map planning/design workflows to DDD Design Guidance, execution workflows to DDD Implementation Guardrails, and review workflows to DDD Boundary Review.
 
@@ -203,11 +210,13 @@ This split must reduce default context pressure, not double the plugin surface.
 
 Requirements:
 
-- The new plugin's default hot path is the DDD Risk Router, not the full DDD reference set.
+- The new plugin's default hot path is `ddd-risk-router.md` plus the active phase playbook, not the full DDD reference set.
 - `superpowers-architect` automatic dynamic injection is removed, so one workflow should not receive both old and new architecture injections.
 - DDD reference files live under plugin-root `references/`, shared by `design`, `implement`, and `review`; they do not live under a single `standards` skill or a root dynamic `design-patterns/` directory.
 - Hook injection uses phase-specific reference budgets instead of listing every DDD reference; deeper runtime/taskqueue/event support files are loaded only when the risk router or touched path requires them.
-- Phase hook guidance stays compact: design points toward Product semantics intake and Spec trace; implement points toward Design input check, Model-to-code placement, and Implementation trace; review points toward Evidence-to-judgment review, Expected model vs observed code, and Finding triage. Full methods live in the explicit phase skills.
+- Phase hook guidance stays compact: design points toward Product semantics intake and Spec trace; implement points toward Design input check, Model-to-code placement, and Implementation trace; review points toward Evidence-to-judgment review, Expected model vs observed code, and Finding triage. Full methods live in the phase playbooks referenced by the explicit phase skills.
+- Each phase playbook owns a Minimum Output Contract. Small changes emit a narrow result; full templates are used only when boundaries, mechanisms, or review scope require them; material unknowns produce stop-only output.
+- Review playbooks include severity calibration so agents distinguish Blocker/Major/Minor findings, harmless local style, and evidence gaps.
 - Probe examples require a short repo calibration before the agent treats hits as evidence.
 - New DDD guidance must replace or compress existing DDD prose; it must not create a second full explanation beside the old one.
 - Database stays support-level, on-demand, and must not become a second default router.
@@ -215,7 +224,7 @@ Requirements:
 ## Migration Plan
 
 1. Add `superpowers-ddd-architect` to both plugin tracks.
-2. Seed plugin-root `references/` with DDD/backend references and a DDD Risk Router.
+2. Seed plugin-root `references/` with DDD/backend references, phase playbooks, and a DDD Risk Router.
 3. Add explicit DDD `design`, `implement`, and `review` skills for the new plugin.
 4. Wire hooks so the new plugin owns DDD/backend workflow guidance.
 5. Change `superpowers-architect` to explicit-only by removing automatic workflow injection.
@@ -226,7 +235,7 @@ Requirements:
 ## Acceptance Criteria
 
 1. New plugin directories exist for both tracks: `plugins/superpowers-ddd-architect/` and `codex-plugins/superpowers-ddd-architect/`.
-2. The new plugin has DDD-first `design`, `implement`, and `review` skills over a shared Risk Router hot path.
+2. The new plugin has DDD-first `design`, `implement`, and `review` skills over phase playbooks and a shared Risk Router hot path.
 3. DDD/backend guidance is no longer primarily owned by `superpowers-architect`.
 4. `superpowers-architect` no longer auto-injects dynamic architecture standards into upstream workflow skills.
 5. Explicit `$superpowers-architect:standards` still works for general standards lookup.

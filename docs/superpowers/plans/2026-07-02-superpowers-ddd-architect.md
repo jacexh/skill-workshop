@@ -4,7 +4,7 @@
 
 **Goal:** Add a dedicated `superpowers-ddd-architect` plugin and make the existing `superpowers-architect` explicit-only.
 
-**Architecture:** Create parallel Claude and Codex plugin tracks by following the existing `superpowers-architect` layout, but keep only DDD/backend patterns in the new plugin and make its hot path a DDD Risk Router. The three phase skills expose distinct thinking frameworks: design starts from product semantics intake and spec-to-model traceability; implement maps accepted model decisions into code placement and an implementation trace; review maps evidence into boundary judgments through expected-model comparison and finding triage. Database guidance remains an on-demand support reference for explicit persistence concerns. Remove automatic hook injection and migrated DDD/database bundled files from the old architect plugin so one workflow cannot receive both old and new architecture guidance.
+**Architecture:** Create parallel Claude and Codex plugin tracks by following the existing `superpowers-architect` layout, but keep only DDD/backend patterns in the new plugin and make its hot path a DDD Risk Router plus the active phase playbook. The three phase skills expose distinct thinking frameworks: design starts from product semantics intake and spec-to-model traceability; implement maps accepted model decisions into code placement and an implementation trace; review maps evidence into boundary judgments through expected-model comparison and finding triage. Database guidance remains an on-demand support reference for explicit persistence concerns. Remove automatic hook injection and migrated DDD/database bundled files from the old architect plugin so one workflow cannot receive both old and new architecture guidance.
 
 **Tech Stack:** Markdown skills/patterns, Bash Claude hook, Node.js Codex hook runtime, JSON manifests, release shell tests.
 
@@ -59,12 +59,12 @@ Create `references/ddd-risk-router.md` in both new tracks with this content:
 ```markdown
 ---
 name: DDD Risk Router
-description: Compact DDD/backend architecture risk cards. Read first for DDD backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
+description: Compact DDD/backend architecture risk cards. Read with the active phase playbook for DDD backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
 ---
 
 # DDD Risk Router
 
-Read this file first for DDD/backend architecture work. Use it to decide which deeper standards to load.
+Read this file with the active phase playbook for DDD/backend architecture work. Use it to decide which deeper standards to load.
 
 ## Calibration Before Probes
 
@@ -169,7 +169,7 @@ Set both manifests to name `superpowers-ddd-architect`, description `DDD-first b
 
 - [x] **Step 2: Create phase-specific DDD skills**
 
-Create `design`, `implement`, and `review` skills. All three read `ddd-risk-router.md` first, then load `ddd-agent-contract.md` and deeper references only when the phase, risk card, task, or gate requires them.
+Create `design`, `implement`, and `review` skills. All three read `ddd-risk-router.md` plus the active phase playbook, then load `ddd-agent-contract.md` and deeper references only when the phase, risk card, task, or gate requires them.
 
 Refine the runtime index so hook injection uses phase-specific reference budgets instead of listing every DDD reference by default, and require `Repo calibration` before probe-derived conclusions.
 
@@ -259,7 +259,7 @@ Create a test that verifies:
 ```text
 SessionStart points to $superpowers-ddd-architect:design, :implement, and :review and does not inject pattern index.
 UserPromptSubmit triggers only on explicit upstream $superpowers:* workflow mentions.
-Planning prompts include DDD Design Guidance; execution prompts include DDD Implementation Guardrails; review prompts include DDD Boundary Review; all include ddd-risk-router.md.
+Planning prompts include DDD Design Guidance; execution prompts include DDD Implementation Guardrails; review prompts include DDD Boundary Review; all include `ddd-risk-router.md` plus the matching phase playbook.
 Natural-language DDD prompt returns {}.
 No Stop hook is registered.
 Native hooks and fallback snippet match.
@@ -326,8 +326,104 @@ git commit -m "feat: add ddd architect plugin"
 
 Expected: commit succeeds.
 
+## Task 6: Split Phase Methods from Deep Reference Rules
+
+**Files:**
+- Modify: `plugins/superpowers-ddd-architect/skills/design/SKILL.md`
+- Modify: `plugins/superpowers-ddd-architect/skills/implement/SKILL.md`
+- Modify: `plugins/superpowers-ddd-architect/skills/review/SKILL.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/skills/design/SKILL.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/skills/implement/SKILL.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/skills/review/SKILL.md`
+- Create: `plugins/superpowers-ddd-architect/references/ddd-design-playbook.md`
+- Create: `plugins/superpowers-ddd-architect/references/ddd-implement-playbook.md`
+- Create: `plugins/superpowers-ddd-architect/references/ddd-review-playbook.md`
+- Create: `codex-plugins/superpowers-ddd-architect/references/ddd-design-playbook.md`
+- Create: `codex-plugins/superpowers-ddd-architect/references/ddd-implement-playbook.md`
+- Create: `codex-plugins/superpowers-ddd-architect/references/ddd-review-playbook.md`
+- Modify: `plugins/superpowers-ddd-architect/hooks/pre-tool-use`
+- Modify: `codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js`
+- Modify: `scripts/release/test/test_codex_ddd_architect_runtime.sh`
+
+- [x] **Step 1: Add phase playbooks**
+
+Create one playbook per phase:
+
+- `ddd-design-playbook.md` owns product semantics intake, semantic classification, boundary decisions, and stop/proceed gates.
+- `ddd-implement-playbook.md` owns design input checks, model-to-code placement, boundary mappings, mechanism containment, and implementation trace.
+- `ddd-review-playbook.md` owns evidence maps, expected-model comparison, risk-card mapping, and finding triage.
+
+- [x] **Step 2: Shrink default hook budgets**
+
+Set default hook budgets to:
+
+```text
+design: ddd-risk-router.md + ddd-design-playbook.md
+implement: ddd-risk-router.md + ddd-implement-playbook.md
+review: ddd-risk-router.md + ddd-review-playbook.md
+```
+
+Expected: `ddd-modeling.md`, `ddd-core.md`, `ddd-agent-contract.md`, language guides, runtime/taskqueue/event guides, and `database.md` load only on demand.
+
+- [x] **Step 3: Demote deep references from entrypoints to rule sources**
+
+Update `ddd-modeling.md`, `ddd-core.md`, `ddd-agent-contract.md`, and language/runtime support references so they no longer declare `ddd-agent-contract.md` as a first-read prerequisite. Their front matter and opening sections should say they are loaded when a phase playbook or risk card routes to the relevant rule.
+
+- [x] **Step 4: Add regression checks**
+
+Extend `test_codex_ddd_architect_runtime.sh` to verify:
+
+- design / implement / review contexts include the matching playbook;
+- deep DDD references are not included by default;
+- deep reference files do not contain old "agent contract is first" entrypoint wording.
+
+Expected: the test fails before the routing/doc update and passes afterward.
+
+## Task 7: Calibrate Output Size, Risk Routing, and Review Severity
+
+**Files:**
+- Modify: `plugins/superpowers-ddd-architect/skills/design/SKILL.md`
+- Modify: `plugins/superpowers-ddd-architect/skills/implement/SKILL.md`
+- Modify: `plugins/superpowers-ddd-architect/skills/review/SKILL.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/skills/design/SKILL.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/skills/implement/SKILL.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/skills/review/SKILL.md`
+- Modify: `plugins/superpowers-ddd-architect/references/ddd-design-playbook.md`
+- Modify: `plugins/superpowers-ddd-architect/references/ddd-implement-playbook.md`
+- Modify: `plugins/superpowers-ddd-architect/references/ddd-review-playbook.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/references/ddd-design-playbook.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/references/ddd-implement-playbook.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/references/ddd-review-playbook.md`
+- Modify: `plugins/superpowers-ddd-architect/references/ddd-risk-router.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/references/ddd-risk-router.md`
+- Modify: `scripts/release/test/test_codex_ddd_architect_runtime.sh`
+
+- [x] **Step 1: Add failing contract checks**
+
+Extend `test_codex_ddd_architect_runtime.sh` so both plugin tracks must expose:
+
+- `Minimum Output Contract` in design / implement / review playbooks;
+- `Small change` and `Full ...` output modes for design and implement;
+- `Small review` and `Full review` modes for review;
+- a Risk Router `Routing Matrix` with `Required references`, `Required evidence`, and `Allowed exception`;
+- review `Severity Calibration` with Blocker, Major, Minor, and Harmless local style.
+
+Expected: the test fails before documentation changes.
+
+- [x] **Step 2: Add minimum output contracts**
+
+Add minimum output contracts to phase playbooks and have the phase skills point to them. Small changes stay narrow; full templates are reserved for boundary/model/mechanism changes; missing material facts produce stop-only output.
+
+- [x] **Step 3: Harden risk-card routing**
+
+Add a routing matrix to `ddd-risk-router.md` so each risk card names required references, required evidence, and acceptable exceptions before a violation is reported.
+
+- [x] **Step 4: Calibrate review severity**
+
+Add review severity calibration so agents distinguish Blocker, Major, Minor, Harmless local style, and Evidence gap instead of reporting every style mismatch as a DDD violation.
+
 ## Self-Review
 
-- Spec coverage: plan creates the new DDD plugin, makes old architect explicit-only, updates marketplaces/READMEs, prevents duplicate injections, preserves Codex lightweight/natural-language quietness, and adds tests.
+- Spec coverage: plan creates the new DDD plugin, makes old architect explicit-only, updates marketplaces/READMEs, prevents duplicate injections, preserves Codex lightweight/natural-language quietness, adds tests, splits phase methods into playbooks while keeping deep references on demand, and calibrates output size / risk routing / review severity.
 - Placeholder scan: no TODO/TBD placeholders are present.
 - Type/path consistency: plugin name is consistently `superpowers-ddd-architect`.

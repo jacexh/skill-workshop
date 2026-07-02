@@ -1,6 +1,6 @@
 ---
 name: ddd-core
-description: DDD + Clean Architecture specification for backend services. Use when designing, implementing, or reviewing backend code with bounded contexts, aggregates, repositories, domain events, CQRS, or domain modeling. Also use when creating new backend services or reviewing architecture conformance. Code agents must read ddd-agent-contract.md first.
+description: DDD + Clean Architecture specification for backend services. Use when a phase playbook or DDD risk card routes to layer ownership, dependency direction, repositories, Domain Events, Integration Messages, CQRS, cross-context contracts, or architecture conformance rules.
 ---
 
 # Backend Architecture Specification
@@ -9,9 +9,9 @@ description: DDD + Clean Architecture specification for backend services. Use wh
 **Version**: v2.4
 **Date**: 2026-05-21
 **Scope**: All backend services, language-agnostic
-**Prerequisite**: Before using this specification, complete the strategic modeling phase described in [`ddd-modeling.md`](ddd-modeling.md). That document guides you from business requirements to a domain model (bounded contexts, aggregate boundaries). This document then provides the tactical implementation rules for that model.
+**Routing**: This is a tactical architecture rule source, not the default agent entrypoint. Start from the active phase playbook. Use [`ddd-modeling.md`](ddd-modeling.md) first when the domain model, bounded context, aggregate boundary, or Architecture Gate is still unsettled; use this file when the phase needs language-neutral DDD/Clean Architecture rules for the model.
 
-> **Agents — read this first**: [`ddd-agent-contract.md`](ddd-agent-contract.md) defines the mandatory execution order, stop protocol, and prohibited actions for code agents working on DDD tasks. Do not skip it.
+> **Phase routing**: Agent entrypoints are [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), and [`ddd-review-playbook.md`](ddd-review-playbook.md). Use this document only when a phase playbook or [`ddd-risk-router.md`](ddd-risk-router.md) routes to tactical architecture rules.
 
 ---
 

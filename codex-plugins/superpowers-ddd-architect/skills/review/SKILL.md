@@ -3,9 +3,9 @@ name: review
 description: Use when reviewing DDD/backend code, plans, or diffs with concrete files, modules, or boundary evidence to inspect.
 ---
 
-# Review DDD Boundary Evidence
+# Review DDD Evidence
 
-Use this skill to turn concrete DDD/backend evidence into boundary judgments. Findings need evidence, not generic DDD advice.
+Use this skill as the review-phase entry point. It routes the agent to the review playbook and keeps the output contract small.
 
 ## When To Use
 
@@ -16,15 +16,14 @@ Use this skill to turn concrete DDD/backend evidence into boundary judgments. Fi
 
 ## Workflow
 
-1. Build the Evidence map: changed files/modules, bounded contexts, backend language, layers, generated-code touch points, runtime/taskqueue/message paths, database persistence paths, and tests.
-2. Reconstruct the Expected model vs observed code:
-   - expected bounded context, data authority, aggregate/policy/service boundary, and layer ownership from the design/spec/codebase;
-   - expected commands, queries, Domain Events, Integration Messages, read models, and state lifecycle when relevant;
-   - observed imports, types, handlers, ports, repositories, adapters, transactions, event/message handlers, runtime wiring, and tests.
-3. Read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) first and select only triggered risk cards.
-4. Read [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) and the deeper references required by triggered cards.
-5. Check evidence before conclusions: cite file/line, dependency direction, type leak, orchestration thickness, state decision, async role, runtime wiring, or test gap.
-6. Run Finding triage for each candidate: violation, allowed exception with written evidence, harmless local style, or evidence gap. Do not report a violation when the evidence only shows naming or local style.
+1. Confirm there are concrete files, modules, diffs, plans, or evidence to inspect. If boundaries are still being chosen, use `design`; if code is being placed, use `implement`.
+2. Read the default entry pair: [../../references/ddd-review-playbook.md](../../references/ddd-review-playbook.md) for the review thinking framework and [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) for risk-card routing.
+3. Follow the playbook's Evidence map, Expected model vs observed code, risk-card mapping, and Finding triage.
+4. Use the playbook's Severity Calibration and Minimum Output Contract: keep small reviews focused, do not report harmless local style as a violation, and distinguish evidence gaps from findings.
+5. Read deeper references only when a triggered risk card or review finding requires them:
+   - [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) for must-not rules and review self-checks.
+   - [../../references/ddd-core.md](../../references/ddd-core.md) for dependency direction, ports, generated type boundaries, Domain Events, and Integration Messages.
+   - Active language or Go support references only when evidence touches those paths.
 
 ## Review Focus
 

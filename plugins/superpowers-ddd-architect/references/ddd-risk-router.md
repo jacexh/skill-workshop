@@ -1,11 +1,11 @@
 ---
 name: DDD Risk Router
-description: Compact DDD/backend architecture risk cards. Read first for DDD backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
+description: Compact DDD/backend architecture risk cards. Read with the active DDD phase playbook for backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
 ---
 
 # DDD Risk Router
 
-Read this file first for DDD/backend architecture work. Use it to decide which deeper standards to load.
+Read this file with the active phase playbook for DDD/backend architecture work. Use it to decide which deeper standards to load.
 
 ## Calibration Before Probes
 
@@ -36,6 +36,21 @@ Repo calibration:
 ```
 
 Never paste a probe example unchanged unless the calibrated repository shape matches it exactly. Probe output is evidence only after it is tied to a specific card decision.
+
+## Routing Matrix
+
+When a card is triggered, load the required references before reporting a violation. The card body still owns the detailed smell, decision, and probe examples.
+
+| Risk card | Required references | Required evidence | Allowed exception |
+|---|---|---|---|
+| Cross-Context Direct Imports | `ddd-core.md`, active language guide; Go event/message guide when async contracts are involved | Import path crossing calibrated bounded-context roots; caller/callee layer; whether the import is Domain/Application vs published API/protocol | Written compatibility bridge or migration target using Integration Messages, read facade, ACL, or protocol contract |
+| Generated Protocol Types in Semantic Ports | `ddd-core.md`, active language guide | Port/interface signature, Domain/Application package path, generated/protocol type import, mapping boundary evidence | Project explicitly treats generated type as a read contract for query/read DTOs |
+| Fat Go RPC Shortcut | `ddd-golang.md` | `application.go` or RPC adapter method with repository, save, dispatch, enqueue, transaction, or multi-port coordination evidence | Small actor/auth extraction used only to build a command/query before one delegate call |
+| Shared Umbrella Processor | `ddd-golang-events-messages.md` and/or `ddd-golang-taskqueue.md` | Shared processor type, inbound kinds/task types, dependency set, role/side-effect mix, transaction/failure policy | Same role, source family, side effect, transaction boundary, failure policy, and dependency set |
+| Business State Classification Outside Domain | `ddd-agent-contract.md`, `ddd-core.md`, active language guide | Application/handler/processor branch or helper over business state/status; evidence it drives a business decision, not mapping | Mechanical DTO/read-model/proto mapping without business decision semantics |
+| Command-Side Application Port Reflex | `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md` | New command-side interface, caller use case, semantic capability, rejected Domain/Repository/Domain Event/Integration Message/ACL/Infrastructure alternatives | Architecture Gate proves a stable use-case semantic lifecycle that is not mechanism plumbing |
+| Runtime/Cmd Provider Pollution | `ddd-golang-runtime.md` | `cmd/**` provider construction, business-layer imports, generated route registration, lifecycle/config ownership evidence | Process-owned provider with explicit runtime impact note |
+| Technical Bounded Context | `ddd-modeling.md`, `ddd-core.md`, `ddd-golang-runtime.md` | Product/operator language, lifecycle/state/invariant ownership, adapter-detail exclusion evidence | Stable lifecycle/invariant is recorded and deployment adapter mechanics stay outside Domain |
 
 ## Cards
 

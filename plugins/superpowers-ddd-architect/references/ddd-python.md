@@ -1,6 +1,6 @@
 ---
 name: ddd-python
-description: Python implementation guide for DDD + Clean Architecture. Use when implementing backend services in Python with domain-driven design, including aggregates, repositories, domain events, CQRS, and module assembly with dependency-injector. Complements ddd-core specification.
+description: Python implementation guide for DDD + Clean Architecture. Use when a phase playbook or DDD risk card routes to Python backend services with aggregates, repositories, domain events, CQRS, module assembly, dependency-injector wiring, or Python package boundaries.
 ---
 
 # Python Web System Architecture Guide
@@ -9,8 +9,9 @@ description: Python implementation guide for DDD + Clean Architecture. Use when 
 **Version**: v2.4
 **Date**: 2026-05-21
 **Scope**: Team backend service architecture standard
-**Prerequisites**:
-- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Code agents must read this first; defines trigger conditions, stop protocol, and prohibited actions. Do not skip.
+**Phase routing**:
+- **Phase playbook**: Start from [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), or [`ddd-review-playbook.md`](ddd-review-playbook.md). Load this file only when the active phase needs Python-specific DDD placement, package, naming, testing, or module-assembly rules.
+- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs task classification, stop protocol, prohibited actions, or completion self-checks.
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
 - **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).
 - This document is the Python implementation guide that builds on both.
@@ -24,7 +25,7 @@ description: Python implementation guide for DDD + Clean Architecture. Use when 
 
 ## 0. Python DDD Planning Workflow
 
-Apply the planning gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Python-specific** items.
+When the active phase needs Python-specific planning detail, apply the gates defined in [ddd-modeling.md §7](ddd-modeling.md). For each gate level, the plan/spec must additionally state these **Python-specific** items.
 
 Every Python backend plan must also include the `Architecture Gate` block from [ddd-modeling.md §0](ddd-modeling.md). For technical-facing packages, explicitly classify the capability before choosing between `domain`, `application`, `interfaces`, `infrastructure`, `shared`, or a distributable package.
 
