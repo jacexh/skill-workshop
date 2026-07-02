@@ -21,10 +21,10 @@ The skill discovers applicable general standards from the configured pattern loc
 - General architecture standards used on demand.
 - REST/API conventions.
 - Frontend architecture patterns.
-- Database standards when used outside DDD/backend guardrail work.
+- Project/global database standards when provided outside this bundled plugin.
 - Project-specific generic standards under `docs/design-patterns/`.
 
-For DDD, Go backend layering, bounded contexts, ports, Domain Events, Integration Messages, taskqueue/runtime boundaries, and database-backed backend persistence, use `superpowers-ddd-architect`.
+Bundled DDD/backend and database references have moved out of this plugin. For DDD, Go/Python/TypeScript backend layering, bounded contexts, ports, Domain Events, Integration Messages, taskqueue/runtime boundaries, and database-backed backend persistence, use `superpowers-ddd-architect`.
 
 ## Setup
 

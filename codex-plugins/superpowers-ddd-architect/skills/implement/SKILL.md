@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Use when implementing or refactoring DDD/backend code after a design direction exists: placing code by layer, package paths, ports, DTO/proto mapping, repository/event/taskqueue/runtime/database wiring, or guarding against boundary leaks.
+description: Use when implementing or refactoring DDD/backend code after a design direction exists: placing code by layer, package paths, ports, DTO/proto mapping, repository/event/taskqueue/runtime/database wiring, Python or TypeScript backend modules, or guarding against boundary leaks.
 ---
 
 # Implement DDD Code Placement
@@ -14,6 +14,8 @@ Use this skill to map accepted DDD decisions into code structure without crossin
 3. Read [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) for task classification, must-not rules, and completion checks.
 4. Read only the references needed by the touched implementation path:
    - [../../references/ddd-golang.md](../../references/ddd-golang.md) for Go layers, package layout, repositories, CQRS, RPC adapters, and logging.
+   - [../../references/ddd-python.md](../../references/ddd-python.md) for Python layers, modules, repositories, events, dependency-injector assembly, and tests.
+   - [../../references/ddd-typescript.md](../../references/ddd-typescript.md) for TypeScript layers, modules, repositories, events, composition roots, and tests.
    - [../../references/ddd-golang-events-messages.md](../../references/ddd-golang-events-messages.md) for Domain Event handlers, Boundary Publishers, Integration Message handlers, and message runtime boundaries.
    - [../../references/ddd-golang-taskqueue.md](../../references/ddd-golang-taskqueue.md) for task processors, schema registry, periodic producers, polling, and asynq wiring.
    - [../../references/ddd-golang-runtime.md](../../references/ddd-golang-runtime.md) for `cmd`, `fx`, config, lifecycle, graceful shutdown, and runtime module assembly.

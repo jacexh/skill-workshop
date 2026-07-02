@@ -49,6 +49,7 @@ Use this plugin for:
 - Domain and Application port eligibility
 - generated protocol DTO boundaries
 - Go ConnectRPC/gRPC shortcut pressure
+- Python and TypeScript backend DDD module/layer placement
 - Domain Events, Boundary Publishers, Integration Messages, and async handlers
 - taskqueue/runtime boundaries in DDD services
 - database-backed backend persistence design
@@ -64,6 +65,8 @@ Canonical references live under `references/`:
 - `ddd-modeling.md` — strategic bounded-context, aggregate, and architecture gate guidance
 - `ddd-core.md` — dependency direction, bounded contexts, and service layer boundaries
 - `ddd-golang.md` — Go-specific implementation guidance
+- `ddd-python.md` — Python-specific DDD implementation guidance
+- `ddd-typescript.md` — TypeScript-specific DDD implementation guidance
 - `ddd-golang-events-messages.md` — Domain Events, Boundary Publishers, Integration Messages, and Kafka adapter wiring
 - `ddd-golang-runtime.md` — Go runtime guidance for config, fx lifecycle, graceful shutdown, and Kubernetes
 - `ddd-golang-taskqueue.md` — polling jobs, TaskType/schema registry, processors, asynq wiring, and middleware

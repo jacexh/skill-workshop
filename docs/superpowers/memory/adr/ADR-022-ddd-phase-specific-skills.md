@@ -26,7 +26,7 @@ All three skills share plugin-root `references/` and read `ddd-risk-router.md` f
 - Skill invocation becomes simpler: `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, `$superpowers-ddd-architect:review`.
 - Shared DDD references move out of `skills/standards/references/` to plugin-root `references/` so no single skill owns the reference set.
 - The plugin avoids the old "load standards, then infer intent" shape; each entry point has its own output contract.
-- The legacy general `superpowers-architect:standards` skill remains unchanged for explicit general standards lookup.
+- The legacy general `superpowers-architect:standards` skill remains the explicit general standards lookup; ADR-023 removes its bundled DDD/database defaults.
 
 ## References
 

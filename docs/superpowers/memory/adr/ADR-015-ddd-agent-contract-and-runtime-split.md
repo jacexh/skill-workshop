@@ -16,7 +16,7 @@ The architect plugin shipped four DDD pattern files (`ddd-modeling.md`, `ddd-cor
 
 ## Decision
 
-Introduce two standalone files under both `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/`:
+Introduce two standalone files in the bundled DDD reference set. They were originally created in the legacy architect pattern directory and now live under `superpowers-ddd-architect/references/` per ADR-023:
 
 - **`ddd-agent-contract.md`** — the agent-behavior layer. Defines (1) trigger conditions including path patterns (`internal/business/**`, `cmd/**/main.go`, `internal/pkg/**`, `configs/**`, fx wiring), (2) mandatory execution order with a task-classification step and a spec-reading matrix initially split between DDD-business, Go runtime-only, and mixed work, with runtime-only explicitly skipping the modeling §0 Architecture Gate, (3) a stop-and-ask protocol preceded by a "inspect repo context first" preamble, (4) initially 23 enumerated must-not rules, later extended to 26 as agent failures were observed, each pointing back to the spec section it embodies, including dependency-inversion-only Application-port rejection, routing/topology Application-port rejection, bloated Go fx entrypoint rejection, umbrella async handler rejection, mixed event/message handler rejection, and the ban on local substitutes for the adopted Go component stack, (5) completion self-checks for the applicable task class, and (6) a compact `Standards read / Task classification / Architecture Gate / Stop questions / Planned files / Self-check result` output template with explicit guidance that ordinary final summaries do not need section-by-section citations. ADR-017 and ADR-018 later extend the task classification matrix for taskqueue/polling and events/messages.
 - **`ddd-golang-runtime.md`** — the Go runtime patterns extracted out of `ddd-golang.md`. Owns §1 Configuration Management (component-owned `Option`, shared middleware client ownership under `internal/pkg/<middleware>`, aggregate `Option` in `main`, `configs/` profiles, `${VAR:default}` placeholder convention) and §2 Entry Point & Graceful Shutdown (`app.Run()`, lifecycle hooks for in-flight work, listen/serve separation, EventBus drain, shutdown ordering, Kubernetes `preStop` race-condition workaround).
@@ -54,10 +54,11 @@ Introduce two standalone files under both `plugins/superpowers-architect/design-
 
 ## References
 
-- `plugins/superpowers-architect/design-patterns/ddd-agent-contract.md`
-- `plugins/superpowers-architect/design-patterns/ddd-golang-runtime.md`
-- `plugins/superpowers-architect/design-patterns/ddd-golang.md` (§9 stub + §10 renumbered)
-- `plugins/superpowers-architect/design-patterns/ddd-modeling.md` (§0 reference to contract)
-- `plugins/superpowers-architect/design-patterns/ddd-core.md` (top reference to contract)
+- `plugins/superpowers-ddd-architect/references/ddd-agent-contract.md`
+- `plugins/superpowers-ddd-architect/references/ddd-golang-runtime.md`
+- `plugins/superpowers-ddd-architect/references/ddd-golang.md` (§9 stub + §10 renumbered)
+- `plugins/superpowers-ddd-architect/references/ddd-modeling.md` (§0 reference to contract)
+- `plugins/superpowers-ddd-architect/references/ddd-core.md` (top reference to contract)
+- ADR-023 (canonical DDD references moved out of old architect)
 - ADR-013 (Strategy A parallel codex-plugins/ tree)
 - ADR-002 (zero-modification principle; the contract does not modify upstream superpowers)

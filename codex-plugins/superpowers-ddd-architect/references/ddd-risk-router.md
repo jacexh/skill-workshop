@@ -1,6 +1,6 @@
 ---
 name: DDD Risk Router
-description: Compact DDD/backend architecture risk cards. Read first for DDD, Go backend, database-backed service, event/message, taskqueue, or runtime-boundary work.
+description: Compact DDD/backend architecture risk cards. Read first for DDD backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
 ---
 
 # DDD Risk Router
@@ -17,8 +17,11 @@ Risk cards are portable; probe examples are not. Before treating any probe hit a
 - RPC framework and handler placement;
 - runtime/module wiring style;
 - project-specific architecture tests or docs.
+- active backend language and framework conventions.
 
 Rewrite probe examples to match that local shape. A probe hit is a review signal, not proof of a violation. Do not report a violation until the hit is mapped to a DDD boundary rule.
+
+Choose the active language reference after the risk card is selected: `ddd-golang.md` for Go, `ddd-python.md` for Python, and `ddd-typescript.md` for TypeScript. Use `ddd-golang-events-messages.md`, `ddd-golang-taskqueue.md`, and `ddd-golang-runtime.md` only for Go-specific event/message, taskqueue, or runtime work.
 
 ## Cards
 
@@ -28,7 +31,7 @@ Rewrite probe examples to match that local shape. A probe hit is a review signal
 - **Probe examples:** for Go repos with `internal/<context>/<layer>` layout, start from `rg -n 'internal/.*/(domain|application)' internal` and then narrow by actual bounded-context roots.
 - **Decision:** use Integration Messages, published read facades, ACL, or protocol contracts.
 - **Allowed exception:** only with a written compatibility bridge and migration target.
-- **Reference:** `ddd-core.md`, `ddd-golang.md`, `ddd-golang-events-messages.md`.
+- **Reference:** `ddd-core.md`, active language guide (`ddd-golang.md`, `ddd-python.md`, or `ddd-typescript.md`), and Go event/message guide when applicable.
 
 ### Generated Protocol Types in Semantic Ports
 
@@ -36,7 +39,7 @@ Rewrite probe examples to match that local shape. A probe hit is a review signal
 - **Probe examples:** in Go/protobuf repos, search semantic inward layers for generated-code imports, e.g. `rg -n 'pkg/gen|gen/go|proto\.Message|connect\.Request|connect\.Response' <domain-or-application-paths>`.
 - **Decision:** map generated DTOs at Interface/Application/Infrastructure boundaries.
 - **Allowed exception:** query/read DTOs may use generated types only when the project explicitly treats them as read contracts.
-- **Reference:** `ddd-core.md`, `ddd-golang.md`.
+- **Reference:** `ddd-core.md` and active language guide (`ddd-golang.md`, `ddd-python.md`, or `ddd-typescript.md`).
 
 ### Fat Go RPC Shortcut
 
@@ -60,7 +63,7 @@ Rewrite probe examples to match that local shape. A probe hit is a review signal
 - **Probe examples:** search Application/handler/processor layers for state classification helpers or direct business-state branches, e.g. `rg -n 'isTerminal|hasLiveRuntime|countsAsActive|requiresCleanup|\\.State|\\.Status' <application-paths>`.
 - **Decision:** put stable state classification behind Aggregate methods or Domain policies.
 - **Allowed exception:** mechanical DTO/read-model/proto mapping without business decision semantics.
-- **Reference:** `ddd-agent-contract.md`, `ddd-core.md`, `ddd-golang.md`.
+- **Reference:** `ddd-agent-contract.md`, `ddd-core.md`, and active language guide (`ddd-golang.md`, `ddd-python.md`, or `ddd-typescript.md`).
 
 ### Command-Side Application Port Reflex
 

@@ -1,25 +1,25 @@
 ---
 name: standards
-description: Use when explicitly requested for general architecture standards, REST APIs, database schemas outside DDD/backend guardrails, frontend React/Next.js structure, or browser QA flows. For DDD/backend architecture work, use superpowers-ddd-architect:standards instead.
+description: Use when explicitly requested for general architecture standards, REST APIs, frontend React/Next.js structure, browser QA flows, or project-provided non-DDD standards. For DDD/backend architecture work, use superpowers-ddd-architect design, implement, or review instead.
 ---
 
 # Apply Project Architecture Standards
 
-Use this explicit-only legacy skill when the user asks for general architecture standards, REST/API conventions, database standards outside DDD/backend guardrail work, frontend structure, UI implementation patterns, browser QA, refactoring, implementation planning, execution, or code review.
+Use this explicit-only legacy skill when the user asks for general architecture standards, REST/API conventions, frontend structure, UI implementation patterns, browser QA, refactoring, implementation planning, execution, or code review.
 
-For DDD/backend architecture work, prefer `$superpowers-ddd-architect:standards`. This legacy skill may still expose historical DDD pattern files for compatibility, but it is not the DDD hot path.
+For DDD/backend architecture work, prefer the phase-specific `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, or `$superpowers-ddd-architect:review` skill. This legacy skill no longer bundles DDD/backend pattern files.
 
 ## Workflow
 
 1. Identify the task area: API, database, frontend, browser QA, general architecture, refactor, or code review.
-2. If the task is DDD/backend architecture, Go backend layering, bounded contexts, ports, Domain Events, Integration Messages, taskqueue/runtime boundaries, or database-backed backend persistence, stop using this skill and use `$superpowers-ddd-architect:standards` unless the user explicitly asks for the legacy general architect standards.
+2. If the task is DDD/backend architecture, Go backend layering, bounded contexts, ports, Domain Events, Integration Messages, taskqueue/runtime boundaries, or database-backed backend persistence, stop using this skill and use `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, or `$superpowers-ddd-architect:review` unless the user explicitly asks for legacy general architect standards.
 3. Use the injected Architect Standards index if it is present. If it is not present, inspect these directories from highest to lowest priority:
    - `<repo>/docs/design-patterns/`
    - `$SPA_GLOBAL`
    - `<plugin-root>/design-patterns/`
 4. Read the full content of every relevant non-DDD/general pattern before planning, editing, or reviewing. The active pattern set is dynamic; do not assume a bundled pattern exists unless it appears in the injected index or discovered directories.
-5. If a DDD pattern appears in this legacy pattern set and the user explicitly asked to use it, state that `superpowers-ddd-architect` is the canonical DDD/backend path before applying the legacy pattern.
-6. If the applicable patterns define API, database, frontend, browser QA, or other domain-specific gates, apply those gates exactly as written. Do not invent DDD-specific requirements for a project that did not provide DDD standards.
+5. If a project-provided DDD pattern appears in this legacy pattern set and the user explicitly asked to use it, state that `superpowers-ddd-architect` is the canonical DDD/backend path before applying the project pattern.
+6. If the applicable patterns define API, frontend, browser QA, database, or other domain-specific gates, apply those gates exactly as written. Do not invent DDD-specific requirements for a project that did not provide DDD standards.
 7. State which patterns apply and the constraints that affect the work.
 8. State which listed patterns do not apply when that helps avoid ambiguity.
 9. If the user request conflicts with a pattern, call out the conflict explicitly and choose the smallest compliant approach unless the user overrides it.
@@ -38,7 +38,7 @@ Architecture Gate:
 
 Stop and gather more context before implementation or approval when any required gate answer is unknown, when the applicable full pattern files have not been read, or when current code conflicts with dependency rules.
 
-When `ddd-modeling.md` is present and it defines a richer DDD Architecture Gate, replace the generic block above with that richer block. If the active `ddd-modeling.md` is the bundled pattern, this is the full DDD block defined in `ddd-modeling.md §0` (Gate level / Bounded context / business capability / Stable language / data authority / Affected aggregate, policy, or service / Invariants and rules / Technical capability classification / Layer ownership / Proceed-Stop). Do not emit both blocks.
+When a project-provided pattern defines a richer gate, replace the generic block above with that richer block. Do not emit both blocks.
 
 ## Technical Capability Checklist
 

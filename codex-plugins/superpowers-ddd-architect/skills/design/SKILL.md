@@ -1,6 +1,6 @@
 ---
 name: design
-description: Use when designing DDD/backend behavior before implementation: bounded contexts, aggregates, ubiquitous language, technical capability classification, Domain/Application/Infrastructure ownership, events/messages, taskqueue/runtime boundary decisions, or database-backed persistence design.
+description: Use when designing DDD/backend behavior before implementation: bounded contexts, aggregates, ubiquitous language, technical capability classification, Domain/Application/Infrastructure ownership, language-specific backend layout, events/messages, taskqueue/runtime boundary decisions, or database-backed persistence design.
 ---
 
 # Design DDD Boundaries
@@ -14,7 +14,11 @@ Use this skill to turn a backend change request into explicit DDD boundaries bef
 3. Do not scan generic `design-patterns/` directories for this plugin. This plugin's shared references live under [../../references/](../../references/).
 4. Read [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for bounded contexts, stable language, aggregate boundaries, technical capability classification, and Architecture Gate fields.
 5. Read [../../references/ddd-core.md](../../references/ddd-core.md) when design choices involve layer ownership, ports, Domain Events, Integration Messages, or generated protocol boundaries.
-6. Read Go/runtime/taskqueue/database references only when the design decision needs those constraints.
+6. Read the active language reference only when the design decision needs implementation-shape constraints:
+   - [../../references/ddd-golang.md](../../references/ddd-golang.md) for Go.
+   - [../../references/ddd-python.md](../../references/ddd-python.md) for Python.
+   - [../../references/ddd-typescript.md](../../references/ddd-typescript.md) for TypeScript.
+7. Read Go runtime/taskqueue/event-message or database references only when the design decision needs those constraints.
 
 ## Output
 

@@ -10,6 +10,8 @@ STANDARDS_SKILL="$ROOT/codex-plugins/superpowers-architect/skills/standards/SKIL
 CLAUDE_STANDARDS_SKILL="$ROOT/plugins/superpowers-architect/skills/standards/SKILL.md"
 CODEX_README="$ROOT/codex-plugins/superpowers-architect/README.md"
 CLAUDE_README="$ROOT/plugins/superpowers-architect/README.md"
+CODEX_PATTERNS="$ROOT/codex-plugins/superpowers-architect/design-patterns"
+CLAUDE_PATTERNS="$ROOT/plugins/superpowers-architect/design-patterns"
 
 fail() {
   echo "FAIL $1" >&2
@@ -37,5 +39,11 @@ grep -iq 'explicit-only' "$CODEX_README" || fail "codex README should document e
 grep -iq 'explicit-only' "$CLAUDE_README" || fail "claude README should document explicit-only behavior"
 grep -q 'superpowers-ddd-architect' "$CODEX_README" || fail "codex README should point DDD users to new plugin"
 grep -q 'superpowers-ddd-architect' "$CLAUDE_README" || fail "claude README should point DDD users to new plugin"
+! find "$CODEX_PATTERNS" -maxdepth 1 -name 'ddd-*.md' -print -quit | grep -q . || fail "codex architect should not bundle DDD pattern files"
+! find "$CLAUDE_PATTERNS" -maxdepth 1 -name 'ddd-*.md' -print -quit | grep -q . || fail "claude architect should not bundle DDD pattern files"
+[ ! -f "$CODEX_PATTERNS/database.md" ] || fail "codex architect should not bundle migrated database reference"
+[ ! -f "$CLAUDE_PATTERNS/database.md" ] || fail "claude architect should not bundle migrated database reference"
+! grep -q 'superpowers-ddd-architect:standards' "$STANDARDS_SKILL" || fail "codex standards skill should not point to deprecated DDD standards skill"
+! grep -q 'superpowers-ddd-architect:standards' "$CLAUDE_STANDARDS_SKILL" || fail "claude standards skill should not point to deprecated DDD standards skill"
 
 echo "  codex architect runtime: explicit-only"

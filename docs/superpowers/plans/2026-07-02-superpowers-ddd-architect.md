@@ -4,7 +4,7 @@
 
 **Goal:** Add a dedicated `superpowers-ddd-architect` plugin and make the existing `superpowers-architect` explicit-only.
 
-**Architecture:** Create parallel Claude and Codex plugin tracks by following the existing `superpowers-architect` layout, but keep only DDD/backend patterns in the new plugin and make its hot path a DDD Risk Router. Remove automatic hook injection from the old architect plugin so one workflow cannot receive both old and new architecture guidance.
+**Architecture:** Create parallel Claude and Codex plugin tracks by following the existing `superpowers-architect` layout, but keep only DDD/backend patterns in the new plugin and make its hot path a DDD Risk Router. Remove automatic hook injection and migrated DDD/database bundled files from the old architect plugin so one workflow cannot receive both old and new architecture guidance.
 
 **Tech Stack:** Markdown skills/patterns, Bash Claude hook, Node.js Codex hook runtime, JSON manifests, release shell tests.
 
@@ -43,12 +43,14 @@ Run:
 ```bash
 mkdir -p plugins/superpowers-ddd-architect/references
 mkdir -p codex-plugins/superpowers-ddd-architect/references
-cp plugins/superpowers-architect/design-patterns/database.md plugins/superpowers-architect/design-patterns/ddd-*.md plugins/superpowers-ddd-architect/references/
-cp codex-plugins/superpowers-architect/design-patterns/database.md codex-plugins/superpowers-architect/design-patterns/ddd-*.md codex-plugins/superpowers-ddd-architect/references/
+git mv plugins/superpowers-architect/design-patterns/database.md plugins/superpowers-ddd-architect/references/database.md
+git mv codex-plugins/superpowers-architect/design-patterns/database.md codex-plugins/superpowers-ddd-architect/references/database.md
+git mv plugins/superpowers-architect/design-patterns/ddd-*.md plugins/superpowers-ddd-architect/references/
+git mv codex-plugins/superpowers-architect/design-patterns/ddd-*.md codex-plugins/superpowers-ddd-architect/references/
 rmdir plugins/superpowers-ddd-architect/design-patterns codex-plugins/superpowers-ddd-architect/design-patterns
 ```
 
-Expected: new plugin references contain `database.md` plus Go DDD files only under plugin-root `references/`; root `design-patterns/` does not exist in the DDD plugin.
+Expected: new plugin references contain `database.md` plus Go, Python, and TypeScript DDD files only under plugin-root `references/`; root `design-patterns/` does not exist in the DDD plugin.
 
 - [x] **Step 3: Add compact Risk Router pattern to both tracks**
 
@@ -57,7 +59,7 @@ Create `references/ddd-risk-router.md` in both new tracks with this content:
 ```markdown
 ---
 name: DDD Risk Router
-description: Compact DDD/backend architecture risk cards. Read first for DDD, Go backend, database-backed service, event/message, taskqueue, or runtime-boundary work.
+description: Compact DDD/backend architecture risk cards. Read first for DDD backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
 ---
 
 # DDD Risk Router

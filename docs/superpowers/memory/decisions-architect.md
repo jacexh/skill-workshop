@@ -6,6 +6,12 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 # Decisions — Architect
 
+## ADR-023: DDD references leave old architect plugin
+**Decision:** Remove bundled `ddd-*.md` and migrated `database.md` from `superpowers-architect` on both tracks. Move `ddd-python.md` and `ddd-typescript.md` into `plugins/superpowers-ddd-architect/references/` and `codex-plugins/superpowers-ddd-architect/references/` so the DDD plugin owns all bundled DDD language guides.
+**Trade-off:** The old explicit standards plugin no longer offers bundled database or DDD fallback files. Accepted because keeping copies created drift and made Python/TypeScript DDD guides depend on removed core/modeling references.
+**Affects:** `plugins/superpowers-architect/design-patterns/`, `codex-plugins/superpowers-architect/design-patterns/`, `plugins/superpowers-ddd-architect/references/`, `codex-plugins/superpowers-ddd-architect/references/`, architect runtime tests.
+→ [adr/ADR-023-ddd-references-leave-old-architect.md](adr/ADR-023-ddd-references-leave-old-architect.md)
+
 ## ADR-022: DDD architect uses phase-specific skills
 **Decision:** Replace the DDD plugin's single `standards` skill with `design`, `implement`, and `review`. All three skills share plugin-root `references/` and read `ddd-risk-router.md` first, while hooks map planning to design guidance, execution to implementation guardrails, and code-review to boundary review.
 **Trade-off:** The plugin exposes more skills, but each one is simpler and has a clearer action/phase contract. Accepted because one broad standards entry left agents to infer whether they were designing, placing code, or auditing a diff.

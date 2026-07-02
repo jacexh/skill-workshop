@@ -41,9 +41,9 @@ Restart Codex after cleanup.
 
 - **`$superpowers-architect:standards` skill** — explicit standards workflow for general architecture-sensitive work.
 - Pattern dirs: bundled defaults + Claude global defaults (`~/.claude/superpowers-architect/design-patterns/`) + global (`$SP_ARCHITECT_DIR` or `$SPA_GLOBAL`) + project-local (`design-patterns/` for compatibility, then `docs/design-patterns/`); higher-priority dirs override lower-priority dirs by filename.
-- Bundled general patterns remain available for explicit use.
+- Bundled general patterns remain available for explicit use. Bundled DDD/backend and database references have moved out of this plugin.
 
-For DDD, Go backend layering, bounded contexts, ports, Domain Events, Integration Messages, taskqueue/runtime boundaries, and database-backed backend persistence, install and invoke `superpowers-ddd-architect`.
+For DDD, Go/Python/TypeScript backend layering, bounded contexts, ports, Domain Events, Integration Messages, taskqueue/runtime boundaries, and database-backed backend persistence, install and invoke `superpowers-ddd-architect`.
 
 ## Project-Specific Patterns
 

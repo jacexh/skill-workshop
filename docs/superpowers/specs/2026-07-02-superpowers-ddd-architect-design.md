@@ -10,7 +10,7 @@ The talgent audit showed that the current `superpowers-architect` plugin already
 
 The better split is to make DDD architecture a dedicated plugin.
 
-`superpowers-ddd-architect` becomes the active backend architecture guardrail. It owns DDD boundary protection, Go backend DDD guidance, event/message boundaries, taskqueue/runtime DDD-adjacent guidance, and database standards that matter to backend design.
+`superpowers-ddd-architect` becomes the active backend architecture guardrail. It owns DDD boundary protection, Go/Python/TypeScript backend DDD guidance, event/message boundaries, taskqueue/runtime DDD-adjacent guidance, and database standards that matter to backend design.
 
 `superpowers-architect` stops being the automatic dynamic injector. It moves directly to the medium-term target: explicit-only standards loading.
 
@@ -51,7 +51,7 @@ This is not a soft migration. The old plugin skips the short-term "keep automati
 ## Non-Goals
 
 - Do not delete `superpowers-architect`.
-- Do not remove general pattern files in this phase.
+- Do not remove non-DDD general pattern files in this phase.
 - Do not add frontend or REST capabilities to the new DDD plugin.
 - Do not change talgent.
 - Do not implement CI linting or project-specific architecture tests in this spec.
@@ -68,6 +68,7 @@ Default active responsibilities:
 - Domain and Application port eligibility.
 - Generated protocol DTO boundaries.
 - ConnectRPC/gRPC shortcut pressure.
+- Python and TypeScript backend DDD module/layer placement.
 - Domain Event, Boundary Publisher, Integration Message, taskqueue, and async handler roles.
 - Go DDD runtime/module assembly when it affects DDD service boundaries.
 - Database standards relevant to backend persistence design.
@@ -143,6 +144,8 @@ references/
   ddd-modeling.md
   ddd-core.md
   ddd-golang.md
+  ddd-python.md
+  ddd-typescript.md
   ddd-golang-events-messages.md
   ddd-golang-runtime.md
   ddd-golang-taskqueue.md
@@ -153,7 +156,7 @@ The new plugin should not use a root `design-patterns/` directory. That director
 
 The new plugin may keep database as a support reference, but the DDD Risk Router stays first. Database standards should load only for schema/query/migration/persistence design or when a DDD persistence question needs them.
 
-`superpowers-architect` may keep copies temporarily for compatibility, but they are no longer the active DDD source. Its README should mark DDD/backend material as moved.
+`superpowers-architect` should not keep bundled copies of migrated DDD/backend or database references. Its README should mark DDD/backend material as moved.
 
 ## Hook Strategy
 
@@ -224,7 +227,7 @@ Requirements:
 
 | Risk | Mitigation |
 |---|---|
-| Pattern duplication between old and new plugins grows stale | Treat old copies as compatibility only; document new plugin as DDD source |
+| Pattern duplication between old and new plugins grows stale | Remove migrated DDD/backend copies from the old plugin and document the new plugin as the DDD source |
 | Users miss DDD guidance after old plugin goes explicit-only | Marketplace and README copy must point backend users to `superpowers-ddd-architect` |
 | Hook overlap causes duplicate context | Acceptance criteria require no workflow double injection |
 | New plugin expands into all backend concerns | Keep DDD in the name and make database support-level |
