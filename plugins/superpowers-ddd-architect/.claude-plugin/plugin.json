@@ -1,0 +1,16 @@
+{
+  "name": "superpowers-ddd-architect",
+  "description": "DDD-first backend architecture guardrails for code agents",
+  "version": "1.13.9",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "superpowers",
+    "ddd",
+    "backend",
+    "architecture",
+    "standards"
+  ]
+}

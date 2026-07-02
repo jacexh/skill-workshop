@@ -1,10 +1,28 @@
 ---
-last_updated: 2026-06-25
+last_updated: 2026-07-02
 updated_by: superpowers-memory:ingest
-triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
+triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 ---
 
 # Decisions — Architect
+
+## ADR-023: DDD references leave old architect plugin
+**Decision:** Remove bundled `ddd-*.md` and migrated `database.md` from `superpowers-architect` on both tracks. Move `ddd-python.md` and `ddd-typescript.md` into `plugins/superpowers-ddd-architect/references/` and `codex-plugins/superpowers-ddd-architect/references/` so the DDD plugin owns all bundled DDD language guides.
+**Trade-off:** The old explicit standards plugin no longer offers bundled database or DDD fallback files. Accepted because keeping copies created drift and made Python/TypeScript DDD guides depend on removed core/modeling references.
+**Affects:** `plugins/superpowers-architect/design-patterns/`, `codex-plugins/superpowers-architect/design-patterns/`, `plugins/superpowers-ddd-architect/references/`, `codex-plugins/superpowers-ddd-architect/references/`, architect runtime tests.
+→ [adr/ADR-023-ddd-references-leave-old-architect.md](adr/ADR-023-ddd-references-leave-old-architect.md)
+
+## ADR-022: DDD architect uses phase-specific skills
+**Decision:** Replace the DDD plugin's single `standards` skill with `design`, `implement`, and `review`. All three skills share plugin-root `references/`; default prompt-time budgets list `ddd-risk-router.md` plus the active phase playbook, while hooks map planning to design guidance, execution to implementation guardrails, and code-review to boundary review. The phase playbooks own detailed thinking frameworks and minimum output contracts: design owns Product semantics intake and Spec trace; implement owns Design input check, Model-to-code placement, and Implementation trace; review owns Evidence map, Expected model vs observed code, Finding triage, and severity calibration. The Risk Router owns the routing matrix for required references/evidence/exceptions. Deep references such as modeling/core/agent-contract/language/runtime/database are on-demand rule sources.
+**Trade-off:** The plugin exposes more skills and gives each phase a stronger output contract, but each entry point is simpler and more focused. Accepted because one broad standards entry left agents to infer whether they were designing, placing code, or auditing a diff, and earlier workflows risked becoming passive reference-reading checklists.
+**Affects:** `plugins/superpowers-ddd-architect/skills/`, `codex-plugins/superpowers-ddd-architect/skills/`, `plugins/superpowers-ddd-architect/references/`, `codex-plugins/superpowers-ddd-architect/references/`, DDD architect hooks and tests.
+→ [adr/ADR-022-ddd-phase-specific-skills.md](adr/ADR-022-ddd-phase-specific-skills.md)
+
+## ADR-021: Dedicated DDD architect plugin replaces automatic architect injection
+**Decision:** Add `superpowers-ddd-architect` on both Claude and Codex tracks as the active DDD/backend architecture guardrail plugin. It owns automatic DDD/backend workflow injection, uses `ddd-risk-router.md` plus phase playbooks as the default prompt-time budget, stores references under plugin-root `references/`, treats probe commands as repo-calibrated examples, and intentionally has no root `design-patterns/` directory. `superpowers-architect` becomes explicit-only general standards lookup with empty automatic hook configs.
+**Trade-off:** The plugin count grows and DDD references are duplicated into a new plugin track. Accepted because the old broad dynamic-loader identity was causing hot-path growth and made DDD/backend guidance compete with unrelated standards.
+**Affects:** `plugins/superpowers-ddd-architect/`, `codex-plugins/superpowers-ddd-architect/`, `plugins/superpowers-architect/`, `codex-plugins/superpowers-architect/`, marketplace entries, architecture guidance tests.
+→ [adr/ADR-021-ddd-architect-plugin-split.md](adr/ADR-021-ddd-architect-plugin-split.md)
 
 ## ADR-018: DDD Go events/messages split as standalone pattern file
 **Decision:** Add `ddd-golang-events-messages.md` as a sibling design-pattern file on both Claude and Codex tracks. It owns Go event/message guidance: Domain Event collection, same-BC Domain Event Handlers, Boundary Publishers, Integration Messages, message handler contracts, Kafka adapter wiring, module registration, idempotency, and event/message failure semantics. `ddd-golang.md`, `ddd-agent-contract.md`, runtime references, and plugin READMEs now route event/message work to this guide.

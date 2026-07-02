@@ -17,6 +17,12 @@
       "category": "Productivity"
     },
     {
+      "name": "superpowers-ddd-architect",
+      "source": { "source": "local", "path": "./codex-plugins/superpowers-ddd-architect" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
+    },
+    {
       "name": "designing-tests",
       "source": { "source": "local", "path": "./codex-plugins/designing-tests" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },

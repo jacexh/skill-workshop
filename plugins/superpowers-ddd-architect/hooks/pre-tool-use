@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+input=$(cat)
+skill_name=$(printf '%s' "$input" | node -e "
+let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
+  try{console.log(JSON.parse(d).tool_input?.skill||'')}
+  catch(e){console.log('')}
+})
+" 2>/dev/null || echo "")
+
+case "$skill_name" in
+    superpowers:brainstorming|\
+    superpowers:writing-plans|\
+    superpowers:executing-plans|\
+    superpowers:subagent-driven-development|\
+    superpowers:requesting-code-review|\
+    superpowers:receiving-code-review)
+        ;;
+    *)
+        printf '{}\n'
+        exit 0
+        ;;
+esac
+
+case "$skill_name" in
+    superpowers:brainstorming|superpowers:writing-plans)
+        skill_type="design"
+        ;;
+    superpowers:executing-plans|superpowers:subagent-driven-development)
+        skill_type="implement"
+        ;;
+    superpowers:requesting-code-review|superpowers:receiving-code-review)
+        skill_type="review"
+        ;;
+    *)
+        skill_type="design"
+        ;;
+esac
+
+context_json=$(SKILL_TYPE="$skill_type" CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}" node -e "
+const fs=require('fs'),path=require('path');
+const skillType=process.env.SKILL_TYPE||'design';
+const pluginRoot=process.env.CLAUDE_PLUGIN_ROOT||'plugins/superpowers-ddd-architect';
+const dir=path.join(pluginRoot,'references');
+const files={};
+const allowed=f=>f==='database.md'||f.startsWith('ddd-');
+const budgets={
+  design:new Set(['ddd-risk-router.md','ddd-design-playbook.md']),
+  implement:new Set(['ddd-risk-router.md','ddd-implement-playbook.md']),
+  review:new Set(['ddd-risk-router.md','ddd-review-playbook.md'])
+};
+const budget=budgets[skillType]||budgets.design;
+try{
+  fs.readdirSync(dir).filter(f=>f.endsWith('.md')&&allowed(f)&&budget.has(f)).sort().forEach(f=>{
+    files[f]=path.join(dir,f);
+  });
+}catch(e){}
+const sorted=Object.entries(files).sort((a,b)=>{
+  if(a[0]==='ddd-risk-router.md')return -1;
+  if(b[0]==='ddd-risk-router.md')return 1;
+  return a[0].localeCompare(b[0]);
+});
+if(!sorted.length)process.exit(0);
+const entries=[];
+for(const [fname,fpath] of sorted){
+  try{
+    const content=fs.readFileSync(fpath,'utf8');
+    let name=fname,description='';
+    if(content.startsWith('---')){
+      const end=content.indexOf('---',3);
+      if(end!==-1){
+        for(const line of content.slice(3,end).split('\n')){
+          if(line.startsWith('name:'))name=line.slice(5).trim();
+          else if(line.startsWith('description:'))description=line.slice(12).trim();
+        }
+      }
+    }
+    entries.push('- ['+name+']\n  '+description+'\n  Path: '+fpath);
+  }catch(e){}
+}
+if(!entries.length)process.exit(0);
+let title='DDD Design Guidance';
+let header='Reference budget: design. Only the risk router and design playbook are listed by default. Modeling/core/database/language references are on-demand when the playbook or a risk card raises a concrete decision.\nThe following DDD/backend design guardrails are available.\nYou MUST read ddd-design-playbook.md and ddd-risk-router.md when listed below, then read only the deeper references required by triggered risk cards or the Architecture Gate.\n\nProduct semantics intake comes before file placement, schema design, or layer decisions. Keep a Spec trace from product requirements to model decisions. Model commands, queries, Domain Events, Integration Messages, and state lifecycle before selecting bounded context, aggregate/policy/service boundaries, and layer ownership.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your design:\n- complete the Product semantics intake,\n- keep the Spec trace visible,\n- define bounded context / capability,\n- identify stable language and data authority,\n- classify technical capabilities,\n- assign layer ownership before implementation.';
+if(skillType==='implement'){
+  title='DDD Implementation Guardrails';
+  header='Reference budget: implement. Only the risk router and implement playbook are listed by default; load deeper support files only when a triggered risk card or touched code path requires them.\nThe following DDD/backend implementation guardrails are available.\nYou MUST read ddd-implement-playbook.md and ddd-risk-router.md when listed below, then read only the deeper references required by triggered risk cards or touched code paths.\n\nDesign input check comes before editing: confirm accepted model decisions exist. Use Model-to-code placement and keep an Implementation trace from model decisions to touched files and tests.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your implementation:\n- calibrate repository shape,\n- place code by layer,\n- preserve dependency direction,\n- map DTO/proto at boundaries,\n- keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.';
+}else if(skillType==='review'){
+  title='DDD Boundary Review';
+  header='Reference budget: review. Only the risk router and review playbook are listed by default; load deeper support files only when a triggered risk card or finding names them.\nThe following DDD/backend boundary review guardrails are available.\nYou MUST read ddd-review-playbook.md and ddd-risk-router.md when listed below, then read only the deeper references required by triggered risk cards or review scope.\n\nUse an Evidence-to-judgment review: compare Expected model vs observed code, then run Finding triage as violation, allowed exception, harmless local style, or evidence gap.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your review:\n- find evidence before conclusions,\n- cite file/line and relevant DDD/backend pattern for each finding,\n- distinguish violation, allowed exception, and harmless local style,\n- do not approve code that violates applicable DDD/backend boundaries.';
+}
+const full='====== '+title+' ======\n'+header+'\n\n'+entries.join('\n\n')+'\n\nFor non-backend work, state that this plugin is not relevant and continue without loading unrelated standards.\n'+'='.repeat(40);
+console.log(JSON.stringify(full));
+" 2>/dev/null || true)
+
+if [ -z "$context_json" ]; then
+    printf '{}\n'
+    exit 0
+fi
+
+pattern_names=$(printf '%s' "$context_json" | node -e "
+let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{
+  const s=JSON.parse(d);
+  const names=(s.match(/^- \[(.+?)\]/gm)||[]).map(m=>m.replace(/^- \[|\]$/g,''));
+  console.log(names.join(', '));
+})
+" 2>/dev/null || echo "")
+
+if [ -n "$pattern_names" ]; then
+    sys_msg=$(node -e "console.log(JSON.stringify('DDD Architect: loaded backend guardrails — ' + process.argv[1]))" "$pattern_names" 2>/dev/null || echo '""')
+else
+    sys_msg='""'
+fi
+
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "PreToolUse",\n    "additionalContext": %s\n  },\n  "systemMessage": %s\n}\n' "$context_json" "$sys_msg"
+else
+    printf '{\n  "additional_context": %s,\n  "systemMessage": %s\n}\n' "$context_json" "$sys_msg"
+fi
