@@ -9,7 +9,7 @@ trap 'rm -rf "$TMP"' EXIT
 export CODEX_HOME="$TMP/codex"
 INSTALL_ROOT="$TMP/cache/skill-workshop-codex"
 mkdir -p "$CODEX_HOME"
-for plugin in designing-tests superpowers-architect superpowers-memory; do
+for plugin in designing-tests superpowers-architect superpowers-ddd-architect superpowers-memory; do
   mkdir -p "$INSTALL_ROOT/$plugin"
   cp -R "$ROOT/codex-plugins/$plugin" "$INSTALL_ROOT/$plugin/1.12.4"
 done
@@ -95,11 +95,13 @@ JSON
 
 node "$INSTALL_ROOT/designing-tests/1.12.4/scripts/install-codex-hooks.js" >/dev/null
 node "$INSTALL_ROOT/superpowers-architect/1.12.4/scripts/install-codex-hooks.js" >/dev/null
+node "$INSTALL_ROOT/superpowers-ddd-architect/1.12.4/scripts/install-codex-hooks.js" >/dev/null
 node "$INSTALL_ROOT/superpowers-memory/1.12.4/scripts/install-codex-hooks.js" >/dev/null
 
 before="$(cat "$CODEX_HOME/hooks.json")"
 node "$INSTALL_ROOT/designing-tests/1.12.4/scripts/install-codex-hooks.js" >/dev/null
 node "$INSTALL_ROOT/superpowers-architect/1.12.4/scripts/install-codex-hooks.js" >/dev/null
+node "$INSTALL_ROOT/superpowers-ddd-architect/1.12.4/scripts/install-codex-hooks.js" >/dev/null
 node "$INSTALL_ROOT/superpowers-memory/1.12.4/scripts/install-codex-hooks.js" >/dev/null
 after="$(cat "$CODEX_HOME/hooks.json")"
 [ "$before" = "$after" ] || { echo "FAIL setup installers are not idempotent"; exit 1; }
@@ -139,8 +141,8 @@ for (const entries of Object.values(cfg.hooks)) {
 
 const expected = [
   `node "${installRoot}/designing-tests/1.12.4/hooks/codex-runtime.js" user-prompt-submit`,
-  `node "${installRoot}/superpowers-architect/1.12.4/hooks/codex-runtime.js" session-start`,
-  `node "${installRoot}/superpowers-architect/1.12.4/hooks/codex-runtime.js" user-prompt-submit`,
+  `node "${installRoot}/superpowers-ddd-architect/1.12.4/hooks/codex-runtime.js" session-start`,
+  `node "${installRoot}/superpowers-ddd-architect/1.12.4/hooks/codex-runtime.js" user-prompt-submit`,
   `node "${installRoot}/superpowers-memory/1.12.4/hooks/codex-runtime.js" session-start`,
   `node "${installRoot}/superpowers-memory/1.12.4/hooks/codex-runtime.js" user-prompt-submit`,
   `node "${installRoot}/superpowers-memory/1.12.4/hooks/codex-runtime.js" pre-tool-use`,
@@ -153,15 +155,22 @@ for (const command of expected) {
   }
 }
 if (commands.some((command) =>
-  command.includes("/superpowers-architect/1.12.4/hooks/codex-runtime.js") &&
+  command.includes("/superpowers-ddd-architect/1.12.4/hooks/codex-runtime.js") &&
   command.endsWith(" stop")
 )) {
-  fail("superpowers-architect stop command should not be installed");
+  fail("superpowers-ddd-architect stop command should not be installed");
+}
+if (commands.some((command) => command.includes("/superpowers-architect/1.12.4/hooks/codex-runtime.js"))) {
+  fail("explicit-only superpowers-architect command should not be installed");
 }
 
-for (const plugin of ["designing-tests", "superpowers-architect", "superpowers-memory"]) {
+for (const plugin of ["designing-tests", "superpowers-architect", "superpowers-ddd-architect", "superpowers-memory"]) {
   const matches = commands.filter((command) => command.includes(`/${plugin}/1.12.4/hooks/codex-runtime.js`));
-  const want = plugin === "superpowers-memory" ? 3 : plugin === "designing-tests" ? 1 : 2;
+  const want =
+    plugin === "superpowers-memory" ? 3 :
+    plugin === "designing-tests" ? 1 :
+    plugin === "superpowers-ddd-architect" ? 2 :
+    0;
   if (matches.length !== want) {
     fail(`${plugin} command count ${matches.length}, want ${want}`);
   }
@@ -170,12 +179,13 @@ for (const plugin of ["designing-tests", "superpowers-architect", "superpowers-m
 console.log("  codex hook setup: strict JSON migration correct");
 NODE
 
-for plugin in designing-tests superpowers-architect superpowers-memory; do
+for plugin in designing-tests superpowers-architect superpowers-ddd-architect superpowers-memory; do
   printf '{broken native hook source\n' > "$INSTALL_ROOT/$plugin/1.12.4/hooks/hooks.json"
 done
 
 node "$INSTALL_ROOT/designing-tests/1.12.4/scripts/install-codex-hooks.js" remove >/dev/null
 node "$INSTALL_ROOT/superpowers-architect/1.12.4/scripts/install-codex-hooks.js" remove >/dev/null
+node "$INSTALL_ROOT/superpowers-ddd-architect/1.12.4/scripts/install-codex-hooks.js" remove >/dev/null
 node "$INSTALL_ROOT/superpowers-memory/1.12.4/scripts/install-codex-hooks.js" remove >/dev/null
 
 INSTALL_ROOT="$INSTALL_ROOT" node <<'NODE'

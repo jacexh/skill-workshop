@@ -1,26 +1,28 @@
 ---
 name: standards
-description: Use before designing, implementing, refactoring, or reviewing architecture, REST APIs, database schemas, backend services, DDD/Clean Architecture code, frontend React/Next.js code, or browser QA flows. Loads applicable design pattern standards and requires stating applicable, non-applicable, and conflicting patterns.
+description: Use when explicitly requested for general architecture standards, REST APIs, database schemas outside DDD/backend guardrails, frontend React/Next.js structure, or browser QA flows. For DDD/backend architecture work, use superpowers-ddd-architect:standards instead.
 ---
 
 # Apply Project Architecture Standards
 
-Use this skill whenever the task may touch architecture, APIs, databases, backend boundaries, DDD/Clean Architecture, frontend structure, UI implementation patterns, browser QA, refactoring, implementation planning, execution, or code review.
+Use this explicit-only legacy skill when the user asks for general architecture standards, REST/API conventions, database standards outside DDD/backend guardrail work, frontend structure, UI implementation patterns, browser QA, refactoring, implementation planning, execution, or code review.
+
+For DDD/backend architecture work, prefer `$superpowers-ddd-architect:standards`. This legacy skill may still expose historical DDD pattern files for compatibility, but it is not the DDD hot path.
 
 ## Workflow
 
-1. Identify the task area: API, database, backend domain model, language-specific DDD, frontend, browser QA, refactor, or code review.
-2. Use the injected Project Architecture Standards index if it is present. If it is not present, inspect these directories from highest to lowest priority:
+1. Identify the task area: API, database, frontend, browser QA, general architecture, refactor, or code review.
+2. If the task is DDD/backend architecture, Go backend layering, bounded contexts, ports, Domain Events, Integration Messages, taskqueue/runtime boundaries, or database-backed backend persistence, stop using this skill and use `$superpowers-ddd-architect:standards` unless the user explicitly asks for the legacy general architect standards.
+3. Use the injected Project Architecture Standards index if it is present. If it is not present, inspect these directories from highest to lowest priority:
    - `<repo>/docs/design-patterns/`
    - `<repo>/design-patterns/`
    - `$SPA_GLOBAL`
    - `$SP_ARCHITECT_DIR`
    - `~/.claude/superpowers-architect/design-patterns/`
    - `<plugin-root>/design-patterns/`
-3. Read the full content of every relevant pattern before planning, editing, or reviewing. The active pattern set is dynamic; do not assume a bundled pattern such as `ddd-modeling.md`, `ddd-core.md`, or `ddd-golang.md` exists unless it appears in the injected index or discovered directories.
-4. If `ddd-modeling.md` is present and the task is backend, DDD, service-boundary, technical-capability, Go backend, or refactor work, read it first and follow its own gate/checklist/workflow before reading tactical DDD or language-specific patterns.
-5. If `ddd-modeling.md` is absent but other DDD or layered-architecture patterns are present, do not require a missing modeling file. Read the actual applicable patterns and follow their declared prerequisites, gates, and checklists.
-6. If the applicable patterns define technical-capability, layer-ownership, API, database, frontend, browser QA, or other domain-specific gates, apply those gates exactly as written. Do not invent DDD-specific requirements for a project that did not provide DDD standards.
+4. Read the full content of every relevant non-DDD/general pattern before planning, editing, or reviewing. The active pattern set is dynamic; do not assume a bundled pattern exists unless it appears in the injected index or discovered directories.
+5. If a DDD pattern appears in this legacy pattern set and the user explicitly asked to use it, state that `superpowers-ddd-architect` is the canonical DDD/backend path before applying the legacy pattern.
+6. If the applicable patterns define API, database, frontend, browser QA, or other domain-specific gates, apply those gates exactly as written. Do not invent DDD-specific requirements for a project that did not provide DDD standards.
 7. State which patterns apply and the constraints that affect the work.
 8. State which listed patterns do not apply when that helps avoid ambiguity.
 9. If the user request conflicts with a pattern, call out the conflict explicitly and choose the smallest compliant approach unless the user overrides it.

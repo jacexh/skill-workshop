@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-06-25
+last_updated: 2026-07-02
 updated_by: superpowers-memory:ingest
-triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
+triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 ---
 
 # Decisions
@@ -14,7 +14,7 @@ Root decision router. Load this file first, then open the smallest matching deci
   Key ADRs: ADR-019, ADR-016, ADR-012, ADR-011, ADR-010, ADR-009, ADR-008, ADR-007, ADR-005, ADR-004, ADR-003.
 
 - [decisions-architect.md](decisions-architect.md) — Architect standards injection and DDD guidance split decisions.
-  Key ADRs: ADR-018, ADR-017, ADR-015, ADR-006.
+  Key ADRs: ADR-021, ADR-018, ADR-017, ADR-015, ADR-006.
 
 - [decisions-codex.md](decisions-codex.md) — Codex marketplace compatibility, native hooks, and install/upgrade behavior.
   Key ADRs: ADR-014, ADR-013.

@@ -1,45 +1,50 @@
 # superpowers-architect
 
-Automatically injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows — so every plan and implementation stays consistent with team-defined standards.
+Explicit-only general architecture standards lookup for Claude Code.
 
-## How It Works
+This plugin no longer injects design-pattern context automatically into planning, execution, or code review workflows. Use it when you explicitly want to load general project/team standards.
 
-When you invoke any of the following skills, the plugin scans your pattern files and injects a compact index as context. Claude then reads only the relevant patterns in full before proceeding.
+DDD/backend architecture guardrails have moved to `superpowers-ddd-architect`.
 
-**Triggered on:**
-- `superpowers:brainstorming`
-- `superpowers:writing-plans`
-- `superpowers:executing-plans`
-- `superpowers:subagent-driven-development`
-- `superpowers:requesting-code-review`
-- `superpowers:receiving-code-review`
+## Usage
 
-This is **progressive loading**: the hook only injects names + descriptions, not full content. Claude decides which patterns are relevant and loads them on demand via the `Read` tool.
+Invoke the skill explicitly:
 
-You can also invoke `$superpowers-architect:standards` explicitly when you want to apply the same standards workflow outside the automatic trigger path.
+```text
+$superpowers-architect:standards
+```
+
+The skill discovers applicable general standards from the configured pattern locations and asks Claude to read the relevant files before planning, editing, or reviewing.
+
+## What Belongs Here
+
+- General architecture standards used on demand.
+- REST/API conventions.
+- Frontend architecture patterns.
+- Database standards when used outside DDD/backend guardrail work.
+- Project-specific generic standards under `docs/design-patterns/`.
+
+For DDD, Go backend layering, bounded contexts, ports, Domain Events, Integration Messages, taskqueue/runtime boundaries, and database-backed backend persistence, use `superpowers-ddd-architect`.
 
 ## Setup
 
-The plugin works out of the box — its bundled patterns load automatically when installed.
+The explicit skill works out of the box with bundled standards.
 
-### (Optional) Add project-specific patterns
+### Optional Project-Specific Patterns
 
-Place `.md` files in `docs/design-patterns/` at your project root. Files with the same name as a bundled pattern will override it for that project.
+Place `.md` files in `docs/design-patterns/` at your project root. Files with the same name as a bundled pattern override it for that project.
 
-### (Optional) Set a global patterns directory
+### Optional Global Patterns
 
 ```bash
-# ~/.zshrc or ~/.bashrc
 export SPA_GLOBAL="$HOME/my-team-standards/design-patterns"
 ```
 
-### (Optional) Disable bundled patterns
+### Optional Disable Bundled Patterns
 
 ```bash
 export SPA_DEFAULTS=false
 ```
-
-When disabled, only `SPA_GLOBAL` and project-level patterns are loaded.
 
 ## Pattern File Format
 
@@ -56,33 +61,10 @@ Your design constraints here, written in plain language for Claude to read.
 
 ## Priority Order
 
+```text
+<project>/docs/design-patterns/    # highest priority
+$SPA_GLOBAL
+<plugin>/design-patterns/          # bundled defaults
 ```
-<project>/docs/design-patterns/    ← highest priority (project-specific)
-$SPA_GLOBAL                        ← user global (skipped if not set)
-<plugin>/design-patterns/           ← plugin defaults (disable with SPA_DEFAULTS=false)
-```
 
-Files with the same name in a higher layer override the lower layer.
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SPA_DEFAULTS` | *(enabled)* | Set to `false` to disable bundled patterns |
-| `SPA_GLOBAL` | *(unset)* | Path to a global patterns directory |
-
-## Bundled Patterns
-
-See the `design-patterns/` directory:
-- `database.md` — schema conventions, index strategy, migrations
-- `rest-api.md` — URL naming, status codes, pagination, error format
-- `ddd-agent-contract.md` — agent execution contract for DDD, Go runtime, and taskqueue work
-- `ddd-modeling.md` — strategic bounded-context, aggregate, and architecture gate guidance
-- `ddd-core.md` — dependency direction, bounded contexts, and service layer boundaries
-- `ddd-golang.md` — Go-specific implementation guidance for the DDD core standard
-- `ddd-golang-events-messages.md` — Go event/message guidance for Domain Events, Boundary Publishers, Integration Messages, and Kafka adapter wiring
-- `ddd-golang-runtime.md` — Go runtime guidance for config, fx lifecycle, graceful shutdown, and Kubernetes
-- `ddd-golang-taskqueue.md` — Go taskqueue guidance for polling jobs, TaskType/schema registry, processors, asynq wiring, and middleware
-- `ddd-python.md` — Python-specific implementation guidance for the DDD core standard
-- `ddd-typescript.md` — TypeScript-specific implementation guidance for the DDD core standard
-- `frontend-patterns.md` — frontend development patterns for React, Next.js, and UI architecture
+Files with the same name in a higher layer override lower layers.

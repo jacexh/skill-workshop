@@ -19,6 +19,7 @@ Skill Workshop is a curated collection of plugins that enhance agentic software 
 ```bash
 /plugin install superpowers-memory@skill-workshop
 /plugin install superpowers-architect@skill-workshop
+/plugin install superpowers-ddd-architect@skill-workshop
 /plugin install designing-tests@skill-workshop
 ```
 
@@ -54,11 +55,19 @@ Project Knowledge Base query, ingest, lint, and write-lock support for superpowe
 
 ### superpowers-architect
 
-Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows. Bundled patterns load automatically on install; customize via three-layer override (`SPA_DEFAULTS`, `SPA_GLOBAL`, project `docs/design-patterns/`).
+Explicit-only general architecture standards lookup. Use `$superpowers-architect:standards` when you want general project/team standards on demand.
 
 - **License:** MIT
 - **Claude details:** [plugins/superpowers-architect/README.md](plugins/superpowers-architect/README.md)
 - **Codex details:** [codex-plugins/superpowers-architect/README.md](codex-plugins/superpowers-architect/README.md)
+
+### superpowers-ddd-architect
+
+DDD-first backend architecture guardrails for code agents. Uses a compact DDD Risk Router before deeper references for bounded contexts, ports, events/messages, runtime/taskqueue boundaries, and database-backed persistence.
+
+- **License:** MIT
+- **Claude details:** [plugins/superpowers-ddd-architect/README.md](plugins/superpowers-ddd-architect/README.md)
+- **Codex details:** [codex-plugins/superpowers-ddd-architect/README.md](codex-plugins/superpowers-ddd-architect/README.md)
 
 ### designing-tests
 
@@ -81,11 +90,13 @@ Risk-driven test design guidance for architecture-aware coverage, integration qu
 │       └── marketplace.json      # Codex marketplace catalog
 ├── plugins/
 │   ├── superpowers-memory/       # Claude track: project knowledge persistence
-│   ├── superpowers-architect/    # Architectural design patterns
+│   ├── superpowers-architect/    # Explicit general standards lookup
+│   ├── superpowers-ddd-architect/ # DDD/backend architecture guardrails
 │   └── designing-tests/          # Test design guidance
 ├── codex-plugins/
 │   ├── superpowers-memory/       # Codex track: project knowledge persistence
-│   ├── superpowers-architect/    # Codex track: architectural design patterns
+│   ├── superpowers-architect/    # Codex track: explicit general standards lookup
+│   ├── superpowers-ddd-architect/ # Codex track: DDD/backend architecture guardrails
 │   └── designing-tests/          # Codex track: test design guidance
 ├── docs/
 │   └── superpowers/
@@ -139,7 +150,7 @@ codex-plugins/<plugin-name>/
 
 ## Codex Marketplace (Experimental)
 
-This repository also publishes Codex-compatible variants of the three plugins under `codex-plugins/`. The Codex marketplace catalog lives at `.agents/plugins/marketplace.json` (object-form `source` + `policy` + `category`, distinct from Claude's `.claude-plugin/marketplace.json` schema).
+This repository also publishes Codex-compatible variants of the plugins under `codex-plugins/`. The Codex marketplace catalog lives at `.agents/plugins/marketplace.json` (object-form `source` + `policy` + `category`, distinct from Claude's `.claude-plugin/marketplace.json` schema).
 
 ```bash
 codex plugin marketplace add jacexh/skill-workshop
@@ -158,10 +169,11 @@ Install the Codex plugins you need:
 ```bash
 codex plugin install superpowers-memory
 codex plugin install superpowers-architect
+codex plugin install superpowers-ddd-architect
 codex plugin install designing-tests
 ```
 
-Restart Codex. Current Codex versions load plugin lifecycle hooks from each plugin's `.codex-plugin/plugin.json` and `hooks/hooks.json`; users do not run setup skills after install or upgrade. If hooks do not appear after restart, open `/hooks` to review and trust plugin hooks, confirm both feature flags are enabled, and upgrade Codex if needed.
+Restart Codex. Current Codex versions load plugin lifecycle hooks from each plugin's `.codex-plugin/plugin.json` and `hooks/hooks.json`; users do not run setup skills after install or upgrade. If you previously used setup-era fallback hooks, remove stale entries from `~/.codex/hooks.json` using the relevant plugin README. If hooks do not appear after restart, open `/hooks` to review and trust plugin hooks, confirm both feature flags are enabled, and upgrade Codex if needed.
 
 Upgrade the Codex marketplace with:
 

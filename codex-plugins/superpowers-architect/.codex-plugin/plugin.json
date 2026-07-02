@@ -1,7 +1,7 @@
 {
   "name": "superpowers-architect",
   "version": "1.13.9",
-  "description": "Injects architectural design pattern standards as hard constraints into planning, execution, and code review workflows (Codex port)",
+  "description": "Explicit-only general architecture standards lookup (Codex port)",
   "author": {
     "name": "xuhao"
   },
@@ -14,7 +14,7 @@
   ],
   "interface": {
     "displayName": "Superpowers Architect",
-    "shortDescription": "Design pattern standards for Codex",
+    "shortDescription": "Explicit general standards lookup",
     "category": "Productivity",
     "capabilities": [
       "Read"

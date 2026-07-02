@@ -105,11 +105,13 @@ Risk cards use this shape:
 ```text
 Risk: <high-risk failure mode>
 Smell: <code shape or task phrase that should trigger review>
-Scan: <rg/go list/static search shape, when useful>
+Probe examples: <repo-shape-dependent search examples, when useful>
 Decision: <default DDD placement or boundary rule>
 Allowed exception: <written evidence required>
 Reference: <deep pattern section>
 ```
+
+Probe examples are calibration aids, not fixed audit commands. Agents must first identify the repository's bounded-context roots, layer names, generated-code locations, RPC/runtime wiring, and local architecture docs/tests, then adapt the examples before treating any hit as evidence.
 
 Initial cards:
 
@@ -126,20 +128,28 @@ Initial cards:
 
 `superpowers-architect` no longer participates in automatic workflow injection. It only runs when the user explicitly invokes its standards skill. This prevents duplicated context and makes its remaining purpose clear: general standards lookup on demand.
 
-## Pattern Ownership
+## Reference Ownership
 
-Move or copy these patterns into the new plugin as its primary set:
+Move or copy these references into the new plugin skill as its primary set:
 
-- `ddd-agent-contract.md`
-- `ddd-modeling.md`
-- `ddd-core.md`
-- `ddd-golang.md`
-- `ddd-golang-events-messages.md`
-- `ddd-golang-runtime.md`
-- `ddd-golang-taskqueue.md`
-- `database.md`
+```text
+skills/standards/
+  SKILL.md
+  references/
+    ddd-risk-router.md
+    ddd-agent-contract.md
+    ddd-modeling.md
+    ddd-core.md
+    ddd-golang.md
+    ddd-golang-events-messages.md
+    ddd-golang-runtime.md
+    ddd-golang-taskqueue.md
+    database.md
+```
 
-The new plugin may keep database as a support pattern, but the DDD Risk Router stays first. Database standards should load only for schema/query/migration/persistence design or when a DDD persistence question needs them.
+The new plugin should not use a root `design-patterns/` directory. That directory belongs to the old generic standards-loader model. The DDD plugin is skill-native: `standards/SKILL.md` points to explicit references, with `ddd-risk-router.md` as the first read.
+
+The new plugin may keep database as a support reference, but the DDD Risk Router stays first. Database standards should load only for schema/query/migration/persistence design or when a DDD persistence question needs them.
 
 `superpowers-architect` may keep copies temporarily for compatibility, but they are no longer the active DDD source. Its README should mark DDD/backend material as moved.
 
@@ -181,14 +191,14 @@ Requirements:
 
 - The new plugin's default hot path is the DDD Risk Router, not the full DDD reference set.
 - `superpowers-architect` automatic dynamic injection is removed, so one workflow should not receive both old and new architecture injections.
-- DDD reference files can move/copy initially, but implementation must track duplication and identify a future cleanup point.
+- DDD reference files live under `skills/standards/references/`, not a root dynamic `design-patterns/` directory.
 - New DDD guidance must replace or compress existing DDD prose; it must not create a second full explanation beside the old one.
 - Database stays support-level and must not become a second default router.
 
 ## Migration Plan
 
 1. Add `superpowers-ddd-architect` to both plugin tracks.
-2. Seed it with DDD/backend patterns and a DDD Risk Router.
+2. Seed `skills/standards/references/` with DDD/backend references and a DDD Risk Router.
 3. Add an explicit DDD standards skill for the new plugin.
 4. Wire hooks so the new plugin owns DDD/backend workflow guidance.
 5. Change `superpowers-architect` to explicit-only by removing automatic workflow injection.

@@ -1,10 +1,16 @@
 ---
-last_updated: 2026-06-25
+last_updated: 2026-07-02
 updated_by: superpowers-memory:ingest
-triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
+triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 ---
 
 # Decisions — Architect
+
+## ADR-021: Dedicated DDD architect plugin replaces automatic architect injection
+**Decision:** Add `superpowers-ddd-architect` on both Claude and Codex tracks as the active DDD/backend architecture guardrail plugin. It owns automatic DDD/backend workflow injection, reads `ddd-risk-router.md` first, stores references under `plugins/superpowers-ddd-architect/skills/standards/references/` and `codex-plugins/superpowers-ddd-architect/skills/standards/references/`, treats probe commands as repo-calibrated examples, and intentionally has no root `design-patterns/` directory. `superpowers-architect` becomes explicit-only general standards lookup with empty automatic hook configs.
+**Trade-off:** The plugin count grows and DDD references are duplicated into a new plugin track. Accepted because the old broad dynamic-loader identity was causing hot-path growth and made DDD/backend guidance compete with unrelated standards.
+**Affects:** `plugins/superpowers-ddd-architect/`, `codex-plugins/superpowers-ddd-architect/`, `plugins/superpowers-architect/`, `codex-plugins/superpowers-architect/`, marketplace entries, architecture guidance tests.
+→ [adr/ADR-021-ddd-architect-plugin-split.md](adr/ADR-021-ddd-architect-plugin-split.md)
 
 ## ADR-018: DDD Go events/messages split as standalone pattern file
 **Decision:** Add `ddd-golang-events-messages.md` as a sibling design-pattern file on both Claude and Codex tracks. It owns Go event/message guidance: Domain Event collection, same-BC Domain Event Handlers, Boundary Publishers, Integration Messages, message handler contracts, Kafka adapter wiring, module registration, idempotency, and event/message failure semantics. `ddd-golang.md`, `ddd-agent-contract.md`, runtime references, and plugin READMEs now route event/message work to this guide.
