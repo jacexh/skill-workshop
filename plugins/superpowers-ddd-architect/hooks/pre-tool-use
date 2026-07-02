@@ -45,8 +45,14 @@ const pluginRoot=process.env.CLAUDE_PLUGIN_ROOT||'plugins/superpowers-ddd-archit
 const dir=path.join(pluginRoot,'references');
 const files={};
 const allowed=f=>f==='database.md'||f.startsWith('ddd-');
+const budgets={
+  design:new Set(['ddd-risk-router.md','ddd-modeling.md','ddd-core.md','database.md']),
+  implement:new Set(['ddd-risk-router.md','ddd-agent-contract.md','ddd-core.md','ddd-golang.md']),
+  review:new Set(['ddd-risk-router.md','ddd-agent-contract.md','ddd-core.md','ddd-golang.md'])
+};
+const budget=budgets[skillType]||budgets.design;
 try{
-  fs.readdirSync(dir).filter(f=>f.endsWith('.md')&&allowed(f)).sort().forEach(f=>{
+  fs.readdirSync(dir).filter(f=>f.endsWith('.md')&&allowed(f)&&budget.has(f)).sort().forEach(f=>{
     files[f]=path.join(dir,f);
   });
 }catch(e){}
@@ -75,13 +81,13 @@ for(const [fname,fpath] of sorted){
 }
 if(!entries.length)process.exit(0);
 let title='DDD Design Guidance';
-let header='The following DDD/backend design guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or the Architecture Gate.\n\nIn your design:\n- define bounded context / capability,\n- identify stable language and data authority,\n- classify technical capabilities,\n- assign layer ownership before implementation.';
+let header='Reference budget: design. Only the risk router, modeling guide, core rules, and database support reference are listed by default.\nThe following DDD/backend design guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or the Architecture Gate.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your design:\n- define bounded context / capability,\n- identify stable language and data authority,\n- classify technical capabilities,\n- assign layer ownership before implementation.';
 if(skillType==='implement'){
   title='DDD Implementation Guardrails';
-  header='The following DDD/backend implementation guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or touched code paths.\n\nIn your implementation:\n- calibrate repository shape,\n- place code by layer,\n- preserve dependency direction,\n- map DTO/proto at boundaries,\n- keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.';
+  header='Reference budget: implement. Only the risk router, agent contract, core rules, and primary Go guide are listed by default; load deeper support files only when a triggered risk card or touched code path requires them.\nThe following DDD/backend implementation guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or touched code paths.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your implementation:\n- calibrate repository shape,\n- place code by layer,\n- preserve dependency direction,\n- map DTO/proto at boundaries,\n- keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.';
 }else if(skillType==='review'){
   title='DDD Boundary Review';
-  header='The following DDD/backend boundary review guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or review scope.\n\nIn your review:\n- find evidence before conclusions,\n- cite file/line and relevant DDD/backend pattern for each finding,\n- distinguish violation, allowed exception, and harmless local style,\n- do not approve code that violates applicable DDD/backend boundaries.';
+  header='Reference budget: review. Only the risk router, agent contract, core rules, and primary Go guide are listed by default; load deeper support files only when a triggered risk card names them.\nThe following DDD/backend boundary review guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or review scope.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your review:\n- find evidence before conclusions,\n- cite file/line and relevant DDD/backend pattern for each finding,\n- distinguish violation, allowed exception, and harmless local style,\n- do not approve code that violates applicable DDD/backend boundaries.';
 }
 const full='====== '+title+' ======\n'+header+'\n\n'+entries.join('\n\n')+'\n\nFor non-backend work, state that this plugin is not relevant and continue without loading unrelated standards.\n'+'='.repeat(40);
 console.log(JSON.stringify(full));

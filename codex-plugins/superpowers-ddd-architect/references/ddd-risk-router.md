@@ -23,6 +23,20 @@ Rewrite probe examples to match that local shape. A probe hit is a review signal
 
 Choose the active language reference after the risk card is selected: `ddd-golang.md` for Go, `ddd-python.md` for Python, and `ddd-typescript.md` for TypeScript. Use `ddd-golang-events-messages.md`, `ddd-golang-taskqueue.md`, and `ddd-golang-runtime.md` only for Go-specific event/message, taskqueue, or runtime work.
 
+Before using or reporting any probe result, write a short calibration block:
+
+```text
+Repo calibration:
+- Bounded-context roots:
+- Layer names:
+- Generated-code paths:
+- Runtime/module style:
+- Architecture tests/docs:
+- Probe rewrites:
+```
+
+Never paste a probe example unchanged unless the calibrated repository shape matches it exactly. Probe output is evidence only after it is tied to a specific card decision.
+
 ## Cards
 
 ### Cross-Context Direct Imports

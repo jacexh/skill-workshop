@@ -54,12 +54,17 @@ design_context="$(
 )"
 
 grep -q "DDD Design Guidance" <<<"$design_context" || fail "writing-plans prompt did not trigger design context"
+grep -q "Reference budget: design" <<<"$design_context" || fail "design context should declare design reference budget"
+grep -q "Repo calibration" <<<"$design_context" || fail "design context should require repo calibration before probes"
 grep -q "bounded context" <<<"$design_context" || fail "design context should emphasize modeling boundaries"
 grep -q "ddd-risk-router.md" <<<"$design_context" || fail "risk router missing from design context"
 grep -q "DDD Risk Router" <<<"$design_context" || fail "risk router title missing from design context"
 grep -q "database.md" <<<"$design_context" || fail "database support reference missing"
-grep -q "ddd-python.md" <<<"$design_context" || fail "python DDD reference missing"
-grep -q "ddd-typescript.md" <<<"$design_context" || fail "typescript DDD reference missing"
+grep -q "ddd-modeling.md" <<<"$design_context" || fail "modeling reference missing from design context"
+grep -q "ddd-core.md" <<<"$design_context" || fail "core reference missing from design context"
+! grep -q "references/ddd-agent-contract.md" <<<"$design_context" || fail "design context should not include implementation agent contract by default"
+! grep -q "references/ddd-golang-runtime.md" <<<"$design_context" || fail "design context should not include Go runtime guide by default"
+! grep -q "references/ddd-golang-taskqueue.md" <<<"$design_context" || fail "design context should not include Go taskqueue guide by default"
 ! grep -q "REST API Design Standards" <<<"$design_context" || fail "DDD plugin should not include REST pattern"
 ! grep -q "frontend" <<<"$design_context" || fail "DDD plugin should not include frontend patterns"
 
@@ -69,7 +74,13 @@ implement_context="$(
     extract_context
 )"
 grep -q "DDD Implementation Guardrails" <<<"$implement_context" || fail "executing-plans prompt did not trigger implement context"
+grep -q "Reference budget: implement" <<<"$implement_context" || fail "implement context should declare implement reference budget"
+grep -q "Repo calibration" <<<"$implement_context" || fail "implement context should require repo calibration before probes"
 grep -q "Place code by layer" <<<"$implement_context" || fail "implement context should emphasize code placement"
+grep -q "ddd-agent-contract.md" <<<"$implement_context" || fail "implement context should include agent contract"
+grep -q "ddd-golang.md" <<<"$implement_context" || fail "implement context should include primary Go implementation guide"
+! grep -q "references/ddd-golang-runtime.md" <<<"$implement_context" || fail "implement context should not include Go runtime guide by default"
+! grep -q "references/ddd-golang-taskqueue.md" <<<"$implement_context" || fail "implement context should not include Go taskqueue guide by default"
 
 review_context="$(
   printf '{"prompt":"Please use $superpowers:requesting-code-review for this DDD aggregate change"}' |
@@ -77,7 +88,11 @@ review_context="$(
     extract_context
 )"
 grep -q "DDD Boundary Review" <<<"$review_context" || fail "code-review prompt did not trigger review context"
+grep -q "Reference budget: review" <<<"$review_context" || fail "review context should declare review reference budget"
+grep -q "Repo calibration" <<<"$review_context" || fail "review context should require repo calibration before probes"
 grep -q "Find evidence before conclusions" <<<"$review_context" || fail "review context should emphasize evidence"
+grep -q "ddd-agent-contract.md" <<<"$review_context" || fail "review context should include agent contract"
+! grep -q "references/database.md" <<<"$review_context" || fail "review context should not include database guide by default"
 
 natural_language_ddd="$(
   printf '{"prompt":"Please design the order aggregate following DDD"}' |
@@ -112,6 +127,9 @@ grep -q '../../references/ddd-risk-router.md' "$CODEX_DESIGN_SKILL" || fail "cod
 grep -q '../../references/ddd-risk-router.md' "$CODEX_IMPLEMENT_SKILL" || fail "codex implement skill should reference risk router"
 grep -q '../../references/ddd-risk-router.md' "$CODEX_REVIEW_SKILL" || fail "codex review skill should reference risk router"
 grep -q 'Do not scan generic `design-patterns/`' "$CODEX_DESIGN_SKILL" || fail "codex design skill should reject dynamic design-patterns scanning"
+grep -q 'Repo calibration' "$CODEX_DESIGN_SKILL" || fail "codex design skill should include repo calibration output"
+grep -q 'Repo calibration' "$CODEX_IMPLEMENT_SKILL" || fail "codex implement skill should include repo calibration output"
+grep -q 'Repo calibration' "$CODEX_REVIEW_SKILL" || fail "codex review skill should include repo calibration output"
 [ -d "$CODEX_DDD_ROOT/references" ] || fail "codex DDD shared references should live at plugin root"
 [ -d "$CLAUDE_DDD_ROOT/references" ] || fail "claude DDD shared references should live at plugin root"
 [ -f "$CODEX_DDD_ROOT/references/ddd-python.md" ] || fail "codex python DDD reference missing"
@@ -128,5 +146,7 @@ claude_hook_output="$(
 )"
 grep -q "DDD Design Guidance" <<<"$claude_hook_output" || fail "claude DDD hook should inject design context"
 grep -q "ddd-risk-router.md" <<<"$claude_hook_output" || fail "claude DDD hook should include risk router"
+grep -q "Reference budget: design" <<<"$claude_hook_output" || fail "claude DDD hook should declare design budget"
+! grep -q "ddd-golang-runtime.md" <<<"$claude_hook_output" || fail "claude design hook should not include runtime guide by default"
 
 echo "  codex DDD architect runtime: routing and references correct"

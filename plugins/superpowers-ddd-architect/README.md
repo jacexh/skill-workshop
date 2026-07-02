@@ -12,7 +12,7 @@ When a superpowers planning, execution, subagent, or code-review workflow runs, 
 - implementation workflows load DDD implementation guardrails
 - code-review workflows load DDD boundary review guidance
 
-Claude must read `references/ddd-risk-router.md` first, then load only the deeper references needed for the triggered risks.
+Claude must read `references/ddd-risk-router.md` first, then load only the deeper references needed for the triggered risks. Hook injection uses a phase-specific reference budget instead of listing every DDD reference by default, and probe-derived conclusions require a short repo calibration first.
 
 You can also invoke the skills explicitly:
 

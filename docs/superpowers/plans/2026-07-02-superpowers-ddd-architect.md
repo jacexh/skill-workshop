@@ -171,6 +171,8 @@ Set both manifests to name `superpowers-ddd-architect`, description `DDD-first b
 
 Create `design`, `implement`, and `review` skills. All three read `ddd-risk-router.md` first, then load `ddd-agent-contract.md` and deeper references only when the phase, risk card, task, or gate requires them.
 
+Refine the runtime index so hook injection uses phase-specific reference budgets instead of listing every DDD reference by default, and require `Repo calibration` before probe-derived conclusions.
+
 - [x] **Step 3: Narrow Claude hook wording**
 
 Update `plugins/superpowers-ddd-architect/hooks/pre-tool-use` so planning workflows inject `DDD Design Guidance`, execution workflows inject `DDD Implementation Guardrails`, review workflows inject `DDD Boundary Review`, and all modes prioritize `ddd-risk-router.md`.

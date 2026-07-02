@@ -7,6 +7,13 @@ description: Use when reviewing DDD/backend code, plans, or diffs for boundary v
 
 Use this skill to audit DDD/backend changes for concrete boundary risks. Findings need evidence, not generic DDD advice.
 
+## When To Use
+
+- Use for plans, diffs, PRs, or code paths where concrete evidence can be inspected.
+- Use after implementation or when reviewing an architecture proposal with named files/modules.
+- If the request is still choosing boundaries without concrete files, use `design`.
+- If the request is placing new code, use `implement`.
+
 ## Workflow
 
 1. Identify the changed bounded contexts, backend language, layers, generated-code touch points, runtime/taskqueue/message paths, and database persistence paths.
@@ -33,6 +40,7 @@ Lead with findings:
 ```text
 Finding: <severity> <title>
 - Evidence: <file:line>
+- Repo calibration: <bounded-context roots / layer names / generated-code paths / probe rewrites relevant to this finding>
 - Violated guardrail: <risk card/reference>
 - Why it matters:
 - Fix direction:

@@ -19,6 +19,12 @@ const PROMPT_MODES = [
   { mode: "review", pattern: /\$superpowers:(?:requesting-code-review|receiving-code-review)\b/i },
 ];
 
+const REFERENCE_BUDGETS = {
+  design: new Set(["ddd-risk-router.md", "ddd-modeling.md", "ddd-core.md", "database.md"]),
+  implement: new Set(["ddd-risk-router.md", "ddd-agent-contract.md", "ddd-core.md", "ddd-golang.md"]),
+  review: new Set(["ddd-risk-router.md", "ddd-agent-contract.md", "ddd-core.md", "ddd-golang.md"]),
+};
+
 function isDddBackendPattern(filename) {
   return filename === "database.md" || filename.startsWith("ddd-");
 }
@@ -27,12 +33,14 @@ function referenceDirs() {
   return [path.join(__dirname, "..", "references")];
 }
 
-function listReferenceFiles() {
+function listReferenceFiles(mode) {
+  const budget = REFERENCE_BUDGETS[mode] || REFERENCE_BUDGETS.design;
   const files = new Map();
   for (const dir of referenceDirs()) {
     if (!fs.existsSync(dir)) continue;
     for (const entry of fs.readdirSync(dir).sort()) {
       if (!entry.endsWith(".md") || !isDddBackendPattern(entry)) continue;
+      if (!budget.has(entry)) continue;
       files.set(entry, path.join(dir, entry));
     }
   }
@@ -77,20 +85,26 @@ function promptHeader(mode) {
   if (mode === "design") {
     return (
       "====== DDD Design Guidance ======\n" +
+      "Reference budget: design. Only the risk router, modeling guide, core rules, and database support reference are listed by default.\n\n" +
       "The current user request invokes a planning workflow. Focus on bounded context, business capability, stable language, data authority, aggregate/policy/service boundaries, technical capability classification, and layer ownership.\n\n" +
+      "Repo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\n" +
       "You MUST read ddd-risk-router.md first when present, then read only the design references required by triggered risk cards or the Architecture Gate.\n\n"
     );
   }
   if (mode === "review") {
     return (
       "====== DDD Boundary Review ======\n" +
+      "Reference budget: review. Only the risk router, agent contract, core rules, and primary Go guide are listed by default; load deeper support files only when a triggered risk card names them.\n\n" +
       "The current user request invokes a review workflow. Find evidence before conclusions: cite file/line, dependency direction, type leak, orchestration thickness, state decision, async role, runtime wiring, or test gap.\n\n" +
+      "Repo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\n" +
       "You MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or review scope.\n\n"
     );
   }
   return (
     "====== DDD Implementation Guardrails ======\n" +
+    "Reference budget: implement. Only the risk router, agent contract, core rules, and primary Go guide are listed by default; load deeper support files only when a triggered risk card or touched code path requires them.\n\n" +
     "The current user request invokes an implementation workflow. Place code by layer, preserve dependency direction, map DTO/proto at boundaries, and keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.\n\n" +
+    "Repo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\n" +
     "You MUST read ddd-risk-router.md first when present, then read only the implementation references required by triggered risk cards or touched code paths.\n\n"
   );
 }
@@ -103,8 +117,9 @@ function renderReferenceIndex(files, mode) {
     "DDD risk-router workflow:\n" +
     "1. Read ddd-risk-router.md first when it is listed below.\n" +
     "2. Match the task or review against its risk cards.\n" +
-    "3. Read only the deeper DDD/backend references required by triggered cards, the task, or an explicit Architecture Gate.\n" +
-    "4. For non-backend work, state that this plugin is not relevant and continue without loading unrelated standards.\n\n";
+    "3. Write a short Repo calibration before using or reporting probe results.\n" +
+    "4. Read only the deeper DDD/backend references required by triggered cards, the task, or an explicit Architecture Gate.\n" +
+    "5. For non-backend work, state that this plugin is not relevant and continue without loading unrelated standards.\n\n";
 
   for (const [filename, absPath] of files) {
     const { name, description } = readPatternHeader(absPath);
@@ -142,7 +157,7 @@ function buildUserPromptSubmitOutput(input) {
   const mode = prompt ? modeForPrompt(prompt) : null;
   if (!mode) return {};
 
-  const body = renderReferenceIndex(listReferenceFiles(), mode);
+  const body = renderReferenceIndex(listReferenceFiles(mode), mode);
   if (!body) return {};
 
   return {

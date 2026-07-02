@@ -32,7 +32,7 @@ Restart Codex after upgrade.
 ## Capabilities
 
 - **SessionStart hook** — injects only a lightweight reminder that DDD/backend guardrails are available on demand through `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, and `$superpowers-ddd-architect:review`
-- **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions and injects the matching DDD design, implementation, or boundary-review reference index
+- **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions and injects the matching DDD design, implementation, or boundary-review reference budget with repo-calibration guidance
 - **`$superpowers-ddd-architect:design` skill** — explicit DDD/backend boundary design workflow
 - **`$superpowers-ddd-architect:implement` skill** — explicit DDD/backend code-placement workflow
 - **`$superpowers-ddd-architect:review` skill** — explicit DDD/backend boundary audit workflow

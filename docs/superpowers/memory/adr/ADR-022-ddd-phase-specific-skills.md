@@ -19,13 +19,14 @@ Replace the DDD plugin's `standards` skill with three action-oriented skills:
 - `implement` — code placement and dependency-boundary guardrails during implementation/refactor.
 - `review` — evidence-based boundary audit for plans, code, or diffs.
 
-All three skills share plugin-root `references/` and read `ddd-risk-router.md` first. Hooks map upstream workflow phases to the matching mode: planning skills to design guidance, execution skills to implementation guardrails, and code-review skills to boundary review.
+All three skills share plugin-root `references/` and read `ddd-risk-router.md` first. Hooks map upstream workflow phases to the matching mode: planning skills to design guidance, execution skills to implementation guardrails, and code-review skills to boundary review. Hook injection uses phase-specific reference budgets instead of listing every DDD reference, and probe-derived conclusions require a short Repo calibration first.
 
 ## Consequences
 
 - Skill invocation becomes simpler: `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, `$superpowers-ddd-architect:review`.
 - Shared DDD references move out of `skills/standards/references/` to plugin-root `references/` so no single skill owns the reference set.
 - The plugin avoids the old "load standards, then infer intent" shape; each entry point has its own output contract.
+- Prompt-time guidance remains compact: design lists risk-router/modeling/core/database, while implement and review list risk-router/agent-contract/core/primary Go guide and rely on risk cards for deeper support files.
 - The legacy general `superpowers-architect:standards` skill remains the explicit general standards lookup; ADR-023 removes its bundled DDD/database defaults.
 
 ## References

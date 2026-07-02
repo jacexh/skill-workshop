@@ -197,6 +197,8 @@ Requirements:
 - The new plugin's default hot path is the DDD Risk Router, not the full DDD reference set.
 - `superpowers-architect` automatic dynamic injection is removed, so one workflow should not receive both old and new architecture injections.
 - DDD reference files live under plugin-root `references/`, shared by `design`, `implement`, and `review`; they do not live under a single `standards` skill or a root dynamic `design-patterns/` directory.
+- Hook injection uses phase-specific reference budgets instead of listing every DDD reference; deeper runtime/taskqueue/event support files are loaded only when the risk router or touched path requires them.
+- Probe examples require a short repo calibration before the agent treats hits as evidence.
 - New DDD guidance must replace or compress existing DDD prose; it must not create a second full explanation beside the old one.
 - Database stays support-level and must not become a second default router.
 

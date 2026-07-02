@@ -7,6 +7,13 @@ description: Use when implementing or refactoring DDD/backend code after a desig
 
 Use this skill to map accepted DDD decisions into code structure without crossing boundaries.
 
+## When To Use
+
+- Use after a design direction exists and before placing or editing backend code.
+- Use during refactors when code movement could cross Domain/Application/Infrastructure boundaries.
+- If bounded context, data authority, or invariant ownership is unknown, stop and use `design` first.
+- If the work is only evaluating an existing diff, use `review`.
+
 ## Workflow
 
 1. Calibrate the repository shape: bounded-context roots, layer names, generated-code locations, RPC handlers, runtime wiring, taskqueue/message conventions, and architecture tests/docs.
@@ -25,7 +32,7 @@ Use this skill to map accepted DDD decisions into code structure without crossin
 
 ```text
 DDD implementation:
-- Repo shape calibrated:
+- Repo calibration:
 - Code placement by layer:
 - Boundary mappings:
 - Risk cards:

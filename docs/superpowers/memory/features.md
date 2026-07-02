@@ -130,7 +130,7 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 **Actors / Entry Points** — `codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js`, Codex SessionStart, UserPromptSubmit router, `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, and `$superpowers-ddd-architect:review`.
 
-**Capability Boundary** — SessionStart intentionally injects only short on-demand DDD phase pointers. The matching DDD risk-router index is injected by UserPromptSubmit only when users explicitly mention upstream `$superpowers:*` workflow skills, or by invoking `design` / `implement` / `review`. Natural-language DDD prompts return `{}` so the plugin does not recreate broad dynamic injection. The Codex DDD architect plugin intentionally does not register Stop hooks; legacy stop mode is a no-op for older installed configs.
+**Capability Boundary** — SessionStart intentionally injects only short on-demand DDD phase pointers. A phase-specific DDD reference budget plus risk-router workflow is injected by UserPromptSubmit only when users explicitly mention upstream `$superpowers:*` workflow skills, or by invoking `design` / `implement` / `review`. Natural-language DDD prompts return `{}` so the plugin does not recreate broad dynamic injection. Prompt-injected guidance requires Repo calibration before probe-derived conclusions. The Codex DDD architect plugin intentionally does not register Stop hooks; legacy stop mode is a no-op for older installed configs.
 
 **References** — `codex-plugins/superpowers-ddd-architect/`, ADR-013, ADR-014, ADR-021, ADR-022.
 

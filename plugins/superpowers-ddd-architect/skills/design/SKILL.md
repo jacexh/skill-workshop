@@ -7,6 +7,12 @@ description: Use when designing DDD/backend behavior before implementation: boun
 
 Use this skill to turn a backend change request into explicit DDD boundaries before code is placed.
 
+## When To Use
+
+- Use before file placement or implementation when the bounded context, aggregate/policy/service boundary, data authority, or layer ownership is not explicit.
+- Do not use as a code audit checklist. Use `review` once a diff, plan, or concrete file set exists.
+- Do not use as an implementation placement checklist. Use `implement` after the design direction is accepted.
+
 ## Workflow
 
 1. Confirm the work is DDD/backend architecture-sensitive. For non-backend work, stop using this plugin.
@@ -24,6 +30,7 @@ Use this skill to turn a backend change request into explicit DDD boundaries bef
 
 ```text
 DDD design:
+- Repo calibration:
 - Bounded context / capability:
 - Stable language and data authority:
 - Aggregate, policy, or service boundary:
