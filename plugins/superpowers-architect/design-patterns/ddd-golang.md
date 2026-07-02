@@ -267,6 +267,8 @@ Use this checklist before accepting a package layout or import graph:
 - A generated proto type in a method signature is boundary evidence, not layer-ownership evidence. If the method represents a Domain capability, keep the interface in `domain/` with Domain types and map at the boundary.
 - Application-owned read ports must be small, consumer-specific QueryRepositories/read facades. Command-side Application ports are exceptions justified only after the Domain mechanism placement gate. Do not expose one storage-shaped or routing-shaped interface to multiple use cases merely because one adapter implements all methods, and do not place peer forwarding, network address lookup, hop headers, queue subjects, retry/backoff, or deployment topology in Application ports.
 - Package names and directory names must agree with the bounded context and layer they represent. A `dispatcher`, `registry`, `router`, or `connector` package must still declare whether it is Domain-facing policy, Application orchestration, or Infrastructure adapter.
+- Private helper extraction is not a layer boundary. Before adding an unexported helper, search the current package for an equivalent and reuse it. Do not create `*Local` helpers to duplicate same-package behavior.
+- Single-call helpers are acceptable when they name durable domain/protocol invariants, externally visible contract rules, deterministic canonicalization, non-trivial normalization/validation, or repeated nil-safe generated-proto boundary access. Inline one-off field/getter access, "return the second value from another helper", and expression-renaming helpers when the call site is clearer than the helper name.
 
 ### 2.5 Technical Coordination Placement
 
