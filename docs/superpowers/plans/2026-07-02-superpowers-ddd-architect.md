@@ -1,0 +1,324 @@
+# Superpowers DDD Architect Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Add a dedicated `superpowers-ddd-architect` plugin and make the existing `superpowers-architect` explicit-only.
+
+**Architecture:** Create parallel Claude and Codex plugin tracks by following the existing `superpowers-architect` layout, but keep only DDD/backend patterns in the new plugin and make its hot path a DDD Risk Router. Remove automatic hook injection from the old architect plugin so one workflow cannot receive both old and new architecture guidance.
+
+**Tech Stack:** Markdown skills/patterns, Bash Claude hook, Node.js Codex hook runtime, JSON manifests, release shell tests.
+
+---
+
+## File Map
+
+- Create `plugins/superpowers-ddd-architect/` with `.claude-plugin/plugin.json`, `README.md`, `skills/standards/SKILL.md`, `hooks/hooks.json`, `hooks/pre-tool-use`, `hooks/run-hook.cmd`, and DDD/backend `design-patterns/`.
+- Create `codex-plugins/superpowers-ddd-architect/` with `.codex-plugin/plugin.json`, `README.md`, `skills/standards/SKILL.md`, `hooks/hooks.json`, `hooks/codex-runtime.js`, `codex-hooks-snippet.json`, `scripts/install-codex-hooks.js`, and DDD/backend `design-patterns/`.
+- Modify `plugins/superpowers-architect/hooks/hooks.json`, `codex-plugins/superpowers-architect/.codex-plugin/plugin.json`, `codex-plugins/superpowers-architect/hooks/hooks.json`, and `codex-plugins/superpowers-architect/codex-hooks-snippet.json` to make old architect explicit-only.
+- Modify old architect READMEs to document explicit-only behavior and DDD migration.
+- Modify `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, and `README.md` to list the new plugin.
+- Modify release tests: replace old architect runtime assumptions with explicit-only checks and add DDD architect runtime checks.
+
+## Task 1: Scaffold DDD Architect Plugin Tracks
+
+**Files:**
+- Create: `plugins/superpowers-ddd-architect/**`
+- Create: `codex-plugins/superpowers-ddd-architect/**`
+
+- [ ] **Step 1: Copy the existing architect tracks as scaffolds**
+
+Run:
+
+```bash
+cp -R plugins/superpowers-architect plugins/superpowers-ddd-architect
+cp -R codex-plugins/superpowers-architect codex-plugins/superpowers-ddd-architect
+```
+
+Expected: both new directories exist.
+
+- [ ] **Step 2: Remove non-DDD patterns from the new plugin**
+
+Run:
+
+```bash
+rm plugins/superpowers-ddd-architect/design-patterns/frontend-design.md
+rm plugins/superpowers-ddd-architect/design-patterns/frontend-patterns.md
+rm plugins/superpowers-ddd-architect/design-patterns/rest-api.md
+rm plugins/superpowers-ddd-architect/design-patterns/ddd-python.md
+rm plugins/superpowers-ddd-architect/design-patterns/ddd-typescript.md
+rm codex-plugins/superpowers-ddd-architect/design-patterns/frontend-design.md
+rm codex-plugins/superpowers-ddd-architect/design-patterns/frontend-patterns.md
+rm codex-plugins/superpowers-ddd-architect/design-patterns/rest-api.md
+rm codex-plugins/superpowers-ddd-architect/design-patterns/ddd-python.md
+rm codex-plugins/superpowers-ddd-architect/design-patterns/ddd-typescript.md
+```
+
+Expected: new plugin pattern set contains `database.md` plus Go DDD files only.
+
+- [ ] **Step 3: Add compact Risk Router pattern to both tracks**
+
+Create `design-patterns/ddd-risk-router.md` in both new tracks with this content:
+
+```markdown
+---
+name: DDD Risk Router
+description: Compact DDD/backend architecture risk cards. Read first for DDD, Go backend, database-backed service, event/message, taskqueue, or runtime-boundary work.
+---
+
+# DDD Risk Router
+
+Read this file first for DDD/backend architecture work. Use it to decide which deeper standards to load.
+
+## Cards
+
+### Cross-Context Direct Imports
+
+- **Smell:** one bounded context imports another context's `domain/` or `application/`.
+- **Scan:** `rg -n 'internal/.*/(domain|application)' internal`
+- **Decision:** use Integration Messages, published read facades, ACL, or protocol contracts.
+- **Allowed exception:** only with a written compatibility bridge and migration target.
+- **Reference:** `ddd-core.md`, `ddd-golang.md`, `ddd-golang-events-messages.md`.
+
+### Generated Protocol Types in Semantic Ports
+
+- **Smell:** command-side or Domain-facing ports mention `pkg/gen`, `gen/go`, `proto.Message`, or ConnectRPC request/response types.
+- **Scan:** `rg -n 'pkg/gen|gen/go|proto\\.Message|connect\\.Request|connect\\.Response' internal/**/application internal/**/domain`
+- **Decision:** map generated DTOs at Interface/Application/Infrastructure boundaries.
+- **Allowed exception:** query/read DTOs may use generated types only when the project explicitly treats them as read contracts.
+- **Reference:** `ddd-core.md`, `ddd-golang.md`.
+
+### Fat Go RPC Shortcut
+
+- **Smell:** `application.go` generated RPC methods contain repository calls, saves, dispatch, enqueueing, transactions, or multi-port coordination.
+- **Scan:** `rg -n 'Save\\(|Dispatch|Enqueue|Transaction|Session|repo\\.|repository|Publisher|Handler' internal/**/application/application.go`
+- **Decision:** keep RPC methods as map -> delegate once -> map response/error.
+- **Allowed exception:** small actor/auth extraction needed to build the command/query.
+- **Reference:** `ddd-golang.md`.
+
+### Shared Umbrella Processor
+
+- **Smell:** many one-kind message handlers delegate to one large `Processor` with unrelated message families or dependencies.
+- **Scan:** `rg -n 'type Processor|NewProcessor|processor\\.' internal/**/application/messagehandler internal/**/application/taskprocessor`
+- **Decision:** prefer one concrete handler/processor per inbound fact or task type.
+- **Allowed exception:** same role, source family, side effect, transaction boundary, failure policy, and dependency set.
+- **Reference:** `ddd-golang-events-messages.md`, `ddd-golang-taskqueue.md`.
+
+### Business State Classification Outside Domain
+
+- **Smell:** Application, message handlers, or task processors define helpers like `isTerminal`, `hasLiveRuntime`, `countsAsActive`, or branch directly on business `State`/`Status`.
+- **Scan:** `rg -n 'isTerminal|hasLiveRuntime|countsAsActive|requiresCleanup|\\.State|\\.Status' internal/**/application`
+- **Decision:** put stable state classification behind Aggregate methods or Domain policies.
+- **Allowed exception:** mechanical DTO/read-model/proto mapping without business decision semantics.
+- **Reference:** `ddd-agent-contract.md`, `ddd-core.md`, `ddd-golang.md`.
+
+### Command-Side Application Port Reflex
+
+- **Smell:** a command handler gets a new interface only because it needs to call an external mechanism.
+- **Scan:** review new interfaces under `application/command` and check names ending in `Client`, `Publisher`, `Router`, `Directory`, `Writer`, `Sender`, or `Fetcher`.
+- **Decision:** classify capability first; prefer Aggregate method, Repository, Domain Service, Domain Event, Integration Message, ACL, or Infrastructure adapter.
+- **Allowed exception:** written gate proves a stable use-case semantic lifecycle that is not mechanism plumbing.
+- **Reference:** `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md`.
+
+### Runtime/Cmd Provider Pollution
+
+- **Smell:** `cmd/<service>/main.go` constructs repositories, query repositories, ACL clients, handler wrappers, or generated route handlers.
+- **Scan:** `rg -n 'internal/.*/(infrastructure|application/(command|query|eventhandler|messagehandler|messagepublisher))|fx\\.Provide\\(|pkg/gen/.*(connect|grpc)' cmd`
+- **Decision:** `cmd` loads config, selects modules, supplies aggregate options, and runs the app.
+- **Allowed exception:** process-owned provider with runtime impact note.
+- **Reference:** `ddd-golang-runtime.md`.
+
+### Technical Bounded Context
+
+- **Smell:** a context uses infrastructure-shaped terms such as pod, namespace, mount, supervisor, lease, or worker.
+- **Scan:** inspect whether those terms appear in product/operator language and own stable lifecycle rules.
+- **Decision:** technical terms may be Domain language only when the bounded context is itself a runtime substrate.
+- **Allowed exception:** record the stable lifecycle/invariant and keep deployment adapter details out of Domain.
+- **Reference:** `ddd-modeling.md`, `ddd-core.md`, `ddd-golang-runtime.md`.
+```
+
+- [ ] **Step 4: Verify scaffold file set**
+
+Run:
+
+```bash
+find plugins/superpowers-ddd-architect codex-plugins/superpowers-ddd-architect -maxdepth 3 -type f | sort
+```
+
+Expected: new plugin files are present and non-DDD/frontend/REST patterns are absent.
+
+## Task 2: Update DDD Architect Metadata, Skills, and Hooks
+
+**Files:**
+- Modify: `plugins/superpowers-ddd-architect/.claude-plugin/plugin.json`
+- Modify: `codex-plugins/superpowers-ddd-architect/.codex-plugin/plugin.json`
+- Modify: `plugins/superpowers-ddd-architect/skills/standards/SKILL.md`
+- Modify: `codex-plugins/superpowers-ddd-architect/skills/standards/SKILL.md`
+- Modify: `plugins/superpowers-ddd-architect/hooks/pre-tool-use`
+- Modify: `codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js`
+- Modify: `codex-plugins/superpowers-ddd-architect/hooks/hooks.json`
+- Modify: `codex-plugins/superpowers-ddd-architect/codex-hooks-snippet.json`
+
+- [ ] **Step 1: Update manifests**
+
+Set both manifests to name `superpowers-ddd-architect`, description `DDD-first backend architecture guardrails for code agents`, and display name `Superpowers DDD Architect` on Codex.
+
+- [ ] **Step 2: Rewrite standards skills**
+
+Both new `skills/standards/SKILL.md` files must tell agents to read `ddd-risk-router.md` first, then load `ddd-agent-contract.md` and deeper references only when a risk card, task, or gate requires them.
+
+- [ ] **Step 3: Narrow Claude hook wording**
+
+Update `plugins/superpowers-ddd-architect/hooks/pre-tool-use` so injected context says `DDD Architect Standards`, prioritizes `ddd-risk-router.md`, and lists only this plugin's DDD/backend patterns.
+
+- [ ] **Step 4: Narrow Codex runtime wording**
+
+Update `codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js` so SessionStart is lightweight and points to `$superpowers-ddd-architect:standards`, UserPromptSubmit still triggers only on explicit upstream `$superpowers:*` workflow mentions, and natural-language DDD prompts return `{}`.
+
+- [ ] **Step 5: Verify syntax**
+
+Run:
+
+```bash
+bash -n plugins/superpowers-ddd-architect/hooks/pre-tool-use
+node --check codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js
+```
+
+Expected: both commands pass with no output.
+
+## Task 3: Make Old Architect Explicit-Only
+
+**Files:**
+- Modify: `plugins/superpowers-architect/hooks/hooks.json`
+- Modify: `codex-plugins/superpowers-architect/.codex-plugin/plugin.json`
+- Modify: `codex-plugins/superpowers-architect/hooks/hooks.json`
+- Modify: `codex-plugins/superpowers-architect/codex-hooks-snippet.json`
+- Modify: `plugins/superpowers-architect/README.md`
+- Modify: `codex-plugins/superpowers-architect/README.md`
+
+- [ ] **Step 1: Remove automatic Claude architect hook registration**
+
+Set `plugins/superpowers-architect/hooks/hooks.json` to:
+
+```json
+{
+  "hooks": {}
+}
+```
+
+- [ ] **Step 2: Remove automatic Codex architect hook registration**
+
+Set both `codex-plugins/superpowers-architect/hooks/hooks.json` and `codex-plugins/superpowers-architect/codex-hooks-snippet.json` to a `hooks` object with no lifecycle entries. Keep `.codex-plugin/plugin.json` pointing at `./hooks/hooks.json` so manifest schema tests still pass.
+
+- [ ] **Step 3: Update old architect READMEs**
+
+Document that `superpowers-architect` is explicit-only and that DDD/backend guidance has moved to `superpowers-ddd-architect`.
+
+- [ ] **Step 4: Verify old explicit skill still exists**
+
+Run:
+
+```bash
+test -f plugins/superpowers-architect/skills/standards/SKILL.md
+test -f codex-plugins/superpowers-architect/skills/standards/SKILL.md
+```
+
+Expected: both tests pass.
+
+## Task 4: Update Marketplace, Root README, and Tests
+
+**Files:**
+- Modify: `.claude-plugin/marketplace.json`
+- Modify: `.agents/plugins/marketplace.json`
+- Modify: `README.md`
+- Modify: `scripts/release/test/test_codex_architect_runtime.sh`
+- Create: `scripts/release/test/test_codex_ddd_architect_runtime.sh`
+
+- [ ] **Step 1: Add marketplace entries**
+
+Add `superpowers-ddd-architect` after `superpowers-architect` in both marketplace files. Use category `Productivity`, policy `AVAILABLE` / `ON_INSTALL` for Codex.
+
+- [ ] **Step 2: Update root README**
+
+Add install commands and plugin listing for `superpowers-ddd-architect`, update repository structure, and describe `superpowers-architect` as explicit-only.
+
+- [ ] **Step 3: Update old architect runtime test**
+
+Change `test_codex_architect_runtime.sh` so it verifies old architect has no automatic SessionStart/UserPromptSubmit/Stop hooks and still exposes standards skills.
+
+- [ ] **Step 4: Add DDD architect runtime test**
+
+Create a test that verifies:
+
+```text
+SessionStart points to $superpowers-ddd-architect:standards and does not inject pattern index.
+UserPromptSubmit triggers only on explicit upstream $superpowers:* workflow mentions.
+Explicit workflow prompt includes DDD Architect Standards and ddd-risk-router.md.
+Natural-language DDD prompt returns {}.
+No Stop hook is registered.
+Native hooks and fallback snippet match.
+```
+
+- [ ] **Step 5: Run targeted tests**
+
+Run:
+
+```bash
+bash scripts/release/test/test_codex_manifest_schema.sh
+bash scripts/release/test/test_codex_architect_runtime.sh
+bash scripts/release/test/test_codex_ddd_architect_runtime.sh
+```
+
+Expected: all pass.
+
+## Task 5: Final Verification and Commit
+
+**Files:**
+- All changed files.
+
+- [ ] **Step 1: Run full release test suite**
+
+Run:
+
+```bash
+bash scripts/release/test/run-tests.sh
+```
+
+Expected: all release tests pass.
+
+- [ ] **Step 2: Check important parity**
+
+Run:
+
+```bash
+diff -qr plugins/superpowers-ddd-architect/design-patterns codex-plugins/superpowers-ddd-architect/design-patterns
+diff -u plugins/superpowers-ddd-architect/skills/standards/SKILL.md codex-plugins/superpowers-ddd-architect/skills/standards/SKILL.md
+```
+
+Expected: design patterns match exactly; skills may differ only if host-specific paths are intentional.
+
+- [ ] **Step 3: Review git status**
+
+Run:
+
+```bash
+git status --short
+```
+
+Expected: only planned plugin, docs, marketplace, README, and release-test files are changed.
+
+- [ ] **Step 4: Commit**
+
+Run:
+
+```bash
+git add .claude-plugin/marketplace.json .agents/plugins/marketplace.json README.md plugins/superpowers-ddd-architect codex-plugins/superpowers-ddd-architect plugins/superpowers-architect codex-plugins/superpowers-architect scripts/release/test docs/superpowers/plans/2026-07-02-superpowers-ddd-architect.md
+git commit -m "feat: add ddd architect plugin"
+```
+
+Expected: commit succeeds.
+
+## Self-Review
+
+- Spec coverage: plan creates the new DDD plugin, makes old architect explicit-only, updates marketplaces/READMEs, prevents duplicate injections, preserves Codex lightweight/natural-language quietness, and adds tests.
+- Placeholder scan: no TODO/TBD placeholders are present.
+- Type/path consistency: plugin name is consistently `superpowers-ddd-architect`.
