@@ -12,8 +12,8 @@
 
 ## File Map
 
-- Create `plugins/superpowers-ddd-architect/` with `.claude-plugin/plugin.json`, `README.md`, `skills/standards/SKILL.md`, `skills/standards/references/`, `hooks/hooks.json`, `hooks/pre-tool-use`, and `hooks/run-hook.cmd`.
-- Create `codex-plugins/superpowers-ddd-architect/` with `.codex-plugin/plugin.json`, `README.md`, `skills/standards/SKILL.md`, `skills/standards/references/`, `hooks/hooks.json`, `hooks/codex-runtime.js`, `codex-hooks-snippet.json`, and `scripts/install-codex-hooks.js`.
+- Create `plugins/superpowers-ddd-architect/` with `.claude-plugin/plugin.json`, `README.md`, `skills/design/SKILL.md`, `skills/implement/SKILL.md`, `skills/review/SKILL.md`, shared `references/`, `hooks/hooks.json`, `hooks/pre-tool-use`, and `hooks/run-hook.cmd`.
+- Create `codex-plugins/superpowers-ddd-architect/` with `.codex-plugin/plugin.json`, `README.md`, `skills/design/SKILL.md`, `skills/implement/SKILL.md`, `skills/review/SKILL.md`, shared `references/`, `hooks/hooks.json`, `hooks/codex-runtime.js`, `codex-hooks-snippet.json`, and `scripts/install-codex-hooks.js`.
 - Modify `plugins/superpowers-architect/hooks/hooks.json`, `codex-plugins/superpowers-architect/.codex-plugin/plugin.json`, `codex-plugins/superpowers-architect/hooks/hooks.json`, and `codex-plugins/superpowers-architect/codex-hooks-snippet.json` to make old architect explicit-only.
 - Modify old architect READMEs to document explicit-only behavior and DDD migration.
 - Modify `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, and `README.md` to list the new plugin.
@@ -36,23 +36,23 @@ cp -R codex-plugins/superpowers-architect codex-plugins/superpowers-ddd-architec
 
 Expected: both new directories exist.
 
-- [x] **Step 2: Move DDD/backend references under the standards skill**
+- [x] **Step 2: Move DDD/backend references into shared plugin references**
 
 Run:
 
 ```bash
-mkdir -p plugins/superpowers-ddd-architect/skills/standards/references
-mkdir -p codex-plugins/superpowers-ddd-architect/skills/standards/references
-cp plugins/superpowers-architect/design-patterns/database.md plugins/superpowers-architect/design-patterns/ddd-*.md plugins/superpowers-ddd-architect/skills/standards/references/
-cp codex-plugins/superpowers-architect/design-patterns/database.md codex-plugins/superpowers-architect/design-patterns/ddd-*.md codex-plugins/superpowers-ddd-architect/skills/standards/references/
+mkdir -p plugins/superpowers-ddd-architect/references
+mkdir -p codex-plugins/superpowers-ddd-architect/references
+cp plugins/superpowers-architect/design-patterns/database.md plugins/superpowers-architect/design-patterns/ddd-*.md plugins/superpowers-ddd-architect/references/
+cp codex-plugins/superpowers-architect/design-patterns/database.md codex-plugins/superpowers-architect/design-patterns/ddd-*.md codex-plugins/superpowers-ddd-architect/references/
 rmdir plugins/superpowers-ddd-architect/design-patterns codex-plugins/superpowers-ddd-architect/design-patterns
 ```
 
-Expected: new plugin references contain `database.md` plus Go DDD files only under `skills/standards/references/`; root `design-patterns/` does not exist in the DDD plugin.
+Expected: new plugin references contain `database.md` plus Go DDD files only under plugin-root `references/`; root `design-patterns/` does not exist in the DDD plugin.
 
 - [x] **Step 3: Add compact Risk Router pattern to both tracks**
 
-Create `skills/standards/references/ddd-risk-router.md` in both new tracks with this content:
+Create `references/ddd-risk-router.md` in both new tracks with this content:
 
 ```markdown
 ---
@@ -143,15 +143,19 @@ Run:
 find plugins/superpowers-ddd-architect codex-plugins/superpowers-ddd-architect -maxdepth 3 -type f | sort
 ```
 
-Expected: new plugin files are present, references live under `skills/standards/references/`, and non-DDD/frontend/REST patterns are absent.
+Expected: new plugin files are present, references live under plugin-root `references/`, and non-DDD/frontend/REST patterns are absent.
 
 ## Task 2: Update DDD Architect Metadata, Skills, and Hooks
 
 **Files:**
 - Modify: `plugins/superpowers-ddd-architect/.claude-plugin/plugin.json`
 - Modify: `codex-plugins/superpowers-ddd-architect/.codex-plugin/plugin.json`
-- Modify: `plugins/superpowers-ddd-architect/skills/standards/SKILL.md`
-- Modify: `codex-plugins/superpowers-ddd-architect/skills/standards/SKILL.md`
+- Create: `plugins/superpowers-ddd-architect/skills/design/SKILL.md`
+- Create: `plugins/superpowers-ddd-architect/skills/implement/SKILL.md`
+- Create: `plugins/superpowers-ddd-architect/skills/review/SKILL.md`
+- Create: `codex-plugins/superpowers-ddd-architect/skills/design/SKILL.md`
+- Create: `codex-plugins/superpowers-ddd-architect/skills/implement/SKILL.md`
+- Create: `codex-plugins/superpowers-ddd-architect/skills/review/SKILL.md`
 - Modify: `plugins/superpowers-ddd-architect/hooks/pre-tool-use`
 - Modify: `codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js`
 - Modify: `codex-plugins/superpowers-ddd-architect/hooks/hooks.json`
@@ -161,17 +165,17 @@ Expected: new plugin files are present, references live under `skills/standards/
 
 Set both manifests to name `superpowers-ddd-architect`, description `DDD-first backend architecture guardrails for code agents`, and display name `Superpowers DDD Architect` on Codex.
 
-- [x] **Step 2: Rewrite standards skills**
+- [x] **Step 2: Create phase-specific DDD skills**
 
-Both new `skills/standards/SKILL.md` files must tell agents to read `ddd-risk-router.md` first, then load `ddd-agent-contract.md` and deeper references only when a risk card, task, or gate requires them.
+Create `design`, `implement`, and `review` skills. All three read `ddd-risk-router.md` first, then load `ddd-agent-contract.md` and deeper references only when the phase, risk card, task, or gate requires them.
 
 - [x] **Step 3: Narrow Claude hook wording**
 
-Update `plugins/superpowers-ddd-architect/hooks/pre-tool-use` so injected context says `DDD Architect Standards`, prioritizes `ddd-risk-router.md`, and lists only this plugin's DDD/backend patterns.
+Update `plugins/superpowers-ddd-architect/hooks/pre-tool-use` so planning workflows inject `DDD Design Guidance`, execution workflows inject `DDD Implementation Guardrails`, review workflows inject `DDD Boundary Review`, and all modes prioritize `ddd-risk-router.md`.
 
 - [x] **Step 4: Narrow Codex runtime wording**
 
-Update `codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js` so SessionStart is lightweight and points to `$superpowers-ddd-architect:standards`, UserPromptSubmit still triggers only on explicit upstream `$superpowers:*` workflow mentions, and natural-language DDD prompts return `{}`.
+Update `codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js` so SessionStart is lightweight and points to `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, and `$superpowers-ddd-architect:review`; UserPromptSubmit still triggers only on explicit upstream `$superpowers:*` workflow mentions and natural-language DDD prompts return `{}`.
 
 - [x] **Step 5: Verify syntax**
 
@@ -249,9 +253,9 @@ Change `test_codex_architect_runtime.sh` so it verifies old architect has no aut
 Create a test that verifies:
 
 ```text
-SessionStart points to $superpowers-ddd-architect:standards and does not inject pattern index.
+SessionStart points to $superpowers-ddd-architect:design, :implement, and :review and does not inject pattern index.
 UserPromptSubmit triggers only on explicit upstream $superpowers:* workflow mentions.
-Explicit workflow prompt includes DDD Architect Standards and ddd-risk-router.md.
+Planning prompts include DDD Design Guidance; execution prompts include DDD Implementation Guardrails; review prompts include DDD Boundary Review; all include ddd-risk-router.md.
 Natural-language DDD prompt returns {}.
 No Stop hook is registered.
 Native hooks and fallback snippet match.
@@ -289,8 +293,10 @@ Expected: all release tests pass.
 Run:
 
 ```bash
-diff -qr plugins/superpowers-ddd-architect/skills/standards/references codex-plugins/superpowers-ddd-architect/skills/standards/references
-diff -u plugins/superpowers-ddd-architect/skills/standards/SKILL.md codex-plugins/superpowers-ddd-architect/skills/standards/SKILL.md
+diff -qr plugins/superpowers-ddd-architect/references codex-plugins/superpowers-ddd-architect/references
+diff -u plugins/superpowers-ddd-architect/skills/design/SKILL.md codex-plugins/superpowers-ddd-architect/skills/design/SKILL.md
+diff -u plugins/superpowers-ddd-architect/skills/implement/SKILL.md codex-plugins/superpowers-ddd-architect/skills/implement/SKILL.md
+diff -u plugins/superpowers-ddd-architect/skills/review/SKILL.md codex-plugins/superpowers-ddd-architect/skills/review/SKILL.md
 ```
 
 Expected: design patterns match exactly; skills may differ only if host-specific paths are intentional.

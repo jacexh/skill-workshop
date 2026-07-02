@@ -63,7 +63,7 @@ Explicit-only general architecture standards lookup. Use `$superpowers-architect
 
 ### superpowers-ddd-architect
 
-DDD-first backend architecture guardrails for code agents. Uses a compact DDD Risk Router before deeper references for bounded contexts, ports, events/messages, runtime/taskqueue boundaries, and database-backed persistence.
+DDD-first backend architecture guardrails for code agents. Uses compact `design`, `implement`, and `review` skills over one shared DDD Risk Router for bounded contexts, ports, events/messages, runtime/taskqueue boundaries, and database-backed persistence.
 
 - **License:** MIT
 - **Claude details:** [plugins/superpowers-ddd-architect/README.md](plugins/superpowers-ddd-architect/README.md)

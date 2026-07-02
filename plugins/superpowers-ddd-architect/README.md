@@ -6,12 +6,20 @@ This plugin is an active DDD/backend architecture guardrail. It uses a compact D
 
 ## How It Works
 
-When a superpowers planning, execution, subagent, or code-review workflow runs, the plugin injects a compact DDD/backend reference index. Claude must read `skills/standards/references/ddd-risk-router.md` first, then load only the deeper references needed for the triggered risks.
+When a superpowers planning, execution, subagent, or code-review workflow runs, the plugin injects a compact DDD/backend reference index tuned to that moment:
 
-You can also invoke the skill explicitly:
+- planning and design workflows load DDD design guidance
+- implementation workflows load DDD implementation guardrails
+- code-review workflows load DDD boundary review guidance
+
+Claude must read `references/ddd-risk-router.md` first, then load only the deeper references needed for the triggered risks.
+
+You can also invoke the skills explicitly:
 
 ```text
-$superpowers-ddd-architect:standards
+$superpowers-ddd-architect:design
+$superpowers-ddd-architect:implement
+$superpowers-ddd-architect:review
 ```
 
 ## Scope
@@ -31,7 +39,7 @@ Do not use this plugin for frontend architecture, browser QA, product UI design,
 
 ## References
 
-Canonical references live under `skills/standards/references/`:
+Canonical references live under `references/`:
 
 - `ddd-risk-router.md` — first-read DDD/backend risk cards
 - `ddd-agent-contract.md` — agent execution contract for DDD, Go runtime, and taskqueue work

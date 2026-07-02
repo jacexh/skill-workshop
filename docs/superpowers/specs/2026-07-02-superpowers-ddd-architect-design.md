@@ -130,24 +130,26 @@ Initial cards:
 
 ## Reference Ownership
 
-Move or copy these references into the new plugin skill as its primary set:
+Move or copy these references into the new plugin as a shared reference set:
 
 ```text
-skills/standards/
-  SKILL.md
-  references/
-    ddd-risk-router.md
-    ddd-agent-contract.md
-    ddd-modeling.md
-    ddd-core.md
-    ddd-golang.md
-    ddd-golang-events-messages.md
-    ddd-golang-runtime.md
-    ddd-golang-taskqueue.md
-    database.md
+skills/
+  design/SKILL.md
+  implement/SKILL.md
+  review/SKILL.md
+references/
+  ddd-risk-router.md
+  ddd-agent-contract.md
+  ddd-modeling.md
+  ddd-core.md
+  ddd-golang.md
+  ddd-golang-events-messages.md
+  ddd-golang-runtime.md
+  ddd-golang-taskqueue.md
+  database.md
 ```
 
-The new plugin should not use a root `design-patterns/` directory. That directory belongs to the old generic standards-loader model. The DDD plugin is skill-native: `standards/SKILL.md` points to explicit references, with `ddd-risk-router.md` as the first read.
+The new plugin should not use a root `design-patterns/` directory. That directory belongs to the old generic standards-loader model. The DDD plugin is skill-native: `design`, `implement`, and `review` skills all point to shared explicit references, with `ddd-risk-router.md` as the first read.
 
 The new plugin may keep database as a support reference, but the DDD Risk Router stays first. Database standards should load only for schema/query/migration/persistence design or when a DDD persistence question needs them.
 
@@ -161,7 +163,7 @@ The new plugin may keep database as a support reference, but the DDD Risk Router
 
 - May inject a compact DDD Risk Router index for architecture-related upstream workflow skills.
 - Should not inject full reference files.
-- Should focus trigger wording on backend/DDD/code-review workflows.
+- Should map planning/design workflows to DDD Design Guidance, execution workflows to DDD Implementation Guardrails, and review workflows to DDD Boundary Review.
 
 `superpowers-architect`:
 
@@ -174,7 +176,7 @@ The new plugin may keep database as a support reference, but the DDD Risk Router
 
 - Keeps SessionStart lightweight.
 - Does not inject full pattern index at SessionStart.
-- Uses explicit skill invocation as the reliable path.
+- Uses explicit `design`, `implement`, and `review` skill invocation as the reliable path.
 - May use prompt-time routing only for explicit upstream skill mentions, consistent with current Codex conventions.
 
 `superpowers-architect`:
@@ -191,15 +193,15 @@ Requirements:
 
 - The new plugin's default hot path is the DDD Risk Router, not the full DDD reference set.
 - `superpowers-architect` automatic dynamic injection is removed, so one workflow should not receive both old and new architecture injections.
-- DDD reference files live under `skills/standards/references/`, not a root dynamic `design-patterns/` directory.
+- DDD reference files live under plugin-root `references/`, shared by `design`, `implement`, and `review`; they do not live under a single `standards` skill or a root dynamic `design-patterns/` directory.
 - New DDD guidance must replace or compress existing DDD prose; it must not create a second full explanation beside the old one.
 - Database stays support-level and must not become a second default router.
 
 ## Migration Plan
 
 1. Add `superpowers-ddd-architect` to both plugin tracks.
-2. Seed `skills/standards/references/` with DDD/backend references and a DDD Risk Router.
-3. Add an explicit DDD standards skill for the new plugin.
+2. Seed plugin-root `references/` with DDD/backend references and a DDD Risk Router.
+3. Add explicit DDD `design`, `implement`, and `review` skills for the new plugin.
 4. Wire hooks so the new plugin owns DDD/backend workflow guidance.
 5. Change `superpowers-architect` to explicit-only by removing automatic workflow injection.
 6. Update marketplace metadata and READMEs to point DDD/backend users to the new plugin.
@@ -209,7 +211,7 @@ Requirements:
 ## Acceptance Criteria
 
 1. New plugin directories exist for both tracks: `plugins/superpowers-ddd-architect/` and `codex-plugins/superpowers-ddd-architect/`.
-2. The new plugin has a DDD-first skill and a Risk Router hot path.
+2. The new plugin has DDD-first `design`, `implement`, and `review` skills over a shared Risk Router hot path.
 3. DDD/backend guidance is no longer primarily owned by `superpowers-architect`.
 4. `superpowers-architect` no longer auto-injects dynamic architecture standards into upstream workflow skills.
 5. Explicit `$superpowers-architect:standards` still works for general standards lookup.

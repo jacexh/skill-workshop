@@ -21,7 +21,7 @@ The DDD plugin:
 
 - owns automatic DDD/backend workflow injection;
 - reads `ddd-risk-router.md` first, then only deeper DDD/backend references required by triggered cards or task scope;
-- stores references under `skills/standards/references/`, not a root `design-patterns/` directory;
+- stores references under plugin-root `references/`, not a root `design-patterns/` directory;
 - includes `database.md` plus the Go DDD reference family needed for backend work;
 - describes probe commands as repo-shape-dependent examples that must be calibrated before use;
 - keeps SessionStart lightweight on Codex and injects the risk-router index only for explicit upstream `$superpowers:*` workflow-skill mentions.
@@ -36,7 +36,7 @@ The DDD plugin:
 
 ## Consequences
 
-- DDD/backend architecture guidance now has a clearer product identity and smaller automatic loading scope.
+- DDD/backend architecture guidance now has a clearer product identity and smaller automatic loading scope. ADR-022 further refines this into `design`, `implement`, and `review` skills.
 - The old architect plugin loses automatic injection and should not be assumed active unless explicitly invoked.
 - Claude and Codex tracks must keep `superpowers-ddd-architect` reference files semantically aligned.
 - Tests must guard that the DDD plugin has no root `design-patterns/` directory and that natural-language DDD prompts do not trigger Codex prompt injection by themselves.
@@ -46,7 +46,8 @@ The DDD plugin:
 
 - `docs/superpowers/specs/2026-07-02-superpowers-ddd-architect-design.md`
 - `docs/superpowers/plans/2026-07-02-superpowers-ddd-architect.md`
-- `plugins/superpowers-ddd-architect/skills/standards/SKILL.md`
-- `codex-plugins/superpowers-ddd-architect/skills/standards/SKILL.md`
-- `plugins/superpowers-ddd-architect/skills/standards/references/ddd-risk-router.md`
+- `plugins/superpowers-ddd-architect/skills/design/SKILL.md`
+- `plugins/superpowers-ddd-architect/skills/implement/SKILL.md`
+- `plugins/superpowers-ddd-architect/skills/review/SKILL.md`
+- `plugins/superpowers-ddd-architect/references/ddd-risk-router.md`
 - `codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js`

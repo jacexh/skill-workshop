@@ -24,19 +24,25 @@ case "$skill_name" in
 esac
 
 case "$skill_name" in
+    superpowers:brainstorming|superpowers:writing-plans)
+        skill_type="design"
+        ;;
+    superpowers:executing-plans|superpowers:subagent-driven-development)
+        skill_type="implement"
+        ;;
     superpowers:requesting-code-review|superpowers:receiving-code-review)
         skill_type="review"
         ;;
     *)
-        skill_type="plan"
+        skill_type="design"
         ;;
 esac
 
 context_json=$(SKILL_TYPE="$skill_type" CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}" node -e "
 const fs=require('fs'),path=require('path');
-const skillType=process.env.SKILL_TYPE||'plan';
+const skillType=process.env.SKILL_TYPE||'design';
 const pluginRoot=process.env.CLAUDE_PLUGIN_ROOT||'plugins/superpowers-ddd-architect';
-const dir=path.join(pluginRoot,'skills','standards','references');
+const dir=path.join(pluginRoot,'references');
 const files={};
 const allowed=f=>f==='database.md'||f.startsWith('ddd-');
 try{
@@ -68,10 +74,16 @@ for(const [fname,fpath] of sorted){
   }catch(e){}
 }
 if(!entries.length)process.exit(0);
-const header=skillType==='review'
-  ?'The following DDD/backend architecture guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or the review scope.\n\nIn your review:\n- cite the relevant DDD/backend pattern for each standards-related finding,\n- explain how the code complies or violates that pattern,\n- do not approve code that violates applicable DDD/backend boundaries.'
-  :'The following DDD/backend architecture guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or the task scope.\n\nIn your response, explicitly state:\n- which DDD/backend patterns apply,\n- which risk cards triggered deeper reading,\n- which important constraints affect your plan or code,\n- which listed patterns are not relevant, if any.\n\nIf a requested change conflicts with a DDD/backend pattern, state the conflict explicitly instead of silently ignoring the pattern.';
-const full='====== DDD Architect Standards ======\n'+header+'\n\n'+entries.join('\n\n')+'\n\nFor non-backend work, state that this plugin is not relevant and continue without loading unrelated standards.\n'+'='.repeat(40);
+let title='DDD Design Guidance';
+let header='The following DDD/backend design guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or the Architecture Gate.\n\nIn your design:\n- define bounded context / capability,\n- identify stable language and data authority,\n- classify technical capabilities,\n- assign layer ownership before implementation.';
+if(skillType==='implement'){
+  title='DDD Implementation Guardrails';
+  header='The following DDD/backend implementation guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or touched code paths.\n\nIn your implementation:\n- calibrate repository shape,\n- place code by layer,\n- preserve dependency direction,\n- map DTO/proto at boundaries,\n- keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.';
+}else if(skillType==='review'){
+  title='DDD Boundary Review';
+  header='The following DDD/backend boundary review guardrails are available.\nYou MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or review scope.\n\nIn your review:\n- find evidence before conclusions,\n- cite file/line and relevant DDD/backend pattern for each finding,\n- distinguish violation, allowed exception, and harmless local style,\n- do not approve code that violates applicable DDD/backend boundaries.';
+}
+const full='====== '+title+' ======\n'+header+'\n\n'+entries.join('\n\n')+'\n\nFor non-backend work, state that this plugin is not relevant and continue without loading unrelated standards.\n'+'='.repeat(40);
 console.log(JSON.stringify(full));
 " 2>/dev/null || true)
 

@@ -6,8 +6,14 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 # Decisions — Architect
 
+## ADR-022: DDD architect uses phase-specific skills
+**Decision:** Replace the DDD plugin's single `standards` skill with `design`, `implement`, and `review`. All three skills share plugin-root `references/` and read `ddd-risk-router.md` first, while hooks map planning to design guidance, execution to implementation guardrails, and code-review to boundary review.
+**Trade-off:** The plugin exposes more skills, but each one is simpler and has a clearer action/phase contract. Accepted because one broad standards entry left agents to infer whether they were designing, placing code, or auditing a diff.
+**Affects:** `plugins/superpowers-ddd-architect/skills/`, `codex-plugins/superpowers-ddd-architect/skills/`, `plugins/superpowers-ddd-architect/references/`, `codex-plugins/superpowers-ddd-architect/references/`, DDD architect hooks and tests.
+→ [adr/ADR-022-ddd-phase-specific-skills.md](adr/ADR-022-ddd-phase-specific-skills.md)
+
 ## ADR-021: Dedicated DDD architect plugin replaces automatic architect injection
-**Decision:** Add `superpowers-ddd-architect` on both Claude and Codex tracks as the active DDD/backend architecture guardrail plugin. It owns automatic DDD/backend workflow injection, reads `ddd-risk-router.md` first, stores references under `plugins/superpowers-ddd-architect/skills/standards/references/` and `codex-plugins/superpowers-ddd-architect/skills/standards/references/`, treats probe commands as repo-calibrated examples, and intentionally has no root `design-patterns/` directory. `superpowers-architect` becomes explicit-only general standards lookup with empty automatic hook configs.
+**Decision:** Add `superpowers-ddd-architect` on both Claude and Codex tracks as the active DDD/backend architecture guardrail plugin. It owns automatic DDD/backend workflow injection, reads `ddd-risk-router.md` first, stores references under plugin-root `references/`, treats probe commands as repo-calibrated examples, and intentionally has no root `design-patterns/` directory. `superpowers-architect` becomes explicit-only general standards lookup with empty automatic hook configs.
 **Trade-off:** The plugin count grows and DDD references are duplicated into a new plugin track. Accepted because the old broad dynamic-loader identity was causing hot-path growth and made DDD/backend guidance compete with unrelated standards.
 **Affects:** `plugins/superpowers-ddd-architect/`, `codex-plugins/superpowers-ddd-architect/`, `plugins/superpowers-architect/`, `codex-plugins/superpowers-architect/`, marketplace entries, architecture guidance tests.
 → [adr/ADR-021-ddd-architect-plugin-split.md](adr/ADR-021-ddd-architect-plugin-split.md)

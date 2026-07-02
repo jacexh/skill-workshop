@@ -31,10 +31,12 @@ Restart Codex after upgrade.
 
 ## Capabilities
 
-- **SessionStart hook** — injects only a lightweight reminder that DDD/backend guardrails are available on demand through `$superpowers-ddd-architect:standards`
-- **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions and injects a compact DDD/backend reference index
-- **`$superpowers-ddd-architect:standards` skill** — explicit DDD/backend architecture workflow
-- **References** — canonical files live under `skills/standards/references/`
+- **SessionStart hook** — injects only a lightweight reminder that DDD/backend guardrails are available on demand through `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, and `$superpowers-ddd-architect:review`
+- **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions and injects the matching DDD design, implementation, or boundary-review reference index
+- **`$superpowers-ddd-architect:design` skill** — explicit DDD/backend boundary design workflow
+- **`$superpowers-ddd-architect:implement` skill** — explicit DDD/backend code-placement workflow
+- **`$superpowers-ddd-architect:review` skill** — explicit DDD/backend boundary audit workflow
+- **References** — canonical files live under `references/`
 
 Natural-language architecture prompts stay quiet unless they explicitly mention an upstream `$superpowers:*` workflow skill.
 
@@ -55,7 +57,7 @@ Do not use this plugin for frontend architecture, browser QA, product UI design,
 
 ## References
 
-Canonical references live under `skills/standards/references/`:
+Canonical references live under `references/`:
 
 - `ddd-risk-router.md` — first-read DDD/backend risk cards
 - `ddd-agent-contract.md` — agent execution contract for DDD, Go runtime, and taskqueue work
@@ -71,4 +73,4 @@ This plugin intentionally does not scan generic `design-patterns/` directories. 
 
 ## Known Codex Protocol Gap
 
-Codex does not expose native skill invocation as a hookable tool/event, so the Codex port uses weaker signals: a lightweight SessionStart reminder, UserPromptSubmit matching for explicit upstream `$superpowers:*` workflow skill mentions, and the explicit `$superpowers-ddd-architect:standards` skill. It does not register a Stop hook because Stop fires after each assistant turn.
+Codex does not expose native skill invocation as a hookable tool/event, so the Codex port uses weaker signals: a lightweight SessionStart reminder, UserPromptSubmit matching for explicit upstream `$superpowers:*` workflow skill mentions, and explicit `design` / `implement` / `review` skills. It does not register a Stop hook because Stop fires after each assistant turn.

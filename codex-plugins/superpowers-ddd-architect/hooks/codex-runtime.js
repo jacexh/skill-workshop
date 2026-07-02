@@ -8,23 +8,15 @@ const mode = process.argv[2];
 const SESSION_START_CONTEXT =
   "## DDD Architecture Guardrails\n" +
   "DDD/backend architecture guardrails are available on demand. Use " +
-  "`$superpowers-ddd-architect:standards` before DDD, Go backend, " +
-  "domain-boundary, event/message, taskqueue/runtime, or database-backed " +
-  "persistence work. Explicit `$superpowers:*` workflow skill mentions also " +
-  "trigger a compact DDD risk-router index; SessionStart intentionally stays lightweight.\n";
+  "`$superpowers-ddd-architect:design` before DDD boundary design, " +
+  "`$superpowers-ddd-architect:implement` while placing backend code, and " +
+  "`$superpowers-ddd-architect:review` when auditing DDD/backend diffs. " +
+  "Explicit `$superpowers:*` workflow skill mentions trigger the matching compact DDD risk-router index; SessionStart intentionally stays lightweight.\n";
 
-const PROMPT_HEADER =
-  "====== DDD Architect Standards ======\n" +
-  "The current user request explicitly invokes a superpowers workflow skill that should apply DDD/backend architecture guardrails.\n\n" +
-  "You MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or the task/review scope. In your response, state:\n" +
-  "- which DDD/backend references apply,\n" +
-  "- which risk cards triggered deeper reading,\n" +
-  "- which important constraints affect your plan, code, or review,\n" +
-  "- which listed patterns are not relevant, if any,\n" +
-  "- any conflicts between the request and an applicable DDD/backend standard.\n\n";
-
-const PROMPT_TRIGGERS = [
-  /\$superpowers:(?:brainstorming|writing-plans|executing-plans|subagent-driven-development|requesting-code-review|receiving-code-review)\b/i,
+const PROMPT_MODES = [
+  { mode: "design", pattern: /\$superpowers:(?:brainstorming|writing-plans)\b/i },
+  { mode: "implement", pattern: /\$superpowers:(?:executing-plans|subagent-driven-development)\b/i },
+  { mode: "review", pattern: /\$superpowers:(?:requesting-code-review|receiving-code-review)\b/i },
 ];
 
 function isDddBackendPattern(filename) {
@@ -32,7 +24,7 @@ function isDddBackendPattern(filename) {
 }
 
 function referenceDirs() {
-  return [path.join(__dirname, "..", "skills", "standards", "references")];
+  return [path.join(__dirname, "..", "references")];
 }
 
 function listReferenceFiles() {
@@ -81,10 +73,32 @@ function readPatternHeader(filePath) {
   return { name, description };
 }
 
-function renderReferenceIndex(files) {
+function promptHeader(mode) {
+  if (mode === "design") {
+    return (
+      "====== DDD Design Guidance ======\n" +
+      "The current user request invokes a planning workflow. Focus on bounded context, business capability, stable language, data authority, aggregate/policy/service boundaries, technical capability classification, and layer ownership.\n\n" +
+      "You MUST read ddd-risk-router.md first when present, then read only the design references required by triggered risk cards or the Architecture Gate.\n\n"
+    );
+  }
+  if (mode === "review") {
+    return (
+      "====== DDD Boundary Review ======\n" +
+      "The current user request invokes a review workflow. Find evidence before conclusions: cite file/line, dependency direction, type leak, orchestration thickness, state decision, async role, runtime wiring, or test gap.\n\n" +
+      "You MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or review scope.\n\n"
+    );
+  }
+  return (
+    "====== DDD Implementation Guardrails ======\n" +
+    "The current user request invokes an implementation workflow. Place code by layer, preserve dependency direction, map DTO/proto at boundaries, and keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.\n\n" +
+    "You MUST read ddd-risk-router.md first when present, then read only the implementation references required by triggered risk cards or touched code paths.\n\n"
+  );
+}
+
+function renderReferenceIndex(files, mode) {
   if (files.size === 0) return "";
 
-  let body = PROMPT_HEADER;
+  let body = promptHeader(mode);
   body +=
     "DDD risk-router workflow:\n" +
     "1. Read ddd-risk-router.md first when it is listed below.\n" +
@@ -118,15 +132,17 @@ function parsePrompt(input) {
   }
 }
 
-function shouldTriggerForPrompt(prompt) {
-  return PROMPT_TRIGGERS.some((pattern) => pattern.test(prompt));
+function modeForPrompt(prompt) {
+  const found = PROMPT_MODES.find(({ pattern }) => pattern.test(prompt));
+  return found ? found.mode : null;
 }
 
 function buildUserPromptSubmitOutput(input) {
   const prompt = parsePrompt(input);
-  if (!prompt || !shouldTriggerForPrompt(prompt)) return {};
+  const mode = prompt ? modeForPrompt(prompt) : null;
+  if (!mode) return {};
 
-  const body = renderReferenceIndex(listReferenceFiles());
+  const body = renderReferenceIndex(listReferenceFiles(), mode);
   if (!body) return {};
 
   return {
