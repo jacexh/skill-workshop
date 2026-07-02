@@ -14,7 +14,7 @@ plugin_hooks = true
 
 ```bash
 codex plugin marketplace add jacexh/skill-workshop
-codex plugin install designing-tests
+codex plugin add designing-tests@skill-workshop-codex
 ```
 
 Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.

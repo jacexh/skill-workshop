@@ -167,10 +167,10 @@ plugin_hooks = true
 Install the Codex plugins you need:
 
 ```bash
-codex plugin install superpowers-memory
-codex plugin install superpowers-architect
-codex plugin install superpowers-ddd-architect
-codex plugin install designing-tests
+codex plugin add superpowers-memory@skill-workshop-codex
+codex plugin add superpowers-architect@skill-workshop-codex
+codex plugin add superpowers-ddd-architect@skill-workshop-codex
+codex plugin add designing-tests@skill-workshop-codex
 ```
 
 Restart Codex. Current Codex versions load plugin lifecycle hooks from each plugin's `.codex-plugin/plugin.json` and `hooks/hooks.json`; users do not run setup skills after install or upgrade. If you previously used setup-era fallback hooks, remove stale entries from `~/.codex/hooks.json` using the relevant plugin README. If hooks do not appear after restart, open `/hooks` to review and trust plugin hooks, confirm both feature flags are enabled, and upgrade Codex if needed.

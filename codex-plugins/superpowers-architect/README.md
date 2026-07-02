@@ -14,7 +14,7 @@ DDD/backend architecture guardrails have moved to `superpowers-ddd-architect`.
 
 ```bash
 codex plugin marketplace add jacexh/skill-workshop
-codex plugin install superpowers-architect
+codex plugin add superpowers-architect@skill-workshop-codex
 ```
 
 No hook feature flags are required for this plugin's explicit skill. Other plugins in this marketplace may still use hooks.

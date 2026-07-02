@@ -8,11 +8,18 @@ MARKETPLACE="$ROOT/.agents/plugins/marketplace.json"
 
 [ -f "$MARKETPLACE" ] || { echo "FAIL missing $MARKETPLACE"; exit 1; }
 
+root_readme="$ROOT/README.md"
+if [ -f "$root_readme" ] && grep -Fq "codex plugin install" "$root_readme"; then
+  echo "FAIL root README must use current Codex install command: codex plugin add"
+  exit 1
+fi
+
 count=$(jq '.plugins | length' "$MARKETPLACE")
 [ "$count" -gt 0 ] || { echo "FAIL no Codex marketplace plugins"; exit 1; }
 
 for i in $(seq 0 $((count - 1))); do
   name=$(jq -r ".plugins[$i].name" "$MARKETPLACE")
+  marketplace_name=$(jq -r ".name" "$MARKETPLACE")
   path=$(jq -r ".plugins[$i].source.path" "$MARKETPLACE")
   manifest="$ROOT/${path#./}/.codex-plugin/plugin.json"
 
@@ -44,6 +51,23 @@ for i in $(seq 0 $((count - 1))); do
   readme="$ROOT/${path#./}/README.md"
   if [ -f "$readme" ] && grep -Fq "\$${name}:setup" "$readme"; then
     echo "FAIL $name README must not tell users to run setup"
+    exit 1
+  fi
+  # The public Codex install command is `codex plugin add`; block stale
+  # published docs that tell users to run an unrecognized subcommand.
+  if [ -f "$readme" ] && grep -Fq "codex plugin install" "$readme"; then
+    echo "FAIL $name README must use current Codex install command: codex plugin add"
+    exit 1
+  fi
+  # Codex requires a marketplace selector unless users pass --marketplace.
+  # Published examples use the compact PLUGIN@MARKETPLACE form.
+  expected_add="codex plugin add ${name}@${marketplace_name}"
+  if ! grep -Fq "$expected_add" "$root_readme"; then
+    echo "FAIL root README missing marketplace-qualified Codex install command: $expected_add"
+    exit 1
+  fi
+  if [ -f "$readme" ] && ! grep -Fq "$expected_add" "$readme"; then
+    echo "FAIL $name README missing marketplace-qualified Codex install command: $expected_add"
     exit 1
   fi
   if [ -f "$readme" ] && grep -Fq "codex_hooks" "$readme"; then
