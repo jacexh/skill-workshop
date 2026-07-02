@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.13.10"
+    "version": "1.14.0"
   },
   "plugins": [
     {
       "name": "superpowers-memory",
       "source": "./plugins/superpowers-memory",
       "description": "Project Knowledge Base query, ingest, and lint for superpowers workflows",
-      "version": "1.13.10",
+      "version": "1.14.0",
       "author": {
         "name": "xuhao"
       },
@@ -28,7 +28,7 @@
       "name": "superpowers-architect",
       "source": "./plugins/superpowers-architect",
       "description": "Explicit-only general architecture standards lookup",
-      "version": "1.13.9",
+      "version": "1.14.0",
       "author": {
         "name": "xuhao"
       },
@@ -44,7 +44,7 @@
       "name": "superpowers-ddd-architect",
       "source": "./plugins/superpowers-ddd-architect",
       "description": "DDD-first backend architecture guardrails for code agents",
-      "version": "1.13.9",
+      "version": "1.14.0",
       "author": {
         "name": "xuhao"
       },
@@ -60,7 +60,7 @@
       "name": "designing-tests",
       "source": "./plugins/designing-tests",
       "description": "Risk-driven test design from architecture docs, sequence diagrams, and hand-off evidence gates",
-      "version": "1.13.9",
+      "version": "1.14.0",
       "author": {
         "name": "xuhao"
       },
