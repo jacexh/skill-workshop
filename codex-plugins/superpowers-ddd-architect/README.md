@@ -34,8 +34,8 @@ Restart Codex after upgrade.
 - **SessionStart hook** — injects only a lightweight reminder that DDD/backend guardrails are available on demand through `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, and `$superpowers-ddd-architect:review`
 - **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions and injects the matching DDD design, implementation, or boundary-review reference budget with repo-calibration guidance
 - **`$superpowers-ddd-architect:design` skill** — explicit product-semantics-to-DDD boundary design workflow
-- **`$superpowers-ddd-architect:implement` skill** — explicit DDD/backend code-placement workflow
-- **`$superpowers-ddd-architect:review` skill** — explicit DDD/backend boundary audit workflow
+- **`$superpowers-ddd-architect:implement` skill** — explicit model-to-code placement workflow
+- **`$superpowers-ddd-architect:review` skill** — explicit evidence-to-judgment boundary review workflow
 - **References** — canonical files live under `references/`
 
 Natural-language architecture prompts stay quiet unless they explicitly mention an upstream `$superpowers:*` workflow skill.
@@ -46,6 +46,8 @@ Use this plugin for:
 
 - bounded contexts and context boundaries
 - product-semantic backend modeling before implementation
+- model-to-code implementation placement
+- evidence-based DDD boundary review
 - Domain/Application/Infrastructure ownership
 - Domain and Application port eligibility
 - generated protocol DTO boundaries

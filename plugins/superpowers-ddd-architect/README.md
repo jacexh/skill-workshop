@@ -12,7 +12,7 @@ When a superpowers planning, execution, subagent, or code-review workflow runs, 
 - implementation workflows load DDD implementation guardrails
 - code-review workflows load DDD boundary review guidance
 
-Claude must read `references/ddd-risk-router.md` first, then load only the deeper references needed for the triggered risks. Design guidance starts from product semantics intake and spec-to-model traceability before file placement or schema design. Hook injection uses a phase-specific reference budget instead of listing every DDD reference by default, and probe-derived conclusions require a short repo calibration first.
+Claude must read `references/ddd-risk-router.md` first, then load only the deeper references needed for the triggered risks. Design guidance starts from product semantics intake and spec-to-model traceability; implementation guidance maps accepted model decisions into code placement; review guidance maps concrete evidence into boundary judgments. Hook injection uses a phase-specific reference budget instead of listing every DDD reference by default, and probe-derived conclusions require a short repo calibration first.
 
 You can also invoke the skills explicitly:
 
@@ -28,6 +28,8 @@ Use this plugin for:
 
 - bounded contexts and context boundaries
 - product-semantic backend modeling before implementation
+- model-to-code implementation placement
+- evidence-based DDD boundary review
 - Domain/Application/Infrastructure ownership
 - Domain and Application port eligibility
 - generated protocol DTO boundaries

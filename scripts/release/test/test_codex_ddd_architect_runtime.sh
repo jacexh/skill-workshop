@@ -79,6 +79,9 @@ implement_context="$(
 grep -q "DDD Implementation Guardrails" <<<"$implement_context" || fail "executing-plans prompt did not trigger implement context"
 grep -q "Reference budget: implement" <<<"$implement_context" || fail "implement context should declare implement reference budget"
 grep -q "Repo calibration" <<<"$implement_context" || fail "implement context should require repo calibration before probes"
+grep -q "Design input check" <<<"$implement_context" || fail "implement context should require design input check"
+grep -q "Model-to-code placement" <<<"$implement_context" || fail "implement context should require model-to-code placement"
+grep -q "Implementation trace" <<<"$implement_context" || fail "implement context should require implementation trace"
 grep -q "Place code by layer" <<<"$implement_context" || fail "implement context should emphasize code placement"
 grep -q "ddd-agent-contract.md" <<<"$implement_context" || fail "implement context should include agent contract"
 grep -q "ddd-golang.md" <<<"$implement_context" || fail "implement context should include primary Go implementation guide"
@@ -93,6 +96,9 @@ review_context="$(
 grep -q "DDD Boundary Review" <<<"$review_context" || fail "code-review prompt did not trigger review context"
 grep -q "Reference budget: review" <<<"$review_context" || fail "review context should declare review reference budget"
 grep -q "Repo calibration" <<<"$review_context" || fail "review context should require repo calibration before probes"
+grep -q "Evidence-to-judgment review" <<<"$review_context" || fail "review context should require evidence-to-judgment framework"
+grep -q "Expected model vs observed code" <<<"$review_context" || fail "review context should compare expected model to observed code"
+grep -q "Finding triage" <<<"$review_context" || fail "review context should require finding triage"
 grep -q "Find evidence before conclusions" <<<"$review_context" || fail "review context should emphasize evidence"
 grep -q "ddd-agent-contract.md" <<<"$review_context" || fail "review context should include agent contract"
 ! grep -q "references/database.md" <<<"$review_context" || fail "review context should not include database guide by default"
@@ -135,7 +141,13 @@ grep -q 'Product semantics intake' "$CODEX_DESIGN_SKILL" || fail "codex design s
 grep -q 'Spec trace' "$CODEX_DESIGN_SKILL" || fail "codex design skill should include spec trace output"
 grep -q 'Commands / queries / events' "$CODEX_DESIGN_SKILL" || fail "codex design skill should include command query event modeling"
 grep -q 'Repo calibration' "$CODEX_IMPLEMENT_SKILL" || fail "codex implement skill should include repo calibration output"
+grep -q 'Design input check' "$CODEX_IMPLEMENT_SKILL" || fail "codex implement skill should include design input check"
+grep -q 'Model-to-code placement' "$CODEX_IMPLEMENT_SKILL" || fail "codex implement skill should include model-to-code placement"
+grep -q 'Implementation trace' "$CODEX_IMPLEMENT_SKILL" || fail "codex implement skill should include implementation trace"
 grep -q 'Repo calibration' "$CODEX_REVIEW_SKILL" || fail "codex review skill should include repo calibration output"
+grep -q 'Evidence map' "$CODEX_REVIEW_SKILL" || fail "codex review skill should include evidence map"
+grep -q 'Expected model vs observed code' "$CODEX_REVIEW_SKILL" || fail "codex review skill should compare expected model to observed code"
+grep -q 'Finding triage' "$CODEX_REVIEW_SKILL" || fail "codex review skill should include finding triage"
 [ -d "$CODEX_DDD_ROOT/references" ] || fail "codex DDD shared references should live at plugin root"
 [ -d "$CLAUDE_DDD_ROOT/references" ] || fail "claude DDD shared references should live at plugin root"
 [ -f "$CODEX_DDD_ROOT/references/ddd-python.md" ] || fail "codex python DDD reference missing"
@@ -157,5 +169,23 @@ grep -q "Product semantics intake" <<<"$claude_hook_output" || fail "claude DDD 
 grep -q "Spec trace" <<<"$claude_hook_output" || fail "claude DDD hook should require spec traceability"
 ! grep -q "references/database.md" <<<"$claude_hook_output" || fail "claude design hook should not include database guide by default"
 ! grep -q "ddd-golang-runtime.md" <<<"$claude_hook_output" || fail "claude design hook should not include runtime guide by default"
+
+claude_implement_hook_output="$(
+  printf '{"tool_input":{"skill":"superpowers:executing-plans"}}' |
+    CLAUDE_PLUGIN_ROOT="$CLAUDE_DDD_ROOT" "$CLAUDE_DDD_ROOT/hooks/run-hook.cmd" pre-tool-use
+)"
+grep -q "DDD Implementation Guardrails" <<<"$claude_implement_hook_output" || fail "claude DDD hook should inject implement context"
+grep -q "Design input check" <<<"$claude_implement_hook_output" || fail "claude implement hook should require design input check"
+grep -q "Model-to-code placement" <<<"$claude_implement_hook_output" || fail "claude implement hook should require model-to-code placement"
+grep -q "Implementation trace" <<<"$claude_implement_hook_output" || fail "claude implement hook should require implementation trace"
+
+claude_review_hook_output="$(
+  printf '{"tool_input":{"skill":"superpowers:requesting-code-review"}}' |
+    CLAUDE_PLUGIN_ROOT="$CLAUDE_DDD_ROOT" "$CLAUDE_DDD_ROOT/hooks/run-hook.cmd" pre-tool-use
+)"
+grep -q "DDD Boundary Review" <<<"$claude_review_hook_output" || fail "claude DDD hook should inject review context"
+grep -q "Evidence-to-judgment review" <<<"$claude_review_hook_output" || fail "claude review hook should require evidence-to-judgment framework"
+grep -q "Expected model vs observed code" <<<"$claude_review_hook_output" || fail "claude review hook should compare expected model to observed code"
+grep -q "Finding triage" <<<"$claude_review_hook_output" || fail "claude review hook should require finding triage"
 
 echo "  codex DDD architect runtime: routing and references correct"

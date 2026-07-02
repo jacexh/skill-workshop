@@ -48,6 +48,7 @@ This is not a soft migration. The old plugin skips the short-term "keep automati
 4. Keep database guidance as backend support, not as a separate top-level product identity.
 5. Preserve explicit access to general standards through `superpowers-architect`.
 6. Make the design phase start from product semantics intake and spec-to-model traceability rather than from a passive list of references to read.
+7. Give each phase a compact thinking framework: `design` turns product semantics into a model, `implement` maps the accepted model into code placement, and `review` turns concrete evidence into boundary judgments.
 
 ## Non-Goals
 
@@ -65,6 +66,9 @@ Default active responsibilities:
 
 - DDD Risk Router.
 - Bounded context and context-map boundaries.
+- Product-semantics-to-model design.
+- Model-to-code implementation placement.
+- Evidence-to-judgment boundary review.
 - Domain/Application/Infrastructure ownership.
 - Domain and Application port eligibility.
 - Generated protocol DTO boundaries.
@@ -95,14 +99,16 @@ After this migration:
 
 ### DDD Plugin Hot Path
 
-The new plugin does not ask "which architecture standard might apply?" first. For design work, it starts by modeling product semantics into DDD decisions; for all phases, it uses DDD risk as the compact routing surface.
+The new plugin does not ask "which architecture standard might apply?" first. Each phase starts from its own thinking framework, and DDD risk remains the compact routing surface for deeper references.
 
 1. For design work, complete Product semantics intake: actors/users, business capability, user actions/system triggers, product-visible outcomes, business rules/invariants, data authority, state lifecycle, external collaborators, and read/query needs.
 2. Keep a Spec trace from product requirement statements to bounded context, invariant, command, query, event/message, and stop-question decisions.
-3. Load the DDD Risk Router.
-4. Match the task or review against compact cards.
-5. Load detailed references only when a card, task, or gate requires them.
-6. Emit a short phase-specific note with applicable DDD/backend constraints.
+3. For implementation work, run a Design input check, build a Model-to-code placement plan, and keep an Implementation trace from model decisions to touched files and tests.
+4. For review work, build an Evidence map, compare Expected model vs observed code, and run Finding triage before reporting issues.
+5. Load the DDD Risk Router.
+6. Match the task or review against compact cards.
+7. Load detailed references only when a card, task, or gate requires them.
+8. Emit a short phase-specific note with applicable DDD/backend constraints.
 
 Risk cards use this shape:
 
@@ -201,7 +207,7 @@ Requirements:
 - `superpowers-architect` automatic dynamic injection is removed, so one workflow should not receive both old and new architecture injections.
 - DDD reference files live under plugin-root `references/`, shared by `design`, `implement`, and `review`; they do not live under a single `standards` skill or a root dynamic `design-patterns/` directory.
 - Hook injection uses phase-specific reference budgets instead of listing every DDD reference; deeper runtime/taskqueue/event support files are loaded only when the risk router or touched path requires them.
-- Design hook guidance stays compact: it points agents toward Product semantics intake, Spec trace, and command/query/event/lifecycle modeling, while the full method lives in `$superpowers-ddd-architect:design`.
+- Phase hook guidance stays compact: design points toward Product semantics intake and Spec trace; implement points toward Design input check, Model-to-code placement, and Implementation trace; review points toward Evidence-to-judgment review, Expected model vs observed code, and Finding triage. Full methods live in the explicit phase skills.
 - Probe examples require a short repo calibration before the agent treats hits as evidence.
 - New DDD guidance must replace or compress existing DDD prose; it must not create a second full explanation beside the old one.
 - Database stays support-level, on-demand, and must not become a second default router.

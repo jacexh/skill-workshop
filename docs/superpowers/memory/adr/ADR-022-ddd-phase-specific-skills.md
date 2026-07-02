@@ -16,16 +16,17 @@ The initial `superpowers-ddd-architect` split exposed one `standards` skill. Tha
 Replace the DDD plugin's `standards` skill with three action-oriented skills:
 
 - `design` — product-semantics-to-DDD/backend boundary design before implementation.
-- `implement` — code placement and dependency-boundary guardrails during implementation/refactor.
-- `review` — evidence-based boundary audit for plans, code, or diffs.
+- `implement` — model-to-code placement and dependency-boundary guardrails during implementation/refactor.
+- `review` — evidence-to-judgment boundary audit for plans, code, or diffs.
 
-All three skills share plugin-root `references/` and read `ddd-risk-router.md` first. Hooks map upstream workflow phases to the matching mode: planning skills to design guidance, execution skills to implementation guardrails, and code-review skills to boundary review. Hook injection uses phase-specific reference budgets instead of listing every DDD reference, and probe-derived conclusions require a short Repo calibration first. Design guidance is a compact entry reminder; the `design` skill owns the full Product semantics intake, Spec trace, command/query/event/lifecycle modeling, and stop-question workflow.
+All three skills share plugin-root `references/` and read `ddd-risk-router.md` first. Hooks map upstream workflow phases to the matching mode: planning skills to design guidance, execution skills to implementation guardrails, and code-review skills to boundary review. Hook injection uses phase-specific reference budgets instead of listing every DDD reference, and probe-derived conclusions require a short Repo calibration first. Prompt-time guidance is a compact entry reminder; the explicit phase skills own the full thinking frameworks: `design` owns Product semantics intake and Spec trace, `implement` owns Design input check / Model-to-code placement / Implementation trace, and `review` owns Evidence map / Expected model vs observed code / Finding triage.
 
 ## Consequences
 
 - Skill invocation becomes simpler: `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, `$superpowers-ddd-architect:review`.
 - Shared DDD references move out of `skills/standards/references/` to plugin-root `references/` so no single skill owns the reference set.
 - The plugin avoids the old "load standards, then infer intent" shape; each entry point has its own output contract.
+- `implement` must trace accepted model decisions to code files, mapping boundaries, and tests before editing; `review` must reconstruct expected model and observed code before triaging findings.
 - Prompt-time guidance remains compact: design lists risk-router/modeling/core and treats database as on-demand support for explicit persistence concerns, while implement and review list risk-router/agent-contract/core/primary Go guide and rely on risk cards for deeper support files.
 - The legacy general `superpowers-architect:standards` skill remains the explicit general standards lookup; ADR-023 removes its bundled DDD/database defaults.
 

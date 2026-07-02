@@ -95,7 +95,7 @@ function promptHeader(mode) {
     return (
       "====== DDD Boundary Review ======\n" +
       "Reference budget: review. Only the risk router, agent contract, core rules, and primary Go guide are listed by default; load deeper support files only when a triggered risk card names them.\n\n" +
-      "The current user request invokes a review workflow. Find evidence before conclusions: cite file/line, dependency direction, type leak, orchestration thickness, state decision, async role, runtime wiring, or test gap.\n\n" +
+      "The current user request invokes a review workflow. Use an Evidence-to-judgment review: compare Expected model vs observed code, then run Finding triage as violation, allowed exception, harmless local style, or evidence gap. Find evidence before conclusions: cite file/line, dependency direction, type leak, orchestration thickness, state decision, async role, runtime wiring, or test gap.\n\n" +
       "Repo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\n" +
       "You MUST read ddd-risk-router.md first when present, then read only the deeper references required by triggered risk cards or review scope.\n\n"
     );
@@ -103,7 +103,7 @@ function promptHeader(mode) {
   return (
     "====== DDD Implementation Guardrails ======\n" +
     "Reference budget: implement. Only the risk router, agent contract, core rules, and primary Go guide are listed by default; load deeper support files only when a triggered risk card or touched code path requires them.\n\n" +
-    "The current user request invokes an implementation workflow. Place code by layer, preserve dependency direction, map DTO/proto at boundaries, and keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.\n\n" +
+    "The current user request invokes an implementation workflow. Start with a Design input check, then use Model-to-code placement and keep an Implementation trace from accepted model decisions to touched files and tests. Place code by layer, preserve dependency direction, map DTO/proto at boundaries, and keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.\n\n" +
     "Repo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\n" +
     "You MUST read ddd-risk-router.md first when present, then read only the implementation references required by triggered risk cards or touched code paths.\n\n"
   );
