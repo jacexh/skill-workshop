@@ -55,7 +55,21 @@ If nothing can be removed, the new content is rejected unless it fixes a critica
 
 ## Proposed Information Architecture
 
-### 1. Risk Router in `ddd-agent-contract.md`
+### 1. Standards Skill Loads the Router First
+
+The risk-router model must change the `standards` skill workflow, not only the DDD pattern files.
+
+Today the skill says to read every relevant pattern in full before planning, editing, or reviewing. Under this design, DDD work takes a narrower path:
+
+1. Discover the active pattern set as before.
+2. If `ddd-agent-contract.md` is active, read it first.
+3. Use its Risk Router to decide which detailed DDD references are needed.
+4. Read only the reference files or sections required by the triggered cards, the user's task, or an explicit Architecture Gate.
+5. For non-DDD pattern sets, keep the existing "read the applicable full pattern" behavior.
+
+This preserves progressive loading. Without this skill workflow change, the router would only reshape documentation while the explicit `$superpowers-architect:standards` path still forces the old full-load behavior.
+
+### 2. Risk Router in `ddd-agent-contract.md`
 
 Move the first-screen DDD guidance toward a compact "Risk Router" section near the top of `ddd-agent-contract.md`.
 
@@ -83,13 +97,13 @@ Initial cards:
 
 The existing 27-item must-not list becomes a compact appendix or table. It should no longer be the default first path an agent mentally executes.
 
-### 2. Keep Detailed Patterns as Reference
+### 3. Keep Detailed Patterns as Reference
 
 `ddd-modeling.md`, `ddd-core.md`, `ddd-golang.md`, `ddd-golang-events-messages.md`, `ddd-golang-runtime.md`, and `ddd-golang-taskqueue.md` remain the source of truth for detailed design. They should not repeat the full risk-card text.
 
 When a card points to a reference, the reference should contain the deeper rationale and examples. The hot path should contain only enough text to trigger the correct review behavior.
 
-### 3. Add Scan Recipes Without Creating a New Default File
+### 4. Add Scan Recipes Without Creating a New Default File
 
 Avoid adding a new top-level pattern file unless it replaces existing bulk. Scan recipes should live near the card or the specific reference section they support.
 
@@ -103,7 +117,7 @@ Examples:
 
 Scans are review signals, not proof. Each scan must say what a legitimate exception looks like.
 
-### 4. Downgrade Low-Value Default Checks
+### 5. Downgrade Low-Value Default Checks
 
 The following rules remain useful but should leave the default DDD hot path:
 
@@ -127,6 +141,8 @@ Keep SessionStart lightweight. Do not inject the dynamic pattern index or Archit
 
 For natural-language architecture review prompts, this design does not mandate a hook behavior change. A possible follow-up experiment is a one-line non-blocking nudge when the prompt explicitly contains terms such as "DDD review", "architecture review", "bounded context", or "Clean Architecture". That experiment must not inject the pattern index and must be reversible if it creates noise.
 
+This spec makes no natural-language hook behavior change. Codex natural-language architecture discussion continues to return `{}`.
+
 ## Content Budget
 
 This optimization has an explicit size budget:
@@ -139,24 +155,38 @@ This optimization has an explicit size budget:
 
 Implementation should establish a baseline with `wc -w` or `wc -c` across the DDD pattern files before editing, then compare after editing.
 
+Use these baseline measurements before implementation:
+
+```bash
+wc -w plugins/superpowers-architect/design-patterns/ddd-*.md
+wc -w codex-plugins/superpowers-architect/design-patterns/ddd-*.md
+sed -n '1,180p' plugins/superpowers-architect/design-patterns/ddd-agent-contract.md | wc -w
+sed -n '1,180p' codex-plugins/superpowers-architect/design-patterns/ddd-agent-contract.md | wc -w
+```
+
+The post-change implementation must report equivalent measurements. If the final Risk Router uses explicit anchors, the plan may add an anchor-based measurement, but it must keep the baseline command above for comparison.
+
 ## Acceptance Criteria
 
-1. A fresh agent reading the DDD hot path can identify the known talgent failure modes without reading all DDD reference files.
-2. The default path is shorter than before, measured across the sections that the agent contract requires first.
-3. The full DDD pattern set has no net word-count increase.
-4. The Claude and Codex design-pattern trees remain semantically aligned.
-5. Low-value checks are clearly scoped to their actual domains instead of appearing as general DDD violations.
-6. No hook starts injecting large content into SessionStart or natural-language prompts.
+1. The `standards` skill documents the DDD router-first workflow: read `ddd-agent-contract.md` first, then load detailed DDD references only when a card, task, or gate requires them.
+2. The Risk Router covers this fixed failure checklist: cross-context Application/Domain imports, generated proto in semantic ports, fat `application.go` RPC shortcut, thin handlers sharing a large processor, Application-side state classification, command-side Application port by dependency-inversion reflex, runtime/cmd provider pollution, and technical bounded-context exceptions.
+3. The total word count of `plugins/superpowers-architect/design-patterns/ddd-*.md` does not increase from the recorded baseline. The same must hold for `codex-plugins/superpowers-architect/design-patterns/ddd-*.md`.
+4. The first 180 lines of `ddd-agent-contract.md` in each track are at least 10% shorter than the recorded baseline, or the implementation plan records a stronger anchor-based hot-path measurement and meets that threshold.
+5. The Claude and Codex design-pattern trees remain semantically aligned.
+6. Low-value checks are clearly scoped to their actual domains instead of appearing as general DDD violations.
+7. This spec causes no hook behavior change for natural-language prompts: Codex natural-language architecture discussion still returns `{}`.
+8. No hook starts injecting large content into SessionStart, Stop, or natural-language prompts.
 
 ## Suggested Implementation Phases
 
 1. Measure current DDD pattern sizes and identify repeated paragraphs.
-2. Rewrite `ddd-agent-contract.md` top section into the Risk Router.
-3. Compress the must-not list into an appendix/table and remove duplicated explanations already owned by reference files.
-4. Add scan recipes to the relevant cards or nearby reference sections.
-5. Downgrade low-value default checks in the appropriate reference files.
-6. Sync `plugins/` and `codex-plugins/`.
-7. Run parity and size checks.
+2. Update the `standards` skill workflow so DDD loads the agent contract and Risk Router before detailed references.
+3. Rewrite `ddd-agent-contract.md` top section into the Risk Router.
+4. Compress the must-not list into an appendix/table and remove duplicated explanations already owned by reference files.
+5. Add scan recipes to the relevant cards or nearby reference sections.
+6. Downgrade low-value default checks in the appropriate reference files.
+7. Sync `plugins/` and `codex-plugins/`.
+8. Run parity and size checks.
 
 ## Risks
 
