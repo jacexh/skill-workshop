@@ -1,6 +1,6 @@
 ---
 name: ddd-typescript
-description: TypeScript implementation guide for DDD + Clean Architecture. Use when a phase playbook or DDD risk card routes to TypeScript backend services with aggregates, repositories, domain events, CQRS, composition-root module assembly, or TypeScript package boundaries.
+description: TypeScript implementation guide for DDD + Clean Architecture. Use when a phase skill or DDD risk card routes to TypeScript backend services with aggregates, repositories, domain events, CQRS, composition-root module assembly, or TypeScript package boundaries.
 ---
 
 # TypeScript Backend Architecture Guide
@@ -10,7 +10,7 @@ description: TypeScript implementation guide for DDD + Clean Architecture. Use w
 **Date**: 2026-05-21
 **Scope**: Team backend service architecture standard  
 **Phase routing**:
-- **Phase playbook**: Start from [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), or [`ddd-review-playbook.md`](ddd-review-playbook.md). Load this file only when the active phase needs TypeScript-specific DDD placement, package, naming, testing, or composition-root rules.
+- **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs TypeScript-specific DDD placement, package, naming, testing, or composition-root rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs task classification, stop protocol, prohibited actions, or completion self-checks.
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
 - **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).

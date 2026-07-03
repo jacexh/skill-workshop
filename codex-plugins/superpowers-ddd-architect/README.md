@@ -2,7 +2,7 @@
 
 DDD-first backend architecture guardrails for Codex.
 
-This plugin is an active DDD/backend architecture guardrail. Its default prompt-time budget is the compact DDD Risk Router plus the active phase playbook; deeper references load only when a risk card, task, or Architecture Gate requires them.
+This plugin is an active DDD/backend architecture guardrail. Its default prompt-time budget is the active phase skill plus the compact DDD Risk Router; deeper references load only when a risk card, task, or Architecture Gate requires them.
 
 ## Installation
 
@@ -32,7 +32,7 @@ Restart Codex after upgrade.
 ## Capabilities
 
 - **SessionStart hook** — injects only a lightweight reminder that DDD/backend guardrails are available on demand through `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, and `$superpowers-ddd-architect:review`
-- **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions and injects the matching DDD design, implementation, or boundary-review reference budget with repo-calibration guidance
+- **UserPromptSubmit hook** — detects explicit upstream `superpowers` workflow skill mentions and injects the matching DDD phase skill plus the compact DDD Risk Router, without duplicating the phase method in the hook
 - **`$superpowers-ddd-architect:design` skill** — explicit product-semantics-to-DDD boundary design workflow
 - **`$superpowers-ddd-architect:implement` skill** — explicit model-to-code placement workflow
 - **`$superpowers-ddd-architect:review` skill** — explicit evidence-to-judgment boundary review workflow
@@ -63,10 +63,10 @@ Do not use this plugin for frontend architecture, browser QA, product UI design,
 
 Canonical references live under `references/`:
 
-- `ddd-risk-router.md` — default DDD/backend risk cards read with the active phase playbook
-- `ddd-design-playbook.md` — design-phase product-semantics-to-model method
-- `ddd-implement-playbook.md` — implementation-phase model-to-code placement method
-- `ddd-review-playbook.md` — review-phase evidence-to-judgment method
+- `../skills/design/SKILL.md` — design-phase product-semantics-to-model method
+- `../skills/implement/SKILL.md` — implementation-phase model-to-code placement method
+- `../skills/review/SKILL.md` — review-phase evidence-to-judgment method
+- `ddd-risk-router.md` — default DDD/backend risk cards read with the active phase skill
 - `ddd-agent-contract.md` — on-demand agent prohibited actions, classification, and self-checks
 - `ddd-modeling.md` — on-demand strategic bounded-context, aggregate, and architecture gate guidance
 - `ddd-core.md` — on-demand dependency direction, bounded contexts, and service layer boundaries

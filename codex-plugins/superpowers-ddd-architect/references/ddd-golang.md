@@ -1,6 +1,6 @@
 ---
 name: ddd-golang
-description: Go implementation guide for DDD + Clean Architecture. Use when a phase playbook or DDD risk card routes to Go business files under internal/business/<context>/**.go, pkg/gen/** contracts, aggregates, repositories, CQRS, cross-context query ports, module assembly, or Go package boundaries.
+description: Go implementation guide for DDD + Clean Architecture. Use when a phase skill or DDD risk card routes to Go business files under internal/business/<context>/**.go, pkg/gen/** contracts, aggregates, repositories, CQRS, cross-context query ports, module assembly, or Go package boundaries.
 ---
 
 # Go Web System Architecture Guide
@@ -10,7 +10,7 @@ description: Go implementation guide for DDD + Clean Architecture. Use when a ph
 **Date**: 2026-05-29
 **Scope**: Team backend service architecture standard
 **Phase routing**:
-- **Phase playbook**: Start from [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), or [`ddd-review-playbook.md`](ddd-review-playbook.md). Load this file only when the active phase needs Go-specific DDD placement, package, naming, testing, or module-assembly rules.
+- **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Go-specific DDD placement, package, naming, testing, or module-assembly rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs task classification, stop protocol, prohibited actions, or completion self-checks.
 - **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
 - **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).
@@ -82,6 +82,8 @@ This guide combines **Domain-Driven Design (DDD)** with **Clean Architecture**, 
 ### 1.2 Layered Architecture
 
 Four layers with the **Domain Layer as the core** (innermost). The Interface layer is optional — in Go projects this guide allows a narrow gRPC/ConnectRPC shortcut where `application/application.go` implements the generated handler stub directly (see §3.3). Use-case packages under `application/command`, `application/query`, `application/eventhandler`, `application/messagehandler`, and `application/messagepublisher` still follow Application dependency rules. For REST/HTTP/WebSocket and other hand-written protocols, the Interface layer is present.
+
+Generated Go RPC handler placement is repo-calibrated. When a repository already implements generated ConnectRPC/gRPC service stubs from `application/application.go`, default to the existing application/application.go shortcut and keep each method as request mapping, one delegate call, and response/error mapping. Do not create interfaces/grpc, interfaces/connectrpc, or interfaces/runtime packages solely to house generated ConnectRPC/gRPC handlers. Use a physical `interfaces/` package for generated RPC only when the repository already has that convention or the user explicitly chooses to keep Application free of generated protocol imports.
 
 ```
           ┌─────────────────────────────────────────────┐
@@ -206,7 +208,7 @@ internal/business/user/          # User bounded context
 │   ├── assembler.go             # DTO/Proto <-> Domain conversion
 │   │   # application.go remains the single entry point that wires them all.
 │
-├── interfaces/                  # Interface layer (OPTIONAL — only for hand-written protocols)
+├── interfaces/                  # Interface layer (OPTIONAL — hand-written protocols, or repo-calibrated generated RPC only)
 │   └── http/
 │       ├── handler.go           # REST Handler (manual routing, request/response mapping)
 │       └── handler_test.go      # Protocol mapping tests
@@ -1449,7 +1451,7 @@ For event/message handler registration, Boundary Publisher rules, and Kafka adap
 ---
 
 **References:**
-- [ddd-design-playbook.md](ddd-design-playbook.md) / [ddd-implement-playbook.md](ddd-implement-playbook.md) / [ddd-review-playbook.md](ddd-review-playbook.md) — Phase entrypoints
+- [design](../skills/design/SKILL.md) / [implement](../skills/implement/SKILL.md) / [review](../skills/review/SKILL.md) — Phase entrypoints
 - [ddd-agent-contract.md](ddd-agent-contract.md) — Agent prohibited actions and self-checks
 - [ddd-modeling.md](ddd-modeling.md) — Strategic domain modeling (bounded context discovery, aggregate design)
 - [ddd-core.md](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification

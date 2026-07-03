@@ -1,6 +1,6 @@
 ---
 name: ddd-core
-description: DDD + Clean Architecture specification for backend services. Use when a phase playbook or DDD risk card routes to layer ownership, dependency direction, repositories, Domain Events, Integration Messages, CQRS, cross-context contracts, or architecture conformance rules.
+description: DDD + Clean Architecture specification for backend services. Use when a phase skill or DDD risk card routes to layer ownership, dependency direction, repositories, Domain Events, Integration Messages, CQRS, cross-context contracts, or architecture conformance rules.
 ---
 
 # Backend Architecture Specification
@@ -9,9 +9,9 @@ description: DDD + Clean Architecture specification for backend services. Use wh
 **Version**: v2.4
 **Date**: 2026-05-21
 **Scope**: All backend services, language-agnostic
-**Routing**: This is a tactical architecture rule source, not the default agent entrypoint. Start from the active phase playbook. Use [`ddd-modeling.md`](ddd-modeling.md) first when the domain model, bounded context, aggregate boundary, or Architecture Gate is still unsettled; use this file when the phase needs language-neutral DDD/Clean Architecture rules for the model.
+**Routing**: This is a tactical architecture rule source, not the default agent entrypoint. Start from the active phase skill. Use [`ddd-modeling.md`](ddd-modeling.md) first when the domain model, bounded context, aggregate boundary, or Architecture Gate is still unsettled; use this file when the phase needs language-neutral DDD/Clean Architecture rules for the model.
 
-> **Phase routing**: Agent entrypoints are [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), and [`ddd-review-playbook.md`](ddd-review-playbook.md). Use this document only when a phase playbook or [`ddd-risk-router.md`](ddd-risk-router.md) routes to tactical architecture rules.
+> **Phase routing**: Agent entrypoints are [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), and [`review`](../skills/review/SKILL.md). Use this document only when a phase skill or [`ddd-risk-router.md`](ddd-risk-router.md) routes to tactical architecture rules.
 
 ---
 
@@ -84,6 +84,8 @@ Four layers, with the **Domain Layer as the core**:
 ### 2.1 Overall Layout
 
 Code is organized **vertically by bounded context**. Each bounded context is a self-contained directory with its own four-layer structure. Flat horizontal layouts (top-level `controllers/`, `models/`, `repositories/`) are prohibited.
+
+Physical Interface directories are optional and language/repo-specific. The diagram below names layer responsibilities, not mandatory package paths. Generated IDL/RPC adapter placement is repository-calibrated: when a framework generator already defines the external service, handler, or controller contract, place the hand-written adapter where the repository's language convention owns that boundary. Language-specific guides or repository calibration may keep generated RPC handlers in an Application entry point when the generated protocol framework already defines the external contract.
 
 ```
 project/

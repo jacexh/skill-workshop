@@ -1,11 +1,17 @@
 ---
 name: DDD Risk Router
-description: Compact DDD/backend architecture risk cards. Read with the active DDD phase playbook for backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
+description: Compact DDD/backend architecture risk cards. Read with the active DDD phase skill for backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
 ---
 
 # DDD Risk Router
 
-Read this file with the active phase playbook for DDD/backend architecture work. Use it to decide which deeper standards to load.
+Read this file with the active phase skill for DDD/backend architecture work. Use it to decide which deeper standards to load.
+
+## How Phases Use Cards
+
+- Design uses cards to surface modeling questions: identify when a risk implies missing subdomain, bounded context, data authority, context-map, or tactical model decisions. Do not report violations from design-only speculation.
+- Implement uses cards to translate accepted model decisions into code placement: identify which deeper reference is needed for adapters, mappings, ports, runtime, persistence, or tests. Do not use a card to invent a new model decision during implementation.
+- Review uses cards to demand evidence before findings: use Required evidence and Allowed exception before calling a probe hit a violation. Evidence gaps stay evidence gaps.
 
 ## Calibration Before Probes
 
@@ -45,11 +51,11 @@ When a card is triggered, load the required references before reporting a violat
 |---|---|---|---|
 | Cross-Context Direct Imports | `ddd-core.md`, active language guide; Go event/message guide when async contracts are involved | Import path crossing calibrated bounded-context roots; caller/callee layer; whether the import is Domain/Application vs published API/protocol | Written compatibility bridge or migration target using Integration Messages, read facade, ACL, or protocol contract |
 | Generated Protocol Types in Semantic Ports | `ddd-core.md`, active language guide | Port/interface signature, Domain/Application package path, generated/protocol type import, mapping boundary evidence | Project explicitly treats generated type as a read contract for query/read DTOs |
-| Fat Go RPC Shortcut | `ddd-golang.md` | `application.go` or RPC adapter method with repository, save, dispatch, enqueue, transaction, or multi-port coordination evidence | Small actor/auth extraction used only to build a command/query before one delegate call |
+| Fat Generated RPC Adapter | `ddd-core.md`, active language guide | Generated RPC/IDL adapter method with repository, save, dispatch, enqueue, transaction, or multi-port coordination evidence | Small actor/auth extraction used only to build a command/query before one delegate call |
 | Shared Umbrella Processor | `ddd-golang-events-messages.md` and/or `ddd-golang-taskqueue.md` | Shared processor type, inbound kinds/task types, dependency set, role/side-effect mix, transaction/failure policy | Same role, source family, side effect, transaction boundary, failure policy, and dependency set |
 | Business State Classification Outside Domain | `ddd-agent-contract.md`, `ddd-core.md`, active language guide | Application/handler/processor branch or helper over business state/status; evidence it drives a business decision, not mapping | Mechanical DTO/read-model/proto mapping without business decision semantics |
 | Command-Side Application Port Reflex | `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md` | New command-side interface, caller use case, semantic capability, rejected Domain/Repository/Domain Event/Integration Message/ACL/Infrastructure alternatives | Architecture Gate proves a stable use-case semantic lifecycle that is not mechanism plumbing |
-| Runtime/Cmd Provider Pollution | `ddd-golang-runtime.md` | `cmd/**` provider construction, business-layer imports, generated route registration, lifecycle/config ownership evidence | Process-owned provider with explicit runtime impact note |
+| Runtime/Entrypoint Provider Pollution | active runtime/language guide where available | Process entrypoint provider construction, business-layer imports, generated route registration, lifecycle/config ownership evidence | Process-owned provider with explicit runtime impact note |
 | Technical Bounded Context | `ddd-modeling.md`, `ddd-core.md`, `ddd-golang-runtime.md` | Product/operator language, lifecycle/state/invariant ownership, adapter-detail exclusion evidence | Stable lifecycle/invariant is recorded and deployment adapter mechanics stay outside Domain |
 
 ## Cards
@@ -70,13 +76,13 @@ When a card is triggered, load the required references before reporting a violat
 - **Allowed exception:** query/read DTOs may use generated types only when the project explicitly treats them as read contracts.
 - **Reference:** `ddd-core.md` and active language guide (`ddd-golang.md`, `ddd-python.md`, or `ddd-typescript.md`).
 
-### Fat Go RPC Shortcut
+### Fat Generated RPC Adapter
 
-- **Smell:** `application.go` generated RPC methods contain repository calls, saves, dispatch, enqueueing, transactions, or multi-port coordination.
-- **Probe examples:** in Go repos that use generated RPC stubs on `application.go`, search those methods for persistence, dispatch, enqueueing, or transaction calls, e.g. `rg -n 'Save\(|Dispatch|Enqueue|Transaction|Session|repo\.|repository|Publisher|Handler' <application-entrypoint-files>`.
-- **Decision:** keep RPC methods as map -> delegate once -> map response/error.
+- **Smell:** generated RPC/IDL adapter methods contain repository calls, saves, dispatch, enqueueing, transactions, or multi-port coordination. The smell is a fat generated RPC adapter body, not the calibrated placement itself.
+- **Probe examples:** inspect generated adapter implementations for persistence, dispatch, enqueueing, transaction, or multi-port coordination calls; rewrite the search to match the repository's generated framework and handler location.
+- **Decision:** keep generated adapter methods as map -> delegate once -> map response/error. Do not move a thin generated adapter solely to satisfy a generic Interface layer example.
 - **Allowed exception:** small actor/auth extraction needed to build the command/query.
-- **Reference:** `ddd-golang.md`.
+- **Reference:** `ddd-core.md` and the active language guide.
 
 ### Shared Umbrella Processor
 
@@ -102,13 +108,13 @@ When a card is triggered, load the required references before reporting a violat
 - **Allowed exception:** written gate proves a stable use-case semantic lifecycle that is not mechanism plumbing.
 - **Reference:** `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md`.
 
-### Runtime/Cmd Provider Pollution
+### Runtime/Entrypoint Provider Pollution
 
-- **Smell:** `cmd/<service>/main.go` constructs repositories, query repositories, ACL clients, handler wrappers, or generated route handlers.
-- **Probe examples:** in Go/fx repos, search entrypoints for business-layer imports, generated route registration, and provider-heavy wiring, e.g. `rg -n 'internal/.*/(infrastructure|application/(command|query|eventhandler|messagehandler|messagepublisher))|fx\\.Provide\\(|pkg/gen/.*(connect|grpc)' <cmd-paths>`.
-- **Decision:** `cmd` loads config, selects modules, supplies aggregate options, and runs the app.
+- **Smell:** the process entrypoint constructs repositories, query repositories, ACL clients, handler wrappers, or generated route handlers.
+- **Probe examples:** search calibrated entrypoint/composition roots for business-layer imports, generated route registration, and provider-heavy wiring; in Go/fx repos this often includes `cmd/<service>/main.go` and `fx.Provide`.
+- **Decision:** the process entrypoint loads config, selects modules/composition roots, supplies process options, and runs the app.
 - **Allowed exception:** process-owned provider with runtime impact note.
-- **Reference:** `ddd-golang-runtime.md`.
+- **Reference:** active runtime/language guide where available.
 
 ### Technical Bounded Context
 

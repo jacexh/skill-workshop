@@ -10,7 +10,7 @@ description: Go runtime patterns for DDD services — fx-based configuration man
 **Date**: 2026-06-01
 **Scope**: Go runtime patterns complementing [`ddd-golang.md`](ddd-golang.md)
 **Phase routing**:
-- **Phase playbook**: Start from [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), or [`ddd-review-playbook.md`](ddd-review-playbook.md). Load this file only when the active phase needs Go runtime, config, lifecycle, shutdown, or Kubernetes rules.
+- **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Go runtime, config, lifecycle, shutdown, or Kubernetes rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs runtime-only classification, prohibited actions, or runtime self-checks.
 - **Go implementation**: [`ddd-golang.md`](ddd-golang.md) — Layer responsibilities, directory layout, naming, error handling. This runtime guide covers what `ddd-golang.md` defers to: config plumbing, process lifecycle, graceful shutdown, k8s.
 - **Events / messages**: [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Domain Event / Integration Message semantics, handler roles, and message adapter boundaries.
@@ -481,7 +481,7 @@ Kubernetes initiates Pod deletion
 ---
 
 **References:**
-- [`ddd-design-playbook.md`](ddd-design-playbook.md) / [`ddd-implement-playbook.md`](ddd-implement-playbook.md) / [`ddd-review-playbook.md`](ddd-review-playbook.md) — Phase entrypoints
+- [`design`](../skills/design/SKILL.md) / [`implement`](../skills/implement/SKILL.md) / [`review`](../skills/review/SKILL.md) — Phase entrypoints
 - [`ddd-agent-contract.md`](ddd-agent-contract.md) — Runtime classification, prohibited actions, and self-checks
 - [`ddd-golang.md`](ddd-golang.md) — Go DDD implementation (layers, aggregates, events, integration messages, module assembly)
 - [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Go Domain Events, Boundary Publishers, Integration Messages, Kafka adapter wiring
