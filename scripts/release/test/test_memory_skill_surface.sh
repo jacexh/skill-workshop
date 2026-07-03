@@ -10,6 +10,7 @@ fail() {
 for track in plugins codex-plugins; do
   base="$ROOT/$track/superpowers-memory/skills"
   templates="$ROOT/$track/superpowers-memory/templates"
+  rules="$ROOT/$track/superpowers-memory/content-rules.md"
   readme="$ROOT/$track/superpowers-memory/README.md"
 
   # Primary and compatibility skills must exist in both plugin tracks.
@@ -49,6 +50,8 @@ for track in plugins codex-plugins; do
     || fail "$track query missing skipped-source reporting"
   grep -q "Code search seeds" "$base/query/SKILL.md" \
     || fail "$track query missing code search seed output"
+  grep -Fq "Do not append log.md" "$base/query/SKILL.md" \
+    || fail "$track query missing log read-only rule"
 
   # Ingest must support full rebuilds and add targeted coverage for high-value query objects.
   grep -q "docs/superpowers/memory" "$base/ingest/SKILL.md" \
@@ -112,6 +115,12 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing module-to-scenario reference guidance"
   grep -q "Authority boundaries" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing scenario authority boundary guidance"
+  grep -Fq "Append one log.md entry" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing log append rule"
+  grep -Fq "## [YYYY-MM-DD] ingest |" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing log heading contract"
+  grep -Fq "Source query" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing query-driven log source guidance"
   if grep -Eq '^- `architecture-(contexts|flows)\.md` —' "$base/ingest/SKILL.md"; then
     fail "$track ingest still recommends legacy architecture view shards"
   fi
@@ -151,6 +160,8 @@ for track in plugins codex-plugins; do
     || fail "$track lint missing topic refresh escalation guidance"
   grep -q "affected routing" "$base/lint/SKILL.md" \
     || fail "$track lint missing decision affected routing advisory"
+  grep -Fq "Do not append log.md" "$base/lint/SKILL.md" \
+    || fail "$track lint missing log read-only rule"
 
   # Compatibility aliases must continue to point at the LLM Wiki-aligned primary skills.
   grep -q "superpowers-memory:query" "$base/load/SKILL.md" || fail "$track load not pointing to query"
@@ -196,6 +207,18 @@ for track in plugins codex-plugins; do
     || fail "$track glossary template missing reference query coverage"
   grep -q "Reference Query Coverage" "$templates/tech-stack.md" \
     || fail "$track tech-stack template missing reference query coverage"
+  [ -f "$templates/log.md" ] \
+    || fail "$track missing log.md template"
+  grep -q "Project Knowledge Log" "$templates/log.md" \
+    || fail "$track log template missing title"
+  grep -Fq "## [YYYY-MM-DD] ingest |" "$templates/log.md" \
+    || fail "$track log template missing machine-readable heading contract"
+  grep -q "append-only" "$templates/log.md" \
+    || fail "$track log template missing append-only rule"
+  grep -Fq '`log.md`' "$rules" \
+    || fail "$track content rules missing log slot"
+  grep -q "log_event_not_ingest_owned" "$rules" \
+    || fail "$track content rules missing log verify coverage"
 
   # Dedicated shard templates should make module/scenario files stronger than
   # loose copies of architecture.md sections.

@@ -5,7 +5,7 @@ description: Use to health-check Project Knowledge Base without writing — repo
 
 # Lint Project Knowledge
 
-Check `docs/superpowers/memory/` without writing knowledge files. The only allowed write is the one-time legacy directory migration below.
+Check `docs/superpowers/memory/` without writing knowledge files. The only allowed write is the one-time legacy directory migration below. Do not append log.md; lint findings are logged only if a later `ingest` changes the KB to address them.
 
 **Announce at start:** "I'm linting the project knowledge base."
 

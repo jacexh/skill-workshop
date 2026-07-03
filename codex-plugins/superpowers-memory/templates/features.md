@@ -8,6 +8,14 @@ triggered_by_plan: null
      This is the human-readable capability map. Structure (how modules are wired)
      lives in architecture.md; rationale lives in decisions.md + adr/.
 
+     SLOT CONTRACT:
+     - Owner: current capabilities, actors/entry points, capability boundaries, and owner-file references.
+     - Required shape: Implemented / In Progress / Planned; implemented entries use Enables, Actors / Entry Points, Capability Boundary, References.
+     - Conditional shape: non-trivial products should include product capabilities and user/operator workflows, not only platform mechanisms.
+     - Shard rule: split by stable product/platform/operations domain when valid capability content becomes hard to scan.
+     - Must not include: commit SHAs, test counts, shipped dates, changelog narrative, detailed wiring, FSMs, schemas, or implementation constants.
+     - Verify coverage: feature_missing_field, feature_entry_too_dense, readiness warnings, feature coverage gaps.
+
      PRODUCT-SOURCE RULE:
      - Treat PRD / roadmap / spec / plan user goals, business objects, actions,
        and use-shaping constraints as capability candidates before summarizing

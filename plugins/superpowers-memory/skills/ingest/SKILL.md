@@ -46,6 +46,41 @@ distill it as a Memory candidate and route the durable fact to an existing owner
 file such as features, architecture, decisions, conventions, glossary, or
 tech-stack. Do not create `conversation.md`.
 
+## Log Entry
+
+Append one log.md entry for every successful ingest that changes the KB. The log
+is a chronological maintenance ledger, not a fact owner. Use this heading
+format exactly:
+
+```markdown
+## [YYYY-MM-DD] ingest | <short topic>
+```
+
+Include short bullets for Source, Touched, Verify, and optional Follow-up. Add
+`Source query` only when ingest accepted a Memory candidate produced by `query`.
+Do not record query-only or lint-only events. Do not copy durable facts into
+`log.md`; point to owner files and source refs.
+
+## Slot Contract Gate
+
+Before writing, select the owner slot from `content-rules.md` and apply that
+slot's compact contract:
+
+1. **Owner:** confirm the fact belongs in exactly one slot.
+2. **Required shape:** confirm the target file/shard has the required sections
+   or fields for that slot.
+3. **Conditional shape:** decide whether project complexity, shard size, or
+   query answerability triggers extra module/scenario/domain coverage.
+4. **Shard rule:** decide whether the fact belongs in the root owner file or a
+   stable `<slot>-<domain>.md` shard.
+5. **Must not include:** strip wrong-owner, stale-prone, changelog, source-code
+   catalog, method-signature, enum, field-list, and implementation-tour content.
+6. **Verify coverage:** know which `verify` findings should catch a bad write.
+
+After writing, run the same contract as a self-check over every touched owner
+file and shard. New high-value shards must be reachable from `index.md` or the
+parent owner file; preferably both.
+
 ## Core Query Coverage
 
 During bootstrap and full-refresh, run a Core Query Coverage pass before writing target files. During incremental ingest, run the same coverage check only for changed or newly introduced high-value objects. The goal is not to document every module; it is to make high-value project objects directly answerable by `query`.
@@ -170,20 +205,23 @@ node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" l
 
 3. Identify changed or requested source documents.
 4. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
-5. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, answerability self-check fixes, and source refs needed for direct query answers.
-6. For incremental ingest, run Impact Radius and a Related owner sweep. If the touched topic remains thin, poorly linked, or creates an unrouted shard, Escalate to topic-scope refresh before finalizing.
-7. Route each fact to exactly one owner file per `content-rules.md`.
-8. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
-9. Update only affected owner files or the bounded topic radius.
-10. Regenerate `docs/superpowers/memory/index.md` when routing or key points changed.
-11. Run targeted lint mentally over touched owner files and related shards; then run verification:
+5. Run the Slot Contract Gate before writing: choose the owner slot, required/conditional shape, shard rule, exclusions, and expected verify coverage.
+6. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, answerability self-check fixes, and source refs needed for direct query answers.
+7. For incremental ingest, run Impact Radius and a Related owner sweep. If the touched topic remains thin, poorly linked, or creates an unrouted shard, Escalate to topic-scope refresh before finalizing.
+8. Route each fact to exactly one owner file per `content-rules.md`.
+9. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
+10. Update only affected owner files or the bounded topic radius.
+11. Regenerate `docs/superpowers/memory/index.md` when routing or key points changed.
+12. Run the Slot Contract self-check over touched owner files and related shards; then run verification:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" verify
 ```
 
-12. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing. Treat relevant `coverageGaps` as targeted lint escalation targets: fix the topic radius, or note that full-refresh is needed. Do not leave `knowledge_shards_unrouted`, decision affected-routing, or reference source-anchor gaps for a touched topic after incremental ingest.
-13. Release the write lock:
+13. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing. Use `qualityGate` to distinguish blocking findings from advisory coverage gaps. Treat relevant `coverageGaps` as targeted lint escalation targets: fix the topic radius, or note that full-refresh is needed. Do not leave `knowledge_shards_unrouted`, decision affected-routing, or reference source-anchor gaps for a touched topic after incremental ingest.
+14. Append one log.md entry with the accepted source/candidate, touched files, and final `qualityGate` summary. Create `log.md` from `templates/log.md` when missing and add it to `index.md`.
+15. Run verification again so the appended log entry is checked for heading format, ingest-owned event type, and stale refs.
+16. Release the write lock:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" unlock

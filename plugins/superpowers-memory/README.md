@@ -20,15 +20,17 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 ## What This Plugin Does
 
-1. **Project Knowledge Base** — Maintains 6 core knowledge entry files (`docs/superpowers/memory/`) covering architecture, tech stack, features, conventions, decisions, and domain glossary. Large projects can split any non-index entry file into focused shard files. Architecture uses a stricter module-first + named scenario layout, such as `architecture-orchestrator.md` and `architecture-runtime-message-chain.md`; other slots use stable domain shards such as `features-admin.md`. Updated incrementally after each development iteration.
+1. **Project Knowledge Base** — Maintains core knowledge files (`docs/superpowers/memory/`) covering architecture, tech stack, features, conventions, decisions, domain glossary, and an append-only maintenance log. Large projects can split any non-index/non-log entry file into focused shard files. Architecture uses a stricter module-first + named scenario layout, such as `architecture-orchestrator.md` and `architecture-runtime-message-chain.md`; other slots use stable domain shards such as `features-admin.md`. Updated incrementally after each development iteration.
 
    Legacy `docs/project-knowledge/` installations are hard-migrated by memory skills with `git mv docs/project-knowledge docs/superpowers/memory` when the new directory does not already exist.
 
 2. **index.md** — A lightweight router read on demand by `superpowers-memory:query`, giving the agent a way to find the smallest useful owner files without loading the whole KB.
 
-3. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `superpowers-memory:query` before planning/execution, and to run `superpowers-memory:ingest` after execution completes or when finishing a development branch. Compatibility aliases (`load`, `update`, `rebuild`) continue to route to those primary workflows.
+3. **log.md** — A chronological KB maintenance ledger. Only `superpowers-memory:ingest` appends entries; `query` and `lint` remain read-only and are logged only when a later ingest accepts their candidate or fixes their findings.
 
-4. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
+4. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `superpowers-memory:query` before planning/execution, and to run `superpowers-memory:ingest` after execution completes or when finishing a development branch. Compatibility aliases (`load`, `update`, `rebuild`) continue to route to those primary workflows.
+
+5. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
 
 ## Installation
 
@@ -91,10 +93,11 @@ docs/superpowers/memory/
 ├── decisions.md      # Decision index / ADR summaries
 ├── adr/              # Per-ADR rationale details (on-demand load)
 ├── glossary.md       # Domain terminology (Ubiquitous Language)
+├── log.md            # Append-only ingest maintenance ledger
 └── <slot>-<domain>.md # Optional focused shards, e.g. architecture-orchestrator.md
 ```
 
-`adr/` appears only when ADR details exist. Split shard files are optional and should be created by stable domain, submodule, bounded context, platform capability, practice area, decision family, deploy unit, or workflow boundary — never by arbitrary pagination. Shards must be reachable from `index.md` or the parent owner file. Architecture shards should be module-first (`architecture-<module>.md`) or named scenario shards (`architecture-<scenario>.md`), not legacy view shards like `architecture-contexts.md` or `architecture-flows.md`. `decisions.md` is a decision index; it is not LLM Wiki's operation `log.md`.
+`adr/` appears only when ADR details exist. Split shard files are optional and should be created by stable domain, submodule, bounded context, platform capability, practice area, decision family, deploy unit, or workflow boundary — never by arbitrary pagination. Shards must be reachable from `index.md` or the parent owner file. Architecture shards should be module-first (`architecture-<module>.md`) or named scenario shards (`architecture-<scenario>.md`), not legacy view shards like `architecture-contexts.md` or `architecture-flows.md`. `decisions.md` is a decision index; `log.md` is the operation ledger and is never a fact owner or shard family.
 
 ## KB Quality Evaluation
 
@@ -135,7 +138,7 @@ Use the same 0-5 anchor for every dimension:
 - `index.md`, optional shard files, and lazy ADR detail files target retrieval and token efficiency.
 - `content-rules.md` defines fact ownership, exclusion rules, ADR gates, progressive knowledge layout, and per-file content boundaries.
 - `superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work, and produces structured Memory candidates when a durable answer is missing or a reusable durable synthesis should be preserved; `load` remains a compatibility alias.
-- `superpowers-memory:ingest` forces source review, owner routing, targeted Core Query Coverage, architecture answerability self-checks, exclusion checks, index regeneration, and verification before commit; `update` and `rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
+- `superpowers-memory:ingest` forces source review, owner routing, targeted Core Query Coverage, architecture answerability self-checks, exclusion checks, index/log regeneration, and verification before commit; `update` and `rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
 - `superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
 - The KB write lock prevents ad-hoc edits under `docs/superpowers/memory/`; KB writes must go through `superpowers-memory:ingest` or its compatibility aliases.
 - `hook-runtime.js verify` checks stale path references, shape violations including forbidden conversation/chat/transcript KB slots, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, unrouted shards, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.

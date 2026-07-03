@@ -6,6 +6,14 @@ triggered_by_plan: null
 
 <!-- OWNER: One high-value service, bounded context, or main module.
 
+     SLOT CONTRACT:
+     - Owner: one module's responsibility, non-responsibility, internal architecture model, interactions, state/invariants, scenario refs, source refs.
+     - Required shape: Module Identity; Internal Architecture Model; Interactions; State And Invariants; Scenario refs; Source refs.
+     - Conditional shape: use this shard when architecture.md would become noisy or query cannot answer the module directly.
+     - Shard rule: one high-value service, bounded context, or main module per file.
+     - Must not include: full cross-service chains, package tours, method signatures, field lists, or duplicated feature prose.
+     - Verify coverage: module shard routing, Scenario refs, source refs, stale refs.
+
      Use this template for `architecture-<module>.md` shards when a module's
      internal architecture needs direct query-grade answers. Do not copy full
      cross-service chains here; link named scenario shards instead.

@@ -46,7 +46,7 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 ## Capabilities
 
 - **SessionStart hook** — reports KB availability, lightweight KB freshness status, plus standing primer for using `$superpowers-memory:query`; `index.md` is read on demand by the query skill
-- **Storage path** — uses `docs/superpowers/memory/`; legacy `docs/project-knowledge/` installations are hard-migrated by memory skills with `git mv docs/project-knowledge docs/superpowers/memory` when the new directory does not already exist
+- **Storage path** — uses `docs/superpowers/memory/`; legacy `docs/project-knowledge/` installations are hard-migrated by memory skills with `git mv docs/project-knowledge docs/superpowers/memory` when the new directory does not already exist. `log.md` is an append-only ingest maintenance ledger; `query` and `lint` stay read-only and do not append query-only or lint-only events.
 - **UserPromptSubmit hook** — when user types `$superpowers:brainstorming` or `$superpowers:finishing-a-development-branch`, JIT-injects relevant context (query advisory or finishing-readiness rich injection)
 - **PreToolUse hook** — blocks `apply_patch` and `mcp__filesystem__.*` writes to `docs/superpowers/memory/` unless write-lock is held by `$superpowers-memory:ingest` or its `$superpowers-memory:update`/`$superpowers-memory:rebuild` compatibility aliases
 - **Skills:** primary `$superpowers-memory:query`, `$superpowers-memory:ingest`, `$superpowers-memory:lint`; compatibility aliases `$superpowers-memory:load` -> `query`, `$superpowers-memory:update` -> `ingest` incremental mode, `$superpowers-memory:rebuild` -> `ingest` bootstrap/full-refresh mode
@@ -90,7 +90,7 @@ Use the same 0-5 anchor for every dimension:
 - `index.md`, optional shard files, and lazy ADR detail files target retrieval and token efficiency.
 - `content-rules.md` defines fact ownership, exclusion rules, ADR gates, progressive knowledge layout, and per-file content boundaries.
 - `$superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work, and produces structured Memory candidates when a durable answer is missing or a reusable durable synthesis should be preserved; `$superpowers-memory:load` remains a compatibility alias.
-- `$superpowers-memory:ingest` writes stable project facts by forcing source review, owner routing, targeted Core Query Coverage, architecture answerability self-checks, exclusion checks, index regeneration, and verification before commit; `$superpowers-memory:update` and `$superpowers-memory:rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
+- `$superpowers-memory:ingest` writes stable project facts by forcing source review, owner routing, targeted Core Query Coverage, architecture answerability self-checks, exclusion checks, index/log regeneration, and verification before commit; `$superpowers-memory:update` and `$superpowers-memory:rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
 - `$superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
 - The KB write lock prevents ad-hoc edits under `docs/superpowers/memory/`; KB writes must go through `$superpowers-memory:ingest` or its compatibility aliases.
 - `codex-runtime.js status` reports `covers_branch` versus current HEAD so Codex has stale-KB evidence even on prompt paths that cannot fire JIT hooks.

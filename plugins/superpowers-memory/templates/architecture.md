@@ -6,6 +6,14 @@ triggered_by_plan: null
 
 <!-- OWNER: Structure view — how modules are wired, how they interact over time, how core aggregates transition.
 
+     SLOT CONTRACT:
+     - Owner: topology, boundaries, module wiring, cross-module scenarios, lifecycle/FSM, source refs.
+     - Required shape: Pattern Overview; System Context; System Topology / Context Map; module cards or shard links; named scenario links/sections; lifecycle routing; ADR pointers.
+     - Conditional shape: complex repos need module-first shards, named scenario shards, local Source refs, module/scenario bidirectional refs, and cross-context lifecycle coverage.
+     - Shard rule: split to architecture-<module>.md or architecture-<scenario>.md, never by diagram type or page number.
+     - Must not include: capability prose, full ADR rationale, implementation constants, field/enum catalogs, or code tours.
+     - Verify coverage: architecture_* coverage gaps, stale refs, method signatures, shard routing.
+
      BOUNDARY vs other KB files:
      - features.md: WHAT the system can do (user-visible capabilities). If you're describing behavior from the outside, it belongs there.
      - decisions.md + adr/: WHY it was decided this way. Reference by ADR number only here; never expand rationale inline.

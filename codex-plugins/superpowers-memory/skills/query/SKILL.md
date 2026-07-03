@@ -7,6 +7,7 @@ description: Use before exploring the codebase, planning, architecture decisions
 
 Read `docs/superpowers/memory/` to answer a concrete project question or to route follow-up code exploration. This skill is read-only after the one-time legacy migration check.
 When no concrete question is supplied, use this skill for orientation: read `index.md`, classify likely project areas, then load only the smallest useful owner files before planning or exploration.
+Do not append log.md. If `query` emits a Memory candidate and a later `ingest` accepts it, ingest logs the accepted candidate with `Source query`.
 
 **Announce at start:** "I'm querying the project knowledge base."
 
