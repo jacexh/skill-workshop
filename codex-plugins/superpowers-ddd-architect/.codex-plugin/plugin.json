@@ -1,6 +1,6 @@
 {
   "name": "superpowers-ddd-architect",
-  "version": "1.14.1",
+  "version": "1.14.3",
   "description": "DDD-first backend architecture guardrails for code agents (Codex port)",
   "author": {
     "name": "xuhao"
