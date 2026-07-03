@@ -10,7 +10,7 @@ description: Go DDD taskqueue, polling-task, and periodic-task patterns. Use whe
 **Date**: 2026-05-29
 **Scope**: Go task queue patterns complementing [`ddd-golang.md`](ddd-golang.md) and [`ddd-golang-runtime.md`](ddd-golang-runtime.md)
 **Phase routing**:
-- **Phase playbook**: Start from [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), or [`ddd-review-playbook.md`](ddd-review-playbook.md). Load this file only when the active phase needs Go taskqueue, polling, reconciliation, periodic producer, asynq worker/scheduler, schema, processor, or worker lifecycle rules.
+- **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Go taskqueue, polling, reconciliation, periodic producer, asynq worker/scheduler, schema, processor, or worker lifecycle rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) - Load when the phase needs taskqueue/runtime classification, prohibited actions, or self-checks.
 - **Go implementation**: [`ddd-golang.md`](ddd-golang.md) - Layer responsibilities, directory layout, event/message separation, module assembly.
 - **Go runtime**: [`ddd-golang-runtime.md`](ddd-golang-runtime.md) - Config ownership, `fx.Lifecycle`, graceful shutdown, and worker shutdown ordering.
@@ -625,7 +625,7 @@ Before claiming a taskqueue change is complete:
 ---
 
 **References:**
-- [`ddd-design-playbook.md`](ddd-design-playbook.md) / [`ddd-implement-playbook.md`](ddd-implement-playbook.md) / [`ddd-review-playbook.md`](ddd-review-playbook.md) - Phase entrypoints
+- [`design`](../skills/design/SKILL.md) / [`implement`](../skills/implement/SKILL.md) / [`review`](../skills/review/SKILL.md) - Phase entrypoints
 - [`ddd-agent-contract.md`](ddd-agent-contract.md) - Taskqueue/runtime prohibited actions and self-checks
 - [`ddd-golang.md`](ddd-golang.md) - Go DDD implementation (layers, aggregates, events, integration messages, module assembly)
 - [`ddd-golang-runtime.md`](ddd-golang-runtime.md) - Go runtime: configuration, `fx.Lifecycle`, graceful shutdown, Kubernetes

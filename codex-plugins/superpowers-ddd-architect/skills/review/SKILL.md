@@ -5,7 +5,7 @@ description: Use when reviewing DDD/backend code, plans, or diffs with concrete 
 
 # Review DDD Evidence
 
-Use this skill as the review-phase entry point. It routes the agent to the review playbook and keeps the output contract small.
+Use this skill when concrete files, modules, plans, or diffs can be inspected. The goal is evidence-to-judgment, not generic DDD advice or redesign.
 
 ## When To Use
 
@@ -17,24 +17,89 @@ Use this skill as the review-phase entry point. It routes the agent to the revie
 ## Workflow
 
 1. Confirm there are concrete files, modules, diffs, plans, or evidence to inspect. If boundaries are still being chosen, use `design`; if code is being placed, use `implement`.
-2. Read the default entry pair: [../../references/ddd-review-playbook.md](../../references/ddd-review-playbook.md) for the review thinking framework and [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) for risk-card routing.
-3. Follow the playbook's Evidence map, Expected model vs observed code, risk-card mapping, and Finding triage.
-4. Use the playbook's Severity Calibration and Minimum Output Contract: keep small reviews focused, do not report harmless local style as a violation, and distinguish evidence gaps from findings.
-5. Read deeper references only when a triggered risk card or review finding requires them:
+2. Read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) for shared risk-card routing.
+3. Run Evidence Preconditions before reporting findings. For any triggered precondition, verify expected model, repo convention, allowed exceptions, and concrete evidence before deciding severity.
+4. Follow Evidence map, Expected model vs observed code, risk-card mapping, and Finding triage.
+5. Use Severity Calibration and the Minimum Output Contract: keep small reviews focused, do not report harmless local style as a violation, and distinguish evidence gaps from findings.
+6. Read deeper references only when a triggered risk card or review finding requires them:
    - [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) for must-not rules and review self-checks.
    - [../../references/ddd-core.md](../../references/ddd-core.md) for dependency direction, ports, generated type boundaries, Domain Events, and Integration Messages.
    - Active language or Go support references only when evidence touches those paths.
 
+## Evidence Preconditions
+
+Run these preconditions before reporting findings. A precondition is triggered by a candidate violation, risk-card hit, probe hit, or missing expected model; when triggered, collect enough evidence before deciding severity.
+
+- Reconstruct the expected model from design/spec/code before judging observed code.
+- Use the risk router's Required evidence and Allowed exception columns before calling a risk-card hit a violation.
+- Evidence gaps are not findings: if the bounded context, data authority, invariant owner, generated-code convention, or runtime ownership cannot be reconstructed, report an evidence gap or ask for context.
+- Check local convention, neighboring code, architecture tests, and written exceptions before treating package/framework shape as a violation.
+- Do not redesign in review. A review may recommend returning to design, but it should not invent a replacement model inside a finding.
+
+## Thinking Framework
+
+### 1. Evidence map
+
+Collect facts before conclusions:
+
+- changed bounded contexts and layers;
+- generated-code touch points;
+- imports and dependency direction;
+- handlers, services, ports, repositories, adapters, DTOs, data objects;
+- state decisions and invariant checks;
+- Domain Events, Integration Messages, task processors, runtime wiring;
+- transactions, retries, idempotency, failure policy;
+- tests and verification evidence.
+
+### 2. Expected model vs observed code
+
+Reconstruct expected ownership from the design/spec/codebase:
+
+- bounded context and data authority;
+- aggregate, policy, service, or explicit none;
+- commands, queries, read models, events/messages, and lifecycle rules;
+- expected layer and dependency direction.
+
+Compare with observed code. A mismatch is only a candidate finding until it is tied to a rule.
+
+### 3. Risk-card mapping
+
+Use `ddd-risk-router.md` to select triggered cards. Rewrite probes to match repo shape. Treat hits as review targets, not proof.
+
+### 4. Finding triage
+
+Classify each candidate:
+
+- **Violation:** evidence contradicts a DDD boundary rule.
+- **Allowed exception:** written design or local convention justifies the shape.
+- **Harmless local style:** naming or layout differs, but ownership and dependency direction are intact.
+- **Evidence gap:** expected model or proof is missing; ask or report the gap instead of guessing.
+
+### 5. Review output
+
+Lead with real findings. If no issues are found, say so and list residual test/evidence gaps.
+
+## Severity Calibration
+
+Use severity to express architectural impact, not personal style preference.
+
+- **Blocker:** the evidence shows a boundary violation that can corrupt business invariants, break cross-context contracts, leak generated/protocol/storage types into Domain, or make runtime/taskqueue/message lifecycle unsafe.
+- **Major:** the evidence shows likely architectural drift that may still work today, such as command-side Application port reflex, fat generated RPC/IDL adapter, umbrella handler, business state decision outside Domain, or provider-heavy entrypoint/composition wiring.
+- **Minor:** the evidence shows localized maintainability risk with low boundary impact, such as unclear naming around an otherwise correct owner, missing trace note, or a small test/evidence gap.
+- **Harmless local style:** naming, directory, or framework shape differs from the guide but ownership, dependency direction, invariant placement, and boundary mappings are intact. Do not report this as a violation.
+- **Evidence gap:** the expected model, local convention, or verification proof is missing. Ask or report the gap; do not upgrade it to Blocker/Major without evidence.
+
 ## Review Focus
 
-- Cross-context Domain/Application imports.
-- Generated protocol DTOs inside Domain or semantic command-side ports.
-- Fat RPC/Application methods that contain persistence, transactions, dispatch, enqueueing, or multi-port coordination.
-- Command-side Application ports created from dependency-inversion reflex instead of capability classification.
-- Python or TypeScript modules that bypass the active language guide's layer/module boundaries.
-- Domain Event, Boundary Publisher, Integration Message Handler, and task processor roles collapsed together.
-- Business state classification outside Aggregate methods or Domain policies.
-- Provider-heavy `cmd` and runtime/cmd pollution.
+Risk cards from ddd-risk-router.md, plus evidence gaps and severity calibration. Do not duplicate the router's risk inventory in this skill; use the router to select required evidence, allowed exceptions, and deeper references.
+
+## Minimum Output Contract
+
+Use the smallest output that preserves evidence.
+
+- **Small review:** emit only Evidence, Risk card or rule, Triage, Severity, and Fix direction for each real finding. Use this when the review scope is a small diff or one known layer.
+- **Full review:** emit the complete output below. Use this when the review spans multiple layers, new ports, generated types, events/messages, runtime/taskqueue/database behavior, context boundaries, or a plan without enough implementation evidence.
+- **No-finding review:** state no DDD findings and list residual test/evidence gaps. Do not fill a finding template with harmless local style.
 
 ## Output
 
@@ -44,6 +109,7 @@ Lead with findings:
 DDD review:
 - Evidence map:
 - Expected model vs observed code:
+- Risk cards:
 - Finding triage:
 
 Finding: <severity> <title>
@@ -56,3 +122,11 @@ Finding: <severity> <title>
 ```
 
 If no issues are found, say so and list residual test or evidence gaps. If the expected model cannot be reconstructed from design/spec/code, report that as a design evidence gap rather than guessing.
+
+## Common Mistakes
+
+- Reporting a violation from a grep hit before mapping it to a boundary rule.
+- Treating every local naming difference as DDD noncompliance.
+- Reviewing code without reconstructing the expected model.
+- Ignoring allowed exceptions already documented in the design or local architecture tests.
+- Saying "no issues" without noting missing tests or evidence gaps.

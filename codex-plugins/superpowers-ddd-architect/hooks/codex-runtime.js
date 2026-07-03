@@ -20,9 +20,15 @@ const PROMPT_MODES = [
 ];
 
 const REFERENCE_BUDGETS = {
-  design: new Set(["ddd-risk-router.md", "ddd-design-playbook.md"]),
-  implement: new Set(["ddd-risk-router.md", "ddd-implement-playbook.md"]),
-  review: new Set(["ddd-risk-router.md", "ddd-review-playbook.md"]),
+  design: new Set(["ddd-risk-router.md"]),
+  implement: new Set(["ddd-risk-router.md"]),
+  review: new Set(["ddd-risk-router.md"]),
+};
+
+const PHASE_SKILLS = {
+  design: "design",
+  implement: "implement",
+  review: "review",
 };
 
 function isDddBackendPattern(filename) {
@@ -31,6 +37,11 @@ function isDddBackendPattern(filename) {
 
 function referenceDirs() {
   return [path.join(__dirname, "..", "references")];
+}
+
+function phaseSkillPath(mode) {
+  const skill = PHASE_SKILLS[mode] || PHASE_SKILLS.design;
+  return path.join(__dirname, "..", "skills", skill, "SKILL.md");
 }
 
 function listReferenceFiles(mode) {
@@ -85,27 +96,21 @@ function promptHeader(mode) {
   if (mode === "design") {
     return (
       "====== DDD Design Guidance ======\n" +
-      "Reference budget: design. Only the risk router and design playbook are listed by default. Modeling/core/database/language references are on-demand when the playbook or a risk card raises a concrete decision.\n\n" +
-      "The current user request invokes a planning workflow. Start from Product semantics intake before file placement or schema design; keep a Spec trace from product requirements to model decisions. Model commands, queries, Domain Events, Integration Messages, and state lifecycle before selecting bounded context, aggregate/policy/service boundaries, and layer ownership.\n\n" +
-      "Repo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\n" +
-      "You MUST read ddd-design-playbook.md and ddd-risk-router.md when listed below, then read only the design references required by triggered risk cards or the Architecture Gate.\n\n"
+      "Reference budget: design. Only the phase skill and risk router are listed by default; deeper DDD/backend references are on-demand when the skill or risk router routes to them.\n\n" +
+      "This hook only selects the design entrypoint. You MUST read the listed design phase skill before continuing, then use ddd-risk-router.md as the shared risk-card router.\n\n"
     );
   }
   if (mode === "review") {
     return (
       "====== DDD Boundary Review ======\n" +
-      "Reference budget: review. Only the risk router and review playbook are listed by default; load deeper support files only when a triggered risk card or finding names them.\n\n" +
-      "The current user request invokes a review workflow. Use an Evidence-to-judgment review: compare Expected model vs observed code, then run Finding triage as violation, allowed exception, harmless local style, or evidence gap. Find evidence before conclusions: cite file/line, dependency direction, type leak, orchestration thickness, state decision, async role, runtime wiring, or test gap.\n\n" +
-      "Repo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\n" +
-      "You MUST read ddd-review-playbook.md and ddd-risk-router.md when listed below, then read only the deeper references required by triggered risk cards or review scope.\n\n"
+      "Reference budget: review. Only the phase skill and risk router are listed by default; deeper DDD/backend references are on-demand when the skill or risk router routes to them.\n\n" +
+      "This hook only selects the review entrypoint. You MUST read the listed review phase skill before continuing, then use ddd-risk-router.md as the shared risk-card router.\n\n"
     );
   }
   return (
     "====== DDD Implementation Guardrails ======\n" +
-    "Reference budget: implement. Only the risk router and implement playbook are listed by default; load deeper support files only when a triggered risk card or touched code path requires them.\n\n" +
-    "The current user request invokes an implementation workflow. Start with a Design input check, then use Model-to-code placement and keep an Implementation trace from accepted model decisions to touched files and tests. Place code by layer, preserve dependency direction, map DTO/proto at boundaries, and keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.\n\n" +
-    "Repo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\n" +
-    "You MUST read ddd-implement-playbook.md and ddd-risk-router.md when listed below, then read only the implementation references required by triggered risk cards or touched code paths.\n\n"
+    "Reference budget: implement. Only the phase skill and risk router are listed by default; deeper DDD/backend references are on-demand when the skill or risk router routes to them.\n\n" +
+    "This hook only selects the implement entrypoint. You MUST read the listed implement phase skill before continuing, then use ddd-risk-router.md as the shared risk-card router.\n\n"
   );
 }
 
@@ -113,14 +118,16 @@ function renderReferenceIndex(files, mode) {
   if (files.size === 0) return "";
 
   let body = promptHeader(mode);
+  const skillPath = phaseSkillPath(mode);
+  if (fs.existsSync(skillPath)) {
+    body += `- **${mode} phase skill** (${path.relative(path.join(__dirname, ".."), skillPath)}): phase entrypoint and output contract\n  Path: ${skillPath}\n`;
+  }
   body +=
-    "DDD phase workflow:\n" +
-    "1. Read the listed phase playbook and ddd-risk-router.md.\n" +
-    "2. Use the playbook as the thinking framework for this phase.\n" +
-    "3. Match the task or review against risk cards.\n" +
-    "4. Write a short Repo calibration before using or reporting probe results.\n" +
-    "5. Read only the deeper DDD/backend references required by triggered cards, the task, or an explicit Architecture Gate.\n" +
-    "6. For non-backend work, state that this plugin is not relevant and continue without loading unrelated standards.\n\n";
+    "DDD phase router:\n" +
+    "1. Read the listed phase skill and ddd-risk-router.md.\n" +
+    "2. Use the phase skill as the behavior contract for this phase.\n" +
+    "3. Load deeper DDD/backend references only when the phase skill or risk router routes there.\n" +
+    "4. For non-backend work, state that this plugin is not relevant and continue without loading unrelated standards.\n\n";
 
   for (const [filename, absPath] of files) {
     const { name, description } = readPatternHeader(absPath);

@@ -46,10 +46,11 @@ const dir=path.join(pluginRoot,'references');
 const files={};
 const allowed=f=>f==='database.md'||f.startsWith('ddd-');
 const budgets={
-  design:new Set(['ddd-risk-router.md','ddd-design-playbook.md']),
-  implement:new Set(['ddd-risk-router.md','ddd-implement-playbook.md']),
-  review:new Set(['ddd-risk-router.md','ddd-review-playbook.md'])
+  design:new Set(['ddd-risk-router.md']),
+  implement:new Set(['ddd-risk-router.md']),
+  review:new Set(['ddd-risk-router.md'])
 };
+const phaseSkills={design:'design',implement:'implement',review:'review'};
 const budget=budgets[skillType]||budgets.design;
 try{
   fs.readdirSync(dir).filter(f=>f.endsWith('.md')&&allowed(f)&&budget.has(f)).sort().forEach(f=>{
@@ -63,6 +64,11 @@ const sorted=Object.entries(files).sort((a,b)=>{
 });
 if(!sorted.length)process.exit(0);
 const entries=[];
+const phaseSkill=phaseSkills[skillType]||phaseSkills.design;
+const phaseSkillPath=path.join(pluginRoot,'skills',phaseSkill,'SKILL.md');
+if(fs.existsSync(phaseSkillPath)){
+  entries.push('- ['+phaseSkill+' phase skill]\n  Phase entrypoint and output contract\n  Path: '+phaseSkillPath);
+}
 for(const [fname,fpath] of sorted){
   try{
     const content=fs.readFileSync(fpath,'utf8');
@@ -81,13 +87,13 @@ for(const [fname,fpath] of sorted){
 }
 if(!entries.length)process.exit(0);
 let title='DDD Design Guidance';
-let header='Reference budget: design. Only the risk router and design playbook are listed by default. Modeling/core/database/language references are on-demand when the playbook or a risk card raises a concrete decision.\nThe following DDD/backend design guardrails are available.\nYou MUST read ddd-design-playbook.md and ddd-risk-router.md when listed below, then read only the deeper references required by triggered risk cards or the Architecture Gate.\n\nProduct semantics intake comes before file placement, schema design, or layer decisions. Keep a Spec trace from product requirements to model decisions. Model commands, queries, Domain Events, Integration Messages, and state lifecycle before selecting bounded context, aggregate/policy/service boundaries, and layer ownership.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your design:\n- complete the Product semantics intake,\n- keep the Spec trace visible,\n- define bounded context / capability,\n- identify stable language and data authority,\n- classify technical capabilities,\n- assign layer ownership before implementation.';
+let header='Reference budget: design. Only the phase skill and risk router are listed by default; deeper DDD/backend references are on-demand when the skill or risk router routes to them.\nThis hook only selects the design entrypoint. You MUST read the listed design phase skill before continuing, then use ddd-risk-router.md as the shared risk-card router.';
 if(skillType==='implement'){
   title='DDD Implementation Guardrails';
-  header='Reference budget: implement. Only the risk router and implement playbook are listed by default; load deeper support files only when a triggered risk card or touched code path requires them.\nThe following DDD/backend implementation guardrails are available.\nYou MUST read ddd-implement-playbook.md and ddd-risk-router.md when listed below, then read only the deeper references required by triggered risk cards or touched code paths.\n\nDesign input check comes before editing: confirm accepted model decisions exist. Use Model-to-code placement and keep an Implementation trace from model decisions to touched files and tests.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your implementation:\n- calibrate repository shape,\n- place code by layer,\n- preserve dependency direction,\n- map DTO/proto at boundaries,\n- keep repository/event/message/taskqueue/runtime/database concerns in their owning layer.';
+  header='Reference budget: implement. Only the phase skill and risk router are listed by default; deeper DDD/backend references are on-demand when the skill or risk router routes to them.\nThis hook only selects the implement entrypoint. You MUST read the listed implement phase skill before continuing, then use ddd-risk-router.md as the shared risk-card router.';
 }else if(skillType==='review'){
   title='DDD Boundary Review';
-  header='Reference budget: review. Only the risk router and review playbook are listed by default; load deeper support files only when a triggered risk card or finding names them.\nThe following DDD/backend boundary review guardrails are available.\nYou MUST read ddd-review-playbook.md and ddd-risk-router.md when listed below, then read only the deeper references required by triggered risk cards or review scope.\n\nUse an Evidence-to-judgment review: compare Expected model vs observed code, then run Finding triage as violation, allowed exception, harmless local style, or evidence gap.\n\nRepo calibration before probes: identify bounded-context roots, layer names, generated-code paths, runtime/module style, and architecture tests/docs before treating any probe example as evidence.\n\nIn your review:\n- find evidence before conclusions,\n- cite file/line and relevant DDD/backend pattern for each finding,\n- distinguish violation, allowed exception, and harmless local style,\n- do not approve code that violates applicable DDD/backend boundaries.';
+  header='Reference budget: review. Only the phase skill and risk router are listed by default; deeper DDD/backend references are on-demand when the skill or risk router routes to them.\nThis hook only selects the review entrypoint. You MUST read the listed review phase skill before continuing, then use ddd-risk-router.md as the shared risk-card router.';
 }
 const full='====== '+title+' ======\n'+header+'\n\n'+entries.join('\n\n')+'\n\nFor non-backend work, state that this plugin is not relevant and continue without loading unrelated standards.\n'+'='.repeat(40);
 console.log(JSON.stringify(full));

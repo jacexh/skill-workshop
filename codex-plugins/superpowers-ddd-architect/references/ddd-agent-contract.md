@@ -1,6 +1,6 @@
 ---
 name: ddd-agent-contract
-description: Agent self-check and must-not contract for DDD/backend work. Use when ddd-implement-playbook.md, ddd-review-playbook.md, or a DDD risk card routes to task classification, prohibited actions, stop protocol, runtime/taskqueue classification, or completion self-checks for code agents.
+description: Agent self-check and must-not contract for DDD/backend work. Use when an active DDD phase skill or risk card routes to task classification, prohibited actions, stop protocol, runtime/taskqueue classification, or completion self-checks for code agents.
 ---
 
 # DDD Code Agent Usage Contract
@@ -10,7 +10,7 @@ description: Agent self-check and must-not contract for DDD/backend work. Use wh
 **Audience**: Claude Code, Codex, and any other code agent expected to follow this repository's DDD standards.
 **Scope**: This is a behavior contract and deep rule source, not the phase entrypoint. It tells an agent how to classify backend/DDD work, when to **stop and ask**, what **never** to do, and what to **self-check** before reporting work as complete.
 
-> **Phase routing**: Start from [`ddd-design-playbook.md`](ddd-design-playbook.md), [`ddd-implement-playbook.md`](ddd-implement-playbook.md), or [`ddd-review-playbook.md`](ddd-review-playbook.md). Load this file when the active phase needs task classification, prohibited-action checks, stop protocol, or completion self-checks. The rules below exist because LLM agents tend to skip preconditions and copy snippets out of context — this page defends against that.
+> **Phase routing**: Start from the active phase skill: [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file when the active phase needs task classification, prohibited-action checks, stop protocol, or completion self-checks. The rules below exist because LLM agents tend to skip preconditions and copy snippets out of context — this page defends against that.
 
 ---
 
@@ -33,7 +33,7 @@ Semantic fake rule: if the only meaningful fake is "pretend the external side ef
 
 ## 1. Trigger Conditions (when this contract applies)
 
-Apply this contract when the active phase playbook or [`ddd-risk-router.md`](ddd-risk-router.md) routes here, especially when **any** of the following is true:
+Apply this contract when the active phase skill or [`ddd-risk-router.md`](ddd-risk-router.md) routes here, especially when **any** of the following is true:
 
 - The task touches files under `internal/business/<context>/**` or paths named `domain/`, `application/`, `interfaces/`, `infrastructure/`.
 - The task mentions any of: bounded context, aggregate, value object, repository, domain event, integration message, CQRS, anti-corruption layer, clean architecture, domain-driven design, DDD.
@@ -44,16 +44,16 @@ Apply this contract when the active phase playbook or [`ddd-risk-router.md`](ddd
 - The task touches Go runtime wiring: `cmd/**/main.go`, `internal/pkg/**`, `configs/**`, `fx.Module`, `fx.Lifecycle`, `OnStart` / `OnStop`, config loading, middleware client ownership, graceful shutdown, or Kubernetes `preStop`.
 - The task mentions or edits task queues, polling tasks, reconciliation jobs, scheduled/background jobs, periodic task producers, asynq schedulers, `TaskType`, `PeriodicTask`, `PeriodicTaskScheduler`, task payload schemas, task processors, `internal/pkg/taskqueue`, worker lifecycle, task middleware, delayed enqueueing, or schema registry wiring.
 
-If unsure whether the contract applies, consult the active phase playbook and [`ddd-risk-router.md`](ddd-risk-router.md) before loading this file. Load this file when the task may hit one of the triggers above or needs an explicit self-check.
+If unsure whether the contract applies, consult the active phase skill and [`ddd-risk-router.md`](ddd-risk-router.md) before loading this file. Load this file when the task may hit one of the triggers above or needs an explicit self-check.
 
 ---
 
 ## 2. On-Demand Classification Order
 
-When a phase playbook routes here, use this sequence to classify the task and select the deeper rules. Do not replace the active phase workflow with this file.
+When a phase skill routes here, use this sequence to classify the task and select the deeper rules. Do not replace the active phase workflow with this file.
 
 ```
-1. Confirm the active phase playbook has been read (design / implement / review).
+1. Confirm the active phase skill has been read (design / implement / review).
 2. Classify the task path (DDD/business, Go events/messages, Go taskqueue/polling/periodic, Go runtime-only, or mixed).
 3. Read only the required deeper specs (see the matrix below).
 4. Plan / edit / review within the active phase workflow.
@@ -244,7 +244,7 @@ Use this compact shape when reporting a DDD / runtime plan, review, or implement
 
 ```text
 Standards read:
-- <phase playbook + modeling/core/language/runtime/agent-contract files actually read>
+- <phase skill + modeling/core/language/runtime/agent-contract files actually read>
 
 Task classification:
 - <DDD/business | Go events/messages | Go taskqueue/polling/periodic | Go runtime-only | mixed>
