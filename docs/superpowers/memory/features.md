@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-07-02
+last_updated: 2026-07-03
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 ---
@@ -198,7 +198,13 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 ## In Progress
 
-No capabilities currently in progress.
+### Platform Capabilities
+
+#### Memory Slot Contracts And Quality Gate Summary
+
+**Intent** — Make each Project Knowledge slot's required shape visible in one contract section, add ingest self-checks against that contract, and summarize blocking vs advisory verify findings without changing current `verify.ok` semantics.
+
+**Source** — `docs/superpowers/specs/2026-07-03-memory-slot-contracts-quality-gates-design.md`.
 
 ## Planned
 

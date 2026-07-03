@@ -1,8 +1,8 @@
 ---
-last_updated: 2026-07-02
+last_updated: 2026-07-03
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
-covers_branch: hotfix/local-helper-discipline
+covers_branch: hotfix/templates@9f2ae002e654
 ---
 
 # Project Knowledge Index
@@ -14,7 +14,7 @@ covers_branch: hotfix/local-helper-discipline
   Key points: Node.js + Bash + Markdown + JSON; Codex plugin runtime requires hooks/plugin_hooks flags and restart; release scripts use git + jq
 
 - [features.md](features.md) — Current capability map
-  Key points: DDD architect guidance uses phase-specific skills over default phase playbook + risk-router budgets: minimum output contracts, Product semantics intake/Spec trace, Model-to-code placement/Implementation trace, Evidence map/Finding triage, and review severity calibration; memory query reads index on demand and reports retrieval routes; ingest can rebuild decision/glossary roots into router + shard layouts
+  Key points: DDD architect guidance uses phase-specific skills over default phase playbook + risk-router budgets; memory query reads index on demand and reports retrieval routes; ingest can rebuild decision/glossary roots into router + shard layouts; memory Slot Contracts + qualityGate design is in progress
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
   Key points: DDD architect references live under plugin-root references, not root design-patterns or one standards skill; hooks inject only risk-router + active phase playbook by default while deep rules stay on demand; risk cards require routing matrix evidence before findings; KB content rules require query routing output, query-router index sizing, dual Claude/Codex parity, root README review when plugin READMEs change, and no Codex designing-tests SessionStart
