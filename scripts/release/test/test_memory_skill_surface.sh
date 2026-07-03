@@ -23,8 +23,6 @@ for track in plugins codex-plugins; do
   grep -q "read-only" "$base/query/SKILL.md" || fail "$track query missing read-only rule"
   grep -q "docs/superpowers/memory" "$base/query/SKILL.md" \
     || fail "$track query missing canonical memory path"
-  grep -q "git mv docs/project-knowledge docs/superpowers/memory" "$base/query/SKILL.md" \
-    || fail "$track query missing legacy hard-migration command"
   grep -q "Memory candidate" "$base/query/SKILL.md" || fail "$track query missing Memory candidate"
   grep -q "Missing answerability coverage" "$base/query/SKILL.md" \
     || fail "$track query missing answerability Memory candidate"
@@ -50,14 +48,12 @@ for track in plugins codex-plugins; do
     || fail "$track query missing skipped-source reporting"
   grep -q "Code search seeds" "$base/query/SKILL.md" \
     || fail "$track query missing code search seed output"
-  grep -Fq "Do not append log.md" "$base/query/SKILL.md" \
-    || fail "$track query missing log read-only rule"
+  ! grep -Fq "log.md" "$base/query/SKILL.md" \
+    || fail "$track query must not mention log.md"
 
   # Ingest must support full rebuilds and add targeted coverage for high-value query objects.
   grep -q "docs/superpowers/memory" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing canonical memory path"
-  grep -q "git mv docs/project-knowledge docs/superpowers/memory" "$base/ingest/SKILL.md" \
-    || fail "$track ingest missing legacy hard-migration command"
   grep -q "bootstrap" "$base/ingest/SKILL.md" || fail "$track ingest missing bootstrap mode"
   grep -q "full-refresh" "$base/ingest/SKILL.md" || fail "$track ingest missing full-refresh mode"
   grep -q "weak hints" "$base/ingest/SKILL.md" || fail "$track ingest missing commit-message downgrade"
@@ -77,6 +73,9 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing high-value object rule"
   grep -q "changed/new high-value objects" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing incremental Core Query Coverage"
+  grep -q "Skip ingest for deployment-only, image/tag/version-only" "$base/ingest/SKILL.md" \
+    && grep -q "comment-only changes" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing low-value change skip rule"
   grep -q "Impact Radius" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing incremental Impact Radius"
   grep -q "Topic-scope refresh" "$base/ingest/SKILL.md" \
@@ -115,12 +114,10 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing module-to-scenario reference guidance"
   grep -q "Authority boundaries" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing scenario authority boundary guidance"
-  grep -Fq "Append one log.md entry" "$base/ingest/SKILL.md" \
-    || fail "$track ingest missing log append rule"
-  grep -Fq "## [YYYY-MM-DD] ingest |" "$base/ingest/SKILL.md" \
-    || fail "$track ingest missing log heading contract"
-  grep -Fq "Source query" "$base/ingest/SKILL.md" \
-    || fail "$track ingest missing query-driven log source guidance"
+  ! grep -Fq "log.md" "$base/ingest/SKILL.md" \
+    || fail "$track ingest must not mention log.md"
+  ! grep -Fq "## [YYYY-MM-DD] ingest |" "$base/ingest/SKILL.md" \
+    || fail "$track ingest must not define log heading contract"
   if grep -Eq '^- `architecture-(contexts|flows)\.md` —' "$base/ingest/SKILL.md"; then
     fail "$track ingest still recommends legacy architecture view shards"
   fi
@@ -129,8 +126,6 @@ for track in plugins codex-plugins; do
   grep -q "without writing" "$base/lint/SKILL.md" || fail "$track lint missing read-only rule"
   grep -q "docs/superpowers/memory" "$base/lint/SKILL.md" \
     || fail "$track lint missing canonical memory path"
-  grep -q "git mv docs/project-knowledge docs/superpowers/memory" "$base/lint/SKILL.md" \
-    || fail "$track lint missing legacy hard-migration command"
   grep -q "suggested ingest targets" "$base/lint/SKILL.md" || fail "$track lint missing ingest target output"
   grep -q "coverage gap" "$base/lint/SKILL.md" || fail "$track lint missing coverage gap advisory"
   grep -q "shallow service cards" "$base/lint/SKILL.md" \
@@ -160,8 +155,8 @@ for track in plugins codex-plugins; do
     || fail "$track lint missing topic refresh escalation guidance"
   grep -q "affected routing" "$base/lint/SKILL.md" \
     || fail "$track lint missing decision affected routing advisory"
-  grep -Fq "Do not append log.md" "$base/lint/SKILL.md" \
-    || fail "$track lint missing log read-only rule"
+  ! grep -Fq "log.md" "$base/lint/SKILL.md" \
+    || fail "$track lint must not mention log.md"
 
   # Compatibility aliases must continue to point at the LLM Wiki-aligned primary skills.
   grep -q "superpowers-memory:query" "$base/load/SKILL.md" || fail "$track load not pointing to query"
@@ -207,18 +202,12 @@ for track in plugins codex-plugins; do
     || fail "$track glossary template missing reference query coverage"
   grep -q "Reference Query Coverage" "$templates/tech-stack.md" \
     || fail "$track tech-stack template missing reference query coverage"
-  [ -f "$templates/log.md" ] \
-    || fail "$track missing log.md template"
-  grep -q "Project Knowledge Log" "$templates/log.md" \
-    || fail "$track log template missing title"
-  grep -Fq "## [YYYY-MM-DD] ingest |" "$templates/log.md" \
-    || fail "$track log template missing machine-readable heading contract"
-  grep -q "append-only" "$templates/log.md" \
-    || fail "$track log template missing append-only rule"
-  grep -Fq '`log.md`' "$rules" \
-    || fail "$track content rules missing log slot"
-  grep -q "log_event_not_ingest_owned" "$rules" \
-    || fail "$track content rules missing log verify coverage"
+  [ ! -f "$templates/log.md" ] \
+    || fail "$track must not ship log.md template"
+  ! grep -Fq '`log.md`' "$rules" \
+    || fail "$track content rules must not define log.md slot"
+  ! grep -q "log_event_not_ingest_owned" "$rules" \
+    || fail "$track content rules must not define log verification"
 
   # Dedicated shard templates should make module/scenario files stronger than
   # loose copies of architecture.md sections.
@@ -246,6 +235,12 @@ for runtime in \
     || fail "$runtime missing query guidance"
   grep -q "superpowers-memory:ingest" "$runtime" \
     || fail "$runtime missing ingest guidance"
+  grep -q "durable project knowledge" "$runtime" \
+    || fail "$runtime missing durable-knowledge ingest gate"
+  ! grep -q "log_event_not_ingest_owned" "$runtime" \
+    || fail "$runtime must not validate log.md events"
+  ! grep -q 'filename === "log.md"' "$runtime" \
+    || fail "$runtime must not recognize log.md as a KB slot"
   if grep -Eq "superpowers-memory:(load|update|rebuild)" "$runtime"; then
     fail "$runtime still mentions compatibility memory skill names"
   fi

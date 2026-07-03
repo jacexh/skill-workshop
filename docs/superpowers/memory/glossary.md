@@ -6,7 +6,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 # Glossary
 
-**Knowledge Base (KB)** — The set of Markdown files in `docs/superpowers/memory/` of a target project that persist cross-session understanding of architecture, conventions, and decisions. Legacy `docs/project-knowledge/` is only a migration source. Not the plugin's own templates. → `docs/superpowers/memory/`, ADR-019
+**Knowledge Base (KB)** — The set of Markdown files in `docs/superpowers/memory/` of a target project that persist cross-session understanding of architecture, conventions, and decisions. Not the plugin's own templates or retired memory directories. → `docs/superpowers/memory/`, ADR-019, ADR-024
 
 **Progressive Loading** — Pattern used by both plugins: inject a lightweight index (names + descriptions + paths) at injection time; the agent loads full content on demand via `Read`. Avoids token bloat from dumping all content into every prompt. → ADR-005, ADR-006
 

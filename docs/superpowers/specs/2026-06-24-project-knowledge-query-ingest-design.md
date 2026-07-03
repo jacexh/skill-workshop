@@ -81,7 +81,7 @@ The user-facing documentation should prefer `query`, `ingest`, and `lint`. Exist
 
 ## Terminology
 
-- Project Knowledge Base: the maintained Markdown knowledge directory, normally `docs/project-knowledge/`.
+- Project Knowledge Base: the maintained Markdown knowledge directory, normally `docs/superpowers/memory/`.
 - Knowledge query: a read-only operation that answers a repo question from the Project Knowledge Base and points to likely next files.
 - Knowledge ingest: a write operation that folds durable source facts into owner files.
 - Knowledge lint: a read-only operation that reports Project Knowledge Base defects, stale references, routing gaps, and suggested ingest targets.
@@ -99,7 +99,7 @@ Avoid using "wiki" in generated project knowledge text unless the project domain
 This design implements the LLM Wiki three-layer pattern without renaming the product surface to "wiki":
 
 1. **Raw sources** — durable source material such as `docs/superpowers/specs/*.md`, `docs/superpowers/plans/*.md`, ADRs, design docs, READMEs, runbooks, public docs, and validated source code paths. Specs/plans/ADRs are the strongest raw sources for superpowers-based projects. Commit messages and conversations are weak hints only.
-2. **The Project Knowledge Base** — maintained Markdown owner files and shards under `docs/project-knowledge/`, optimized for agent query and traversal.
+2. **The Project Knowledge Base** — maintained Markdown owner files and shards under `docs/superpowers/memory/`, optimized for agent query and traversal.
 3. **The schema** — `content-rules.md`, templates, runtime `verify`/`lint` checks, and skill instructions that define ownership, routing, answerability, and accepted file shapes.
 
 `query` reads the Project Knowledge Base and follows references back to raw sources when needed. `ingest` moves stable raw-source facts into the owner files. `lint` checks whether the Project Knowledge Base still satisfies the schema and can support query-grade answers.
@@ -179,7 +179,7 @@ Skip `query` for:
 
 Default read flow:
 
-1. Read `docs/project-knowledge/index.md`.
+1. Read `docs/superpowers/memory/index.md`.
 2. Normalize the question into likely project terms and aliases.
 3. Select the smallest useful set of owner files or shards, normally 1-3.
 4. If the index is insufficient, search the Project Knowledge Base for the terms and aliases to find candidate owner entries.
@@ -203,8 +203,8 @@ Answer:
 [Direct answer grounded in project knowledge.]
 
 Sources read:
-- docs/project-knowledge/index.md
-- docs/project-knowledge/<owner>.md
+- docs/superpowers/memory/index.md
+- docs/superpowers/memory/<owner>.md
 
 Confidence:
 [High | Medium | Low] - [short reason]
@@ -226,7 +226,7 @@ Memory candidate:
 
 1. Incremental ingest: default mode after a spec, plan, PR, or implementation branch. Reads source documents first and updates affected owner files.
 2. Topic-scope refresh: bounded refresh of one high-value module, scenario, capability, or decision family when narrow incremental ingest exposes thin or poorly linked nearby knowledge.
-3. Bootstrap ingest: used when `docs/project-knowledge/` does not exist. Performs a full project read and creates the initial Project Knowledge Base.
+3. Bootstrap ingest: used when `docs/superpowers/memory/` does not exist. Performs a full project read and creates the initial Project Knowledge Base.
 4. Full-refresh ingest: used when `lint` reports high drift, owner-file structure is obsolete, or the user explicitly asks to regenerate a target file or the whole knowledge base.
 
 The old `update` name maps to incremental ingest. The old `rebuild` name maps to bootstrap ingest when no knowledge base exists, or full-refresh ingest when one already exists.
@@ -255,7 +255,6 @@ Default ingest flow:
 10. Update only affected owner files, or the bounded topic radius when escalation is needed.
 11. Regenerate `index.md` key points and routing if the changed facts affect routing.
 12. Run targeted lint over touched owner files and related shards; fix relevant answerability gaps or record that topic/full refresh is needed.
-13. Optionally append a compact maintenance entry to `docs/project-knowledge/log.md` if the project has enabled a log.
 
 Architecture ingest should not stop at generic service cards or isolated diagrams when the source material names richer structure. Module shards should preserve design-doc planes, subsystems, workflows, processors, policies, projections, scenario refs, and invariants when they exist. Named scenario shards should preserve participants, phases, authority boundaries, module refs, ordering/idempotency/failure rules, and source refs.
 
@@ -287,7 +286,7 @@ Candidate format:
 
 ```markdown
 Memory candidate:
-Owner: docs/project-knowledge/<owner>.md
+Owner: docs/superpowers/memory/<owner>.md
 Reason: [missing | stale | contradiction]
 Fact: [one durable fact to ingest]
 Source: [knowledge file, spec, plan, or source path that supports it]
@@ -334,7 +333,7 @@ Issues:
 - [Critical | Important | Minor] [owner/source] [finding]
 
 Suggested ingest targets:
-- Owner: docs/project-knowledge/<owner>.md
+- Owner: docs/superpowers/memory/<owner>.md
   Source: <spec/plan/ADR/source>
   Reason: <missing | stale | contradiction | weak source | routing gap>
 
@@ -446,23 +445,12 @@ The soft size warning should distinguish:
 - owner-file density growth: warn later and suggest sharding
 - source detail bloat: warn and suggest moving detail back to source references
 
-## Optional Log
+## No Operation Log
 
-Borrow the LLM Wiki idea of an append-only maintenance log only as a low-priority optional feature.
-
-If enabled, `docs/project-knowledge/log.md` records:
-
-- date
-- actor/skill
-- source inputs
-- owner files touched
-- one-line reason
-
-The log is not an owner file and should not be part of normal `query` reads.
-
-Phase 1 may skip the log entirely if it would add implementation complexity.
-
-Default: keep `log.md` opt-in through Phase 2. Revisit it only after `query` and `ingest` behavior has proven useful.
+Do not adopt LLM Wiki's append-only maintenance log. Project knowledge keeps
+current durable facts in owner files and decisions in ADR/decision routing.
+Historical maintenance ledgers are not a KB slot, not part of normal `query`,
+and not maintained by `ingest`.
 
 ## Claude Code And Codex Synchronization
 
@@ -501,7 +489,7 @@ Manual acceptance scenarios:
 1. Given a question about a known feature, `query` reads `index.md` and the relevant owner file, then answers without source search.
 2. Given a question that exposes stale knowledge, `query` emits a Memory candidate without writing.
 3. Given a completed plan, `ingest` updates `features.md`, `decisions.md`, or `architecture.md` from the plan/spec first, checks the Impact Radius, then validates names and paths from code.
-4. Given a project without `docs/project-knowledge/`, `ingest` bootstrap creates the initial owner files and compact index.
+4. Given a project without `docs/superpowers/memory/`, `ingest` bootstrap creates the initial owner files and compact index.
 5. Given a stale existing knowledge base, `ingest` full-refresh regenerates the requested owner files or whole KB.
 6. Given only commit messages and no source document, `ingest` treats them as hints and reports lower confidence.
 7. Given an oversized owner file, `lint` suggests sharding instead of deleting durable content.
@@ -533,7 +521,8 @@ Manual acceptance scenarios:
 ### Phase 3: Tighten Defaults
 
 - Reduce reliance on commit message inference.
-- Add optional `log.md` only if the first two phases show it is useful.
+- Keep maintenance history out of the KB unless a future spec introduces a
+  materially useful owner model for it.
 - Revisit whether `load`/`update`/`rebuild` should stay visible or become legacy-only.
 
 ## Risks And Mitigations
@@ -564,7 +553,7 @@ Mitigation: skill descriptions, SessionStart primer, and workflow docs make `que
 
 ## Resolved Defaults
 
-- `log.md` remains opt-in through Phase 2.
+- Operation logs are not a Project Knowledge slot.
 - Health checks use `lint`, not `query`.
 - No explicit `query --health` mode in the first implementation.
 - `load`, `update`, and `rebuild` remain real minimal skill directories for marketplace portability, not symlinks.

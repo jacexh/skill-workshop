@@ -21,12 +21,10 @@ function resolveRepoRoot() {
 }
 const repoRoot = resolveRepoRoot();
 const MEMORY_REL_DIR = "docs/superpowers/memory";
-const LEGACY_MEMORY_REL_DIR = "docs/project-knowledge";
 const knowledgeDir = path.join(repoRoot, ...MEMORY_REL_DIR.split("/"));
-const legacyKnowledgeDir = path.join(repoRoot, ...LEGACY_MEMORY_REL_DIR.split("/"));
 
 function nonKnowledgePathspecs() {
-  return [".", ":!" + MEMORY_REL_DIR, ":!" + LEGACY_MEMORY_REL_DIR];
+  return [".", ":!" + MEMORY_REL_DIR];
 }
 
 function isInsideDir(rootDir, absTarget) {
@@ -35,7 +33,7 @@ function isInsideDir(rootDir, absTarget) {
 }
 
 function isInsideKnowledgeTree(absTarget) {
-  return isInsideDir(knowledgeDir, absTarget) || isInsideDir(legacyKnowledgeDir, absTarget);
+  return isInsideDir(knowledgeDir, absTarget);
 }
 
 // Lock file lives in .git/ so it's per-repo, never tracked, and survives across
@@ -154,9 +152,9 @@ function getBaseBranch() {
   return "main";
 }
 
-// Builds an architect-style rich-context block telling the model it MUST
-// invoke `superpowers-memory:ingest` as its very next tool call.
-// Used by finishing-a-development-branch when KB does not yet cover HEAD.
+// Builds an architect-style rich-context block for finishing work when the KB
+// does not yet cover HEAD. Staleness is informational; ingest is only useful
+// when the diff contains durable project knowledge changes.
 function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolvedStoredSHA, reasonDetail }) {
   const shortCurrent = currentSHA ? currentSHA.slice(0, 12) : "(unknown)";
   const coveredRepr = covered
@@ -179,10 +177,11 @@ function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolve
   }
 
   const sections = [
-    "====== Memory: Finishing-Branch Ingest Required ======",
+    "====== Memory: Finishing-Branch Knowledge Review ======",
     "Your project knowledge base does not yet cover the latest commits on this branch.",
-    "You MUST invoke `superpowers-memory:ingest` as your VERY NEXT tool call.",
-    "Do not call `superpowers:finishing-a-development-branch` again until the ingest completes.",
+    "Inspect the changed files before ingesting.",
+    "Run `superpowers-memory:ingest` only if the changes introduce or materially change durable project knowledge.",
+    "Skip ingest for deployment-only, image/tag/version-only, formatting, or comment-only changes.",
     "",
     "Context:",
     "- Current branch: " + (currentBranch || "(unknown)") + "@" + shortCurrent,
@@ -203,15 +202,15 @@ function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolve
   }
 
   sections.push("");
-  sections.push("Required workflow:");
-  sections.push("  1. Invoke `superpowers-memory:ingest` (it will read the diff above and refresh docs/superpowers/memory/).");
-  sections.push("  2. Wait for it to complete (the KB write-lock will be released automatically).");
-  sections.push("  3. Re-invoke `superpowers:finishing-a-development-branch` to continue.");
+  sections.push("Knowledge review workflow:");
+  sections.push("  1. Inspect the diff for durable changes to capabilities, architecture, conventions, dependencies, decisions, glossary terms, lifecycle rules, or query answerability.");
+  sections.push("  2. If durable project knowledge changed, invoke `superpowers-memory:ingest` and wait for it to complete.");
+  sections.push("  3. If the diff is operational-only or otherwise low-value for the KB, state that no ingest is needed and proceed.");
+  sections.push("  4. Re-invoke `superpowers:finishing-a-development-branch` only if ingest ran.");
   sections.push("");
-  sections.push("Escape hatch:");
-  sections.push("  If you have inspected the diff above and are confident none of it changes architecture, conventions,");
-  sections.push("  features, dependencies, decisions, or glossary terms (e.g., pure formatting, comment-only edits),");
-  sections.push("  state that explicitly in your next message and proceed. Otherwise, run ingest first.");
+  sections.push("Low-value examples:");
+  sections.push("  Deployment-only image rollout, image tag bump, version-only upgrade with no behavior or dependency-policy change,");
+  sections.push("  formatting-only edits, and comment-only edits do not require updating docs/superpowers/memory/index.md.");
   sections.push("======================================================");
 
   return sections.join("\n");
@@ -234,7 +233,6 @@ const FORBIDDEN_KB_SLOT_PATTERN = /^(conversation|conversations|chat|chats|trans
 
 function knowledgeSlotForFile(filename) {
   if (filename === "index.md") return "index";
-  if (filename === "log.md") return "log";
   for (const prefix of KNOWLEDGE_SLOT_PREFIXES) {
     if (filename === `${prefix}.md`) return prefix;
     if (filename.startsWith(`${prefix}-`) && filename.endsWith(".md")) return prefix;
@@ -319,8 +317,6 @@ const SHIPPED_NARRATIVE_PATTERN = /\bshipped\s+\d{4}-\d{2}-\d{2}\b/i;
 const COMMITS_RANGE_PATTERN = /\bcommits on [\w\/-]+|\b[0-9a-f]{7,40}\.\.(?:HEAD|[\w\/-]+)/i;
 const GLOSSARY_WIDTH_THRESHOLD = 400;
 const FEATURE_DENSE_PARAGRAPH_THRESHOLD = 500;
-const LOG_HEADING_PATTERN = /^## \[(\d{4}-\d{2}-\d{2})\] ([a-z][a-z0-9-]*) \| (.+\S)\s*$/;
-const LOG_ALLOWED_EVENT = "ingest";
 const REQUIRED_IMPLEMENTED_FEATURE_FIELDS = [
   "Enables",
   "Actors / Entry Points",
@@ -547,50 +543,6 @@ function lintDecisions(content) {
   return findings;
 }
 
-function isValidIsoDate(value) {
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-function lintLog(content) {
-  const findings = [];
-  const lines = content.split("\n");
-
-  lines.forEach((line, i) => {
-    const trimmed = line.trim();
-    if (!/^##\s+/.test(trimmed)) return;
-
-    const match = LOG_HEADING_PATTERN.exec(trimmed);
-    if (!match) {
-      findings.push({
-        line: i + 1,
-        kind: "log_heading_format",
-        sample: trimmed.slice(0, 120),
-      });
-      return;
-    }
-
-    const [, date, event] = match;
-    if (!isValidIsoDate(date)) {
-      findings.push({
-        line: i + 1,
-        kind: "log_heading_date",
-        sample: trimmed.slice(0, 120),
-      });
-    }
-
-    if (event !== LOG_ALLOWED_EVENT) {
-      findings.push({
-        line: i + 1,
-        kind: "log_event_not_ingest_owned",
-        sample: trimmed.slice(0, 120),
-      });
-    }
-  });
-
-  return findings;
-}
-
 function contentShapeLintKnowledgeBase(files) {
   const violations = [];
   for (const [filename, content] of files) {
@@ -599,7 +551,6 @@ function contentShapeLintKnowledgeBase(files) {
     if (slot === "features") findings = lintFeatures(content);
     else if (slot === "glossary") findings = lintGlossary(content);
     else if (slot === "decisions") findings = lintDecisions(content);
-    else if (slot === "log") findings = lintLog(content);
     // Other files: only method signature lint
     else {
       content.split("\n").forEach((line, i) => {
@@ -1351,7 +1302,7 @@ function buildKnowledgeStatus() {
   if (nonKbStatus.code === 0 && nonKbStatus.stdout.trim()) {
     status.uncommittedNonKbFiles = nonKbStatus.stdout.trim().split("\n").map(parsePorcelainPath);
   }
-  const kbStatus = run("git", ["status", "--porcelain", "--", MEMORY_REL_DIR, LEGACY_MEMORY_REL_DIR]);
+  const kbStatus = run("git", ["status", "--porcelain", "--", MEMORY_REL_DIR]);
   if (kbStatus.code === 0 && kbStatus.stdout.trim()) {
     status.uncommittedKbFiles = kbStatus.stdout.trim().split("\n").map(parsePorcelainPath);
   }
@@ -1432,7 +1383,8 @@ function formatKnowledgeStatusForContext(status) {
     lines.push("- Uncommitted KB files: " + status.uncommittedKbFiles.slice(0, 10).join(", "));
   }
   if (status.stale) {
-    lines.push("- Before finishing, committing, merging, or opening a PR: run superpowers-memory:ingest.");
+    lines.push("- Run ingest only when changed source facts introduce or materially change durable project knowledge.");
+    lines.push("- If changes are deployment-only, image/tag/version-only, formatting, or comment-only, state that no ingest is needed and proceed.");
   }
   return lines.join("\n");
 }
@@ -1485,7 +1437,8 @@ function buildSessionStartOutput() {
     "SessionStart",
     "Project KB available at docs/superpowers/memory/.\n" +
       "Index: " + relativePath(indexPath) + " (read on demand by superpowers-memory:query).\n" +
-      "Before broad code search, planning, architecture judgment, unfamiliar repo work, or answering project questions, run superpowers-memory:query." +
+      "Before broad code search, planning, architecture judgment, unfamiliar repo work, or answering project questions, run superpowers-memory:query. " +
+      "Before finishing, committing, merging, or opening a PR, inspect stale changes and run superpowers-memory:ingest only for meaningful durable project knowledge changes." +
       statusContext
   );
 }
@@ -1658,7 +1611,7 @@ function buildVerifyOutput() {
     let match;
     while ((match = refPattern.exec(content)) !== null) {
       const ref = match[1];
-      if (ref.includes("://") || ref.startsWith(MEMORY_REL_DIR + "/") || ref.startsWith(LEGACY_MEMORY_REL_DIR + "/") || ref.includes("<")) continue;
+      if (ref.includes("://") || ref.startsWith(MEMORY_REL_DIR + "/") || ref.includes("<")) continue;
 
       const rawSegments = ref.split("/");
       const segments = rawSegments.filter(Boolean);
@@ -1737,7 +1690,6 @@ function buildVerifyOutput() {
   const splitCandidates = perFileTokens
     .filter((entry) =>
       entry.file !== "index.md" &&
-      entry.file !== "log.md" &&
       (entry.lines > SPLIT_ADVISORY_LINE_THRESHOLD || entry.tokens > SPLIT_ADVISORY_TOKEN_THRESHOLD)
     )
     .map((entry) => ({
@@ -1807,7 +1759,7 @@ function handleWritePreToolUse(toolName, toolInput) {
   return {
     decision: "block",
     reason:
-      "Direct edits to docs/superpowers/memory/ (or legacy docs/project-knowledge/) are forbidden. " +
+      "Direct edits to docs/superpowers/memory/ are forbidden. " +
       "This directory is owned by superpowers-memory:ingest. " +
       "To record an architectural decision: document it in your plan/spec under " +
       "docs/superpowers/plans/, then run superpowers-memory:ingest to materialize " +

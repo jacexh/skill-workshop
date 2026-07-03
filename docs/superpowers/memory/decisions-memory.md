@@ -6,6 +6,12 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 # Decisions — Memory
 
+## ADR-024: Retire legacy memory migration
+**Decision:** Remove the pre-canonical memory-directory migration path from public memory skills, runtime write protection, README guidance, and release fixtures. `docs/superpowers/memory/` is the only managed Project Knowledge Base directory.
+**Trade-off:** Old installations must be moved manually or bootstrapped into the canonical directory before using memory skills. Accepted because the migration grace period is over and keeping hidden compatibility paths increases prompt, runtime, and testing surface area.
+**Affects:** `plugins/superpowers-memory/`, `codex-plugins/superpowers-memory/`, memory skill docs, runtime path resolution, KB write-lock behavior, release fixtures.
+→ [adr/ADR-024-retire-legacy-memory-migration.md](adr/ADR-024-retire-legacy-memory-migration.md)
+
 ## ADR-020: SessionStart no longer injects index content
 **Decision:** Memory SessionStart no longer inlines `docs/superpowers/memory/index.md`. It emits only KB availability, the index path, freshness status, and short query/ingest guidance; `superpowers-memory:query` reads `index.md` on demand and routes to owner files/shards.
 **Trade-off:** Agents lose passive project-map text on turns that never invoke `query`, but SessionStart becomes smaller and avoids duplicating the `query` workflow's first read. Accepted because `query` is now the preferred project-knowledge entry point and skill descriptions plus the primer carry adoption pressure.
@@ -13,9 +19,9 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 → [adr/ADR-020-sessionstart-query-router.md](adr/ADR-020-sessionstart-query-router.md)
 
 ## ADR-019: Canonical memory directory under docs/superpowers
-**Decision:** Move the Project Knowledge Base from `docs/project-knowledge/` to `docs/superpowers/memory/` and treat the new directory as the only canonical storage path. Each memory skill performs a one-time hard migration with `git mv docs/project-knowledge docs/superpowers/memory` when the legacy directory exists and the canonical directory does not. Runtime reading, verification, owner suggestions, and status checks use the canonical path; write protection still blocks both canonical and legacy paths so the old directory cannot be maintained by hand.
-**Trade-off:** Query/lint gain one allowed write side effect during upgrade, and users with both directories must resolve the conflict manually. Accepted because a hard cut keeps the mental model simple, places memory beside superpowers specs/plans, and avoids long-term dual-path drift.
-**Affects:** `plugins/superpowers-memory/`, `codex-plugins/superpowers-memory/`, memory skill docs, runtime path resolution, KB write-lock behavior, release tests.
+**Decision:** Move the Project Knowledge Base under `docs/superpowers/memory/` and treat that directory as the canonical storage path. Superseded in part by ADR-024, which removes the temporary migration and retired-path write-protection behavior.
+**Trade-off:** A single canonical path keeps the mental model simple and places memory beside superpowers specs/plans. ADR-024 later removes the upgrade side effect after the migration window closed.
+**Affects:** `plugins/superpowers-memory/`, `codex-plugins/superpowers-memory/`, memory skill docs, runtime path resolution, KB write-lock behavior, release fixtures.
 → [adr/ADR-019-canonical-memory-directory.md](adr/ADR-019-canonical-memory-directory.md)
 
 ## ADR-016: Progressive KB layout and playbook removal
