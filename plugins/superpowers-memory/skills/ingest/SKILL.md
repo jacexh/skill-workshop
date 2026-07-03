@@ -9,23 +9,25 @@ Write durable project facts into `docs/superpowers/memory/`. This is the only no
 
 **Announce at start:** "I'm ingesting project knowledge."
 
-## Legacy Hard Migration
-
-At skill start, hard-cut legacy storage before choosing an ingest mode. If `docs/project-knowledge/` exists and `docs/superpowers/memory/` does not exist, run:
-
-```bash
-mkdir -p docs/superpowers
-git mv docs/project-knowledge docs/superpowers/memory
-```
-
-If both directories exist, stop and report the path conflict instead of merging.
-
 ## Modes
 
 - **Incremental ingest:** default after a spec, plan, PR, or implementation branch. Read source documents first and update only affected owner files. If changed sources introduce or materially change a high-value object, run targeted Core Query Coverage for that object.
 - **Topic-scope refresh:** use inside `ingest` when an incremental update touches a high-value module, scenario, capability, or decision family whose nearby owner files are too thin or poorly cross-linked. Refresh only the topic radius, not the whole KB.
 - **Bootstrap ingest:** use when `docs/superpowers/memory/` does not exist. Read the project and create the initial owner files plus compact `index.md`.
 - **Full-refresh ingest:** use when `superpowers-memory:lint` reports high drift, owner-file structure is obsolete, or the user explicitly asks to regenerate target files.
+
+## Ingest Eligibility Gate
+
+Stale `covers_branch` is evidence to inspect, not a reason to write by itself.
+Run incremental ingest only when changed source facts introduce or materially
+change durable project knowledge: capabilities, architecture, conventions,
+dependency choices, decisions, glossary terms, lifecycle/flow invariants, or
+query answerability.
+
+Skip ingest for deployment-only, image/tag/version-only, formatting, or
+comment-only changes. For these low-value changes, report that no durable
+project knowledge changed and do not update `index.md` or `covers_branch` just
+to match HEAD.
 
 ## Source Authority
 
@@ -45,21 +47,6 @@ contains a durable conclusion, first prefer a spec/plan/ADR update; otherwise
 distill it as a Memory candidate and route the durable fact to an existing owner
 file such as features, architecture, decisions, conventions, glossary, or
 tech-stack. Do not create `conversation.md`.
-
-## Log Entry
-
-Append one log.md entry for every successful ingest that changes the KB. The log
-is a chronological maintenance ledger, not a fact owner. Use this heading
-format exactly:
-
-```markdown
-## [YYYY-MM-DD] ingest | <short topic>
-```
-
-Include short bullets for Source, Touched, Verify, and optional Follow-up. Add
-`Source query` only when ingest accepted a Memory candidate produced by `query`.
-Do not record query-only or lint-only events. Do not copy durable facts into
-`log.md`; point to owner files and source refs.
 
 ## Slot Contract Gate
 
@@ -196,7 +183,9 @@ query-grade.
 
 ## Process
 
-1. Complete the legacy hard-migration check above.
+1. Run the Ingest Eligibility Gate unless bootstrap/full-refresh was explicitly
+   requested. If no durable project knowledge changed, stop without acquiring
+   the lock, editing KB files, or refreshing `covers_branch`.
 2. Acquire the write lock:
 
 ```bash
@@ -219,9 +208,7 @@ node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" v
 ```
 
 13. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing. Use `qualityGate` to distinguish blocking findings from advisory coverage gaps. Treat relevant `coverageGaps` as targeted lint escalation targets: fix the topic radius, or note that full-refresh is needed. Do not leave `knowledge_shards_unrouted`, decision affected-routing, or reference source-anchor gaps for a touched topic after incremental ingest.
-14. Append one log.md entry with the accepted source/candidate, touched files, and final `qualityGate` summary. Create `log.md` from `templates/log.md` when missing and add it to `index.md`.
-15. Run verification again so the appended log entry is checked for heading format, ingest-owned event type, and stale refs.
-16. Release the write lock:
+14. Release the write lock:
 
 ```bash
 node "${CLAUDE_PLUGIN_ROOT:-plugins/superpowers-memory}/hooks/hook-runtime.js" unlock

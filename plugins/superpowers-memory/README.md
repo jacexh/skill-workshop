@@ -20,17 +20,13 @@ Superpowers' workflow (brainstorming → writing-plans → executing-plans → f
 
 ## What This Plugin Does
 
-1. **Project Knowledge Base** — Maintains core knowledge files (`docs/superpowers/memory/`) covering architecture, tech stack, features, conventions, decisions, domain glossary, and an append-only maintenance log. Large projects can split any non-index/non-log entry file into focused shard files. Architecture uses a stricter module-first + named scenario layout, such as `architecture-orchestrator.md` and `architecture-runtime-message-chain.md`; other slots use stable domain shards such as `features-admin.md`. Updated incrementally after each development iteration.
-
-   Legacy `docs/project-knowledge/` installations are hard-migrated by memory skills with `git mv docs/project-knowledge docs/superpowers/memory` when the new directory does not already exist.
+1. **Project Knowledge Base** — Maintains core knowledge files (`docs/superpowers/memory/`) covering architecture, tech stack, features, conventions, decisions, and domain glossary. Large projects can split any non-index entry file into focused shard files. Architecture uses a stricter module-first + named scenario layout, such as `architecture-orchestrator.md` and `architecture-runtime-message-chain.md`; other slots use stable domain shards such as `features-admin.md`. Updated incrementally after each development iteration.
 
 2. **index.md** — A lightweight router read on demand by `superpowers-memory:query`, giving the agent a way to find the smallest useful owner files without loading the whole KB.
 
-3. **log.md** — A chronological KB maintenance ledger. Only `superpowers-memory:ingest` appends entries; `query` and `lint` remain read-only and are logged only when a later ingest accepts their candidate or fixes their findings.
+3. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `superpowers-memory:query` before planning/execution, and to inspect stale branch changes before finishing. `superpowers-memory:ingest` is used only when those changes introduce or materially change durable project knowledge. Compatibility aliases (`load`, `update`, `rebuild`) continue to route to those primary workflows.
 
-4. **Lightweight Context Injection** — `PreToolUse` hook intercepts 5 superpowers skills; reminds the agent to run `superpowers-memory:query` before planning/execution, and to run `superpowers-memory:ingest` after execution completes or when finishing a development branch. Compatibility aliases (`load`, `update`, `rebuild`) continue to route to those primary workflows.
-
-5. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
+4. **Zero Modification** — Does not modify superpowers. Influences agent behavior through hook context injection and independent skills.
 
 ## Installation
 
@@ -46,7 +42,7 @@ Install via the Skill Workshop marketplace:
 | Skill | Purpose | When to Use |
 |-------|---------|------------|
 | `superpowers-memory:query` | Read Project Knowledge Base owner files and answer from grounded sources | Before exploring, planning, architecture decisions, broad search, or answering project questions |
-| `superpowers-memory:ingest` | Create, incrementally update, or full-refresh Project Knowledge Base facts | After a spec, plan, PR, or implementation branch; when bootstrap or full-refresh is needed |
+| `superpowers-memory:ingest` | Create, incrementally update, or full-refresh Project Knowledge Base facts | After a spec, plan, PR, or implementation branch that changes durable project knowledge; when bootstrap or full-refresh is needed |
 | `superpowers-memory:lint` | Check Project Knowledge Base health without writing | When stale refs, shape violations, SSOT issues, retrieval cost, or suggested ingest targets need review |
 
 Compatibility aliases:
@@ -61,8 +57,8 @@ Compatibility aliases:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| SessionStart | startup, clear, compact | Reports that the KB is available, adds lightweight freshness status and `superpowers-memory:query` guidance, or prompts the user to run `superpowers-memory:ingest` bootstrap mode (or the `rebuild` compatibility alias) when the KB is missing |
-| PreToolUse (Skill) | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `superpowers-memory:query` before work and `superpowers-memory:ingest` before finishing a branch; blocks when the KB does not exist, or when finishing a branch whose `covers_branch` (branch name + HEAD SHA) does not match current `HEAD` |
+| SessionStart | startup, clear, compact | Reports that the KB is available, adds lightweight freshness status and `superpowers-memory:query` guidance, or prompts the user to run `superpowers-memory:ingest` bootstrap mode (or the `rebuild` compatibility alias) when the KB is missing. Stale status is informational; it is not an automatic ingest trigger. |
+| PreToolUse (Skill) | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `superpowers-memory:query` before work and asks the agent to inspect stale branch changes before finishing. It recommends `superpowers-memory:ingest` only for durable changes to capabilities, architecture, conventions, dependency choices, decisions, glossary terms, lifecycle rules, or query answerability. |
 | PreToolUse (Write/Edit/MultiEdit/NotebookEdit) | any file write under `docs/superpowers/memory/` | Blocks the write unless a write-lock is held. The lock is acquired/released only by `superpowers-memory:ingest` or its `update`/`rebuild` compatibility aliases, so KB content can never drift from the canonical update flow (no ad-hoc ADR commits, no manual edits). Lock has a 60-min TTL to prevent permanent lockout if a skill aborts midway. |
 
 ### KB Write Lock
@@ -93,11 +89,10 @@ docs/superpowers/memory/
 ├── decisions.md      # Decision index / ADR summaries
 ├── adr/              # Per-ADR rationale details (on-demand load)
 ├── glossary.md       # Domain terminology (Ubiquitous Language)
-├── log.md            # Append-only ingest maintenance ledger
 └── <slot>-<domain>.md # Optional focused shards, e.g. architecture-orchestrator.md
 ```
 
-`adr/` appears only when ADR details exist. Split shard files are optional and should be created by stable domain, submodule, bounded context, platform capability, practice area, decision family, deploy unit, or workflow boundary — never by arbitrary pagination. Shards must be reachable from `index.md` or the parent owner file. Architecture shards should be module-first (`architecture-<module>.md`) or named scenario shards (`architecture-<scenario>.md`), not legacy view shards like `architecture-contexts.md` or `architecture-flows.md`. `decisions.md` is a decision index; `log.md` is the operation ledger and is never a fact owner or shard family.
+`adr/` appears only when ADR details exist. Split shard files are optional and should be created by stable domain, submodule, bounded context, platform capability, practice area, decision family, deploy unit, or workflow boundary — never by arbitrary pagination. Shards must be reachable from `index.md` or the parent owner file. Architecture shards should be module-first (`architecture-<module>.md`) or named scenario shards (`architecture-<scenario>.md`), not legacy view shards like `architecture-contexts.md` or `architecture-flows.md`. `decisions.md` is a decision index, not a fact owner for current capability or architecture details.
 
 ## KB Quality Evaluation
 
@@ -138,7 +133,7 @@ Use the same 0-5 anchor for every dimension:
 - `index.md`, optional shard files, and lazy ADR detail files target retrieval and token efficiency.
 - `content-rules.md` defines fact ownership, exclusion rules, ADR gates, progressive knowledge layout, and per-file content boundaries.
 - `superpowers-memory:query` gives agents a lightweight, read-only entry point before planning or architectural work, and produces structured Memory candidates when a durable answer is missing or a reusable durable synthesis should be preserved; `load` remains a compatibility alias.
-- `superpowers-memory:ingest` forces source review, owner routing, targeted Core Query Coverage, architecture answerability self-checks, exclusion checks, index/log regeneration, and verification before commit; `update` and `rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
+- `superpowers-memory:ingest` forces source review, owner routing, targeted Core Query Coverage, architecture answerability self-checks, exclusion checks, index routing updates, and verification before commit; `update` and `rebuild` remain compatibility aliases for incremental and bootstrap/full-refresh modes.
 - `superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
 - The KB write lock prevents ad-hoc edits under `docs/superpowers/memory/`; KB writes must go through `superpowers-memory:ingest` or its compatibility aliases.
 - `hook-runtime.js verify` checks stale path references, shape violations including forbidden conversation/chat/transcript KB slots, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, unrouted shards, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.

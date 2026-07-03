@@ -48,7 +48,7 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 **Actors / Entry Points** — `superpowers-memory:load`, `superpowers-memory:query`, SessionStart hooks, and `docs/superpowers/memory/index.md`.
 
-**Capability Boundary** — `query` reads `index.md` on demand as the first router; SessionStart only reports KB availability/freshness and query guidance. `query` reports question classification, retrieval route, skipped oversized/irrelevant files, and code search seeds. Full KB files are loaded on demand, with `glossary.md` used for alias expansion and `decisions.md` routed through ADR details or decision-family shards instead of eagerly loading large root files.
+**Capability Boundary** — `query` reads `index.md` on demand as the first router; SessionStart only reports KB availability/freshness and query guidance. Stale freshness is a review signal, not an automatic ingest trigger; agents run ingest only when changed source facts introduce or materially change durable project knowledge. `query` reports question classification, retrieval route, skipped oversized/irrelevant files, and code search seeds. Full KB files are loaded on demand, with `glossary.md` used for alias expansion and `decisions.md` routed through ADR details or decision-family shards instead of eagerly loading large root files.
 
 **References** — `plugins/superpowers-memory/skills/load/`, `plugins/superpowers-memory/skills/query/`, `codex-plugins/superpowers-memory/skills/load/`, `codex-plugins/superpowers-memory/skills/query/`, ADR-005, ADR-006.
 
@@ -58,7 +58,7 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 **Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/templates/`, and `plugins/superpowers-memory/content-rules.md`.
 
-**Capability Boundary** — `plugins/superpowers-memory/content-rules.md` is the SSOT for ownership, exclusion rules, KB Slot Contracts, progressive shard layout, retrieval-cost guidance, query routing output, and `features.md` readability. Ingest self-checks candidate updates against the matching slot contract before writing. Full/scoped rebuild can upgrade legacy large `decisions.md` and `glossary.md` files into root routers plus `decisions-<domain>.md` and `glossary-<domain>.md` shards while preserving ADR details, aliases, source refs, and tombstones.
+**Capability Boundary** — `plugins/superpowers-memory/content-rules.md` is the SSOT for ownership, exclusion rules, KB Slot Contracts, progressive shard layout, retrieval-cost guidance, query routing output, and `features.md` readability. Ingest self-checks candidate updates against the matching slot contract before writing, and first skips deployment-only, image/tag/version-only, formatting-only, or comment-only changes that do not alter durable project knowledge. Full/scoped rebuild can upgrade legacy large `decisions.md` and `glossary.md` files into root routers plus `decisions-<domain>.md` and `glossary-<domain>.md` shards while preserving ADR details, aliases, source refs, and tombstones.
 
 **References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/`, ADR-003.
 
@@ -93,16 +93,6 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 **Capability Boundary** — KB Slot Contracts cover owner intent, required shape, conditional shape, shard rules, excluded content, and verify coverage for `index`, `architecture`, `features`, `decisions`, `conventions`, `tech-stack`, and `glossary`. Template `SLOT CONTRACT` blocks make the same contract visible at file creation time. Runtime references are calibrated as implemented paths; any future/readiness terms in those files belong to generic lint rules, not this capability. `qualityGate` reports `blockingFindings`, `advisoryFindings`, and `coverageAdvisoryOnly` without making architecture coverage gaps fail `verify.ok`.
 
 **References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/`, `plugins/superpowers-memory/hooks/hook-runtime.js`, `codex-plugins/superpowers-memory/hooks/codex-runtime.js`, `docs/superpowers/specs/2026-07-03-memory-slot-contracts-quality-gates-design.md`.
-
-#### Memory Log Maintenance Ledger
-
-**Enables** — Maintainers can reconstruct recent KB maintenance work without treating read-only lookups as write events.
-
-**Actors / Entry Points** — `superpowers-memory:ingest`, `docs/superpowers/memory/log.md`, `plugins/superpowers-memory/templates/log.md`, and both memory verify runtimes.
-
-**Capability Boundary** — `log.md` is an append-only chronological ledger for successful ingest operations that changed the KB. Pure `query` and `lint` operations stay read-only and are not appended; when query emits a Memory candidate or lint surfaces findings, the later ingest that accepts or fixes them records the source query/finding. `log.md` is a root file only, not a fact owner and not a shard family; durable facts remain in their owner slots. Runtime references are calibrated as implemented paths; any future/readiness terms in those files belong to generic lint rules, not this capability.
-
-**References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/log.md`, `plugins/superpowers-memory/skills/ingest/SKILL.md`, `plugins/superpowers-memory/skills/query/SKILL.md`, `plugins/superpowers-memory/skills/lint/SKILL.md`, `plugins/superpowers-memory/hooks/hook-runtime.js`, `codex-plugins/superpowers-memory/hooks/codex-runtime.js`.
 
 #### Progressive Knowledge Layout
 

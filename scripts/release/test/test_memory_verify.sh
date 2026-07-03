@@ -23,19 +23,10 @@ assert_feature_template_group_order() {
   [ "$platform" -lt "$operations" ] || { echo "FAIL Platform must precede Operations in $template"; exit 1; }
 }
 
-migrate_fixture_memory_dir() {
-  local repo="$1"
-  if [ -d "$repo/docs/project-knowledge" ] && [ ! -d "$repo/docs/superpowers/memory" ]; then
-    mkdir -p "$repo/docs/superpowers"
-    mv "$repo/docs/project-knowledge" "$repo/docs/superpowers/memory"
-  fi
-}
-
 copy_fixture() {
   local fixture="$1"
   local dest="$2"
   cp -R "$ROOT/plugins/superpowers-memory/hooks/fixtures/$fixture" "$dest"
-  migrate_fixture_memory_dir "$dest"
 }
 
 # The features template should keep product capabilities ahead of workflow,
@@ -66,72 +57,10 @@ echo "$clean_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and 
 clean_codex_lint_out="$(cd "$clean" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" lint)"
 echo "$clean_codex_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost") and has("coverageGaps") and has("qualityGate")' >/dev/null
 
-# Intent: log.md is a chronological KB maintenance ledger owned by ingest,
-# not an unrecognized markdown file or a place for read-only query/lint events.
-valid_log="$TMPDIR/valid-log"
-copy_fixture "clean" "$valid_log"
-{
-  printf '%s\n' '---'
-  printf '%s\n' 'last_updated: 2026-07-03'
-  printf '%s\n' 'updated_by: superpowers-memory:ingest'
-  printf '%s\n' 'triggered_by_plan: null'
-  printf '%s\n' '---'
-  printf '\n# Project Knowledge Log\n\n'
-  printf '%s\n' '## [2026-07-03] ingest | slot contracts'
-  printf '\n'
-  printf '%s\n' '- Source: `docs/superpowers/memory/features.md`'
-  printf '%s\n' '- Touched: `docs/superpowers/memory/features.md`, `docs/superpowers/memory/index.md`'
-  printf '%s\n' '- Verify: ok; qualityGate blocking=0 advisory=0'
-} > "$valid_log/docs/superpowers/memory/log.md"
-valid_log_out="$(cd "$valid_log" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
-echo "$valid_log_out" | jq -e '.retrievalCost.perFile[] | select(.file == "log.md")' >/dev/null
-echo "$valid_log_out" | jq -e '[.shapeViolations[] | select(.file == "log.md")] | length == 0' >/dev/null
-valid_log_codex_out="$(cd "$valid_log" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
-echo "$valid_log_codex_out" | jq -e '.retrievalCost.perFile[] | select(.file == "log.md")' >/dev/null
-echo "$valid_log_codex_out" | jq -e '[.shapeViolations[] | select(.file == "log.md")] | length == 0' >/dev/null
-
-# Intent: query and lint stay read-only; only ingest-owned write events belong
-# in log.md.
-query_log="$TMPDIR/query-log"
-copy_fixture "clean" "$query_log"
-{
-  printf '%s\n' '---'
-  printf '%s\n' 'last_updated: 2026-07-03'
-  printf '%s\n' 'updated_by: superpowers-memory:ingest'
-  printf '%s\n' 'triggered_by_plan: null'
-  printf '%s\n' '---'
-  printf '\n# Project Knowledge Log\n\n'
-  printf '%s\n' '## [2026-07-03] query | architecture lookup'
-  printf '\n'
-  printf '%s\n' '- Source: `docs/superpowers/memory/index.md`'
-} > "$query_log/docs/superpowers/memory/log.md"
-query_log_out="$(cd "$query_log" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
-echo "$query_log_out" | jq -e '.shapeViolations[] | select(.file == "log.md" and .kind == "log_event_not_ingest_owned")' >/dev/null
-query_log_codex_out="$(cd "$query_log" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
-echo "$query_log_codex_out" | jq -e '.shapeViolations[] | select(.file == "log.md" and .kind == "log_event_not_ingest_owned")' >/dev/null
-
-# Intent: log headings must be machine-readable so tail/grep workflows can
-# recover recent KB maintenance chronology.
-bad_log_heading="$TMPDIR/bad-log-heading"
-copy_fixture "clean" "$bad_log_heading"
-{
-  printf '%s\n' '---'
-  printf '%s\n' 'last_updated: 2026-07-03'
-  printf '%s\n' 'updated_by: superpowers-memory:ingest'
-  printf '%s\n' 'triggered_by_plan: null'
-  printf '%s\n' '---'
-  printf '\n# Project Knowledge Log\n\n'
-  printf '%s\n' '## 2026-07-03 ingest | malformed heading'
-} > "$bad_log_heading/docs/superpowers/memory/log.md"
-bad_log_heading_out="$(cd "$bad_log_heading" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
-echo "$bad_log_heading_out" | jq -e '.shapeViolations[] | select(.file == "log.md" and .kind == "log_heading_format")' >/dev/null
-bad_log_heading_codex_out="$(cd "$bad_log_heading" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
-echo "$bad_log_heading_codex_out" | jq -e '.shapeViolations[] | select(.file == "log.md" and .kind == "log_heading_format")' >/dev/null
-
-# Intent: log.md references are still source evidence; broken non-memory paths
-# should be caught by the existing stale reference checker.
-stale_log_ref="$TMPDIR/stale-log-ref"
-copy_fixture "clean" "$stale_log_ref"
+# Intent: legacy log.md files should no longer be treated as a canonical KB
+# slot. The plugin does not adopt LLM Wiki's chronological operation log.
+legacy_log="$TMPDIR/legacy-log"
+copy_fixture "clean" "$legacy_log"
 {
   printf '%s\n' '---'
   printf '%s\n' 'last_updated: 2026-07-03'
@@ -144,11 +73,15 @@ copy_fixture "clean" "$stale_log_ref"
   printf '%s\n' '- Source: `src/missing.js`'
   printf '%s\n' '- Touched: `docs/superpowers/memory/features.md`'
   printf '%s\n' '- Verify: ok; qualityGate blocking=0 advisory=0'
-} > "$stale_log_ref/docs/superpowers/memory/log.md"
-stale_log_ref_out="$(cd "$stale_log_ref" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
-echo "$stale_log_ref_out" | jq -e '.staleRefs[] | select(.file == "log.md" and .ref == "src/missing.js")' >/dev/null
-stale_log_ref_codex_out="$(cd "$stale_log_ref" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
-echo "$stale_log_ref_codex_out" | jq -e '.staleRefs[] | select(.file == "log.md" and .ref == "src/missing.js")' >/dev/null
+} > "$legacy_log/docs/superpowers/memory/log.md"
+legacy_log_out="$(cd "$legacy_log" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$legacy_log_out" | jq -e '[.retrievalCost.perFile[] | select(.file == "log.md")] | length == 0' >/dev/null
+echo "$legacy_log_out" | jq -e '[.shapeViolations[] | select(.file == "log.md")] | length == 0' >/dev/null
+echo "$legacy_log_out" | jq -e '[.staleRefs[] | select(.file == "log.md")] | length == 0' >/dev/null
+legacy_log_codex_out="$(cd "$legacy_log" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$legacy_log_codex_out" | jq -e '[.retrievalCost.perFile[] | select(.file == "log.md")] | length == 0' >/dev/null
+echo "$legacy_log_codex_out" | jq -e '[.shapeViolations[] | select(.file == "log.md")] | length == 0' >/dev/null
+echo "$legacy_log_codex_out" | jq -e '[.staleRefs[] | select(.file == "log.md")] | length == 0' >/dev/null
 
 # Current ADR summaries may include a short "Why" line without becoming legacy
 # inline ADRs. Legacy detection is limited to fields from the old detail format.
@@ -477,13 +410,14 @@ copy_fixture "clean" "$status_repo"
 (
   cd "$status_repo"
   git init -q
+  git checkout -q -b feature/status
   git config user.email test@example.com
   git config user.name Test
   git add .
   git commit -q -m "initial"
   covered_sha="$(git rev-parse --short HEAD)"
   branch="$(git branch --show-current)"
-  sed -i.bak "s/^covers_branch:.*/covers_branch: ${branch}@${covered_sha}/" docs/superpowers/memory/index.md
+  sed -i.bak "s|^covers_branch:.*|covers_branch: ${branch}@${covered_sha}|" docs/superpowers/memory/index.md
   rm docs/superpowers/memory/index.md.bak
   git add docs/superpowers/memory/index.md
   git commit -q -m "docs: record coverage"
@@ -493,23 +427,26 @@ copy_fixture "clean" "$status_repo"
   node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" status |
     jq -e '.stale == true and .nonKbCommitCount == 1 and (.changedFiles[] == "src-new.txt")' >/dev/null
   node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" session-start |
-    jq -e '.additional_context | contains("Project KB available at docs/superpowers/memory/") and contains("Project KB status") and contains("stale") and contains("superpowers-memory:query") and (contains("# Project Knowledge Index") | not)' >/dev/null
+    jq -e '.additional_context | contains("Project KB available at docs/superpowers/memory/") and contains("Project KB status") and contains("stale") and contains("superpowers-memory:query") and contains("Run ingest only when changed source facts introduce or materially change durable project knowledge.") and (contains("if stale, invoke superpowers-memory:ingest") | not) and (contains("Before finishing, committing, merging, or opening a PR: run superpowers-memory:ingest.") | not) and (contains("# Project Knowledge Index") | not)' >/dev/null
   node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" session-start |
-    jq -e '.hookSpecificOutput.additionalContext | contains("Project KB available at docs/superpowers/memory/") and contains("Project KB status") and contains("stale") and contains("$superpowers-memory:query") and (contains("# Project Knowledge Index") | not)' >/dev/null
+    jq -e '.hookSpecificOutput.additionalContext | contains("Project KB available at docs/superpowers/memory/") and contains("Project KB status") and contains("stale") and contains("$superpowers-memory:query") and contains("Run ingest only when changed source facts introduce or materially change durable project knowledge.") and (contains("if stale, invoke $superpowers-memory:ingest") | not) and (contains("Before finishing, committing, merging, or opening a PR: run $superpowers-memory:ingest.") | not) and (contains("# Project Knowledge Index") | not)' >/dev/null
+  printf '%s' '{"command_name":"finishing-a-development-branch"}' |
+    node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" user-prompt-expansion |
+    jq -e '.additional_context | contains("Inspect the changed files before ingesting.") and contains("Skip ingest for deployment-only, image/tag/version-only, formatting, or comment-only changes.") and (contains("MUST invoke") | not) and (contains("VERY NEXT tool call") | not)' >/dev/null
+  printf '%s' '{"prompt":"$superpowers:finishing-a-development-branch"}' |
+    node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" user-prompt-submit |
+    jq -e '.hookSpecificOutput.additionalContext | contains("Inspect the changed files before ingesting.") and contains("Skip ingest for deployment-only, image/tag/version-only, formatting, or comment-only changes.") and (contains("MUST invoke") | not) and (contains("VERY NEXT tool call") | not)' >/dev/null
 )
 
 # Intent: Codex KB write protection should use the current PreToolUse deny
-# protocol so direct canonical and legacy memory edits are blocked by Codex itself.
+# protocol so direct canonical memory edits are blocked by Codex itself.
 pretool_repo="$TMPDIR/pretool-repo"
 copy_fixture "clean" "$pretool_repo"
 (
   cd "$pretool_repo"
   printf '%s' '{"tool_name":"apply_patch","tool_input":{"patch":"*** Update File: docs/superpowers/memory/index.md\n@@\n-old\n+new\n"}}' |
     node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" pre-tool-use |
-    jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and .hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | contains("Direct edits to docs/superpowers/memory/")) and (.hookSpecificOutput.permissionDecisionReason | contains("legacy docs/project-knowledge"))' >/dev/null
-  printf '%s' '{"tool_name":"apply_patch","tool_input":{"patch":"*** Update File: docs/project-knowledge/index.md\n@@\n-old\n+new\n"}}' |
-    node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" pre-tool-use |
-    jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and .hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | contains("legacy docs/project-knowledge"))' >/dev/null
+    jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and .hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | contains("Direct edits to docs/superpowers/memory/"))' >/dev/null
 )
 
 echo "  memory verify: feature fixed-field lint correct"

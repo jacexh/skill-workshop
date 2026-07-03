@@ -34,7 +34,6 @@ Every fact in the KB has exactly one owner file. Other files reference the owner
 | Dependency version + selection rationale | `tech-stack.md` | "see tech-stack.md" |
 | Coding, workflow, CI rules | `conventions.md` | "see conventions.md §<section>" |
 | Domain term definitions | `glossary.md` | "see glossary" |
-| Chronological KB maintenance ledger (what ingest changed when) | `log.md` | owner files remain the fact source; log points to touched files |
 | Delivery timeline (what shipped when) | `docs/superpowers/plans/<date>-*.md` | plan filename only — do NOT inline changelog in KB |
 
 **Rule:** any claim ≥3 lines appearing in 2+ KB files MUST move to its owner, and the other files get a pointer (≤1 line).
@@ -53,15 +52,6 @@ same patch so humans and agents can see the required shape quickly.
 - **Shard rule:** `index.md` never shards.
 - **Must not include:** Expanded owner facts, changelog narrative, or copied summaries from large files.
 - **Verify coverage:** `index_too_large`, stale refs, shard routing coverage, retrieval cost.
-
-### `log.md` — chronological maintenance ledger
-
-- **Owner:** Append-only KB maintenance events written by `ingest` after KB changes.
-- **Required shape:** `# Project Knowledge Log`; entries use `## [YYYY-MM-DD] ingest | <topic>` followed by short bullets for Source, Touched, Verify, and optional Follow-up.
-- **Conditional shape:** Include `Source query` only when an accepted Memory candidate came from `query`; include Follow-up only for known next ingest/lint targets.
-- **Shard rule:** `log.md` never shards and is not loaded by default; use tail/grep only when recent maintenance context matters.
-- **Must not include:** Stable facts, query-only events, lint-only events, chat transcripts, release narrative, copied owner content, or broad access/audit logs.
-- **Verify coverage:** `log_heading_format`, `log_heading_date`, `log_event_not_ingest_owned`, stale refs, retrieval cost; excluded from `splitCandidates`.
 
 ### `architecture.md` / `architecture-<module>.md` / `architecture-<scenario>.md` — structure view
 
@@ -148,9 +138,8 @@ Each canonical file is an **entry file**, not a capacity ceiling:
 - `tech-stack.md`
 - `decisions.md`
 - `glossary.md`
-- `log.md`
 
-For large or complex projects, any entry file except `index.md` and `log.md` may be split into sibling shard files named `<slot>-<domain>.md`, for example:
+For large or complex projects, any entry file except `index.md` may be split into sibling shard files named `<slot>-<domain>.md`, for example:
 
 - `architecture-orchestrator.md`
 - `architecture-runtime-message-chain.md`
@@ -182,7 +171,6 @@ The Project Knowledge Base must support `query`, not only session-start orientat
 - Owner entries that claim durable behavior include a source reference: spec, plan, ADR, README, canonical source file, or another owner entry.
 - Cross-owner relationships use `See:` or `Related:` pointers. Do not duplicate expanded facts across owner files.
 - Shards must be reachable from `index.md` or the parent owner file; high-value shards should be linked from both.
-- `log.md` is chronological maintenance context. `query` does not read it by default; tail it only when recent ingest history affects the answer or next maintenance action.
 - Optional aliases are plain Markdown such as `Aliases: native hooks, Codex hooks, prompt router`.
 - Query answers should be supported by read owner/source entries, not by search snippets alone.
 
@@ -213,6 +201,18 @@ into broad KB reads.
 Incremental ingest is for maintaining an already-good knowledge base. It should
 not pretend a narrow edit can repair a thin or poorly routed topic. Use these
 guardrails before writing:
+
+### Eligibility Gate
+
+Stale `covers_branch` is evidence to inspect, not a write trigger by itself.
+Incremental ingest is warranted only when changed source facts introduce or
+materially change durable project knowledge: capabilities, architecture,
+conventions, dependency choices, decisions, glossary terms, lifecycle/flow
+invariants, or query answerability.
+
+Skip ingest for deployment-only, image/tag/version-only, formatting-only, and
+comment-only changes. These changes should not update `index.md` or
+`covers_branch` merely to make the KB match HEAD.
 
 ### Impact Radius
 
@@ -285,8 +285,8 @@ map is complete.
 
 Decision knowledge should answer "why this design?" and "what decision constrains
 this module?" without loading every ADR. `decisions.md` is a **decision index**,
-not LLM Wiki's operation `log.md` and not a chat/history slot. It keeps active ADR
-summaries small and routes query to affected owners and on-demand ADR detail files.
+not a chat/history slot. It keeps active ADR summaries small and routes query to
+affected owners and on-demand ADR detail files.
 Each active ADR summary should expose:
 
 - The decision in one sentence.
@@ -428,29 +428,6 @@ Describes how modules/services are wired, how they interact over time, and how c
 | FSM state names inlined as prose lists (`"states: a / b / c / d"`) | reshape as Mermaid `stateDiagram-v2` |
 | Capability descriptions (what a component does for a user) | `features.md`; here use `"see features.md §..."` pointer |
 | Full ADR rationale (Context / Alternatives / Consequences) | `decisions.md` summary + `adr/ADR-NNN-*.md` |
-
-### log.md — chronological maintenance ledger
-
-Records when `ingest` changed the KB and what source/touched files were involved. It is **not** a knowledge owner and must not contain durable architecture, feature, decision, glossary, convention, or tech-stack facts.
-
-**Required format:**
-
-```markdown
-## [YYYY-MM-DD] ingest | <short topic>
-
-- Source: `<spec/plan/ADR/doc/path>` or code/diff validation summary
-- Source query: <only when ingest accepted a query Memory candidate>
-- Touched: `docs/superpowers/memory/<owner>.md`, `docs/superpowers/memory/<shard>.md`
-- Verify: ok; qualityGate blocking=<n> advisory=<n>
-- Follow-up: <optional next ingest/lint target>
-```
-
-**Rules:**
-
-- Only `ingest` writes log entries. `query` and `lint` do not append `log.md`.
-- Use the machine-readable heading exactly: `## [YYYY-MM-DD] ingest | <topic>`.
-- Append new entries at the end. Do not reorder, summarize, or rewrite older entries except to fix a broken path/format through `ingest`.
-- Point to owner files and source refs; do not copy owner content into the log.
 
 ### features.md — current capability map
 
@@ -713,12 +690,12 @@ Never delete still-valid project knowledge solely to satisfy a line count or tok
 - `ssotViolations` — near-duplicate multi-line facts across owner files.
 - `sizeWarnings` — hot-path `index.md` line threshold only.
 - `retrievalCost` — advisory estimated retrieval cost for recognized KB entry files and shards.
-- `splitCandidates` — advisory list of large non-index/non-log files that may deserve vertical splitting.
+- `splitCandidates` — advisory list of large non-index files that may deserve vertical splitting.
 - `coverageGaps` — advisory architecture answerability gaps for complex repos, such as missing module cards/shards, missing scenario shards, shallow cards that only name generic code layers, too few named cross-service scenarios, scenario diagrams missing local source refs, legacy view shards (`architecture-contexts.md` / `architecture-flows.md`), missing module/scenario cross-references, scenario authority/order/failure field gaps, missing lifecycle/FSM coverage, or missing source refs. These do not affect `verify.ok`; they are suggested ingest targets.
 
 ## Retrieval Cost
 
-`verify` estimates retrieval cost as bytes / 4 ≈ tokens for recognized top-level KB files and shards: `architecture*.md`, `features*.md`, `conventions*.md`, `tech-stack*.md`, `decisions*.md`, `glossary*.md`, `log.md`, and `index.md`.
+`verify` estimates retrieval cost as bytes / 4 ≈ tokens for recognized top-level KB files and shards: `architecture*.md`, `features*.md`, `conventions*.md`, `tech-stack*.md`, `decisions*.md`, `glossary*.md`, and `index.md`.
 
 This is an observability metric, not a budget. High retrieval cost should lead to better routing and vertical splitting, not information loss.
 

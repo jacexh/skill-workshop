@@ -22,9 +22,11 @@ When a KB and index exist, SessionStart emits only:
 - KB availability and the index path.
 - KB freshness/status.
 - Short guidance to invoke `superpowers-memory:query` before broad code search, planning, architecture judgment, unfamiliar repo work, or answering project questions.
-- Short finishing guidance to ensure the KB reflects HEAD and run `superpowers-memory:ingest` when stale.
+- Short finishing guidance to inspect stale changes and run `superpowers-memory:ingest` only when changed source facts introduce or materially change durable project knowledge.
 
 `superpowers-memory:query` remains responsible for reading `index.md` and routing to owner files/shards. `index.md` keeps its strict size threshold because it is the first query-router file, not because it is injected at SessionStart.
+
+Stale `covers_branch` is a review signal, not a write trigger by itself. Deployment-only image rollouts, image/tag/version-only updates, formatting-only edits, and comment-only changes do not update `index.md` or `covers_branch` just to match HEAD.
 
 ## Alternatives Rejected
 
@@ -35,6 +37,7 @@ When a KB and index exist, SessionStart emits only:
 
 - SessionStart is smaller and less noisy.
 - Agents must invoke `query` to see the project map.
+- Agents do not run `ingest` merely because HEAD moved; they first decide whether the diff changes durable project knowledge.
 - Documentation and content rules should describe `index.md` as a query router rather than an always-injected hot-path file.
 - ADR-005 and ADR-016 remain historical context but are superseded where they described SessionStart index injection.
 
