@@ -46,3 +46,10 @@ triggered_by_plan: null
 - Source query: user asked to continue after the independent review recommended strategic-first design, accepted-model implementation, and evidence-precondition review
 - Touched: `docs/superpowers/memory/index.md`, `docs/superpowers/memory/conventions.md`, `docs/superpowers/memory/log.md`
 - Verify: ok; qualityGate blocking=0 advisory=0
+
+## [2026-07-03] ingest | DDD responsibility-role risk routing
+
+- Source: `plugins/superpowers-ddd-architect/references/ddd-risk-router.md`; `plugins/superpowers-ddd-architect/references/ddd-agent-contract.md`; `codex-plugins/superpowers-ddd-architect/references/ddd-risk-router.md`; `codex-plugins/superpowers-ddd-architect/references/ddd-agent-contract.md`; `scripts/release/test/test_codex_ddd_architect_runtime.sh`
+- Source query: user requested generalizing DDD risk recognition beyond downstream `drain` examples and asked whether concepts such as event handlers, message handlers, and CQRS should become risk classifications
+- Touched: `docs/superpowers/memory/index.md`, `docs/superpowers/memory/conventions.md`, `docs/superpowers/memory/log.md`
+- Verify: ok; qualityGate blocking=0 advisory=0
