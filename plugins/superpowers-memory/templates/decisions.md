@@ -11,6 +11,14 @@ triggered_by_plan: null
      context / alternatives / consequences live in `adr/ADR-NNN-<slug>.md`,
      loaded on demand.
 
+     SLOT CONTRACT:
+     - Owner: decision summaries, decision-family routing, and per-ADR rationale detail links.
+     - Required shape: active summaries include Decision, Trade-off, Affects, and adr/ detail link.
+     - Conditional shape: large stable decision families move to decisions-<domain>.md shards.
+     - Shard rule: split by decision family, not chronology or page size.
+     - Must not include: full rationale in summaries, reversible single-module choices, simple tool picks, or workflow rules.
+     - Verify coverage: ADR detail links, legacy inline ADRs, unresolved supersede entries, decision coverage gaps.
+
      GRANULARITY GATE (see content-rules.md §decisions.md) — all three must hold:
        1. Cross-module scope (≥2 bounded contexts / services / packages)
        2. ≥2 substantive rejected alternatives (each with real paragraph-level analysis)

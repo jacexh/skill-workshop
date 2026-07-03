@@ -54,15 +54,101 @@ copy_fixture "clean" "$clean"
 
 clean_out="$(cd "$clean" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$clean_out" | jq -e '.shapeViolations | length == 0' >/dev/null
+echo "$clean_out" | jq -e '.qualityGate.ok == true and .qualityGate.blockingFindings == 0 and .qualityGate.advisoryFindings == 0 and .qualityGate.coverageAdvisoryOnly == true' >/dev/null
 
 clean_codex_out="$(cd "$clean" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
 echo "$clean_codex_out" | jq -e '.shapeViolations | length == 0' >/dev/null
+echo "$clean_codex_out" | jq -e '.qualityGate.ok == true and .qualityGate.blockingFindings == 0 and .qualityGate.advisoryFindings == 0 and .qualityGate.coverageAdvisoryOnly == true' >/dev/null
 
 clean_lint_out="$(cd "$clean" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" lint)"
-echo "$clean_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost") and has("coverageGaps")' >/dev/null
+echo "$clean_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost") and has("coverageGaps") and has("qualityGate")' >/dev/null
 
 clean_codex_lint_out="$(cd "$clean" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" lint)"
-echo "$clean_codex_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost") and has("coverageGaps")' >/dev/null
+echo "$clean_codex_lint_out" | jq -e 'has("staleRefs") and has("shapeViolations") and has("ssotViolations") and has("retrievalCost") and has("coverageGaps") and has("qualityGate")' >/dev/null
+
+# Intent: log.md is a chronological KB maintenance ledger owned by ingest,
+# not an unrecognized markdown file or a place for read-only query/lint events.
+valid_log="$TMPDIR/valid-log"
+copy_fixture "clean" "$valid_log"
+{
+  printf '%s\n' '---'
+  printf '%s\n' 'last_updated: 2026-07-03'
+  printf '%s\n' 'updated_by: superpowers-memory:ingest'
+  printf '%s\n' 'triggered_by_plan: null'
+  printf '%s\n' '---'
+  printf '\n# Project Knowledge Log\n\n'
+  printf '%s\n' '## [2026-07-03] ingest | slot contracts'
+  printf '\n'
+  printf '%s\n' '- Source: `docs/superpowers/memory/features.md`'
+  printf '%s\n' '- Touched: `docs/superpowers/memory/features.md`, `docs/superpowers/memory/index.md`'
+  printf '%s\n' '- Verify: ok; qualityGate blocking=0 advisory=0'
+} > "$valid_log/docs/superpowers/memory/log.md"
+valid_log_out="$(cd "$valid_log" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$valid_log_out" | jq -e '.retrievalCost.perFile[] | select(.file == "log.md")' >/dev/null
+echo "$valid_log_out" | jq -e '[.shapeViolations[] | select(.file == "log.md")] | length == 0' >/dev/null
+valid_log_codex_out="$(cd "$valid_log" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$valid_log_codex_out" | jq -e '.retrievalCost.perFile[] | select(.file == "log.md")' >/dev/null
+echo "$valid_log_codex_out" | jq -e '[.shapeViolations[] | select(.file == "log.md")] | length == 0' >/dev/null
+
+# Intent: query and lint stay read-only; only ingest-owned write events belong
+# in log.md.
+query_log="$TMPDIR/query-log"
+copy_fixture "clean" "$query_log"
+{
+  printf '%s\n' '---'
+  printf '%s\n' 'last_updated: 2026-07-03'
+  printf '%s\n' 'updated_by: superpowers-memory:ingest'
+  printf '%s\n' 'triggered_by_plan: null'
+  printf '%s\n' '---'
+  printf '\n# Project Knowledge Log\n\n'
+  printf '%s\n' '## [2026-07-03] query | architecture lookup'
+  printf '\n'
+  printf '%s\n' '- Source: `docs/superpowers/memory/index.md`'
+} > "$query_log/docs/superpowers/memory/log.md"
+query_log_out="$(cd "$query_log" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$query_log_out" | jq -e '.shapeViolations[] | select(.file == "log.md" and .kind == "log_event_not_ingest_owned")' >/dev/null
+query_log_codex_out="$(cd "$query_log" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$query_log_codex_out" | jq -e '.shapeViolations[] | select(.file == "log.md" and .kind == "log_event_not_ingest_owned")' >/dev/null
+
+# Intent: log headings must be machine-readable so tail/grep workflows can
+# recover recent KB maintenance chronology.
+bad_log_heading="$TMPDIR/bad-log-heading"
+copy_fixture "clean" "$bad_log_heading"
+{
+  printf '%s\n' '---'
+  printf '%s\n' 'last_updated: 2026-07-03'
+  printf '%s\n' 'updated_by: superpowers-memory:ingest'
+  printf '%s\n' 'triggered_by_plan: null'
+  printf '%s\n' '---'
+  printf '\n# Project Knowledge Log\n\n'
+  printf '%s\n' '## 2026-07-03 ingest | malformed heading'
+} > "$bad_log_heading/docs/superpowers/memory/log.md"
+bad_log_heading_out="$(cd "$bad_log_heading" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$bad_log_heading_out" | jq -e '.shapeViolations[] | select(.file == "log.md" and .kind == "log_heading_format")' >/dev/null
+bad_log_heading_codex_out="$(cd "$bad_log_heading" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$bad_log_heading_codex_out" | jq -e '.shapeViolations[] | select(.file == "log.md" and .kind == "log_heading_format")' >/dev/null
+
+# Intent: log.md references are still source evidence; broken non-memory paths
+# should be caught by the existing stale reference checker.
+stale_log_ref="$TMPDIR/stale-log-ref"
+copy_fixture "clean" "$stale_log_ref"
+{
+  printf '%s\n' '---'
+  printf '%s\n' 'last_updated: 2026-07-03'
+  printf '%s\n' 'updated_by: superpowers-memory:ingest'
+  printf '%s\n' 'triggered_by_plan: null'
+  printf '%s\n' '---'
+  printf '\n# Project Knowledge Log\n\n'
+  printf '%s\n' '## [2026-07-03] ingest | stale source example'
+  printf '\n'
+  printf '%s\n' '- Source: `src/missing.js`'
+  printf '%s\n' '- Touched: `docs/superpowers/memory/features.md`'
+  printf '%s\n' '- Verify: ok; qualityGate blocking=0 advisory=0'
+} > "$stale_log_ref/docs/superpowers/memory/log.md"
+stale_log_ref_out="$(cd "$stale_log_ref" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$stale_log_ref_out" | jq -e '.staleRefs[] | select(.file == "log.md" and .ref == "src/missing.js")' >/dev/null
+stale_log_ref_codex_out="$(cd "$stale_log_ref" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$stale_log_ref_codex_out" | jq -e '.staleRefs[] | select(.file == "log.md" and .ref == "src/missing.js")' >/dev/null
 
 # Current ADR summaries may include a short "Why" line without becoming legacy
 # inline ADRs. Legacy detection is limited to fields from the old detail format.
@@ -226,11 +312,13 @@ architecture_gap="$TMPDIR/architecture-coverage-gap"
 copy_fixture "architecture-coverage-gap" "$architecture_gap"
 architecture_gap_out="$(cd "$architecture_gap" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
 echo "$architecture_gap_out" | jq -e '.ok == true' >/dev/null
+echo "$architecture_gap_out" | jq -e '.qualityGate.ok == true and .qualityGate.blockingFindings == 0 and .qualityGate.advisoryFindings > 0 and .qualityGate.coverageAdvisoryOnly == true' >/dev/null
 echo "$architecture_gap_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_sparse")' >/dev/null
 echo "$architecture_gap_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenarios_sparse")' >/dev/null
 
 architecture_gap_codex_out="$(cd "$architecture_gap" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
 echo "$architecture_gap_codex_out" | jq -e '.ok == true' >/dev/null
+echo "$architecture_gap_codex_out" | jq -e '.qualityGate.ok == true and .qualityGate.blockingFindings == 0 and .qualityGate.advisoryFindings > 0 and .qualityGate.coverageAdvisoryOnly == true' >/dev/null
 echo "$architecture_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_service_cards_sparse")' >/dev/null
 echo "$architecture_gap_codex_out" | jq -e '.coverageGaps[] | select(.kind == "architecture_scenarios_sparse")' >/dev/null
 

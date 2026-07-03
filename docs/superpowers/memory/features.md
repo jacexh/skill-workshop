@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-07-02
+last_updated: 2026-07-03
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 ---
@@ -58,7 +58,7 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 **Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/templates/`, and `plugins/superpowers-memory/content-rules.md`.
 
-**Capability Boundary** — `plugins/superpowers-memory/content-rules.md` is the SSOT for ownership, exclusion rules, per-file structure, progressive shard layout, retrieval-cost guidance, query routing output, and `features.md` readability. Full/scoped rebuild can upgrade legacy large `decisions.md` and `glossary.md` files into root routers plus `decisions-<domain>.md` and `glossary-<domain>.md` shards while preserving ADR details, aliases, source refs, and tombstones.
+**Capability Boundary** — `plugins/superpowers-memory/content-rules.md` is the SSOT for ownership, exclusion rules, KB Slot Contracts, progressive shard layout, retrieval-cost guidance, query routing output, and `features.md` readability. Ingest self-checks candidate updates against the matching slot contract before writing. Full/scoped rebuild can upgrade legacy large `decisions.md` and `glossary.md` files into root routers plus `decisions-<domain>.md` and `glossary-<domain>.md` shards while preserving ADR details, aliases, source refs, and tombstones.
 
 **References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/`, ADR-003.
 
@@ -80,9 +80,29 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 **Actors / Entry Points** — `node plugins/superpowers-memory/hooks/hook-runtime.js verify` and the Codex equivalent.
 
-**Capability Boundary** — Verify treats only `index.md` as a strict query-router size constraint. `coverageGaps`, `retrievalCost`, and `splitCandidates` are advisory for non-index files; legacy `playbooks.md` files are ignored because the playbook slot is no longer part of the schema. Large root decision inventories can surface `decisions_family_shards_recommended`; large root glossaries can surface `glossary_alias_router_recommended`.
+**Capability Boundary** — Verify treats only `index.md` as a strict query-router size constraint. `coverageGaps`, `retrievalCost`, and `splitCandidates` are advisory for non-index files; legacy `playbooks.md` files are ignored because the playbook slot is no longer part of the schema. Large root decision inventories can surface `decisions_family_shards_recommended`; large root glossaries can surface `glossary_alias_router_recommended`. The `qualityGate` summary mirrors current `ok` semantics while splitting blocking findings from advisory findings.
 
 **References** — `plugins/superpowers-memory/hooks/fixtures/`; see `content-rules.md` for shape rules.
+
+#### Memory Slot Contracts And Quality Gate Summary
+
+**Enables** — Agents can tell which elements are required for each Project Knowledge slot before writing or reviewing KB updates.
+
+**Actors / Entry Points** — `superpowers-memory:ingest`, `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/`, and both memory verify runtimes.
+
+**Capability Boundary** — KB Slot Contracts cover owner intent, required shape, conditional shape, shard rules, excluded content, and verify coverage for `index`, `architecture`, `features`, `decisions`, `conventions`, `tech-stack`, and `glossary`. Template `SLOT CONTRACT` blocks make the same contract visible at file creation time. Runtime references are calibrated as implemented paths; any future/readiness terms in those files belong to generic lint rules, not this capability. `qualityGate` reports `blockingFindings`, `advisoryFindings`, and `coverageAdvisoryOnly` without making architecture coverage gaps fail `verify.ok`.
+
+**References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/`, `plugins/superpowers-memory/hooks/hook-runtime.js`, `codex-plugins/superpowers-memory/hooks/codex-runtime.js`, `docs/superpowers/specs/2026-07-03-memory-slot-contracts-quality-gates-design.md`.
+
+#### Memory Log Maintenance Ledger
+
+**Enables** — Maintainers can reconstruct recent KB maintenance work without treating read-only lookups as write events.
+
+**Actors / Entry Points** — `superpowers-memory:ingest`, `docs/superpowers/memory/log.md`, `plugins/superpowers-memory/templates/log.md`, and both memory verify runtimes.
+
+**Capability Boundary** — `log.md` is an append-only chronological ledger for successful ingest operations that changed the KB. Pure `query` and `lint` operations stay read-only and are not appended; when query emits a Memory candidate or lint surfaces findings, the later ingest that accepts or fixes them records the source query/finding. `log.md` is a root file only, not a fact owner and not a shard family; durable facts remain in their owner slots. Runtime references are calibrated as implemented paths; any future/readiness terms in those files belong to generic lint rules, not this capability.
+
+**References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/log.md`, `plugins/superpowers-memory/skills/ingest/SKILL.md`, `plugins/superpowers-memory/skills/query/SKILL.md`, `plugins/superpowers-memory/skills/lint/SKILL.md`, `plugins/superpowers-memory/hooks/hook-runtime.js`, `codex-plugins/superpowers-memory/hooks/codex-runtime.js`.
 
 #### Progressive Knowledge Layout
 
@@ -192,13 +212,13 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 **Actors / Entry Points** — `scripts/release/test/run-tests.sh` and fixture directories under `plugins/superpowers-memory/hooks/fixtures/`.
 
-**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; Codex manifest tests guard canonical hook feature-flag docs and command hook metadata, designing-tests runtime tests guard hand-off/architecture guidance injection, while memory verify covers canonical PreToolUse deny behavior, legacy playbook ignore behavior, architecture coverage advisories, shard split advisories, decision/glossary router advisories, and strict index size. Memory skill surface tests also guard query-routing output fields and rebuild compatibility text. They do not replace full host-runtime acceptance testing.
+**Capability Boundary** — Tests exercise real shell scripts and Node runtimes; Codex manifest tests guard canonical hook feature-flag docs and command hook metadata, designing-tests runtime tests guard hand-off/architecture guidance injection, while memory verify covers canonical PreToolUse deny behavior, legacy playbook ignore behavior, architecture coverage advisories, `qualityGate` summaries, shard split advisories, decision/glossary router advisories, and strict index size. Memory skill surface tests also guard query-routing output fields and rebuild compatibility text. They do not replace full host-runtime acceptance testing.
 
 **References** — `scripts/release/test/`; `plugins/superpowers-memory/hooks/fixtures/README.md`.
 
 ## In Progress
 
-No capabilities currently in progress.
+No in-progress capabilities are tracked in this file.
 
 ## Planned
 

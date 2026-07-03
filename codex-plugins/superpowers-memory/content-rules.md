@@ -34,9 +34,88 @@ Every fact in the KB has exactly one owner file. Other files reference the owner
 | Dependency version + selection rationale | `tech-stack.md` | "see tech-stack.md" |
 | Coding, workflow, CI rules | `conventions.md` | "see conventions.md §<section>" |
 | Domain term definitions | `glossary.md` | "see glossary" |
+| Chronological KB maintenance ledger (what ingest changed when) | `log.md` | owner files remain the fact source; log points to touched files |
 | Delivery timeline (what shipped when) | `docs/superpowers/plans/<date>-*.md` | plan filename only — do NOT inline changelog in KB |
 
 **Rule:** any claim ≥3 lines appearing in 2+ KB files MUST move to its owner, and the other files get a pointer (≤1 line).
+
+## KB Slot Contracts
+
+This is the compact contract surface for Project Knowledge slots. The detailed
+rules below remain authoritative; when one changes, update this section in the
+same patch so humans and agents can see the required shape quickly.
+
+### `index.md` — query router
+
+- **Owner:** Hot-path routing only: owner files, shards, useful aliases, and 1-2 key points per target.
+- **Required shape:** ≤50 lines; one route per file/shard with a short description and `Key points`.
+- **Conditional shape:** Include only real shard routes; omit placeholders and legacy files.
+- **Shard rule:** `index.md` never shards.
+- **Must not include:** Expanded owner facts, changelog narrative, or copied summaries from large files.
+- **Verify coverage:** `index_too_large`, stale refs, shard routing coverage, retrieval cost.
+
+### `log.md` — chronological maintenance ledger
+
+- **Owner:** Append-only KB maintenance events written by `ingest` after KB changes.
+- **Required shape:** `# Project Knowledge Log`; entries use `## [YYYY-MM-DD] ingest | <topic>` followed by short bullets for Source, Touched, Verify, and optional Follow-up.
+- **Conditional shape:** Include `Source query` only when an accepted Memory candidate came from `query`; include Follow-up only for known next ingest/lint targets.
+- **Shard rule:** `log.md` never shards and is not loaded by default; use tail/grep only when recent maintenance context matters.
+- **Must not include:** Stable facts, query-only events, lint-only events, chat transcripts, release narrative, copied owner content, or broad access/audit logs.
+- **Verify coverage:** `log_heading_format`, `log_heading_date`, `log_event_not_ingest_owned`, stale refs, retrieval cost; excluded from `splitCandidates`.
+
+### `architecture.md` / `architecture-<module>.md` / `architecture-<scenario>.md` — structure view
+
+- **Owner:** System topology, component boundaries, module wiring, cross-module scenarios, state/lifecycle rules, and source refs.
+- **Required shape:** Pattern overview, system context, topology/context map, module cards or module-shard links, named scenario links/sections, lifecycle/FSM routing, and ADR pointers when applicable.
+- **Conditional shape:** Complex repos need module-first shards/cards, named scenario shards/sections, local source refs, module/scenario bidirectional refs, and lifecycle/FSM coverage for cross-context state.
+- **Shard rule:** Split by high-value module (`architecture-<module>.md`) or named scenario (`architecture-<scenario>.md`), never by diagram type or arbitrary page number.
+- **Must not include:** Capability prose, full ADR rationale, implementation constants, env/header/key catalogs, method signatures, struct fields, enum catalogs, or single-module implementation tours.
+- **Verify coverage:** `architecture_*` coverage gaps, stale refs, method-signature lint, shard routing coverage, retrieval cost.
+
+### `features.md` / `features-<domain>.md` — current capability map
+
+- **Owner:** What users/operators/systems can do now, who uses it, entry points, capability boundaries, and owner-file references.
+- **Required shape:** `Implemented`, `In Progress`, `Planned`; implemented `####` entries use `Enables`, `Actors / Entry Points`, `Capability Boundary`, and `References`.
+- **Conditional shape:** Non-trivial products should include product capabilities and at least one user/operator workflow when the capability surface is broad enough.
+- **Shard rule:** Split by stable product/platform/operations domain when a valid capability map is too large to scan.
+- **Must not include:** Commit SHAs, test counts, shipped dates, per-iteration changelog narrative, detailed wiring, FSMs, schemas, or implementation constants.
+- **Verify coverage:** `feature_missing_field`, `feature_entry_too_dense`, readiness warnings, feature query coverage gaps, stale refs, retrieval cost.
+
+### `decisions.md` / `decisions-<domain>.md` / `adr/ADR-NNN-<slug>.md` — decision routing and rationale
+
+- **Owner:** Decision summaries and decision-family routing; full rationale lives in per-ADR detail files.
+- **Required shape:** Active ADR summaries include `Decision`, `Trade-off`, `Affects`, and an `adr/` detail link. ADR details include Context, Decision, Alternatives Rejected, and Consequences.
+- **Conditional shape:** Large active decision families move to `decisions-<domain>.md`; root `decisions.md` stays a router.
+- **Shard rule:** Split by stable decision family, not chronology or page size.
+- **Must not include:** Full rationale in summary files, single-module reversible choices, simple tool picks, temporary workaround plans, or workflow rules that belong in conventions.
+- **Verify coverage:** ADR detail links, legacy inline ADR lint, unresolved supersede lint, decision query coverage gaps, stale refs, retrieval cost.
+
+### `conventions.md` / `conventions-<domain>.md` — reusable guardrails
+
+- **Owner:** Project-specific coding, workflow, CI, runtime, and cross-cutting rules with canonical source anchors.
+- **Required shape:** Current guardrails only; `## Cross-cutting concerns` is required and may be `N/A: <reason>`.
+- **Conditional shape:** Practice-area shards only when a stable area has multiple reusable guardrails and source refs.
+- **Shard rule:** Split by stable practice area such as backend, frontend, operations, testing, security, or data.
+- **Must not include:** Dependency versions, technology selection rationale, user-visible capabilities, full ADR rationale, or generic design-pattern content.
+- **Verify coverage:** convention source-ref coverage gaps, stale refs, method-signature lint, shard routing coverage, retrieval cost.
+
+### `tech-stack.md` / `tech-stack-<domain>.md` — technology choices
+
+- **Owner:** Critical languages, frameworks, runtime platforms, dependencies, versions, purposes, and selection rationale.
+- **Required shape:** 5-10 critical dependencies or platform choices with purpose and why chosen.
+- **Conditional shape:** Multi-stack repos may split backend/frontend/runtime/tooling.
+- **Shard rule:** Split by stable stack boundary when one file becomes noisy.
+- **Must not include:** Obvious stdlib/dev-only/transitive packages, future unimplemented technologies as if current, or coding rules that belong in conventions.
+- **Verify coverage:** tech-stack rationale coverage gaps, stale refs, retrieval cost.
+
+### `glossary.md` / `glossary-<domain>.md` — term and alias router
+
+- **Owner:** Business/domain term definitions, cross-context aliases, renamed terms, and tombstones.
+- **Required shape:** Format as `**Term** — one-line business definition. → path (ADR-NNN if applicable)`; ≤2 lines per term.
+- **Conditional shape:** Large root glossaries become alias routers and move domain-local terms to `glossary-<domain>.md`.
+- **Shard rule:** Split by stable domain-local term set; keep ambiguous or high-risk aliases in root.
+- **Must not include:** Standard technical terms, method signatures, enum catalogs, struct fields, or lifecycle/state/invariant explanations that belong in architecture owners.
+- **Verify coverage:** glossary length/width/method-signature lint, glossary owner-ref coverage gaps, alias-router recommendation, stale refs, retrieval cost.
 
 ## Raw Source Authority
 
@@ -69,8 +148,9 @@ Each canonical file is an **entry file**, not a capacity ceiling:
 - `tech-stack.md`
 - `decisions.md`
 - `glossary.md`
+- `log.md`
 
-For large or complex projects, any entry file except `index.md` may be split into sibling shard files named `<slot>-<domain>.md`, for example:
+For large or complex projects, any entry file except `index.md` and `log.md` may be split into sibling shard files named `<slot>-<domain>.md`, for example:
 
 - `architecture-orchestrator.md`
 - `architecture-runtime-message-chain.md`
@@ -102,6 +182,7 @@ The Project Knowledge Base must support `query`, not only session-start orientat
 - Owner entries that claim durable behavior include a source reference: spec, plan, ADR, README, canonical source file, or another owner entry.
 - Cross-owner relationships use `See:` or `Related:` pointers. Do not duplicate expanded facts across owner files.
 - Shards must be reachable from `index.md` or the parent owner file; high-value shards should be linked from both.
+- `log.md` is chronological maintenance context. `query` does not read it by default; tail it only when recent ingest history affects the answer or next maintenance action.
 - Optional aliases are plain Markdown such as `Aliases: native hooks, Codex hooks, prompt router`.
 - Query answers should be supported by read owner/source entries, not by search snippets alone.
 
@@ -348,6 +429,29 @@ Describes how modules/services are wired, how they interact over time, and how c
 | Capability descriptions (what a component does for a user) | `features.md`; here use `"see features.md §..."` pointer |
 | Full ADR rationale (Context / Alternatives / Consequences) | `decisions.md` summary + `adr/ADR-NNN-*.md` |
 
+### log.md — chronological maintenance ledger
+
+Records when `ingest` changed the KB and what source/touched files were involved. It is **not** a knowledge owner and must not contain durable architecture, feature, decision, glossary, convention, or tech-stack facts.
+
+**Required format:**
+
+```markdown
+## [YYYY-MM-DD] ingest | <short topic>
+
+- Source: `<spec/plan/ADR/doc/path>` or code/diff validation summary
+- Source query: <only when ingest accepted a query Memory candidate>
+- Touched: `docs/superpowers/memory/<owner>.md`, `docs/superpowers/memory/<shard>.md`
+- Verify: ok; qualityGate blocking=<n> advisory=<n>
+- Follow-up: <optional next ingest/lint target>
+```
+
+**Rules:**
+
+- Only `ingest` writes log entries. `query` and `lint` do not append `log.md`.
+- Use the machine-readable heading exactly: `## [YYYY-MM-DD] ingest | <topic>`.
+- Append new entries at the end. Do not reorder, summarize, or rewrite older entries except to fix a broken path/format through `ingest`.
+- Point to owner files and source refs; do not copy owner content into the log.
+
 ### features.md — current capability map
 
 Describes **what the system can do now**. It is the current capability map for humans and agents: readers should understand the implemented capabilities, who or what uses them, where to enter the system, and which owner file to load next. Past versions are NOT documented (evolution lives in ADR supersede chains and plan files).
@@ -585,7 +689,7 @@ All other KB files and shards are storage/read-on-demand artifacts. They do not 
 `verify` may report:
 
 - `retrievalCost` — estimated bytes/tokens for recognized top-level KB files and shards. Advisory only.
-- `splitCandidates` — large non-index files that may be easier to use if split by stable domain or submodule. Advisory only.
+- `splitCandidates` — large non-index/non-log files that may be easier to use if split by stable domain or submodule. Advisory only.
 - `sizeWarnings` — hot-path `index.md` size warnings only.
 - `coverageGaps` — architecture answerability gaps for complex repos. Advisory only.
 
@@ -602,18 +706,19 @@ Never delete still-valid project knowledge solely to satisfy a line count or tok
 
 `verify` is the executable guardrail for this rule file. It reports:
 
+- `qualityGate` — summary of current `ok`, blocking finding count, advisory finding count, and the fact that coverage gaps remain advisory by default.
 - `staleRefs` — backtick path references that no longer exist.
-- `shapeViolations` — feature field/density issues, glossary width/length issues, method signatures, legacy inline ADRs, ADR summary/detail mismatches, and oversized `index.md`.
+- `shapeViolations` — feature field/density issues, glossary width/length issues, log heading/event issues, method signatures, legacy inline ADRs, ADR summary/detail mismatches, and oversized `index.md`.
 - `readinessWarnings` — implemented capabilities that reference scaffolded/not-implemented code without Capability Boundary calibration.
 - `ssotViolations` — near-duplicate multi-line facts across owner files.
 - `sizeWarnings` — hot-path `index.md` line threshold only.
 - `retrievalCost` — advisory estimated retrieval cost for recognized KB entry files and shards.
-- `splitCandidates` — advisory list of large non-index files that may deserve vertical splitting.
+- `splitCandidates` — advisory list of large non-index/non-log files that may deserve vertical splitting.
 - `coverageGaps` — advisory architecture answerability gaps for complex repos, such as missing module cards/shards, missing scenario shards, shallow cards that only name generic code layers, too few named cross-service scenarios, scenario diagrams missing local source refs, legacy view shards (`architecture-contexts.md` / `architecture-flows.md`), missing module/scenario cross-references, scenario authority/order/failure field gaps, missing lifecycle/FSM coverage, or missing source refs. These do not affect `verify.ok`; they are suggested ingest targets.
 
 ## Retrieval Cost
 
-`verify` estimates retrieval cost as bytes / 4 ≈ tokens for recognized top-level KB files and shards: `architecture*.md`, `features*.md`, `conventions*.md`, `tech-stack*.md`, `decisions*.md`, `glossary*.md`, and `index.md`.
+`verify` estimates retrieval cost as bytes / 4 ≈ tokens for recognized top-level KB files and shards: `architecture*.md`, `features*.md`, `conventions*.md`, `tech-stack*.md`, `decisions*.md`, `glossary*.md`, `log.md`, and `index.md`.
 
 This is an observability metric, not a budget. High retrieval cost should lead to better routing and vertical splitting, not information loss.
 

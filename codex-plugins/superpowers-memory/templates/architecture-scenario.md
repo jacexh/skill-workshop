@@ -6,6 +6,14 @@ triggered_by_plan: null
 
 <!-- OWNER: One named cross-service scenario or stable flow family.
 
+     SLOT CONTRACT:
+     - Owner: one cross-service scenario's participants, phases, authority, data/control flow, ordering/idempotency/failure rules, module refs, source refs.
+     - Required shape: Purpose; Participants; Sequence Phases; Authority Boundaries; Data / Control Flow; Ordering / Idempotency / Failure Rules; Module refs; Source refs.
+     - Conditional shape: use this shard for flows that shape future changes across 3+ components.
+     - Shard rule: one named scenario or stable flow family per file.
+     - Must not include: unrelated module internals, full ADR rationale, package tours, method signatures, or feature changelog.
+     - Verify coverage: scenario fields, Module refs, source refs, stale refs.
+
      Use this template for `architecture-<scenario>.md` shards when an
      end-to-end chain spans multiple modules/services. Do not scatter the full
      chain across module shards; link participating modules instead.

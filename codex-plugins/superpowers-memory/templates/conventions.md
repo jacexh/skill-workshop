@@ -11,6 +11,14 @@ triggered_by_plan: null
      This file is current guardrails, not dependency inventory, decision history,
      or feature description.
 
+     SLOT CONTRACT:
+     - Owner: reusable project guardrails, workflow rules, CI/runtime rules, and cross-cutting concerns with source anchors.
+     - Required shape: current guardrails plus Cross-cutting concerns (or N/A).
+     - Conditional shape: conventions-<domain>.md only for stable practice areas with multiple reusable rules.
+     - Shard rule: split by practice area such as backend, frontend, operations, testing, security, or data.
+     - Must not include: dependency versions, technology selection rationale, capabilities, full ADR rationale, or generic design-pattern content.
+     - Verify coverage: convention source-ref coverage gaps, stale refs, method signatures, shard routing.
+
      CONTENT EXCLUSION: Do not repeat rules already enforced by formatter/linter.
      Principle: if the formatter handles it, don't repeat it here.
 

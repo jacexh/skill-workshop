@@ -7,6 +7,14 @@ triggered_by_plan: null
 <!-- OWNER: Languages, frameworks, dependencies, version numbers, build tools, infrastructure.
      "Not yet implemented" features (Redis cache, S3, etc.) belong in features.md, not here.
 
+     SLOT CONTRACT:
+     - Owner: current critical technology choices, versions, purpose, and selection rationale.
+     - Required shape: 5-10 critical dependencies/platform choices with purpose and why chosen.
+     - Conditional shape: multi-stack repos may split tech-stack-<domain>.md by backend/frontend/runtime/tooling.
+     - Shard rule: split by stable stack boundary when one file becomes noisy.
+     - Must not include: stdlib/dev-only/transitive packages, future unimplemented technologies as current, or coding rules.
+     - Verify coverage: tech-stack rationale coverage gaps, stale refs, retrieval cost.
+
      ORGANIZATION: Use EITHER technology category (Languages / Runtime / Dependencies)
      OR system boundary (Backend / Frontend / Database / Infrastructure).
      Choose whichever fits the project better.

@@ -234,6 +234,7 @@ const FORBIDDEN_KB_SLOT_PATTERN = /^(conversation|conversations|chat|chats|trans
 
 function knowledgeSlotForFile(filename) {
   if (filename === "index.md") return "index";
+  if (filename === "log.md") return "log";
   for (const prefix of KNOWLEDGE_SLOT_PREFIXES) {
     if (filename === `${prefix}.md`) return prefix;
     if (filename.startsWith(`${prefix}-`) && filename.endsWith(".md")) return prefix;
@@ -318,6 +319,8 @@ const SHIPPED_NARRATIVE_PATTERN = /\bshipped\s+\d{4}-\d{2}-\d{2}\b/i;
 const COMMITS_RANGE_PATTERN = /\bcommits on [\w\/-]+|\b[0-9a-f]{7,40}\.\.(?:HEAD|[\w\/-]+)/i;
 const GLOSSARY_WIDTH_THRESHOLD = 400;
 const FEATURE_DENSE_PARAGRAPH_THRESHOLD = 500;
+const LOG_HEADING_PATTERN = /^## \[(\d{4}-\d{2}-\d{2})\] ([a-z][a-z0-9-]*) \| (.+\S)\s*$/;
+const LOG_ALLOWED_EVENT = "ingest";
 const REQUIRED_IMPLEMENTED_FEATURE_FIELDS = [
   "Enables",
   "Actors / Entry Points",
@@ -544,6 +547,50 @@ function lintDecisions(content) {
   return findings;
 }
 
+function isValidIsoDate(value) {
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function lintLog(content) {
+  const findings = [];
+  const lines = content.split("\n");
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim();
+    if (!/^##\s+/.test(trimmed)) return;
+
+    const match = LOG_HEADING_PATTERN.exec(trimmed);
+    if (!match) {
+      findings.push({
+        line: i + 1,
+        kind: "log_heading_format",
+        sample: trimmed.slice(0, 120),
+      });
+      return;
+    }
+
+    const [, date, event] = match;
+    if (!isValidIsoDate(date)) {
+      findings.push({
+        line: i + 1,
+        kind: "log_heading_date",
+        sample: trimmed.slice(0, 120),
+      });
+    }
+
+    if (event !== LOG_ALLOWED_EVENT) {
+      findings.push({
+        line: i + 1,
+        kind: "log_event_not_ingest_owned",
+        sample: trimmed.slice(0, 120),
+      });
+    }
+  });
+
+  return findings;
+}
+
 function contentShapeLintKnowledgeBase(files) {
   const violations = [];
   for (const [filename, content] of files) {
@@ -552,6 +599,7 @@ function contentShapeLintKnowledgeBase(files) {
     if (slot === "features") findings = lintFeatures(content);
     else if (slot === "glossary") findings = lintGlossary(content);
     else if (slot === "decisions") findings = lintDecisions(content);
+    else if (slot === "log") findings = lintLog(content);
     // Other files: only method signature lint
     else {
       content.split("\n").forEach((line, i) => {
@@ -1258,6 +1306,25 @@ function lintQueryCoverage(files) {
   ];
 }
 
+function buildQualityGate({ ok, staleRefs, ssotViolations, shapeViolations, readinessWarnings, coverageGaps, splitCandidates, sizeWarnings }) {
+  const blockingFindings =
+    staleRefs.length +
+    ssotViolations.length +
+    shapeViolations.length +
+    readinessWarnings.length;
+  const advisoryFindings =
+    coverageGaps.length +
+    splitCandidates.length +
+    sizeWarnings.length;
+
+  return {
+    ok,
+    blockingFindings,
+    advisoryFindings,
+    coverageAdvisoryOnly: true,
+  };
+}
+
 function buildKnowledgeStatus() {
   const currentBranch = getCurrentBranch();
   const currentSHA = getCurrentSHA();
@@ -1670,6 +1737,7 @@ function buildVerifyOutput() {
   const splitCandidates = perFileTokens
     .filter((entry) =>
       entry.file !== "index.md" &&
+      entry.file !== "log.md" &&
       (entry.lines > SPLIT_ADVISORY_LINE_THRESHOLD || entry.tokens > SPLIT_ADVISORY_TOKEN_THRESHOLD)
     )
     .map((entry) => ({
@@ -1693,18 +1761,31 @@ function buildVerifyOutput() {
     }
   }
 
+  const ok =
+    staleRefs.length === 0 &&
+    ssotViolations.length === 0 &&
+    shapeViolations.length === 0 &&
+    readinessWarnings.length === 0;
+  const qualityGate = buildQualityGate({
+    ok,
+    staleRefs,
+    ssotViolations,
+    shapeViolations,
+    readinessWarnings,
+    coverageGaps,
+    splitCandidates,
+    sizeWarnings,
+  });
+
   return {
-    ok:
-      staleRefs.length === 0 &&
-      ssotViolations.length === 0 &&
-      shapeViolations.length === 0 &&
-      readinessWarnings.length === 0,
+    ok,
     sizeWarnings,
     staleRefs,
     ssotViolations,
     shapeViolations,
     readinessWarnings,
     coverageGaps,
+    qualityGate,
     retrievalCost,
     splitCandidates,
     committable,

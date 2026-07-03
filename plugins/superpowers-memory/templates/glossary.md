@@ -8,6 +8,14 @@ triggered_by_plan: null
      Bounded Context names and aggregate root names APPEAR in architecture.md as component identifiers;
      their BUSINESS MEANING DEFINITIONS belong here.
 
+     SLOT CONTRACT:
+     - Owner: term definitions, cross-context aliases, renamed terms, and tombstones.
+     - Required shape: one-line definition plus owner/source ref; ≤2 lines per term.
+     - Conditional shape: large root glossaries become alias routers with glossary-<domain>.md shards.
+     - Shard rule: split domain-local terms into stable glossary shards; keep ambiguous aliases in root.
+     - Must not include: standard technical terms, method signatures, enum catalogs, struct fields, or lifecycle/state/invariant explanations.
+     - Verify coverage: glossary entry length/width, owner refs, alias-router recommendation, stale refs.
+
      PER-ENTRY FORMAT (hard rule):
        **Term** — one-line business definition. → `path/to/code` (ADR-NNN if applicable)
 

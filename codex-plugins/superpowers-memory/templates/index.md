@@ -10,6 +10,15 @@ covers_branch: <branch>@<short-sha>
 <!-- Keep this file compact. It routes query to owner files, shards, and high-value project objects.
      Include aliases only when user-facing vocabulary differs from implementation vocabulary.
      Do not move owner-file detail into this hot path.
+
+     SLOT CONTRACT:
+     - Owner: hot-path routing only.
+     - Required shape: ≤50 lines; each file/shard has one-line description plus 1-2 Key points.
+     - Conditional shape: include real shards only when they exist and improve routing.
+     - Shard rule: index.md never shards.
+     - Must not include: expanded owner facts, changelog narrative, copied long summaries, or placeholder shard routes.
+     - Verify coverage: index_too_large, stale refs, shard routing, retrieval cost.
+
      For high-value bounded contexts, services, major modules, product capabilities,
      or cross-service flows, name the owner file/shard that directly answers
      responsibility, layers/components, interactions, key state/flow rules, and source refs. -->
@@ -35,6 +44,9 @@ covers_branch: <branch>@<short-sha>
 
 - [glossary.md](glossary.md) — Domain terminology (Ubiquitous Language)
   Key points: [1-2 facts. Good: "12 domain terms across 4 contexts"]
+
+- [log.md](log.md) — Chronological KB maintenance ledger
+  Key points: [Recent ingest history only; query does not read by default]
 
 <!-- Include split shard files ONLY when they exist and help route retrieval.
      Use stable slot-domain names. For architecture, prefer module-first and
