@@ -13,6 +13,23 @@ Read this file with the active phase skill for DDD/backend architecture work. Us
 - Implement uses cards to translate accepted model decisions into code placement: identify which deeper reference is needed for adapters, mappings, ports, runtime, persistence, or tests. Do not use a card to invent a new model decision during implementation.
 - Review uses cards to demand evidence before findings: use Required evidence and Allowed exception before calling a probe hit a violation. Evidence gaps stay evidence gaps.
 
+## Responsibility Role Classifier
+
+Classify responsibilities, not concept names. Do not create or apply risk cards because a file or type contains a DDD term such as Event Handler, Message Handler, CQRS, Repository, Scheduler, or Drain. First identify the role the code is playing and the boundary it crosses:
+
+| Role | Classifier question | Typical owner | Route when risky |
+|---|---|---|---|
+| same-BC reaction | Does this react to one domain fact inside the same bounded context after state is saved? | Domain Event Handler / Application reaction | Shared Umbrella Processor, Business State Classification Outside Domain |
+| cross-context contract consumer | Does this consume a published fact or command-like contract from another bounded context? | Integration Message Handler / ACL | Cross-Context Direct Imports, Shared Umbrella Processor |
+| boundary publisher | Does this translate same-BC facts into a stable cross-context payload? | Boundary Publisher | Generated Protocol Types in Semantic Ports, Shared Umbrella Processor |
+| product read model | Does this answer a product/application read use case without changing state? | QueryRepository / read facade | Command-Side Application Port Reflex, Cross-Context Direct Imports |
+| scheduled trigger | Does this enqueue or wake up work on a cadence without doing the business work inline? | PeriodicTask / task definition / scheduler registration | Manual Runner Misplacement |
+| task processor | Does this execute one durable task contract and own retry/idempotency semantics for that task type? | Application task processor | Shared Umbrella Processor, Business State Classification Outside Domain |
+| runtime loop | Does this start a goroutine/process loop, poll, sleep, back off, or manage shutdown/lifecycle? | Runtime module / shared runtime package | Manual Runner Misplacement, Runtime/Entrypoint Provider Pollution |
+| application coordination | Does this orchestrate a use case across repositories, policies, ACLs, events/messages, or task enqueueing? | Named Application service | Command-Side Application Port Reflex, Business State Classification Outside Domain |
+
+Use the classifier to choose a small set of risk cards. If a concept name and the observed role disagree, trust the observed role and report the naming or placement mismatch only after evidence ties it to a boundary rule.
+
 ## Calibration Before Probes
 
 Risk cards are portable; probe examples are not. Before treating any probe hit as evidence, identify the repository's local shape:
@@ -55,6 +72,7 @@ When a card is triggered, load the required references before reporting a violat
 | Shared Umbrella Processor | `ddd-golang-events-messages.md` and/or `ddd-golang-taskqueue.md` | Shared processor type, inbound kinds/task types, dependency set, role/side-effect mix, transaction/failure policy | Same role, source family, side effect, transaction boundary, failure policy, and dependency set |
 | Business State Classification Outside Domain | `ddd-agent-contract.md`, `ddd-core.md`, active language guide | Application/handler/processor branch or helper over business state/status; evidence it drives a business decision, not mapping | Mechanical DTO/read-model/proto mapping without business decision semantics |
 | Command-Side Application Port Reflex | `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md` | New command-side interface, caller use case, semantic capability, rejected Domain/Repository/Domain Event/Integration Message/ACL/Infrastructure alternatives | Architecture Gate proves a stable use-case semantic lifecycle that is not mechanism plumbing |
+| Manual Runner Misplacement | `ddd-agent-contract.md`, `ddd-golang-taskqueue.md`, `ddd-golang-runtime.md`; active language guide when non-Go | Manual polling, reconciliation, scheduler, backlog drain, recovery, or outbox-drain loop evidence; lifecycle/start-stop ownership; cadence/backoff/limit policy; business work delegated inline vs through a task/processor | Written runtime exception proving a process-owned runner with lifecycle/shutdown/config impact and no hidden taskqueue, scheduling, or business policy |
 | Runtime/Entrypoint Provider Pollution | active runtime/language guide where available | Process entrypoint provider construction, business-layer imports, generated route registration, lifecycle/config ownership evidence | Process-owned provider with explicit runtime impact note |
 | Technical Bounded Context | `ddd-modeling.md`, `ddd-core.md`, `ddd-golang-runtime.md` | Product/operator language, lifecycle/state/invariant ownership, adapter-detail exclusion evidence | Stable lifecycle/invariant is recorded and deployment adapter mechanics stay outside Domain |
 
@@ -107,6 +125,14 @@ When a card is triggered, load the required references before reporting a violat
 - **Decision:** classify capability first; prefer Aggregate method, Repository, Domain Service, Domain Event, Integration Message, ACL, or Infrastructure adapter.
 - **Allowed exception:** written gate proves a stable use-case semantic lifecycle that is not mechanism plumbing.
 - **Reference:** `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md`.
+
+### Manual Runner Misplacement
+
+- **Smell:** a bounded-context root or composition package owns a manual polling, reconciliation, scheduler, backlog drain, recovery, or outbox-drain loop that starts its own runtime loop, including calling an Application scheduler/service from a root package loop.
+- **Probe examples:** search calibrated module roots and runtime packages for `*_drain`, `*scheduler`, `*reconcile`, `fx.Lifecycle`, `OnStart`, `OnStop`, `go func`, `time.NewTimer`, `time.NewTicker`, `Interval`, `Backoff`, `Limit`, `for {`, or equivalent lifecycle/timer constructs. The filename is only a routing clue; require loop/lifecycle/cadence evidence.
+- **Decision:** classify the responsibility first. Scheduled triggers and polling/reconciliation work route to taskqueue/polling/periodic guidance; business task semantics live with the owning Application task/processor or coordination service; shared worker/scheduler lifecycle lives in runtime infrastructure such as `internal/pkg/taskqueue`. Bounded-context module roots may contribute providers/tasks/processors but should not hide manual loops, retry/backoff, shutdown, or provider lifecycle policy.
+- **Allowed exception:** a documented process-owned runner may stay outside taskqueue only when it records runtime ownership, lifecycle/shutdown behavior, config/cadence policy, idempotency/failure semantics, and why a task contract or shared runtime scheduler is not the right mechanism.
+- **Reference:** `ddd-agent-contract.md`, `ddd-golang-taskqueue.md`, `ddd-golang-runtime.md`, and the active language guide when not Go.
 
 ### Runtime/Entrypoint Provider Pollution
 

@@ -311,6 +311,32 @@ check_phase_card_usage_contracts() {
 check_phase_card_usage_contracts "$CODEX_DDD_ROOT" "codex"
 check_phase_card_usage_contracts "$CLAUDE_DDD_ROOT" "claude"
 
+check_responsibility_role_routing_contracts() {
+  local root="$1"
+  local label="$2"
+  local risk_router="$root/references/ddd-risk-router.md"
+  local agent_contract="$root/references/ddd-agent-contract.md"
+
+  grep -q "## Responsibility Role Classifier" "$risk_router" || fail "$label risk router should classify responsibilities before naming concepts"
+  grep -q "Classify responsibilities, not concept names" "$risk_router" || fail "$label risk router should avoid one-risk-card-per-DDD-concept"
+  grep -q "same-BC reaction" "$risk_router" || fail "$label role classifier should distinguish same-BC reactions"
+  grep -q "cross-context contract consumer" "$risk_router" || fail "$label role classifier should distinguish cross-context consumers"
+  grep -q "scheduled trigger" "$risk_router" || fail "$label role classifier should distinguish scheduled triggers"
+  grep -q "runtime loop" "$risk_router" || fail "$label role classifier should distinguish runtime loops"
+
+  grep -q "Manual Runner Misplacement" "$risk_router" || fail "$label risk router should include manual runner misplacement card"
+  grep -q "manual polling, reconciliation, scheduler, backlog drain, recovery, or outbox-drain loop" "$risk_router" || fail "$label runner card should generalize beyond drain file names"
+  grep -q "taskqueue/polling/periodic" "$risk_router" || fail "$label runner card should route to taskqueue/polling/periodic guidance"
+  grep -q "calling an Application scheduler/service from a root package loop" "$risk_router" || fail "$label runner card should call out root-package loops"
+
+  grep -q "manual polling/reconciliation runner" "$agent_contract" || fail "$label agent contract should classify manual runner work"
+  grep -q "manual runner" "$agent_contract" || fail "$label agent contract should name manual runner evidence"
+  grep -q "runtime loop" "$agent_contract" || fail "$label agent contract should route runtime-loop evidence"
+}
+
+check_responsibility_role_routing_contracts "$CODEX_DDD_ROOT" "codex"
+check_responsibility_role_routing_contracts "$CLAUDE_DDD_ROOT" "claude"
+
 check_phase_routed_references() {
   local root="$1"
   local label="$2"

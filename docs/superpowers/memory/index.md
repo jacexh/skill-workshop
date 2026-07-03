@@ -2,7 +2,7 @@
 last_updated: 2026-07-03
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
-covers_branch: hotfix/ddd-generated-rpc-handler-placement@2e91c74
+covers_branch: hotfix/task@169b5d6857a6aff57900150767d6761fa22d40ed
 ---
 
 # Project Knowledge Index
@@ -17,7 +17,7 @@ covers_branch: hotfix/ddd-generated-rpc-handler-placement@2e91c74
   Key points: DDD architect guidance uses phase-specific skills plus a shared risk-router budget; memory query reads index on demand and reports retrieval routes; ingest can rebuild decision/glossary roots into router + shard layouts; memory Slot Contracts, qualityGate summaries, and ingest-owned log.md are implemented in both runtime tracks
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: DDD architect references live under plugin-root references, not root design-patterns or one standards skill; hooks inject only the active phase skill + risk-router by default while deep rules stay on demand; generated IDL/RPC adapter placement is repository-calibrated, with language-specific shortcuts treated as instances; DDD phases are strategic-first design, accepted-model implementation translation, and evidence-precondition review; KB content rules require Slot Contracts, ingest-owned log.md, qualityGate summaries, query-router index sizing, dual Claude/Codex parity, root README review when plugin READMEs change, and no Codex designing-tests SessionStart
+  Key points: DDD architect references live under plugin-root references, not root design-patterns or one standards skill; hooks inject only the active phase skill + risk-router by default while deep rules stay on demand; generated IDL/RPC adapter placement is repository-calibrated, with language-specific shortcuts treated as instances; DDD phases are strategic-first design, accepted-model implementation translation, evidence-precondition review, and observed responsibility-role classification before concept-name risk cards; KB content rules require Slot Contracts, ingest-owned log.md, qualityGate summaries, query-router index sizing, dual Claude/Codex parity, root README review when plugin READMEs change, and no Codex designing-tests SessionStart
 
 - [decisions.md](decisions.md) — Decision router / ADR family index
   Key points: routes to decisions-memory, decisions-architect, decisions-codex, and decisions-foundation shards; ADR-023 moves Python/TypeScript DDD guides into the DDD plugin and removes bundled DDD/database files from old architect
