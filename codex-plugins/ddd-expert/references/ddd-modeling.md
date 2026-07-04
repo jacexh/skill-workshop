@@ -1,0 +1,939 @@
+---
+name: ddd-modeling
+description: Strategic domain modeling guide for DDD. Use when the design phase skill or a DDD risk card routes to bounded context, aggregate root, aggregate boundary, invariant, Architecture Gate, or technical capability classification decisions from business requirements.
+---
+
+# Strategic Domain Modeling Guide
+## From Business Requirements to Domain Model
+
+**Version**: v1.2
+**Date**: 2026-05-21
+**Scope**: All backend services using DDD
+**Usage**: This is a strategic modeling rule source, not the default agent entrypoint. Start from the active phase skill: [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file when that phase needs bounded-context, aggregate, invariant, Architecture Gate, or technical-capability classification decisions.
+
+> **Phase routing**: Agent entrypoints are the phase skills. Use this document only when a phase skill or [`ddd-risk-router.md`](ddd-risk-router.md) routes to strategic modeling or Architecture Gate decisions.
+
+---
+
+## 0. Mandatory Architecture Gate
+
+Use this document as the canonical modeling rule source when the active phase skill routes to service-boundary, business-capability, technical-capability, refactor, implementation planning, execution, or code-review decisions that touch a bounded context, Domain/Application behavior, an inward interface, cross-context contracts, or a technical capability with stable language, state, ownership, policy, or invariant semantics. Do not start with tactical layer placement in `ddd-core.md` or a language guide until this gate has been answered.
+
+**Runtime-only exception.** Go runtime-only work, as classified by [`ddd-agent-contract.md`](ddd-agent-contract.md) (for example `cmd/**/main.go`, `internal/pkg/**`, config, `fx.Lifecycle`, graceful shutdown, or Kubernetes wiring that does not change a bounded context, aggregate, repository, command/query handler, event/message contract, task processor, or domain rule), does not emit this DDD Architecture Gate. It uses the runtime/taskqueue impact statement defined by the agent contract and the Go runtime/taskqueue guides. If the runtime component owns stable language, policies, ownership lifecycle, admission rules, routing policy, or business-visible state, it is no longer runtime-only; classify that capability here first.
+
+Choose the smallest gate level defined in §7 and emit the core block before planning, editing, or approving code:
+
+```text
+Architecture Gate (core):
+- Gate level: <see §7 for the level definitions>
+- Bounded context / business capability: <context and capability>
+- Stable language / data authority: <terms and owning source of truth>
+- Affected aggregate, policy, or service: <domain object or explicit none>
+- Invariants and rules: <rules guarded by this change>
+- Technical capability classification: <Domain-facing | Application | Infrastructure, with reason>
+- Layer ownership: <Domain / Application / Infrastructure>
+- Proceed / Stop: <proceed only if the core gate is complete>
+```
+
+Add this placement extension when the change adds an inward interface, modifies an event/message handler, touches a cross-aggregate decision, duplicates a reaction to the same domain fact, coordinates multiple aggregate writes, changes publication failure semantics, or is Level 2 / Level 3 / cross-context work:
+
+```text
+Architecture Gate (placement extension):
+- New inward interfaces introduced (count + names): <Domain Repository | Application QueryRepository/read facade | other Application port | none>
+- Domain mechanism placement before Application ports:
+  - <candidate need>: handled by <Aggregate X.method | Domain Repository Y | Domain Service Z | Domain Event E + handler | Integration Message M | named Application coordination service | ACL | Infrastructure adapter | Application QueryRepository/read facade | exceptional Application command-side port>
+- Placement per new inward interface:
+  - <interface name>: encodes <one-sentence semantic contract>; rule lives in <Aggregate X.method | Domain Service Y | Domain Repository Z | Domain Event handler | Infrastructure adapter | "no rule — read model / pure side-effect adapter">
+- Cross-aggregate business decisions in this change:
+  - <decision>: lives in <Aggregate X.method | Domain Service Y | "no cross-aggregate decision">
+- Repeated side effects / event candidates:
+  - <side effect>: triggered by <Domain Event E | Integration Message M | explicit command output | "no repeated side effect">
+- Async reaction handlers:
+  - <handler name>: role is <Domain Event Handler | Boundary Publisher | Integration Message Handler>; input kind is <event/message kind>; output is <same-BC side effect | Integration Message contract | consumer-side action>; granularity is <single-kind | multi-kind because...>; failure policy is <best-effort | log-and-continue | return subscriber/adapter error | n/a>
+- Process coordination / failure policy:
+  - <coordination need>: <none | Domain Event / Integration Message | named Application coordination service | explicit command output>; failure policy is <best-effort | log-and-continue | caller-visible admission error | explicit stronger reliability required by the use case>
+- Application command-side port exceptions:
+  - <port name>: kept because <why it is not Aggregate method / Domain Repository / Domain Service / Domain Event handler / Integration Message / named Application coordination service / ACL / Infrastructure adapter / QueryRepository/read facade>
+- Proceed / Stop: <proceed only if the required extension fields are complete>
+```
+
+Stop before implementation when any required answer is unknown. Missing gate answers are design work, not implementation details.
+
+Hot-path decision card before adding an Application command-side port: Aggregate method? Domain Repository? Domain Service? Domain Event for repeated same-BC reaction? Integration Message for cross-context fact? Named Application coordination service for multi-step orchestration? QueryRepository/read facade for read-only DTO view? Infrastructure adapter or ACL for mechanism/vendor translation? Only after all are rejected may an exceptional Application command-side port remain, and the rejection reason must be written in this gate.
+
+For **Level 1 — Local Change** work, emit the core block and add the placement extension only for fields the change actually touches. Use explicit `n/a — <reason>` values for untouched required extension fields; do not invent bounded contexts, aggregates, invariants, event handlers, or integration boundaries only to fill the form. Level 2, Level 3, and cross-context changes must include the placement extension and fill every affected field with concrete answers.
+
+The placement fields (`New inward interfaces introduced`, `Domain mechanism placement before Application ports`, `Placement per new inward interface`, `Repeated side effects / event candidates`, `Async reaction handlers`, `Process coordination / failure policy`, `Application command-side port exceptions`) are mandatory whenever the change adds an inward interface, touches a cross-aggregate decision, duplicates a reaction to the same domain fact, adds or modifies an event/message handler, coordinates multiple aggregate writes, or changes publication failure semantics. Their purpose is to force the question "which DDD mechanism owns this need?" to be answered **before** any Application port is drawn, not discovered during review. Application command-side ports are exceptional: if one survives the gate, the plan must say why the need is not an Aggregate method, Domain Repository, Domain Service, Domain Event handler, Integration Message, named Application coordination service, ACL, Infrastructure adapter, or QueryRepository/read facade. Listing no candidates without a stated reason is treated as skipping the gate.
+
+### 0.1 Technical capability classification
+
+Technical-facing modules still require domain modeling when they own stable language, state transitions, policies, or invariants. Dispatchers, registries, schedulers, routers, connectors, projections, ownership managers, delivery engines, and observability pipelines are not automatically Infrastructure.
+
+Classify the capability before deciding package placement:
+
+| Classification | Use when (and where the rule lives) |
+|----------------|-------------------------------------|
+| **Domain-facing** | The capability has named states, admission rules, routing policy, ownership semantics, lifecycle rules, or derivation rules that can be tested without external systems. Place the rule in Domain (methods, Value Objects, Domain Services, or policies). |
+| **Application orchestration** | The capability sequences a use case, chooses already-classified Domain mechanisms or read facades, manages transactions, or coordinates Domain objects without owning the rule. Place orchestration in Application handlers/services. Application-owned inward interfaces are normally QueryRepositories/read facades; command-side Application ports are exceptions that require the placement gate. Application does not own adapter selection, replica routing, peer forwarding, transport forwarding, hop headers, queue subjects, retry/backoff, or deployment topology. |
+| **Infrastructure** | The capability adapts storage, network, queues, generated protocols, locks, clocks, telemetry backends, peer forwarding, routing directories, retry/backoff mechanics, or framework lifecycle without owning the semantic rule. Place the adapter in Infrastructure or a shared technical package. |
+
+Routing policy and routing mechanics are different classifications. Routing policy means stable admission, destination, priority, tenant-tier, retry-eligibility, or ownership rules; routing mechanics means peer address resolution, hop headers, replica selection, request forwarding, and topology lookup. Keep this distinction explicit whenever a capability uses the word "routing".
+
+Classification order is mandatory: classify the capability first, then decide whether any inward interface exists and which layer owns it. Dependency inversion is not a standalone reason to create an Application port. If the proposed interface mainly exposes how to reach, route, retry, store, or deploy work, keep that part in Infrastructure even when an Application handler triggers the operation.
+
+If the same rule would otherwise be duplicated across handlers or adapters, name it as Domain-facing and keep the implementation-independent rule in the Domain layer.
+
+#### 0.1.1 Litmus test: semantic fake implementability
+
+When the classification table above does not yield a confident answer, apply this mechanical test:
+
+> *Write a no-external-dependency semantic fake for the proposed interface. Can use-case or business tests pass against that fake while preserving the same observable contract?*
+
+| Outcome | Meaning | Where the port belongs |
+|---------|---------|------------------------|
+| Yes — the fake preserves state, transitions, decisions, admission/failure semantics, process coordination, or observable read-model behavior well enough for business/use-case tests | The interface may encode a semantic capability, not merely a mechanism | Continue classification: Aggregate method / Domain Repository / Domain Service / Domain Event handler / Integration Message / named Application coordination service / Application QueryRepository / published read facade / exceptional Application command-side port |
+| No — the only meaningful test double is "pretend the database, broker, RPC, K8s, file system, or SDK call succeeded" with no semantic contract beyond the external side effect | The interface is modeling a mechanism operation | Infrastructure adapter; hide it behind the owning Repository, QueryRepository, event/message publisher implementation, ACL, or Application Handler implementation. Do not promote it to a new inward port |
+
+This test resolves most "should this interface exist inward?" disputes faster than walking the full classification table. It does **not** require the production implementation to be side-effect-free: payment authorization, inventory reservation, message publication, identity provisioning, or workspace execution may be real external side effects. The question is whether the inward contract has stable semantics that a fake can preserve. When the test says "no", the cure is not better naming — it is hiding the mechanism behind the DDD mechanism that owns the semantic need.
+
+The test is a necessary condition, not a sufficient one: passing it does not by itself justify an Application port. After the test confirms the interface has semantics, return to §0.1 and the Architecture Gate to choose the narrowest owner: Aggregate method, Domain Repository, Domain Service, Domain Event handler, Integration Message, named Application coordination service, ACL, Application QueryRepository/read facade, or only then an exceptional Application command-side port.
+
+### 0.2 Port granularity
+
+Define ports by use-case semantics, not by implementation technology. Adding Redis, MySQL, Kafka, an HTTP client, or another technical dependency does not automatically justify a new Domain/Application interface. Likewise, Application needing to call an Infrastructure implementation does not automatically justify an Application-owned port; the capability must first pass §0.1 classification as Domain-facing or Application orchestration.
+
+Reject an inward port when its contract is shaped around peer addresses, instance IDs used only for routing, cache/coordination ownership read models, RPC request/response forwarding, hop headers, retry/backoff knobs, queue subjects, storage tables, replica selection, or deployment topology. Those are Infrastructure mechanics unless the product/application use case names and observes a stable semantic lifecycle independent of the mechanism.
+
+#### 0.2.1 Capability lifecycle is the unit of granularity, not the mechanism operation
+
+An Application/Domain port encloses the full lifecycle of one stable semantic capability that a use case observes. Its use-case-visible stages -- admit, observe, mutate, publish, transfer, materialize, retire, release, recover, or retry -- belong on the same port when they share aggregate identity, consistency boundary, authorization, and failure semantics. Do not slice that lifecycle by underlying mechanism operation: `AttachmentContentWriter` + `FileContentReader` + `WorkspaceArchiveOpener` is one storage-backed example of the broader fragmented form that should instead become one `AttachmentContentStore` capability.
+
+Naming starts from a **domain noun + lifecycle role** (`AttachmentContentStore`, `WorkspaceArtifactStore`, `OrderRepository`, `PaymentSettlementGateway`, `NotificationDeliveryPort`). Do not default to verb-suffix names (`*Reader`, `*Writer`, `*Publisher`, `*Client`, `*Stream`, `*Opener`, `*Sender`, `*Fetcher`) for Application/Domain ports; those suffixes are inherently action-granular. A verb-suffix port is acceptable only when the capability is genuinely one-directional (a pure published read view, a pure outbound publisher, a fire-and-forget delivery sink) and you can state why the opposite lifecycle stages do not share aggregate identity, consistency, authorization, or failure semantics.
+
+ISP and SRP at the port boundary segregate **capabilities**, not methods. The unit of single responsibility is one coherent semantic lifecycle, not one operation; the unit of interface segregation is one consumer need, not one verb. A 3-method port serving one capability is more SRP-correct than three 1-method ports serving the same capability. Interface bloat means unrelated consumer semantics or lifecycle boundaries have been mixed, not that the method count is greater than one. Do not fragment ports to make tests or mocks smaller; tests should mock or stub the coherent capability the use case observes. Go-style small interfaces remain appropriate when they represent distinct caller semantics, failure policies, published APIs, dependency direction, or test substitutes. `Repository` and `QueryRepository` are examples of lifecycle ports, not the only allowed multi-method ports -- non-repository semantic ports may also own the observe, mutate, publish, transfer, retire, release, recover, or retry methods for their capability.
+
+For QueryRepository specifically, the default unit is the bounded context's stable product read-model family, not one screen, RPC, handler, or SQL statement. A QueryRepository may and usually should carry multiple methods for the same read model family. Split only when the new read path observes a different read model family or materially different freshness, authorization, pagination, failure, consistency-window, published-API, data-source, or test-substitute semantics.
+
+#### 0.2.2 Inward-defined ports evolve by adding methods, not by forking
+
+When a new use case touches an existing semantic capability, the default action is to add a method to the existing port — not to introduce a new one. Inward-defined ports have no external consumer to break, so the cost of extension is roughly equal to the cost of creation; defaulting to "new port per new use case" is what produces capability fragmentation.
+
+Fork into a new port only when the new caller observes **different** freshness, ordering, authorization, pagination, failure, or consistency-window semantics from the existing port, operates on a different aggregate, has a different published API surface, or needs a different dependency direction / test substitute. If the only difference is "another method on the same capability", extend.
+
+**Modeling order (do not invert):**
+
+1. State the use case in one sentence: action + who observes the result + at which boundary it becomes visible.
+2. Identify which **existing** semantic capability's lifecycle stage that observation corresponds to.
+3. Default to adding a method on that capability's port. Only when step 2 finds no existing capability does a new port become a candidate.
+4. If a single use case is about to inject 2+ ports that look like different verbs on the same noun, review whether they are one capability lifecycle; at 3+ such ports, stop and re-group unless the semantic split is already justified in writing. That is the mechanism-operation-granular failure mode.
+
+Reversing this order (starting from "what does the Infrastructure adapter expose?" and reflecting each method as a port) is the most common source of fragmented ports, because Infrastructure exposes its API at method granularity by design.
+
+Before adding a port, answer:
+
+- What semantic capability does the caller need? (name it in domain terms, not "calls Redis")
+- Is the caller on the Command/write side, the Query/read side, or a cross-context facade? Do not mix these in one port.
+- Which actor or consumer owns the need? (producer append, UI history, audit lookup, projection bootstrap, billing lookup, etc.)
+- Which layer owns the rule behind that capability? (apply §0.1's classification table — Domain-facing, Application orchestration, or Infrastructure)
+- Does the caller need a separate failure policy, consistency boundary, or replacement strategy?
+- Would the caller's code change if the implementation switched from Redis to MySQL, or from cache-aside to write-through?
+- Does this interface force a caller to depend on unrelated lifecycle semantics it never observes? Multiple methods are acceptable when they belong to the same observed capability lifecycle; unrelated consumer semantics are the bloat signal.
+
+If the caller still needs the same aggregate collection or read model, keep the existing Repository / QueryRepository / semantic port and compose the technical dependency inside Infrastructure. For example, a high-traffic read path may implement `UserQueryRepository` with MySQL plus Redis cache-aside; it must not expose a separate `Cacher` port unless caching behavior itself is a named use-case concern.
+
+For read-side ports, same bounded context plus same read-store / projection source is a strong signal to extend the existing QueryRepository. Different read-store / projection source, such as OLTP MySQL current-state reads versus ClickHouse analytics reads, is a strong signal to split because freshness, latency, query shape, and failure semantics usually differ. Still name the Application port by product semantics (`WorkQueryRepository`, `TraceMetricRepository`), not by technology (`MysqlReader`, `ClickHouseReader`). If a query moves from one store to another without changing the product read contract, keep the Application port stable and change only the Infrastructure implementation.
+
+CQRS port boundaries are consumer-specific. The same physical table, stream, object store, or append-only log may back several ports, but the inward-facing ports must follow caller semantics:
+
+- A Command-side append, persistence, publication, delivery, or mutation concern is a command-side capability port with the command failure semantics; use a `*Writer`-style name only when the capability is genuinely one-directional.
+- A Query-side history, listing, audit lookup, or projection read is a QueryRepository/read facade returning the read model that consumer needs. Default to adding a method to the existing QueryRepository for the same product read-model family; use a separate `*Reader`-style facade only when the read is genuinely one-directional and has distinct semantics from the existing query port.
+- A projection high-watermark, lease, cursor, or sequence concern is a coordination port only when the use case observes that coordination semantics.
+
+A CQRS query port must answer an application/product read use case: UI/API DTOs, report rows, consumer-specific read facades, audit views, or current snapshots explicitly published by an owning context. Do not create a QueryRepository or query port merely to ask Infrastructure where work is routed, which peer owns a key, which address to forward to, which cache/coordination row exists, or which deployment instance is active. Those routing/topology queries stay in Infrastructure and may be composed behind a semantic command or query handler.
+
+Do not create an omnibus or storage-shaped `Store`, `Client`, or `Repository` interface that combines write methods for one producer with read methods for unrelated consumers merely because one Infrastructure adapter can implement all of them. Keep the large concrete adapter in Infrastructure if useful, but expose Application/Domain ports per semantic capability lifecycle. If a new consumer adds methods to a shared port, re-run this checklist before accepting the expansion; extend only when the consumer observes the same lifecycle semantics.
+
+The source of a port's request/response types does not decide the port's layer. Generated protocol messages, database rows, queue payloads, or external DTOs are boundary shapes; they are mapped to the layer-owned model before invoking the semantic port. If the capability is Domain-facing but the external call is expressed with Protobuf messages, keep the port in Domain and add an Application/Infrastructure mapper from proto DTOs to Domain entities, value objects, commands, or events.
+
+**Worked example — ownership and routing in distributed execution.** The names below are illustrative for dispatcher, worker, executor, scheduler, and router-style systems; apply the classification to the capability, not to the literal identifier. A `Peer`-like interface that forwards to another process over RPC, carries hop headers, or exposes a network address is an Infrastructure peer-forwarding adapter, not an Application port. A `Directory.Get(workID) -> OwnerInfo{InstanceID, Addr}`-style lookup is the routing read model used to choose a peer; it is Infrastructure, not an Application command/query port. An `OwnershipDirectory.AcquireLease/RefreshLease/ReleaseLease`-style interface is a separate lifecycle-only concept: it may survive as an exceptional Application command-side port when the use case observes active executor ownership lifecycle semantics, but it must never answer address-lookup, forwarding, hop-header, storage-key, retry/backoff, or replica-routing questions. If callers need both lease lifecycle and forwarding, split them: Application depends on the ownership-lifecycle port, while Infrastructure composes the routing directory and peer client internally.
+
+**Worked example — proto-typed Domain-facing port.** Suppose a `MessageRecorder` records a Domain fact (state transition / invariant) whose wire format is generated from Protobuf. By §0.1 the capability is Domain-facing, so the port lives in `domain/` with a Domain-typed signature such as `Record(ctx, RecordCommand) error`, where `RecordCommand` is a Domain command/value object. The Application handler (or an Infrastructure inbound adapter) maps the incoming `pb.Message` into `RecordCommand` before calling the port. The wrong move — placing the port in `application/` with `pb.Message` directly in its signature — couples Domain rules to a transport schema and tends to fragment the same rule across handlers.
+
+**Worked example -- capability-lifecycle ports vs mechanism-operation-granular ports (File / Attachment / Workspace artifacts).**
+
+This file-backed example is one instance of the general rule. The same analysis applies to object storage, messaging, cache, schedulers, external APIs, runtime coordination, and any other Infrastructure mechanism whose operations are more granular than the use-case capability lifecycle.
+
+Wrong shape -- Application depends on six mechanism-operation-granular ports:
+
+```
+AttachmentContentWriter      // write on upload
+FileContentReader            // read for download
+WorkspaceArchiveReader       // read workspace output archive
+WorkspaceDirLister           // list workspace dir
+WorkspaceFileStat            // stat workspace file
+ArtifactManifestRW           // manifest read + write
+```
+
+Right shape — Application depends on three capability-lifecycle ports:
+
+```
+AttachmentContentStore        // "issue attachment content lifecycle"
+  Put(attachmentID, content)
+  Open(attachmentID) -> Reader
+  MaterializeInto(attachmentID, workspaceID, path)
+
+WorkspaceArtifactStore        // "workspace output publication / browsing"
+  ListEntries(workspaceID, path)
+  Stat(workspaceID, path)
+  OpenArchive(workspaceID, path) -> Reader
+
+ArtifactManifestStore         // directory-artifact manifest; an independent read model
+  LoadManifest(artifactID)
+  SaveManifest(artifactID, manifest)
+```
+
+The three ports may all be implemented by a single Infrastructure adapter (e.g., one `MountedStorage` struct) — that is allowed by §3.2 of `ddd-core.md`. The point is that **on the inward side, Application sees three capabilities, not six verbs**.
+
+Why is `ArtifactManifestStore` not merged into `WorkspaceArtifactStore`? The manifest is a File-bounded-context read model / product metadata whose lifecycle is independent of workspace content — it can exist when the workspace content is gone and be refreshed on its own. Different consistency boundary, so it is a separate capability. That is the §0.2.2 "different caller semantics" branch in action — and it is a positive example of when forking a port is correct.
+
+#### 0.2.3 Suspicious naming and Application-port eligibility
+
+When choosing a name for a new Application or Domain interface, the following suffixes and words are signals that the candidate may be a **Domain rule, Domain Event reaction, Integration Message flow, ACL, or Infrastructure mechanism trying to escape into an Application port**. Each match requires explicit justification in the Architecture Gate (§0). The question is not "is this a Domain Service?" but "which DDD mechanism owns this need before Application gets a new command-side port?"
+
+| Name pattern | First owner to check | If you keep it as an Application command-side port, write down why |
+|--------------|----------------------|-------------------------------------------------------------------|
+| `*Policy` / `*Specification` | Aggregate method, Domain Specification, or Domain Service | The rule is not owned by the model and the port delegates to a named external authority with its own policy contract |
+| `*Allocator` / `*Generator` | Aggregate factory/method, Domain Service, Domain Repository uniqueness rule, or Infrastructure adapter | The allocation is an external semantic capability observed by the use case and cannot be expressed as a domain rule plus adapter |
+| `*Resolver` | Domain Service, ACL, published read facade, or Infrastructure adapter | The resolution is boundary translation or external lookup, not a domain decision |
+| `*Finalizer` / `*Terminator` / `*Closer` | Aggregate lifecycle method, Domain Service, Domain Event reaction, or Integration Message | The lifecycle transition is an explicit command output rather than a repeated reaction to a domain fact |
+| `*Calculator` / `*Scorer` / `*Pricer` | Value Object method, Aggregate method, or Domain Service | The calculation delegates to an external pricing/scoring authority whose result is the observed capability |
+| `*Decider` / `*Authorizer` | Aggregate method, Domain Service, or external authorization ACL | The decision is delegated to a named external authority and no domain invariant constrains it |
+| `*Validator` (outside Domain `Validate()`) | Value Object, Aggregate method, Domain Service, or Interface schema validation | The validation is purely external format/schema checking |
+| `*Sink` / `*Hook` / `*Observer` | Domain Event handler, Integration Message subscriber, or Infrastructure adapter | The use case observes a named lifecycle capability, not passive side-effect observation |
+| `*Client` | Infrastructure adapter, ACL, protocol contract, or published read facade (§5.5) | Application only sees a semantic facade name; technology/client vocabulary is not exposed inward |
+| `*Directory` / `*Router` / `*Forwarder` | Domain routing policy when it is ubiquitous language; otherwise Infrastructure routing/topology | The term is part of the domain's ubiquitous language and the interface excludes addresses, hop headers, replica choice, retry knobs, and deployment topology |
+
+The mechanical effect of this table during planning: when reaching for any name above, pause and run the Domain mechanism placement field in the Architecture Gate. If the need is a repeated reaction to a domain fact, use a Domain Event and one same-BC handler. If the need crosses bounded contexts, publish an Integration Message or a read facade. If an inbound handler is accumulating multi-step orchestration, keep the handler thin and move the orchestration into a named Application coordination service. If the need is a rule over domain state, use an Aggregate method or Domain Service. If the need is a storage/write-side collection, use a Domain Repository. Only after these homes are rejected may an Application command-side port remain.
+
+Cross-context reads use a `<ctx>/api/queries.go`-style reader port owned by the producing context (see `ddd-core.md §5.5`), not a consumer-defined `*Client`. Routing/topology interfaces that expose peer addresses, hop headers, queue subjects, storage keys, retry/backoff knobs, or deployment shape remain Infrastructure even if an Application handler triggers the operation.
+
+## 1. Purpose
+
+[`ddd-core.md`](ddd-core.md) and the language-specific guides tell you **how to implement** a domain model. This document tells you **how to discover** the domain model from business requirements.
+
+The two most common modeling errors are:
+
+1. **Wrong bounded context boundaries** — lumping unrelated concerns together or splitting tightly-coupled concepts apart
+2. **Wrong aggregate boundaries** — making everything an aggregate root, or stuffing too many entities into one aggregate
+
+Both errors stem from the same root cause: **treating data relationships (foreign keys, "has-many") as modeling boundaries, instead of analyzing business invariants and language boundaries**.
+
+This document provides decision procedures to get these boundaries right.
+
+---
+
+### 1.1 When the capability is a vendor wrapper
+
+If a candidate business capability is essentially an integration with a third-party system — authentication providers, transactional email, object storage, observability backends, billing SaaS, payment gateways, etc. — prefer adapting it through an Anti-Corruption Layer (see [ddd-core.md §5.6](ddd-core.md)) and skip the full bounded context / aggregate / repository design flow for that capability.
+
+This judgment only decides whether the capability enters the modeling process described below. It does not relax the Architecture Gate (§0) for capabilities that *do* enter modeling, and it does not preempt §2's discovery for any capability whose rules and language the team genuinely owns.
+
+---
+
+## 2. Bounded Context Discovery
+
+A bounded context is a boundary within which a domain model is consistent and a specific ubiquitous language applies. Identifying bounded contexts is the first and most impactful modeling decision.
+
+### 2.1 Step 1: Identify Business Capabilities
+
+List the major business capabilities the system must support. A business capability is a function the business performs to create value — not a technical component.
+
+```
+Example — E-commerce platform:
+
+Business capabilities:
+  - Catalog Management     (maintain product information)
+  - Inventory Management   (track stock levels)
+  - Order Fulfillment      (process and ship orders)
+  - Billing / Payments     (charge customers, handle refunds)
+  - Customer Management    (registration, profiles, preferences)
+  - Notification           (send emails, push notifications)
+```
+
+Each business capability is a **candidate bounded context**. Not every capability will become its own context — some may merge — but this is the starting point.
+
+### 2.2 Step 2: Ubiquitous Language Analysis
+
+The strongest signal for a bounded context boundary is **the same term meaning different things**.
+
+**Procedure:**
+
+1. List the key nouns in the business requirements
+2. For each noun, check: does it have the same attributes and behaviors everywhere it appears?
+3. If the same noun has different shapes in different contexts → bounded context boundary
+
+```
+Example — "Product" in an e-commerce system:
+
+Catalog context:
+  Product = { name, description, images, categories, SEO metadata }
+  Behavior: publish, unpublish, update description
+
+Inventory context:
+  Product = { SKU, quantity_on_hand, warehouse_location, reorder_threshold }
+  Behavior: reserve, restock, transfer between warehouses
+
+Order context:
+  Product = { product_id, name_snapshot, price_at_purchase, quantity }
+  Behavior: none — it's a snapshot frozen at order creation time
+
+Three different models for "Product" → three different bounded contexts.
+The Catalog team says "update a product" and means change the description.
+The Inventory team says "update a product" and means adjust stock levels.
+Same word, different meanings → context boundary.
+```
+
+**Key signals of a context boundary:**
+
+| Signal | Example |
+|--------|---------|
+| Same noun, different attributes | "User" in Auth (credentials, roles) vs. "User" in Social (avatar, bio, followers) |
+| Same noun, different behaviors | "Account" in Banking (debit, credit) vs. "Account" in CRM (update contact info) |
+| Same noun, different owners | "Order" owned by Sales team vs. "Shipment" owned by Logistics team |
+| Different lifecycle | Catalog Product lives forever; Order Line Item lives only for the order duration |
+
+### 2.3 Step 3: Boundary Heuristics
+
+Apply these heuristics to validate and refine the boundaries identified in Steps 1-2.
+
+| # | Heuristic | How to apply |
+|---|-----------|--------------|
+| 1 | **Change coupling** | Things that change together for the same business reason belong in the same context. If changing "pricing rules" requires touching both product display and invoice generation, those concerns may be coupled. |
+| 2 | **Data authority** | Each piece of data has exactly one authoritative source. "Product name" is authoritative in Catalog; other contexts hold read-only copies or snapshots. The context that is the authority owns the concept. |
+| 3 | **Team alignment** | If different teams own different capabilities, those are likely different contexts. Conway's Law is a feature here, not a bug. |
+| 4 | **Autonomy test** | Could this context deploy independently? Use a different database? If not, it might be too tightly coupled to its neighbor and the boundary may be wrong. |
+| 5 | **Communication pattern** | If two candidate contexts need synchronous, real-time data exchange for every operation → they may be one context. If they only need eventual notification → separate contexts. |
+
+### 2.4 Step 4: Context Relationships
+
+Once boundaries are identified, map how contexts relate:
+
+```
+┌──────────────┐  integration message  ┌──────────────────┐
+│   Catalog    │ ──────────────────► │    Inventory     │
+│ (upstream)   │  ProductPublished   │  (downstream)    │
+└──────────────┘                     └──────────────────┘
+                                              │
+                                   integration message
+                                     StockReserved
+                                              │
+                                              ▼
+┌──────────────┐  integration message  ┌──────────────────┐
+│    Order     │ ◄────────────────── │    Billing       │
+│              │   PaymentConfirmed  │                  │
+└──────────────┘                     └──────────────────┘
+```
+
+**Relationship types:**
+
+| Relationship | When to use | Risk |
+|-------------|------------|------|
+| **Integration messages** (default for cross-context state propagation) | One context's state changes should trigger reactions in others | Eventual consistency |
+| **Cross-context queries** (read-only) | A context needs a current snapshot of data owned elsewhere, with no write side-effects | Coupling to query DTO shape; live-read latency |
+| **Protocol contracts** (Protobuf, OpenAPI, GraphQL SDL) | Cross-service / cross-repository structured data contracts | Schema-evolution discipline required |
+| **Anti-Corruption Layer** | Integrating with external / legacy systems whose model you cannot adopt | Translation overhead |
+| **Shared Kernel** | Two contexts co-evolve and share a small, stable set of types | Coupling — keep it tiny; avoid by default |
+
+> Direct calls into another context's Domain model or Application Service are prohibited. See [ddd-core.md §5](ddd-core.md) for the full rules of each mechanism.
+
+### 2.5 Context Map Relationship Patterns
+
+§2.4 told you *which mechanism* to use for cross-context communication. This section covers the orthogonal axis: *what kind of relationship* exists between two contexts. The relationship pattern is determined by team / power dynamics, not by transport choice.
+
+| Pattern | When it fits | Power dynamic | Typical mechanism |
+|---------|-------------|---------------|--------------------|
+| **Customer-Supplier** | Downstream depends on upstream's published model, but downstream's needs influence upstream's roadmap | Balanced — upstream commits to backward compatibility for downstream's roadmap | Integration messages + Cross-context queries |
+| **Conformist** | Downstream depends on upstream but has no influence (vendor, large-org platform team, legacy core) | Upstream-dominant | Conform to upstream's model directly; downstream pays the integration cost |
+| **Anti-Corruption Layer (ACL)** | Downstream cannot or will not adopt upstream's model (legacy systems, third-party APIs with bad models) | Downstream protects itself | ACL adapter in Infrastructure (see [ddd-core.md §5.6](ddd-core.md)) |
+| **Open-Host Service (OHS)** | One context serves many downstream consumers and exposes a stable, well-defined integration API | Upstream offers, downstream conforms | Protocol contracts, REST/gRPC published API |
+| **Published Language** | Cross-context contract uses a well-documented schema (Protobuf, JSON Schema, GraphQL SDL) so neither side owns the language | Symmetric | Schema files in a shared location; generated code on both sides ([ddd-core.md §5.7](ddd-core.md)) |
+| **Partnership** | Two contexts are mutually dependent and co-evolve together; failure on one side breaks the other | Symmetric, high coupling | Synchronous APIs + shared release cadence; **smell** — re-examine whether they should be one context |
+| **Shared Kernel** | A small, stable set of types is genuinely shared between two contexts | Symmetric, high coupling | Shared library; keep tiny; avoid by default |
+| **Separate Ways** | Two contexts have no business reason to integrate; do not force a relationship | Independent | None — duplicate the small overlap rather than couple |
+| **Big Ball of Mud** | An existing legacy region with no clear boundaries; treat it as one opaque context | N/A | Wrap with ACL when integrating; do not extend it |
+
+**How to use this table during planning:**
+
+1. For each cross-context edge in your context map (§2.4), pick a relationship pattern.
+2. State the pattern explicitly in design docs — "Order is a **Customer** of Catalog (**Supplier**); Catalog publishes `ProductPublished` events; Order subscribes via ACL because Catalog's payload uses legacy field names."
+3. Re-examine relationships marked **Partnership** — they are usually a sign that two contexts should be merged or further split.
+4. **Conformist** and **ACL** are mutually exclusive answers to the same question ("can we adopt upstream's model?"). Choose explicitly; do not drift into Conformist by accident.
+
+> Mechanism (§2.4) and relationship pattern (§2.5) are orthogonal. A Customer-Supplier relationship can be implemented with Integration Messages, cross-context queries, or protocol contracts — choose both axes deliberately.
+
+### 2.6 Bounded Context Checklist
+
+Before proceeding to aggregate design, verify:
+
+- [ ] Each context has a clear name that reflects a business capability
+- [ ] Each context has its own ubiquitous language (no term means two things within one context)
+- [ ] Data authority is clear: every key entity has exactly one owning context
+- [ ] Cross-context communication uses one of: Integration Messages, queries through explicit query interfaces, ACL, or protocol contracts (no direct calls into another context's Domain model or Application Service)
+- [ ] No context is a "god context" responsible for everything
+
+---
+
+## 3. Aggregate Design
+
+An aggregate is a cluster of entities and value objects with a single root entity (the **aggregate root**) that serves as the sole entry point. The aggregate boundary defines a **transactional consistency boundary**.
+
+### 3.1 The True Invariant Rule
+
+> **The only valid reason to put multiple entities in one aggregate is a business invariant that must be enforced within a single transaction.**
+
+A **business invariant** is a rule that must ALWAYS be true. If it can be temporarily false and corrected later (eventual consistency), it does not require transactional consistency and does not justify grouping entities into one aggregate.
+
+**Ask this question for every entity pair:**
+
+> "If entity A changes but entity B is not updated atomically in the same transaction, can the system enter a permanently invalid business state?"
+
+- **Yes** → Same aggregate (transactional consistency required)
+- **No, it's temporarily inconsistent but self-corrects** → Separate aggregates (eventual consistency via domain events)
+- **No, they're independent** → Separate aggregates
+
+```
+Example analysis:
+
+Order and OrderItem:
+  Invariant: "Order.total MUST equal SUM(item.price × item.quantity) at all times"
+  Can this be temporarily wrong? No — a half-updated order total could cause incorrect charges.
+  → Same aggregate. Transactional consistency required.
+
+Order and User:
+  Question: "If Order changes, must User be updated atomically?"
+  No. Order and User are independent. Order holds a user_id reference.
+  → Separate aggregates.
+
+Order and Inventory:
+  Invariant: "Stock cannot go negative"
+  Can this be temporarily inconsistent? Yes — we can reserve stock via Integration Messages.
+  Failure mode: if eventual consistency fails, we compensate (cancel order or backorder).
+  → Separate aggregates. Domain Events inside each context, Integration Messages for stock reservation across contexts.
+```
+
+### 3.2 Aggregate Boundary Decision Tree
+
+For each entity B that appears to "belong to" entity A:
+
+```
+Q1: Does B have a meaningful identity independent of A?
+    (Can someone refer to "this specific B" without knowing which A it belongs to?)
+    │
+    ├── Yes → B is likely its own aggregate root.
+    │         Go to Q3 to verify.
+    │
+    └── No → Continue to Q2.
+
+Q2: Can B exist without A?
+    (If A is deleted, does B still make sense?)
+    │
+    ├── Yes → B is its own aggregate root.
+    │         The "belongs to" is just a reference, not containment.
+    │
+    └── No → B is a candidate child of A's aggregate.
+              Continue to Q4.
+
+Q3: Is there a business invariant between A and B that MUST be
+    enforced in the same transaction?
+    │
+    ├── Yes → Can you redesign to use eventual consistency?
+    │         │
+    │         ├── Yes → Separate aggregates + Domain Events / Integration Messages.
+    │         │
+    │         └── No (rare) → Same aggregate.
+    │                         This will be a large aggregate.
+    │                         Accept the concurrency trade-off.
+    │
+    └── No → Separate aggregates. Reference by ID.
+
+Q4: When B is modified, must A's invariants be re-validated?
+    (Does changing B potentially violate a rule that A guards?)
+    │
+    ├── Yes → B is inside A's aggregate. A is the aggregate root.
+    │         All access to B goes through A's domain methods.
+    │
+    └── No → Reconsider: B might be its own aggregate root.
+             The lifecycle dependency (B needs A to exist) can be
+             enforced via a foreign key or application-level check,
+             not by stuffing B into A's aggregate.
+
+Q5: After any outcome that produced "separate aggregates", does this design
+    need a business DECISION (not just a reference) that reads the state
+    of both A and B at the same time?
+    Examples: "is the order eligible for merge with this other order",
+              "does this transfer balance against the available funds",
+              "who wins the slot when both A and B request it",
+              "can this work be terminated given the sandbox's state".
+    │
+    ├── No  → done. Aggregates reference each other by ID; no further
+    │         placement decision is required.
+    │
+    └── Yes → continue to Q6.
+
+Q6: Can that decision be expressed as a method on A that receives B's
+    relevant immutable state as a value-object parameter, where A is
+    the clear invariant owner and the decision does not require B's
+    lifecycle authority or fresh post-load state?
+    │
+    ├── Yes → place the method on A. B is read-only input, not a
+    │         dependency. The use case loads B, extracts the value
+    │         object, and passes it to A.method(...). The plan states
+    │         the staleness / transaction semantics of that snapshot.
+    │
+    └── No  → CREATE A DOMAIN SERVICE. The service takes A and B
+              (or projections of them) and returns the decision.
+              Name it with a domain verb: <Subject>Calculator,
+              <Subject>Decider, <Subject>Authorizer, <Subject>Allocator,
+              <Subject>Reconciler, <Subject>Settler, <Subject>Matcher, …
+
+              Before creating the service, rule out a redesigned
+              aggregate boundary, a new aggregate that represents the
+              decision (Reservation, Transfer, LedgerEntry, Registry),
+              a Domain Event / Integration Message flow, and a database
+              uniqueness or exclusion constraint surfaced as a Domain
+              error. DO NOT push this decision into the Application layer
+              as a *Policy / *Allocator / *Resolver / *Decider port that
+              merely wraps the rule. See §0.2.3 and
+              `ddd-agent-contract.md §4.19`.
+```
+
+The Q5/Q6 branch closes a gap in the canonical Vernon decision tree: the tree historically terminates at "separate aggregates" without explaining where a *decision* that spans separate aggregates lives. When that gap is left open, cross-aggregate decisions drift upward into Application as ports. Domain Service is one answer, not the default answer; the default is to name the decision and choose the correct DDD mechanism before drawing any Application port.
+
+### 3.3 Entity vs. Value Object Decision
+
+Before deciding aggregate boundaries, classify each concept as Entity or Value Object:
+
+```
+Q1: Does this concept need a unique, persistent identity?
+    (Do you need to distinguish "this one" from another with identical attributes?)
+    │
+    ├── Yes → Entity
+    │
+    └── No → Q2: Is it defined entirely by its attributes?
+              (Two instances with the same values are interchangeable?)
+              │
+              ├── Yes → Value Object (immutable, replace instead of modify)
+              │
+              └── No → Entity
+```
+
+**Common classifications:**
+
+| Concept | Typically | Reasoning |
+|---------|-----------|-----------|
+| Email, Phone, Address | Value Object | "123 Main St" is "123 Main St" regardless of which instance. Replace, don't mutate. |
+| Money (amount + currency) | Value Object | $10 USD is $10 USD. Arithmetic creates new instances. |
+| OrderItem (within an Order) | Entity | Need to track "item #3 in this order" to update quantity. But only meaningful within the Order aggregate. |
+| Tag, Label | Value Object | Interchangeable if same name. |
+| User, Product, Order | Entity (Aggregate Root) | Unique identity, independent lifecycle, externally referenced. |
+
+### 3.4 Aggregate Sizing Rules
+
+| Rule | Explanation |
+|------|-------------|
+| **Default to small** | Start with the smallest possible aggregate: one root entity + value objects only. Add child entities only when a transactional invariant forces you to. |
+| **Beware unbounded collections** | If an aggregate contains a collection that can grow without limit (e.g., "all comments on a post"), the aggregate is almost certainly too big. |
+| **3-entity-type limit** (heuristic, not a hard rule) | If your aggregate contains more than 3 entity types, re-examine. The odds of all of them sharing a transactional invariant are low. The number is a guideline borrowed from common practice; the binding rule is still §3.1's invariant test. |
+| **Concurrency smell** | If two users frequently need to modify the same aggregate simultaneously, it may be too big. Large aggregates create contention via optimistic locking. |
+| **Load smell** | If you need the aggregate root but always load dozens of child entities you don't need, the aggregate is too big. |
+
+---
+
+## 4. Worked Examples with Reasoning
+
+### 4.1 E-commerce: Order System
+
+**Requirements:**
+- Users place orders with multiple items
+- Each item has a product reference, quantity, and unit price
+- Order total must equal the sum of (item price × quantity)
+- Items can be added/removed before payment
+- After payment, order is immutable
+- Inventory must be reserved when order is placed
+
+**Modeling analysis:**
+
+**Step 1 — Identify entities:** Order, OrderItem, User, Product, Inventory
+
+**Step 2 — Apply decision tree to each pair:**
+
+Order ↔ OrderItem:
+- Q1: Does OrderItem have independent identity? **No.** "Item #3" only makes sense within "Order #456". Nobody references an OrderItem from outside.
+- Q2: Can OrderItem exist without Order? **No.**
+- Q4: When OrderItem changes (add/remove), must Order's invariants be re-validated? **Yes** — Order.total must be recalculated.
+- **→ OrderItem is a child entity inside Order aggregate.**
+
+Order ↔ User:
+- Q1: Does User have independent identity? **Yes.** Users exist before and after orders.
+- Q3: Is there a transactional invariant? **No.** Creating an order doesn't need to atomically modify the user.
+- **→ Separate aggregates. Order holds user_id.**
+
+Order ↔ Product:
+- Same reasoning as User. Product is referenced, not contained.
+- **→ Separate aggregates. OrderItem holds product_id + price_snapshot.**
+
+Order ↔ Inventory:
+- Q3: Transactional invariant ("stock can't go negative")?
+- Can we use eventual consistency? **Yes** — reserve via Integration Message if Inventory is another bounded context; compensate on failure.
+- **→ Separate aggregates. OrderPlaced Domain Event stays inside Order; an OrderPlaced Integration Message triggers inventory reservation across the context boundary.**
+
+**Result:**
+```
+Order Aggregate:
+  Root: Order { id, user_id, status, total, created_at }
+  Child Entity: OrderItem { product_id, name_snapshot, price, quantity }
+  Value Objects: Money, OrderStatus
+
+Separate Aggregates:
+  User (own aggregate root)
+  Product (own aggregate root, in Catalog context)
+  Inventory (own aggregate root, in Inventory context)
+```
+
+### 4.2 Blog Platform: Post and Comment
+
+**Requirements:**
+- Users write blog posts
+- Other users can comment on posts
+- Posts can have thousands of comments
+- Authors can edit their posts; commenters can edit/delete their own comments
+- Moderators can hide comments independently
+
+**Modeling analysis — the common mistake:**
+
+Naive model: "Comment belongs to Post → Comment is inside Post aggregate"
+
+**Apply the decision tree:**
+
+Post ↔ Comment:
+- Q1: Does Comment have independent identity? **Yes.** Moderators reference "Comment #789" when reviewing reports. Commenters link to specific comments.
+- Q3: Is there a transactional invariant between Post and Comment? **No.** Editing a comment doesn't violate any Post invariant. Adding a comment doesn't require atomically updating the Post.
+- **→ Separate aggregates.**
+
+**Additional signals:**
+- Unbounded collection: A post can have thousands of comments → loading the entire Post aggregate would be prohibitively expensive
+- Independent lifecycle: Comments are created/modified/deleted by different users than the post author
+- Independent operations: Moderating a comment has nothing to do with the post's state
+- Concurrency: Many users commenting simultaneously would cause optimistic lock conflicts if they're all modifying the same Post aggregate
+
+**Result:**
+```
+Post Aggregate:
+  Root: Post { id, author_id, title, content, status, published_at }
+  Value Objects: PostStatus
+
+Comment Aggregate (separate!):
+  Root: Comment { id, post_id, author_id, content, status, created_at }
+  Value Objects: CommentStatus
+
+Cross-aggregate: Comment holds post_id as a reference.
+Application-level rule: creating a Comment requires the Post to exist (check, not invariant).
+```
+
+**Why the "belongs to" relationship doesn't make it the same aggregate:**
+- "Comment belongs to Post" is a **data relationship** (foreign key)
+- Aggregate boundaries are defined by **transactional invariant relationships**, not data relationships
+- Foreign key ≠ aggregate boundary
+
+### 4.3 Project Management: Project, Task, and Member
+
+**Requirements:**
+- A project has a name, status, and members
+- A project contains tasks
+- Tasks have assignees (must be project members), status, and priority
+- A task can have subtasks (checklist items)
+- Project is marked complete only when all tasks are done
+
+**Modeling analysis:**
+
+Project ↔ Task:
+- Q1: Does Task have independent identity? **Yes.** Users say "I'm working on Task #42". Dashboards show task lists across projects.
+- Q3: Transactional invariant?
+  - "Assignee must be a project member" — this is a **rule**, but can it be eventually consistent? If a member is removed, their tasks can be unassigned asynchronously. Not an atomic requirement.
+  - "Project is complete when all tasks are done" — this is a **derived state**, computable by query, not a transactional invariant. Project status can be updated via domain event when the last task completes.
+- **→ Separate aggregates.**
+
+Task ↔ Subtask (checklist items):
+- Q1: Does Subtask have independent identity? **No.** "Subtask #2 of Task #42" — not independently referenced.
+- Q2: Can Subtask exist without Task? **No.**
+- Q4: Does changing a subtask affect Task invariants? **Depends on requirements.**
+  - If "Task progress = completed subtasks / total subtasks" must be atomic → same aggregate
+  - If subtasks are just a checklist with no invariant → could be either way, but small aggregate principle favors keeping them inside Task (bounded collection, simple lifecycle)
+- **→ Subtask is a child entity inside Task aggregate (if count is bounded).**
+
+Project ↔ Member:
+- Q1: Does Member have independent identity (as a project member)? The membership itself is a relationship.
+- Membership is a **Value Object** within Project: { user_id, role, joined_at }
+- Adding/removing members is a Project operation
+- Member list is bounded (projects don't have millions of members)
+- **→ Membership is a Value Object collection inside Project aggregate.**
+
+**Result:**
+```
+Project Aggregate:
+  Root: Project { id, name, status }
+  Value Object: Membership { user_id, role, joined_at }
+  Value Object: ProjectStatus
+
+Task Aggregate (separate!):
+  Root: Task { id, project_id, assignee_id, title, status, priority }
+  Child Entity: Subtask { title, completed }
+  Value Objects: TaskStatus, Priority
+
+Cross-aggregate communication:
+  TaskCompleted event → Project context checks if all tasks done → updates ProjectStatus
+  MemberRemoved event → Task context unassigns affected tasks
+```
+
+### 4.4 Anti-Example: The God Aggregate
+
+**Bad model — everything inside Order:**
+
+```
+Order Aggregate (WRONG):
+  Root: Order
+  ├── OrderItem
+  ├── Payment          ← should be separate (has its own lifecycle, managed by billing)
+  ├── Shipment         ← should be separate (managed by logistics, independent operations)
+  ├── Invoice          ← should be separate (legal document, different audit rules)
+  └── DeliveryAddress  ← this one is OK (value object, snapshotted at order time)
+```
+
+**Why this is wrong:**
+- Payment has an independent lifecycle (can be retried, refunded, charged back)
+- Shipment is managed by a different team (logistics) with its own tracking and status
+- Invoice is a legal document with its own compliance rules
+- All three are modified independently of the order → no shared transactional invariant
+- Stuffing them into one aggregate means: anyone modifying a shipment status will lock the entire order
+
+**Correct model:**
+```
+Order Aggregate:        { id, status, total, items[] }
+Payment Aggregate:      { id, order_id, amount, status, method }
+Shipment Aggregate:     { id, order_id, tracking_number, status, carrier }
+Invoice Aggregate:      { id, order_id, amount, issued_at, pdf_url }
+
+Communication: Integration Messages
+  OrderPlaced → triggers Payment creation
+  PaymentConfirmed → triggers Shipment creation + Invoice generation
+```
+
+---
+
+## 5. Common Modeling Mistakes
+
+### 5.1 Foreign Key = Aggregate Boundary
+
+**Mistake:** "The database has a foreign key from Comment to Post, so Comment is inside the Post aggregate."
+
+**Why it's wrong:** A foreign key represents a data relationship. An aggregate boundary represents a transactional invariant boundary. These are different things.
+
+**Fix:** Ask: "Does modifying a Comment require atomically enforcing a Post business rule?" If no → separate aggregates.
+
+### 5.2 "Belongs To" = Containment
+
+**Mistake:** "Task belongs to Project → Task is inside the Project aggregate."
+
+**Why it's wrong:** "Belongs to" in natural language usually means "is associated with", not "must be transactionally consistent with". Most "belongs to" relationships are references (IDs), not aggregate containment.
+
+**Fix:** Apply the decision tree (§3.2). Check for independent identity (Q1) and transactional invariants (Q3/Q4).
+
+### 5.3 UI View = Aggregate
+
+**Mistake:** Designing aggregates based on what a UI screen displays together.
+
+**Why it's wrong:** A product detail page might show product info, reviews, inventory status, and pricing — that doesn't mean they're one aggregate. UI is a read concern; aggregates are a write concern.
+
+**Fix:** CQRS. Build a read-optimized QueryRepository for the UI view. Keep write-side aggregates small.
+
+### 5.4 CRUD Mindset
+
+**Mistake:** One aggregate per database table, with getters/setters instead of domain methods.
+
+**Why it's wrong:** This is an anemic domain model. Aggregates are defined by business behavior and invariants, not by data storage structure.
+
+**Fix:** Focus on what the business does (verbs: "place order", "approve request", "transfer funds"), not on what data it stores (nouns: "order table", "request table").
+
+### 5.5 Premature Splitting
+
+**Mistake:** Splitting every entity into its own aggregate root "for flexibility".
+
+**Why it's wrong:** Unnecessary split means the consistency guarantee is lost. If OrderItem is a separate aggregate, you cannot atomically guarantee that Order.total matches the sum of items.
+
+**Fix:** Split only when there is no transactional invariant (§3.1), or when aggregate size causes real problems (§3.4).
+
+---
+
+## 6. Modeling Process Checklist
+
+Use this step-by-step procedure during the design phase, before writing implementation plans.
+
+### Phase 1: Bounded Context Discovery
+
+1. **List business capabilities** from requirements (§2.1)
+2. **Analyze ubiquitous language** — identify terms with context-dependent meanings (§2.2)
+3. **Apply boundary heuristics** — validate with change coupling, data authority, team alignment (§2.3)
+4. **Map context relationships** — document upstream/downstream and communication mechanisms (§2.4)
+5. **Choose context map relationship patterns** — Customer-Supplier, Conformist, ACL, OHS, Published Language, Partnership, Shared Kernel, or Separate Ways (§2.5)
+6. **Verify** against the checklist (§2.6)
+
+### Phase 2: Aggregate Design (per bounded context)
+
+7. **List all entities and concepts** within this context
+8. **Classify each as Entity or Value Object** using the decision in §3.3
+9. **For each entity pair, apply the aggregate boundary decision tree** (§3.2)
+10. **State the invariant** that justifies each aggregate boundary — if you can't name it, the entities probably don't belong together
+11. **Check aggregate sizing** (§3.4) — flag any aggregate with unbounded collections or >3 entity types
+12. **Identify cross-aggregate references** — these are always by ID, never by direct object reference
+13. **Design Domain Events for intra-context propagation and Integration Messages for cross-context communication**
+
+### Phase 3: Modeling Output
+
+Document the following for each bounded context:
+
+```
+Bounded Context: [Name]
+Description: [What business capability this context handles]
+Authority over: [What data this context is the single source of truth for]
+
+Aggregates:
+
+  [Aggregate 1 Name]:
+    Root: [Entity name + key attributes]
+    Child Entities: [list, with justification for why they're inside]
+    Value Objects: [list]
+    Invariants guarded: [list the business rules this aggregate enforces]
+    Repository: [write operations available]
+    Domain Events produced: [list]
+
+  [Aggregate 2 Name]:
+    ...
+
+Cross-context communication:
+  - [Integration Message] → consumed by [Context] to [action]
+```
+
+---
+
+## 7. Planning Gates
+
+Modeling output (§6) describes the steady-state design. **Planning gates** describe how much design rigor each new change requires before implementation begins. Apply this gating *every time* a developer is about to write or edit code, not just for the initial design.
+
+Choose the smallest gate that fits the change.
+
+### 7.1 Level 1 — Local Change
+
+Use for changes inside an existing bounded context that do not add a new aggregate, repository, QueryRepository, domain event, or external integration.
+
+Plan must state:
+
+- bounded context and layer changed
+- aggregate or use case affected
+- technical capability classification, when the code is a dispatcher, registry, scheduler, router, connector, projection, ownership mechanism, delivery mechanism, or observability/audit mechanism
+- write path or read path
+- tests for the changed layer
+- **domain-mechanism placement audit**: if this Level 1 change touches an existing inward interface, adds a method, changes an event/message handler, or duplicates a side-effect reaction, list the semantic need and confirm its owner has not shifted from Domain Repository / Aggregate / Domain Service / Domain Event / Integration Message / named Application coordination service / ACL / Infrastructure into an Application command-side port. When the change is purely renames, comments, or test-only, write `n/a — no rule surface touched`
+
+Verify the change against the dependency rules ([ddd-core.md §1.3](ddd-core.md)) and layer responsibilities ([ddd-core.md §3](ddd-core.md)) — Domain keeps business rules, Application only orchestrates, Infrastructure stays technical, and Repository / QueryRepository responsibilities remain separate.
+
+### 7.2 Level 2 — New Use Case
+
+Use for a new command, query, event handler, repository method, QueryRepository, DTO, assembler, or external integration inside an existing bounded context.
+
+Plan must state:
+
+- use case kind: Command, Query, Domain Event Handler, Boundary Publisher, or Integration Message Handler
+- aggregate root and invariants involved
+- technical capability classification and rule owner, if the use case coordinates a technical-facing capability
+- Repository / QueryRepository interfaces needed
+- DTO and assembler changes
+- external integration boundary, if any
+- Infrastructure implementation
+- Domain Events produced or consumed; Integration Messages published or subscribed for cross-context communication
+- transaction boundary and event dispatch timing; if the use case proposes one transaction that writes multiple aggregates, include the multi-aggregate exception evidence required by [ddd-core.md §3.2](ddd-core.md)
+- **domain-mechanism placement audit (mandatory at Level 2)**: list every new inward interface introduced by this use case, the one-sentence semantic contract each encodes, and the owner per the §0 Gate format. Before any Application command-side port is accepted, record why the need is not an Aggregate method, Domain Repository, Domain Service, Domain Event handler, Integration Message, named Application coordination service, ACL, Infrastructure adapter, or QueryRepository/read facade. Apply the §0.1.1 semantic fake litmus test to every new inward interface and record the outcome.
+- **async handler card**: for every new or modified event/message handler, state its role (Domain Event Handler, Boundary Publisher, or Integration Message Handler), input kind, output side effect or published contract, transaction boundary, granularity (`single-kind` or justified `multi-kind`), and lightweight failure policy (`best-effort`, `log-and-continue`, `return subscriber/adapter error`, or `n/a`).
+- **event/message reuse audit**: if two or more commands, handlers, subscribers, or adapters react to the same domain fact or repeat the same side-effect handling, introduce or reuse one Domain Event and one same-BC Domain Event Handler. If the reaction crosses bounded contexts, translate the Domain Event into an Integration Message instead of duplicating side-effect calls. If the handler is accumulating unrelated phases or dependencies, extract a named Application coordination service and keep the inbound handler thin.
+- **port-pressure declaration**: if the new Command Handler injects four or more outbound ports, attach the port-pressure review answers required by [ddd-core.md §3.2](ddd-core.md) "Command Handler Port-Pressure Heuristic".
+
+Check against [ddd-core.md §3.1-§3.4](ddd-core.md), [§5](ddd-core.md), and the relevant language-specific implementation guide before implementation.
+
+### 7.3 Level 3 — New Bounded Context or Aggregate
+
+Use for a new bounded context, aggregate root, domain event family, repository, or cross-context communication channel.
+
+Spec must include:
+
+- bounded context, business capability, ubiquitous language, and data authority (see §2)
+- aggregate root, entities, value objects, and guarded invariants (see §3)
+- technical capability classification for any runtime coordination, routing, scheduling, delivery, registry, projection, ownership, observability, or audit concern
+- transaction boundary for each command; any proposed multi-aggregate transaction must stay inside one bounded context and satisfy the exception gate in [ddd-core.md §3.2](ddd-core.md)
+- Integration Messages and minimum required payload fields (see [ddd-core.md §5.4](ddd-core.md))
+- cross-context communication mechanism: Integration Messages, queries, ACL, or protocol contracts (see [ddd-core.md §5.2](ddd-core.md))
+- language-specific package layout (see the corresponding implementation guide: [ddd-golang.md](ddd-golang.md), [ddd-python.md](ddd-python.md), [ddd-typescript.md](ddd-typescript.md))
+- **Domain mechanism inventory**: list every Aggregate-owned rule, Domain Repository, Domain Service, Domain Event, Integration Message, named Application coordination service, ACL, Application QueryRepository/read facade, and exceptional Application command-side port this BC will own at the end of the change. A new bounded context with non-trivial business capability and no Domain Services or Domain Events is a flag — write the reason (e.g., "single aggregate with all rules on aggregate methods", "vendor-wrapper context per §1.1", or "no repeated/cross-aggregate facts").
+- **domain-mechanism placement audit (mandatory at Level 3)**: same as Level 2 but applied to every inward interface and event/message flow the new BC introduces, plus the §0.1.1 litmus test applied to each.
+
+Check aggregate boundaries against §3, tactical rules against [ddd-core.md](ddd-core.md), and language-specific placement rules against the relevant implementation guide.
+
+Do not treat existing code as precedent when it conflicts with the dependency rules.
+
+### 7.4 Cross-Context Change Without a New Context
+
+If a change adds or modifies cross-context communication (a new Integration Message with subscribers in another context, a new query exposed across contexts, an ACL adapter, etc.) but does not introduce a new bounded context or aggregate, treat it as **Level 2 on each affected side** and produce one plan per side:
+
+- Producing side: the new Integration Message / query / contract, its payload contract, and dispatch (or response) timing
+- Consuming side: the handler / consumer, idempotency strategy, and transaction boundary
+- Both sides apply the Level 2 domain-mechanism placement audit and async handler card; the producer side states which Domain Event, if any, is translated to the Integration Message, and the consumer side states whether a new inward interface was introduced and whether it matches the published facade pattern (`ddd-core.md §5.5`) rather than a `*Client` interface owned by the consumer
+
+If the change crosses three or more contexts, or if the contract itself is unstable, escalate to Level 3 and treat the contract as a first-class design artifact.
+
+### 7.5 Gate Failure
+
+If the plan cannot answer the required items for its level, stop and complete the missing design before writing code.
+
+---
+
+## 8. Quick Reference: Decision Summary
+
+### When two entities should be in the SAME aggregate:
+
+- There is a business rule involving both that must ALWAYS be true (no temporary inconsistency allowed)
+- One entity cannot be meaningfully identified without the other
+- They are always modified together in every use case
+- The child entity collection is bounded
+
+### When two entities should be SEPARATE aggregates:
+
+- They can be temporarily inconsistent and self-correct via events
+- They have independent identities (referenced from outside)
+- They are modified independently by different users or operations
+- They belong to different bounded contexts
+- One is a collection that can grow without bound
+- They have different change frequencies or lifecycles
+- Different teams are responsible for them
+
+### The golden test:
+
+> **"If I modify entity A but not entity B in the same transaction, can the system enter a state that violates a business rule that can never be repaired?"**
+>
+> - Yes → same aggregate
+> - No → separate aggregates
+
+---
+
+**References:**
+- [ddd-core.md](ddd-core.md) — Tactical architecture specification (use after modeling)
+- [Implementing Domain-Driven Design — Vaughn Vernon](https://vaughnvernon.com/?page_id=168) — Chapters 10-11 on aggregate design
+- [Effective Aggregate Design — Vaughn Vernon](https://www.dddcommunity.org/library/vernon_2011/) — Three-part essay on aggregate sizing
+- [Domain-Driven Design Reference — Eric Evans](https://domainlanguage.com/ddd/reference/) — Strategic design patterns

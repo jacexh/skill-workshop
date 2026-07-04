@@ -1,0 +1,24 @@
+{
+  "name": "ddd-expert",
+  "version": "1.14.4",
+  "description": "Standalone DDD/backend architecture expert skills for code agents (Codex port)",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "ddd",
+    "backend",
+    "architecture",
+    "codex"
+  ],
+  "interface": {
+    "displayName": "DDD Expert",
+    "shortDescription": "Standalone DDD/backend architecture skills",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ]
+  },
+  "skills": "./skills/"
+}
