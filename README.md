@@ -20,6 +20,7 @@ Skill Workshop is a curated collection of plugins that enhance agentic software 
 /plugin install superpowers-memory@skill-workshop
 /plugin install superpowers-architect@skill-workshop
 /plugin install superpowers-ddd-architect@skill-workshop
+/plugin install ddd-expert@skill-workshop
 /plugin install designing-tests@skill-workshop
 ```
 
@@ -69,6 +70,14 @@ DDD-first backend architecture guardrails for code agents. Uses compact `design`
 - **Claude details:** [plugins/superpowers-ddd-architect/README.md](plugins/superpowers-ddd-architect/README.md)
 - **Codex details:** [codex-plugins/superpowers-ddd-architect/README.md](codex-plugins/superpowers-ddd-architect/README.md)
 
+### ddd-expert
+
+Standalone explicit DDD/backend architecture expert skills for code agents. Provides `design`, `implement`, and `review` skills plus the same DDD reference set, without lifecycle hooks or Superpowers workflow routing.
+
+- **License:** MIT
+- **Claude details:** [plugins/ddd-expert/README.md](plugins/ddd-expert/README.md)
+- **Codex details:** [codex-plugins/ddd-expert/README.md](codex-plugins/ddd-expert/README.md)
+
 ### designing-tests
 
 Risk-driven test design guidance for architecture-aware coverage, integration quality, and hand-off evidence.
@@ -92,11 +101,13 @@ Risk-driven test design guidance for architecture-aware coverage, integration qu
 │   ├── superpowers-memory/       # Claude track: project knowledge persistence
 │   ├── superpowers-architect/    # Explicit general standards lookup
 │   ├── superpowers-ddd-architect/ # DDD/backend architecture guardrails
+│   ├── ddd-expert/               # Standalone explicit DDD/backend skills
 │   └── designing-tests/          # Test design guidance
 ├── codex-plugins/
 │   ├── superpowers-memory/       # Codex track: project knowledge persistence
 │   ├── superpowers-architect/    # Codex track: explicit general standards lookup
 │   ├── superpowers-ddd-architect/ # Codex track: DDD/backend architecture guardrails
+│   ├── ddd-expert/               # Codex track: standalone explicit DDD/backend skills
 │   └── designing-tests/          # Codex track: test design guidance
 ├── docs/
 │   └── superpowers/
@@ -170,6 +181,7 @@ Install the Codex plugins you need:
 codex plugin add superpowers-memory@skill-workshop-codex
 codex plugin add superpowers-architect@skill-workshop-codex
 codex plugin add superpowers-ddd-architect@skill-workshop-codex
+codex plugin add ddd-expert@skill-workshop-codex
 codex plugin add designing-tests@skill-workshop-codex
 ```
 

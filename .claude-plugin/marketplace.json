@@ -57,6 +57,22 @@
       ]
     },
     {
+      "name": "ddd-expert",
+      "source": "./plugins/ddd-expert",
+      "description": "Standalone DDD/backend architecture expert skills for code agents",
+      "version": "1.14.4",
+      "author": {
+        "name": "xuhao"
+      },
+      "license": "MIT",
+      "keywords": [
+        "ddd",
+        "backend",
+        "architecture",
+        "expert"
+      ]
+    },
+    {
       "name": "designing-tests",
       "source": "./plugins/designing-tests",
       "description": "Risk-driven test design from architecture docs, sequence diagrams, and hand-off evidence gates",

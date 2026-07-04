@@ -1,0 +1,15 @@
+{
+  "name": "ddd-expert",
+  "description": "Standalone DDD/backend architecture expert skills for code agents",
+  "version": "1.14.4",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "ddd",
+    "backend",
+    "architecture",
+    "expert"
+  ]
+}
