@@ -41,22 +41,6 @@
       ]
     },
     {
-      "name": "superpowers-ddd-architect",
-      "source": "./plugins/superpowers-ddd-architect",
-      "description": "DDD-first backend architecture guardrails for code agents",
-      "version": "1.14.4",
-      "author": {
-        "name": "xuhao"
-      },
-      "license": "MIT",
-      "keywords": [
-        "superpowers",
-        "ddd",
-        "backend",
-        "architecture"
-      ]
-    },
-    {
       "name": "ddd-expert",
       "source": "./plugins/ddd-expert",
       "description": "Standalone DDD/backend architecture expert skills for code agents",

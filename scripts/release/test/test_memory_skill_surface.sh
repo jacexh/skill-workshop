@@ -13,11 +13,14 @@ for track in plugins codex-plugins; do
   rules="$ROOT/$track/superpowers-memory/content-rules.md"
   readme="$ROOT/$track/superpowers-memory/README.md"
 
-  # Primary and compatibility skills must exist in both plugin tracks.
-  for skill in query ingest lint load update rebuild; do
+  # Only primary memory skills are published in both plugin tracks.
+  for skill in query ingest lint; do
     [ -f "$base/$skill/SKILL.md" ] || fail "$track missing $skill skill"
   done
   [ ! -e "$base/cleanup" ] || fail "$track must not publish cleanup skill"
+  [ ! -f "$base/load/SKILL.md" ] || fail "$track must not publish load skill"
+  [ ! -f "$base/update/SKILL.md" ] || fail "$track must not publish update skill"
+  [ ! -f "$base/rebuild/SKILL.md" ] || fail "$track must not publish rebuild skill"
 
   # Query must stay read-only while producing actionable ingest candidates for coverage gaps.
   grep -q "read-only" "$base/query/SKILL.md" || fail "$track query missing read-only rule"
@@ -56,6 +59,24 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing canonical memory path"
   grep -q "bootstrap" "$base/ingest/SKILL.md" || fail "$track ingest missing bootstrap mode"
   grep -q "full-refresh" "$base/ingest/SKILL.md" || fail "$track ingest missing full-refresh mode"
+  ! grep -Eq "superpowers-memory:(load|update|rebuild)" "$base/ingest/SKILL.md" \
+    || fail "$track ingest still documents removed compatibility skills"
+  grep -q "Maintenance Timing Gate" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing maintenance timing gate"
+  grep -q "Default behavior: do not ingest" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing default-no-ingest rule"
+  grep -q "only at a maintenance checkpoint" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing maintenance checkpoint rule"
+  grep -q "user explicitly asks" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing explicit-user-request timing"
+  grep -q "finishing, committing, opening a PR, merging, or switching tasks" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing finish/commit/PR/merge/switch timing"
+  grep -q "KB is missing or damaged" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing bootstrap/repair timing"
+  grep -q "pending Memory candidate" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing deferred Memory candidate rule"
+  ! grep -q "default after a spec, plan, PR, or implementation branch" "$base/ingest/SKILL.md" \
+    || fail "$track ingest still treats normal work as an automatic trigger"
   grep -q "weak hints" "$base/ingest/SKILL.md" || fail "$track ingest missing commit-message downgrade"
   grep -q "specs/plans/ADRs are the primary raw sources" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing primary raw-source rule"
@@ -158,14 +179,11 @@ for track in plugins codex-plugins; do
   ! grep -Fq "log.md" "$base/lint/SKILL.md" \
     || fail "$track lint must not mention log.md"
 
-  # Compatibility aliases must continue to point at the LLM Wiki-aligned primary skills.
-  grep -q "superpowers-memory:query" "$base/load/SKILL.md" || fail "$track load not pointing to query"
-  grep -q "superpowers-memory:ingest" "$base/update/SKILL.md" || fail "$track update not pointing to ingest"
-  grep -q "superpowers-memory:ingest" "$base/rebuild/SKILL.md" || fail "$track rebuild not pointing to ingest"
-
   # Templates must route high-value objects to query-answerable owner files or shards.
   grep -q "docs/superpowers/memory" "$readme" \
     || fail "$track README missing canonical memory path"
+  ! grep -Eq "superpowers-memory:(load|update|rebuild)" "$readme" \
+    || fail "$track README still documents removed compatibility skills"
   grep -q "high-value project objects" "$templates/index.md" \
     || fail "$track index template missing high-value object routing"
   grep -q "architecture-<module>.md" "$templates/index.md" \
@@ -237,19 +255,20 @@ for runtime in \
     || fail "$runtime missing ingest guidance"
   grep -q "durable project knowledge" "$runtime" \
     || fail "$runtime missing durable-knowledge ingest gate"
+  grep -q "Default behavior is no ingest" "$runtime" \
+    || fail "$runtime missing default-no-ingest runtime guidance"
+  grep -q "maintenance checkpoint" "$runtime" \
+    || fail "$runtime missing maintenance checkpoint runtime guidance"
+  ! grep -q "If durable project knowledge changed, invoke" "$runtime" \
+    || fail "$runtime still auto-invokes ingest on durable changes"
+  ! grep -q "only for meaningful durable project knowledge changes" "$runtime" \
+    || fail "$runtime still frames stale changes as an ingest trigger"
   ! grep -q "log_event_not_ingest_owned" "$runtime" \
     || fail "$runtime must not validate log.md events"
   ! grep -q 'filename === "log.md"' "$runtime" \
     || fail "$runtime must not recognize log.md as a KB slot"
   if grep -Eq "superpowers-memory:(load|update|rebuild)" "$runtime"; then
     fail "$runtime still mentions compatibility memory skill names"
-  fi
-done
-
-# Codex compatibility aliases must not route agents back to Claude-track skill files.
-for skill in load update rebuild; do
-  if grep -Eq '(^|[^[:alnum:]_-])plugins/superpowers-memory/skills/' "$ROOT/codex-plugins/superpowers-memory/skills/$skill/SKILL.md"; then
-    fail "Codex $skill alias points to Claude-track skill path"
   fi
 done
 

@@ -1,17 +1,40 @@
 ---
 name: ingest
-description: Use to create, incrementally update, or full-refresh Project Knowledge Base from specs, plans, ADRs, docs, memory candidates, and validated code facts
+description: Use when explicitly maintaining Project Knowledge Base: user asks to ingest/refresh/repair memory, a task is at final handoff/commit/PR/merge, or the KB needs bootstrap or full-refresh
 ---
 
 # Ingest Project Knowledge
 
-Write durable project facts into `docs/superpowers/memory/`. This is the only normal knowledge-writing path.
+Write durable project facts into `docs/superpowers/memory/`. This is the only
+normal knowledge-writing path, but it is a maintenance action, not a standing
+session task. Working sessions default to `superpowers-memory:query`; they do
+not keep the KB current continuously.
 
 **Announce at start:** "I'm ingesting project knowledge."
 
+## Maintenance Timing Gate
+
+Default behavior: do not ingest.
+
+Run `superpowers-memory:ingest` only at a maintenance checkpoint:
+
+- The user explicitly asks to maintain, ingest, refresh, or repair project
+  memory.
+- The task is finishing, committing, opening a PR, merging, or switching tasks
+  and stable durable knowledge must be preserved for future sessions.
+- The KB is missing or damaged and needs bootstrap, repair, or full-refresh.
+
+If none apply, stop before acquiring the lock. If active work surfaces durable
+facts mid-session, carry a pending Memory candidate in your working notes or
+final response instead of writing the KB now.
+
 ## Modes
 
-- **Incremental ingest:** default after a spec, plan, PR, or implementation branch. Read source documents first and update only affected owner files. If changed sources introduce or materially change a high-value object, run targeted Core Query Coverage for that object.
+- **Incremental ingest:** use at an approved maintenance checkpoint after a
+  spec, plan, PR, or implementation branch is stable. Read source documents
+  first and update only affected owner files. If changed sources introduce or
+  materially change a high-value object, run targeted Core Query Coverage for
+  that object.
 - **Topic-scope refresh:** use inside `ingest` when an incremental update touches a high-value module, scenario, capability, or decision family whose nearby owner files are too thin or poorly cross-linked. Refresh only the topic radius, not the whole KB.
 - **Bootstrap ingest:** use when `docs/superpowers/memory/` does not exist. Read the project and create the initial owner files plus compact `index.md`.
 - **Full-refresh ingest:** use when `superpowers-memory:lint` reports high drift, owner-file structure is obsolete, or the user explicitly asks to regenerate target files.
@@ -183,38 +206,42 @@ query-grade.
 
 ## Process
 
-1. Run the Ingest Eligibility Gate unless bootstrap/full-refresh was explicitly
+1. Run the Maintenance Timing Gate. If this is not a maintenance checkpoint,
+   stop without acquiring the lock, editing KB files, or refreshing
+   `covers_branch`.
+2. Run the Ingest Eligibility Gate unless bootstrap/full-refresh was explicitly
    requested. If no durable project knowledge changed, stop without acquiring
    the lock, editing KB files, or refreshing `covers_branch`.
-2. Acquire the write lock:
+3. Acquire the write lock:
 
 ```bash
 node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" lock superpowers-memory:ingest
 ```
 
-3. Identify changed or requested source documents.
-4. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
-5. Run the Slot Contract Gate before writing: choose the owner slot, required/conditional shape, shard rule, exclusions, and expected verify coverage.
-6. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, answerability self-check fixes, and source refs needed for direct query answers.
-7. For incremental ingest, run Impact Radius and a Related owner sweep. If the touched topic remains thin, poorly linked, or creates an unrouted shard, Escalate to topic-scope refresh before finalizing.
-8. Route each fact to exactly one owner file per `content-rules.md`.
-9. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
-10. Update only affected owner files or the bounded topic radius.
-11. Regenerate `docs/superpowers/memory/index.md` when routing or key points changed.
-12. Run the Slot Contract self-check over touched owner files and related shards; then run verification:
+4. Identify changed or requested source documents.
+5. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
+6. Run the Slot Contract Gate before writing: choose the owner slot, required/conditional shape, shard rule, exclusions, and expected verify coverage.
+7. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, answerability self-check fixes, and source refs needed for direct query answers.
+8. For incremental ingest, run Impact Radius and a Related owner sweep. If the touched topic remains thin, poorly linked, or creates an unrouted shard, Escalate to topic-scope refresh before finalizing.
+9. Route each fact to exactly one owner file per `content-rules.md`.
+10. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
+11. Update only affected owner files or the bounded topic radius.
+12. Regenerate `docs/superpowers/memory/index.md` when routing or key points changed.
+13. Run the Slot Contract self-check over touched owner files and related shards; then run verification:
 
 ```bash
 node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" verify
 ```
 
-13. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing. Use `qualityGate` to distinguish blocking findings from advisory coverage gaps. Treat relevant `coverageGaps` as targeted lint escalation targets: fix the topic radius, or note that full-refresh is needed. Do not leave `knowledge_shards_unrouted`, decision affected-routing, or reference source-anchor gaps for a touched topic after incremental ingest.
-14. Release the write lock:
+14. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing. Use `qualityGate` to distinguish blocking findings from advisory coverage gaps. Treat relevant `coverageGaps` as targeted lint escalation targets: fix the topic radius, or note that full-refresh is needed. Do not leave `knowledge_shards_unrouted`, decision affected-routing, or reference source-anchor gaps for a touched topic after incremental ingest.
+15. Release the write lock:
 
 ```bash
 node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" unlock
 ```
 
-## Compatibility
+## Public Entry Points
 
-- `superpowers-memory:update` is a thin alias for incremental ingest.
-- `superpowers-memory:rebuild` is a thin alias for bootstrap ingest when no KB exists, or full-refresh ingest when one exists.
+Only `superpowers-memory:query`, `superpowers-memory:ingest`, and
+`superpowers-memory:lint` are published. Bootstrap and full-refresh are
+`ingest` modes, not separate skills.

@@ -17,12 +17,6 @@
       "category": "Productivity"
     },
     {
-      "name": "superpowers-ddd-architect",
-      "source": { "source": "local", "path": "./codex-plugins/superpowers-ddd-architect" },
-      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
-      "category": "Productivity"
-    },
-    {
       "name": "ddd-expert",
       "source": { "source": "local", "path": "./codex-plugins/ddd-expert" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },

@@ -19,7 +19,6 @@ Skill Workshop is a curated collection of plugins that enhance agentic software 
 ```bash
 /plugin install superpowers-memory@skill-workshop
 /plugin install superpowers-architect@skill-workshop
-/plugin install superpowers-ddd-architect@skill-workshop
 /plugin install ddd-expert@skill-workshop
 /plugin install designing-tests@skill-workshop
 ```
@@ -56,23 +55,17 @@ Project Knowledge Base query, ingest, lint, and write-lock support for superpowe
 
 ### superpowers-architect
 
-Explicit-only general architecture standards lookup. Use `$superpowers-architect:standards` when you want general project/team standards on demand.
+Injects architectural design pattern standards as constraints into planning, execution, and code review workflows. Bundled patterns load automatically on install; customize via layered overrides (`SPA_DEFAULTS`, `SPA_GLOBAL`, project `docs/design-patterns/`). You can also invoke `$superpowers-architect:standards` explicitly when you want the same standards workflow on demand.
 
 - **License:** MIT
 - **Claude details:** [plugins/superpowers-architect/README.md](plugins/superpowers-architect/README.md)
 - **Codex details:** [codex-plugins/superpowers-architect/README.md](codex-plugins/superpowers-architect/README.md)
 
-### superpowers-ddd-architect
-
-DDD-first backend architecture guardrails for code agents. Uses compact `design`, `implement`, and `review` skills plus a shared DDD Risk Router for product-semantic modeling, model-to-code placement, evidence-based boundary review, bounded contexts, ports, Go/Python/TypeScript backend DDD placement, events/messages, runtime/taskqueue boundaries, and on-demand persistence design.
-
-- **License:** MIT
-- **Claude details:** [plugins/superpowers-ddd-architect/README.md](plugins/superpowers-ddd-architect/README.md)
-- **Codex details:** [codex-plugins/superpowers-ddd-architect/README.md](codex-plugins/superpowers-ddd-architect/README.md)
-
 ### ddd-expert
 
-Standalone explicit DDD/backend architecture expert skills for code agents. Provides `design`, `implement`, and `review` skills plus the same DDD reference set, without lifecycle hooks or Superpowers workflow routing.
+Standalone DDD/backend architecture expert skills for code agents. Provides explicit `design`, `implement`, and `review` skills plus the shared DDD reference set, without lifecycle hooks or workflow-plugin routing.
+
+Invoke `ddd-expert` directly for DDD/backend design, implementation placement, and review work. This is especially important when touching bounded contexts, Domain/Application/Infrastructure boundaries, generated RPC/protocol code, Go runtime/config/lifecycle wiring, taskqueue/message behavior, database persistence, or backend logging.
 
 - **License:** MIT
 - **Claude details:** [plugins/ddd-expert/README.md](plugins/ddd-expert/README.md)
@@ -99,14 +92,12 @@ Risk-driven test design guidance for architecture-aware coverage, integration qu
 │       └── marketplace.json      # Codex marketplace catalog
 ├── plugins/
 │   ├── superpowers-memory/       # Claude track: project knowledge persistence
-│   ├── superpowers-architect/    # Explicit general standards lookup
-│   ├── superpowers-ddd-architect/ # DDD/backend architecture guardrails
+│   ├── superpowers-architect/    # Architectural design patterns
 │   ├── ddd-expert/               # Standalone explicit DDD/backend skills
 │   └── designing-tests/          # Test design guidance
 ├── codex-plugins/
 │   ├── superpowers-memory/       # Codex track: project knowledge persistence
-│   ├── superpowers-architect/    # Codex track: explicit general standards lookup
-│   ├── superpowers-ddd-architect/ # Codex track: DDD/backend architecture guardrails
+│   ├── superpowers-architect/    # Codex track: architectural design patterns
 │   ├── ddd-expert/               # Codex track: standalone explicit DDD/backend skills
 │   └── designing-tests/          # Codex track: test design guidance
 ├── docs/
@@ -180,7 +171,6 @@ Install the Codex plugins you need:
 ```bash
 codex plugin add superpowers-memory@skill-workshop-codex
 codex plugin add superpowers-architect@skill-workshop-codex
-codex plugin add superpowers-ddd-architect@skill-workshop-codex
 codex plugin add ddd-expert@skill-workshop-codex
 codex plugin add designing-tests@skill-workshop-codex
 ```
