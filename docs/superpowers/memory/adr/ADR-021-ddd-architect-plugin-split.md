@@ -7,6 +7,8 @@ status: Accepted
 
 # ADR-021: Dedicated DDD architect plugin replaces automatic architect injection
 
+Superseded in part by ADR-025 and ADR-026. `superpowers-ddd-architect` is retired by ADR-025, and `superpowers-architect` v1.13.10 dynamic pattern content is restored by ADR-026.
+
 ## Context
 
 `superpowers-architect` had become a broad dynamic standards loader for architecture, REST, database, frontend, browser QA, runtime, and DDD guidance. The DDD reference set was useful, but the plugin identity encouraged more catalog growth and made agents route through a generic pattern directory before acting like a DDD/backend architect.

@@ -1,27 +1,39 @@
 ---
-last_updated: 2026-07-03
+last_updated: 2026-07-05
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 ---
 
 # Decisions — Architect
 
+## ADR-026: Restore superpowers-architect v1.13.10 content
+**Decision:** Restore `plugins/superpowers-architect/` and `codex-plugins/superpowers-architect/` to the v1.13.10 dynamic design-pattern loader content, including bundled database and DDD/backend pattern files. Keep `superpowers-ddd-architect` retired and keep standalone `ddd-expert` as the hookless phase-skill path.
+**Trade-off:** Reintroduces duplicated DDD/database reference material in `superpowers-architect`, but preserves the older dynamic Superpowers workflow behavior while `ddd-expert` supports hookless and non-Superpowers skill systems.
+**Affects:** `plugins/superpowers-architect/`, `codex-plugins/superpowers-architect/`, architect runtime tests, hook setup tests, root README, and current architecture/convention entries. Supersedes ADR-021/ADR-023 consequences for old-architect hook and bundled-pattern removal, but not the retirement of `superpowers-ddd-architect` from ADR-025.
+→ [adr/ADR-026-restore-superpowers-architect-v11310.md](adr/ADR-026-restore-superpowers-architect-v11310.md)
+
+## ADR-025: ddd-expert replaces Superpowers DDD architect plugin
+**Decision:** Retire `superpowers-ddd-architect` on both Claude and Codex tracks and make standalone `ddd-expert` the canonical DDD/backend guidance plugin. `ddd-expert` keeps explicit `design`, `implement`, and `review` skills plus the shared DDD/backend references, but does not register hooks or depend on Superpowers workflow routing. Its implement/review phases now use evidence-driven surface routers: high-risk tables are examples for routing required references, not exhaustive checklists.
+**Trade-off:** Agents lose the dedicated `superpowers-ddd-architect` hook reminders for DDD work, but the DDD guidance becomes usable by non-Superpowers skill systems. ADR-026 later restores the older `superpowers-architect` dynamic design-pattern hook path as a separate legacy standards surface.
+**Affects:** `plugins/ddd-expert/`, `codex-plugins/ddd-expert/`, marketplace entries, root README, release tests, and the retired `superpowers-ddd-architect` plugin paths.
+→ [adr/ADR-025-ddd-expert-replaces-superpowers-ddd-architect.md](adr/ADR-025-ddd-expert-replaces-superpowers-ddd-architect.md)
+
 ## ADR-023: DDD references leave old architect plugin
-**Decision:** Remove bundled `ddd-*.md` and migrated `database.md` from `superpowers-architect` on both tracks. Move `ddd-python.md` and `ddd-typescript.md` into `plugins/superpowers-ddd-architect/references/` and `codex-plugins/superpowers-ddd-architect/references/` so the DDD plugin owns all bundled DDD language guides.
-**Trade-off:** The old explicit standards plugin no longer offers bundled database or DDD fallback files. Accepted because keeping copies created drift and made Python/TypeScript DDD guides depend on removed core/modeling references.
-**Affects:** `plugins/superpowers-architect/design-patterns/`, `codex-plugins/superpowers-architect/design-patterns/`, `plugins/superpowers-ddd-architect/references/`, `codex-plugins/superpowers-ddd-architect/references/`, architect runtime tests.
+**Decision:** Remove bundled `ddd-*.md` and migrated `database.md` from `superpowers-architect` on both tracks. Superseded by ADR-026, which restores v1.13.10 architect content including those bundled defaults.
+**Trade-off:** The old explicit standards plugin no longer offered bundled database or DDD fallback files at the time. ADR-026 accepts the later drift risk to regain the older dynamic workflow behavior.
+**Affects:** Historical DDD reference movement; current `plugins/superpowers-architect/design-patterns/` and `codex-plugins/superpowers-architect/design-patterns/` state is governed by ADR-026.
 → [adr/ADR-023-ddd-references-leave-old-architect.md](adr/ADR-023-ddd-references-leave-old-architect.md)
 
 ## ADR-022: DDD architect uses phase-specific skills
 **Decision:** Replace the DDD plugin's single `standards` skill with `design`, `implement`, and `review`. All three skills share plugin-root `references/`; default prompt-time budgets list the active phase skill plus `ddd-risk-router.md`, while hooks map planning to design guidance, execution to implementation guardrails, and code-review to boundary review. The phase skills own detailed thinking frameworks and minimum output contracts: design owns Product semantics intake, Existing model inventory, Strategic/Tactical Model Gates, and Spec trace; implement owns Design input check, Accepted model source, Placement Translation Gates, Model-to-code placement, and Implementation trace; review owns Evidence Preconditions, Evidence map, Expected model vs observed code, Finding triage, and severity calibration. Hooks are route-only and must not duplicate those phase methods. The Risk Router owns the routing matrix for required references/evidence/exceptions. Deep references such as modeling/core/agent-contract/language/runtime/database are on-demand rule sources.
 **Trade-off:** The plugin exposes more skills and gives each phase a stronger output contract, but each entry point is simpler and more focused. Accepted because one broad standards entry left agents to infer whether they were designing, placing code, or auditing a diff, and earlier workflows risked becoming passive reference-reading checklists.
-**Affects:** `plugins/superpowers-ddd-architect/skills/`, `codex-plugins/superpowers-ddd-architect/skills/`, `plugins/superpowers-ddd-architect/references/`, `codex-plugins/superpowers-ddd-architect/references/`, DDD architect hooks and tests.
+**Affects:** Current DDD phase skills and references from ADR-025; historical DDD architect hooks and tests.
 → [adr/ADR-022-ddd-phase-specific-skills.md](adr/ADR-022-ddd-phase-specific-skills.md)
 
 ## ADR-021: Dedicated DDD architect plugin replaces automatic architect injection
-**Decision:** Add `superpowers-ddd-architect` on both Claude and Codex tracks as the active DDD/backend architecture guardrail plugin. It owns automatic DDD/backend workflow routing, uses the active phase skill plus `ddd-risk-router.md` as the default prompt-time budget, stores references under plugin-root `references/`, treats probe commands as repo-calibrated examples, and intentionally has no root `design-patterns/` directory. `superpowers-architect` becomes explicit-only general standards lookup with empty automatic hook configs.
-**Trade-off:** The plugin count grows and DDD references are duplicated into a new plugin track. Accepted because the old broad dynamic-loader identity was causing hot-path growth and made DDD/backend guidance compete with unrelated standards.
-**Affects:** `plugins/superpowers-ddd-architect/`, `codex-plugins/superpowers-ddd-architect/`, `plugins/superpowers-architect/`, `codex-plugins/superpowers-architect/`, marketplace entries, architecture guidance tests.
+**Decision:** Add `superpowers-ddd-architect` on both Claude and Codex tracks as the active DDD/backend architecture guardrail plugin and make `superpowers-architect` explicit-only. The dedicated DDD plugin path was later retired by ADR-025, and the old architect content was restored by ADR-026.
+**Trade-off:** The plugin count grew and DDD references were duplicated into a new plugin track at the time. ADR-026 later chooses a different coexistence model: restored `superpowers-architect` pattern injection plus standalone hookless `ddd-expert`.
+**Affects:** Historical DDD architect plugin; current canonical paths are governed by ADR-025 and ADR-026.
 → [adr/ADR-021-ddd-architect-plugin-split.md](adr/ADR-021-ddd-architect-plugin-split.md)
 
 ## ADR-018: DDD Go events/messages split as standalone pattern file

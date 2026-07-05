@@ -20,6 +20,16 @@ The plugin exposes three compact phase skills plus shared references:
 
 Each skill reads `references/ddd-risk-router.md` first, then loads only the deeper references required by the task or triggered risk cards. The plugin intentionally avoids automatic prompt injection so teams can use it independently in any workflow.
 
+## Activation Guidance
+
+Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting backend infrastructure. In hookless skill systems, mention the phase skill explicitly in the prompt when the task touches bounded contexts, Domain/Application/Infrastructure placement, generated RPC/protocol types, Go runtime/config/lifecycle, taskqueue/message behavior, database persistence, or backend logging.
+
+Choose the phase by timing:
+
+- `$ddd-expert:design` before boundaries or model ownership are decided.
+- `$ddd-expert:implement` before editing or placing backend code after a design direction exists.
+- `$ddd-expert:review` when concrete files, diffs, plans, or evidence already exist.
+
 ## Scope
 
 Use this plugin for:

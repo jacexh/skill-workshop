@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-07-03
+last_updated: 2026-07-05
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 ---
@@ -104,55 +104,35 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 **References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/index.md`, `plugins/superpowers-memory/hooks/hook-runtime.js`, ADR-016.
 
-#### DDD Architect Guidance
+#### DDD Expert Guidance
 
 **Enables** — Agents can apply focused DDD/backend guidance from product-semantic design through model-to-code implementation, evidence-based review, risk routing, strategic modeling, Go events/messages, taskqueue/runtime, and on-demand database-backed persistence.
 
-**Actors / Entry Points** — `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, `$superpowers-ddd-architect:review`, DDD architect hooks, and shared reference files under both `plugins/superpowers-ddd-architect/references/` and `codex-plugins/superpowers-ddd-architect/references/`.
+**Actors / Entry Points** — `$ddd-expert:design`, `$ddd-expert:implement`, `$ddd-expert:review`, and shared reference files under both `plugins/ddd-expert/references/` and `codex-plugins/ddd-expert/references/`.
 
-**Capability Boundary** — The three phase skills own entry timing, detailed thinking frameworks, and output contracts. `$superpowers-ddd-architect:design` owns product-semantics-to-DDD modeling through Product semantics intake, Existing model inventory, Spec trace, Strategic Model Gate, Tactical Model Gate, stop/proceed gates, and a Minimum Output Contract that distinguishes small changes, full design, and stop-only output. `$superpowers-ddd-architect:implement` owns accepted-model-to-code placement through Design input check, Accepted model source, Placement Translation Gates, boundary mappings, mechanism containment, Implementation trace from model decisions to files/tests, and a Minimum Output Contract for small layer-local changes vs full implementation. `$superpowers-ddd-architect:review` owns Evidence-to-judgment review through Evidence Preconditions, Evidence map, Expected model vs observed code, risk-card mapping, Finding triage, Severity Calibration, and a Minimum Output Contract for small review vs full review vs no-finding review. The default hook budget is exactly one active phase skill plus `ddd-risk-router.md`; hooks route to the skill and do not duplicate phase methods. `ddd-risk-router.md` routes to deeper references through portable risk cards, a Routing Matrix (risk card -> required references -> required evidence -> allowed exception), and calibrated probe examples. `ddd-modeling.md`, `ddd-core.md`, `ddd-agent-contract.md`, language guides, Go support guides, and `database.md` are on-demand rule sources only. `database.md` is an on-demand persistence support reference, not part of any default phase budget. The active DDD plugin intentionally does not include a root `design-patterns/` directory.
+**Capability Boundary** — The three phase skills own entry timing, detailed thinking frameworks, and output contracts. `$ddd-expert:design` owns product-semantics-to-DDD modeling through Product semantics intake, Existing model inventory, Spec trace, Strategic Model Gate, Tactical Model Gate, stop/proceed gates, and a Minimum Output Contract that distinguishes small changes, full design, and stop-only output. `$ddd-expert:implement` owns accepted-model-to-code placement through Design input check, Accepted model source, Preflight Rule Gate, Placement Translation Gates, boundary mappings, mechanism containment, Implementation trace from model decisions to files/tests, and a Minimum Output Contract for small layer-local changes vs full implementation. Its Preflight Rule Gate classifies touched surfaces from user requirements, planned files, imports, generated artifacts, migrations, runtime entrypoints, tests, and local conventions; the built-in table is a router with high-risk examples, not an exhaustive inventory. `$ddd-expert:review` owns Evidence-to-judgment review through an Evidence Gate, Evidence Preconditions, Evidence map, Expected model vs observed code, risk-card mapping, Finding triage, Severity Calibration, and a Minimum Output Contract for small review vs full review vs no-finding review. Its Evidence Gate classifies touched surfaces from concrete evidence and reports missing proof as evidence gaps instead of findings. `ddd-risk-router.md` routes to deeper references through portable risk cards, a Routing Matrix (risk card -> required references -> required evidence -> allowed exception), and calibrated probe examples. `ddd-modeling.md`, `ddd-core.md`, `ddd-agent-contract.md`, language guides, Go support guides, and `database.md` are on-demand rule sources only. The plugin is explicit and hookless so it can be used by non-Superpowers skill systems.
 
-**References** — `plugins/superpowers-ddd-architect/skills/design/SKILL.md`, `plugins/superpowers-ddd-architect/skills/implement/SKILL.md`, `plugins/superpowers-ddd-architect/skills/review/SKILL.md`, `plugins/superpowers-ddd-architect/references/ddd-risk-router.md`, `plugins/superpowers-ddd-architect/references/ddd-modeling.md`, `plugins/superpowers-ddd-architect/references/ddd-core.md`, `plugins/superpowers-ddd-architect/references/ddd-golang.md`, `plugins/superpowers-ddd-architect/references/ddd-python.md`, `plugins/superpowers-ddd-architect/references/ddd-typescript.md`, `plugins/superpowers-ddd-architect/references/ddd-golang-events-messages.md`, `plugins/superpowers-ddd-architect/references/ddd-golang-runtime.md`, `plugins/superpowers-ddd-architect/references/ddd-golang-taskqueue.md`, `plugins/superpowers-ddd-architect/references/database.md`; see `conventions.md` for reference parity rules, ADR-021 for the plugin split, ADR-022 for phase-specific skills, ADR-023 for old-plugin cleanup, ADR-015 for the agent-contract/runtime split, ADR-017 for the taskqueue split, and ADR-018 for the events/messages split.
+**References** — `plugins/ddd-expert/skills/design/SKILL.md`, `plugins/ddd-expert/skills/implement/SKILL.md`, `plugins/ddd-expert/skills/review/SKILL.md`, `plugins/ddd-expert/references/ddd-risk-router.md`, `plugins/ddd-expert/references/ddd-modeling.md`, `plugins/ddd-expert/references/ddd-core.md`, `plugins/ddd-expert/references/ddd-golang.md`, `plugins/ddd-expert/references/ddd-python.md`, `plugins/ddd-expert/references/ddd-typescript.md`, `plugins/ddd-expert/references/ddd-golang-events-messages.md`, `plugins/ddd-expert/references/ddd-golang-runtime.md`, `plugins/ddd-expert/references/ddd-golang-taskqueue.md`, `plugins/ddd-expert/references/database.md`; see `conventions.md` for reference parity rules, ADR-025 for the standalone plugin decision, ADR-022 for phase-specific skills, ADR-015 for the agent-contract/runtime split, ADR-017 for the taskqueue split, and ADR-018 for the events/messages split.
 
 #### DDD Code Agent Execution Contract
 
 **Enables** — Code agents (Claude Code, Codex) can load a deterministic self-check contract when DDD, Go events/messages, Go runtime, or Go taskqueue work needs task classification, stop-and-ask protocol, prohibited actions, matching self-checks, or a compact output template.
 
-**Actors / Entry Points** — `plugins/superpowers-ddd-architect/references/ddd-agent-contract.md` (and its Codex mirror); referenced from DDD phase skills/risk cards and loaded only when task classification, prohibited actions, stop protocol, or self-checks are needed.
+**Actors / Entry Points** — `plugins/ddd-expert/references/ddd-agent-contract.md` (and its Codex mirror); referenced from DDD phase skills/risk cards and loaded only when task classification, prohibited actions, stop protocol, or self-checks are needed.
 
 **Capability Boundary** — The contract is a behavior layer, not architecture content. It classifies tasks into DDD-business / Go events/messages / Go taskqueue/polling/periodic / Go runtime-only / mixed, maps each to which specs must be read, and carries the 26-rule must-not list including the dependency-inversion-only Application-port ban, the routing/topology Application-port ban, the mechanism-operation-granular Port ban, the capability-fragmented Port ban, umbrella async/task handler rejection, mixed Domain Event / Integration Message handler rejection, periodic scheduler callback rejection, bloated Go RPC shortcut rejection, bloated Go fx entrypoint rejection, aggregate-field-as-business-decision-API rejection, and the ban on local substitutes for the adopted Go component stack including message runner/subscriber and Kafka failure-policy substitutes; it does not duplicate modeling/core/language rules. Promotion to a standalone skill is deferred until observed need (see ADR-015).
 
-**References** — `plugins/superpowers-ddd-architect/references/ddd-agent-contract.md`, ADR-015, ADR-021, ADR-022.
+**References** — `plugins/ddd-expert/references/ddd-agent-contract.md`, ADR-015, ADR-022, ADR-025.
 
-#### Claude DDD Architecture Guardrails
+#### Architectural Design Pattern Standards
 
-**Enables** — Claude agents receive focused DDD/backend design, implementation, or boundary-review guidance when invoking planning, execution, or review skills, and can explicitly invoke the same phase-specific workflows.
+**Enables** — Agents receive architectural design-pattern standards as constraints during Superpowers planning, execution, subagent, and review workflows, and can request the same standards explicitly on demand.
 
-**Actors / Entry Points** — `plugins/superpowers-ddd-architect/hooks/pre-tool-use`, `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, `$superpowers-ddd-architect:review`, and bundled references under `plugins/superpowers-ddd-architect/references/`.
+**Actors / Entry Points** — Claude `superpowers-architect` PreToolUse hook, Codex SessionStart/UserPromptSubmit hooks, `$superpowers-architect:standards`, `plugins/superpowers-architect/design-patterns/`, and `codex-plugins/superpowers-architect/design-patterns/`.
 
-**Capability Boundary** — Hooks inject compact DDD Design Guidance, DDD Implementation Guardrails, or DDD Boundary Review only when selected upstream workflow/review skills are invoked. Hook guidance lists only the active phase skill plus `ddd-risk-router.md` by default and deliberately does not duplicate the phase method. Agents load the phase skill for Product semantics / accepted-model placement / evidence-to-judgment work, then load deeper references only when a risk card, task, or gate requires them; phase skills control output size through their Minimum Output Contract.
+**Capability Boundary** — `superpowers-architect` is restored to its v1.13.10 content. Claude injects a compact pattern index through PreToolUse for upstream Superpowers workflow skills. Codex injects a lightweight SessionStart reminder and uses UserPromptSubmit only when the prompt explicitly names upstream `$superpowers:*` workflow skills; natural-language architecture/DDD prompts stay quiet. Bundled defaults include database, REST, frontend, and legacy DDD/backend patterns. Standalone `ddd-expert` remains the hookless phase-skill path for explicit DDD/backend design, implementation, and review, especially outside Superpowers-style hook routing.
 
-**References** — `plugins/superpowers-ddd-architect/`, ADR-002, ADR-021, ADR-022.
-
-#### Codex DDD Architecture Guardrails
-
-**Enables** — Codex agents receive a lightweight DDD phase reminder plus explicit DDD/backend just-in-time design, implementation, and review workflow support.
-
-**Actors / Entry Points** — `codex-plugins/superpowers-ddd-architect/hooks/codex-runtime.js`, Codex SessionStart, UserPromptSubmit router, `$superpowers-ddd-architect:design`, `$superpowers-ddd-architect:implement`, and `$superpowers-ddd-architect:review`.
-
-**Capability Boundary** — SessionStart intentionally injects only short on-demand DDD phase pointers. A phase-specific DDD budget (active phase skill plus `ddd-risk-router.md`) is injected by UserPromptSubmit only when users explicitly mention upstream `$superpowers:*` workflow skills, or by invoking `design` / `implement` / `review`. Prompt guidance is route-only: it names the phase skill and shared risk router without inlining phase methods. Natural-language DDD prompts return `{}` so the plugin does not recreate broad dynamic injection. The Codex DDD architect plugin intentionally does not register Stop hooks; legacy stop mode is a no-op for older installed configs.
-
-**References** — `codex-plugins/superpowers-ddd-architect/`, ADR-013, ADR-014, ADR-021, ADR-022.
-
-#### Explicit General Architecture Standards
-
-**Enables** — Agents can still request broad REST/frontend/general architecture standards explicitly without automatic workflow injection; project/global database standards can still be supplied through generic pattern directories.
-
-**Actors / Entry Points** — `$superpowers-architect:standards`, `plugins/superpowers-architect/design-patterns/`, and `codex-plugins/superpowers-architect/design-patterns/`.
-
-**Capability Boundary** — `superpowers-architect` hook configs are empty on both tracks. It is not the DDD/backend hot path and no longer bundles `ddd-*.md` or the migrated `database.md`; broad standards are loaded only when explicitly invoked.
-
-**References** — `plugins/superpowers-architect/`, `codex-plugins/superpowers-architect/`, ADR-021.
+**References** — `plugins/superpowers-architect/`, `codex-plugins/superpowers-architect/`, `scripts/release/test/test_codex_architect_runtime.sh`, ADR-006, ADR-026.
 
 #### Test Design Skill
 

@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Use when implementing or refactoring DDD/backend code after a design direction exists or when backend code placement could cross Domain/Application/Infrastructure boundaries.
+description: Use when implementing or refactoring DDD/backend code after a design direction exists, especially when code placement could cross Domain/Application/Infrastructure boundaries or touch backend runtime, generated RPC/protocol, persistence/database, logging, or test seams.
 ---
 
 # Implement DDD Model
@@ -18,14 +18,50 @@ Use this skill when an accepted DDD model or explicit existing model will be tra
 
 1. Confirm a design direction exists. If bounded context, data authority, invariant ownership, or layer ownership is missing, stop and use `design`.
 2. Read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) for shared risk-card routing. Rewrite probe examples to match the calibrated repo shape before using them.
-3. Run Placement Translation Gates before choosing files. Record the Accepted model source and load only the deeper reference needed to translate that model into code.
-4. Follow Design input check, Model-to-code placement, boundary mapping, mechanism containment, and Implementation trace.
-5. Use the Minimum Output Contract: keep small layer-local changes small, use the full template when boundaries or mechanisms change, and stop when design direction is missing.
-6. Read only the deeper references needed by touched implementation paths:
+3. Run the Preflight Rule Gate before file edits. Turn explicit user requirements into acceptance items, classify touched surfaces, load required references, and write placement decisions.
+4. Run Placement Translation Gates before choosing files. Record the Accepted model source and load only the deeper reference needed to translate that model into code.
+5. Follow Design input check, Model-to-code placement, boundary mapping, mechanism containment, and Implementation trace.
+6. Use the Minimum Output Contract: keep small layer-local changes small, use the full template when boundaries or mechanisms change, and stop when design direction is missing.
+7. Read only the deeper references needed by touched implementation paths:
    - [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) for task classification, must-not rules, and completion checks.
    - Active language guide for file/module/package shape.
    - Event/message, queue/scheduler, runtime, or database references only when those concerns are touched.
-7. When adding or moving generated IDL/RPC adapters, calibrate existing adapter placement before creating files. In repos that use a language-specific shortcut, generated adapter implementations stay in the existing entry point and remain thin; do not create a physical `interfaces/` package only because the generic layer model names an Interface layer. If implementation exposes a missing or contradictory model decision, stop and use `design`.
+8. When adding or moving generated IDL/RPC adapters, calibrate existing adapter placement before creating files. In repos that use a language-specific shortcut, generated adapter implementations stay in the existing entry point and remain thin; do not create a physical `interfaces/` package only because the generic layer model names an Interface layer. If implementation exposes a missing or contradictory model decision, stop and use `design`.
+
+## Preflight Rule Gate
+
+Run this gate before file edits. Do not start implementation after only saying that a reference was read; classify the change from evidence, record the triggered rule surfaces, and write the concrete checks that will decide whether the change is acceptable.
+
+1. Turn explicit user requirements into acceptance items. Include named technologies, protocol choices, placement requirements, config layout, database engine/schema rules, logging requirements, and test expectations stated by the user.
+2. Classify touched surfaces from user requirements, planned files, imports, generated artifacts, migrations, runtime entrypoints, tests, and existing conventions.
+3. Use the surface router below to choose references and pre-edit checks. The table is a router, not an inventory. Add or rename surfaces from repository evidence when the change touches a stable capability not named here, such as a product projection, security/auth boundary, cache, external API, scheduler, search/indexing adapter, or observability boundary.
+4. If a surface is triggered, load the required reference before choosing files and carry its checklist into the implementation trace. Do not stop at these rows when the repository evidence points to another rule family.
+5. Write placement decisions for each triggered surface before editing files. If a decision conflicts with the accepted model or user acceptance item, stop and return to `design` or ask the user.
+6. After implementation, fill the Rules Satisfied / Not Applicable / Exception table. Exceptions need an explicit user or local-repo reason; convenience is not an exception.
+
+| Trigger evidence | Required route | Required pre-edit checks |
+|---|---|---|
+| `cmd/**, configs/**, internal/pkg/**`, `fx.Module`, `fx.Lifecycle`, `OnStart`, `OnStop`, server/client runtime wiring | `ddd-golang-runtime.md` plus active language guide | `cmd/<service>/main.go` only loads config, supplies aggregate `Option`, selects modules, sets process options such as `fx.StopTimeout`, and calls `app.Run()`; component `Option` structs live with their component; shared middleware/runtime adapters live in `internal/pkg/<capability>`; process entrypoint does not construct repositories, muxes, route handlers, or raw clients except with a written process-owned exception. |
+| `proto/**, pkg/gen/**, ConnectRPC, gRPC`, generated handlers, request/response codecs | active language guide and Generated Protocol/Fat Generated RPC risk cards | Prefer generated proto/client/handler contracts over handwritten DTO/codec unless explicitly accepted; Domain and use-case packages do not import generated/protocol types; when the Go RPC shortcut applies, `application/application.go` implements the generated stub directly and each method stays map -> delegate once -> map response/error; do not create `interfaces/grpc`, `interfaces/connectrpc`, or similar packages only to house generated RPC adapters. |
+| `scripts/sql/**, migrations/**, repository/DO/persistence`, schema, optimistic lock, SQL timestamps | `database.md` plus active language guide persistence section | Tables include the standard fields; SQL time columns use `bigint NOT NULL DEFAULT '0'` Unix milliseconds, not `timestamp`/`datetime`; DOs use the project timestamp value type when present and converters map Domain time explicitly; soft-delete queries filter `deleted_at`; optimistic lock increments happen in SQL (`version = version + 1` / ORM increment), not by mutating Domain version in Go. |
+| `slog`, `sloghelper`, execution-boundary logs, lifecycle/worker/handler logging | `ddd-golang.md` logging section and `ddd-golang-runtime.md` runtime logging section | Process logger uses the adopted logging helper where required; each execution boundary emits one completion log with `operation`, `outcome`, `duration_ms`, relevant IDs, and `sloghelper.Error(err)` for errors; start/request logs do not replace completion logs. |
+| Any other repository-specific surface | Relevant risk-router card, local convention, spec/ADR, neighboring implementation, and active language/runtime reference | Name the semantic capability, owner, boundary mapping, failure behavior, required tests, and any accepted exception before editing. |
+
+Placement decisions to record when triggered:
+
+- **Surface classification:** evidence that triggered each standard or repo-specific surface and why no other high-risk surface applies.
+- **Generated RPC placement:** generated code path, handler/stub convention, whether the shortcut applies, and where request/proto mapping happens.
+- **Runtime/config placement:** aggregate `Option` location, component `Option` owners, selected fx modules, lifecycle owner, and shutdown order impact.
+- **Persistence placement:** repository/query repository owner, DO/converter boundary, schema/migration location, timestamp representation, version increment strategy, and transaction boundary.
+- **Logging placement:** execution boundary that owns the completion log and whether an outer middleware already logs the operation.
+- **Acceptance checklist:** each explicit user requirement mapped to a file/test/verification target.
+
+Test seam suggestions from the gate:
+
+- Generated RPC mapping test for request -> command/query, single delegate, response/error mapping.
+- real schema test or migration/schema verification for MySQL standard fields, timestamp types, indexes, and optimistic-lock SQL.
+- fx graph/config profile test for aggregate `Option`, profile loading, module selection, and config ownership.
+- lifecycle test for synchronous listen/start failure, graceful shutdown, and completion-log behavior when runtime work is touched.
 
 ## Placement Translation Gates
 
@@ -105,7 +141,12 @@ Use the smallest output that preserves traceability.
 DDD implementation:
 - Design input check:
 - Accepted model source:
+- User acceptance checklist:
 - Repo calibration:
+- Preflight rule gate:
+  - Triggered surfaces:
+  - References loaded:
+  - Placement decisions:
 - Model-to-code placement:
   - Command / query / event / reaction:
   - Owning layer and file/module/package:
@@ -117,6 +158,10 @@ DDD implementation:
 - Code placement by layer:
 - Boundary mappings:
 - Risk cards:
+- Rules Satisfied / Not Applicable / Exception:
+  - Rule:
+  - Status:
+  - Evidence or exception reason:
 - Tests / verification:
 - Conflicts / stop conditions:
 ```

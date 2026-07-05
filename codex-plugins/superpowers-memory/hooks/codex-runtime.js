@@ -153,8 +153,9 @@ function getBaseBranch() {
 }
 
 // Builds an architect-style rich-context block for finishing work when the KB
-// does not yet cover HEAD. Staleness is informational; ingest is only useful
-// when the diff contains durable project knowledge changes.
+// does not yet cover HEAD. Staleness is informational; ingest is a maintenance
+// action and is only useful when the finishing checkpoint has durable knowledge
+// to preserve.
 function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolvedStoredSHA, reasonDetail }) {
   const shortCurrent = currentSHA ? currentSHA.slice(0, 12) : "(unknown)";
   const coveredRepr = covered
@@ -179,8 +180,9 @@ function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolve
   const sections = [
     "====== Memory: Finishing-Branch Knowledge Review ======",
     "Your project knowledge base does not yet cover the latest commits on this branch.",
-    "Inspect the changed files before ingesting.",
-    "Run `$superpowers-memory:ingest` only if the changes introduce or materially change durable project knowledge.",
+    "Default behavior is no ingest; this is a maintenance checkpoint review, not a standing sync.",
+    "Inspect the changed files before deciding whether KB maintenance is needed.",
+    "Run `$superpowers-memory:ingest` only when this checkpoint has stable durable project knowledge to preserve.",
     "Skip ingest for deployment-only, image/tag/version-only, formatting, or comment-only changes.",
     "",
     "Context:",
@@ -204,8 +206,8 @@ function buildFinishingRichContext({ currentBranch, currentSHA, covered, resolve
   sections.push("");
   sections.push("Knowledge review workflow:");
   sections.push("  1. Inspect the diff for durable changes to capabilities, architecture, conventions, dependencies, decisions, glossary terms, lifecycle rules, or query answerability.");
-  sections.push("  2. If durable project knowledge changed, invoke `$superpowers-memory:ingest` and wait for it to complete.");
-  sections.push("  3. If the diff is operational-only or otherwise low-value for the KB, state that no ingest is needed and proceed.");
+  sections.push("  2. If this maintenance checkpoint has stable durable project knowledge changes, invoke `$superpowers-memory:ingest` and wait for it to complete.");
+  sections.push("  3. If the diff is operational-only, still actively changing, or otherwise low-value for the KB, state that no ingest is needed and proceed.");
   sections.push("  4. Re-invoke `$superpowers:finishing-a-development-branch` only if ingest ran.");
   sections.push("");
   sections.push("Low-value examples:");
@@ -1383,7 +1385,8 @@ function formatKnowledgeStatusForContext(status) {
     lines.push("- Uncommitted KB files: " + status.uncommittedKbFiles.slice(0, 10).join(", "));
   }
   if (status.stale) {
-    lines.push("- Run ingest only when changed source facts introduce or materially change durable project knowledge.");
+    lines.push("- Default behavior is no ingest; stale coverage is an inspection signal, not a write trigger.");
+    lines.push("- Run ingest only at a maintenance checkpoint and only when changed source facts introduce or materially change durable project knowledge.");
     lines.push("- If changes are deployment-only, image/tag/version-only, formatting, or comment-only, state that no ingest is needed and proceed.");
   }
   return lines.join("\n");
@@ -1416,7 +1419,7 @@ function readStdin() {
 const STANDING_PRIMER =
   "\n\n## Project KB workflow (Codex)\n" +
   "- Before broad code search, planning, architecture judgment, unfamiliar repo work, or answering project questions: invoke $superpowers-memory:query; it reads index.md and routes to owner files.\n" +
-  "- Before finishing, committing, merging, or opening a PR: inspect stale changes and invoke $superpowers-memory:ingest only for meaningful durable project knowledge changes.\n";
+  "- Default behavior is no ingest. Use $superpowers-memory:ingest only as a maintenance checkpoint: explicit user request, finishing/commit/PR/merge/switching tasks, or bootstrap/full-refresh for a missing or damaged KB.\n";
 
 function buildSessionStartOutput() {
   if (!hasKnowledgeBase()) {

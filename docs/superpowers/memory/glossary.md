@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-06-24
+last_updated: 2026-07-05
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 ---
@@ -18,23 +18,23 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Trigger Skills** — Upstream `superpowers` skills that plugin hooks intercept. Claude memory hooks 5 skills via PreToolUse:Skill; Codex memory hooks only 2 manually-typed (brainstorming, finishing-a-development-branch) via UserPromptSubmit (ADR-013). → `plugins/*/hooks/`
 
-**Domain Event** — DDD fact recorded inside one bounded context; cross-context contracts must be Integration Messages. → `plugins/superpowers-ddd-architect/references/ddd-core.md`
+**Domain Event** — DDD fact recorded inside one bounded context; cross-context contracts must be Integration Messages. → `plugins/ddd-expert/references/ddd-core.md`
 
-**Integration Message** — Stable cross-context semantic contract for state propagation; Go guidance uses protobuf-first `ddd/message` envelopes. → `plugins/superpowers-ddd-architect/references/ddd-core.md`
+**Integration Message** — Stable cross-context semantic contract for state propagation; Go guidance uses protobuf-first `ddd/message` envelopes. → `plugins/ddd-expert/references/ddd-core.md`
 
-**Boundary Publisher** — Same-BC Domain Event consumer that maps selected Domain Events to Integration Messages; it does not consume Integration Messages or mutate aggregates. → `plugins/superpowers-ddd-architect/references/ddd-core.md`
+**Boundary Publisher** — Same-BC Domain Event consumer that maps selected Domain Events to Integration Messages; it does not consume Integration Messages or mutate aggregates. → `plugins/ddd-expert/references/ddd-core.md`
 
-**Project-Default Go Component Stack** — Go libraries named by `ddd-golang.md` for DDD concerns in projects adopting this guide; agents should use their public interfaces instead of local substitutes unless the repo/user establishes an exception. → `plugins/superpowers-ddd-architect/references/ddd-golang.md`
+**Project-Default Go Component Stack** — Go libraries named by `ddd-golang.md` for DDD concerns in projects adopting this guide; agents should use their public interfaces instead of local substitutes unless the repo/user establishes an exception. → `plugins/ddd-expert/references/ddd-golang.md`
 
-**Message Runner** — Optional `ddd/message` runtime-loop contract; `message.Subscriber` only registers handlers and does not start broker polling. → `plugins/superpowers-ddd-architect/references/ddd-golang-events-messages.md`
+**Message Runner** — Optional `ddd/message` runtime-loop contract; `message.Subscriber` only registers handlers and does not start broker polling. → `plugins/ddd-expert/references/ddd-golang-events-messages.md`
 
-**Kafka FailurePolicy** — Kafka adapter decision contract for message-level failures; consumers choose it explicitly instead of relying on retry/DLQ defaults. → `plugins/superpowers-ddd-architect/references/ddd-golang-events-messages.md`
+**Kafka FailurePolicy** — Kafka adapter decision contract for message-level failures; consumers choose it explicitly instead of relying on retry/DLQ defaults. → `plugins/ddd-expert/references/ddd-golang-events-messages.md`
 
-**TaskType** — Semantic task contract identifier for Go taskqueue payload schemas; processors are one TaskType each under Application, with asynq runtime wiring in `internal/pkg/taskqueue`. → `plugins/superpowers-ddd-architect/references/ddd-golang-taskqueue.md`
+**TaskType** — Semantic task contract identifier for Go taskqueue payload schemas; processors are one TaskType each under Application, with asynq runtime wiring in `internal/pkg/taskqueue`. → `plugins/ddd-expert/references/ddd-golang-taskqueue.md`
 
-**PeriodicTask** — Provider-neutral scheduled enqueue contract with narrow name + Schedule + static Task + EnqueuePolicy semantics; the normal `taskqueue.Processor` handles execution. → `plugins/superpowers-ddd-architect/references/ddd-golang-taskqueue.md`
+**PeriodicTask** — Provider-neutral scheduled enqueue contract with narrow name + Schedule + static Task + EnqueuePolicy semantics; the normal `taskqueue.Processor` handles execution. → `plugins/ddd-expert/references/ddd-golang-taskqueue.md`
 
-**Task Schema Registry** — Service-owned registry mapping `TaskType` values to Go payload structs for task serialization/deserialization; not a global singleton. → `plugins/superpowers-ddd-architect/references/ddd-golang-taskqueue.md`
+**Task Schema Registry** — Service-owned registry mapping `TaskType` values to Go payload structs for task serialization/deserialization; not a global singleton. → `plugins/ddd-expert/references/ddd-golang-taskqueue.md`
 
 **KB Write Lock** — File `.git/superpowers-memory.lock` (60-min TTL) granting write access to `docs/superpowers/memory/`; acquired/released only by `superpowers-memory:ingest` or compatibility aliases. The lock also prevents manual legacy-path edits during migration. Same lock file used by both tracks. → ADR-010, ADR-019
 
@@ -50,11 +50,11 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 
 **Prompt Router** — Codex UserPromptSubmit hook path that inspects raw user text and injects focused context for explicit workflow signals; used by memory and architect where skill-call hooks are unavailable. → `codex-plugins/*/hooks/codex-runtime.js`
 
-**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, hot-path Application-port decision card, P1-P7 self-checks, 26 must-not rules. → `plugins/superpowers-ddd-architect/references/ddd-agent-contract.md`, ADR-015
+**DDD Agent Contract** — Agent-behavior layer for DDD work: trigger conditions, task classification, stop protocol, hot-path Application-port decision card, P1-P7 self-checks, 26 must-not rules. → `plugins/ddd-expert/references/ddd-agent-contract.md`, ADR-015
 
-**Application Command-Side Port** — Exceptional Application-owned command dependency allowed only after the gate rejects Domain Repository, Aggregate, Domain Service, Domain Event, Integration Message, named Application coordination service, ACL, and Infrastructure homes. → `plugins/superpowers-ddd-architect/references/ddd-modeling.md`
+**Application Command-Side Port** — Exceptional Application-owned command dependency allowed only after the gate rejects Domain Repository, Aggregate, Domain Service, Domain Event, Integration Message, named Application coordination service, ACL, and Infrastructure homes. → `plugins/ddd-expert/references/ddd-modeling.md`
 
-**Capability-Lifecycle Port** — Application/Domain Port whose boundary encloses one stable semantic capability's full lifecycle (observe / mutate / publish / transfer / retire / release); inward-defined Ports default to extension over forking. → `plugins/superpowers-ddd-architect/references/ddd-modeling.md` §0.2.1-§0.2.2
+**Capability-Lifecycle Port** — Application/Domain Port whose boundary encloses one stable semantic capability's full lifecycle (observe / mutate / publish / transfer / retire / release); inward-defined Ports default to extension over forking. → `plugins/ddd-expert/references/ddd-modeling.md` §0.2.1-§0.2.2
 
 **Architecture Test Design** — Designing-tests reference workflow that turns architecture docs, ADRs, message flows, and sequence diagrams into goal coverage, state ownership, quality-threshold, and residual-risk test evidence. → `plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md`
 

@@ -7,6 +7,8 @@ status: Accepted
 
 # ADR-023: DDD references leave old architect plugin
 
+Superseded by ADR-026 for current `superpowers-architect` content. The old architect plugin again bundles v1.13.10 database and DDD/backend pattern files.
+
 ## Context
 
 After `superpowers-ddd-architect` became the active DDD/backend plugin, `superpowers-architect` still carried bundled copies of migrated DDD and database references under `design-patterns/`. Keeping those copies made the old explicit standards skill look like a fallback DDD path and created drift risk. The Python and TypeScript DDD guides were also still in the old plugin, but they depended on the migrated `ddd-core.md` and `ddd-modeling.md` references.

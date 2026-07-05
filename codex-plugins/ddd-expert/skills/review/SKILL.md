@@ -1,6 +1,6 @@
 ---
 name: review
-description: Use when reviewing DDD/backend code, plans, or diffs with concrete files, modules, or boundary evidence to inspect.
+description: Use when reviewing DDD/backend code, plans, or diffs with concrete files, modules, generated artifacts, runtime wiring, persistence, logging, or boundary evidence to inspect.
 ---
 
 # Review DDD Evidence
@@ -18,13 +18,31 @@ Use this skill when concrete files, modules, plans, or diffs can be inspected. T
 
 1. Confirm there are concrete files, modules, diffs, plans, or evidence to inspect. If boundaries are still being chosen, use `design`; if code is being placed, use `implement`.
 2. Read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) for shared risk-card routing.
-3. Run Evidence Preconditions before reporting findings. For any triggered precondition, verify expected model, repo convention, allowed exceptions, and concrete evidence before deciding severity.
-4. Follow Evidence map, Expected model vs observed code, risk-card mapping, and Finding triage.
+3. Run the Evidence Gate before reporting findings. For any touched surface, verify expected model, repo convention, allowed exceptions, and concrete evidence before deciding severity.
+4. Follow Evidence Preconditions, Evidence map, Expected model vs observed code, risk-card mapping, and Finding triage.
 5. Use Severity Calibration and the Minimum Output Contract: keep small reviews focused, do not report harmless local style as a violation, and distinguish evidence gaps from findings.
-6. Read deeper references only when a triggered risk card or review finding requires them:
+6. Read deeper references only when a triggered surface, risk card, or review finding requires them:
    - [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) for must-not rules and review self-checks.
    - [../../references/ddd-core.md](../../references/ddd-core.md) for dependency direction, ports, generated type boundaries, Domain Events, and Integration Messages.
    - Active language or Go support references only when evidence touches those paths.
+
+## Evidence Gate
+
+Run this gate before findings. Review can find defects, but it is not the right first place to make placement decisions. Do not rely on review as the first placement gate; if implementation has not happened yet, use `implement` and its Preflight Rule Gate first.
+
+1. Confirm concrete review evidence: diff or plan, touched files, generated artifacts, config, migrations/schema, runtime wiring, tests, logs, and written exceptions when relevant.
+2. Classify touched surfaces from paths, imports, generated artifacts, migrations, runtime entrypoints, tests, and logs.
+3. Use the surface router below to decide which references and evidence are required. The table is a router, not an inventory. Add or rename surfaces from the repository evidence when the diff touches a domain-specific adapter, security boundary, projection, cache, external API, scheduler, or other stable capability not named here.
+4. For each triggered surface, decide one of: `Rules Satisfied / Not Applicable / Exception / Evidence gap`.
+5. Evidence gap, not finding: when required proof is missing, report the gap instead of promoting a suspicion into a violation.
+
+| Trigger evidence | Required review route | Evidence to check |
+|---|---|---|
+| `cmd/**, configs/**, internal/pkg/**`, runtime modules, config profiles, lifecycle hooks | Runtime/config/lifecycle references such as `ddd-golang-runtime.md` plus the active language guide | Entrypoint shape, component `Option` ownership, module assembly, listen/serve/shutdown ordering, cleanup ownership, runtime tests |
+| `proto/**, pkg/gen/**, ConnectRPC, gRPC`, generated handlers, codecs | Generated protocol/RPC rules in `ddd-golang.md`, `ddd-core.md`, and risk-router cards | Generated contract use, Domain isolation from generated/protocol types, adapter thinness, map -> delegate once -> map response/error, local shortcut conventions |
+| `scripts/sql/**, migrations/**, repository/DO/persistence`, schema or optimistic-lock changes | `database.md` plus language persistence rules | Standard fields, timestamp storage semantics, soft delete/version semantics, DO/value conversions, SQL-side version increment, real schema verification |
+| `slog`, `sloghelper`, `fx.Lifecycle`, handlers, workers, request/job boundaries | Logging/lifecycle rules from active runtime and language references | Completion log fields, error logging helpers, context/logger propagation, retry/skip/failure outcomes, shutdown evidence |
+| Any other repository-specific surface | Relevant risk-router card, local convention, spec/ADR, neighboring implementation, and active language/runtime reference | Ownership, dependency direction, boundary mapping, failure behavior, tests, documented exceptions |
 
 ## Evidence Preconditions
 
@@ -107,10 +125,12 @@ Lead with findings:
 
 ```text
 DDD review:
+- Evidence gate:
 - Evidence map:
 - Expected model vs observed code:
 - Risk cards:
 - Finding triage:
+- Rules Satisfied / Not Applicable / Exception:
 
 Finding: <severity> <title>
 - Evidence: <file:line>
@@ -128,5 +148,6 @@ If no issues are found, say so and list residual test or evidence gaps. If the e
 - Reporting a violation from a grep hit before mapping it to a boundary rule.
 - Treating every local naming difference as DDD noncompliance.
 - Reviewing code without reconstructing the expected model.
+- Stopping at the example surface router rows instead of deriving repository-specific surfaces from the evidence.
 - Ignoring allowed exceptions already documented in the design or local architecture tests.
 - Saying "no issues" without noting missing tests or evidence gaps.

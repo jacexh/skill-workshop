@@ -8,7 +8,6 @@ const path = require("path");
 const MANAGED_PLUGINS = [
   "designing-tests",
   "superpowers-architect",
-  "superpowers-ddd-architect",
   "superpowers-memory",
 ];
 
