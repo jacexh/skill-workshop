@@ -143,62 +143,54 @@ check_domain_modeling_skill() {
 check_domain_modeling_skill "$CLAUDE_ROOT/skills/domain-modeling/SKILL.md" "Claude"
 check_domain_modeling_skill "$CODEX_ROOT/skills/domain-modeling/SKILL.md" "Codex"
 
-check_implement_preflight_gate() {
+check_design_skill() {
+  local design_skill="$1"
+  local label="$2"
+
+  grep -q "Implementation handoff" "$design_skill" || fail "$label design should emit an implementation handoff"
+  grep -q "Accepted model source" "$design_skill" || fail "$label design handoff should name accepted model source"
+  grep -q "Layer ownership" "$design_skill" || fail "$label design handoff should decide layer ownership"
+  grep -q "If any handoff item is material to implementation and unknown, Stop" "$design_skill" || fail "$label design should stop instead of leaving implement to guess"
+}
+
+check_design_skill "$CLAUDE_ROOT/skills/design/SKILL.md" "Claude"
+check_design_skill "$CODEX_ROOT/skills/design/SKILL.md" "Codex"
+
+check_implement_skill() {
   local implement_skill="$1"
   local label="$2"
 
-  grep -q "## Preflight Rule Gate" "$implement_skill" || fail "$label implement skill should define a preflight rule gate"
-  grep -q "## Object Shape Routing Gate" "$implement_skill" || fail "$label implement skill should define an object shape routing gate"
-  grep -q "Run this gate after accepted model source and before surface routing" "$implement_skill" || fail "$label implement object routing should run before surface routing"
-  grep -q "Identify the current object shape from accepted model, user request, planned files, and repository evidence" "$implement_skill" || fail "$label implement skill should identify object shape from evidence"
-  grep -q "If object shape or model classification is unclear, stop and return to \`domain-modeling\`" "$implement_skill" || fail "$label implement skill should return unclear model classification to domain-modeling"
-  grep -q "If placement or layer ownership is unclear, stop and return to \`design\`" "$implement_skill" || fail "$label implement skill should return unclear placement to design"
-  grep -q "Aggregate Root" "$implement_skill" || fail "$label implement object routing should include Aggregate Root"
-  grep -q "ddd-golang-domain.md §0.1" "$implement_skill" || fail "$label implement object routing should route Aggregate Root to Go domain card"
-  grep -q "Domain Event type" "$implement_skill" || fail "$label implement object routing should include Domain Event type"
-  grep -q "ddd-golang-events-messages.md §0.1" "$implement_skill" || fail "$label implement object routing should route Domain Event type to event card"
-  grep -q "Task processor" "$implement_skill" || fail "$label implement object routing should include Task processor"
-  grep -q "ddd-golang-taskqueue.md §0.2" "$implement_skill" || fail "$label implement object routing should route Task processor to taskqueue card"
-  grep -q "Runtime component" "$implement_skill" || fail "$label implement object routing should include Runtime component"
-  grep -q "ddd-golang-runtime.md §0" "$implement_skill" || fail "$label implement object routing should route Runtime component to runtime card"
-  grep -q "ddd-golang-infrastructure.md §0.1" "$implement_skill" || fail "$label implement object routing should route repository implementation to Go infrastructure card"
-  grep -q "ddd-golang-cqrs.md §0.1" "$implement_skill" || fail "$label implement object routing should route QueryRepository to Go CQRS card"
-  grep -q "ddd-golang-cqrs.md §0.2" "$implement_skill" || fail "$label implement object routing should route read DTO to Go CQRS card"
-  grep -q "ddd-golang-cqrs.md §0.3" "$implement_skill" || fail "$label implement object routing should route query handler to Go CQRS card"
-  grep -q "ddd-golang-cqrs.md §0.4" "$implement_skill" || fail "$label implement object routing should route read facade to Go CQRS card"
-  grep -q "ddd-golang-cqrs.md §0.5" "$implement_skill" || fail "$label implement object routing should route projection to Go CQRS card"
-  grep -q "Run this gate before file edits" "$implement_skill" || fail "$label implement gate should run before edits"
-  grep -q "Turn explicit user requirements into acceptance items" "$implement_skill" || fail "$label implement skill should force user requirements into acceptance items"
-  grep -q "Classify touched surfaces from user requirements, planned files, imports, generated artifacts, migrations, runtime entrypoints, tests, and existing conventions" "$implement_skill" || fail "$label implement skill should classify touched surfaces from evidence"
-  grep -q "router, not an inventory" "$implement_skill" || fail "$label implement surface table should not be exhaustive"
-  grep -q "Add or rename surfaces from repository evidence" "$implement_skill" || fail "$label implement skill should allow repo-specific surfaces"
-  grep -q "cmd/\\*\\*, configs/\\*\\*, internal/pkg/\\*\\*" "$implement_skill" || fail "$label implement skill should include runtime/config example surfaces"
-  grep -q "proto/\\*\\*, pkg/gen/\\*\\*, ConnectRPC, gRPC" "$implement_skill" || fail "$label implement skill should include generated RPC example surfaces"
-  grep -q "scripts/sql/\\*\\*, migrations/\\*\\*, repository/DO/persistence" "$implement_skill" || fail "$label implement skill should include database example surfaces"
+  line_count=$(wc -l <"$implement_skill")
+  [ "$line_count" -le 110 ] || fail "$label implement skill should stay concise"
+  grep -q "Implementation handoff" "$implement_skill" || fail "$label implement should consume design handoff"
+  grep -q "Handoff check" "$implement_skill" || fail "$label implement should verify handoff before code"
+  grep -q "Accepted model source" "$implement_skill" || fail "$label implement should name accepted model source"
+  grep -q "Object shape routing" "$implement_skill" || fail "$label implement should route confirmed objects"
+  grep -q "Surface preflight" "$implement_skill" || fail "$label implement should classify touched surfaces"
   grep -q "Rules Satisfied / Not Applicable / Exception" "$implement_skill" || fail "$label implement output should require rule status table"
-  grep -q "Generated RPC mapping test" "$implement_skill" || fail "$label implement skill should suggest generated RPC seam tests"
-  grep -q "real schema test" "$implement_skill" || fail "$label implement skill should suggest real schema tests"
-  grep -q "fx graph/config profile test" "$implement_skill" || fail "$label implement skill should suggest runtime config tests"
+  grep -q "Changed files by layer" "$implement_skill" || fail "$label implement should report changed files by layer"
+  grep -q "Tests / verification" "$implement_skill" || fail "$label implement should report verification"
+  grep -q "return to \`domain-modeling\`" "$implement_skill" || fail "$label implement should return missing business facts upstream"
+  grep -q "return to \`design\`" "$implement_skill" || fail "$label implement should return missing placement upstream"
 }
 
-check_implement_preflight_gate "$CLAUDE_ROOT/skills/implement/SKILL.md" "Claude"
-check_implement_preflight_gate "$CODEX_ROOT/skills/implement/SKILL.md" "Codex"
+check_implement_skill "$CLAUDE_ROOT/skills/implement/SKILL.md" "Claude"
+check_implement_skill "$CODEX_ROOT/skills/implement/SKILL.md" "Codex"
 
 check_review_evidence_gate() {
   local review_skill="$1"
   local label="$2"
 
-  grep -q "## Evidence Gate" "$review_skill" || fail "$label review skill should define an evidence gate"
-  grep -q "Run this gate before findings" "$review_skill" || fail "$label review gate should run before findings"
-  grep -q "Do not rely on review as the first placement gate" "$review_skill" || fail "$label review skill should not replace implement preflight"
-  grep -q "Classify touched surfaces from paths, imports, generated artifacts, migrations, runtime entrypoints, tests, and logs" "$review_skill" || fail "$label review skill should classify touched surfaces from evidence"
-  grep -q "router, not an inventory" "$review_skill" || fail "$label review surface table should not be exhaustive"
-  grep -q "Add or rename surfaces from the repository evidence" "$review_skill" || fail "$label review skill should allow repo-specific surfaces"
-  grep -q "cmd/\\*\\*, configs/\\*\\*, internal/pkg/\\*\\*" "$review_skill" || fail "$label review skill should include runtime/config example surfaces"
-  grep -q "proto/\\*\\*, pkg/gen/\\*\\*, ConnectRPC, gRPC" "$review_skill" || fail "$label review skill should include generated RPC example surfaces"
-  grep -q "scripts/sql/\\*\\*, migrations/\\*\\*, repository/DO/persistence" "$review_skill" || fail "$label review skill should include database example surfaces"
-  grep -q "Rules Satisfied / Not Applicable / Exception" "$review_skill" || fail "$label review output should require rule status table"
+  line_count=$(wc -l <"$review_skill")
+  [ "$line_count" -le 105 ] || fail "$label review skill should stay concise"
+  grep -q "Expected model sources" "$review_skill" || fail "$label review should reconstruct expected model from upstream outputs"
+  grep -q "Domain Modeling Brief" "$review_skill" || fail "$label review should read Domain Modeling Brief"
+  grep -q "Implementation handoff" "$review_skill" || fail "$label review should read implementation handoff"
+  grep -q "Evidence gate" "$review_skill" || fail "$label review skill should define an evidence gate"
+  grep -q "Rules Satisfied / Not Applicable / Exception / Evidence gap" "$review_skill" || fail "$label review output should require evidence status table"
   grep -q "Evidence gap, not finding" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
+  grep -q "Lead with findings" "$review_skill" || fail "$label review should lead with findings"
+  grep -q "No DDD findings" "$review_skill" || fail "$label review should define no-finding output"
 }
 
 check_review_evidence_gate "$CLAUDE_ROOT/skills/review/SKILL.md" "Claude"
@@ -258,8 +250,8 @@ check_go_reference_reorg() {
   grep -q "ddd-golang-events-messages.md §0.3" "$root/references/ddd-golang.md" || fail "$label Go router should route Domain Event Handler to event card"
   grep -q "ddd-golang-events-messages.md §0.4" "$root/references/ddd-golang.md" || fail "$label Go router should route Boundary Publisher to event card"
   grep -q "ddd-golang-events-messages.md §0.5" "$root/references/ddd-golang.md" || fail "$label Go router should route Integration Message Handler to event card"
-  grep -q "ddd-golang-application.md §0.7" "$root/skills/review/SKILL.md" || fail "$label review should route generated RPC to Go application card"
-  grep -q "ddd-golang-scaffold.md §0.4" "$root/skills/review/SKILL.md" || fail "$label review should route generated RPC layout to Go scaffold card"
+  grep -q "ddd-golang-application.md §0.7" "$root/references/ddd-golang.md" || fail "$label Go router should route generated RPC to Go application card"
+  grep -q "ddd-golang-scaffold.md §0.4" "$root/references/ddd-golang.md" || fail "$label Go router should route generated RPC layout to Go scaffold card"
 
   if grep -R -n -E 'ddd-golang\.md[^`]*§[0-9]|golang §[0-9]' "$root/references" "$root/skills" >/dev/null; then
     grep -R -n -E 'ddd-golang\.md[^`]*§[0-9]|golang §[0-9]' "$root/references" "$root/skills" >&2
