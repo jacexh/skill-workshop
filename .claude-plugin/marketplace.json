@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.14.7"
+    "version": "1.14.8"
   },
   "plugins": [
     {
@@ -60,7 +60,7 @@
       "name": "designing-tests",
       "source": "./plugins/designing-tests",
       "description": "Evidence-first verification guidance from architecture docs, sequence diagrams, checks, tests, and hand-off evidence gates",
-      "version": "1.14.1",
+      "version": "1.14.8",
       "author": {
         "name": "xuhao"
       },

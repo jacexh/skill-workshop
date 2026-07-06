@@ -1,6 +1,6 @@
 {
   "name": "designing-tests",
-  "version": "1.14.1",
+  "version": "1.14.8",
   "description": "Evidence-first verification guidance from architecture docs, sequence diagrams, checks, tests, and hand-off evidence gates for Codex",
   "author": {
     "name": "xuhao"
