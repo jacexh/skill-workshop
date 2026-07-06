@@ -26,13 +26,23 @@ Read deeper references only when needed:
 - [../../references/ddd-core.md](../../references/ddd-core.md) for layer ownership, ports, Domain Events, Integration Messages, and generated protocol boundaries.
 - [../../references/database.md](../../references/database.md) after data authority and aggregate/read-model boundaries are clear.
 
-Write the shortest useful DDD design. Default shape:
+Write the shortest useful DDD design. Small is acceptable only when implementation still knows which source to trust and where each touched responsibility belongs. Default shape:
 
 - **Design problem** — the backend decision this design resolves.
 - **Strategic model** — capability, bounded context, language, authority, data authority, and out-of-scope boundaries.
 - **Tactical decisions** — only changed or disputed mechanisms: aggregate/policy/service boundary, commands/queries/events, consistency/failure rules.
 - **Testing seams** — the highest seams that prove the user stories and strategic decisions.
+- **Implementation handoff** — list only decisions the next implementation will depend on:
+  - Accepted model source.
+  - Capability / bounded context / language.
+  - Data authority and out-of-scope boundary.
+  - Aggregate, policy, service, read model, or explicit none.
+  - Commands / queries / Domain Events / Integration Messages / reactions, or explicit none.
+  - Consistency / transaction / idempotency / failure boundary.
+  - Layer ownership and mechanism containment.
 - **Open questions / Stop** — facts still needed before implementation.
+
+If any handoff item is material to implementation and unknown, Stop. Send missing business facts back to `domain-modeling`; keep placement and layer questions in `design`.
 
 Omit empty sections. Do not produce schemas, DTOs, file lists, repository inventories, or event payloads unless they are the design decision itself.
 
