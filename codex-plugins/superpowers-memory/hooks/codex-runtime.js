@@ -232,6 +232,8 @@ const KNOWLEDGE_SLOT_PREFIXES = [
 ];
 
 const FORBIDDEN_KB_SLOT_PATTERN = /^(conversation|conversations|chat|chats|transcript|transcripts)(-|\.md$)/i;
+const NONCANONICAL_MEMORY_INFRASTRUCTURE_SLOT_PATTERN =
+  /^(?:knowledge-graph|graph|entities|relationships|confidence|working-memory|episodic-memory|semantic-memory|procedural-memory|crystallization|hybrid-search|vector-search|bm25)(?:-|\.md$)/i;
 
 function knowledgeSlotForFile(filename) {
   if (filename === "index.md") return "index";
@@ -1679,6 +1681,14 @@ function buildVerifyOutput() {
         sample: `${filename} is not a Project Knowledge slot; route durable conclusions to specs/plans/ADRs or existing owner files`,
       });
     }
+    if (!knowledgeSlotForFile(filename) && NONCANONICAL_MEMORY_INFRASTRUCTURE_SLOT_PATTERN.test(filename)) {
+      shapeViolations.push({
+        file: filename,
+        line: 1,
+        kind: "noncanonical_memory_infrastructure_slot",
+        sample: `${filename} is LLM Wiki infrastructure, not a default code-agent KB slot; keep the KB as owner files plus query routing unless a future schema explicitly adds this layer`,
+      });
+    }
   }
   if (indexFile) {
     const lines = indexFile[1].split("\n").length;
@@ -1770,33 +1780,41 @@ function buildVerifyOutput() {
   };
 }
 
-// Resolve target file path from various Codex tool_input shapes.
+// Resolve target file paths from various Codex tool_input shapes.
 // apply_patch: { file_path } or { patch: "*** Update File: <path>\n..." }
 // mcp__filesystem__*: { path } or { file_path }
-function resolveTargetPath(toolName, toolInput) {
-  if (!toolInput || typeof toolInput !== "object") return null;
-  if (typeof toolInput.file_path === "string") return toolInput.file_path;
-  if (typeof toolInput.notebook_path === "string") return toolInput.notebook_path;
-  if (typeof toolInput.path === "string") return toolInput.path;
+function resolveTargetPaths(toolName, toolInput) {
+  if (!toolInput || typeof toolInput !== "object") return [];
+  const targets = [];
+  if (typeof toolInput.file_path === "string") targets.push(toolInput.file_path);
+  if (typeof toolInput.notebook_path === "string") targets.push(toolInput.notebook_path);
+  if (typeof toolInput.path === "string") targets.push(toolInput.path);
   if (toolName === "apply_patch" && typeof toolInput.patch === "string") {
-    const m = toolInput.patch.match(/^\*\*\* (Update|Add|Delete) File: (.+)$/m);
-    if (m) return m[2].trim();
+    const fileHeaderPattern = /^\*\*\* (?:Update|Add|Delete) File: (.+)$/gm;
+    let match;
+    while ((match = fileHeaderPattern.exec(toolInput.patch)) !== null) {
+      targets.push(match[1].trim());
+    }
+    const moveHeaderPattern = /^\*\*\* Move to: (.+)$/gm;
+    while ((match = moveHeaderPattern.exec(toolInput.patch)) !== null) {
+      targets.push(match[1].trim());
+    }
   }
-  return null;
+  return [...new Set(targets.filter(Boolean))];
 }
 
 function handleWritePreToolUse(toolName, toolInput) {
-  const targetPath = resolveTargetPath(toolName, toolInput);
-  if (!targetPath) return {};
+  const targetPaths = resolveTargetPaths(toolName, toolInput);
+  if (targetPaths.length === 0) return {};
 
-  const absTarget = path.isAbsolute(targetPath)
-    ? targetPath
-    : path.resolve(repoRoot, targetPath);
-  if (!isInsideKnowledgeTree(absTarget)) return {};
+  const blockedTarget = targetPaths
+    .map((targetPath) => path.isAbsolute(targetPath) ? targetPath : path.resolve(repoRoot, targetPath))
+    .find((absTarget) => isInsideKnowledgeTree(absTarget));
+  if (!blockedTarget) return {};
 
   if (isLockHeld()) return {};
 
-  const relFromRepo = path.relative(repoRoot, absTarget).replace(/\\/g, "/");
+  const relFromRepo = path.relative(repoRoot, blockedTarget).replace(/\\/g, "/");
   return {
     hookSpecificOutput: {
       hookEventName: "PreToolUse",

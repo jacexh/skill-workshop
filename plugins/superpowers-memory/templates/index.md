@@ -39,8 +39,8 @@ covers_branch: <branch>@<short-sha>
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
   Key points: [1-2 facts. Good: "domain zero deps; gofmt + golangci-lint"]
 
-- [decisions.md](decisions.md) — ADR log (normal + CRITICAL), known issues
-  Key points: [1-2 facts. Good: "17 ADRs, 3 CRITICAL"]
+- [decisions.md](decisions.md) — Decision index / ADR summaries
+  Key points: [1-2 facts. Good: "routes to decisions-runtime.md and ADR detail files"]
 
 - [glossary.md](glossary.md) — Domain terminology (Ubiquitous Language)
   Key points: [1-2 facts. Good: "12 domain terms across 4 contexts"]

@@ -403,6 +403,26 @@ assert_verify_kind_for_both_runtimes "missing-adr-detail" "shapeViolations" "adr
 # should surface readiness risk instead of overstating runtime availability.
 assert_verify_kind_for_both_runtimes "readiness-warning" "readinessWarnings" "capability_readiness_uncalibrated"
 
+# Intent: the default project KB is a code-agent semantic cache, not a full
+# LLM Wiki v2 infrastructure tree. Heavy graph/lifecycle/search slots should
+# be rejected unless a future schema deliberately adds them.
+llm_wiki_infra="$TMPDIR/llm-wiki-infra"
+copy_fixture "clean" "$llm_wiki_infra"
+{
+  printf '# Knowledge Graph\n\n'
+  printf 'Typed entity and relationship storage belongs outside the default KB schema.\n'
+} > "$llm_wiki_infra/docs/superpowers/memory/knowledge-graph.md"
+{
+  printf '# Episodic Memory\n\n'
+  printf 'Session observations should become Memory candidates before owner-file ingest.\n'
+} > "$llm_wiki_infra/docs/superpowers/memory/episodic-memory.md"
+llm_wiki_infra_out="$(cd "$llm_wiki_infra" && node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" verify)"
+echo "$llm_wiki_infra_out" | jq -e '.shapeViolations[] | select(.kind == "noncanonical_memory_infrastructure_slot" and .file == "knowledge-graph.md")' >/dev/null
+echo "$llm_wiki_infra_out" | jq -e '.shapeViolations[] | select(.kind == "noncanonical_memory_infrastructure_slot" and .file == "episodic-memory.md")' >/dev/null
+llm_wiki_infra_codex_out="$(cd "$llm_wiki_infra" && node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" verify)"
+echo "$llm_wiki_infra_codex_out" | jq -e '.shapeViolations[] | select(.kind == "noncanonical_memory_infrastructure_slot" and .file == "knowledge-graph.md")' >/dev/null
+echo "$llm_wiki_infra_codex_out" | jq -e '.shapeViolations[] | select(.kind == "noncanonical_memory_infrastructure_slot" and .file == "episodic-memory.md")' >/dev/null
+
 # Intent: Codex status should expose whether KB coverage matches HEAD, giving
 # Codex a lightweight compensation for prompt paths that cannot fire JIT hooks.
 status_repo="$TMPDIR/status-repo"
@@ -447,6 +467,9 @@ copy_fixture "clean" "$pretool_repo"
   printf '%s' '{"tool_name":"apply_patch","tool_input":{"patch":"*** Update File: docs/superpowers/memory/index.md\n@@\n-old\n+new\n"}}' |
     node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" pre-tool-use |
     jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and .hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | contains("Direct edits to docs/superpowers/memory/"))' >/dev/null
+  printf '%s' '{"tool_name":"apply_patch","tool_input":{"patch":"*** Update File: README.md\n@@\n-old\n+new\n*** Update File: docs/superpowers/memory/index.md\n@@\n-old\n+new\n"}}' |
+    node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" pre-tool-use |
+    jq -e '.hookSpecificOutput.hookEventName == "PreToolUse" and .hookSpecificOutput.permissionDecision == "deny" and (.hookSpecificOutput.permissionDecisionReason | contains("docs/superpowers/memory/index.md"))' >/dev/null
 )
 
 echo "  memory verify: feature fixed-field lint correct"

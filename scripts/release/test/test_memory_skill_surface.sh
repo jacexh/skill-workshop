@@ -13,6 +13,9 @@ for track in plugins codex-plugins; do
   rules="$ROOT/$track/superpowers-memory/content-rules.md"
   readme="$ROOT/$track/superpowers-memory/README.md"
 
+  ! sed -n '1,5p' "$rules" | grep -Eq '`rebuild`|`update`' \
+    || fail "$track content-rules intro must mention current maintenance skills"
+
   # Only primary memory skills are published in both plugin tracks.
   for skill in query ingest lint; do
     [ -f "$base/$skill/SKILL.md" ] || fail "$track missing $skill skill"
@@ -75,6 +78,23 @@ for track in plugins codex-plugins; do
     || fail "$track ingest missing bootstrap/repair timing"
   grep -q "pending Memory candidate" "$base/ingest/SKILL.md" \
     || fail "$track ingest missing deferred Memory candidate rule"
+  grep -q "Memory Candidate Gate" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing Memory Candidate Gate"
+  grep -q "Diff Budget" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing Diff Budget"
+  diff_budget_step="$(grep -n "Apply the Diff Budget" "$base/ingest/SKILL.md" | head -n1 | cut -d: -f1 || true)"
+  lock_step="$(grep -n "Acquire the write lock" "$base/ingest/SKILL.md" | head -n1 | cut -d: -f1 || true)"
+  update_step="$(grep -n "Update only affected owner files" "$base/ingest/SKILL.md" | head -n1 | cut -d: -f1 || true)"
+  [ -n "$diff_budget_step" ] && [ -n "$lock_step" ] && [ "$diff_budget_step" -lt "$lock_step" ] \
+    || fail "$track ingest must apply Diff Budget before acquiring the write lock"
+  [ -n "$diff_budget_step" ] && [ -n "$update_step" ] && [ "$diff_budget_step" -lt "$update_step" ] \
+    || fail "$track ingest must apply Diff Budget before updating KB files"
+  grep -q "ADR History Protection" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing ADR History Protection"
+  grep -q "not a full LLM Wiki" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing non-wiki scope rule"
+  grep -q "knowledge graph, vector search, BM25 search, automatic confidence scoring, automatic forgetting, session-end auto-crystallization, or multi-agent sync" "$base/ingest/SKILL.md" \
+    || fail "$track ingest missing heavy LLM Wiki exclusion list"
   ! grep -q "default after a spec, plan, PR, or implementation branch" "$base/ingest/SKILL.md" \
     || fail "$track ingest still treats normal work as an automatic trigger"
   grep -q "weak hints" "$base/ingest/SKILL.md" || fail "$track ingest missing commit-message downgrade"
@@ -145,6 +165,8 @@ for track in plugins codex-plugins; do
 
   # Lint must remain read-only while surfacing coverage gaps as suggested ingest work.
   grep -q "without writing" "$base/lint/SKILL.md" || fail "$track lint missing read-only rule"
+  ! grep -q "except for the legacy" "$base/lint/SKILL.md" \
+    || fail "$track lint must remain read-only and route migrations through ingest"
   grep -q "docs/superpowers/memory" "$base/lint/SKILL.md" \
     || fail "$track lint missing canonical memory path"
   grep -q "suggested ingest targets" "$base/lint/SKILL.md" || fail "$track lint missing ingest target output"
@@ -184,6 +206,8 @@ for track in plugins codex-plugins; do
     || fail "$track README missing canonical memory path"
   ! grep -Eq "superpowers-memory:(load|update|rebuild)" "$readme" \
     || fail "$track README still documents removed compatibility skills"
+  grep -q "noncanonical_memory_infrastructure_slot" "$readme" \
+    || fail "$track README missing noncanonical memory infrastructure verify finding"
   grep -q "high-value project objects" "$templates/index.md" \
     || fail "$track index template missing high-value object routing"
   grep -q "architecture-<module>.md" "$templates/index.md" \
@@ -212,6 +236,12 @@ for track in plugins codex-plugins; do
     || fail "$track features template missing workflow answerability"
   grep -q "Decision Query Coverage" "$templates/decisions.md" \
     || fail "$track decisions template missing decision query coverage"
+  ! grep -q "Known Issues" "$templates/decisions.md" \
+    || fail "$track decisions template must not seed wrong-owner known issues"
+  grep -q "Decision index / ADR summaries" "$templates/index.md" \
+    || fail "$track index template must describe decisions.md as decision routing"
+  ! grep -q "ADR log.*known issues" "$templates/index.md" \
+    || fail "$track index template must not route known issues to decisions.md"
   grep -q "affects modules" "$templates/decisions.md" \
     || fail "$track decisions template missing affected-module routing"
   grep -q "Reference Query Coverage" "$templates/conventions.md" \
@@ -303,6 +333,18 @@ grep -q "Glossary Alias Router Rebuild" "$ROOT/plugins/superpowers-memory/conten
   || fail "content-rules missing glossary alias router rebuild guidance"
 grep -q "Incremental Ingest Guardrails" "$ROOT/plugins/superpowers-memory/content-rules.md" \
   || fail "content-rules missing incremental ingest guardrails"
+grep -q "Memory Candidate Gate" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing Memory Candidate Gate"
+grep -q "Diff Budget" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing Diff Budget"
+grep -q "ADR History Protection" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing ADR History Protection"
+grep -q "not a full LLM Wiki" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing non-wiki scope rule"
+grep -q "knowledge graph, vector search, BM25 search, automatic confidence scoring, automatic forgetting, session-end auto-crystallization, or multi-agent sync" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing heavy LLM Wiki exclusion list"
+grep -q "noncanonical_memory_infrastructure_slot" "$ROOT/plugins/superpowers-memory/content-rules.md" \
+  || fail "content-rules missing noncanonical memory infrastructure verify finding"
 grep -q "Impact Radius" "$ROOT/plugins/superpowers-memory/content-rules.md" \
   || fail "content-rules missing impact radius"
 grep -q "Topic-scope refresh" "$ROOT/plugins/superpowers-memory/content-rules.md" \

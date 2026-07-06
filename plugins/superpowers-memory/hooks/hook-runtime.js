@@ -232,6 +232,8 @@ const KNOWLEDGE_SLOT_PREFIXES = [
 ];
 
 const FORBIDDEN_KB_SLOT_PATTERN = /^(conversation|conversations|chat|chats|transcript|transcripts)(-|\.md$)/i;
+const NONCANONICAL_MEMORY_INFRASTRUCTURE_SLOT_PATTERN =
+  /^(?:knowledge-graph|graph|entities|relationships|confidence|working-memory|episodic-memory|semantic-memory|procedural-memory|crystallization|hybrid-search|vector-search|bm25)(?:-|\.md$)/i;
 
 function knowledgeSlotForFile(filename) {
   if (filename === "index.md") return "index";
@@ -1654,6 +1656,14 @@ function buildVerifyOutput() {
         line: 1,
         kind: "forbidden_kb_slot",
         sample: `${filename} is not a Project Knowledge slot; route durable conclusions to specs/plans/ADRs or existing owner files`,
+      });
+    }
+    if (!knowledgeSlotForFile(filename) && NONCANONICAL_MEMORY_INFRASTRUCTURE_SLOT_PATTERN.test(filename)) {
+      shapeViolations.push({
+        file: filename,
+        line: 1,
+        kind: "noncanonical_memory_infrastructure_slot",
+        sample: `${filename} is LLM Wiki infrastructure, not a default code-agent KB slot; keep the KB as owner files plus query routing unless a future schema explicitly adds this layer`,
       });
     }
   }

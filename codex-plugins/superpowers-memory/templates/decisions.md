@@ -48,24 +48,6 @@ triggered_by_plan: null
 
 # Decisions
 
-## Known Issues
-
-<!-- Living record of known problems. Remove entries when resolved. -->
-
-### Tech Debt
-
-<!-- Format: **[Area]** (`path/to/file`) — description. Fix: approach. -->
-
-### Known Bugs
-
-<!-- Format: **[Bug]** — symptom. Reproduces when: condition. Location: `path/to/file`. -->
-
-### Security Considerations
-
-<!-- Format: **[Risk]** — description. Mitigation: current approach. -->
-
----
-
 <!-- ADR summaries below — add new decisions at the top. Do not delete old ADRs;
      collapse superseded ones to the 1-line supersede format. -->
 

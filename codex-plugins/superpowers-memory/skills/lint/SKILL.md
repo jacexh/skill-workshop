@@ -43,6 +43,6 @@ Advisory:
 
 ## Rules
 
-- Do not write files, except for the legacy `git mv` migration when needed.
+- Do not write files.
 - Do not acquire the write lock.
-- Use `superpowers-memory:ingest` for fixes.
+- Use `superpowers-memory:ingest` for fixes, repairs, or migrations.

@@ -71,6 +71,58 @@ distill it as a Memory candidate and route the durable fact to an existing owner
 file such as features, architecture, decisions, conventions, glossary, or
 tech-stack. Do not create `conversation.md`.
 
+## Default Code-Agent Scope
+
+This KB is a code-agent semantic cache and query router, not a full LLM Wiki.
+Its default job is to reduce search, preserve durable constraints, and route
+agents to authoritative sources.
+
+Do not build or require a knowledge graph, vector search, BM25 search,
+automatic confidence scoring, automatic forgetting, session-end
+auto-crystallization, or multi-agent sync for the default code-agent KB. Do not
+create root memory infrastructure files such as `knowledge-graph.md`,
+`confidence.md`, `episodic-memory.md`, or `hybrid-search.md` during ingest.
+Excluded heavy LLM Wiki features: knowledge graph, vector search, BM25 search, automatic confidence scoring, automatic forgetting, session-end auto-crystallization, or multi-agent sync.
+
+## Memory Candidate Gate
+
+During normal development, query, debugging, or review, do not write the KB just
+because a useful fact was discovered. Carry a Memory candidate instead:
+
+```markdown
+Memory candidate:
+- Owner: docs/superpowers/memory/<owner-or-shard>.md
+- Fact: <durable fact or answerability gap>
+- Source refs: <spec/plan/ADR/source paths>
+- Why durable: <how this reduces future agent search or risk>
+```
+
+At a maintenance checkpoint, ingest only accepted candidates that still pass the
+Ingest Eligibility Gate and Slot Contract Gate.
+
+## Diff Budget
+
+Incremental ingest has a hard default change budget:
+
+- 1-3 memory files changed: normal incremental ingest.
+- 4-6 memory files changed: allowed only when explicitly labeled
+  Topic-scope refresh with the touched topic radius.
+- More than 6 memory files changed: stop and require explicit full-refresh
+  intent before writing.
+
+Do not update `index.md`, parent owner files, or `covers_branch` solely to make
+metadata current. They count against the budget unless routing or durable facts
+actually changed.
+
+## ADR History Protection
+
+ADR detail files are historical evidence, not current-state wiki pages. Do not
+silently rewrite an ADR detail file to match the latest implementation. Allowed
+changes are typo/link fixes, frontmatter status such as `superseded_by`, or an
+explicit dated addendum. New or changed decisions should create a new ADR or
+update current owner files while `decisions.md` / `decisions-<domain>.md` route
+to the relevant history.
+
 ## Slot Contract Gate
 
 Before writing, select the owner slot from `content-rules.md` and apply that
@@ -212,29 +264,33 @@ query-grade.
 2. Run the Ingest Eligibility Gate unless bootstrap/full-refresh was explicitly
    requested. If no durable project knowledge changed, stop without acquiring
    the lock, editing KB files, or refreshing `covers_branch`.
-3. Acquire the write lock:
+3. Identify changed or requested source documents.
+4. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
+5. Run the Slot Contract Gate before writing: choose the owner slot, required/conditional shape, shard rule, exclusions, and expected verify coverage.
+6. Apply the Memory Candidate Gate: accepted candidates may be ingested at this checkpoint; unaccepted observations stay out of the KB.
+7. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, answerability self-check fixes, and source refs needed for direct query answers.
+8. For incremental ingest, run Impact Radius and a Related owner sweep. If the touched topic remains thin, poorly linked, or creates an unrouted shard, Escalate to topic-scope refresh before finalizing.
+9. Apply ADR History Protection before touching any `adr/ADR-*.md` detail file.
+10. Route each fact to exactly one owner file per `content-rules.md`.
+11. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
+12. Apply the Diff Budget to the planned memory-file set, including any `index.md`, parent owner files, or `covers_branch` metadata update. If the proposed write is too broad, stop without acquiring the lock or editing KB files unless the user explicitly requested full-refresh.
+13. Acquire the write lock:
 
 ```bash
 node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" lock superpowers-memory:ingest
 ```
 
-4. Identify changed or requested source documents.
-5. Extract durable capabilities, boundaries, decisions, terms, conventions, dependencies, and lifecycle facts.
-6. Run the Slot Contract Gate before writing: choose the owner slot, required/conditional shape, shard rule, exclusions, and expected verify coverage.
-7. Run Core Query Coverage: whole-KB for bootstrap/full-refresh, or targeted only to changed/new high-value objects for incremental ingest. For architecture, produce or refresh the system topology, service cards, scenario sequences, lifecycle/FSM coverage, answerability self-check fixes, and source refs needed for direct query answers.
-8. For incremental ingest, run Impact Radius and a Related owner sweep. If the touched topic remains thin, poorly linked, or creates an unrouted shard, Escalate to topic-scope refresh before finalizing.
-9. Route each fact to exactly one owner file per `content-rules.md`.
-10. Validate anchors against code or docs when the fact names files, commands, dependencies, or implemented behavior.
-11. Update only affected owner files or the bounded topic radius.
-12. Regenerate `docs/superpowers/memory/index.md` when routing or key points changed.
-13. Run the Slot Contract self-check over touched owner files and related shards; then run verification:
+14. Update only affected owner files or the bounded topic radius.
+15. Regenerate `docs/superpowers/memory/index.md` when routing or key points changed.
+16. Re-check the Diff Budget before finalizing. If the actual touched set expanded beyond the allowed budget, release the lock, stop, and require explicit full-refresh intent before continuing.
+17. Run the Slot Contract self-check over touched owner files and related shards; then run verification:
 
 ```bash
 node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" verify
 ```
 
-14. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing. Use `qualityGate` to distinguish blocking findings from advisory coverage gaps. Treat relevant `coverageGaps` as targeted lint escalation targets: fix the topic radius, or note that full-refresh is needed. Do not leave `knowledge_shards_unrouted`, decision affected-routing, or reference source-anchor gaps for a touched topic after incremental ingest.
-15. Release the write lock:
+18. Fix `staleRefs`, `shapeViolations`, `readinessWarnings`, or `ssotViolations` before committing. Use `qualityGate` to distinguish blocking findings from advisory coverage gaps. Treat relevant `coverageGaps` as targeted lint escalation targets: fix the topic radius, or note that full-refresh is needed. Do not leave `knowledge_shards_unrouted`, decision affected-routing, or reference source-anchor gaps for a touched topic after incremental ingest.
+19. Release the write lock:
 
 ```bash
 node "${PLUGIN_ROOT:-codex-plugins/superpowers-memory}/hooks/codex-runtime.js" unlock
