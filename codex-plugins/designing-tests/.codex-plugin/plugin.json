@@ -1,7 +1,7 @@
 {
   "name": "designing-tests",
   "version": "1.14.1",
-  "description": "Risk-driven test design from architecture docs, sequence diagrams, and hand-off evidence gates for Codex",
+  "description": "Evidence-first verification guidance from architecture docs, sequence diagrams, checks, tests, and hand-off evidence gates for Codex",
   "author": {
     "name": "xuhao"
   },
@@ -15,7 +15,7 @@
   ],
   "interface": {
     "displayName": "Designing Tests",
-    "shortDescription": "Architecture-aware test design and hand-off gates for Codex",
+    "shortDescription": "Architecture-aware verification evidence and hand-off gates for Codex",
     "category": "Productivity",
     "capabilities": [
       "Read"

@@ -6,18 +6,18 @@ const path = require("path");
 const mode = process.argv[2];
 
 const EXECUTION_TIER_BODY =
-  "## Test Design Principles (Codex)\n" +
-  "Test work and completion claims must follow:\n\n" +
-  "1. **Intent-first**: derive tests from function intent BEFORE reading implementation; build a test list as a planning step.\n" +
-  "2. **Intent comments**: every test gets a one-line comment naming the intent it verifies.\n" +
-  "3. **Architecture docs**: for ADRs, architecture docs, message flows, or sequence diagrams, first extract architecture design goals, hotspots, and sequence phases; tests should verify design goals, not mechanically cover every arrow.\n" +
-  "4. **Boundary selection**: pick the lowest boundary that fails like production; escalate to integration/seam/contract/E2E when risk depends on real storage, serialization, middleware, generated clients, broker behavior, or deployment-like config.\n" +
-  "5. **Case design**: cover Equivalence Partitions, Boundary Value Analysis, and Decision Tables relevant to the intent.\n" +
-  "6. **Quality labels**: tag each test as `real`, `shallow`, or `fake`. An integration test that mocks the risky internal collaborator is not real for that risk.\n" +
-  "7. **Hand-off gate**: before claiming completion, report commands run, test labels, skipped/unavailable tests, and residual risk. Skipped integration/E2E tests do not count as verification evidence.\n";
+  "## Evidence Choice (Codex)\n" +
+  "Use this compact primer for test work and completion claims:\n\n" +
+  "1. **Intent**: name the requirement source or mark the intent as an assumption.\n" +
+  "2. **Risk**: state the observable regression: `If <behavior breaks>, users/system observe <failure>`.\n" +
+  "3. **Evidence choice**: choose `test`, `check`, `dry-run`, `smoke`, `manual`, or `residual risk` before writing tests.\n" +
+  "4. **Test only when justified**: a test is selected only when it is the narrowest reliable evidence for the stated regression; explain why lighter checked evidence would miss it.\n" +
+  "5. **High-risk upgrade**: security, data, contract, async, migration/config, and historical incident risks need real tests or an explicit residual-risk explanation.\n" +
+  "6. **Architecture docs**: verify architecture design goals with goal/risk/evidence and residual risk, not every diagram arrow.\n" +
+  "7. **Hand-off evidence**: completion claims must report tested evidence, checked evidence, skipped/unavailable checks, and residual risk. Skipped integration/E2E tests do not count as passing evidence.\n";
 
 const PROMPT_TRIGGERS = [
-  /\$superpowers:(?:writing-plans|executing-plans|subagent-driven-development|test-driven-development|verification-before-completion|requesting-code-review|receiving-code-review)\b/i,
+  /\$superpowers:(?:writing-plans|executing-plans|subagent-driven-development|test-driven-development|verification-before-completion|requesting-code-review|receiving-code-review|finishing-a-development-branch)\b/i,
 ];
 
 function buildPromptPrimer() {
@@ -35,7 +35,7 @@ function buildPromptPrimer() {
     body += "\n## References (Read on demand)\n";
     for (const ref of refs) body += `- **${ref.name}** — ${ref.path}\n`;
   }
-  body += "\nFull SKILL.md available via $designing-tests:designing-tests when test work begins.\n";
+  body += "\nFull SKILL.md available via $designing-tests:designing-tests when deeper verification design begins.\n";
 
   return body;
 }

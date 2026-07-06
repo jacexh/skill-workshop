@@ -73,7 +73,10 @@ Invoke `ddd-expert` directly for DDD/backend design, implementation placement, a
 
 ### designing-tests
 
-Risk-driven test design guidance for architecture-aware coverage, integration quality, and hand-off evidence.
+Evidence-first verification guidance for choosing tests, checks, dry-runs,
+smoke validation, and residual-risk reporting from intent and observable risk.
+Includes architecture-aware evidence design, integration quality, and hand-off
+evidence gates.
 
 - **License:** MIT
 - **Claude details:** [plugins/designing-tests/README.md](plugins/designing-tests/README.md)
