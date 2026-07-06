@@ -1,6 +1,6 @@
 # Content Rules
 
-Shared rules for `rebuild` and `update` skills. Single source of truth for content generation, ownership, format, and retrieval governance.
+Shared rules for Project Knowledge Base maintenance skills. Single source of truth for content generation, ownership, format, and retrieval governance.
 
 ## Language
 
@@ -20,6 +20,26 @@ When extending the schema with a new slot or rule:
 4. If a project has no content for the slot, the slot is **omitted** — or the file marks `N/A: <reason>` — never forced.
 
 A rule that hard-codes domain-specific topics into the schema is a defect: replace the topic list with a discovery cue.
+
+## Default Code-Agent Scope
+
+This Project Knowledge Base is a low-noise semantic cache and query router for
+code agents, not a full LLM Wiki. Its default job is to reduce code search,
+preserve durable constraints, and route agents to authoritative sources.
+
+Do not build or require a knowledge graph, vector search, BM25 search,
+automatic confidence scoring, automatic forgetting, session-end
+auto-crystallization, or multi-agent sync for the default code-agent KB. Those
+are future major schema/tooling changes only after the owner-file router stops
+scaling.
+Excluded heavy LLM Wiki features: knowledge graph, vector search, BM25 search, automatic confidence scoring, automatic forgetting, session-end auto-crystallization, or multi-agent sync.
+
+Do not add root memory infrastructure files such as `knowledge-graph.md`,
+`entities.md`, `relationships.md`, `confidence.md`, `working-memory.md`,
+`episodic-memory.md`, `semantic-memory.md`, `procedural-memory.md`,
+`crystallization.md`, `hybrid-search.md`, `vector-search.md`, or `bm25.md`.
+Durable facts go to the existing owner files; temporary observations become
+Memory candidates.
 
 ## Ownership Matrix (SSOT)
 
@@ -213,6 +233,37 @@ invariants, or query answerability.
 Skip ingest for deployment-only, image/tag/version-only, formatting-only, and
 comment-only changes. These changes should not update `index.md` or
 `covers_branch` merely to make the KB match HEAD.
+
+### Memory Candidate Gate
+
+During normal development, query, debugging, or review, do not write the KB just
+because a useful fact was discovered. Emit a Memory candidate with owner,
+durable fact, source refs, and why it will reduce future agent search or risk.
+At the next maintenance checkpoint, ingest only accepted candidates that still
+pass the Eligibility Gate and Slot Contract Gate.
+
+### Diff Budget
+
+Incremental ingest has a hard default change budget:
+
+- 1-3 memory files changed: normal incremental ingest.
+- 4-6 memory files changed: allowed only when explicitly labeled
+  Topic-scope refresh with the touched topic radius.
+- More than 6 memory files changed: stop and require explicit full-refresh
+  intent before writing.
+
+Do not update `index.md`, parent owner files, or `covers_branch` solely to make
+metadata current. They count against the budget unless routing or durable facts
+actually changed.
+
+### ADR History Protection
+
+ADR detail files are historical evidence, not current-state wiki pages. Do not
+silently rewrite an ADR detail file to match the latest implementation. Allowed
+changes are typo/link fixes, frontmatter status such as `superseded_by`, or an
+explicit dated addendum. New or changed decisions should create a new ADR or
+update current owner files while `decisions.md` / `decisions-<domain>.md` route
+to the relevant history.
 
 ### Impact Radius
 
@@ -601,7 +652,7 @@ If `decisions.md` still holds full-format ADRs (pre-v1.8 single-file structure):
 3. For superseded ADRs, collapse to the 1-line supersede format; keep the detail file with `superseded_by:` in frontmatter.
 4. Re-run `verify` — `decisions.md` should contain only summaries, and `adr/` files remain on-demand detail.
 
-The `update` skill detects v1 format and offers interactive migration.
+The `ingest` skill detects v1 format and offers interactive migration.
 
 ### glossary.md — term dictionary
 
@@ -685,7 +736,7 @@ Never delete still-valid project knowledge solely to satisfy a line count or tok
 
 - `qualityGate` — summary of current `ok`, blocking finding count, advisory finding count, and the fact that coverage gaps remain advisory by default.
 - `staleRefs` — backtick path references that no longer exist.
-- `shapeViolations` — feature field/density issues, glossary width/length issues, log heading/event issues, method signatures, legacy inline ADRs, ADR summary/detail mismatches, and oversized `index.md`.
+- `shapeViolations` — feature field/density issues, glossary width/length issues, log heading/event issues, method signatures, legacy inline ADRs, ADR summary/detail mismatches, oversized `index.md`, and noncanonical LLM Wiki infrastructure slots such as `noncanonical_memory_infrastructure_slot`.
 - `readinessWarnings` — implemented capabilities that reference scaffolded/not-implemented code without Capability Boundary calibration.
 - `ssotViolations` — near-duplicate multi-line facts across owner files.
 - `sizeWarnings` — hot-path `index.md` line threshold only.

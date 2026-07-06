@@ -88,7 +88,7 @@ Use the same 0-5 anchor for every dimension:
 - `$superpowers-memory:lint` checks KB health without writing and reports suggested ingest targets, including advisory wiki health and answerability gaps.
 - The KB write lock prevents ad-hoc edits under `docs/superpowers/memory/`; KB writes must go through `$superpowers-memory:ingest`.
 - `codex-runtime.js status` reports `covers_branch` versus current HEAD so Codex has stale-KB evidence even on prompt paths that cannot fire JIT hooks.
-- `codex-runtime.js verify` checks stale path references, shape violations including forbidden conversation/chat/transcript KB slots, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, unrouted shards, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.
+- `codex-runtime.js verify` checks stale path references, shape violations including forbidden conversation/chat/transcript KB slots and `noncanonical_memory_infrastructure_slot`, ADR integrity, readiness warnings, SSOT duplication, retrieval cost, split candidates, unrouted shards, architecture coverage gaps including missing module/scenario shards, shallow service cards, missing scenario refs, legacy architecture view shards, missing module/scenario cross-refs, scenario field gaps, and commit readiness.
 - For this plugin, Maintainability & Drift Control maps to `covers_branch`, stale references, query-router index size, shape violations, SSOT violations, readiness warnings, retrieval cost, split candidates, advisory `coverageGaps`, and KB write-lock status.
 
 ## Known Codex protocol gaps

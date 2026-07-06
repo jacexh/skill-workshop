@@ -34,7 +34,7 @@ triggered_by_plan: "2026-07-06-designing-tests-evidence-choice-slimming.md"
 
 **Enables** — `features.md` records current product/system capabilities from PRDs, roadmaps, specs, plans, and entry points without collapsing them into runtime component inventories.
 
-**Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/content-rules.md`, and `plugins/superpowers-memory/templates/features.md`.
+**Actors / Entry Points** — `superpowers-memory:ingest`, `plugins/superpowers-memory/content-rules.md`, and `plugins/superpowers-memory/templates/features.md`.
 
 **Capability Boundary** — Implemented entries follow fixed fields and the group order `Product Capabilities`, `User / Operator Workflows`, `Platform Capabilities`, `Operations`; valid large capability maps use retrieval-cost guidance and shard splitting instead of deleting or compressing correct knowledge.
 
@@ -52,13 +52,13 @@ triggered_by_plan: "2026-07-06-designing-tests-evidence-choice-slimming.md"
 
 **References** — `plugins/superpowers-memory/skills/query/`, `codex-plugins/superpowers-memory/skills/query/`, ADR-005, ADR-006.
 
-#### Project Knowledge Update And Rebuild
+#### Project Knowledge Ingest
 
-**Enables** — Agents can incrementally update or fully/scoped rebuild `docs/superpowers/memory/` from code, plans, specs, and ADRs.
+**Enables** — Agents can incrementally ingest or fully/topic-scope refresh `docs/superpowers/memory/` from code, plans, specs, ADRs, and accepted Memory candidates.
 
-**Actors / Entry Points** — `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/templates/`, and `plugins/superpowers-memory/content-rules.md`.
+**Actors / Entry Points** — `superpowers-memory:ingest`, `plugins/superpowers-memory/templates/`, and `plugins/superpowers-memory/content-rules.md`.
 
-**Capability Boundary** — `plugins/superpowers-memory/content-rules.md` is the SSOT for ownership, exclusion rules, KB Slot Contracts, progressive shard layout, retrieval-cost guidance, query routing output, and `features.md` readability. Ingest self-checks candidate updates against the matching slot contract before writing, and first skips deployment-only, image/tag/version-only, formatting-only, or comment-only changes that do not alter durable project knowledge. Full/scoped rebuild can upgrade legacy large `decisions.md` and `glossary.md` files into root routers plus `decisions-<domain>.md` and `glossary-<domain>.md` shards while preserving ADR details, aliases, source refs, and tombstones.
+**Capability Boundary** — `plugins/superpowers-memory/content-rules.md` is the SSOT for ownership, exclusion rules, KB Slot Contracts, progressive shard layout, retrieval-cost guidance, query routing output, and `features.md` readability. Ingest treats the KB as a low-noise code-agent semantic cache, not a full LLM Wiki: Memory candidates, Diff Budget, and ADR History Protection gate writes before they touch KB files. It skips deployment-only, image/tag/version-only, formatting-only, or comment-only changes that do not alter durable project knowledge. Full/topic-scope refresh can upgrade legacy large `decisions.md` and `glossary.md` files into root routers plus `decisions-<domain>.md` and `glossary-<domain>.md` shards while preserving ADR details, aliases, source refs, and tombstones.
 
 **References** — `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/`, ADR-003.
 
@@ -70,7 +70,7 @@ triggered_by_plan: "2026-07-06-designing-tests-evidence-choice-slimming.md"
 
 **Actors / Entry Points** — Claude `PreToolUse` intercepts Write/Edit tools; Codex `PreToolUse` intercepts `apply_patch` and filesystem tool writes.
 
-**Capability Boundary** — The lock is stored at `.git/superpowers-memory.lock` with a 60-minute TTL; manual fixes also go through update/rebuild.
+**Capability Boundary** — The lock is stored at `.git/superpowers-memory.lock` with a 60-minute TTL; manual fixes also go through ingest. Codex write protection parses every `apply_patch` file target so multi-file patches cannot bypass the lock when a memory file is not the first patch target.
 
 **References** — ADR-010; see `conventions.md` for hook runtime rules.
 
@@ -98,7 +98,7 @@ triggered_by_plan: "2026-07-06-designing-tests-evidence-choice-slimming.md"
 
 **Enables** — Large project knowledge bases can split any non-index entry file by stable domain or submodule without treating size as information loss pressure.
 
-**Actors / Entry Points** — `superpowers-memory:load`, `superpowers-memory:update`, `superpowers-memory:rebuild`, `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/index.md`, and both verify runtimes.
+**Actors / Entry Points** — `superpowers-memory:query`, `superpowers-memory:ingest`, `superpowers-memory:lint`, `plugins/superpowers-memory/content-rules.md`, `plugins/superpowers-memory/templates/index.md`, and both verify runtimes.
 
 **Capability Boundary** — `index.md` stays ≤50 lines and routes to detailed files. Other recognized entry files may split into `<slot>-<domain>.md` shards; agents update index routing and load relevant shards on demand. `decisions.md` and `glossary.md` are special router roots when they grow large: stable decision families move to `decisions-<domain>.md`, and domain-local term clusters move to `glossary-<domain>.md`. The old playbook slot is removed rather than converted into another shard family. Codex host behavior remains experimental per ADR-013, but this layout contract is implemented in both runtimes.
 
