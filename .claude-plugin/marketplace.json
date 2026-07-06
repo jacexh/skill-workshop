@@ -59,7 +59,7 @@
     {
       "name": "designing-tests",
       "source": "./plugins/designing-tests",
-      "description": "Risk-driven test design from architecture docs, sequence diagrams, and hand-off evidence gates",
+      "description": "Evidence-first verification guidance from architecture docs, sequence diagrams, checks, tests, and hand-off evidence gates",
       "version": "1.14.1",
       "author": {
         "name": "xuhao"

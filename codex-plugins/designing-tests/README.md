@@ -1,6 +1,9 @@
 # designing-tests (Codex)
 
-Risk-driven test design guidance, including architecture-aware test design, integration-test quality standards, and hand-off gates for verification evidence, skipped tests, and residual risk.
+Evidence-first verification guidance, including architecture-aware evidence
+design, integration-test quality standards, and hand-off gates for tested
+evidence, checked evidence, skipped or unavailable verification, and residual
+risk.
 
 ## Installation
 
@@ -33,15 +36,15 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 
 ## Capabilities
 
-- **UserPromptSubmit hook** — injects a compact test-design primer when the user explicitly mentions relevant `$superpowers:*` workflow skills
+- **UserPromptSubmit hook** — injects a compact evidence-choice primer when the user explicitly mentions relevant `$superpowers:*` workflow skills
 - **`designing-tests` skill** — full guidance on demand via `$designing-tests:designing-tests`
-- 7 references (read on demand): architecture-test-design, handoff-gate, integration-quality, layer-selection, risk-catalog, test-case-patterns, test-quality-review
+- 3 references (read on demand): architecture-test-design, handoff-gate, integration-quality
 
 ## Known Codex protocol gap (vs Claude Code)
 
-Claude Code's PreToolUse:Skill hook intercepts trigger skills with three different tiers:
+Claude Code's PreToolUse:Skill hook intercepts trigger skills with different compact tiers:
 - **planning tier** for `writing-plans` (lightweight reminder)
-- **execution tier** for `executing-plans` / `subagent-driven-development` (condensed principles)
-- **full tier** for `test-driven-development` (entire SKILL.md + reference index)
+- **execution tier** for `executing-plans` / `subagent-driven-development` (Intent / Risk / Evidence primer)
+- **full tier** for `test-driven-development` (slim SKILL.md + reference index)
 
-Codex does not expose native skill invocation as a hookable tool event, so all three tiers collapse into one compact primer. The primer is injected only when the user explicitly mentions relevant `$superpowers:*` workflow skills through UserPromptSubmit. Agent-self-decided skill invocation is still not hookable; the full SKILL.md loads on demand when the agent invokes `$designing-tests:designing-tests`.
+Codex does not expose native skill invocation as a hookable tool event, so the tiers collapse into one compact primer. The primer is injected only when the user explicitly mentions relevant `$superpowers:*` workflow skills through UserPromptSubmit. Agent-self-decided skill invocation is still not hookable; the full SKILL.md loads on demand when the agent invokes `$designing-tests:designing-tests`.

@@ -1,196 +1,184 @@
 ---
 name: designing-tests
-description: Use when writing tests, adding test coverage, fixing flaky tests, reviewing test quality, choosing between unit/integration/E2E, deciding what to test from architecture docs or sequence diagrams, planning regression cases, preparing hand-off test evidence, or reporting skipped/unrun/flaky test risk. Covers business rules, state machines, APIs, async flows, service boundaries, mocking strategy, and hand-off gates.
+description: Use when writing tests, adding coverage, fixing flaky tests, reviewing test quality, choosing verification evidence, deciding between unit/integration/E2E/check/dry-run/smoke/manual validation, planning regression cases from architecture docs or sequence diagrams, preparing hand-off evidence, or reporting skipped/unrun/flaky verification risk. Covers business rules, state machines, APIs, async flows, service boundaries, mocking strategy, and evidence hand-off gates.
 ---
 
 # Designing Tests
 
-Design tests to catch real regressions at the lowest reliable boundary. Do not optimize for coverage percentage or ritual completeness.
+Choose verification evidence for real regressions. Tests are one evidence type,
+not the default answer. Do not optimize for coverage percentage, ritual
+completeness, or tests around code that has no independently observable risk.
 
 ## Workflow
 
-1. Identify the intent of the code under test.
-   - Sources (in priority order): product spec, architecture docs, sequence diagrams, API contract, acceptance criteria, issue/bug report, ADR — then function signature, naming, docstring, and architectural role.
-   - If formal docs are missing, derive intent from the function's public contract (name, parameters, return type, module role). Mark inferred intent as assumptions.
-   - If the source is an architecture plan, ADR, component diagram, message flow, or sequence diagram, identify the architecture design goals first. Use [../../references/architecture-test-design.md](../../references/architecture-test-design.md).
-2. Generate a test list from intent — before reading implementation code.
-   - For each test, write one line: `<unit/integration/e2e>: <what to test> → <expected outcome>`
-   - Apply equivalence partitioning for ranges, boundary value analysis for limits, decision tables for multi-condition logic. See [../../references/test-case-patterns.md](../../references/test-case-patterns.md) for techniques.
-   - This is a planning step output in your response, not a file to create.
-3. Read the implementation and existing tests.
-   - Purpose: determine the real test boundary and check what is already covered, duplicated, shallow, or fake.
-   - Do NOT add or remove tests merely to mirror implementation branches.
-   - Revise the test list when implementation or existing tests reveal a production boundary, contract, dependency, or shallow/fake gap that the initial intent pass missed. Mark the revision and the reason.
-4. State the regression each test protects.
-   - Write one sentence per test: `If <behavior breaks>, users/system will observe <failure>.`
-5. Choose the narrowest real boundary that can catch each regression.
-   - Escalate to integration, seam, contract, or E2E when the regression depends on real storage, transport, serialization, authorization middleware, runtime wiring, or deployment-like configuration.
-   - For integration tests, apply [../../references/integration-quality.md](../../references/integration-quality.md).
-6. Write test code.
-   - Each test MUST have an intent comment above it: one sentence explaining what regression this test catches, written in the language of the test file.
-   - Default minimum: one main success path, one meaningful failure path, one edge or bug-shaped path.
-7. Prefer assertions on externally visible behavior.
-   - User-visible result, contract-visible state, or key side effect.
-8. Keep mocks at the system edge.
-   - Do not mock the unit under test or copy the production logic into the test.
-9. Run the relevant tests and verify each one protects its stated regression.
-10. Before hand-off, complete the quality gate in [../../references/handoff-gate.md](../../references/handoff-gate.md).
-    - State what was tested, what was not tested, why any tests skipped, and what residual risk remains.
+### 1. Intent Gate
 
-## Boundary Selection Rule
+State the intent source before proposing verification:
 
-Pick the lowest layer that still catches the real bug:
+- Product spec, API contract, acceptance criteria, issue/bug report, ADR,
+  architecture docs, message flow, or sequence diagram.
+- If formal docs are missing, infer intent from the public contract: name,
+  parameters, return type, module role, and callers. Mark this as an
+  `assumption`.
+- If intent is ambiguous and the risk is high, ask for the missing requirement
+  or state the unresolved assumption instead of inventing tests.
+- For architecture docs, ADRs, component diagrams, message flows, or sequence
+  diagrams, identify architecture design goals first. Use
+  [../../references/architecture-test-design.md](../../references/architecture-test-design.md).
 
-- Pure function or reducer: branching, parsing, normalization, state transitions, classification
-- Handler or API boundary: request parsing, error mapping, response contract, persistence side effects
-- Component or UI boundary: rendered behavior, interaction flow, validation feedback, navigation
-- Seam or contract boundary: serialization, message schema, routing, retry, idempotency, cross-service mismatch
-- E2E: only when the regression depends on the full deployed flow or a critical user journey
+### 2. Risk Gate
 
-If a lower layer can catch the bug with a stable signal, prefer the lower layer.
+State the observable regression each evidence item protects:
 
-Do not over-apply the lower-layer rule. If the production failure requires real database constraints, real migrations, broker behavior, generated API clients, authorization middleware, or deployed configuration, a unit test is not enough. Add the narrowest integration, seam, contract, or E2E test that fails the same way production would fail.
+`If <behavior breaks>, users/system observe <failure>.`
 
-## Intent-First Rule
+If you cannot name a meaningful observable failure, do not add a test for that
+surface. A thin entrypoint, simple glue script, generated artifact, static
+configuration, or deployment helper can be verified by cheaper evidence when it
+does not own independent behavior.
 
-Derive test cases from the function's **intent** (what it should do), not its **implementation** (how it does it).
+Use this short high-risk lens before choosing evidence:
 
-Intent sources:
-- formal spec, API contract, acceptance criteria, issue description
-- function signature, naming, docstring
-- the function's role in the module and who calls it
+- security, auth, permission, tenancy, or secret handling
+- data persistence, migration, uniqueness, transactions, or irreversible state
+- external API, message, schema, generated client, route, or topic contracts
+- async retry, deduplication, idempotency, ordering, timeout, or recovery
+- environment/profile/config translation that can break deployment
+- user-visible critical journeys or production incident regressions
 
-Read implementation code only to determine the **test boundary** and check **existing coverage** — never to decide what to test.
+High-risk surfaces need stronger evidence. If you choose a lightweight check
+instead of a test for one of these risks, explain why the check is sufficient and
+what residual risk remains.
 
-Common violations:
-- reading an `if/else` branch and writing an assert for each branch → tests the implementation, not the intent
-- copying internal logic into the test setup → the test passes by construction, not by verification
-- testing private methods directly → couples tests to implementation structure
+### 3. Evidence Gate
 
-## Test List Format
+Choose the lowest-cost reliable evidence:
 
-Before writing test code, output a test list in your response:
+- `test`: automated unit, integration, seam, contract, component, or E2E test
+- `check`: build, typecheck, lint, static validation, syntax check, schema check
+- `dry-run`: deployment/config/script dry-run such as `kubectl --dry-run`
+- `smoke`: narrow runtime exercise of a critical path
+- `manual`: explicit manual verification when automation is not practical
+- `residual`: risk intentionally left unverified or only partially verified
 
+Select `test` only when it is the narrowest reliable evidence for the stated
+regression. If selecting a test, state why lighter evidence such as build, lint,
+typecheck, shell syntax, schema validation, dry-run, or smoke would miss the
+regression. If not selecting a test, record the chosen evidence and residual
+risk.
+
+### 4. Boundary Selection, Only For Tests
+
+When a test is the selected evidence, choose the lowest boundary that can fail
+the same way production fails:
+
+- pure function/reducer: branching, parsing, normalization, state transitions
+- handler/API/component: request mapping, rendered behavior, validation feedback
+- integration: production collaborators cooperate at one service boundary
+- seam/contract: serialization, message schema, generated client, route/topic
+  wiring, compatibility drift
+- E2E: only for critical full user/system journeys lower layers cannot prove
+
+Do not call a test `real` if it mocks the internal collaborator carrying the
+claimed risk. Mock third-party or expensive edges only. See
+[../../references/integration-quality.md](../../references/integration-quality.md)
+for integration and contract tests.
+
+### 5. Hand-off Evidence
+
+Before claiming behavior is complete, fixed, reviewed, or ready to hand off,
+report verification evidence:
+
+- `tested`: test or command that protects a stated risk
+- `checked`: build, lint, typecheck, static validation, syntax check, dry-run, or
+  smoke result
+- `not covered/skipped`: unavailable service, skipped/flaky test, missing
+  credential, manual-only path, or unrun suite
+- `residual risk`: what can still break despite the evidence
+
+Skipped integration/E2E tests and unavailable services are not passing evidence.
+Use [../../references/handoff-gate.md](../../references/handoff-gate.md) for the
+full handoff rubric.
+
+## Output Format
+
+Before writing tests, output an evidence plan:
+
+```text
+Evidence Plan: <change or component>
+Intent source: <spec/contract/ADR/bug report/assumption>
+
+Risk map:
+- <risk>: If <behavior breaks>, <observable failure>
+
+Evidence choice:
+- test/check/dry-run/smoke/manual/residual: <evidence> -> protects <risk>
+
+Tests, if selected:
+- <boundary>: <scenario> -> <expected outcome>
+
+Not covered:
+- <risk> -> <why not covered and residual impact>
 ```
-Test List: <function or component name>
-Intent source: <where you derived the intent from>
 
-- [ ] unit: <what to test> → <expected outcome>
-- [ ] integration: <scenario> → <expected side effect or status>
-```
+## Test Quality Labels
 
-Example for `OrderService.place_order` (intent source: API spec — max 10 items, qty > 0):
+Use these labels only for tests:
 
-```
-- [ ] unit: valid items list → returns order with generated id
-- [ ] unit: empty items list → raises ValidationError
-- [ ] unit: item qty = 0 (boundary) → raises ValidationError
-- [ ] unit: 10 items (max boundary) → succeeds
-- [ ] unit: 11 items (above max) → raises ValidationError
-- [ ] integration: valid payload, authenticated → 201, order persisted
-- [ ] integration: unauthenticated → 401
-```
+- `real`: reaches the risky implementation and would fail if the target
+  regression returns
+- `shallow`: touches the area but only proves shape, status, smoke behavior, or
+  a heavily mocked path
+- `fake`: proves mocks, copied logic, types, fixtures, or the test double rather
+  than production behavior
 
-This is a planning step, not a file to create.
+For critical changed behavior, at least one selected test must be `real` at the
+narrowest boundary that catches the real failure. A `shallow` test can support
+smoke confidence but cannot prove the risky behavior. A `fake` test is evidence
+of a gap.
 
-## Intent Comment Rule
+## Case Design Heuristics
 
-Every test MUST have a comment above it explaining what regression it protects. Write the comment in the language of the test file.
+After the Evidence Gate selects tests:
 
-```go
-// When order items exceed the maximum (10), placing the order should fail
-// with a validation error rather than silently truncating.
-func TestPlaceOrder_ExceedsMaxItems_ReturnsValidationError(t *testing.T) {
-```
+- Start with the smallest set that proves the stated regression cannot happen.
+- Add success, failure, boundary, invalid transition, duplicate/retry, ordering,
+  permission, schema, or time-window cases only when they protect distinct
+  risks.
+- Use equivalence partitioning for large input spaces, boundary values for
+  limits, decision tables for multi-condition business rules, and pairwise
+  sampling when exhaustive combinations add little detection value.
+- Do not duplicate the same assertion across unit, integration, and E2E unless
+  each layer catches a different failure mode.
 
-```python
-# Duplicate idempotency keys within the 5-minute window must return the
-# original order, not create a second one.
-def test_place_order_duplicate_idempotency_key_returns_same_order():
-```
+## Intent Notes
 
-The comment states the **intent** (what should happen and why it matters), not the **mechanism** (what the test code does).
+Every non-obvious test needs an intent note in the test name, comment, or
+enclosing context. Add an explicit comment when:
 
-## Quality Labels
+- the protected regression is not obvious from the test name
+- the test scans config/source text
+- the boundary is architecture, deployment, contract, or migration evidence
 
-Classify tests before extending a suite:
+Self-explanatory behavior tests do not need ceremonial comments.
 
-- `real`: exercises the risky implementation and would fail if real behavior regresses
-- `shallow`: touches the area but only checks trivial shape, status, or incidental fields
-- `fake`: reimplements business logic in the test, or mocks so much that the real behavior is never exercised
-
-When reviewing or planning tests, name the label and the reason.
-
-For hand-off, critical changed behavior needs at least one `real` test at the right boundary. `shallow` tests can support readability or smoke coverage, but they do not prove the risky behavior. `fake` tests are evidence of a gap, not evidence of correctness.
-
-## Coverage Heuristic
-
-Default minimum for a changed behavior:
-
-1. one main success path
-2. one meaningful failure path
-3. one edge condition or regression-shaped path
-
-Add more only when risk justifies it:
-
-- boundary values
-- invalid state transitions
-- duplicate or retried operations
-- concurrency or ordering
-- permission edges
-- schema drift or serialization mismatch
-- time-window behavior
-
-Do not mirror the same rule across unit, integration, and E2E unless each layer catches a different failure mode.
-
-## Assertion Rule
-
-Prefer this order of evidence:
-
-1. externally visible result
-2. contract-visible state
-3. key side effect
-4. internal detail only if it is itself the contract
-
-One strong behavioral assertion is usually better than many incidental assertions.
-
-## Mocking Rule
-
-- Mock external services and expensive infrastructure at the system edge.
-- Prefer fakes over interaction-heavy mocks when you own the boundary.
-- Do not mock pure logic, reducers, value objects, or the unit under test.
-- In integration tests, avoid mocking internal collaborators just to make setup easier.
-- If an integration test mocks the service, repository, storage, broker, or middleware that carries the risk being claimed, label it `shallow` or `fake`, not `real`.
-
-## Hand-off Gate
-
-When finishing work that changed behavior, include a concise verification record:
-
-- intent and assumptions
-- test list with `real` / `shallow` / `fake` labels
-- regression protected by each test
-- commands run and results
-- skipped tests and why they do not count as verification evidence
-- remaining gaps or user-visible risk
-
-Use [../../references/handoff-gate.md](../../references/handoff-gate.md) for the full rubric.
-
-## Failure Triage Rule
+## Failure Triage
 
 When a test fails:
 
-1. confirm the test still matches the requirement or justified assumption
-2. confirm the test reaches the real implementation under risk
-3. if both are true, treat the implementation as suspect before changing the test
+1. Confirm the test still matches the requirement or stated assumption.
+2. Confirm the test reaches the real implementation under risk.
+3. If both are true, treat the implementation as suspect before weakening the
+   test.
 
-Do not weaken a test only to make it pass.
+Do not change a test just to make it pass.
 
-## When to Read References
+## When To Read References
 
-- Read [../../references/layer-selection.md](../../references/layer-selection.md) when deciding where a test should live.
-- Read [../../references/architecture-test-design.md](../../references/architecture-test-design.md) when the user provides architecture docs, ADRs, component diagrams, message flows, or sequence diagrams.
-- Read [../../references/integration-quality.md](../../references/integration-quality.md) when writing or reviewing integration, API, contract, seam, or E2E tests.
-- Read [../../references/handoff-gate.md](../../references/handoff-gate.md) before claiming work is ready for user hand-off.
-- Read [../../references/risk-catalog.md](../../references/risk-catalog.md) when looking for high-value failure modes.
-- Read [../../references/test-quality-review.md](../../references/test-quality-review.md) when auditing an existing suite.
-- Read [../../references/test-case-patterns.md](../../references/test-case-patterns.md) when turning a requirement into concrete test cases.
+- Read [../../references/architecture-test-design.md](../../references/architecture-test-design.md)
+  for architecture docs, ADRs, component diagrams, message flows, or sequence
+  diagrams.
+- Read [../../references/integration-quality.md](../../references/integration-quality.md)
+  when selected evidence is integration, API, contract, seam, or E2E testing.
+- Read [../../references/handoff-gate.md](../../references/handoff-gate.md)
+  before claiming work is ready for user hand-off.

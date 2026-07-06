@@ -1,100 +1,96 @@
-# Test Hand-off Gate
+# Evidence Hand-off Gate
 
-Use this before claiming behavior is complete, fixed, or ready for a user to take over. The goal is a compact evidence trail: what risk changed, what proves it works, and what remains unproven.
+Use this before claiming behavior is complete, fixed, reviewed, or ready for a
+user to take over. The goal is a compact evidence trail: what risk changed, what
+proves it, what was only checked, and what remains unproven.
 
 ## Required Hand-off Record
 
-Report these items in the final answer or PR summary:
+Report:
 
-1. **Intent:** the behavior changed and the requirement source. Mark inferred intent as an assumption.
-2. **Risk map:** the main regression risks: business rule, state transition, persistence, contract, async, permission, security, UI, or deployment/config.
-3. **Test evidence:** each new or relevant test with its quality label:
-   - `real`: reaches the risky implementation and would fail on the target regression
-   - `shallow`: touches the area but only proves shape, status, smoke behavior, or heavily mocked flow
-   - `fake`: proves only mocks, types, duplicated logic, or the test double
+1. **Intent:** requirement source or stated assumption.
+2. **Risk map:** observable regressions for business behavior, state,
+   persistence, contract, async, permission, security, UI, config, or
+   deployment.
+3. **Verification evidence:**
+   - `tested`: automated test or command that protects a stated risk.
+   - `checked`: build, lint, typecheck, syntax check, schema/static validation,
+     dry-run, or smoke result.
+   - `not covered/skipped`: unavailable service, skipped or flaky test, missing
+     credential, manual-only path, or unrun suite.
+   - `residual risk`: what can still break despite the evidence.
 4. **Commands run:** exact commands and pass/fail result.
-5. **Skipped or unavailable tests:** skipped tests, missing services, unavailable credentials, or local-only checks. These do not count as passing evidence.
-6. **Residual risk:** what could still break despite the evidence.
+
+Skipped integration/E2E tests and unavailable services are not passing evidence.
 
 ## Minimum Bar
 
-For a behavior change to be hand-off grade:
-
-- Critical changed behavior has at least one `real` test at the narrowest boundary that can fail like production.
-- Success, meaningful failure, and edge or regression-shaped paths are covered unless the risk is explicitly lower.
+- Critical changed behavior has evidence at the narrowest boundary that can fail
+  like production.
+- High-risk security, permission, tenancy, data, migration, contract, async, or
+  deployment changes are tested or have an explicit reason why a lighter check is
+  sufficient.
 - Integration claims use real internal collaborators for the claimed boundary.
-- Contract or schema changes include compatibility or drift checks.
-- Async behavior uses condition-based waits and deterministic state assertions.
-- Security, permission, and tenancy changes include denial tests, not only allowed-path tests.
-- Verification commands were run after the final edit.
-- Skips, flaky tests, and unrun suites are named as residual risk.
+- Contract or schema changes include compatibility, schema, generated-client, or
+  drift evidence.
+- Async behavior avoids fixed sleeps and asserts observable state, message, log,
+  metric, trace, or durable side effect.
+- Verification commands are run after the final edit.
+- Skips, flakes, unavailable services, and unrun suites are named as residual
+  risk.
 
-## Red Flags That Block Hand-off Claims
+## Evidence Labels
 
-- "All tests pass" while critical integration tests skipped.
-- Only `200 OK`, non-null, snapshot, or type-shape assertions for a risky behavior.
-- The test mocks the component whose correctness is being claimed.
-- The test copies production logic to calculate the expected value.
-- E2E is the only coverage for a complex rule that could be tested lower.
-- Unit tests are the only coverage for serialization, storage constraints, middleware, generated clients, or broker wiring.
+- `real test`: reaches the risky implementation and would fail on the target
+  regression.
+- `shallow test`: touches the area but only proves shape, status, or smoke
+  behavior.
+- `fake test`: proves mocks, copied logic, types, fixtures, or the test double.
+- `check`: useful evidence, but not a behavior test.
+- `residual`: unproven or only manually verified risk.
+
+Do not use shallow or fake tests as proof for critical behavior.
+
+## Red Flags
+
+- "All tests pass" while critical checks are skipped or unavailable.
+- Only status, non-null, snapshot, or type-shape assertions protect risky
+  behavior.
+- A test mocks the component whose correctness is being claimed.
+- A test copies production logic to calculate the expected value.
+- E2E is the only evidence for a complex rule that could be tested lower.
+- Unit tests are the only evidence for serialization, storage constraints,
+  middleware, generated clients, broker wiring, or deployment config.
 - The final answer omits commands run or hides failures behind "not run locally."
-
-## Scoring Rubric
-
-Use this 100-point rubric for suite reviews or large hand-offs. Score each dimension 0-10.
-
-| Dimension | What to look for |
-| --- | --- |
-| Intent traceability | Tests derive from spec, contract, acceptance criteria, bug report, or stated assumption |
-| Boundary correctness | Each test runs at the lowest boundary that can catch the real failure |
-| Behavior protection | Assertions prove user-visible result, contract state, durable state, or key side effect |
-| Failure coverage | Meaningful errors, denial, rollback, retry, invalid state, and edge cases are covered |
-| Integration reality | Internal collaborators are real where integration risk is claimed |
-| Contract coverage | API, message, schema, generated clients, and compatibility risks are checked |
-| Data/environment quality | Isolated data, deterministic setup, real migrations, controlled dependencies |
-| Async/concurrency quality | Condition-based waits, dedup, ordering, timeout, retry, and idempotency risks |
-| Diagnostics/observability | Failures reveal request/response, durable state, logs, trace, or message state |
-| CI trust | Tests are stable, appropriately tiered, and skips/flakes are governed |
-
-Score bands:
-
-- 90-100: hand-off grade for critical systems
-- 75-89: strong, with limited and documented residual risk
-- 60-74: acceptable for moderate risk; improve before critical release
-- 40-59: weak; likely misses real integration failures
-- below 40: not credible verification
 
 ## Final Answer Template
 
-Keep it concise:
-
-```
-Implemented <change>.
-
-Verification:
-- real: <test/command> protects <regression>
-- shallow: <test/command> only protects <limited signal>
-- not run/skipped: <reason and risk>
-
-Residual risk:
-- <specific remaining gap or "none beyond unrun suites">
+```text
+Verification evidence:
+- tested: <test/command> protects <risk>
+- checked: <command/static validation> protects <risk>
+- not covered/skipped: <reason> leaves <risk>
+- residual risk: <specific remaining gap>
 ```
 
-## Architecture Verification Hand-off
+## Architecture Evidence Hand-off
 
-When the work validates an architecture plan, ADR, message flow, or sequence diagram, report architecture claims separately from ordinary test results:
+When validating an architecture plan, ADR, message flow, or sequence diagram,
+report architecture claims separately:
 
-```
-Architecture verification:
+```text
+Architecture evidence:
 - proven: <architecture claim> via <test/check/evidence>
+- checked: <claim> via <static validation/dry-run/smoke>
 - assumed: <claim> because <threshold/policy was not specified>
-- unproven: <claim> needs <load/contract/env/manual recovery test>
+- unproven: <claim> needs <load/contract/env/manual recovery evidence>
 
 Goal coverage:
-- <goal>: <tests or none> / <evidence type> / <residual risk>
+- <goal>: <evidence or none> / <residual risk>
 
 Skipped/unavailable:
-- <test or environment> -> <architecture risk left open>
+- <test/check/environment> -> <architecture risk left open>
 ```
 
-Do not claim the architecture is verified when important quality goals, state ownership rules, or compatibility claims are only assumed. State the assumption and the evidence still needed.
+Do not claim architecture verification when important quality goals, state
+ownership rules, or compatibility claims are only assumed.

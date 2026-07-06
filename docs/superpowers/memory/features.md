@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-07-05
+last_updated: 2026-07-06
 updated_by: superpowers-memory:ingest
-triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
+triggered_by_plan: "2026-07-06-designing-tests-evidence-choice-slimming.md"
 ---
 
 # Features
@@ -46,11 +46,11 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 **Enables** — Agents can classify project questions, route to the smallest relevant KB owners/shards, and then use targeted code search before broad project exploration.
 
-**Actors / Entry Points** — `superpowers-memory:load`, `superpowers-memory:query`, SessionStart hooks, and `docs/superpowers/memory/index.md`.
+**Actors / Entry Points** — `superpowers-memory:query`, SessionStart hooks, and `docs/superpowers/memory/index.md`.
 
 **Capability Boundary** — `query` reads `index.md` on demand as the first router; SessionStart only reports KB availability/freshness and query guidance. Stale freshness is a review signal, not an automatic ingest trigger; agents run ingest only when changed source facts introduce or materially change durable project knowledge. `query` reports question classification, retrieval route, skipped oversized/irrelevant files, and code search seeds. Full KB files are loaded on demand, with `glossary.md` used for alias expansion and `decisions.md` routed through ADR details or decision-family shards instead of eagerly loading large root files.
 
-**References** — `plugins/superpowers-memory/skills/load/`, `plugins/superpowers-memory/skills/query/`, `codex-plugins/superpowers-memory/skills/load/`, `codex-plugins/superpowers-memory/skills/query/`, ADR-005, ADR-006.
+**References** — `plugins/superpowers-memory/skills/query/`, `codex-plugins/superpowers-memory/skills/query/`, ADR-005, ADR-006.
 
 #### Project Knowledge Update And Rebuild
 
@@ -136,11 +136,11 @@ triggered_by_plan: "2026-07-02-superpowers-ddd-architect.md"
 
 #### Test Design Skill
 
-**Enables** — Agents can design tests from intent, architecture docs, ADRs, message flows, and sequence diagrams before implementation or hand-off.
+**Enables** — Agents can choose verification evidence from intent and observable risk, then design tests only when tests are the narrowest reliable evidence.
 
-**Actors / Entry Points** — `designing-tests` skill, Claude `PreToolUse` guidance, Codex UserPromptSubmit guidance, and references for architecture-test design, integration quality, hand-off gates, layer selection, risk catalog, test-case patterns, and test-quality review.
+**Actors / Entry Points** — `designing-tests` skill, Claude `PreToolUse` guidance, Codex UserPromptSubmit guidance, and consolidated references for architecture-test design, integration quality, and evidence hand-off gates.
 
-**Capability Boundary** — The skill turns architecture goals into reviewable test evidence through goal coverage matrices, state-ownership gates, quality-threshold assumptions, real/shallow/fake labels, and skipped/unrun residual-risk reporting. Claude uses tiered PreToolUse injection for planning/execution/TDD/hand-off skills. Codex intentionally does not register SessionStart; it uses explicit `$superpowers:*` UserPromptSubmit routing plus the full skill on demand.
+**Capability Boundary** — The skill uses Intent / Risk / Evidence gates: agents name the requirement source, state the observable regression, then choose `test`, `check`, `dry-run`, `smoke`, `manual`, or `residual` evidence. "No new test" is a valid outcome for low-risk glue when checked evidence is enough; high-risk security, data, contract, async, migration/config, or historical incident changes still require real tests or explicit residual-risk justification. Claude hooks inject restrained planning/execution/TDD/hand-off reminders; Codex intentionally does not register SessionStart and uses explicit `$superpowers:*` UserPromptSubmit routing, including `finishing-a-development-branch`.
 
 **References** — `plugins/designing-tests/`, `codex-plugins/designing-tests/`, `scripts/release/test/test_designing_tests_runtime.sh`, ADR-013, ADR-014.
 

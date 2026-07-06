@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate designing-tests runtime guidance and metadata for hand-off evidence.
+# Validate designing-tests runtime guidance and metadata for evidence-first hand-off.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -34,19 +34,23 @@ for skill in \
   superpowers:finishing-a-development-branch; do
   context="$(claude_skill_context "$skill")"
 
-  # Intent: completion and review-time skills must receive hand-off evidence guidance,
-  # not only test-writing skills.
-  grep -q "HAND-OFF GATE" <<<"$context" || fail "$skill missing hand-off gate guidance"
+  # Intent: completion and review-time skills must receive verification evidence
+  # guidance, not only test-list guidance.
+  grep -q "EVIDENCE HAND-OFF" <<<"$context" || fail "$skill missing evidence hand-off guidance"
+  grep -q "tested" <<<"$context" || fail "$skill missing tested evidence reporting"
+  grep -q "checked" <<<"$context" || fail "$skill missing checked evidence reporting"
   grep -q "skipped/unavailable" <<<"$context" || fail "$skill missing skipped/unavailable reporting"
   grep -q "residual risk" <<<"$context" || fail "$skill missing residual risk reporting"
-  grep -q "real.*shallow.*fake" <<<"$context" || fail "$skill missing quality labels"
 done
 
 planning_context="$(claude_skill_context superpowers:writing-plans)"
 
-# Intent: planning guidance must require a final verification hand-off step.
-grep -q "hand-off verification step" <<<"$planning_context" || fail "planning tier missing hand-off step"
-grep -q "skipped tests" <<<"$planning_context" || fail "planning tier missing skipped-test reporting"
+# Intent: planning guidance must choose evidence before tests and keep hand-off
+# evidence broad enough to include checks, dry-runs, and residual risk.
+grep -q "Evidence choice" <<<"$planning_context" || fail "planning tier missing evidence choice"
+grep -q "Intent / Risk / Evidence" <<<"$planning_context" || fail "planning tier missing intent-risk-evidence framing"
+grep -q "checked" <<<"$planning_context" || fail "planning tier missing checked evidence"
+grep -q "residual risk" <<<"$planning_context" || fail "planning tier missing residual risk reporting"
 
 CODEX_HOOKS="$CODEX_HOOKS" CODEX_SNIPPET="$CODEX_SNIPPET" node <<'NODE'
 const fs = require("fs");
@@ -76,11 +80,11 @@ codex_prompt_context="$(
     extract_context
 )"
 
-# Intent: Codex must reinforce architecture-aware test design at explicit workflow
-# skill mentions, not only at SessionStart.
-grep -q "Test Design Principles (Codex)" <<<"$codex_prompt_context" || fail "codex user-prompt-submit missing test design guidance"
+# Intent: Codex must reinforce evidence-first test design at explicit workflow
+# skill mentions, not through broad SessionStart hooks.
+grep -q "Evidence Choice (Codex)" <<<"$codex_prompt_context" || fail "codex user-prompt-submit missing evidence choice guidance"
 grep -q "Architecture docs" <<<"$codex_prompt_context" || fail "codex user-prompt-submit missing architecture guidance"
-grep -q "Hand-off gate" <<<"$codex_prompt_context" || fail "codex user-prompt-submit missing hand-off guidance"
+grep -q "Hand-off evidence" <<<"$codex_prompt_context" || fail "codex user-prompt-submit missing hand-off evidence guidance"
 
 codex_review_context="$(
   printf '{"prompt":"Run $superpowers:verification-before-completion and prepare hand-off evidence"}\n' |
@@ -90,16 +94,27 @@ codex_review_context="$(
 
 grep -q "completion claims" <<<"$codex_review_context" || fail "codex completion mention missing evidence guidance"
 
+codex_finish_context="$(
+  printf '{"prompt":"Run $superpowers:finishing-a-development-branch and prepare branch hand-off evidence"}\n' |
+    node "$CODEX_RUNTIME" user-prompt-submit |
+    extract_context
+)"
+
+grep -q "Evidence Choice (Codex)" <<<"$codex_finish_context" || fail "codex finishing mention missing evidence choice guidance"
+grep -q "Hand-off evidence" <<<"$codex_finish_context" || fail "codex finishing mention missing hand-off evidence guidance"
+
 codex_unrelated="$(printf '{"prompt":"summarize this note"}\n' | node "$CODEX_RUNTIME" user-prompt-submit)"
 [ "$codex_unrelated" = "{}" ] || fail "codex unrelated prompt should return empty object"
 
 # Intent: skill discovery metadata must mention hand-off evidence and skipped/unrun risk.
 grep -q "hand-off" "$ROOT/plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Claude skill metadata missing hand-off trigger"
-grep -q "skipped" "$ROOT/plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Claude skill metadata missing skipped-test trigger"
+grep -q "evidence" "$ROOT/plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Claude skill metadata missing evidence trigger"
+grep -q "skipped" "$ROOT/plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Claude skill metadata missing skipped evidence trigger"
 grep -q "architecture docs" "$ROOT/plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Claude skill metadata missing architecture-doc trigger"
 grep -q "sequence diagrams" "$ROOT/plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Claude skill metadata missing sequence-diagram trigger"
 grep -q "hand-off" "$ROOT/codex-plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Codex skill metadata missing hand-off trigger"
-grep -q "skipped" "$ROOT/codex-plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Codex skill metadata missing skipped-test trigger"
+grep -q "evidence" "$ROOT/codex-plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Codex skill metadata missing evidence trigger"
+grep -q "skipped" "$ROOT/codex-plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Codex skill metadata missing skipped evidence trigger"
 grep -q "architecture docs" "$ROOT/codex-plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Codex skill metadata missing architecture-doc trigger"
 grep -q "sequence diagrams" "$ROOT/codex-plugins/designing-tests/skills/designing-tests/SKILL.md" || fail "Codex skill metadata missing sequence-diagram trigger"
 grep -q "hand-off" "$ROOT/.claude-plugin/marketplace.json" || fail "Claude marketplace metadata missing hand-off positioning"
@@ -112,11 +127,11 @@ for file in architecture-test-design.md handoff-gate.md integration-quality.md; 
 done
 
 grep -q "Architecture Test Design" "$ROOT/plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md" || fail "architecture reference missing output format"
-grep -q "Goal Coverage Matrix" "$ROOT/plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md" || fail "architecture reference missing goal coverage matrix"
+grep -q "Goal Risk Evidence Matrix" "$ROOT/plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md" || fail "architecture reference missing goal/risk/evidence matrix"
 grep -q "State Ownership Gates" "$ROOT/plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md" || fail "architecture reference missing state ownership gates"
 grep -q "Quality Threshold Assumptions" "$ROOT/plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md" || fail "architecture reference missing quality threshold assumptions"
-grep -q "Sequence Phase Matrix" "$ROOT/plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md" || fail "architecture reference missing sequence phase matrix"
+grep -q "Sequence Evidence Matrix" "$ROOT/plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md" || fail "architecture reference missing sequence evidence matrix"
 grep -q "architecture design goals" "$ROOT/plugins/designing-tests/skills/designing-tests/references/architecture-test-design.md" || fail "architecture reference missing design-goal focus"
-grep -q "Architecture Verification Hand-off" "$ROOT/plugins/designing-tests/skills/designing-tests/references/handoff-gate.md" || fail "handoff gate missing architecture verification variant"
+grep -q "Architecture Evidence Hand-off" "$ROOT/plugins/designing-tests/skills/designing-tests/references/handoff-gate.md" || fail "handoff gate missing architecture evidence variant"
 
-echo "  designing-tests runtime: hand-off guidance and metadata correct"
+echo "  designing-tests runtime: evidence-choice guidance and metadata correct"
