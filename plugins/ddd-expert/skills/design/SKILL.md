@@ -1,15 +1,17 @@
 ---
 name: design
-description: Use when designing DDD/backend behavior before implementation from a product-oriented spec, change request, or unclear backend boundary.
+description: Use when producing concrete DDD/backend design from an accepted Domain Modeling Brief, product spec, change request, or explicit existing model before implementation.
 ---
 
 # Design DDD Model
 
-Use this skill when the backend model is still being decided. The goal is a traceable model decision, not a schema, file list, or framework shape.
+Use this skill when the domain model input is explicit enough to design backend behavior. The goal is a traceable design decision, not a schema, file list, or framework shape.
 
 ## When To Use
 
-- Use before file placement or implementation when subdomain, bounded context, context map, aggregate/policy/service boundary, data authority, or layer ownership is not explicit.
+- Use after `domain-modeling` when a Domain Modeling Brief exists and concrete DDD/backend design is needed.
+- Use before file placement or implementation when subdomain, bounded context, context map, aggregate/policy/service boundary, data authority, or layer ownership needs a design decision.
+- If the spec still hides material domain objects, existing-model impact, lifecycle, invariant, event, repository, or bounded-context questions, stop and use `domain-modeling`.
 - Do not use as a code audit checklist. Use `review` once a diff, plan, or concrete file set exists.
 - Do not use as an implementation placement checklist. Use `implement` after the design direction is accepted.
 
@@ -17,12 +19,13 @@ Use this skill when the backend model is still being decided. The goal is a trac
 
 1. Confirm the work is DDD/backend architecture-sensitive. For non-backend work, stop using this plugin.
 2. Read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) for shared risk-card routing. Router probes are calibration aids, not fixed commands.
-3. Run Strategic Model Gate before tactical modeling. Record the problem-space decision or stop question before naming Aggregates, ports, handlers, layers, files, or packages.
-4. Run Tactical Model Gate only after the strategic model is clear.
-5. Follow Product semantics intake, Spec trace, strategic classification, tactical classification, boundary decision, and stop/proceed gate.
-6. Use the Minimum Output Contract: keep small changes small, use the full template only when the model changes, and emit stop questions instead of guesses.
-7. Do not scan generic `design-patterns/` directories for this plugin. This plugin's shared references live under [../../references/](../../references/).
-8. Read deeper references only when this skill, a risk card, or an unresolved decision requires them:
+3. Read the Domain Modeling Brief when one exists. Treat its Decisions as inputs, its Hypotheses as risks, and its Open questions as stop conditions when material.
+4. Run Strategic Model Gate before tactical modeling. Record the problem-space decision or stop question before naming Aggregates, ports, handlers, layers, files, or packages.
+5. Run Tactical Model Gate only after the strategic model is clear.
+6. Follow Domain Modeling input check, Spec trace, strategic classification, tactical classification, boundary decision, and stop/proceed gate.
+7. Use the Minimum Output Contract: keep small changes small, use the full template only when the model changes, and emit stop questions instead of guesses.
+8. Do not scan generic `design-patterns/` directories for this plugin. This plugin's shared references live under [../../references/](../../references/).
+9. Read deeper references only when this skill, a risk card, or an unresolved decision requires them:
    - [../../references/ddd-modeling.md](../../references/ddd-modeling.md) first for subdomain, bounded context, context map, aggregate, state, and technical-capability classification.
    - [../../references/ddd-core.md](../../references/ddd-core.md) for layer ownership, ports, Domain Events, Integration Messages, and generated protocol boundaries.
    - [../../references/database.md](../../references/database.md) after data authority and aggregate/read-model boundaries are clear.
@@ -30,8 +33,9 @@ Use this skill when the backend model is still being decided. The goal is a trac
 
 ## Strategic Model Gate
 
-Design starts from problem space before solution model. Before naming code structures, record or ask for:
+Design starts from accepted domain facts before solution model. Before naming code structures, record or ask for:
 
+- Domain Modeling Brief decisions, hypotheses, and open questions if available;
 - subdomain and business capability;
 - bounded context and ubiquitous language boundary;
 - data authority / source of truth;
@@ -57,8 +61,9 @@ Use `ddd-risk-router.md` to route high-risk questions to deeper references. Do n
 
 ### 1. Product semantics intake
 
-Extract facts before naming code:
+Confirm the accepted domain-modeling facts before naming code:
 
+- Domain Modeling Brief decisions and unresolved hypotheses;
 - actors/users;
 - subdomain and business capability;
 - user actions and system triggers;
@@ -123,7 +128,7 @@ Stop before implementation when any of these are unknown and material:
 
 Use the smallest output that preserves the decision.
 
-- **Small change:** emit only Existing model inventory, affected bounded context/capability, the model decision, references loaded, and Proceed/Stop. Use this when the existing strategic and tactical model is clear and the change does not introduce a new context, aggregate, invariant, cross-context contract, or technical capability.
+- **Small change:** emit only Domain Modeling input, Existing model inventory, affected bounded context/capability, the model decision, references loaded, and Proceed/Stop. Use this when the existing strategic and tactical model is clear and the change does not introduce a new context, aggregate, invariant, cross-context contract, or technical capability.
 - **Full design:** emit the complete output below. Use this when the request adds or changes bounded context boundaries, aggregate/policy/service ownership, state lifecycle, data authority, command/query/event responsibilities, persistence authority, or cross-context contracts.
 - **Stop-only:** if a material modeling fact is missing, emit the unknowns and stop questions instead of filling the full template with guesses.
 
@@ -131,6 +136,7 @@ Use the smallest output that preserves the decision.
 
 ```text
 DDD design:
+- Domain Modeling input:
 - Product semantics intake:
 - Spec trace:
 - Existing model inventory:
@@ -153,6 +159,7 @@ DDD design:
 ## Common Mistakes
 
 - Starting from tables, DTOs, RPC methods, files, or framework packages.
+- Skipping `domain-modeling` when the spec still hides material domain objects or existing-model impact.
 - Starting tactical Aggregate/port/layer design before subdomain, context, language, and data authority are clear.
 - Treating `ddd-modeling.md` or `ddd-core.md` as the task instead of using them to answer a modeling question.
 - Inventing missing invariants or data authority instead of stopping.

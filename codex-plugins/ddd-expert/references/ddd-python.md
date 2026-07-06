@@ -10,11 +10,11 @@ description: Python implementation guide for DDD + Clean Architecture. Use when 
 **Date**: 2026-05-21
 **Scope**: Team backend service architecture standard
 **Phase routing**:
-- **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Python-specific DDD placement, package, naming, testing, or module-assembly rules.
+- **Phase skill**: Start from [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Python-specific DDD placement, package, naming, testing, or module-assembly rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs task classification, stop protocol, prohibited actions, or completion self-checks.
-- **Strategic modeling**: [`ddd-modeling.md`](ddd-modeling.md) — Complete this first to identify bounded contexts and aggregate boundaries from business requirements
-- **Architecture spec**: [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture rules. All architecture principles defer to `ddd-core.md`; in particular, the architecture review checklist lives at [ddd-core.md §10](ddd-core.md) and the consolidated principles summary lives at [ddd-core.md §11](ddd-core.md).
-- This document is the Python implementation guide that builds on both.
+- **Domain modeling rule cards**: [`ddd-modeling.md`](ddd-modeling.md) — Load only when the phase routes to bounded-context, aggregate, Architecture Gate, technical-capability, or port-granularity decisions.
+- **Architecture rule cards**: [`ddd-core.md`](ddd-core.md) — Load only when the phase routes to layer ownership, dependency direction, Domain Events / Integration Messages, CQRS, cross-context contracts, or review checklist rules.
+- This document is the Python implementation guide layered on accepted Domain Modeling Brief / design decisions and the rule cards above.
 **Python Version**: 3.12+
 
 > **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. This guide adds Python-specific workflow, placement, event/message, testing, and module-assembly guidance.
@@ -2182,7 +2182,7 @@ dev = [
 ---
 
 **References:**
-- [ddd-modeling.md](ddd-modeling.md) — Strategic domain modeling (bounded context discovery, aggregate design)
-- [ddd-core.md](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification
+- [ddd-modeling.md](ddd-modeling.md) — Domain modeling rule cards for BCs, aggregates, Architecture Gate, capability classification, and port granularity
+- [ddd-core.md](ddd-core.md) — Architecture rule cards for dependency direction, layer ownership, events/messages, CQRS, cross-context contracts, and review checks
 - [The Clean Architecture — Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
 - [Domain-Driven Design Reference — Eric Evans](https://domainlanguage.com/ddd/reference/)

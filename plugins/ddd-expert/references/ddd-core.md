@@ -1,928 +1,393 @@
 ---
 name: ddd-core
-description: DDD + Clean Architecture specification for backend services. Use when a phase skill or DDD risk card routes to layer ownership, dependency direction, repositories, Domain Events, Integration Messages, CQRS, cross-context contracts, or architecture conformance rules.
+description: Compact DDD + Clean Architecture rule cards for backend services. Use when a phase skill or DDD risk card routes to layer ownership, dependency direction, repositories, Domain Events, Integration Messages, CQRS, cross-context contracts, or architecture conformance rules.
 ---
 
-# Backend Architecture Specification
-## DDD + Clean Architecture
+# Backend Architecture Rule Cards
 
-**Version**: v2.4
-**Date**: 2026-05-21
-**Scope**: All backend services, language-agnostic
-**Routing**: This is a tactical architecture rule source, not the default agent entrypoint. Start from the active phase skill. Use [`ddd-modeling.md`](ddd-modeling.md) first when the domain model, bounded context, aggregate boundary, or Architecture Gate is still unsettled; use this file when the phase needs language-neutral DDD/Clean Architecture rules for the model.
+**Scope**: Language-agnostic DDD/Clean Architecture constraints.
+**Routing**: This is not an entrypoint. Start from the active phase skill. Use [`ddd-modeling.md`](ddd-modeling.md) first when the domain model, bounded context, aggregate boundary, or Architecture Gate is unsettled. Load this file when the phase needs tactical architecture rules.
 
-> **Phase routing**: Agent entrypoints are [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), and [`review`](../skills/review/SKILL.md). Use this document only when a phase skill or [`ddd-risk-router.md`](ddd-risk-router.md) routes to tactical architecture rules.
-
----
+> **Phase routing**: Agent entrypoints are [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), and [`review`](../skills/review/SKILL.md).
 
 ## 1. Architecture Principles
 
 ### 1.1 Core Philosophy
 
-This specification combines **Domain-Driven Design (DDD)** with **Clean Architecture**. The goals are:
-
-1. **Domain-centric** — Business logic is independent of frameworks, UI, and databases
-2. **Dependency inversion** — Inner layers define interfaces; outer layers implement them
-3. **Vertical slicing** — Code is organized by bounded context, not by technical layer
-4. **Testability** — Business logic can be tested without any infrastructure dependency
+- Domain behavior is independent of frameworks, UI, databases, generated protocols, and transport.
+- Dependencies point inward. Inner layers define semantic contracts; outer layers adapt mechanisms.
+- Organize by bounded context first, technical layer second.
+- Test business rules through Domain and Application seams, not through adapter internals.
 
 ### 1.2 Layered Architecture
 
-Four layers, with the **Domain Layer as the core**:
+Layer names describe responsibilities, not mandatory directories:
 
+```text
+Interface       -> protocol/request/response mapping, format validation
+Application     -> use-case orchestration, transaction boundary, auth, DTO/read models
+Domain          -> rules, invariants, aggregates, value objects, domain services, write repositories, events
+Infrastructure  -> DB/cache/broker/RPC/SDK/framework adapters and generated-code integration
 ```
-        ┌──────────────────────────────────────┐
-        │          Interface Layer             │
-        │   Protocol adaptation: HTTP / gRPC   │
-        │   Input validation, routing,         │
-        │   request/response transformation    │
-        └─────────────────┬────────────────────┘
-                          │ depends on
-        ┌─────────────────▼────────────────────┐
-        │         Application Layer            │
-        │   Use-case orchestration:            │
-        │   Command / Query Handlers           │
-        │   QueryRepository interfaces,        │
-        │   Transaction boundaries, auth       │
-        └─────────────────┬────────────────────┘
-                          │ depends on
-        ┌─────────────────▼────────────────────┐
-        │           Domain Layer               │  ← Core. No implementation deps.
-        │   Aggregates, Entities,              │
-        │   Value Objects, Domain Services,    │
-        │   Write Repository interfaces,       │
-        │   Domain Events                      │
-        └──────────────────────────────────────┘
-                          ▲
-                          │ implements (dependency inversion)
-        ┌─────────────────┴────────────────────┐
-        │       Infrastructure Layer           │
-        │   Repository implementations,        │
-        │   ORM, external API clients,         │
-        │   message queues, cache              │
-        └──────────────────────────────────────┘
-```
+
+Generated RPC shortcuts may place a thin adapter in an existing Application entrypoint when a language guide explicitly allows it. The method must still do only map request -> delegate once -> map response/error.
 
 ### 1.3 Dependency Rule
 
-**The golden rule: dependencies point inward only. The Domain Layer must not depend on any other layer.**
-
-- Interface Layer depends on Application and Domain layers
-- Application Layer depends only on Domain Layer in the strict model. Language-specific guides may define a narrow RPC shortcut where an Application entry-point file implements generated server stubs; when they do, use-case code still keeps protocol/generated types at the boundary and must not depend on Infrastructure.
-- Domain Layer has no concrete implementation dependencies (no frameworks, ORM, database drivers, HTTP clients/servers, message queue clients, or generated protocol packages). General-purpose, implementation-independent libraries (standard library, UUID/ULID generators, time utilities) are allowed when they do not couple Domain to an external system
-- Infrastructure Layer depends on Domain Layer (to implement Repository interfaces) and Application Layer (to implement QueryRepository interfaces); neither Domain nor Application depends on Infrastructure
-
-**Common violations to avoid:**
-- Domain layer imports an ORM type or database package
-- Domain layer imports an HTTP framework type
-- Application layer directly accesses a database connection
-
----
+- Domain imports no framework, ORM, DB/queue/cache/RPC/client package, generated protocol package, Infrastructure package, or another bounded context's Domain package.
+- Application depends on Domain and on interfaces it owns. It does not depend on Infrastructure implementations.
+- Infrastructure implements Domain Repository, Application QueryRepository/read facade, event/message publisher, ACL, and other adapter contracts.
+- Interface depends inward and maps protocol types at the boundary.
+- General-purpose implementation-independent libraries are allowed in Domain when they do not couple Domain to an external system.
 
 ## 2. Directory Structure
 
 ### 2.1 Overall Layout
 
-Code is organized **vertically by bounded context**. Each bounded context is a self-contained directory with its own four-layer structure. Flat horizontal layouts (top-level `controllers/`, `models/`, `repositories/`) are prohibited.
+Use vertical bounded-context organization. Flat horizontal `controllers/`, `models/`, `repositories/` layouts are not the target shape.
 
-Physical Interface directories are optional and language/repo-specific. The diagram below names layer responsibilities, not mandatory package paths. Generated IDL/RPC adapter placement is repository-calibrated: when a framework generator already defines the external service, handler, or controller contract, place the hand-written adapter where the repository's language convention owns that boundary. Language-specific guides or repository calibration may keep generated RPC handlers in an Application entry point when the generated protocol framework already defines the external contract.
+```text
+cmd/ or apps/                 process entrypoints
+configs/ or config/           configuration
+internal/<context>/            one bounded context
+  domain/
+  application/
+  interfaces/                  optional physical layer
+  infrastructure/
+proto/ or contracts/           generated protocol/schema sources
+```
 
-```
-project/
-├── cmd/                     # Entry points (varies by language)
-├── config/ or configs/      # Configuration files (language guide chooses the concrete name)
-├── internal/                # Internal code (not importable externally)
-│   ├── <context-a>/         # Bounded context A; language guides may nest this under internal/business/
-│   │   ├── domain/          # Domain layer
-│   │   ├── application/     # Application layer
-│   │   ├── interfaces/      # Interface layer
-│   │   └── infrastructure/  # Infrastructure layer
-│   ├── <context-b>/         # Bounded context B
-│   └── shared/              # Shared infrastructure (use sparingly)
-└── proto/                   # Interface definitions (Protobuf, OpenAPI, etc.)
-```
+Language guides choose concrete path names. Do not create a physical `interfaces/` package only because this generic model names an Interface layer; calibrate existing repository conventions first.
 
 ### 2.2 Bounded Context Internal Structure
 
-```
-internal/<context>/          # Go guide uses internal/business/<context>/
-├── domain/
-│   ├── <aggregate>.{ext}          # Aggregate root + entities
-│   ├── value_object.{ext}         # Value objects
-│   ├── event.{ext}                # Domain events
-│   ├── repository.{ext}           # Repository interface (write)
-│   └── service.{ext}              # Domain service (optional)
-│
-├── application/
-│   ├── command.{ext}              # Command definitions
-│   ├── query.{ext}                # Query definitions
-│   ├── query_repository.{ext}     # Query repository interface (read, CQRS)
-│   ├── handler.{ext}              # Command and Query handlers
-│   ├── dto.{ext}                  # Data Transfer Objects
-│   └── assembler.{ext}            # DTO ↔ Domain object conversion
-│
-├── interfaces/
-│   ├── http/                      # REST handlers
-│   └── grpc/                      # gRPC server implementations
-│
-└── infrastructure/
-    ├── <aggregate>_repository.{ext}       # Write repository implementation
-    ├── <read_model>_query_repository.{ext} # Read repository implementation
-    ├── <message>_publisher.{ext}          # Message/event publisher adapter
-    ├── data_object.{ext}          # ORM / database models
-    ├── converter.{ext}            # DO ↔ Entity conversion
-    └── dto.{ext}                  # Infrastructure-local DTOs, if shared by adapters
+Expected responsibilities:
+
+```text
+domain/          Aggregate roots, Entities, Value Objects, Domain Services, write Repository interfaces, Domain Events
+application/     Commands, Queries, handlers, DTOs/read models, assemblers, QueryRepository/read facades, coordination services
+interfaces/      HTTP/RPC/MQ adapters, protocol validation and mapping
+infrastructure/  Repository implementations, data objects, converters, external clients, message/runtime adapters
 ```
 
-> `{ext}` refers to the file extension of the language in use (`.go`, `.py`, `.java`, `.ts`, etc.).
->
-> Inside a bounded context, keep `infrastructure/` flat by default. Primary adapter files use semantic capability names: one port, Repository, or adapter maps to one `<capability>.{ext}` file plus its test file. Supporting files such as `data_object`, `converter`, or `dto` may stay role-named when they are shared by those adapters. Do not create `redis/`, `mysql/`, `persistence/`, or `messaging/` subdirectories merely because of the backing technology. Technology names belong in concrete type names or file suffixes only when multiple implementations coexist, for example `runtime_state_redis.{ext}` and `runtime_state_memory.{ext}`. Shared technology components belong in the project's shared technical package (for example `internal/pkg/redis` or `shared/db`), not under a bounded context's `infrastructure/`.
-
----
+Keep context Infrastructure flat by default. Use semantic capability names, not technology directories, unless multiple implementations coexist. Shared technology components belong in shared technical packages.
 
 ## 3. Layer Responsibilities
 
 ### 3.1 Domain Layer
 
-**Core rule: no concrete implementation dependencies. The standard library and general-purpose, implementation-independent libraries are allowed; frameworks, ORMs, drivers, and protocol clients are not.**
+Domain owns business facts, state transitions, and invariants.
 
-#### Building Blocks
+Use these mechanisms before considering an Application command-side port:
 
-| Concept | Responsibility |
-|---------|----------------|
-| **Aggregate Root** | Guardian of business invariants. The sole entry point for external access. Repositories operate on aggregate roots only. |
-| **Entity** | An object with a unique identity that persists across its lifecycle. |
-| **Value Object** | No identity; equality is determined by attribute values. Immutable after creation. |
-| **Domain Service** | Handles business logic that genuinely spans multiple aggregates and has no natural home on any one of them. Use deliberately: under-use pushes rules into Application ports, while overuse pulls behavior off aggregates. Domain Service is one placement option in the broader Domain mechanism placement gate; do not create an Application command-side port until Aggregate method, Domain Repository, Domain Service, Domain Event, Integration Message, named Application coordination service, ACL, and Infrastructure adapter have been considered. |
-| **Repository Interface** | Defines the persistence contract for aggregates (write operations). Declaration only — no implementation. |
-| **Domain Event** | Records something significant that happened within one bounded context. Used to decouple follow-up behavior inside that context; cross-context communication uses Integration Messages. |
+| Need | Default owner |
+|---|---|
+| Persist/load aggregate collection | Domain Repository |
+| Rule over one aggregate | Aggregate method or Value Object |
+| Named decision spanning aggregates | Domain Service after ruling out aggregate redesign or decision aggregate |
+| Repeated same-BC reaction after state changes | Domain Event + Domain Event Handler |
+| Cross-context propagation | Integration Message translated at the boundary |
+| External/legacy model translation | ACL |
+| Product/API/report read model | Application QueryRepository/read facade |
+| DB/cache/broker/RPC/SDK/routing/topology/retry | Infrastructure adapter behind a semantic owner |
 
-#### Domain Mechanism Placement Before Application Command Ports
+Constraints:
 
-Application command-side ports are a last resort, not the default abstraction for "the handler needs to call something". Before adding one, place the need in the smallest DDD mechanism that owns the semantics:
+- State changes go through Aggregate methods or Domain policies. External field mutation is prohibited.
+- Constructors/factories create valid objects and call `Validate()` or equivalent internal validation.
+- External layers call Domain validation methods; they do not run external reflection/schema validators directly against Domain types.
+- Domain Events are collected by aggregates and drained by Application after successful persistence.
+- Domain generates IDs using infrastructure-independent schemes. Database auto-increment IDs must not be required to create a valid aggregate.
+- Technical-facing capabilities are Domain-facing when they own stable language, states, admission/routing policy, ownership semantics, or invariants; otherwise use Application or Infrastructure per [`ddd-modeling.md §0.1`](ddd-modeling.md).
 
-| Need observed in the change | Default owner |
-|-----------------------------|---------------|
-| Persist, retrieve, or check existence of an Aggregate Root on the write side | Domain Repository |
-| Rule, invariant, or lifecycle transition using one aggregate's state | Aggregate method or Value Object |
-| Cross-aggregate decision with a name in the ubiquitous language | Domain Service, after ruling out aggregate redesign or a new decision aggregate |
-| Repeated same-BC reaction to a domain fact | Domain Event + one Domain Event Handler |
-| State propagation or reaction across bounded contexts | Integration Message translated from a Domain Event or explicit published fact |
-| Long-running or multi-step coordination across aggregates/contexts | Named Application coordination service, compensating action, or idempotent message flow |
-| External or legacy model translation | Anti-Corruption Layer |
-| Product/API/report read model | Application QueryRepository or published read facade returning DTOs |
-| Database, broker, RPC, SDK, K8s, file system, retry, routing, topology, or adapter selection | Infrastructure adapter hidden behind the semantic owner above |
+Domain Event collection:
 
-Domain Service is appropriate when a named business decision genuinely spans multiple aggregates and has no natural home on one aggregate. Treat these as Domain Service candidates, not automatic service creation:
-
-1. **Cross-aggregate decision with a name**: a business decision needs the state of two or more aggregates, and the decision result has a name in the ubiquitous language.
-2. **Cross-aggregate invariant**: a business invariant spans multiple aggregates and cannot be enforced by one aggregate, a new decision aggregate, eventual consistency, or a database constraint surfaced as a Domain error.
-3. **Derivation rule with split inputs**: a derivation rule (naming, allocation, pricing, scoring, classification) takes inputs that are not all on a single aggregate.
-4. **Escaped-from-handler rule**: a rule is currently expressed as `if … else …` inside an Application Command Handler and can be unit-tested without external systems.
-
-Do **not** extract a Domain Service when the behavior belongs on one aggregate/value object, when the "rule" is only Application sequencing, when the need is a repeated reaction better expressed as a Domain Event handler, or when the need is pure mechanism owned by Infrastructure.
-
-Domain Service naming uses **domain verbs** — `<Subject>Calculator`, `<Subject>Decider`, `<Subject>Authorizer`, `<Subject>Allocator`, `<Subject>Reconciler`, `<Subject>Settler`, `<Subject>Matcher`. The same names in Application are review signals because they often indicate a domain rule hidden behind an Application port.
-
-#### Constraints
-
-- **Never** import any framework, ORM, database driver, HTTP client/server, message queue client, or generated protocol package
-- General-purpose, implementation-independent libraries (UUID/ULID, time, crypto primitives, validation libraries used inside `Validate()`) are permitted when they do not couple Domain to a specific external system
-- **Never** depend directly on another bounded context's domain layer
-- All state changes must go through **domain methods** — external direct field mutation is prohibited
-- Business rules (validation, invariants) live in the domain layer and must not leak into the Application or Interface layer
-- Port ownership is decided by the semantic capability, not by the concrete types used at an external boundary. If a Domain-owned port is reached through gRPC/Protobuf, define Domain-owned input/output types and map generated proto DTOs at the Application or Infrastructure boundary.
-
-#### ID Generation
-
-- Aggregate Root and Entity IDs are generated in the **Domain layer** (typically inside the Factory Method)
-- Use infrastructure-independent ID schemes (e.g., UUID, ULID, Snowflake) that can be generated without database access
-- **Never** rely on database auto-increment IDs — this couples the Domain to the Infrastructure and prevents creating a fully valid aggregate before persistence
-
-#### Aggregate Design
-
-```
-Aggregate Root
-├── Factory Method
-│   └── Creates valid aggregate instances; enforces all required business rules at creation time
-├── Domain Methods
-│   ├── Encapsulate state change logic
-│   ├── Enforce business invariants
-│   └── Collect domain events
-└── Version field
-    └── Optimistic concurrency token; owned by the domain, incremented by Infrastructure
+```text
+aggregate.method()        # collect internal events
+repo.Save(aggregate)      # persist succeeds
+events = aggregate.DrainEvents()
+dispatcher.Dispatch(events)
 ```
 
-#### Factory Design
-
-- **Simple creation**: use the Aggregate Root's own factory method (static method or constructor)
-- **Complex creation** (requires assembling multiple Value Objects, cross-entity validation, or non-trivial initialization logic): extract an independent **Domain Factory** class within the Domain layer
-- A Domain Factory must still enforce all business invariants — it is not a shortcut to bypass validation
-- Domain Factories must not depend on any infrastructure; all inputs are domain objects or primitive values
-
-#### Value Object Design
-
-- Validate on construction — an invalid value object must not be instantiable
-- Implement equality based on attribute values, not reference
-- Typical examples: `Email`, `Money`, `Address`, `PhoneNumber`
-
-#### Validation Contract
-
-Every Domain type with validation requirements (Aggregate Root, Entity, Value Object) exposes them through a domain method — typically `Validate()`. Validation is part of the type's own behavior contract.
-
-- External layers (Application, Interface, Infrastructure) call `obj.Validate()`. They must never invoke reflection-based or annotation-driven validation (e.g., `validator.Struct(obj)` in Go, Pydantic-style external validators) on a Domain type from outside — such mechanisms, when used, are an implementation detail of `Validate()`, not part of the public API
-- Constructors and factory methods call `Validate()` before returning, so a Domain object is never observed in an invalid state
-- Domain mutation methods call or preserve `Validate()` before persisting state changes
-- Inside `Validate()`, the implementation is free to use reflection-based libraries, hand-written checks, or a mix — the choice is internal to the Domain type
-- Use explicit code for cross-field rules, state transitions, and invariants that cannot be expressed cleanly with declarative annotations
-
-#### Domain Rules in Technical Capabilities
-
-A bounded context may own technical-facing capabilities such as runtime coordination, routing, scheduling, delivery, or observability. These are still Domain concerns when they have stable ubiquitous language, state transitions, errors, or invariants.
-
-- Do not assume a capability is Infrastructure merely because it is technical or not directly visible to end users
-- State transition rules, admission policies, semantic naming, and domain-visible derivation rules belong in Domain methods, Value Objects, or Domain Services
-- Infrastructure may enforce these rules mechanically through storage constraints, locks, leases, CAS, or external APIs — but the rule itself must be named and testable outside Infrastructure
-- Litmus test: can you describe the rule in business / ubiquitous-language terms and write a test for it without reaching into a database, queue, or network? If yes, it is Domain
-
-Use this decision table before placing a technical-facing module:
-
-| Question | If yes | Owner |
-|----------|--------|-------|
-| Does it define stable terms, states, lifecycle transitions, admission policy, routing policy, ownership semantics, or derivation rules? | Name the rule and model it explicitly | Domain |
-| Does it sequence a use case, choose a port, coordinate transaction boundaries, map domain errors, or dispatch already-collected events? | Keep it thin and rule-free | Application |
-| Does it adapt a database, cache, queue, lock service, generated protocol, framework lifecycle, telemetry backend, or network API? | Implement an interface or port defined inward | Infrastructure |
-
-Common anti-patterns:
-
-- Putting a dispatcher, registry, router, scheduler, or ownership manager in Infrastructure before naming its domain-visible states and policies
-- Hiding admission or routing rules inside handlers because the capability looks "technical"
-- Defining an interface in Infrastructure and importing it inward from Application or Domain
-- Duplicating the same technical-facing rule across multiple adapters instead of modeling it once
-
-#### Domain Event Collection
-
-Aggregate Root must provide a mechanism for collecting, reading, and clearing domain events:
-
-- Domain methods **append** events to an internal list; they never dispatch events directly
-- After a successful `Save()`, the Application layer calls a drain method such as **`collect_events()`** and dispatches the returned events
-- The Repository never drains events; the Application layer is the sole drainer so the same aggregate instance cannot be drained twice
-- Each drain / clear operation is one-shot — a second drain on the same in-memory instance returns an empty list, so callers must not retry `Save()` on an already-drained instance (reload via `Get()` first; see §3.2)
-- Never dispatch events before persistence has succeeded; otherwise a failed `Save()` can surface events the system later disowns
-
-```
-# Application Command Handler flow:
-aggregate = repo.get(id)
-aggregate.do_something()        # events collected internally
-repo.save(aggregate)            # persist succeeds
-events = aggregate.collect_events()  # drain events
-event_bus.dispatch(events)      # dispatch after persist
-```
+Repository never drains events. Application drains once after `Save()`.
 
 ### 3.2 Application Layer
 
-**Core rule: orchestrate only. No business rules here.**
+Application owns orchestration, not business rules.
 
-#### Responsibilities
+Command flow:
 
-- Split operations into **Commands** (writes) and **Queries** (reads) following CQRS
-- **Command Handler**: load aggregate → call domain method → persist → dispatch events
-- **Query Handler**: call QueryRepository directly → return DTO (bypasses domain model); the dedicated handler struct is optional for single-call delegating reads
-- **Define QueryRepository interfaces** in this layer only for application/product read use cases — read models are an application concern, not a domain concern. Start with one QueryRepository per bounded-context product read-model family and add methods for new query scenarios that share the same read semantics. Infrastructure implements these interfaces, but Infrastructure routing/topology lookups are not QueryRepositories.
-- Define **transaction boundaries**: one Command Handler corresponds to one transaction
-- Coarse-grained authorization checks belong here
-
-#### CQRS Flow
-
-```
-Write path (Command):
-  Interface → CommandHandler → AggregateRoot (domain method) → Repository.Save() → dispatch events
-
-Read path (Query):
-  Interface → QueryHandler (optional) → QueryRepository (direct DB query) → return DTO
+```text
+load aggregate -> call Aggregate/Domain Service -> Save -> drain/dispatch events
 ```
 
-#### Query Handler: When the Struct Is Optional
+Query flow:
 
-The Query Handler is structurally a thin orchestration step. When its `Handle` body is a single delegating call to `QueryRepository`, the dedicated handler struct / class adds ceremony without abstraction value — the Interface or Application entry point may call `QueryRepository` directly.
-
-Keep an explicit Query Handler when the read path does at least one of:
-
-- Composes multiple `QueryRepository` calls or cross-context Reader ports
-- Filters or redacts fields based on the calling actor (read-side authorization)
-- Implements caching policy (cache-aside, TTL choice, key derivation)
-- Encodes / decodes pagination cursors or normalizes DTO shapes
-- Performs derived computation across multiple records (presentation logic only — never business rules)
-
-Otherwise collapse it. The `QueryRepository` interface itself must remain in either case — it preserves the Application ↔ Infrastructure dependency boundary for product read use cases regardless of whether a Query Handler wraps it. This dependency boundary does not make every Infrastructure lookup an Application query port; capability classification still comes first.
-
-#### CQRS Port Granularity
-
-CQRS is a boundary design rule, not just a file naming convention. Command-side ports and Query-side ports must be split by caller intent, observed consistency, and failure semantics. A shared storage mechanism is not a shared Application port.
-
-Use this decision table before exposing a read/write interface inward:
-
-| Caller need | Port shape | Owner |
-|-------------|------------|-------|
-| Persist, append, publish, deliver, or mutate data as part of a command / producer flow | Prefer Domain Repository, Domain Event, Integration Message, ACL, or Infrastructure adapter hidden behind the semantic owner; a command-side Application port is exceptional and must name the lifecycle capability | Domain for aggregate persistence and rules; Application only for explicit command-side exceptions after the placement gate |
-| New caller observes the same capability semantics (aggregate, consistency, failure/authorization) as an existing port | Add a method to the existing port — do **not** introduce a new port | Same owner as the existing port |
-| Serve a UI/API/product read-model query in an existing read-model family | Add a method to the existing QueryRepository for that family | Application |
-| Serve a distinct read-model family with different freshness, authorization, pagination, failure, consistency-window, published-API, data-source, or test-substitute semantics | New QueryRepository or reader/facade port returning DTOs/read models | Application |
-| Expose a read-only view to another bounded context | Published facade/query port, not the source context's internal QueryRepository | Owning context Application/API boundary |
-| Bootstrap projection sequence, cursor, lease, ownership, or high-watermark coordination | Semantic coordination port if the use case observes the coordination semantics | Domain-facing when it owns stable rules; otherwise Application orchestration |
-| Locate a peer, forward a request, read routing ownership state, choose an address/replica, carry hop headers, or inspect deployment topology | Concrete Infrastructure routing/transport adapter, not an Application query port | Infrastructure |
-| Combine several SQL/log-store/cache methods only because one adapter implements them | Concrete Infrastructure adapter, not an inward port | Infrastructure |
+```text
+call QueryRepository/read facade -> return DTO/read model
+```
 
 Rules:
 
-- Do not expose a storage-shaped omnibus interface such as `MessageStore`, `EventStore`, `AuditStore`, or `DataStore` to multiple use cases when it mixes producer writes, UI history, audit lookup, projection bootstrap, and other unrelated read models.
-- Do not place read methods on a write Repository merely because the same table holds the data. Write Repositories protect aggregate persistence. Query ports serve consumer-specific read models.
-- Do not create one QueryRepository per screen, RPC method, Query Handler, SQL statement, or minor filter variation. The default is to extend the existing QueryRepository when the read path belongs to the same product read-model family.
-- Do not force consumers to implement or mock methods from unrelated read-model families. Interface bloat is a sign that the port is tracking an adapter or mixing unrelated product views, not that a QueryRepository has more than one method.
-- It is acceptable for one Infrastructure struct to implement several semantic capability-lifecycle ports. Wiring should bind it separately to each inward interface.
-- Go-style small interfaces are appropriate when caller semantics, failure policy, published API surface, dependency direction, or test substitute differ. They are not appropriate when they simply mirror separate adapter operations on the same semantic capability.
-- The default evolution path for an inward-defined port is to add a method to an existing port when a new consumer observes the same capability semantics. For QueryRepositories, "same capability" usually means the same bounded-context product read-model family. Same read-store / projection source is a strong signal to merge; a different read-store / projection source such as OLTP MySQL versus ClickHouse analytics is a strong signal to split, but the Application port name must still be product-semantic rather than technology-semantic. Fork into a new consumer-specific reader / facade / writer port only when the new caller has different freshness, ordering, authorization, pagination, fallback, consistency-window, data-source, or failure semantics. Forking is the exception; extension is the default. (See `ddd-modeling.md §0.2.2`.)
-- Do not create a Command or Query port just because Application code must trigger Infrastructure. First classify the capability. Peer forwarding, cache/coordination routing read models, network addresses, hop headers, retry/backoff settings, queue subjects, storage table names, replica selection, and deployment topology are Infrastructure mechanics unless the use case itself names and observes a stable semantic lifecycle.
-- A CQRS query port must answer a product/application read use case, not a generic "query Infrastructure state" need.
+- Commands modify state; Queries return read models and do not mutate state.
+- Application constructs Domain inputs, calls Domain methods/validation, maps Domain errors outward, and manages transaction boundaries.
+- Default transaction boundary is one aggregate write per command.
+- After `Repository.Save()`, the in-memory aggregate is stale. Reload before further operations.
+- Query Handler structs are optional when they only delegate once to a QueryRepository.
+- Application command-side ports are exceptions. They require the Architecture Gate placement extension and the semantic fake test.
 
-Example:
+#### CQRS Port Granularity
 
-```
-Wrong inward port:
-  ActivityLogStore {
-    Append(record)                  // producer write path
-    ListHistory(streamID, cursor)   // consumer history read
-    ListByCorrelation(query)        // audit/correlation lookup
-    MaxProjectionSeq(streamID)      // projection bootstrap
-  }
+Expose ports by caller semantics, not storage operations:
 
-Better inward ports:
-  Producer application:
-    ActivityLogWriter.Append(record)
-    ProjectionSequenceCounter.Next(streamID)
+| Caller need | Port shape |
+|---|---|
+| Same write-side aggregate collection | Extend existing Domain Repository |
+| Same product read-model family | Add method to existing QueryRepository |
+| Different freshness/auth/pagination/failure/consistency/data-source/test-substitute semantics | New QueryRepository/read facade |
+| Cross-context read | Published facade owned by source context |
+| Routing, peer lookup, hop headers, queue subjects, retry knobs, topology | Infrastructure, not Application query port |
 
-  Consumer query application:
-    ActivityQueryRepository.ListHistory(streamID, cursor)
-    ActivityQueryRepository.ListByCorrelation(query)
-
-  Infrastructure:
-    ActivityLogAdapter may implement all of the above behind separate bindings.
-```
-
-#### Constraints
-
-- No business rules — delegate entirely to domain methods
-- Specifically, Application must not implement business field validation; it constructs Domain inputs, calls Domain constructors / methods / `Validate()`, and maps Domain errors outward (see §3.1 Validation Contract)
-- Application must not become the owner of domain rules for technical-facing capabilities (see §3.1 Domain Rules in Technical Capabilities); it orchestrates Domain methods/services and Infrastructure implementations
-- Never access the database directly; always go through Repository / QueryRepository interfaces
-- **Default transaction boundary: one transaction modifies one aggregate only.** If a use case needs to modify multiple aggregates, prefer modifying the first aggregate and persisting it, then use Domain Events / Integration Messages, a named Application coordination service, or compensating actions to coordinate the other aggregates in separate transactions. Co-locating multiple aggregate mutations in a single transaction is prohibited unless the exception gate below is satisfied.
-- Domain events are dispatched **after a successful persist**, never immediately after calling a domain method
-- Error handling: attach context to Infrastructure errors and propagate them; log once at the active execution boundary. Propagate Domain errors silently (they are part of the normal business flow)
-- After calling `Repository.Save()`, the in-memory aggregate is considered **stale**. If further operations are needed on the same aggregate, reload it with `Repository.Get()` before proceeding:
-
-```
-# Correct pattern for sequential operations on the same aggregate
-ar = repo.get(id)
-ar.method_1()
-repo.save(ar)
-
-ar = repo.get(id)   # reload — never reuse the reference after Save()
-ar.method_2()
-repo.save(ar)
-```
+Do not create one QueryRepository per screen, RPC, SQL statement, or minor filter. Do not create storage-shaped omnibus ports that mix producer writes, UI history, audit lookup, projection bootstrap, and unrelated reads.
 
 #### Multi-Aggregate Transaction Exception Gate
 
-Treat multi-aggregate writes in one transaction as a design exception, not a convenience. The plan must satisfy every item below before implementation:
+One transaction writing multiple aggregates is allowed only when all are true:
 
-- **Same bounded context**: the aggregates belong to the same bounded context and the write does not cross a service, database, or external consistency boundary.
-- **Non-repairable invariant**: the business can name an invariant that would be violated by temporary inconsistency and cannot be safely repaired by compensation, retry, or reconciliation.
-- **Modeling check completed**: the team has checked whether the rule should instead be modeled as one aggregate, a new aggregate (for example a `Transfer`, `Reservation`, `LedgerEntry`, or `Registry` aggregate), a Domain Service plus one aggregate write, or a database uniqueness / exclusion constraint surfaced as a Domain error.
-- **Alternatives rejected with reason**: Domain Events, Integration Messages, named Application coordination service, compensating action, and idempotent consumers have been considered and rejected for this specific invariant.
-- **Concurrency plan**: the write states the lock / optimistic-concurrency strategy, expected contention, retry behavior, and stale-state rules after `Save()`.
-- **Failure semantics**: the command defines what callers observe when either aggregate write fails, and whether any side effects may already have been admitted.
-- **No precedent**: migration scripts, data repair jobs, and legacy transition code may use broader transactions, but they must be labeled as operational / transitional exceptions and must not become precedent for normal Command Handlers.
-
-If the exception cannot be justified in those terms, keep the normal one-aggregate transaction boundary and coordinate through events, messages, or an explicit process.
+- Same bounded context and same persistence/consistency boundary.
+- A named invariant would become non-repairably invalid under temporary inconsistency.
+- Aggregate redesign, decision aggregate, Domain Service, database constraint surfaced as Domain error, Domain Event, Integration Message, compensating action, and idempotent consumer options were considered and rejected.
+- Lock/optimistic-concurrency, retry, stale-state, failure semantics, and caller-visible outcomes are stated.
+- The exception is not based on ORM/session convenience.
 
 #### Command Handler Port-Pressure Heuristic
 
-A well-shaped Command Handler usually reduces to four steps: **load aggregate → call domain method / Domain Service → save → dispatch events**. Extra dependencies are not automatically wrong, but they are a signal to re-check mechanism placement before accepting new Application command-side ports.
+Count semantic outbound dependencies only: Repositories, QueryRepositories used by commands, ACLs, external semantic gateways, command-side ports.
 
-| Outbound semantic dependency count per Command Handler | Status |
-|--------------------------------------------------------|--------|
-| 1–2 | Normal; no special review required |
-| 3 | Soft ceiling; review placement informally |
-| 4 | Mandatory port-pressure review in the plan or PR description |
-| ≥ 5 | Presumptively unresolved abstraction; refactor or justify each dependency before merge |
+| Count | Review action |
+|---|---|
+| 1-2 | Normal |
+| 3 | Informal placement review |
+| 4 | Mandatory port-pressure review |
+| 5+ | Presumptively unresolved abstraction |
 
-Do not count logging, tracing, metrics, clock/ID helpers, the shared event bus, or transaction helpers as semantic outbound ports. Do count Repositories, QueryRepositories used by commands, command-side Application ports, ACLs, external semantic gateways, and other dependencies whose behavior affects the use case outcome.
-
-When the count is 4 or more, the plan/PR must answer:
-
-- **Capability merge**: do any pairs of injected ports represent the same capability lifecycle that should be merged per §3.4 / `ddd-modeling.md §0.2.1`?
-- **Rule extraction**: does the handler body contain a business decision (`if … else …` over aggregate state, multi-port coordination with a business meaning) that should be an Aggregate method or Domain Service?
-- **Event/message extraction**: do two or more branches react to the same domain fact or perform the same side effect after a state change? If yes, emit one Domain Event and handle it once; translate to an Integration Message when the reaction crosses contexts.
-- **Mechanism sinking**: do any injected ports represent routing, queue, transport, retry/backoff, topology, SDK, or storage mechanics that should be hidden inside a Repository, QueryRepository, ACL, event/message publisher, or Infrastructure adapter?
-
-Four or more semantic dependencies is acceptable only when each dependency represents a distinct semantic owner that survived the Domain mechanism placement gate. Otherwise the handler is the visible symptom of Application-port overuse (`ddd-agent-contract.md §4.19`) and at least one corrective action applies.
+When count is 4+, check capability merge, rule extraction to Aggregate/Domain Service, event/message extraction, and mechanism sinking into Infrastructure.
 
 ### 3.3 Interface Layer
 
-**Core rule: protocol transformation only. No business logic.**
+Interface owns protocol transformation only:
 
-#### Responsibilities
+- request/response mapping;
+- format/schema validation;
+- actor/context extraction;
+- protocol error mapping;
+- one delegate call to Application.
 
-- Translate incoming requests (HTTP / gRPC / MQ) into Application layer Commands or Queries
-- Translate Application layer results into protocol-specific response formats
-- **Format validation** (not business validation) happens here
-- Map domain errors and infrastructure errors to protocol-specific error codes
+No business rules, transaction control, repository calls, aggregate mutation, or adapter orchestration.
 
-#### Error Code Mapping
+Error mapping defaults:
 
-| Error Type | HTTP Status | gRPC Code |
-|------------|-------------|-----------|
-| Resource not found (domain) | 404 | `NOT_FOUND` |
-| Invalid input (domain) | 400 | `INVALID_ARGUMENT` |
-| Business precondition not met (domain) | 422 | `FAILED_PRECONDITION` |
-| Concurrent modification (domain) | 409 | `ABORTED` |
-| Infrastructure error | 500 | `INTERNAL` |
+| Error | HTTP | gRPC |
+|---|---|---|
+| Not found | 404 | `NOT_FOUND` |
+| Invalid Domain input | 400 | `INVALID_ARGUMENT` |
+| Business precondition | 422 | `FAILED_PRECONDITION` |
+| Concurrent modification | 409 | `ABORTED` |
+| Infrastructure failure | 500 | `INTERNAL` |
 
 ### 3.4 Infrastructure Layer
 
-**Core rule: technical implementation only. No business logic.**
+Infrastructure owns technical implementation:
 
-#### Responsibilities
+- Repository and QueryRepository implementations;
+- data objects and converters;
+- DB transactions, optimistic lock SQL, soft-delete columns;
+- cache/broker/RPC/SDK/file/K8s/framework adapters;
+- generated protocol adapter glue;
+- retry, topology, routing mechanics.
 
-- Implement the Repository interfaces defined in the Domain layer and the QueryRepository interfaces defined in the Application layer
-- Handle ORM mapping: Data Object (DO) ↔ Domain Entity conversion
-- Implement optimistic locking (see below)
-- Implement soft deletes (see below)
-- Provide clients for external services, caches, and message queues
+Repository rules:
 
-#### Repository Pattern
-
-A Repository represents a **collection of aggregates**, not a database access object. Its interface must reflect collection semantics, not database operation semantics.
-
-Repository and QueryRepository interfaces are semantic boundaries. Infrastructure may combine multiple technical mechanisms behind one implementation (for example MySQL plus Redis cache-aside, write-through cache, local memory cache, retries, or lock renewal) as long as the caller still observes the same aggregate or read-model contract.
-
-Do **not** introduce technology-shaped ports such as `Cacher`, `RedisStore`, `MysqlReader`, `LockClient`, `Peer`, `Directory`, or `Router` merely because an implementation uses that technology or because Application triggers the operation. Create a separate port only when the Application use case needs a distinct semantic capability with its own failure policy or consistency boundary. Examples:
-
-- Keep one `UserRepository` when Redis is only an acceleration layer for loading/saving `User` aggregates.
-- Keep one `UserQueryRepository` when Redis caches DTO/read-model queries but callers do not reason about cache state.
-- Keep the normal Repository / event bus interface when MySQL transaction coupling, retry counters, broker adapters, or commit hooks are only reliability mechanisms behind persistence or delivery.
-- Introduce a separate port only when the use case explicitly commands cache invalidation, distributed locking, lease ownership, rate limiting, or another named technical-facing capability.
-
-Technical consistency and routing requirements must not leak upward as dedicated ports. Do not create `TransactionalMessageWriter`, `BrokerPublisher`, `UnitOfWork`, `TransactionalEventPublisher`, `Peer`, `Directory`, `RoutingDirectory`, or similar Application/Domain interfaces solely because the implementation needs an atomic database transaction, a message broker, retry scheduling, peer forwarding, cache/coordination ownership lookup, network address resolution, hop-header handling, or deployment-topology inspection. Hide those mechanisms inside the Repository implementation, a transaction-aware event bus implementation, or an Infrastructure adapter unless the caller genuinely observes and chooses that capability as part of the use case.
-
-`Save()` is the **single method** for persisting an aggregate, covering create, update, and state-driven soft-delete scenarios. Never split it into `Insert()`, `Update()`, or `Delete()` based on underlying SQL operations — the caller must not need to know which statement executes.
-
-```
-✅ Correct — collection semantics:
-  repo.save(aggregate)      # handles create, update, and state-driven soft delete internally
-
-❌ Wrong — database semantics:
-  repo.insert(aggregate)
-  repo.update(aggregate)
-  repo.delete(id)
-```
-
-`Save()` determines the correct operation internally based on the aggregate's state (e.g., `Version == 0` → INSERT; `Version > 0` → UPDATE).
-
-#### Optimistic Locking
-
-```
-Version semantics:
-  0      → New aggregate, never persisted. Save() executes INSERT.
-  N > 0  → Previously persisted. Save() executes a version-guarded UPDATE.
-
-UPDATE statement:
-  UPDATE ... SET ..., version = version + 1 WHERE id = ? AND version = <current_version>
-
-If affected rows == 0 → return a concurrent modification error.
-
-Ownership and stale state:
-  - The Domain layer holds the Version field as a read-only concurrency token.
-  - The Infrastructure layer is solely responsible for incrementing it (via SQL).
-  - After Save(), the in-memory aggregate's Version is stale.
-    Always reload via Repository.Get() before any subsequent operation.
-```
-
-#### Soft Delete
-
-Distinguish between **business-driven logical deletion** and **technical data retention**:
-
-- **Business-driven**: When "deletion" is a business action (e.g., order cancellation, user deactivation), the Domain layer must model it as an explicit state (e.g., `Status.Cancelled`, `Status.Deactivated`). The aggregate transitions to this state via a domain method. The Infrastructure layer's `Save()` maps this domain state to set `deleted_at` in the database — the domain never knows about `deleted_at`.
-- **Technical retention**: When soft delete is purely a data retention policy with no business meaning, the Infrastructure layer manages `deleted_at` transparently and the Domain layer is completely unaware.
-
-In both cases, the `deleted_at` column is an Infrastructure concern. The difference is whether the domain models the "deleted" state explicitly.
-
-```
-Business-driven soft delete:
-  Domain:         aggregate.cancel()  → sets Status = Cancelled
-  Infrastructure: Save() detects Status == Cancelled → sets deleted_at = now()
-
-Technical soft delete:
-  Domain:         unaware
-  Infrastructure: manages deleted_at based on retention policy
-```
-
----
+- Repository is a collection of aggregate roots, not a DAO.
+- `Save()` covers create, update, and state-driven soft delete. Do not expose `Insert/Update/Delete` to Domain/Application.
+- Write Repository interfaces live in Domain; QueryRepository/read facade interfaces live in Application or published API boundary.
+- Infrastructure may compose multiple mechanisms behind one semantic port. Do not expose `RedisStore`, `MysqlReader`, `BrokerPublisher`, `TxManager`, `Peer`, `Directory`, or `Router` inward unless the use case names a semantic lifecycle and the Architecture Gate accepts it.
+- Infrastructure increments optimistic-lock versions through storage semantics. Domain treats version as a read-only token.
+- Business-driven delete is modeled as Domain state; `deleted_at` remains Infrastructure.
 
 ## 4. DDD Tactical Design Reference
 
-| DDD Concept | Layer | Implementation | Notes |
-|-------------|-------|----------------|-------|
-| Aggregate Root | Domain | Class / struct + domain methods | Enforces business invariants |
-| Entity | Domain | Class / struct with unique ID | Mutable; identity persists over time |
-| Value Object | Domain | Immutable class / struct | Equality by value, not reference |
-| Domain Service | Domain | Stateless class / function | Cross-aggregate business logic |
-| Repository | Domain (interface) + Infra (impl) | Interface + implementation | Write-side persistence abstraction |
-| Query Repository | Application (interface) + Infra (impl) | Interface + implementation | Read-side; returns DTOs directly; not a domain concern |
-| Domain Event | Domain | Data class / struct | Records significant domain occurrences |
-| Application Service (Command / Query Handler) | Application | Command / Query Handler | Orchestrates use cases; owns transaction boundary. "Application Service" is the conceptual name; in code it is realized as a Command Handler or Query Handler |
-| DTO / Protocol Message | Application / Interface / Infrastructure | Data class / struct / generated schema type | Decouples internal and external models; generated protocol messages are contracts, not Domain entities |
-| Factory | Domain | Static factory method / constructor / independent Factory class | Encapsulates complex object creation |
-
----
+| Concept | Owner | Notes |
+|---|---|---|
+| Aggregate Root | Domain | Guards invariants; repository operates on root |
+| Entity | Domain | Stable identity |
+| Value Object | Domain | Equality by value, immutable/replaceable |
+| Domain Service | Domain | Named business decision spanning aggregates |
+| Repository | Domain interface + Infrastructure impl | Write-side aggregate collection |
+| QueryRepository/read facade | Application/API interface + Infrastructure impl | Product read model, DTOs |
+| Domain Event | Domain | Same-BC fact after state change |
+| Integration Message | Boundary/Application/Infrastructure contract | Cross-context published fact |
+| Command/Query Handler | Application | Orchestration and transaction boundary |
+| DTO/protocol message | Interface/Application/Infrastructure | Never a Domain entity |
 
 ## 5. Cross-Context Communication
 
 ### 5.1 Direct Calls Are Prohibited
 
-Bounded contexts must **never** directly call another context's Application Service or Repository.
-
-```
-❌ Wrong:
-  OrderService.createOrder()
-      └── directly calls UserService.getUser()
-
-✅ Correct:
-  OrderService.createOrder()
-      └── records OrderCreated Domain Event inside Order context
-              └── Order boundary publisher translates it to OrderCreatedIntegrationMessage
-                      └── User context subscribes to the Integration Message and handles asynchronously
-```
+Do not call another context's Domain model, Application Service, Repository, or database table directly. Cross-context interaction uses the mechanisms in §5.2.
 
 ### 5.2 Legitimate Cross-Context Mechanisms
 
-Cross-context interaction must use one of these four mechanisms. Anything else (importing another context's Domain model, calling its Application Service directly, sharing database tables) is prohibited.
-
-| # | Mechanism | Use when | Coupling |
-|---|-----------|----------|----------|
-| 1 | **Integration Messages** (default for cross-context state propagation) | One context's state change should trigger reactions in others | Loose; eventual consistency |
-| 2 | **Cross-Context Queries** (read-only) | A context needs a current snapshot of data owned elsewhere, with no write side-effects | Loose; through explicit query interfaces, never through the source context's Domain model |
-| 3 | **Anti-Corruption Layer (ACL)** | Integrating with external / legacy systems whose model you cannot or should not adopt | Translation overhead; prevents pollution |
-| 4 | **Protocol Contracts** (Protobuf, OpenAPI, GraphQL SDL) | Cross-service / cross-repository structured data contracts; generated code shared | Schema-level only; no Domain coupling |
-
-Integration Messages are the default for asynchronous cross-context state propagation. The other three exist for cases messages cannot serve cleanly — they are not fallbacks for laziness.
+| Mechanism | Use when |
+|---|---|
+| Integration Messages | State changes in one context trigger reactions elsewhere |
+| Cross-context Queries | Read-only current snapshot is needed |
+| ACL | External/legacy/upstream model must not pollute local language |
+| Protocol Contracts | Cross-service/repository structured schema is needed |
 
 ### 5.3 Domain Events and Integration Messages
 
-Domain Events record facts inside a bounded context. Integration Messages publish selected facts across bounded-context boundaries:
-
-```
-Publisher (Order context):
-  1. Execute business logic; aggregate collects domain events internally
-  2. Persist the aggregate
-  3. After successful persist, translate selected Domain Events into Integration Messages
-  4. Publish Integration Messages to other contexts
-
-Subscriber (User context):
-  1. Subscribe to the relevant Integration Message
-  2. Handle within its own transaction boundary
-  3. Never depend on the publisher's internal domain model
-```
-
-#### Boundary Rule
-
-A **Domain Event** is internal to its bounded context — it uses the publisher's ubiquitous language and may be refactored whenever the publisher's domain model evolves. An **Integration Message** is the cross-context semantic contract — its payload is part of the published language and follows additive schema-evolution discipline (no breaking field changes; deprecate before removing).
-
-#### Async Reaction Roles
-
-Keep asynchronous reaction code small by naming the role a handler plays before writing it:
-
-| Role | Input | Allowed responsibility | Must not do |
-|------|-------|------------------------|-------------|
-| **Domain Event Handler** | Domain Event from the same bounded context | React to one same-BC domain fact after the aggregate has been persisted; update a read model, trigger a local side effect, or call a named Application orchestration service | Consume Integration Messages, expose a cross-context contract, depend on another context's Domain model, or become a catch-all workflow coordinator |
-| **Boundary Publisher** | Domain Event from the same bounded context | Translate selected same-BC Domain Events into Integration Messages and publish them through the message port | Consume Integration Messages, mutate aggregates, make lifecycle decisions, or mix unrelated local side effects with contract publication |
-| **Integration Message Handler** | Integration Message contract from another context or service boundary | Translate the stable payload into the consuming context's command/domain language and handle the consumer-side side effect or transaction | Depend on the producer's internal Domain Event type, reuse the producer's Domain model, or also subscribe to same-BC Domain Events |
-
-One concrete handler type has one role. `Boundary Publisher` is the intentional bridge: it consumes a same-BC Domain Event and may depend on the Integration Message publisher, but it is still registered as a Domain Event consumer, not as an Integration Message consumer. Avoid generic `EventHandler`, `MessageHandler`, or `Handler` types that accumulate unrelated inbound facts; name handlers after the event/message/contract family they own.
-
-#### Handler Granularity
-
-Default to one inbound Domain Event kind or Integration Message kind per concrete handler. A handler may listen to multiple kinds only when all of these are true and written in the plan or review note: same role, same source context or contract family, same target side effect / projection / published contract, same transaction boundary, same failure policy, and the same dependency set. A `Handle` method that switches over unrelated event or message types is a review failure.
-
-Failure policy stays lightweight by default. It is enough to state one of: best-effort, log-and-continue, return the subscriber/adapter error, or `n/a` for pure mapping. Do not add stronger delivery machinery unless the use case explicitly requires stronger delivery semantics.
-
-#### Concept / Contract / Port / Mechanism
-
-Keep the concept, contract, port, and delivery mechanism separate:
-
-- **Concept**: the cross-context fact another bounded context may depend on.
-- **Contract**: the stable payload schema, message kind, versioning, and compatibility rules.
-- **Port**: the implementation-independent publish / subscribe API exposed to Application code.
-- **Mechanism**: broker, queue, HTTP callback, relay, retry, ordering, and other adapter-specific delivery concerns.
-
-#### Default Lifecycle
-
-1. A Domain method records one or more Domain Events inside the producing bounded context.
-2. The Application command handler persists the aggregate.
-3. After successful `Save()`, Application drains the Domain Events and dispatches them inside the same bounded context.
-4. A boundary translator / publisher in that bounded context selects publishable facts and maps them to Integration Message contract payloads.
-5. The publisher submits the Integration Message through the publish port; success means the selected adapter accepted the message according to its own semantics, not that any consumer has handled it.
-6. The subscriber adapter resolves the message payload and routes by message kind.
-7. The consumer handler processes the message in its own transaction boundary.
-8. The adapter applies its delivery policy (ack, retry, stop, or other failure handling).
-
-Directly constructing and publishing an Integration Message in the command handler is a shortcut for simple use cases where cross-context publication is an explicit output of that command. The default is Domain Event first, boundary translation second.
-
-#### Publication Failure Policy
-
-| Requirement | Default handling |
-|-------------|------------------|
-| Ordinary notification; loss is acceptable | Log adapter admission / delivery failure; the original command remains successful after its aggregate is persisted |
-| User-facing command requires publish admission | Treat publication as an explicit command output and return the publish-port error, or use the direct-publish shortcut deliberately |
-| Pre-publish loss is unacceptable | Use an explicit reliability design; do not hide this requirement inside a command handler or technology-shaped port |
-| Subscriber adapter may redeliver | Make the consumer idempotent according to that adapter's delivery semantics |
-
-#### Domain Event vs Integration Message
+Domain Events are internal same-bounded-context facts. Integration Messages are cross-context contracts.
 
 | Property | Domain Event | Integration Message |
-|----------|--------------|-------------------|
-| Scope | Inside one bounded context | Crosses bounded contexts |
-| Vocabulary | Publisher's ubiquitous language | Stable published language / contract |
-| Schema evolution | Refactored freely with the domain | Additive only; deprecation discipline |
-| Coupling | None outside the publishing context | Consumers depend on it |
-| Typical mechanism | Bounded-context-internal dispatcher / handlers; concrete delivery is implementation-specific | Publish / subscribe port implemented by a broker adapter, or §5.7 protocol contract |
+|---|---|---|
+| Scope | One bounded context | Crosses bounded contexts |
+| Vocabulary | Publisher's ubiquitous language | Stable published language |
+| Evolution | Refactor with Domain | Additive/deprecated schema discipline |
+| Consumer coupling | Internal only | External consumers depend on it |
 
-#### Refactoring Existing Events
+Async reaction roles:
 
-**Rule:** what crosses a bounded context is always an Integration Message, even when it is constructed from a Domain Event one-to-one. In simple monolithic deployments the two often share the same struct/class, but the *contract* is what matters — once a consumer depends on the payload, schema changes need consumer-side coordination.
+- **Domain Event Handler**: consumes one same-BC Domain Event and performs a local reaction.
+- **Boundary Publisher**: consumes same-BC Domain Event and publishes Integration Message.
+- **Integration Message Handler**: consumes another context/service's contract and maps into local language.
 
-When refactoring a Domain Event whose payload is also published cross-context, treat the publishing side as a **producer of an Integration Message** and choose one of:
+One concrete handler has one role. Multi-kind handlers require same role, source context/contract family, target side effect, transaction boundary, failure policy, and dependency set.
 
-1. **Translate at the boundary** — keep the Domain Event internal; an event handler in the same bounded context produces an Integration Message with a stable payload before publishing
-2. **Lock the payload** — accept that this Domain Event's payload is also a published contract, and apply additive evolution discipline to it
-3. **Versioned Integration Message** — emit `OrderPlacedV1`, `OrderPlacedV2` while keeping consumers running on either version through a deprecation window
-
-Conflating internal Domain Events with cross-context Integration Messages is the most common cause of "we can't change anything because every event is a contract" — an outcome that defeats the loose coupling event-driven boundaries were supposed to provide.
+Failure policy labels: best-effort, log-and-continue, return subscriber/adapter error, or explicit stronger reliability requirement.
 
 ### 5.4 Integration Message Payload Design
 
-Integration Messages use a **rich fact** style: carry the aggregate ID plus the minimum set of fields the consumer needs to process the fact — nothing more.
-
-**Rules:**
-- **Never** include a full entity or aggregate root object in an event payload
-- Carry only the fields that are necessary for consumers to act on the message
-- Fields represent a **snapshot of the state at the moment the fact occurred** — consumers must treat them as a historical record, not as current state
-- If a consumer needs the latest state of an entity, it must query it explicitly from its own data source
-
-```
-✅ Correct — minimum necessary fields:
-  UserActivatedEvent    { user_id, activated_at }
-  OrderCompletedEvent   { order_id, user_id, total_amount, occurred_at }
-  PasswordChangedEvent  { user_id, changed_at }
-
-❌ Wrong — full object embedded:
-  UserActivatedEvent    { user: User{ id, name, email, status, ... } }
-  OrderCompletedEvent   { order: Order{ id, items: [...], address: {...}, ... } }
-```
-
-Embedding full objects couples the consumer to the publisher's internal domain model. Any change to the aggregate structure becomes a breaking change for all consumers.
+Messages carry aggregate ID plus minimum necessary facts at occurrence time. Never embed full aggregates/entities. Consumers treat payloads as historical snapshots, not current state.
 
 ### 5.5 Cross-Context Queries
 
-When a bounded context needs a current snapshot of data owned by another context (display a user's name on an order receipt; show product info during cart construction), it may read through a **port the owning context explicitly publishes** — never by reaching into another context's internal Domain model, repository, or `QueryRepository` class.
-
-Two transport variants:
-
-| Deployment | Mechanism |
-|------------|-----------|
-| **Same-process modular monolith** | The owning context exports a query port / facade (a small read-side interface) that returns DTOs / read models. Consumers depend on the port; the implementation lives in the owning context's Application or Infrastructure layer |
-| **Cross-process / cross-service** | The contract is expressed as an API or protocol contract (REST, gRPC/Protobuf, GraphQL); both sides depend on the schema, neither side imports the other's Domain |
-
-Rules that apply to both variants:
-
-- Responses are DTOs / read models — Domain objects are never returned across the boundary
-- Queries must not produce side effects in the source context; for cross-context state propagation, use Integration Messages
-- Avoid query chains across more than two contexts; if you find yourself doing this, the bounded context boundaries are likely wrong
-
-Cross-context queries are appropriate when the consumer's read needs cannot be satisfied by an event-driven projection (data is too large to replicate, or freshness requirements demand a live read).
+Cross-context reads go through a facade/query port or protocol contract published by the owning context. They return DTOs/read models, have no side effects, and never return Domain objects. Avoid chains across more than two contexts.
 
 ### 5.6 Anti-Corruption Layer (ACL)
 
-When integrating with external systems or legacy services, always introduce an **Anti-Corruption Layer** to prevent external models from polluting the internal domain model:
-
-```
-External System → ACL (translation / adaptation) → Internal Domain Model
-```
-
-The ACL lives in the Infrastructure layer and is transparent to the Domain layer.
+ACL translates external/legacy/upstream language into local Domain language. It lives in Infrastructure or a boundary adapter. Domain does not import external shapes.
 
 ### 5.7 Protocol Contracts
 
-For cross-service or cross-repository communication, define data contracts in a schema language (Protobuf, OpenAPI, GraphQL SDL) and consume the generated code on both sides.
+Schemas (Protobuf/OpenAPI/GraphQL/etc.) are contracts, not Domain models.
 
-Rules:
-
-- The schema is the contract — generated types are shared structurally, but neither side imports the other's Domain model
-- Generated protocol types are DTOs / contracts, not Domain entities or Value Objects. Sharing a Protobuf message between modules does not make it a shared Domain model. A Query Handler may surface a generated protocol message directly as a read-side DTO; the prohibition is on using it as a Domain entity, Value Object, or Domain-facing port input/output type.
-- Domain-facing ports must not use generated protocol types as input/output. Generated messages remain valid as Interface/Application read DTOs, generated RPC request/response types, and Infrastructure adapter contracts.
-- Domain layers must not depend on generated protocol packages; if Domain logic needs an internal representation, define a Domain type and convert at the boundary (in Application or Infrastructure)
-- Do not relocate a Domain-facing port to Application merely because Application is the layer that touches the generated stub. Keep the semantic port in the owning layer (with Domain-typed inputs/outputs) and add `Proto ↔ Domain` assemblers in the layer that holds the proto dependency.
-- Schema evolution follows additive rules — no breaking field changes; deprecate before removing
-- Protocol contracts complement Integration Messages and Cross-Context Queries (one for sync structured data; the others for state propagation and ad-hoc reads), they do not replace them
-
-**Placement**: generated code lives in a single language-conventional location, isolated from Domain. Each language guide names its concrete directory; the abstract rule is "one place, never inside a Domain package, never co-mingled with hand-written business types". Examples:
-
-| Language | Generated-code location |
-|----------|------------------------|
-| Go | `pkg/gen/` |
-| Python | `packages/contracts/` or `src/contracts/gen/` |
-| TypeScript | `packages/contracts/` |
-
-Hand-written shared event payload types (used to type Integration Messages crossing context boundaries within the same repository) are a different artifact from generated protocol code and should not be placed in the same directory.
-
----
+- Generated types stay outside Domain.
+- Domain-facing ports use Domain-owned input/output types.
+- Map generated types at Interface/Application/Infrastructure boundaries.
+- Schema evolution is additive; deprecate before removing.
 
 ## 6. Domain Events and Dispatch Timing
 
 ### 6.1 Dispatch Timing
 
-Domain events must be dispatched **after a successful persist**. Never dispatch immediately after calling a domain method.
+Correct order:
 
+```text
+call Domain method -> persist aggregate -> drain Domain Events -> dispatch/publish
 ```
-✅ Correct:
-  1. Call domain method    (events are collected inside the aggregate)
-  2. Persist aggregate     (transaction commits)
-  3. Dispatch events       (after commit)
 
-❌ Wrong:
-  1. Call domain method
-  2. Dispatch events immediately  ← persist may still fail → data inconsistency
-  3. Persist aggregate
-```
+Never dispatch before persistence succeeds.
 
 ### 6.2 Cross-process delivery
 
-Cross-context Integration Messages are typically delivered through a message broker (Kafka, NATS, RocketMQ, RabbitMQ, etc.) using **at-least-once delivery + idempotent consumers** as the default reliability model. Domain Events stay inside one bounded context; their delivery semantics come from that bounded context's chosen dispatcher implementation. If the implementation is in-memory, crash-time loss is acceptable only when the producer's persisted state remains the source of truth and downstream readers can derive missing reactions from a query or recomputation.
-
-The narrow case where pre-publish loss is unacceptable — payment, inventory, regulatory compliance — requires a separate reliability design. This guide does not prescribe an implementation; consult the language ecosystem's standard solutions, and keep the reliability mechanism inside the Repository or Infrastructure adapter so it does not leak as a Domain or Application port (§3.4).
-
----
+Cross-context Integration Messages default to broker at-least-once delivery plus idempotent consumers. If pre-publish loss is unacceptable, record an explicit reliability design and keep its mechanism inside Repository/Infrastructure adapters; do not leak `OutboxWriter`, `BrokerPublisher`, or `TransactionalEventPublisher` as inward ports.
 
 ## 7. Naming Conventions
 
-The following conventions describe **conceptual naming**. Each language should apply its own casing style (camelCase, snake_case, PascalCase, etc.) while preserving the conceptual names below.
+Use conceptual names; apply language casing locally.
 
-| Concept | Pattern | Example |
-|---------|---------|---------|
-| Domain Event | `<Name>Event` | `UserCreatedEvent` |
-| Command | `<Action><Target>Command` | `ChangePasswordCommand` |
-| Command Handler | `<Action><Target>CommandHandler` | `ChangePasswordCommandHandler` |
-| Query | `Find<Target>Query` | `FindUserByIdQuery` |
-| Query Handler | `Find<Target>QueryHandler` | `FindUserByIdQueryHandler` |
-| Repository interface (write) | `<Aggregate>Repository` | `UserRepository` |
-| Query repository interface (read) | `<Aggregate>QueryRepository` | `UserQueryRepository` |
-| Data Object | `<Entity>DO` or `<Entity>PO` | `UserDO` |
-| DTO | `<Purpose>DTO` | `UserDetailDTO` |
-| Value Object | Business name directly | `Email`, `Money`, `Address` |
-| Domain Error | `<Description>Error` or `Err<Description>` | `UserNotActiveError` |
+| Concept | Pattern |
+|---|---|
+| Domain Event | `<Name>Event` |
+| Command | `<Action><Target>Command` |
+| Query | `Find<Target>Query` or product-specific read name |
+| Repository | `<Aggregate>Repository` |
+| QueryRepository | `<ReadModelFamily>QueryRepository` |
+| DTO | `<Purpose>DTO` |
+| Domain Error | `<Description>Error` or `Err<Description>` |
 
----
+Suspicious Application/Domain interface names are governed by [`ddd-modeling.md §0.2.3`](ddd-modeling.md).
 
 ## 8. Error Handling
 
 ### 8.1 Error Classification
 
-| Error Type | Defined In | Handling |
-|------------|------------|----------|
-| **Domain Error** | Domain layer | Represents a business rule violation. Part of the normal business flow. Do not log. Propagate up; translate to 4xx at the Interface layer. |
-| **Infrastructure Error** | Infrastructure layer | Represents a technical failure (DB timeout, network issue). Log at the Application layer. Translate to 5xx at the Interface layer. |
-| **Input Validation Error** | Interface layer | Represents a malformed request. Handle and return 4xx directly at the Interface layer. Do not propagate inward. |
+| Error | Defined in | Handling |
+|---|---|---|
+| Domain error | Domain | Normal business flow; no log; map to 4xx/protocol equivalent |
+| Infrastructure error | Infrastructure | Add context; log once at execution boundary; map to 5xx |
+| Format validation error | Interface | Return at boundary; do not propagate inward |
 
 ### 8.2 Error Propagation
 
-```
-Domain layer:
-  Define domain error constants.
-  Return / raise them when business rules are violated.
-
-Infrastructure layer:
-  Attach context (e.g., entity ID, operation name) to technical errors before propagating.
-
-Application layer:
-  Infrastructure errors → attach use-case context + propagate; log only if this is the active execution boundary
-  Domain errors        → propagate silently (no logging)
-
-Interface layer:
-  All errors → translate to protocol error codes → return to caller
-```
-
----
+Domain returns business errors. Infrastructure wraps technical errors with operation/ID context. Application logs only when it owns the execution boundary. Interface maps errors to protocol responses.
 
 ## 9. Testing Strategy
 
 ### 9.1 Per-Layer Approach
 
-| Layer | Test Type | Dependencies | Goal |
-|-------|-----------|--------------|------|
-| **Domain** | Pure unit tests | Language runtime + the same implementation-independent libraries Domain itself depends on (see §3.1 Constraints) | Verify business rules, invariants, domain event emission |
-| **Application** | Unit tests + mocks | Mocked Repository / QueryRepository | Verify use-case orchestration logic |
-| **Infrastructure** | Integration tests | Real database (test containers) | Verify SQL correctness, optimistic locking, soft deletes |
-| **Interface** | End-to-end tests | Simulated HTTP / gRPC requests | Verify protocol transformation and error code mapping |
+| Layer | Evidence |
+|---|---|
+| Domain | Pure tests for invariants, transitions, errors, events |
+| Application | Use-case tests through Repository/QueryRepository/event/message fakes |
+| Infrastructure | Real adapter/schema tests where practical |
+| Interface | Protocol mapping and error-code tests |
 
 ### 9.2 Domain Layer Test Priorities
 
-Domain tests should cover:
-- Happy paths for all business rules
-- All error paths (invalid input, illegal state transitions)
-- Domain events emitted at the correct moments
-- Value object validation logic
+Cover lifecycle transitions, invalid transitions, invariant violations, value object validation, and Domain Event emission.
 
 ### 9.3 Mock Usage Rules
 
-- Only mock **cross-layer boundary interfaces** (Repository, external service clients)
-- Never mock domain objects — instantiate aggregates directly in domain tests
-- Infrastructure layer tests use real databases via test containers, not mocks
-
----
+Mock/stub cross-layer seams, not Domain objects. Domain tests instantiate real aggregates/value objects. Infrastructure tests prefer real dependencies or representative integration tests over pure mocks.
 
 ## 10. Architecture Review Checklist
 
-Use this checklist when reviewing backend, DDD, refactor, or technical-capability changes:
-
-- **Modeling gate**: `ddd-modeling.md` was applied first, with a gate level and bounded context / business capability stated.
-- **Import boundaries**: Domain imports no framework, generated protocol package, storage driver, queue client, HTTP server/client, Infrastructure package, or another bounded context's Domain package.
-- **Layer ownership**: Domain owns named rules/invariants, write repositories, domain services, and domain events; Application owns orchestration, transaction boundaries, product read QueryRepository/read facades, and only explicitly justified command-side port exceptions; Infrastructure implements adapters and owns routing/transport/topology mechanics.
-- **Technical capability classification**: dispatchers, registries, schedulers, routers, connectors, ownership managers, delivery mechanisms, projections, observability, and audit logic are classified before package placement.
-- **Interface direction**: inward layers define the interfaces they need; outer layers implement them. Infrastructure-defined interfaces must not be imported inward.
-- **CQRS port granularity**: ports are named for semantic capabilities, caller side, and product read-model families, not implementation technologies. QueryRepository defaults to one port per bounded-context read-model family, extended by adding methods; split only for distinct read-model/runtime semantics such as different freshness, authorization, pagination, failure, consistency-window, published API, data-source, or test substitute. Redis/MySQL/cache/queue/log-store clients, peer forwarding, routing directories, hop headers, retry/backoff, and deployment topology are composed inside Infrastructure unless the use case itself needs a separate semantic lifecycle boundary. Reject omnibus store interfaces that mix unrelated producer writes, UI history, audit lookup, and projection coordination.
-- **Transaction boundary**: Command Handlers default to one aggregate write per transaction. Any multi-aggregate transaction passes the exception gate in §3.2 and remains inside one bounded context.
-- **Cross-context boundaries**: communication uses Integration Messages, cross-context queries, ACL, or protocol contracts; no direct calls into another context's Domain model or Application Service.
-- **Package/path consistency**: a package path that claims `domain`, `application`, `interfaces`, or `infrastructure` follows that layer's dependency and responsibility rules.
-
-The next seven items are the **hot-path placement checks**. Apply them on every change that adds or modifies an inward interface, command handler dependency, Domain Event, Integration Message, or asynchronous handler. They preserve the old R-check intent while reducing review-time branching:
-
-- **P1 — Port eligibility** *(covers former R1, R2, R6)*: every new inward interface first passes the Architecture Gate placement question: Aggregate method / Domain Repository / Domain Service / Domain Event handler / Integration Message / named Application coordination service / ACL / Infrastructure adapter / Application QueryRepository-read facade. Suspicious names from `ddd-modeling.md §0.2.3` trigger this audit, not automatic rejection. A command-side Application port that survives must also pass the semantic fake litmus test: if the only meaningful fake is "pretend the external side effect succeeded", it is a mechanism adapter and must move outward.
-- **P2 — Handler pressure** *(former R4)*: no Command Handler in this change injects four or more semantic outbound dependencies without satisfying the port-pressure review in §3.2, including the event/message extraction question.
-- **P3 — Read-side DTO** *(former R5)*: no Application reader/query interface returns `*Aggregate` or `[]*Aggregate`. Read use cases return DTOs / read models; loading the write-side aggregate to serve a read is `ddd-agent-contract.md §4.5`.
-- **P4 — Event/message extraction**: repeated same-BC reactions to one domain fact become one Domain Event + same-BC handler; cross-context fact propagation becomes an Integration Message. Direct per-handler side effects require the Architecture Gate to say why they are explicit command outputs rather than event/message-driven reactions.
-- **P5 — Async role isolation**: every asynchronous handler is classified as Domain Event Handler, Boundary Publisher, or Integration Message Handler. One concrete type must not mix same-BC Domain Event consumption with Integration Message consumption. A Boundary Publisher is the only intentional bridge, and it only maps same-BC Domain Events to Integration Messages.
-- **P6 — Handler kind granularity**: default one inbound event/message kind per concrete handler. Multi-kind handlers require the same role, source context/contract family, target side effect, transaction boundary, failure policy, and dependency set. A generic handler that switches over unrelated inbound facts is rejected.
-- **P7 — Lightweight failure semantics**: each handler states whether it is best-effort, log-and-continue, returns the subscriber/adapter error, or has no runtime failure policy beyond pure mapping. Stronger delivery machinery is opt-in and must come from an explicit use-case requirement.
-
-**Audit-only R3 — Domain mechanism parity**: bounded contexts with many command-side Application ports and few/no Domain Repositories, Domain Services, Domain Events, Integration Messages, or named Application coordination services trigger a Level 3 or periodic architecture review. Do not run this as a per-PR hard gate, and do not add services or events merely to satisfy a ratio.
-
-P1 and P3 can be lint-assisted; P2, P4, and audit-only R3 usually remain prose review checks unless the project adds AST-aware rules. See the language guides' "mechanized review checks" sections for command shapes.
-
----
+- Modeling gate and accepted model source are present when needed.
+- Domain import boundaries are clean.
+- Layer ownership matches §3.
+- Technical capability classification was done before package/port placement.
+- Inward interfaces are defined by inward layers.
+- CQRS ports follow caller semantics and product read-model families.
+- Multi-aggregate transactions satisfy §3.2.
+- Cross-context interaction uses §5 mechanisms.
+- Generated protocol types do not enter Domain.
+- Async handlers have one role and justified granularity.
+- Repeated same-BC reactions use Domain Events; cross-context facts use Integration Messages.
+- New command-side Application ports have Architecture Gate exception and semantic fake evidence.
 
 ## 11. Key Principles Summary
 
-1. **Domain layer has no concrete implementation dependencies** — no frameworks, ORMs, drivers, or protocol clients; general-purpose libraries are allowed when they don't couple Domain to an external system
-2. **Vertical slicing** — organize by bounded context, not by technical layer
-3. **Dependency inversion** — Domain defines write Repository interfaces; Application defines product/application read QueryRepository interfaces after capability classification; command-side Application ports are exceptions that require the placement gate; Infrastructure implements adapters
-4. **CQRS port granularity** — define ports by caller semantics, command/query side, and product read-model family. QueryRepository defaults to one port per bounded-context read-model family, with new query scenarios added as methods; split only for distinct read-model/runtime semantics. Cache/database/queue/log-store clients, routing directories, peer forwarding, and topology mechanics stay inside Infrastructure unless they are a named use-case lifecycle capability ([ddd-modeling.md §0.2](ddd-modeling.md), §3.2 CQRS Port Granularity, §3.4 Repository Pattern)
-5. **Aggregate boundary** — Repository operates on aggregate roots only, never on child entities directly
-6. **State encapsulation** — all state changes go through domain methods; direct field mutation from outside is prohibited
-7. **ID generation in Domain** — use infrastructure-independent ID schemes (UUID, ULID, Snowflake); never rely on database auto-increment
-8. **Disciplined cross-context communication** — use one of: Integration Messages (default for cross-context state propagation), cross-context queries (read-only), ACL (external/legacy), protocol contracts (cross-service schemas); direct calls into another context's Domain model or Application Service are prohibited; Integration Message payloads carry the ID plus the minimum necessary facts, never full entities or aggregate objects
-9. **Event collection** — aggregates collect events internally; the Application layer drains and dispatches once after a successful persist, and the Repository never drains
-10. **CQRS** — Commands go through the domain model, Domain Repository, Domain Service, Domain Event, Integration Message, ACL, or an explicitly justified Application command-side port; Queries go through product-read QueryRepository/reader/facade ports and return product DTOs/read models. Do not create one QueryRepository per query scenario when the same read-model family can be extended by a method; do not expose one storage-shaped port for unrelated writers and readers, and do not model routing/topology lookup as a CQRS query port.
-11. **Transaction boundary** — one Command Handler owns one transaction; the default is one aggregate write per transaction; multi-aggregate writes require the §3.2 exception gate and must stay inside one bounded context
-12. **Repository collection semantics** — `Save()` covers create, update, and state-driven soft delete; never split by database operation type
-13. **Soft delete** — business-driven deletion is modeled as domain state; `deleted_at` is always an Infrastructure concern
-14. **Optimistic locking** — Infrastructure increments `version` via SQL; domain holds `Version` as a read-only token; always reload after `Save()` before further operations
-15. **Event dispatch timing** — dispatch events after a successful persist, never before
-16. **Event reliability** — Domain Event delivery is bounded-context-internal and implementation-specific; cross-process Integration Messages default to broker at-least-once delivery + consumer-side idempotency
-17. **Technical capability classification** — classify technical-facing code before interface ownership; it is Domain-facing when it owns stable language, states, policies, or invariants, while routing/transport/topology mechanics stay Infrastructure
-
----
+1. Domain has no concrete implementation dependencies.
+2. Organize by bounded context.
+3. Domain owns rules; Application orchestrates; Interface maps protocols; Infrastructure adapts mechanisms.
+4. Repositories are write-side aggregate collections; QueryRepositories/read facades are product read models.
+5. Application command-side ports are exceptions, not defaults.
+6. Aggregates guard non-repairable invariants.
+7. Events dispatch after successful persistence.
+8. Integration Messages are cross-context contracts; Domain Events are internal facts.
+9. Generated protocol types are contracts/DTOs, not Domain types.
+10. Technology mechanics stay in Infrastructure unless the use case names a semantic lifecycle.
 
 ## Appendix A: Strategic Modeling
 
-This document covers tactical architecture principles — it assumes you already know what your bounded contexts and aggregates are. For the strategic modeling phase (discovering bounded contexts, identifying aggregate roots, designing aggregate boundaries from business requirements), see:
-
-| Phase | Document |
-|-------|----------|
-| Strategic modeling | [`ddd-modeling.md`](ddd-modeling.md) |
+Use [`ddd-modeling.md`](ddd-modeling.md) for bounded-context discovery, aggregate boundary probes, Architecture Gate, planning gates, technical capability classification, and port granularity.
 
 ## Appendix B: Language-Specific Implementation Guides
 
-This document covers language-agnostic architecture principles only. For technology stack selection, code examples, and language-specific conventions, refer to the corresponding implementation guide:
+Use the active language guide for package names, concrete code shape, dependency injection, generated-code placement, logging, runtime, taskqueue, and database conventions:
 
-| Language | Document |
-|----------|----------|
-| Go | [`ddd-golang.md`](ddd-golang.md) |
-| Python | [`ddd-python.md`](ddd-python.md) |
-| TypeScript | [`ddd-typescript.md`](ddd-typescript.md) |
-
----
-
-**References:**
-- [The Clean Architecture — Robert C. Martin](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
-- [Domain-Driven Design Reference — Eric Evans](https://domainlanguage.com/ddd/reference/)
-- [Implementing Domain-Driven Design — Vaughn Vernon](https://vaughnvernon.com/?page_id=168)
+- [`ddd-golang.md`](ddd-golang.md)
+- [`ddd-python.md`](ddd-python.md)
+- [`ddd-typescript.md`](ddd-typescript.md)
