@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Validate ddd-expert is an explicit, standalone DDD/backend plugin.
+# Validate ddd-expert is a standalone DDD/backend plugin with restrained
+# workflow-routing hooks.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -9,6 +10,45 @@ CODEX_ROOT="$ROOT/codex-plugins/ddd-expert"
 fail() {
   echo "FAIL $1" >&2
   exit 1
+}
+
+extract_context() {
+  node -e '
+const fs = require("fs");
+const raw = fs.readFileSync(0, "utf8");
+const data = JSON.parse(raw);
+process.stdout.write(data.hookSpecificOutput?.additionalContext || data.additional_context || "");
+'
+}
+
+claude_skill_context() {
+  local skill="$1"
+  printf '{"tool_input":{"skill":"%s"}}\n' "$skill" |
+    CLAUDE_PLUGIN_ROOT="$CLAUDE_ROOT" "$CLAUDE_ROOT/hooks/pre-tool-use" |
+    extract_context
+}
+
+codex_prompt_context() {
+  local prompt="$1"
+  printf '{"prompt":"%s"}\n' "$prompt" |
+    node "$CODEX_ROOT/hooks/codex-runtime.js" user-prompt-submit |
+    extract_context
+}
+
+assert_restrained_hook_context() {
+  local context="$1"
+  local label="$2"
+
+  [ -n "$context" ] || fail "$label hook should emit reminder context"
+  line_count=$(printf '%s\n' "$context" | sed '/^[[:space:]]*$/d' | wc -l)
+  [ "$line_count" -le 6 ] || fail "$label hook reminder should stay short"
+  grep -q '\$ddd-expert:' <<<"$context" || fail "$label hook should route to ddd-expert skills"
+  ! grep -q "Path:" <<<"$context" || fail "$label hook should not inject file paths"
+  ! grep -q "references/" <<<"$context" || fail "$label hook should not inject reference paths"
+  ! grep -q "ddd-golang" <<<"$context" || fail "$label hook should not inject Go reference names"
+  ! grep -q "Architecture Gate" <<<"$context" || fail "$label hook should not inject DDD gate details"
+  ! grep -q "Aggregate Root" <<<"$context" || fail "$label hook should not inject tactical DDD details"
+  ! grep -q "§" <<<"$context" || fail "$label hook should not inject section anchors"
 }
 
 # Users must be able to install ddd-expert independently from both marketplaces.
@@ -28,25 +68,105 @@ jq -e '.plugins[] | select(.name == "superpowers-ddd-architect")' \
 [ "$(jq -r .name "$CLAUDE_ROOT/.claude-plugin/plugin.json")" = "ddd-expert" ] || fail "Claude manifest name should be ddd-expert"
 [ "$(jq -r .name "$CODEX_ROOT/.codex-plugin/plugin.json")" = "ddd-expert" ] || fail "Codex manifest name should be ddd-expert"
 
-# ddd-expert is explicit-only. It must not register lifecycle hooks or ship
-# fallback hook snippets that reintroduce automatic Superpowers workflow routing.
-[ "$(jq -r '.hooks // empty' "$CODEX_ROOT/.codex-plugin/plugin.json")" = "" ] || fail "Codex ddd-expert manifest should not declare hooks"
-[ ! -e "$CLAUDE_ROOT/hooks/hooks.json" ] || fail "Claude ddd-expert should not register hooks"
-[ ! -e "$CODEX_ROOT/hooks/hooks.json" ] || fail "Codex ddd-expert should not register hooks"
-[ ! -e "$CODEX_ROOT/codex-hooks-snippet.json" ] || fail "Codex ddd-expert should not ship hook snippet"
+# ddd-expert owns only restrained workflow-routing hooks. Hooks remind agents
+# which ddd-expert skill to invoke; they must not inject reference content.
+[ "$(jq -r '.hooks // empty' "$CODEX_ROOT/.codex-plugin/plugin.json")" = "./hooks/hooks.json" ] || fail "Codex ddd-expert manifest should declare hooks"
+[ -f "$CLAUDE_ROOT/hooks/hooks.json" ] || fail "Claude ddd-expert should register hooks"
+[ -f "$CLAUDE_ROOT/hooks/pre-tool-use" ] || fail "Claude ddd-expert pre-tool-use hook missing"
+[ -f "$CLAUDE_ROOT/hooks/run-hook.cmd" ] || fail "Claude ddd-expert run-hook wrapper missing"
+[ -f "$CODEX_ROOT/hooks/hooks.json" ] || fail "Codex ddd-expert should register hooks"
+[ -f "$CODEX_ROOT/hooks/codex-runtime.js" ] || fail "Codex ddd-expert runtime missing"
+[ -f "$CODEX_ROOT/codex-hooks-snippet.json" ] || fail "Codex ddd-expert should ship hook snippet"
 
-for skill in design implement review; do
+jq -e '.hooks.PreToolUse[] | select(.matcher == "Skill")' "$CLAUDE_ROOT/hooks/hooks.json" >/dev/null || fail "Claude ddd-expert should intercept Skill invocations"
+jq -e '.hooks.UserPromptSubmit | type == "array"' "$CODEX_ROOT/hooks/hooks.json" >/dev/null || fail "Codex ddd-expert should register UserPromptSubmit"
+diff -u <(jq -S '.hooks' "$CODEX_ROOT/hooks/hooks.json") <(jq -S '.hooks' "$CODEX_ROOT/codex-hooks-snippet.json") >/dev/null || fail "Codex ddd-expert hooks should match fallback snippet"
+
+writing_context="$(claude_skill_context superpowers:writing-plans)"
+assert_restrained_hook_context "$writing_context" "Claude writing-plans"
+grep -q '\$ddd-expert:domain-modeling' <<<"$writing_context" || fail "Claude writing-plans should require domain-modeling when absent"
+grep -q '\$ddd-expert:design' <<<"$writing_context" || fail "Claude writing-plans should route accepted model to design"
+grep -qi "accepted domain model" <<<"$writing_context" || fail "Claude writing-plans should mention accepted domain model condition"
+
+codex_writing_context="$(codex_prompt_context 'Please use $superpowers:writing-plans for this backend plan')"
+assert_restrained_hook_context "$codex_writing_context" "Codex writing-plans"
+grep -q '\$ddd-expert:domain-modeling' <<<"$codex_writing_context" || fail "Codex writing-plans should require domain-modeling when absent"
+grep -q '\$ddd-expert:design' <<<"$codex_writing_context" || fail "Codex writing-plans should route accepted model to design"
+
+for skill in superpowers:executing-plans superpowers:subagent-driven-development; do
+  context="$(claude_skill_context "$skill")"
+  assert_restrained_hook_context "$context" "Claude $skill"
+  grep -q '\$ddd-expert:implement' <<<"$context" || fail "Claude $skill should route to implement"
+done
+
+for prompt in 'Please use $superpowers:executing-plans for this task' 'Please use $superpowers:subagent-driven-development for this task'; do
+  context="$(codex_prompt_context "$prompt")"
+  assert_restrained_hook_context "$context" "Codex $prompt"
+  grep -q '\$ddd-expert:implement' <<<"$context" || fail "Codex development prompt should route to implement"
+done
+
+for skill in superpowers:requesting-code-review superpowers:receiving-code-review; do
+  context="$(claude_skill_context "$skill")"
+  assert_restrained_hook_context "$context" "Claude $skill"
+  grep -q '\$ddd-expert:review' <<<"$context" || fail "Claude $skill should route to review"
+done
+
+for prompt in 'Please use $superpowers:requesting-code-review on this branch' 'Please use $superpowers:receiving-code-review for this feedback'; do
+  context="$(codex_prompt_context "$prompt")"
+  assert_restrained_hook_context "$context" "Codex $prompt"
+  grep -q '\$ddd-expert:review' <<<"$context" || fail "Codex review prompt should route to review"
+done
+
+brainstorming_context="$(claude_skill_context superpowers:brainstorming)"
+[ -z "$brainstorming_context" ] || fail "Claude ddd-expert should not trigger on brainstorming"
+[ "$(printf '{"prompt":"Please use $superpowers:brainstorming"}\n' | node "$CODEX_ROOT/hooks/codex-runtime.js" user-prompt-submit)" = "{}" ] || fail "Codex ddd-expert should not trigger on brainstorming"
+
+for skill in domain-modeling design implement review; do
   [ -f "$CLAUDE_ROOT/skills/$skill/SKILL.md" ] || fail "Claude ddd-expert missing $skill skill"
   [ -f "$CODEX_ROOT/skills/$skill/SKILL.md" ] || fail "Codex ddd-expert missing $skill skill"
   grep -q '../../references/ddd-risk-router.md' "$CLAUDE_ROOT/skills/$skill/SKILL.md" || fail "Claude $skill skill should route through ddd-risk-router"
   grep -q '../../references/ddd-risk-router.md' "$CODEX_ROOT/skills/$skill/SKILL.md" || fail "Codex $skill skill should route through ddd-risk-router"
 done
 
+check_domain_modeling_skill() {
+  local modeling_skill="$1"
+  local label="$2"
+
+  grep -q "one-question-at-a-time" "$modeling_skill" || fail "$label domain-modeling should advertise one-question interview"
+  grep -q "Ask exactly one high-fidelity question at a time" "$modeling_skill" || fail "$label domain-modeling should force one high-fidelity question"
+  grep -q "Avoid low-fidelity questions" "$modeling_skill" || fail "$label domain-modeling should reject low-fidelity questions"
+  grep -q "Domain Modeling Brief" "$modeling_skill" || fail "$label domain-modeling should emit a Domain Modeling Brief"
+  grep -q "Do not write \`docs/superpowers/memory/\` directly" "$modeling_skill" || fail "$label domain-modeling should not write memory directly"
+  grep -q "Memory candidates" "$modeling_skill" || fail "$label domain-modeling should emit memory candidates"
+}
+
+check_domain_modeling_skill "$CLAUDE_ROOT/skills/domain-modeling/SKILL.md" "Claude"
+check_domain_modeling_skill "$CODEX_ROOT/skills/domain-modeling/SKILL.md" "Codex"
+
 check_implement_preflight_gate() {
   local implement_skill="$1"
   local label="$2"
 
   grep -q "## Preflight Rule Gate" "$implement_skill" || fail "$label implement skill should define a preflight rule gate"
+  grep -q "## Object Shape Routing Gate" "$implement_skill" || fail "$label implement skill should define an object shape routing gate"
+  grep -q "Run this gate after accepted model source and before surface routing" "$implement_skill" || fail "$label implement object routing should run before surface routing"
+  grep -q "Identify the current object shape from accepted model, user request, planned files, and repository evidence" "$implement_skill" || fail "$label implement skill should identify object shape from evidence"
+  grep -q "If object shape or model classification is unclear, stop and return to \`domain-modeling\`" "$implement_skill" || fail "$label implement skill should return unclear model classification to domain-modeling"
+  grep -q "If placement or layer ownership is unclear, stop and return to \`design\`" "$implement_skill" || fail "$label implement skill should return unclear placement to design"
+  grep -q "Aggregate Root" "$implement_skill" || fail "$label implement object routing should include Aggregate Root"
+  grep -q "ddd-golang-domain.md §0.1" "$implement_skill" || fail "$label implement object routing should route Aggregate Root to Go domain card"
+  grep -q "Domain Event type" "$implement_skill" || fail "$label implement object routing should include Domain Event type"
+  grep -q "ddd-golang-events-messages.md §0.1" "$implement_skill" || fail "$label implement object routing should route Domain Event type to event card"
+  grep -q "Task processor" "$implement_skill" || fail "$label implement object routing should include Task processor"
+  grep -q "ddd-golang-taskqueue.md §0.2" "$implement_skill" || fail "$label implement object routing should route Task processor to taskqueue card"
+  grep -q "Runtime component" "$implement_skill" || fail "$label implement object routing should include Runtime component"
+  grep -q "ddd-golang-runtime.md §0" "$implement_skill" || fail "$label implement object routing should route Runtime component to runtime card"
+  grep -q "ddd-golang-infrastructure.md §0.1" "$implement_skill" || fail "$label implement object routing should route repository implementation to Go infrastructure card"
+  grep -q "ddd-golang-cqrs.md §0.1" "$implement_skill" || fail "$label implement object routing should route QueryRepository to Go CQRS card"
+  grep -q "ddd-golang-cqrs.md §0.2" "$implement_skill" || fail "$label implement object routing should route read DTO to Go CQRS card"
+  grep -q "ddd-golang-cqrs.md §0.3" "$implement_skill" || fail "$label implement object routing should route query handler to Go CQRS card"
+  grep -q "ddd-golang-cqrs.md §0.4" "$implement_skill" || fail "$label implement object routing should route read facade to Go CQRS card"
+  grep -q "ddd-golang-cqrs.md §0.5" "$implement_skill" || fail "$label implement object routing should route projection to Go CQRS card"
   grep -q "Run this gate before file edits" "$implement_skill" || fail "$label implement gate should run before edits"
   grep -q "Turn explicit user requirements into acceptance items" "$implement_skill" || fail "$label implement skill should force user requirements into acceptance items"
   grep -q "Classify touched surfaces from user requirements, planned files, imports, generated artifacts, migrations, runtime entrypoints, tests, and existing conventions" "$implement_skill" || fail "$label implement skill should classify touched surfaces from evidence"
@@ -88,8 +208,13 @@ for reference in \
   database.md \
   ddd-agent-contract.md \
   ddd-core.md \
+  ddd-golang-application.md \
+  ddd-golang-cqrs.md \
+  ddd-golang-domain.md \
   ddd-golang-events-messages.md \
+  ddd-golang-infrastructure.md \
   ddd-golang-runtime.md \
+  ddd-golang-scaffold.md \
   ddd-golang-taskqueue.md \
   ddd-golang.md \
   ddd-modeling.md \
@@ -101,6 +226,50 @@ do
   [ -f "$CODEX_ROOT/references/$reference" ] || fail "Codex ddd-expert missing reference $reference"
 done
 
+check_go_reference_reorg() {
+  local root="$1"
+  local label="$2"
+
+  grep -q "Go / go-jimu Reference Router" "$root/references/ddd-golang.md" || fail "$label Go guide should be a reference router"
+  grep -q "Layer Reference Map" "$root/references/ddd-golang.md" || fail "$label Go guide should include a layer reference map"
+  grep -q "ddd-golang-domain.md" "$root/references/ddd-golang.md" || fail "$label Go router should point to domain reference"
+  grep -q "ddd-golang-application.md" "$root/references/ddd-golang.md" || fail "$label Go router should point to application reference"
+  grep -q "ddd-golang-infrastructure.md" "$root/references/ddd-golang.md" || fail "$label Go router should point to infrastructure reference"
+  grep -q "ddd-golang-cqrs.md" "$root/references/ddd-golang.md" || fail "$label Go router should point to CQRS reference"
+  grep -q "ddd-golang-scaffold.md" "$root/references/ddd-golang.md" || fail "$label Go router should point to scaffold reference"
+
+  grep -q "## 0. Go / go-jimu Domain Building Block Lookup" "$root/references/ddd-golang-domain.md" || fail "$label Go domain reference should include building block lookup"
+  grep -q "### 0.1 Aggregate Root Card" "$root/references/ddd-golang-domain.md" || fail "$label Go domain reference should include aggregate root card"
+  grep -q "### 0.4 Repository Interface Card" "$root/references/ddd-golang-domain.md" || fail "$label Go domain reference should include repository interface card"
+
+  grep -q "## 0. Go / go-jimu Application Building Block Lookup" "$root/references/ddd-golang-application.md" || fail "$label Go application reference should include building block lookup"
+  grep -q "### 0.1 Command Handler Card" "$root/references/ddd-golang-application.md" || fail "$label Go application reference should include command handler card"
+
+  grep -q "## 0. Go / go-jimu Infrastructure Building Block Lookup" "$root/references/ddd-golang-infrastructure.md" || fail "$label Go infrastructure reference should include building block lookup"
+  grep -q "### 0.1 Repository Implementation / DO / Converter Card" "$root/references/ddd-golang-infrastructure.md" || fail "$label Go infrastructure reference should include repository implementation card"
+
+  grep -q "## 0. Go / go-jimu CQRS Building Block Lookup" "$root/references/ddd-golang-cqrs.md" || fail "$label Go CQRS reference should include building block lookup"
+  grep -q "### 0.1 QueryRepository Card" "$root/references/ddd-golang-cqrs.md" || fail "$label Go CQRS reference should include QueryRepository card"
+
+  grep -q "## 0. Go / go-jimu Scaffold Building Block Lookup" "$root/references/ddd-golang-scaffold.md" || fail "$label Go scaffold reference should include building block lookup"
+  grep -q "### 0.1 Project Layout Card" "$root/references/ddd-golang-scaffold.md" || fail "$label Go scaffold reference should include project layout card"
+  grep -q "ddd-golang-events-messages.md §0.1" "$root/references/ddd-golang.md" || fail "$label Go router should route Domain Event type to event card"
+  grep -q "ddd-golang-events-messages.md §0.2" "$root/references/ddd-golang.md" || fail "$label Go router should route event collection to event card"
+  grep -q "ddd-golang-events-messages.md §0.3" "$root/references/ddd-golang.md" || fail "$label Go router should route Domain Event Handler to event card"
+  grep -q "ddd-golang-events-messages.md §0.4" "$root/references/ddd-golang.md" || fail "$label Go router should route Boundary Publisher to event card"
+  grep -q "ddd-golang-events-messages.md §0.5" "$root/references/ddd-golang.md" || fail "$label Go router should route Integration Message Handler to event card"
+  grep -q "ddd-golang-application.md §0.7" "$root/skills/review/SKILL.md" || fail "$label review should route generated RPC to Go application card"
+  grep -q "ddd-golang-scaffold.md §0.4" "$root/skills/review/SKILL.md" || fail "$label review should route generated RPC layout to Go scaffold card"
+
+  if grep -R -n -E 'ddd-golang\.md[^`]*§[0-9]|golang §[0-9]' "$root/references" "$root/skills" >/dev/null; then
+    grep -R -n -E 'ddd-golang\.md[^`]*§[0-9]|golang §[0-9]' "$root/references" "$root/skills" >&2
+    fail "$label ddd-expert should not reference obsolete ddd-golang section anchors"
+  fi
+}
+
+check_go_reference_reorg "$CLAUDE_ROOT" "Claude"
+check_go_reference_reorg "$CODEX_ROOT" "Codex"
+
 # The standalone plugin should not route users back to the retired Superpowers
 # DDD plugin.
 if grep -R -n -i 'superpowers-ddd-architect' "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null; then
@@ -110,5 +279,6 @@ fi
 
 grep -Fq "/plugin install ddd-expert@skill-workshop" "$ROOT/README.md" || fail "root README missing Claude ddd-expert install command"
 grep -Fq "codex plugin add ddd-expert@skill-workshop-codex" "$ROOT/README.md" || fail "root README missing Codex ddd-expert install command"
+grep -Fq "domain-modeling" "$ROOT/README.md" || fail "root README should list ddd-expert domain-modeling capability"
 
-echo "  ddd-expert plugin: standalone explicit contract correct"
+echo "  ddd-expert plugin: standalone routing-hook contract correct"

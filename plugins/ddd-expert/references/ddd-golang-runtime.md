@@ -8,11 +8,12 @@ description: Go runtime patterns for DDD services — fx-based configuration man
 
 **Version**: v1.1
 **Date**: 2026-06-01
-**Scope**: Go runtime patterns complementing [`ddd-golang.md`](ddd-golang.md)
+**Scope**: Go runtime patterns complementing the Go reference router [`ddd-golang.md`](ddd-golang.md)
 **Phase routing**:
 - **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Go runtime, config, lifecycle, shutdown, or Kubernetes rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs runtime-only classification, prohibited actions, or runtime self-checks.
-- **Go implementation**: [`ddd-golang.md`](ddd-golang.md) — Layer responsibilities, directory layout, naming, error handling. This runtime guide covers what `ddd-golang.md` defers to: config plumbing, process lifecycle, graceful shutdown, k8s.
+- **Go router**: [`ddd-golang.md`](ddd-golang.md) — Choose Go layer references before loading runtime details.
+- **Scaffold**: [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) — Layout and module ownership. This runtime guide covers config plumbing, process lifecycle, graceful shutdown, and Kubernetes.
 - **Events / messages**: [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Domain Event / Integration Message semantics, handler roles, and message adapter boundaries.
 - **Task queues / polling**: [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) — Task-specific placement, `TaskType`, schema registry, processors, asynq worker wiring, and middleware.
 
@@ -26,6 +27,60 @@ description: Go runtime patterns for DDD services — fx-based configuration man
 > - Designing graceful shutdown for a component with in-flight work
 > - Wiring fx.Module / fx.Provide / fx.Supply at the top level
 > - Tuning Kubernetes deployment manifests for the service
+
+---
+
+## 0. Go / go-jimu Runtime Building Block Lookup
+
+Use these cards to answer "what must this runtime construct contain?" before reading the longer sections below.
+
+| If the agent is implementing / reviewing... | Start here |
+|---|---|
+| Component `Option`, config tags, constructor config dependency | §0.1 Component Option Card |
+| `cmd/**/main.go`, aggregate `Option`, config loading, `fx.Supply` | §0.2 Entrypoint Card |
+| `fx.Module`, `fx.Provide`, `fx.Invoke`, module boundaries | §0.3 Module Assembly Card |
+| `fx.Lifecycle`, `OnStart`, `OnStop`, goroutine ownership | §0.4 Lifecycle Hook Card |
+| HTTP/gRPC/message/taskqueue worker shutdown and Kubernetes `preStop` | §0.5 Shutdown Card |
+
+### 0.1 Component Option Card
+
+- Declare each runtime component's `Option` in the component package, usually beside `NewXxx` or in `option.go`.
+- Add `json`, `yaml`, and `toml` tags for every config field.
+- Constructors consume their own `Option` directly: `NewXxx(lc fx.Lifecycle, opt Option, ...)`.
+- Shared middleware packages such as `internal/pkg/mysql`, `redis`, `kafka`, `taskqueue`, `httpsrv`, `grpcsrv`, and `eventbus` own their config, client construction, health/lifecycle hooks, and provider.
+- Bounded-context infrastructure receives initialized clients; it does not read shared middleware config or close shared clients.
+
+### 0.2 Entrypoint Card
+
+- Keep `cmd/**/main.go` as process composition only: load config, log resolved config, `fx.Supply(opt)`, select modules, and run the app.
+- The top-level aggregate `Option` embeds `fx.Out` and has one field per component option.
+- Do not construct repositories, query repositories, ACL clients, generated route handlers, workers, or business services in `main`.
+- Do not branch on environment names in code. Use config profiles and placeholders.
+- Use `app.Run()` unless the service has a documented process-level reason to manage start/stop manually.
+
+### 0.3 Module Assembly Card
+
+- Each bounded context exposes a module that provides its Application, Domain-facing adapters, interface adapters, event/message handlers, task processors, and registrations.
+- Shared runtime packages expose modules for middleware clients and worker/runtime loops.
+- `fx.Provide` constructs components; `fx.Invoke` performs registration such as routes, subscribers, processors, schemas, or periodic tasks.
+- Generated protocol registration belongs in the owning interface/runtime adapter module, not in `cmd/main.go`.
+- Avoid provider pollution: if a root module starts importing many business internals directly, move wiring behind the bounded-context module.
+
+### 0.4 Lifecycle Hook Card
+
+- Add `fx.Lifecycle` hooks only in packages that own a runtime resource or loop.
+- `OnStart` starts servers, workers, consumers, schedulers, informers, or long-running loops; `OnStop` stops them and waits for in-flight work according to the component contract.
+- Every goroutine started by a component must have a stop path through context cancellation, `Close`, `Shutdown`, `Stop`, or equivalent.
+- Application/Domain code should not own process loops, timers, shutdown policy, or provider lifecycle.
+- Log runtime start/stop outcomes at the runtime component boundary.
+
+### 0.5 Shutdown Card
+
+- Stop ingress first, then background consumers/workers/schedulers, then shared clients they depend on.
+- Pick and document how in-flight requests, messages, tasks, and event handlers finish or cancel.
+- Kubernetes `preStop` must give enough time for readiness removal, ingress drain, worker stop, and client close.
+- Shutdown behavior is not a Domain Event or task processor concern unless the business explicitly models a product lifecycle state.
+- When editing message/taskqueue runner lifecycle, also check [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) or [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md).
 
 ---
 
@@ -422,7 +477,7 @@ The example wires only the YAML-friendly options. `event` also exposes callback-
 
 Runtime components that own execution without an outer request middleware must log one completion summary per operation. This includes consumer loops, scheduler ticks, reconcilers, task processors, lifecycle hooks that perform work, and external-system call wrappers that own retry or polling behavior.
 
-Use the same fields as `ddd-golang.md §8.2`:
+Use the same completion-log fields as [`ddd-golang-application.md §0.8`](ddd-golang-application.md):
 
 - `operation`: stable operation name such as `kafka.consumer.tick`, `work.reconcile`, or `task.process`
 - `outcome`: `success`, `failed`, `skipped`, or `retrying`
@@ -483,7 +538,8 @@ Kubernetes initiates Pod deletion
 **References:**
 - [`design`](../skills/design/SKILL.md) / [`implement`](../skills/implement/SKILL.md) / [`review`](../skills/review/SKILL.md) — Phase entrypoints
 - [`ddd-agent-contract.md`](ddd-agent-contract.md) — Runtime classification, prohibited actions, and self-checks
-- [`ddd-golang.md`](ddd-golang.md) — Go DDD implementation (layers, aggregates, events, integration messages, module assembly)
+- [`ddd-golang.md`](ddd-golang.md) — Go reference router
+- [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) — Go layout and module ownership
 - [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Go Domain Events, Boundary Publishers, Integration Messages, Kafka adapter wiring
 - [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) — Go taskqueue and polling patterns
 - [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification

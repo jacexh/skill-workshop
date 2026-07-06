@@ -1,0 +1,16 @@
+{
+  "version": "1.14.7",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/codex-runtime.js\" user-prompt-submit",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -8,11 +8,12 @@ description: Go DDD taskqueue, polling-task, and periodic-task patterns. Use whe
 
 **Version**: v1.3
 **Date**: 2026-05-29
-**Scope**: Go task queue patterns complementing [`ddd-golang.md`](ddd-golang.md) and [`ddd-golang-runtime.md`](ddd-golang-runtime.md)
+**Scope**: Go task queue patterns complementing the Go reference router [`ddd-golang.md`](ddd-golang.md) and [`ddd-golang-runtime.md`](ddd-golang-runtime.md)
 **Phase routing**:
 - **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Go taskqueue, polling, reconciliation, periodic producer, asynq worker/scheduler, schema, processor, or worker lifecycle rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) - Load when the phase needs taskqueue/runtime classification, prohibited actions, or self-checks.
-- **Go implementation**: [`ddd-golang.md`](ddd-golang.md) - Layer responsibilities, directory layout, event/message separation, module assembly.
+- **Go router**: [`ddd-golang.md`](ddd-golang.md) - Choose Go layer references before loading taskqueue details.
+- **Go Application/Scaffold**: [`ddd-golang-application.md`](ddd-golang-application.md), [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) - Processor placement and module layout.
 - **Go runtime**: [`ddd-golang-runtime.md`](ddd-golang-runtime.md) - Config ownership, `fx.Lifecycle`, graceful shutdown, and worker shutdown ordering.
 
 > **Code blocks are illustrative**, not copy-paste templates. Imports may be omitted and identifiers may reference types defined elsewhere in the project. See [`ddd-agent-contract.md` §6](ddd-agent-contract.md).
@@ -22,6 +23,65 @@ description: Go DDD taskqueue, polling-task, and periodic-task patterns. Use whe
 > - Editing `internal/pkg/taskqueue/**`, asynq wiring, task middleware, task schema registration, scheduler registration, or worker lifecycle hooks.
 > - Adding a `TaskType`, task payload struct, task processor, task enqueue call, periodic task definition, or task payload schema registry.
 > - Reviewing whether a polling/reconciliation concern belongs in Domain, Application, Infrastructure, or runtime wiring.
+
+---
+
+## 0. Go / go-jimu Taskqueue Building Block Lookup
+
+Use these cards to answer "what must this taskqueue construct contain?" before reading the longer sections below.
+
+| If the agent is implementing / reviewing... | Start here |
+|---|---|
+| `TaskType`, `Definition`, payload struct, schema registration | §0.1 Task Contract Card |
+| Task processor behavior, retry/skip, idempotency, polling continuation | §0.2 Processor Card |
+| Enqueueing from command/application code | §0.3 Enqueue Decision Card |
+| Periodic producer / scheduler contract | §0.4 Periodic Task Card |
+| asynq worker/client/scheduler, Redis, lifecycle, middleware | §0.5 Runtime Wiring Card plus [`ddd-golang-runtime.md`](ddd-golang-runtime.md) |
+
+### 0.1 Task Contract Card
+
+- Place task contracts in the owning bounded context, usually `internal/business/<context>/application/taskprocessor` or `application/task`.
+- Define one semantic `taskqueue.TaskType` per durable task contract, with a stable versioned value such as `"document.review.v1"`.
+- Define one `taskqueue.Definition` per contract. Put provider queue lane in `Definition.Queue`; do not branch on queue names in business logic.
+- Define one JSON payload struct per contract. Include stable IDs, attempt/deadline/correlation fields only when the task policy needs them.
+- Register the payload with `taskqueue.SchemaRegistry` at startup/module wiring time, never lazily during request handling or processing.
+- Do not create project-local substitutes for `TaskType`, `Task`, `Definition`, `SchemaRegistry`, `Processor`, `Enqueuer`, or `PeriodicTask` when go-jimu components fit.
+
+### 0.2 Processor Card
+
+- Place processors in `application/taskprocessor/<task>.go`.
+- Implement one `taskqueue.Processor` per `TaskType`; do not implement `Listening() []string` or one umbrella processor for unrelated task types.
+- Decode payload through `SchemaRegistry.DecodeJSON`.
+- Call an Application service/use case. Domain rules still live in aggregates, Domain services, or policies.
+- Return `nil` only when work is accepted/completed or an expected "not ready" continuation has been explicitly enqueued.
+- Return ordinary errors for transient failures that should trigger provider retry.
+- Wrap permanent invalid/non-retryable cases with `taskqueue.ErrSkipRetry`.
+- Make repeated delivery harmless: use deterministic keys, aggregate guards, idempotent updates, or explicit reconciliation state.
+- Log one completion summary at the processor or delegated execution boundary with `operation`, `outcome`, `duration_ms`, `task_type`, business IDs, and `skip_reason` for skipped cases.
+
+### 0.3 Enqueue Decision Card
+
+- Application code may depend on provider-neutral `github.com/go-jimu/components/taskqueue.Enqueuer`.
+- Domain code must not import taskqueue packages or enqueue work.
+- Enqueue after the use case has made the business decision. If enqueue failure is caller-visible, return it explicitly; if best-effort, log once at the execution boundary.
+- Use `SchemaRegistry.NewJSONTask` when registry is available.
+- Use explicit options such as key, delay, max retry, unique window, or deadline to encode task delivery policy. Do not hide product-visible deadlines or eligibility in provider options.
+
+### 0.4 Periodic Task Card
+
+- A periodic task is scheduled enqueueing, not a callback handler and not a place for business logic.
+- Define the normal task contract first: `TaskType`, `Definition`, payload schema, and processor.
+- Build `taskqueue.PeriodicTask` from a stable semantic name, `taskqueue.Schedule`, a concrete task, and enqueue policy.
+- If configuration disables the periodic work, do not provide/register the `PeriodicTask`; avoid `Enabled` flags inside the contract.
+- If schedule, pause/resume, deadline, or catch-up rules are business-visible, model those rules in Domain/Application and let the periodic task trigger evaluation.
+
+### 0.5 Runtime Wiring Card
+
+- Place shared queue client, asynq worker/scheduler, middleware, processor registration, periodic registration, and lifecycle hooks under `internal/pkg/taskqueue`.
+- Runtime code may import `github.com/go-jimu/contrib/taskqueue/asynq`, `github.com/hibiken/asynq`, Redis clients, and `fx.Lifecycle`.
+- Application code must not import asynq, Redis, worker routers, lifecycle hooks, or provider config.
+- Bounded-context modules contribute task contracts/processors/periodic tasks through fx providers/invokes; they do not start worker loops.
+- Shutdown order and lifecycle behavior are runtime concerns; use [`ddd-golang-runtime.md`](ddd-golang-runtime.md) when editing worker start/stop logic.
 
 ---
 
@@ -627,6 +687,8 @@ Before claiming a taskqueue change is complete:
 **References:**
 - [`design`](../skills/design/SKILL.md) / [`implement`](../skills/implement/SKILL.md) / [`review`](../skills/review/SKILL.md) - Phase entrypoints
 - [`ddd-agent-contract.md`](ddd-agent-contract.md) - Taskqueue/runtime prohibited actions and self-checks
-- [`ddd-golang.md`](ddd-golang.md) - Go DDD implementation (layers, aggregates, events, integration messages, module assembly)
+- [`ddd-golang.md`](ddd-golang.md) - Go reference router
+- [`ddd-golang-application.md`](ddd-golang-application.md) - Task processor placement
+- [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) - Module/layout ownership
 - [`ddd-golang-runtime.md`](ddd-golang-runtime.md) - Go runtime: configuration, `fx.Lifecycle`, graceful shutdown, Kubernetes
 - [`ddd-core.md`](ddd-core.md) - Language-agnostic DDD + Clean Architecture specification

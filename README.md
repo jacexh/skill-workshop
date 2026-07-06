@@ -63,9 +63,9 @@ Injects architectural design pattern standards as constraints into planning, exe
 
 ### ddd-expert
 
-Standalone DDD/backend architecture expert skills for code agents. Provides explicit `design`, `implement`, and `review` skills plus the shared DDD reference set, without lifecycle hooks or workflow-plugin routing.
+Standalone DDD/backend architecture expert skills for code agents. Provides `domain-modeling`, `design`, `implement`, and `review` skills plus the shared DDD reference set, with restrained workflow hooks that only remind agents which `ddd-expert` phase skill to invoke.
 
-Invoke `ddd-expert` directly for DDD/backend design, implementation placement, and review work. This is especially important when touching bounded contexts, Domain/Application/Infrastructure boundaries, generated RPC/protocol code, Go runtime/config/lifecycle wiring, taskqueue/message behavior, database persistence, or backend logging.
+Invoke `ddd-expert` directly for DDD/backend domain modeling, design, implementation placement, and review work. This is especially important when turning specs into explicit domain objects, or when touching bounded contexts, Domain/Application/Infrastructure boundaries, generated RPC/protocol code, Go runtime/config/lifecycle wiring, taskqueue/message behavior, database persistence, or backend logging.
 
 - **License:** MIT
 - **Claude details:** [plugins/ddd-expert/README.md](plugins/ddd-expert/README.md)
@@ -96,12 +96,12 @@ evidence gates.
 ├── plugins/
 │   ├── superpowers-memory/       # Claude track: project knowledge persistence
 │   ├── superpowers-architect/    # Architectural design patterns
-│   ├── ddd-expert/               # Standalone explicit DDD/backend skills
+│   ├── ddd-expert/               # Standalone DDD/backend skills
 │   └── designing-tests/          # Test design guidance
 ├── codex-plugins/
 │   ├── superpowers-memory/       # Codex track: project knowledge persistence
 │   ├── superpowers-architect/    # Codex track: architectural design patterns
-│   ├── ddd-expert/               # Codex track: standalone explicit DDD/backend skills
+│   ├── ddd-expert/               # Codex track: standalone DDD/backend skills
 │   └── designing-tests/          # Codex track: test design guidance
 ├── docs/
 │   └── superpowers/

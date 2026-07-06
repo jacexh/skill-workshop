@@ -9,7 +9,8 @@ Read this file with the active phase skill for DDD/backend architecture work. Us
 
 ## How Phases Use Cards
 
-- Design uses cards to surface modeling questions: identify when a risk implies missing subdomain, bounded context, data authority, context-map, or tactical model decisions. Do not report violations from design-only speculation.
+- Domain-modeling uses cards to generate high-fidelity questions: identify when a risk implies an implicit domain object, existing-model impact, missing lifecycle, invariant, event, repository, bounded context, or data-authority decision.
+- Design uses cards to surface design questions: identify when a risk implies missing subdomain, bounded context, data authority, context-map, or tactical model decisions. Do not report violations from design-only speculation.
 - Implement uses cards to translate accepted model decisions into code placement: identify which deeper reference is needed for adapters, mappings, ports, runtime, persistence, or tests. Do not use a card to invent a new model decision during implementation.
 - Review uses cards to demand evidence before findings: use Required evidence and Allowed exception before calling a probe hit a violation. Evidence gaps stay evidence gaps.
 
@@ -44,7 +45,7 @@ Risk cards are portable; probe examples are not. Before treating any probe hit a
 
 Rewrite probe examples to match that local shape. A probe hit is a review signal, not proof of a violation. Do not report a violation until the hit is mapped to a DDD boundary rule.
 
-Choose the active language reference after the risk card is selected: `ddd-golang.md` for Go, `ddd-python.md` for Python, and `ddd-typescript.md` for TypeScript. Use `ddd-golang-events-messages.md`, `ddd-golang-taskqueue.md`, and `ddd-golang-runtime.md` only for Go-specific event/message, taskqueue, or runtime work.
+Choose the active language reference after the risk card is selected: `ddd-golang.md` for Go, `ddd-python.md` for Python, and `ddd-typescript.md` for TypeScript. For concrete Go / go-jimu building-block questions, start with `ddd-golang.md` and follow its Layer Reference Map: Domain shape routes to `ddd-golang-domain.md`, Application orchestration/logging to `ddd-golang-application.md`, CQRS reads to `ddd-golang-cqrs.md`, persistence adapters to `ddd-golang-infrastructure.md`, and layout to `ddd-golang-scaffold.md`. Use `ddd-golang-events-messages.md`, `ddd-golang-taskqueue.md`, and `ddd-golang-runtime.md` only for Go-specific event/message, taskqueue, or runtime work.
 
 Before using or reporting any probe result, write a short calibration block:
 

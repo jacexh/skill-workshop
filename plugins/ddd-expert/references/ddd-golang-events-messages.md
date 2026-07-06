@@ -8,12 +8,13 @@ description: Go DDD events and messages patterns. Use when adding or reviewing D
 
 **Version**: v1.2
 **Date**: 2026-06-01
-**Scope**: Go event/message patterns complementing [`ddd-golang.md`](ddd-golang.md)
+**Scope**: Go event/message patterns complementing the Go reference router [`ddd-golang.md`](ddd-golang.md)
 **Phase routing**:
 - **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Go Domain Event, Boundary Publisher, Integration Message, message adapter, idempotency, or failure-semantics rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) - Load when the phase needs async-work classification, prohibited actions, or self-checks.
 - **DDD core**: [`ddd-core.md`](ddd-core.md) - Language-neutral Domain Event vs Integration Message boundaries.
-- **Go implementation**: [`ddd-golang.md`](ddd-golang.md) - Layer responsibilities, package layout, naming, module assembly.
+- **Go router**: [`ddd-golang.md`](ddd-golang.md) - Choose Go layer references before loading event/message details.
+- **Go Domain/Application**: [`ddd-golang-domain.md`](ddd-golang-domain.md), [`ddd-golang-application.md`](ddd-golang-application.md) - Aggregate event recording and handler placement.
 - **Go runtime**: [`ddd-golang-runtime.md`](ddd-golang-runtime.md) - Load only when editing shared eventbus/message adapter lifecycle, config, or graceful shutdown wiring.
 
 > **Code blocks are illustrative**, not copy-paste templates. Imports may be omitted and identifiers may reference types defined elsewhere in the project. See [`ddd-agent-contract.md` §6](ddd-agent-contract.md).
@@ -24,6 +25,67 @@ description: Go DDD events and messages patterns. Use when adding or reviewing D
 > - Adding or changing Integration Message payloads, `message.Kind`, `message.Publisher`, `message.Handler`, `message.Subscriber`, `message.Runner`, or Kafka adapter wiring.
 > - Editing `application/eventhandler`, `application/messagepublisher`, `application/messagehandler`, or event/message registration in a bounded-context module.
 > - Reviewing async handler role isolation, handler granularity, idempotency, delivery/failure semantics, or pre-publish-loss behavior.
+
+---
+
+## 0. Go / go-jimu Event Building Block Lookup
+
+Use these cards to answer "what must this event/message construct contain?" before reading the longer sections below.
+
+| If the agent is implementing / reviewing... | Start here |
+|---|---|
+| Domain Event type constants, payload fields, or `Kind()` method | §0.1 Domain Event Type Card |
+| Aggregate event collection, drain timing, dispatch policy | §0.2 Event Collection and Dispatch Card |
+| Same-BC Domain Event reaction | §0.3 Domain Event Handler Card |
+| Domain Event to Integration Message translation | §0.4 Boundary Publisher Card |
+| Cross-context Integration Message consumer | §0.5 Integration Message Handler Card |
+| Kafka adapter, runner lifecycle, shutdown, DLQ/retry policy | §4.3 plus [`ddd-golang-runtime.md`](ddd-golang-runtime.md) |
+
+### 0.1 Domain Event Type Card
+
+- Place same-BC Domain Event types in `internal/business/<context>/domain/event.go` unless the package already has a narrower event file convention.
+- Define stable `event.Kind` constants such as `EventKindOrderCompleted event.Kind = "order.completed"`.
+- Implement `Kind() event.Kind` on each event struct.
+- Include only facts the same bounded context needs after the state change. Do not include transport headers, Kafka topic names, retry policy, or generated proto/request types.
+- Treat Domain Events as internal facts. Do not publish them directly to other bounded contexts and do not reuse them as Integration Message payloads.
+
+### 0.2 Event Collection and Dispatch Card
+
+- Aggregate Roots hold `Events event.Collection` or an equivalent narrow accessor.
+- Domain methods mutate state first, then call `Events.Add(EventXxx{...})`.
+- Domain code never dispatches, drains, logs, starts goroutines, or calls a publisher.
+- Command handlers dispatch only after `repo.Save(ctx, aggregate)` succeeds.
+- Call `dispatcher.DispatchAll(aggregate.Events.Drain())` exactly once per saved aggregate instance.
+- Repository implementations never drain or dispatch events.
+- After `Save()`, treat the in-memory aggregate as stale; reload before further mutation.
+- `DispatchAll` reports admission/enqueue errors only. Handler failures belong to handlers.
+
+### 0.3 Domain Event Handler Card
+
+- Place same-BC reactions in `application/eventhandler/<event>.go`.
+- Implement `event.Handler` with `Listening() []event.Kind` and `Handle(context.Context, event.Event)`.
+- Default to one inbound event kind per concrete handler; multiple kinds require the same source family, role, side effect, transaction boundary, failure policy, and dependency set.
+- Own a separate transaction from the producing command. Handler failure never rolls back the original aggregate save.
+- Log one completion summary per handled event with `operation`, `outcome`, `duration_ms`, `event_kind`, relevant business IDs, and `skip_reason` for skipped duplicates/no-ops.
+- Keep idempotency local and pragmatic for in-memory delivery; do not add dedup tables by default.
+
+### 0.4 Boundary Publisher Card
+
+- Place Domain Event to Integration Message translators in `application/messagepublisher/<event>_publisher.go`.
+- Implement `event.Handler`, not `message.Handler`.
+- Register with same-BC `event.Subscriber`.
+- Inject `message.Publisher` and map selected Domain Event facts into a stable Integration Message payload.
+- Do not mutate aggregates, advance workflow state, consume Integration Messages, or mix unrelated local side effects with publication.
+- Log one completion summary per publication attempt with `operation`, `outcome`, `duration_ms`, `event_kind`, `message_kind`, and relevant business IDs.
+
+### 0.5 Integration Message Handler Card
+
+- Place cross-context consumers in `application/messagehandler/<message>.go`.
+- Implement `message.Handler`.
+- Consume stable Integration Message payloads, never another context's Domain Event type.
+- Own idempotency, transaction boundary, and stale/duplicate/missing-target behavior for the consuming context.
+- Return errors according to the adapter failure policy; use explicit skip outcomes for permanent non-actionable messages.
+- Log one completion summary per consumed message with `operation`, `outcome`, `duration_ms`, `message_kind`, `message_id` or correlation key, business IDs, and `skip_reason` when skipped.
 
 ---
 
@@ -484,5 +546,7 @@ Reject these in review:
 - [`design`](../skills/design/SKILL.md) / [`implement`](../skills/implement/SKILL.md) / [`review`](../skills/review/SKILL.md) - Phase entrypoints
 - [`ddd-agent-contract.md`](ddd-agent-contract.md) - Async-work prohibited actions and self-checks
 - [`ddd-core.md`](ddd-core.md) - Language-agnostic Domain Event / Integration Message rules
-- [`ddd-golang.md`](ddd-golang.md) - Go DDD implementation (layers, aggregates, repositories, naming, file organization)
+- [`ddd-golang.md`](ddd-golang.md) - Go reference router
+- [`ddd-golang-domain.md`](ddd-golang-domain.md) - Aggregate event recording
+- [`ddd-golang-application.md`](ddd-golang-application.md) - Handler and publisher placement
 - [`ddd-golang-runtime.md`](ddd-golang-runtime.md) - Go runtime: config, lifecycle, graceful shutdown
