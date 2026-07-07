@@ -18,6 +18,8 @@ Read this file with the active phase skill for DDD/backend architecture work. Us
 
 Classify responsibilities, not concept names. Do not create or apply risk cards because a file or type contains a DDD term such as Event Handler, Message Handler, CQRS, Repository, Scheduler, or Drain. First identify the role the code is playing and the boundary it crosses:
 
+Awkward tactical structures are evidence, not diagnosis. Before routing to a tactical fix, ask what upstream model pressure the structure carries: aggregate boundary, invariant owner, CQRS/read-model split, failure tolerance, application coordination, or local convention.
+
 | Role | Classifier question | Typical owner | Route when risky |
 |---|---|---|---|
 | same-BC reaction | Does this react to one domain fact inside the same bounded context after state is saved? | Domain Event Handler / Application reaction | Shared Umbrella Processor, Business State Classification Outside Domain |
