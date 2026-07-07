@@ -52,6 +52,11 @@ package names, QueryRepository names, or DTOs alone cannot satisfy a row.
 Lifecycle scope is not a small review. Output completion gate: for lifecycle, Repository, event/reaction, or CQRS scope, the final answer is invalid unless required proof-artifact sections are present and non-empty. Do not write broad checked-flow summaries; checked-with-caveat is not checked. A checked row with
 `caveat`, `appears`, accepted-design-only, naming-only, transaction-only, or
 DTO-only proof downgrades to evidence gap, return route, or finding.
+Mandatory rows are decision gates, not summaries. A row that cites a caveat or another finding cannot be checked; inherit the strongest decision from the caveat or downgrade to return/evidence gap. Summary rows that aggregate several methods, flows, states, or ports cannot be checked until each member has its own decision row.
+For aggregate/repository risks, use one row per Repository/API method that saves or coordinates multiple candidates. Each row names the method, every candidate, role, owner proof, owned-child proof when claimed, invariant or command outcome, transaction evidence, coordination alternative, and decision/return route.
+For linked lifecycle behavior, synchronous command path is evidence, not a collaboration decision. Classify the mechanism as Domain Event, process manager, reconciler, task processor, Integration Message, accepted atomic transaction, or evidence gap.
+For state-language semantics, if a parent aggregate state is named after a child process outcome, prove the parent lifecycle fact and owner; otherwise return to modeling/design or mark an evidence gap.
+CQRS checked requires semantic proof beyond names, DTOs, packages, and absent imports: classify caller intent, returned model family, write-side product-read overlap, query-adapter write authority, shared storage/adapter coupling, and whether reads influence write-side decisions.
 Use the exact mandatory section names. Evidence Matrix is not a substitute for mandatory sections. Free-form summary matrices may not contain checked decisions; they are commentary only after all mandatory sections are complete.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
@@ -94,12 +99,15 @@ DDD review:
 - Evidence gate:
 - Checked flows:
 - Candidate ledger: Candidate | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return; Candidate | Role | Owner proof | Repository/API evidence | Decision | Return route
+- Repository/API candidate classification: Repository/API method | Candidate | Role | Owner proof | Owned-child proof | Invariant/command outcome | Transaction evidence | Coordination alternative | Decision/return route
 - Per-flow Event Timeline Reconciliation: Flow | Fact | Event/process/reconciler owner | Recovery/failure behavior | Decision
+- Collaboration model table: Flow | Trigger fact | Affected owner | Mechanism | Recovery/failure behavior | Decision
 - Recovery reachability table: Fact | Recovery trigger | Production entrypoint | Guard after durable fact | Decision
 - Mandatory coverage matrix: Coverage row | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return
 - Counterfactual defect hunt: Checked row | Falsifier question | Evidence inspected | Decision
 - Checked row proof artifacts: Checked row | Risk family | Required proof artifact | Evidence | Decision
 - Terminal/execution fact table: Flow | Authorization fact | Execution fact | Aggregate closure fact | Owner | Recovery stance | Decision
+- Parent-state language table: State | Parent aggregate fact | Child/process outcome risk | Owner proof | Decision
 - CQRS semantic split table: Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
 - Output completion gate: Required section | Present | Non-empty | If missing decision
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
