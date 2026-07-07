@@ -122,9 +122,9 @@ Ask:
 - Is a same-transaction write a business requirement or just persistence/API
   convenience?
 
-Outcome: same-aggregate transaction, justified multi-aggregate exception,
-Domain Event, Integration Message, task, compensation, process manager, or
-reconciler.
+Outcome: same-aggregate transaction, Domain Event, Integration Message, task,
+compensation, process manager, or reconciler. Default path is one aggregate per command;
+an aggregate boundary conflict returns to domain-modeling instead of being solved by persistence shape.
 
 ## Gate 7: Language Before Integration
 

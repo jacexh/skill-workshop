@@ -132,11 +132,24 @@ Rules:
 - Commands modify state; Queries return read models and do not mutate state.
 - Application constructs Domain inputs, calls Domain methods/validation, maps Domain errors outward, and manages transaction boundaries.
 - Default transaction boundary is one aggregate write per command.
-- A Repository is a write-side Aggregate collection. `Save(ctx, aggregate)` saves one mutable Aggregate Root; owned child rows may be persisted with it, but independent Aggregate Roots need an accepted collaboration model or a documented multi-aggregate transaction exception.
-- A semantic repository method name is not proof; a method saving several candidate Aggregate Roots must show aggregate ownership, accepted collaboration, or transaction-exception evidence.
+- A Repository is a write-side Aggregate collection. `Save(ctx, aggregate)` saves one mutable Aggregate Root; owned child rows may be persisted with it, but independent Aggregate Roots normally coordinate through Domain Events, process managers, reconcilers, Integration Messages, or compensation.
+- A semantic repository method name is not proof; an API saving or coordinating several candidate roots is Aggregate Boundary Conflict until modeling proves one aggregate or event-driven coordination.
+- Implementation transaction shape is not Repository design evidence. Cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
 - After `Repository.Save()`, the in-memory aggregate is stale. Reload before further operations.
 - Query Handler structs are optional when they only delegate once to a QueryRepository.
-- Application command-side ports are exceptions. They require the Architecture Gate placement extension and the semantic fake test.
+- Application command-side port pressure returns to modeling/design before implementation. It requires the Architecture Gate placement extension and the semantic fake test.
+
+#### Default-First Concept Map
+
+- Aggregate default: one Aggregate owns one consistency boundary and protects invariants through behavior methods.
+- Repository default: one Repository is a collection for one write-side Aggregate Root; it does not serve product reads or bundle independent roots.
+- Domain Event default: same bounded-context, past-tense business fact recorded after Domain state changes for repeated local reactions.
+- Integration Message default: stable cross-context contract derived from a selected Domain fact or explicit published fact.
+- Application Port default: QueryRepository/read facade for reads, ACL/Infrastructure adapter for mechanisms, and Domain Repository/Domain Service/Domain Event for command-side domain needs.
+- CQRS default: commands mutate Domain aggregates; queries return DTO/read models without loading aggregates for UI history or detail pages.
+- Bounded Context default: product language, authority, lifecycle, and invariant ownership define the boundary, not technology nouns.
+- FSM default: state-specific behavior lives in state methods and aggregate methods delegate to the current state, not raw state mutation.
+- Exception pressure returns to domain-modeling. Do not present exception-shaped mechanisms as alternatives in implementation or review.
 
 #### CQRS Port Granularity
 
@@ -153,15 +166,20 @@ Expose ports by caller semantics, not storage operations:
 Do not create one QueryRepository per screen, RPC, SQL statement, or minor filter. Do not create storage-shaped omnibus ports that mix producer writes, UI history, audit lookup, projection bootstrap, and unrelated reads.
 When one repository shape mixes aggregate saves with product list/detail/summary/page reads, treat it as CQRS split pressure: keep command-side aggregate loading in the Domain Repository and move product read models to QueryRepository/read facade unless the read is a command-side Domain fact needed to decide a write.
 
-#### Multi-Aggregate Transaction Exception Gate
+#### Aggregate Boundary Conflict Gate
 
-One transaction writing multiple aggregates is allowed only when all are true:
+Default path is one aggregate per command. If a Repository/API appears to save
+or coordinate several candidate roots, do not justify it with transaction
+evidence. Classify Aggregate Boundary Conflict and return to `domain-modeling`
+unless a prior modeling discussion already changed the aggregate boundary.
 
-- Same bounded context and same persistence/consistency boundary.
-- A named invariant would become non-repairably invalid under temporary inconsistency.
-- Aggregate redesign, decision aggregate, Domain Service, database constraint surfaced as Domain error, Domain Event, Integration Message, compensating action, and idempotent consumer options were considered and rejected.
-- Lock/optimistic-concurrency, retry, stale-state, failure semantics, and caller-visible outcomes are stated.
-- The exception is not based on ORM/session convenience.
+Reopened modeling must answer:
+
+- Are these truly separate lifecycle/invariant owners, or one Aggregate with owned children/value objects?
+- Which past-tense Domain Event, process manager, reconciler, Integration Message, or compensation should express behavior linkage?
+- Which command outcome must be immediately true, and which inconsistency is recoverable?
+- Which table writes are only Infrastructure mapping for one accepted Aggregate?
+- What accepted model decision replaced the conflict? Without that decision, do not mark it Rules Satisfied.
 
 #### Command Handler Port-Pressure Heuristic
 
@@ -364,7 +382,7 @@ Mock/stub cross-layer seams, not Domain objects. Domain tests instantiate real a
 - Technical capability classification was done before package/port placement.
 - Inward interfaces are defined by inward layers.
 - CQRS ports follow caller semantics and product read-model families.
-- Multi-aggregate transactions satisfy §3.2.
+- Aggregate Boundary Conflict returns to modeling through §3.2.
 - Cross-context interaction uses §5 mechanisms.
 - Generated protocol types do not enter Domain.
 - Async handlers have one role and justified granularity.
@@ -377,7 +395,7 @@ Mock/stub cross-layer seams, not Domain objects. Domain tests instantiate real a
 2. Organize by bounded context.
 3. Domain owns rules; Application orchestrates; Interface maps protocols; Infrastructure adapts mechanisms.
 4. Repositories are write-side aggregate collections; QueryRepositories/read facades are product read models.
-5. Application command-side ports are exceptions, not defaults.
+5. Application command-side port pressure returns to modeling/design; it is not a default.
 6. Aggregates guard non-repairable invariants.
 7. Events dispatch after successful persistence.
 8. Integration Messages are cross-context contracts; Domain Events are internal facts.

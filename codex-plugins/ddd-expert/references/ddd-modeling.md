@@ -36,7 +36,7 @@ Architecture Gate (placement extension):
 - New inward interfaces introduced:
 - Collaboration model before mechanism:
 - Domain mechanism placement before Application ports:
-  - <need>: <Aggregate method | Domain Repository | Domain Service | Domain Event handler | Integration Message | named Application coordination service | ACL | Infrastructure adapter | Application QueryRepository/read facade | exceptional Application command-side port>
+  - <need>: <Aggregate method | Domain Repository | Domain Service | Domain Event handler | Integration Message | named Application coordination service | ACL | Infrastructure adapter | Application QueryRepository/read facade | return-to-modeling Application command-side port decision>
 - Placement per new inward interface:
   - <interface>: semantic contract; rule owner; fake-test result when relevant
 - Cross-aggregate business decisions:
@@ -44,7 +44,7 @@ Architecture Gate (placement extension):
 - Async reaction handlers:
   - role: <Domain Event Handler | Boundary Publisher | Integration Message Handler>
   - input/output/failure policy:
-- Application command-side port exceptions:
+- Application command-side port review:
 - Proceed / Stop:
 ```
 
@@ -221,7 +221,7 @@ State: use-case kind; aggregate and invariants; repository/query repository chan
 
 Use for a new bounded context, aggregate root, event family, repository, or cross-context communication channel.
 
-State: bounded context, capability, language, data authority, aggregate root/entities/value objects/invariants, transaction boundaries, Integration Messages, cross-context mechanisms, technical capability classification, and a domain-mechanism inventory of every Aggregate rule, Repository, Domain Service, Domain Event, Integration Message, Application coordination service, ACL, QueryRepository/read facade, and exceptional Application command-side port.
+State: bounded context, capability, language, data authority, aggregate root/entities/value objects/invariants, transaction boundaries, Integration Messages, cross-context mechanisms, technical capability classification, and a domain-mechanism inventory of every Aggregate rule, Repository, Domain Service, Domain Event, Integration Message, Application coordination service, ACL, QueryRepository/read facade, and Application command-side port decision.
 
 ### 7.4 Cross-Context Change Without a New Context
 
