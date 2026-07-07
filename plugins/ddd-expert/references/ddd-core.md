@@ -163,7 +163,9 @@ Rules:
 - Absence of forbidden nouns is not model proof. A positive model-alignment conclusion requires every mandatory lifecycle, event, recovery, repository-boundary, FSM, and CQRS review row to be classified as satisfied, violation, return-to-modeling/design, or evidence gap.
 - Positive conclusion calibration: when later scoring feedback or known issues contradict a review, convert the miss reason into a generic rule, protocol, output contract, or eval assertion instead of memorizing project-specific examples.
 - Mandatory coverage matrix: lifecycle reviews classify irreversible fact precedence, event/recovery reachability, candidate aggregate/lifecycle-owner classification, terminal lifecycle facts versus execution facts, FSM API compatibility, FSM state polymorphism, CQRS split, and state-language semantics before any broad alignment claim.
+- Mandatory lifecycle output sections: Candidate ledger, Per-flow Event Timeline Reconciliation, Recovery reachability table, and Mandatory coverage matrix remain required when lifecycle scope is present, even when findings already exist. A compile/build blocker cannot remove mandatory review sections; it only limits executable verification.
 - Checked row proof rule: a checked row must name concrete evidence, the exact rule satisfied, and why the risk is not a finding; otherwise it is an evidence gap or return route. A split execution fact such as partial money movement does not equal aggregate terminal closure until all required execution facts and closure rules are reconciled.
+- Owned-child proof is required before a multi-candidate repository row can be checked. Without proof that every coordinated candidate is one aggregate-owned child/value object under one lifecycle owner, classify the row as return-to-modeling, return-to-design, evidence gap, or finding.
 
 #### Review Order Rule
 

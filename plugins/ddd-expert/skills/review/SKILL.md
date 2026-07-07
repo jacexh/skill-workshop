@@ -35,10 +35,9 @@ Before findings:
 
 ## Coverage pass
 
-For lifecycle designs, produce a Mandatory coverage matrix and Candidate ledger before broad conclusions: lifecycle facts, Per-flow Event Timeline Reconciliation, Recovery reachability table, aggregate-boundary candidate classification, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
+For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not
-stop after the first Blocker if other independent flows are in scope; report
-Independent modeling findings separately from executable verification gaps.
+stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
 ## Default-first key concept check
 
@@ -60,9 +59,7 @@ Report each finding under one primary axis. Mention secondary impact only when i
 
 ## Fix direction ordering
 
-Do not reduce finding count to make every finding fully templated. Every
-finding needs evidence, guardrail, triage, and impact; follow-up fields are
-selected by finding type.
+Do not reduce finding count to make every finding fully templated. Every finding needs evidence, guardrail, triage, and impact; follow-up fields are selected by finding type.
 
 - **Model correction** — only for lifecycle, consistency, event-fact, or
   coordination findings; name the invariant owner, lifecycle owner, aggregate
@@ -84,6 +81,10 @@ DDD review:
 - Expected model sources:
 - Evidence gate:
 - Checked flows:
+- Candidate ledger: Candidate | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return; Candidate | Role | Owner proof | Repository/API evidence | Decision | Return route
+- Per-flow Event Timeline Reconciliation: Flow | Fact | Event/process/reconciler owner | Recovery/failure behavior | Decision
+- Recovery reachability table: Fact | Recovery trigger | Production entrypoint | Guard after durable fact | Decision
+- Mandatory coverage matrix: Coverage row | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 
 Finding: <severity> <axis> <title>
