@@ -44,6 +44,7 @@ Use these cards to answer "what must this event/message construct contain?" befo
 ### 0.1 Domain Event Type Card
 
 - Place same-BC Domain Event types in `internal/business/<context>/domain/event.go` unless the package already has a narrower event file convention.
+- Start from the accepted event-storming/business-fact timeline. Only selected same-BC past-tense facts become Domain Events.
 - Define stable `event.Kind` constants such as `EventKindOrderCompleted event.Kind = "order.completed"`.
 - Implement `Kind() event.Kind` on each event struct.
 - Include only facts the same bounded context needs after the state change. Do not include transport headers, Kafka topic names, retry policy, or generated proto/request types.

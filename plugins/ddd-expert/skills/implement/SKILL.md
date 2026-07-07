@@ -17,12 +17,13 @@ Before editing, name the **Accepted model source** and confirm only the items im
 - data authority and out-of-scope boundary;
 - aggregate, policy, service, read model, or explicit none;
 - commands, queries, Domain Events, Integration Messages, reactions, or explicit none;
+- collaboration model: aggregate-internal behavior, same-BC Domain Event/reaction, Integration Message, process manager/reconciler, query/read facade, or documented transaction exception;
 - consistency, transaction, idempotency, and failure boundary;
 - modeling evidence for lifecycle, authority, invariants, failure tolerance, and collaboration style when those decisions shaped the handoff;
 - layer ownership and mechanism containment;
 - testing seams or explicit verification target.
 
-If business facts or modeling evidence are missing or contradictory, return to `domain-modeling`. If placement, layer ownership, or mechanism containment is missing, return to `design`. If the handoff asks for synchronous writes across several candidate Aggregate Roots without invariant and failure-tolerance evidence, stop and return to `design` before editing. If the conflict is an explicit user requirement, ask the user before editing.
+If business facts or modeling evidence are missing or contradictory, return to `domain-modeling`. If placement, layer ownership, or mechanism containment is missing, return to `design`. If the handoff coordinates several lifecycle objects without an accepted collaboration model, or asks for synchronous writes across several candidate Aggregate Roots without invariant and failure-tolerance evidence, stop and return to `design` before editing. If the conflict is an explicit user requirement, ask the user before editing.
 
 If a review finding includes `Model correction` that changes lifecycle owner,
 invariant owner, aggregate boundary, or failure tolerance, return to `design`
@@ -45,6 +46,7 @@ Keep the output small. Include only sections that carry evidence for this patch.
 DDD implementation:
 - Accepted model source:
 - Handoff check:
+- Collaboration model:
 - Surface preflight:
 - Object shape routing:
 - Placement decisions:

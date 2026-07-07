@@ -20,6 +20,7 @@ Runtime-only exception: Go runtime/config/lifecycle work that does not change a 
 Architecture Gate (core):
 - Gate level: <Level 1 | Level 2 | Level 3 | Cross-context>
 - Bounded context / business capability:
+- Business facts / event timeline:
 - Stable language / data authority:
 - Affected aggregate, policy, service, or explicit none:
 - Invariants and lifecycle rules:
@@ -33,6 +34,7 @@ Add the placement extension when the change adds an inward interface, modifies a
 ```text
 Architecture Gate (placement extension):
 - New inward interfaces introduced:
+- Collaboration model before mechanism:
 - Domain mechanism placement before Application ports:
   - <need>: <Aggregate method | Domain Repository | Domain Service | Domain Event handler | Integration Message | named Application coordination service | ACL | Infrastructure adapter | Application QueryRepository/read facade | exceptional Application command-side port>
 - Placement per new inward interface:
@@ -194,9 +196,10 @@ Use this compact order:
 
 1. Read spec, glossary/CONTEXT, ADRs, and relevant code.
 2. Surface implicit objects and existing-model impact.
-3. Ask one high-fidelity question at a time until material facts are decided.
-4. Classify context authority, lifecycle, invariants, aggregate candidates, event/message candidates, repository candidates, and open risks.
-5. Produce the Domain Modeling Brief or Architecture Gate needed by the next phase.
+3. Reconstruct the command/trigger -> past-tense facts -> policies/reactions timeline.
+4. Ask one high-fidelity question at a time until material facts are decided.
+5. Classify context authority, lifecycle, invariants, aggregate candidates, event-storming facts, event/message candidates, repository candidates, and open risks.
+6. Produce the Domain Modeling Brief or Architecture Gate needed by the next phase.
 
 ## 7. Planning Gates
 
@@ -237,7 +240,8 @@ If the required facts are missing, stop. Missing domain facts go back to `domain
 
 - Same Aggregate: non-repairable invariant, bounded child lifecycle, same transaction required.
 - Separate Aggregates: independent identity/lifecycle, eventual consistency acceptable, unbounded collection, different authority or context.
-- Domain Event: same bounded-context fact after state changes, for repeated same-BC reactions.
+- Event Storming fact: business evidence; later classify as Domain Event, Integration Message, state change, read-model fact, process step, or non-code fact.
+- Domain Event: selected same bounded-context fact after state changes, for repeated same-BC reactions.
 - Integration Message: cross-context contract.
 - Repository: write-side aggregate collection.
 - QueryRepository/read facade: product/application read model.

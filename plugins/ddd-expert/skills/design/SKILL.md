@@ -18,7 +18,7 @@ Use the brief this way:
 - Testing Decisions -> highest useful verification seams.
 - Further Notes / DDD handoff -> candidate tactics to re-check, not commands to obey.
 
-Design in this order: strategic model first, modeling gate summary second, tactical mechanisms third, implementation placement last. Use the modeling gates before naming Aggregates, Repositories, ports, handlers, layers, files, schemas, transactions, or event payloads; do not name them before the strategic model and relevant gates are clear.
+Design in this order: strategic model first, modeling gate summary second, collaboration model before mechanism, tactical mechanisms third, implementation placement last. Use the modeling gates before naming Aggregates, Repositories, ports, handlers, layers, files, schemas, transactions, or event payloads; do not name them before the strategic model and relevant gates are clear.
 
 Read deeper references only when needed:
 
@@ -39,6 +39,7 @@ Write the shortest useful DDD design. Small is acceptable only when implementati
   - Data authority and out-of-scope boundary.
   - Aggregate, policy, service, read model, or explicit none.
   - Modeling gate decisions that justify those tactical objects.
+  - Collaboration model: aggregate-internal behavior, same-BC Domain Event/reaction, Integration Message, process manager/reconciler, query/read facade, or documented transaction exception.
   - Commands / queries / Domain Events / Integration Messages / reactions, or explicit none.
   - Consistency / transaction / idempotency / failure boundary.
   - Layer ownership and mechanism containment.
