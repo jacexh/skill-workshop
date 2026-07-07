@@ -7,7 +7,7 @@ description: Use when producing concrete DDD/backend design from an accepted Dom
 
 Turn an accepted Domain Modeling Brief into the smallest useful DDD/backend design.
 
-First read the brief, current spec/docs/code evidence, and [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md). The brief may be PRD-shaped: Problem Statement, Solution / Scenario, User Stories, Strategic Decisions, Testing Decisions, Out of Scope, Further Notes.
+First read the brief, current spec/docs/code evidence, [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md), and [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md). The brief may be PRD-shaped: Problem Statement, Solution / Scenario, User Stories, Strategic Decisions, Model Decisions, Testing Decisions, Out of Scope, Further Notes.
 
 If material user scenario, event timeline, authority, policy, lifecycle, data authority, or bounded-context facts are still missing, stop and return to `domain-modeling`.
 
@@ -18,7 +18,7 @@ Use the brief this way:
 - Testing Decisions -> highest useful verification seams.
 - Further Notes / DDD handoff -> candidate tactics to re-check, not commands to obey.
 
-Design in this order: strategic model first, tactical mechanisms second, implementation placement last. Do not name Aggregates, ports, handlers, layers, files, schemas, or event payloads before the strategic model is clear.
+Design in this order: strategic model first, modeling gate summary second, tactical mechanisms third, implementation placement last. Use the modeling gates before naming Aggregates, Repositories, ports, handlers, layers, files, schemas, transactions, or event payloads; do not name them before the strategic model and relevant gates are clear.
 
 Read deeper references only when needed:
 
@@ -30,6 +30,7 @@ Write the shortest useful DDD design. Small is acceptable only when implementati
 
 - **Design problem** — the backend decision this design resolves.
 - **Strategic model** — capability, bounded context, language, authority, data authority, and out-of-scope boundaries.
+- **Modeling gate summary** — only gates that materially shaped the design: story, authority, lifecycle, invariant, failure tolerance, integration language, or coordination kind.
 - **Tactical decisions** — only changed or disputed mechanisms: aggregate/policy/service boundary, commands/queries/events, consistency/failure rules.
 - **Testing seams** — the highest seams that prove the user stories and strategic decisions.
 - **Implementation handoff** — list only decisions the next implementation will depend on:
@@ -37,6 +38,7 @@ Write the shortest useful DDD design. Small is acceptable only when implementati
   - Capability / bounded context / language.
   - Data authority and out-of-scope boundary.
   - Aggregate, policy, service, read model, or explicit none.
+  - Modeling gate decisions that justify those tactical objects.
   - Commands / queries / Domain Events / Integration Messages / reactions, or explicit none.
   - Consistency / transaction / idempotency / failure boundary.
   - Layer ownership and mechanism containment.

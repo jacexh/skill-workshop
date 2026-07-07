@@ -1,11 +1,11 @@
 ---
 name: DDD Risk Router
-description: Compact DDD/backend architecture risk cards. Read with the active DDD phase skill for backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
+description: Compact DDD/backend implementation/review risk router. Read with the active DDD phase skill for backend services in Go, Python, or TypeScript, database-backed services, event/message, taskqueue, or runtime-boundary work.
 ---
 
 # DDD Risk Router
 
-Read this file with the active phase skill for DDD/backend architecture work. Use it to decide which deeper standards to load.
+Read this file with the active phase skill for DDD/backend architecture work. Use it as an implementation/review risk router to decide which deeper standards to load. When the problem is modeling ambiguity rather than an observed implementation risk, route to [`ddd-modeling-gates.md`](ddd-modeling-gates.md) and [`ddd-modeling.md`](ddd-modeling.md) before naming tactical objects.
 
 ## How Phases Use Cards
 

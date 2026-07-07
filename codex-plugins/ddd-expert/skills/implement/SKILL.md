@@ -18,10 +18,11 @@ Before editing, name the **Accepted model source** and confirm only the items im
 - aggregate, policy, service, read model, or explicit none;
 - commands, queries, Domain Events, Integration Messages, reactions, or explicit none;
 - consistency, transaction, idempotency, and failure boundary;
+- modeling evidence for lifecycle, authority, invariants, failure tolerance, and collaboration style when those decisions shaped the handoff;
 - layer ownership and mechanism containment;
 - testing seams or explicit verification target.
 
-If business facts are missing or contradictory, return to `domain-modeling`. If placement, layer ownership, or mechanism containment is missing, return to `design`. If the conflict is an explicit user requirement, ask the user before editing.
+If business facts or modeling evidence are missing or contradictory, return to `domain-modeling`. If placement, layer ownership, or mechanism containment is missing, return to `design`. If the handoff asks for synchronous writes across several candidate Aggregate Roots without invariant and failure-tolerance evidence, stop and return to `design` before editing. If the conflict is an explicit user requirement, ask the user before editing.
 
 ## Workflow
 
