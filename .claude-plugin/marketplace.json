@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.14.45"
+    "version": "1.14.46"
   },
   "plugins": [
     {
@@ -44,7 +44,7 @@
       "name": "ddd-expert",
       "source": "./plugins/ddd-expert",
       "description": "Standalone DDD/backend architecture expert skills for code agents",
-      "version": "1.14.45",
+      "version": "1.14.46",
       "author": {
         "name": "xuhao"
       },
