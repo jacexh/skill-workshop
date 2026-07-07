@@ -574,7 +574,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.30`, release commit `5c2a4a05010ace89ab67f8ab562a9836b43d6fe0`.
 - preceding hotfix: `b8affb03fffd27893658f906c52545c23e9ff1a5`, PR #83, merge commit `2020cd326e58bac87af8228ee4e5da9d51c85222`.
 - next hotfix branch: `hotfix/ddd-review-no-evidence-matrix`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `92f038cefa52b0c346527a13c4e91a2a969ba2b6`; PR #84, merge commit `6138f8be3a4b5e692ddd782d836a61fdd8fe0ab3`, release `v1.14.31` (`6bb64743d99cfab191756f30624446523e4386db`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.30`.
@@ -620,7 +620,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.31`, release commit `6bb64743d99cfab191756f30624446523e4386db`.
 - preceding hotfix: `92f038cefa52b0c346527a13c4e91a2a969ba2b6`, PR #84, merge commit `6138f8be3a4b5e692ddd782d836a61fdd8fe0ab3`.
 - next hotfix branch: `hotfix/ddd-review-decision-proof-gate`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `36489eff84ad43a20f335bd1800f160b8b124a7f`; PR #85, merge commit `42d8f555e05e05bc85c53db80c2105bcc3a774fa`, release `v1.14.32` (`f806be7cb54be3540c77231cd16eb7ff988fc046`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.31`.
@@ -662,3 +662,51 @@ Coverage Matrix:
 - Added generic review protocol for linked lifecycle collaboration: synchronous command paths are evidence, not collaboration decisions; each linked flow must classify event/process manager/reconciler/task/Integration Message/accepted transaction/evidence gap.
 - Added parent-state language proof for aggregate states named after child process outcomes.
 - Hardened CQRS proof so checked rows require semantic evidence beyond names, DTOs, package layout, and absent imports.
+
+## Round 2026-07-08 v1.14.32 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.32`, release commit `f806be7cb54be3540c77231cd16eb7ff988fc046`.
+- preceding hotfix: `36489eff84ad43a20f335bd1800f160b8b124a7f`, PR #85, merge commit `42d8f555e05e05bc85c53db80c2105bcc3a774fa`.
+- next hotfix branch: `hotfix/ddd-review-finding-extraction-gates`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.32`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: background reviewer in `/home/xuhao/sanhe` using the fixed prompt after plugin upgrade.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.32.md`, 12,733 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.32-reflection.md`, 11,985 bytes.
+- verification inside review: `go test` could not run because the read-only review sandbox could not create `/tmp/sanhe-codex-gocache`.
+
+### Output Summary
+
+- The reviewer found K2 as an independent blocker: durable `PaymentSucceeded` can leave pre-funded retry/cancel rights open.
+- The reviewer found K3 as an independent blocker: `PaymentSucceeded` recovery/reconciler was not proven production reachable.
+- The reviewer found the K5/K7 family directionally with method-level repository/API rows, but many rows were still too compressed and some positive rows over-trusted accepted design or semantic names.
+- The reviewer shallowly covered K6 by naming synchronous command coordination as a return/design issue, but it did not make missing collaboration model a first-class finding across delivery/refund/dispute/settlement flows.
+- The reviewer overclaimed K4: split dispute terminal/execution fact separation was marked checked from high-level command sequencing.
+- The reviewer missed K8 except for `payment_pending`; it did not enumerate `payment_failed` / `payment_cancelled`.
+- The reviewer overclaimed K10: CQRS was checked from QueryRepository/DTO/package separation plus asserted command-side lookup, without read-shaped method inventory.
+
+### Score
+
+- Breadth: 29 / 45. Strong coverage: K2 and K3. Directional/shallow coverage: K5, K6, K7. Missed/overclaimed: K4, K8, K10.
+- Depth: 23 / 45. Payment recovery and stale-command depth were good. Split terminal/execution, non-payment collaboration, per-candidate ledger depth, state-language enumeration, and CQRS method-level proof were weak.
+- Review discipline: 6 / 10. Mandatory sections were present, but checked rows still survived while related caveats/returns were unresolved, and important risks remained in tables instead of findings.
+- Total: 58 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: regressed. Method-level tables appeared, but the reviewer treated the table itself as progress and let K4/K10 become checked overclaims while K8 disappeared.
+- Overclaim: K4 needs split/multi-execution proof one execution fact at a time. Command sequencing and retry reachability do not prove money execution facts and aggregate closure facts are separated.
+- Shallow root cause: K5 still compressed candidate roles and did not force every candidate in every Repository/API method to name owner proof, owned-child proof, invariant/command outcome, failure tolerance, and coordination alternative.
+- Shallow root cause: K6 must be extracted as a first-class collaboration-model issue; table rows are not enough when delivery/refund/dispute/settlement links lack event/process/reconciler/task/accepted-atomic-transaction proof.
+- Shallow root cause: K7 persists because checked terminal/state/CQRS rows relied on accepted design or semantic names while related boundary/collaboration rows were still returned.
+- Missing finding: K8 requires full state vocabulary enumeration, not only the state already implicated by a payment blocker.
+- Overclaim: K10 requires inventory of read-shaped methods on write repositories/shared adapters and caller-semantics proof for each; QueryRepository names and DTOs are insufficient.
+- Strategy change: add a finding-extraction gate and mechanical inventories. Any mandatory row with `finding`, `return`, or `evidence gap` must become a Finding/evidence-gap paragraph or cite an existing same-scope finding. State-language and CQRS reviews must enumerate candidate vocabulary/methods before any checked claim.
+
+### Generic Fix Summary
+
+- Added release assertions for finding extraction, split/multi-execution proof, parent-state language enumeration, CQRS read-shaped method inventory, and strongest-negative decision inheritance.
+- Next plugin changes will make table-only risks invalid output, require one row per split execution fact, enumerate generic child-process state words, and inspect every read-shaped method on write repositories/shared adapters.

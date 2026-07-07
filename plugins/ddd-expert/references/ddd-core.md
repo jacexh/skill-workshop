@@ -172,6 +172,11 @@ Rules:
 - Collaboration-model proof: synchronous command path is evidence, not a collaboration decision. Linked lifecycle behavior must classify the mechanism as Domain Event, process manager, reconciler, task processor, Integration Message, accepted atomic transaction, or evidence gap.
 - Parent-state language proof: if a parent aggregate state is named after a child process outcome, prove the parent lifecycle fact and owner before marking it checked; otherwise return to modeling/design or record an evidence gap.
 - CQRS checked requires semantic proof beyond names, DTOs, packages, and absent imports. Classify caller intent, returned model family, write-side product-read overlap, query-adapter write authority, shared storage/adapter coupling, and whether reads influence write-side decisions.
+- Finding extraction gate: any mandatory row with finding, return, or evidence gap must become a Finding paragraph or cite an existing finding with the same scope; important risks cannot remain only in tables.
+- Split or multi-execution outcomes require one row per execution fact with authorization source, amount/result scope, idempotency/replay rule, failure recovery, and exact aggregate closure condition; command sequencing alone cannot check terminal/execution separation.
+- State-language enumeration must inspect every parent state whose vocabulary looks like pending, failed, cancelled, succeeded, authorized, executed, completed, refunded, settled, or closed.
+- CQRS read-shaped method inventory must inspect every read-shaped method on write repositories or shared adapters before marking read/write split checked.
+- checked rows inherit the strongest negative decision unless independence is proven; related findings, returns, evidence gaps, and caveats dominate positive local proof.
 - Positive conclusion calibration: when later scoring feedback or known issues contradict a review, convert the miss reason into a generic rule, protocol, output contract, or eval assertion instead of memorizing project-specific examples.
 - Mandatory coverage matrix: lifecycle reviews classify irreversible fact precedence, event/recovery reachability, candidate aggregate/lifecycle-owner classification, terminal lifecycle facts versus execution facts, FSM API compatibility, FSM state polymorphism, CQRS split, and state-language semantics before any broad alignment claim.
 - Mandatory lifecycle output sections: Candidate ledger, Per-flow Event Timeline Reconciliation, Recovery reachability table, and Mandatory coverage matrix remain required when lifecycle scope is present, even when findings already exist. A compile/build blocker cannot remove mandatory review sections; it only limits executable verification.
@@ -184,7 +189,7 @@ For lifecycle/repository/event reviews, reason in this order: command -> past-te
 
 #### Irreversible Fact Precedence Rule
 
-Durable succeeded, accepted, completed, authorized, executed, or externally committed facts outrank open workflow states. A lagging projection, event handler, or reconciler does not reopen retry, cancellation, refund, or mutation rights unless the accepted model explicitly says so. Review terminal lifecycle facts and execution facts separately: lifecycle closure records the product obligation state; execution facts record money, shipment, notification, or external side effects. If either side can advance without the other, require an explicit reaction/process/reconciler and failure-tolerance rule before marking Rules Satisfied.
+Durable succeeded, accepted, completed, authorized, executed, or externally committed facts outrank open workflow states. A lagging projection, event handler, or reconciler does not reopen retry, cancellation, refund, or mutation rights unless the accepted model explicitly says so. Review terminal lifecycle facts and execution facts separately: lifecycle closure records the product obligation state; execution facts record money, shipment, notification, or external side effects. If either side can advance without the other, require an explicit reaction/process/reconciler and failure-tolerance rule before marking Rules Satisfied. Split or multi-execution outcomes require one row per execution fact with authorization source, amount/result scope, idempotency/replay rule, failure recovery, and exact aggregate closure condition; command sequencing alone cannot check terminal/execution separation.
 
 #### CQRS Read/Write Split Rule
 
@@ -203,7 +208,7 @@ Expose ports by caller semantics, not storage operations:
 | Routing, peer lookup, hop headers, queue subjects, retry knobs, topology | Infrastructure, not Application query port |
 
 Do not create one QueryRepository per screen, RPC, SQL statement, or minor filter. Do not create storage-shaped omnibus ports that mix producer writes, UI history, audit lookup, projection bootstrap, and unrelated reads.
-Do not merge write-side Repository and read-side QueryRepository responsibilities merely because one adapter or table can serve both.
+Do not merge write-side Repository and read-side QueryRepository responsibilities merely because one adapter or table can serve both. CQRS read-shaped method inventory must inspect every read-shaped method on write repositories or shared adapters before marking read/write split checked.
 
 #### Aggregate Boundary Conflict Gate
 
