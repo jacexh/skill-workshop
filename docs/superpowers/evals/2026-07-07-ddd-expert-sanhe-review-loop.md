@@ -1097,7 +1097,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.41`, release commit `71918a187b765bce95892edcb1d0dc71f2124110`.
 - preceding hotfix: `2dd5777f2af13f726b3e29fa3f23c124de40d09b`, PR #94, merge commit `83ccd5001e865a1eb0a45641ff8a55b1920b593e`.
 - next hotfix branch: `hotfix/ddd-review-hard-downgrade-admission`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `1f8adf8c2b6af6de222cdda2ce9bd56605eab725`; PR #95, merge commit `5fba1b4084ce52761f4cfc1c0885d6d828337f6e`, release `v1.14.42` (`caa80a28f46accb7468ae2993e79748b1112e1c4`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` and `codex plugin add ddd-expert@skill-workshop-codex` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.41`.
@@ -1141,3 +1141,51 @@ Coverage Matrix:
 - Require accepted atomic transaction rows to name an explicit model decision and failure-tolerance rule; otherwise downgrade to return/evidence gap/finding.
 - Require terminal/execution rows to include lifecycle event emission timing and durable fact ordering before any checked terminal/execution conclusion.
 - Require every checked row admission-control entry to list forbidden evidence scrub results and downgrade when any forbidden proof token is present.
+
+## Round 2026-07-08 v1.14.42 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.42`, release commit `caa80a28f46accb7468ae2993e79748b1112e1c4`.
+- preceding hotfix: `1f8adf8c2b6af6de222cdda2ce9bd56605eab725`, PR #95, merge commit `5fba1b4084ce52761f4cfc1c0885d6d828337f6e`.
+- next hotfix branch: `hotfix/ddd-review-positive-quarantine`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.42`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.42.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.42.md`, 18,662 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.42-reflection.md`, 2,444 bytes.
+- verification inside review: reported `go test ./...` passed, plus focused domain/application/eventhandler/infrastructure tests.
+
+### Output Summary
+
+- The reviewer found K2 as F1: durable `PaymentSucceeded` can leave agreement stale and allow cancel/retry from `payment_pending`.
+- The reviewer found K3 as F2: reconciler exists but has no production RPC/scheduler/worker/startup/admin reachability.
+- The reviewer found K8 as F3: `payment_failed` / `payment_cancelled` are child Payment outcomes encoded as parent agreement states without producer evidence.
+- The reviewer overclaimed K4: split closure/terminal execution rows were checked without proving lifecycle event emission timing or durable fact ordering before terminal aggregate events.
+- The reviewer overclaimed K5: repository/API rows compressed multiple lifecycle owners and marked semantic lifecycle transactions checked without method/candidate row-local owner proof.
+- The reviewer overclaimed K6: collaboration rows for acceptance/refund/dispute/split were checked from synchronous command paths/domain guards instead of an explicit collaboration mechanism and failure-tolerance policy.
+- The reviewer overclaimed K7: overclaim scrub existed but still allowed positive conclusions from semantic names, DTO/read split, package/import separation, and accepted-design-shaped evidence while model pressure remained unresolved.
+- The reviewer overclaimed K10: it listed read-shaped methods, but the inventory lacked the required caller semantics, returned model family, write-side influence, adapter/storage overlap, and read-facade ownership decisions while still marking CQRS checked.
+
+### Score
+
+- Breadth: 23 / 45. K2, K3, and K8 were found strongly. K4, K5, K6, K7, and K10 were touched mainly as unsupported checked rows or positive summaries.
+- Depth: 22 / 45. Payment stale-command and recovery reachability depth remained useful. Terminal event timing, aggregate-boundary ownership, collaboration mechanism, non-waiver, and CQRS method semantics were shallow or overclaimed.
+- Review discipline: 4 / 10. Required sections were present by name, but several required columns were missing, Output Completion still marked them present, and checked conclusions survived despite known forbidden proof shapes.
+- Total: 49 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: failed. The hard-downgrade language existed in the skill, but the reviewer generated shorter table schemas, marked those schemas complete, and continued to emit checked flows.
+- Structural failure: the output template still invites positive `checked` rows and `Checked flows` summaries. The model is optimizing toward filling every mandatory table, not toward withholding positive conclusions when proof is incomplete.
+- Overclaim root cause: Output Completion only checks section names and non-empty rows; it must also validate exact required columns, otherwise a truncated table can satisfy the gate.
+- Overclaim root cause: Checked row admission control is too easy to fake as a top-level table. If any finding/return/evidence gap exists in lifecycle/repository/event/CQRS scope, positive checked-flow summaries should be quarantined or omitted.
+- Strategy change: introduce positive-conclusion quarantine. In high-risk review scope, only finding, return, evidence gap, and not applicable decisions are allowed until every required section has exact columns and every row passes admission. `Checked flows` and `Rules Satisfied` become forbidden when any negative decision exists.
+
+### Generic Fix Summary
+
+- Add release assertions for positive-conclusion quarantine when any lifecycle/repository/event/CQRS finding, return, or evidence gap exists.
+- Require Output Completion to validate exact required columns, not just section presence/non-empty rows.
+- Replace checked-flow summaries with residual-risk summaries while negative decisions exist.
+- Forbid `Rules Satisfied` entries for lifecycle/repository/event/CQRS scopes when any same-scope row is finding, return, evidence gap, grouped, missing exact columns, or not admitted.

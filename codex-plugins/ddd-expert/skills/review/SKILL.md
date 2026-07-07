@@ -57,6 +57,9 @@ Hard downgrade checked-row filter: Forbidden proof tokens in a checked row force
 checked with caveat, design accepts, accepted by design, xorm tx, accepted atomic write, command-side check, or synchronous command path cannot be decisive checked proof.
 Accepted atomic transaction requires model decision id and failure-tolerance rule in the same row; otherwise downgrade.
 Terminal/event timing gate: Terminal/execution checked rows must inspect lifecycle event emission timing and durable fact ordering; command/domain guards alone cannot check terminal/execution separation.
+Positive-conclusion quarantine: If any lifecycle/repository/event/CQRS row is finding, return, evidence gap, grouped, missing exact columns, or not admitted, omit Checked flows and positive Rules Satisfied entries.
+Output completion exact-column gate: A section is present only when its table header exactly matches the required template.
+Residual-risk summary replaces checked-flow summary while negative decisions exist.
 
 For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
 Counterfactual defect hunt: Draft findings are not final. Before final output,
@@ -155,8 +158,9 @@ DDD review:
 - Overclaim scrub: Row id | Checked row | Strongest evidence source | Forbidden promotion source | Downgrade decision
 - Output completion gate: Row id | Exact lifecycle section | Present | Non-empty table rows | If missing decision
 - Checked row admission control: Row id | Proof tuple complete | Invalid category/prose/forbidden proof | Admission decision
-- Checked flows:
-- Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
+- Checked flows: <omit when any lifecycle/repository/event/CQRS row is finding, return, evidence gap, grouped, missing exact columns, or not admitted>
+- Residual-risk summary: <use instead of checked-flow summaries while negative decisions exist>
+- Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap: <positive Rules Satisfied entries forbidden for same-scope rows while negative decisions exist>
 - Finding generation map: Inventory row | Final decision | Finding id or evidence-gap id | Extracted paragraph
 
 Finding: <severity> <axis> <title>
