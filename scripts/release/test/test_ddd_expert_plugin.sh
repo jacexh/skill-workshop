@@ -177,6 +177,8 @@ check_implement_skill() {
   grep -q "Tests / verification" "$implement_skill" || fail "$label implement should report verification"
   grep -q "return to \`domain-modeling\`" "$implement_skill" || fail "$label implement should return missing business facts upstream"
   grep -q "return to \`design\`" "$implement_skill" || fail "$label implement should return missing placement upstream"
+  grep -q "review finding includes \`Model correction\`" "$implement_skill" || fail "$label implement should recognize review model corrections"
+  grep -q "already accepted by the user or design handoff" "$implement_skill" || fail "$label implement should not apply model corrections without accepted design"
 }
 
 check_implement_skill "$CLAUDE_ROOT/skills/implement/SKILL.md" "Claude"
@@ -195,8 +197,12 @@ check_review_evidence_gate() {
   grep -q "Evidence gate" "$review_skill" || fail "$label review skill should define an evidence gate"
   grep -q "Rules Satisfied / Not Applicable / Exception / Evidence gap" "$review_skill" || fail "$label review output should require evidence status table"
   grep -q "Evidence gap, not finding" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
+  grep -q "Checked flows" "$review_skill" || fail "$label review should expose checked lifecycle flows"
+  grep -q "Do not reduce finding count" "$review_skill" || fail "$label review should not suppress findings for template cost"
   grep -q "Model correction" "$review_skill" || fail "$label review should put model correction before mechanism"
   grep -q "Implementation mechanism" "$review_skill" || fail "$label review should separate implementation mechanism"
+  grep -q "Evidence needed" "$review_skill" || fail "$label review should use evidence-needed for gaps"
+  grep -q "Test / verification needed" "$review_skill" || fail "$label review should use verification-needed for test gaps"
   grep -q "Lead with findings" "$review_skill" || fail "$label review should lead with findings"
   grep -q "No DDD findings" "$review_skill" || fail "$label review should define no-finding output"
 }
