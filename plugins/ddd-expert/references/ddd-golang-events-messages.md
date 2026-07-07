@@ -32,6 +32,8 @@ description: Go DDD events and messages patterns. Use when adding or reviewing D
 
 Use these cards to answer "what must this event/message construct contain?" before reading the longer sections below.
 
+Event Timeline Reconciliation: for lifecycle reviews, compare `spec/design fact | Domain Event type | handler/reconciler/process manager` before saying event coverage is satisfied. A repository transaction is not a substitute for a missing same-BC Domain Event reaction; if a fact needs repeated same-context reaction and no event/reaction/process owner exists, return to `domain-modeling` for fact/owner ambiguity or `design` for accepted-model placement.
+
 | If the agent is implementing / reviewing... | Start here |
 |---|---|
 | Domain Event type constants, payload fields, or `Kind()` method | §0.1 Domain Event Type Card |

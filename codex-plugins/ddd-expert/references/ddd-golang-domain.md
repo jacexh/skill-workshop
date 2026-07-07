@@ -113,6 +113,7 @@ Implementation shape:
 - `Save(ctx, aggregate)` covers create/update/state-driven soft delete; do not split into `Insert`, `Update`, `Delete` merely because SQL has those operations.
 - `Save(ctx, aggregate) is one mutable Aggregate Root`; it may persist owned child entities/value objects, but multiple independent Aggregate Root parameters are model pressure, not a nicer Repository API.
 - A semantic repository method name is not proof. If the API saves or coordinates several candidate roots, call it Aggregate Boundary Conflict and return to `domain-modeling`. Prefer one aggregate boundary or Domain Event / process manager / reconciler coordination.
+- When Aggregate Boundary Conflict is triggered, output a candidate classification table with columns: aggregate root candidate | owned child | decision record | execution record | domain event reaction | read model.
 - Repository red-flag evidence: semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, `xorm.Session`, `gorm.Tx`, or multi-record lifecycle writes. These are implementation mapping evidence, not Repository design evidence.
 - Implementation transaction shape is not Repository design evidence. Cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
 - Return to design when the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong or missing.
@@ -129,7 +130,7 @@ Implementation shape:
 
 - If the interface is created only to wrap a database client, cache, queue, lock, retry, route, peer, or deployment detail, route to `ddd-modeling.md §0.1` / §0.2 before coding.
 - If the new method serves read-only product screens, use [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) instead.
-- If `Save` appears to need several mutable aggregate candidates, return to `domain-modeling`: choose one aggregate boundary, child entities/value objects, Domain Event/reaction, process manager/reconciler, or Integration Message before coding.
+- If `Save` appears to need several mutable aggregate candidates, return to `domain-modeling`: classify candidate roles, then choose one aggregate boundary, child entities/value objects, Domain Event/reaction, process manager/reconciler, or Integration Message before coding.
 
 ### 0.5 State Machine Card
 

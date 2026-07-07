@@ -157,6 +157,13 @@ Rules:
 - Return to design for layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted.
 - Report a violation directly when evidence proves the accepted model or architecture rule is broken and no new model/design decision is needed.
 - Red-flag evidence such as semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, ORM session, or multi-record lifecycle writes is implementation evidence. transaction-shaped evidence cannot satisfy Repository design.
+- Accepted design is evidence, not waiver. If a design contains synchronous writes across several lifecycle owners, review still requires invariant owner, failure tolerance, and event/process rationale.
+- Build/runtime blockers only block executable verification; Independent static model review still runs.
+- Rules Satisfied is scoped to one rule; it must not cover aggregate boundary or event-collaboration risk in the same flow.
+
+#### Review Order Rule
+
+For lifecycle/repository/event reviews, reason in this order: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism.
 
 #### CQRS Port Granularity
 
