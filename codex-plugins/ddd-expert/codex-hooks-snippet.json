@@ -1,5 +1,5 @@
 {
-  "version": "1.14.47",
+  "version": "1.14.48",
   "hooks": {
     "UserPromptSubmit": [
       {
