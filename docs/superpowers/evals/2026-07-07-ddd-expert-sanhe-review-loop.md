@@ -528,7 +528,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.29`, release commit `6b15d3143cfc6f90dbca1515b86f9cdf43e954fe`.
 - preceding hotfix: `7aeb2271ca6412c6c0810b68d95d5c0c036d2e69`, PR #82, merge commit `3e0c2f1c2f31a53022d95ca288357156e32286bf`.
 - next hotfix branch: `hotfix/ddd-review-lifecycle-output-gate`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `b8affb03fffd27893658f906c52545c23e9ff1a5`; PR #83, merge commit `2020cd326e58bac87af8228ee4e5da9d51c85222`, release `v1.14.30` (`5c2a4a05010ace89ab67f8ab562a9836b43d6fe0`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.29`.
@@ -568,3 +568,49 @@ Coverage Matrix:
 - Added a lifecycle review completion gate: lifecycle/repository/event/CQRS scope is not a small review, and the final answer is invalid unless required proof-artifact sections are present and non-empty.
 - Added output completion gate columns and explicit downgrade rules for broad checked-flow summaries, checked-with-caveat rows, and accepted-design/naming/transaction/DTO-only proof.
 - Strengthened router/core rules so compact lifecycle output and empty required sections become evidence gaps or return routes.
+
+## Round 2026-07-08 v1.14.30 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.30`, release commit `5c2a4a05010ace89ab67f8ab562a9836b43d6fe0`.
+- preceding hotfix: `b8affb03fffd27893658f906c52545c23e9ff1a5`, PR #83, merge commit `2020cd326e58bac87af8228ee4e5da9d51c85222`.
+- next hotfix branch: `hotfix/ddd-review-no-evidence-matrix`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.30`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.30.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.30.md`, 4,316 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.30-reflection.md`, 9,759 bytes.
+- verification inside review: `go test ./internal/business/tasknegotiation/domain -count=1`, `go test ./internal/business/tasknegotiation/application -run 'Payment|SplitResolution|Dispute|Refund|Settlement' -count=1`, and `go test ./internal/business/tasknegotiation/... -run '^$' -count=1` passed.
+
+### Output Summary
+
+- The reviewer found K2 with concrete stale-state evidence and fix direction.
+- The reviewer found K3 with concrete production reachability evidence.
+- The reviewer found K4 with concrete event/fact-language evidence.
+- The reviewer overclaimed K5/K7/K10 in an `Evidence Matrix`, treating aggregate candidates, semantic transactions, and CQRS split as directionally correct without mandatory proof artifacts.
+- The reviewer missed K6 and K8 in the final artifact.
+
+### Score
+
+- Breadth: 24 / 45. Found K2, K3, and K4. Missed K6 and K8. K5/K7/K10 appeared only as overclaimed checked matrix rows.
+- Depth: 24 / 45. K2/K3/K4 had concrete evidence, impact, and direction. K5/K6/K7/K8/K10 lacked candidate classification, behavior-linkage ownership, accepted-design non-waiver, state-language semantics, and CQRS semantic split proof.
+- Review discipline: 5 / 10. The review ran useful tests and produced strong findings, but violated the lifecycle output contract by replacing mandatory proof sections with a compact `Evidence Matrix`.
+- Total: 53 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partially effective. The completion-gate prompt helped recover K4, but did not prevent the reviewer from writing a compact `Evidence Matrix`.
+- Overclaim: K5 was reduced to "aggregate candidates basically align with design" without a candidate ledger or return route.
+- Missing finding: K6 was not reviewed as per-flow behavior linkage with Domain Event/process manager/reconciler/command-transaction rationale.
+- Overclaim: K7 persisted because "semantic transactions match design" was treated as positive evidence rather than a trigger for proof.
+- Missing finding: K8 disappeared from the final artifact.
+- Overclaim: K10 used "Product reads use query DTO; command side uses domain repositories" as proof without a CQRS semantic split table.
+- Strategy change: directly forbid `Evidence Matrix` and other free-form substitute summaries for lifecycle/repository/event/CQRS scope. The final output must use exact mandatory section names; free-form matrices may only appear after mandatory sections and cannot contain `checked` decisions.
+
+### Generic Fix Summary
+
+- Removed the conflicting small-review escape for lifecycle/repository/event/CQRS scope and replaced it with concise-output wording only for non-triggered gates.
+- Added explicit rules/tests that `Evidence Matrix`, summary tables, or free-form matrices cannot replace mandatory proof-artifact sections and cannot carry checked decisions.
+- Required exact mandatory section names so broad summary matrices cannot satisfy lifecycle output completion.
