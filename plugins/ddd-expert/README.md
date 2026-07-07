@@ -71,7 +71,8 @@ Canonical references live under `references/`:
 - `../skills/design/SKILL.md` — design-phase domain-brief-to-model method
 - `../skills/implement/SKILL.md` — implementation-phase model-to-code placement method
 - `../skills/review/SKILL.md` — review-phase evidence-to-judgment method
-- `ddd-risk-router.md` — default DDD/backend risk cards read with the active phase skill
+- `ddd-risk-router.md` — implementation/review risk cards read with the active phase skill
+- `ddd-modeling-gates.md` — compact modeling thought gates for story, authority, lifecycle, invariants, failure tolerance, integration language, and coordination choices
 - `ddd-agent-contract.md` — on-demand agent prohibited actions, classification, and self-checks
 - `ddd-modeling.md` — on-demand strategic bounded-context, aggregate, and architecture gate guidance
 - `ddd-core.md` — on-demand dependency direction, bounded contexts, and service layer boundaries

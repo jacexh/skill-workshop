@@ -132,10 +132,12 @@ check_domain_modeling_skill() {
   local modeling_skill="$1"
   local label="$2"
 
+  grep -q "ddd-modeling-gates.md" "$modeling_skill" || fail "$label domain-modeling should load modeling gates"
   grep -q "one-question-at-a-time" "$modeling_skill" || fail "$label domain-modeling should advertise one-question interview"
   grep -q "Ask exactly one high-fidelity question at a time" "$modeling_skill" || fail "$label domain-modeling should force one high-fidelity question"
   grep -q "Avoid low-fidelity questions" "$modeling_skill" || fail "$label domain-modeling should reject low-fidelity questions"
   grep -q "Domain Modeling Brief" "$modeling_skill" || fail "$label domain-modeling should emit a Domain Modeling Brief"
+  grep -q "Model Decisions" "$modeling_skill" || fail "$label domain-modeling should emit material model decisions"
   grep -q "Do not write \`docs/superpowers/memory/\` directly" "$modeling_skill" || fail "$label domain-modeling should not write memory directly"
   grep -q "Memory candidates" "$modeling_skill" || fail "$label domain-modeling should emit memory candidates"
 }
@@ -147,6 +149,8 @@ check_design_skill() {
   local design_skill="$1"
   local label="$2"
 
+  grep -q "ddd-modeling-gates.md" "$design_skill" || fail "$label design should load modeling gates"
+  grep -q "before naming Aggregates" "$design_skill" || fail "$label design should gate tactical objects before naming aggregates"
   grep -q "Implementation handoff" "$design_skill" || fail "$label design should emit an implementation handoff"
   grep -q "Accepted model source" "$design_skill" || fail "$label design handoff should name accepted model source"
   grep -q "Layer ownership" "$design_skill" || fail "$label design handoff should decide layer ownership"
@@ -164,6 +168,7 @@ check_implement_skill() {
   [ "$line_count" -le 110 ] || fail "$label implement skill should stay concise"
   grep -q "Implementation handoff" "$implement_skill" || fail "$label implement should consume design handoff"
   grep -q "Handoff check" "$implement_skill" || fail "$label implement should verify handoff before code"
+  grep -q "modeling evidence" "$implement_skill" || fail "$label implement should verify modeling evidence"
   grep -q "Accepted model source" "$implement_skill" || fail "$label implement should name accepted model source"
   grep -q "Object shape routing" "$implement_skill" || fail "$label implement should route confirmed objects"
   grep -q "Surface preflight" "$implement_skill" || fail "$label implement should classify touched surfaces"
@@ -184,6 +189,7 @@ check_review_evidence_gate() {
   line_count=$(wc -l <"$review_skill")
   [ "$line_count" -le 105 ] || fail "$label review skill should stay concise"
   grep -q "Expected model sources" "$review_skill" || fail "$label review should reconstruct expected model from upstream outputs"
+  grep -q "model evidence" "$review_skill" || fail "$label review should reconstruct model evidence"
   grep -q "Domain Modeling Brief" "$review_skill" || fail "$label review should read Domain Modeling Brief"
   grep -q "Implementation handoff" "$review_skill" || fail "$label review should read implementation handoff"
   grep -q "Evidence gate" "$review_skill" || fail "$label review skill should define an evidence gate"
@@ -209,6 +215,7 @@ for reference in \
   ddd-golang-scaffold.md \
   ddd-golang-taskqueue.md \
   ddd-golang.md \
+  ddd-modeling-gates.md \
   ddd-modeling.md \
   ddd-python.md \
   ddd-risk-router.md \
@@ -217,6 +224,36 @@ do
   [ -f "$CLAUDE_ROOT/references/$reference" ] || fail "Claude ddd-expert missing reference $reference"
   [ -f "$CODEX_ROOT/references/$reference" ] || fail "Codex ddd-expert missing reference $reference"
 done
+
+check_modeling_gates_reference() {
+  local root="$1"
+  local label="$2"
+  local gates="$root/references/ddd-modeling-gates.md"
+
+  grep -q "Story Before Nouns" "$gates" || fail "$label modeling gates missing Story Before Nouns"
+  grep -q "Authority Before Ownership" "$gates" || fail "$label modeling gates missing Authority Before Ownership"
+  grep -q "Lifecycle Before Type" "$gates" || fail "$label modeling gates missing Lifecycle Before Type"
+  grep -q "Invariant Before Aggregate" "$gates" || fail "$label modeling gates missing Invariant Before Aggregate"
+  grep -q "Failure Tolerance Before Transaction" "$gates" || fail "$label modeling gates missing Failure Tolerance Before Transaction"
+  grep -q "Language Before Integration" "$gates" || fail "$label modeling gates missing Language Before Integration"
+  grep -q "Coordination Before Abstraction" "$gates" || fail "$label modeling gates missing Coordination Before Abstraction"
+
+  grep -q "TaskAgreement Boundary Scenario" "$gates" || fail "$label modeling gates missing TaskAgreement forward test"
+  grep -q "Noun-List Scenario" "$gates" || fail "$label modeling gates missing noun-list forward test"
+  grep -q "Event-as-Command Scenario" "$gates" || fail "$label modeling gates missing event-as-command forward test"
+  grep -q "External-Language Leakage Scenario" "$gates" || fail "$label modeling gates missing external-language forward test"
+  grep -q "Read-Model Backflow Scenario" "$gates" || fail "$label modeling gates missing read-model forward test"
+  grep -q "Long-Running Coordination Scenario" "$gates" || fail "$label modeling gates missing long-running coordination forward test"
+}
+
+check_modeling_gates_reference "$CLAUDE_ROOT" "Claude"
+check_modeling_gates_reference "$CODEX_ROOT" "Codex"
+cmp -s "$CLAUDE_ROOT/references/ddd-modeling-gates.md" "$CODEX_ROOT/references/ddd-modeling-gates.md" || fail "ddd-modeling-gates should be identical across plugin tracks"
+
+grep -q "implementation/review risk router" "$CLAUDE_ROOT/references/ddd-risk-router.md" || fail "Claude risk router should state implementation/review role"
+grep -q "implementation/review risk router" "$CODEX_ROOT/references/ddd-risk-router.md" || fail "Codex risk router should state implementation/review role"
+grep -q "ddd-modeling-gates.md" "$CLAUDE_ROOT/references/ddd-risk-router.md" || fail "Claude risk router should route modeling ambiguity to modeling gates"
+grep -q "ddd-modeling-gates.md" "$CODEX_ROOT/references/ddd-risk-router.md" || fail "Codex risk router should route modeling ambiguity to modeling gates"
 
 check_go_reference_reorg() {
   local root="$1"

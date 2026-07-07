@@ -1,7 +1,7 @@
 ---
-last_updated: 2026-07-06
+last_updated: 2026-07-07
 updated_by: superpowers-memory:ingest
-triggered_by_plan: "2026-07-06-ddd-expert-modeling-guidance.md"
+triggered_by_plan: "2026-07-07-ddd-expert-modeling-gates.md"
 ---
 
 # Decisions — Architect
@@ -25,9 +25,9 @@ triggered_by_plan: "2026-07-06-ddd-expert-modeling-guidance.md"
 → [adr/ADR-023-ddd-references-leave-old-architect.md](adr/ADR-023-ddd-references-leave-old-architect.md)
 
 ## ADR-022: DDD architect uses phase-specific skills
-**Decision:** Replace the DDD plugin's single `standards` skill with phase skills. The current `ddd-expert` chain is `domain-modeling`, `design`, `implement`, and `review`; all share plugin-root `references/`. Prompt-time guidance stays compact, while phase skills own slim output contracts: domain-modeling owns evidence-first strategic interview and PRD-shaped brief; design owns strategic-first implementable design and Implementation handoff; implement owns handoff-to-code translation, object/surface routing, rule status, and verification; review owns expected-model reconstruction, evidence-gated findings, and evidence-gap reporting. The Risk Router owns detailed required references/evidence/exceptions. Deep references such as modeling/core/agent-contract/language/runtime/database remain on-demand rule sources.
-**Trade-off:** The plugin exposes more skills and gives each phase a stronger output contract, but each entry point is simpler and more focused. Accepted because one broad standards entry left agents to infer whether they were designing, placing code, or auditing a diff, and earlier workflows risked becoming passive reference-reading checklists.
-**Affects:** Current DDD phase skills and references from ADR-025; historical DDD architect hooks and tests.
+**Decision:** Replace the DDD plugin's single `standards` skill with phase skills. The current `ddd-expert` chain is `domain-modeling`, `design`, `implement`, and `review`; all share plugin-root `references/`. Prompt-time guidance stays compact, while phase skills own slim output contracts: domain-modeling owns evidence-first strategic interview, modeling gates, and PRD-shaped brief; design answers relevant modeling gates before tactical objects and emits an Implementation handoff; implement owns handoff-to-code translation, object/surface routing, rule status, and verification; review owns expected-model reconstruction, model evidence classification, evidence-gated findings, and evidence-gap reporting. `ddd-risk-router.md` owns implementation/review risk routing. Deep references such as modeling/core/agent-contract/language/runtime/database remain on-demand rule sources.
+**Trade-off:** The plugin exposes more skills and one additional modeling thought reference, but each entry point is simpler and more focused. Accepted because one broad standards entry left agents to infer whether they were modeling, designing, placing code, or auditing a diff, and earlier workflows risked becoming passive reference-reading checklists or prettier wrappers around unresolved model problems.
+**Affects:** Current DDD phase skills, `ddd-modeling-gates.md`, `ddd-risk-router.md`, and release tests from ADR-025; historical DDD architect hooks and tests.
 → [adr/ADR-022-ddd-phase-specific-skills.md](adr/ADR-022-ddd-phase-specific-skills.md)
 
 ## ADR-021: Dedicated DDD architect plugin replaces automatic architect injection
