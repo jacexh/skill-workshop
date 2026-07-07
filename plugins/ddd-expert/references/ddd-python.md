@@ -293,7 +293,7 @@ rg -n --type py \
   src/*/application/ src/*/domain/
 ```
 
-Hits require a written placement answer in the Architecture Gate's `Domain mechanism placement before Application ports` field. The answer must say whether the need belongs to an Aggregate, Domain Repository, Domain Service, Domain Event handler, Integration Message, ACL, Infrastructure adapter, QueryRepository/read facade, or an exceptional Application command-side port. The Python-idiomatic Domain Service form is a `@dataclass(frozen=True)` or plain class in `<context>/domain/service.py` whose methods take aggregates / value objects and return decisions.
+Hits require a written placement answer in the Architecture Gate's `Domain mechanism placement before Application ports` field. The answer must say whether the need belongs to an Aggregate, Domain Repository, Domain Service, Domain Event handler, Integration Message, ACL, Infrastructure adapter, QueryRepository/read facade, or a high-risk Application command-side port. The Python-idiomatic Domain Service form is a `@dataclass(frozen=True)` or plain class in `<context>/domain/service.py` whose methods take aggregates / value objects and return decisions.
 
 ```bash
 rg -n --type py \
@@ -798,7 +798,7 @@ class Repository(ABC):
 - No business rules (those belong in the Domain layer)
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
-- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.1, §3.2](ddd-core.md); do not implement one merely because SQLAlchemy session APIs make it easy.
+- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a high-risk deviation and must satisfy the gate in [ddd-core.md §3.1, §3.2](ddd-core.md); do not implement one merely because SQLAlchemy session APIs make it easy.
 - Application is the sole drainer of Domain Events: after a successful `save()` it calls `collect_events()` exactly once. Repository never drains.
 - Domain events are dispatched after a successful persist via `collect_events()`. Dispatch/publish admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - After `save()`, the in-memory aggregate is stale — reload via `get()` if further operations are needed

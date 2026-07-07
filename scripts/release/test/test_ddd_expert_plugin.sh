@@ -153,11 +153,15 @@ check_design_skill() {
 
   grep -q "ddd-modeling-gates.md" "$design_skill" || fail "$label design should load modeling gates"
   grep -q "before naming Aggregates" "$design_skill" || fail "$label design should gate tactical objects before naming aggregates"
+  grep -q "Default-first key concepts" "$design_skill" || fail "$label design should use default-first key concept discipline"
   grep -q "Implementation handoff" "$design_skill" || fail "$label design should emit an implementation handoff"
   grep -q "Accepted model source" "$design_skill" || fail "$label design handoff should name accepted model source"
   grep -q "Layer ownership" "$design_skill" || fail "$label design handoff should decide layer ownership"
   grep -q "collaboration model before mechanism" "$design_skill" || fail "$label design should decide collaboration model before mechanism"
   grep -q "If any handoff item is material to implementation and unknown, Stop" "$design_skill" || fail "$label design should stop instead of leaving implement to guess"
+  grep -q "Synchronous multi-aggregate transactions are not collaboration models" "$design_skill" || fail "$label design should not present multi-aggregate transactions as normal collaboration"
+  grep -q "High-risk deviations are not design options" "$design_skill" || fail "$label design should not present deviations as normal options"
+  ! grep -q "documented transaction exception" "$design_skill" || fail "$label design should not list documented transaction exception as a collaboration model"
 }
 
 check_design_skill "$CLAUDE_ROOT/skills/design/SKILL.md" "Claude"
@@ -174,15 +178,19 @@ check_implement_skill() {
   grep -q "modeling evidence" "$implement_skill" || fail "$label implement should verify modeling evidence"
   grep -q "Accepted model source" "$implement_skill" || fail "$label implement should name accepted model source"
   grep -q "Object shape routing" "$implement_skill" || fail "$label implement should route confirmed objects"
+  grep -q "Default-first key concepts" "$implement_skill" || fail "$label implement should use default-first key concept discipline"
   grep -q "Surface preflight" "$implement_skill" || fail "$label implement should classify touched surfaces"
   grep -q "collaboration model" "$implement_skill" || fail "$label implement should require accepted collaboration model"
-  grep -q "Rules Satisfied / Not Applicable / Exception" "$implement_skill" || fail "$label implement output should require rule status table"
+  grep -q "Rules Satisfied / Not Applicable / High-risk Deviation" "$implement_skill" || fail "$label implement output should require rule status table"
   grep -q "Changed files by layer" "$implement_skill" || fail "$label implement should report changed files by layer"
   grep -q "Tests / verification" "$implement_skill" || fail "$label implement should report verification"
   grep -q "return to \`domain-modeling\`" "$implement_skill" || fail "$label implement should return missing business facts upstream"
   grep -q "return to \`design\`" "$implement_skill" || fail "$label implement should return missing placement upstream"
   grep -q "review finding includes \`Model correction\`" "$implement_skill" || fail "$label implement should recognize review model corrections"
   grep -q "already accepted by the user or design handoff" "$implement_skill" || fail "$label implement should not apply model corrections without accepted design"
+  grep -q "Synchronous multi-aggregate transactions are not collaboration models" "$implement_skill" || fail "$label implement should not treat multi-aggregate transactions as normal collaboration"
+  grep -q "High-risk deviations are not implementation options" "$implement_skill" || fail "$label implement should not present deviations as normal implementation options"
+  ! grep -q "documented transaction exception" "$implement_skill" || fail "$label implement should not list documented transaction exception as a collaboration model"
 }
 
 check_implement_skill "$CLAUDE_ROOT/skills/implement/SKILL.md" "Claude"
@@ -199,15 +207,17 @@ check_review_evidence_gate() {
   grep -q "Domain Modeling Brief" "$review_skill" || fail "$label review should read Domain Modeling Brief"
   grep -q "Implementation handoff" "$review_skill" || fail "$label review should read implementation handoff"
   grep -q "Evidence gate" "$review_skill" || fail "$label review skill should define an evidence gate"
-  grep -q "Rules Satisfied / Not Applicable / Exception / Evidence gap" "$review_skill" || fail "$label review output should require evidence status table"
+  grep -q "Rules Satisfied / Not Applicable / High-risk deviation / Evidence gap" "$review_skill" || fail "$label review output should require evidence status table"
   grep -q "Evidence gap, not finding" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
   grep -q "Checked flows" "$review_skill" || fail "$label review should expose checked lifecycle flows"
   grep -q "Tactical drift reading" "$review_skill" || fail "$label review should read tactical drift as model pressure"
+  grep -q "Default-first key concept check" "$review_skill" || fail "$label review should use default-first key concept checks"
   grep -q "collaboration model" "$review_skill" || fail "$label review should reconstruct collaboration model"
   grep -q "business facts before code shape" "$review_skill" || fail "$label review should reason from business facts before code shape"
   grep -q "upstream model" "$review_skill" || fail "$label review should identify upstream model pressure before cleanup"
   grep -q "pressure before suggesting cleanup" "$review_skill" || fail "$label review should identify model pressure before cleanup"
   grep -q "semantic repository methods are evidence, not proof" "$review_skill" || fail "$label review should not accept semantic repository method names as proof"
+  grep -q "High-risk deviations cannot be classified as Rules Satisfied" "$review_skill" || fail "$label review should not mark high-risk deviations as satisfied"
   grep -q "Local convention is evidence to" "$review_skill" || fail "$label review should not treat local convention as a waiver"
   grep -q "inspect, not a waiver" "$review_skill" || fail "$label review should inspect local convention instead of waiving"
   grep -q "Do not reduce finding count" "$review_skill" || fail "$label review should not suppress findings for template cost"
@@ -232,10 +242,34 @@ check_risk_router_reference() {
   grep -q "CQRS/read-model split" "$router" || fail "$label risk router should include CQRS pressure without a dedicated rule card"
   grep -q "Multi-Object Repository Save" "$router" || fail "$label risk router should route multi-object repository saves"
   grep -q "semantic repository methods are evidence, not proof" "$router" || fail "$label risk router should reject semantic repository names as proof"
+  grep -q "Default rule" "$router" || fail "$label risk router should lead with default rules"
+  grep -q "Default-first concept discipline" "$router" || fail "$label risk router should define default-first concept discipline"
+  grep -q "High-risk deviation" "$router" || fail "$label risk router should classify risky tolerated shapes as deviations"
+  grep -q "cannot be marked Rules Satisfied" "$router" || fail "$label risk router should not mark high-risk deviations satisfied"
+  ! grep -q "Allowed exception" "$router" || fail "$label risk router should not frame risk cards around allowed exceptions"
 }
 
 check_risk_router_reference "$CLAUDE_ROOT" "Claude"
 check_risk_router_reference "$CODEX_ROOT" "Codex"
+
+check_core_default_first_reference() {
+  local root="$1"
+  local label="$2"
+  local core="$root/references/ddd-core.md"
+
+  grep -q "Default-First Concept Map" "$core" || fail "$label core should define a default-first concept map"
+  grep -q "Aggregate default" "$core" || fail "$label core should state aggregate default"
+  grep -q "Repository default" "$core" || fail "$label core should state repository default"
+  grep -q "Domain Event default" "$core" || fail "$label core should state domain event default"
+  grep -q "Integration Message default" "$core" || fail "$label core should state integration message default"
+  grep -q "Application Port default" "$core" || fail "$label core should state application port default"
+  grep -q "CQRS default" "$core" || fail "$label core should state CQRS default"
+  grep -q "Bounded Context default" "$core" || fail "$label core should state bounded context default"
+  grep -q "High-risk deviations are not alternatives" "$core" || fail "$label core should not present deviations as normal alternatives"
+}
+
+check_core_default_first_reference "$CLAUDE_ROOT" "Claude"
+check_core_default_first_reference "$CODEX_ROOT" "Codex"
 
 for reference in \
   database.md \
@@ -278,6 +312,7 @@ check_modeling_gates_reference() {
   grep -q "Avoid project-specific scenario names" "$gates" || fail "$label modeling gates should avoid project-specific scenario names in hot path"
   grep -q "transaction shape a peer of model correction" "$gates" || fail "$label modeling gates should prevent transaction-first fixes"
   grep -q "semantic repository transaction as a peer alternative" "$gates" || fail "$label modeling gates should reject repository-transaction peer alternatives"
+  grep -q "Default path is one aggregate per command" "$gates" || fail "$label modeling gates should lead multi-object coordination with the default path"
 }
 
 check_modeling_gates_reference "$CLAUDE_ROOT" "Claude"
@@ -308,6 +343,8 @@ check_go_reference_reorg() {
   grep -q "### 0.4 Repository Interface Card" "$root/references/ddd-golang-domain.md" || fail "$label Go domain reference should include repository interface card"
   grep -q "Save(ctx, aggregate) is one mutable Aggregate Root" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should reject multi-aggregate Save methods"
   grep -q "semantic repository method name is not proof" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should not accept semantic Save method names as proof"
+  grep -q "Multi-object Save methods are presumed modeling pressure" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should presume multi-object Save is modeling pressure"
+  grep -q "Prefer one aggregate boundary or Domain Event" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should prefer aggregate redesign or domain events"
   grep -q "Read-only product models belong to QueryRepository/read facade" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should route product reads to CQRS"
   grep -q "State Pattern + transition table" "$root/references/ddd-golang-domain.md" || fail "$label Go FSM reference should teach state polymorphism"
   grep -q "State-specific behavior lives in polymorphic State methods" "$root/references/ddd-golang-domain.md" || fail "$label Go FSM reference should put behavior in state methods"

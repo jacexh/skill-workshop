@@ -20,6 +20,8 @@ Use the brief this way:
 
 Design in this order: strategic model first, modeling gate summary second, collaboration model before mechanism, tactical mechanisms third, implementation placement last. Use the modeling gates before naming Aggregates, Repositories, ports, handlers, layers, files, schemas, transactions, or event payloads; do not name them before the strategic model and relevant gates are clear.
 
+Default-first key concepts: state the normal DDD path before naming deviations. Aggregates own invariants; Repositories persist one write-side Aggregate Root; Domain Events model same-BC past-tense facts after state change; Integration Messages are cross-context contracts; QueryRepositories/read facades serve product reads; Application command-side ports and synchronous multi-aggregate transactions are high-risk deviations. Synchronous multi-aggregate transactions are not collaboration models. High-risk deviations are not design options; record them only as explicit risk with default path rejected and residual coupling stated.
+
 Read deeper references only when needed:
 
 - [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for subdomain, bounded context, aggregate, lifecycle, and technical-capability classification.
@@ -39,7 +41,7 @@ Write the shortest useful DDD design. Small is acceptable only when implementati
   - Data authority and out-of-scope boundary.
   - Aggregate, policy, service, read model, or explicit none.
   - Modeling gate decisions that justify those tactical objects.
-  - Collaboration model: aggregate-internal behavior, same-BC Domain Event/reaction, Integration Message, process manager/reconciler, query/read facade, or documented transaction exception.
+  - Collaboration model: aggregate-internal behavior, same-BC Domain Event/reaction, Integration Message, process manager/reconciler, query/read facade, or explicit high-risk deviation.
   - Commands / queries / Domain Events / Integration Messages / reactions, or explicit none.
   - Consistency / transaction / idempotency / failure boundary.
   - Layer ownership and mechanism containment.

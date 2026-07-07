@@ -39,7 +39,7 @@ Use this file after the model/design has accepted the use case and layer owner. 
 
 **Rules**
 
-- Default write transaction changes one aggregate. Multi-aggregate same-transaction writes require the exception gate in `ddd-core.md`.
+- Default write transaction changes one aggregate. Multi-aggregate same-transaction writes are high-risk deviations and require the deviation gate in `ddd-core.md`.
 - Do not implement business rules by branching over aggregate state in the handler. Move the rule to Domain.
 - Do not pass raw transactions, sessions, ORM objects, broker clients, Redis clients, or generated protocol DTOs into Domain.
 - Do not dispatch events before successful persistence.

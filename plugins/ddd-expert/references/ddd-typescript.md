@@ -266,7 +266,7 @@ rg -n --type ts \
   modules/*/application/ modules/*/domain/
 ```
 
-Hits require a written placement answer in the Architecture Gate's `Domain mechanism placement before Application ports` field. The answer must say whether the need belongs to an Aggregate, Domain Repository, Domain Service, Domain Event handler, Integration Message, ACL, Infrastructure adapter, QueryRepository/read facade, or an exceptional Application command-side port. The TS-idiomatic Domain Service form is a class (or pure function module) in `<context>/domain/service.ts` whose methods take aggregates / value objects and return decisions.
+Hits require a written placement answer in the Architecture Gate's `Domain mechanism placement before Application ports` field. The answer must say whether the need belongs to an Aggregate, Domain Repository, Domain Service, Domain Event handler, Integration Message, ACL, Infrastructure adapter, QueryRepository/read facade, or a high-risk Application command-side port. The TS-idiomatic Domain Service form is a class (or pure function module) in `<context>/domain/service.ts` whose methods take aggregates / value objects and return decisions.
 
 ```bash
 rg -n --type ts \
@@ -600,7 +600,7 @@ export interface UserRepository {
 - No business rules
 - Depends on Domain
 - Owns transaction boundaries
-- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a design exception and must satisfy the gate in [ddd-core.md §3.1, §3.2](ddd-core.md); do not implement one merely because the database transaction API makes it easy.
+- **Default transaction boundary: one transaction modifies one aggregate only.** To modify multiple aggregates, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. A same-transaction multi-aggregate write is a high-risk deviation and must satisfy the gate in [ddd-core.md §3.1, §3.2](ddd-core.md); do not implement one merely because the database transaction API makes it easy.
 - Application is the sole drainer of Domain Events: after successful `repo.save()` it calls `collectEvents()` exactly once. Repository never drains.
 - Dispatch domain events only after successful persistence. Publish/admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - QueryRepository interfaces live here, return DTOs, and bypass Domain aggregates on the read side

@@ -5,7 +5,7 @@ description: Use when reviewing DDD/backend domain abstractions, specs, plans, o
 
 # Review
 
-Review concrete evidence against the expected model. A review finds evidence-backed issues, allowed exceptions, or evidence gaps; it does not redesign.
+Review concrete evidence against the expected model. A review finds evidence-backed issues, high-risk deviations, or evidence gaps; it does not redesign.
 
 First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md), then load deeper references only for triggered evidence.
 
@@ -17,7 +17,7 @@ Reconstruct the expected model before judging code:
 - DDD design, testing seams, and **Implementation handoff**;
 - model evidence for authority, lifecycle, invariant owner, failure tolerance, integration language, collaboration model, and coordination kind when those boundaries matter;
 - spec/issue/ADR/glossary/CONTEXT;
-- changed files, neighboring code, tests, generated artifacts, migrations, config, runtime wiring, logs, and documented exceptions.
+- changed files, neighboring code, tests, generated artifacts, migrations, config, runtime wiring, logs, and documented deviations.
 
 If the expected bounded context, data authority, invariant owner, model evidence, layer owner, or local convention cannot be reconstructed, report an evidence gap instead of inventing a model.
 
@@ -25,11 +25,11 @@ If the expected bounded context, data authority, invariant owner, model evidence
 
 Before findings:
 
-1. Confirm concrete evidence exists: diff, plan, files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written exception.
+1. Confirm concrete evidence exists: diff, plan, files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written deviation.
 2. Start from business facts before code shape: reconstruct the command/trigger, past-tense facts, policies, reactions, and expected consistency before treating repositories, handlers, ports, or transactions as primary evidence.
 3. Classify touched surfaces from evidence: domain abstraction, spec behavior, generated/protocol boundary, persistence, runtime/config, messages/tasks, logging, external adapter, or repo-specific surface.
 4. Use the risk router and local convention to choose required proof. The examples are a router, not an inventory.
-5. Decide each candidate as `Rules Satisfied / Not Applicable / Exception / Evidence gap`, and classify DDD issues as modeling ambiguity, design violation, implementation placement error, or allowed exception.
+5. Decide each candidate as `Rules Satisfied / Not Applicable / High-risk deviation / Evidence gap`. High-risk deviations cannot be classified as Rules Satisfied.
 6. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
 
 ## Coverage pass
@@ -39,14 +39,13 @@ the spec or design. Mark each as `checked`, `finding`, or `evidence gap`.
 Checked flows are a compact audit trail, not an exhaustive checklist. Do not
 stop after the first Blocker if other independent flows are in scope.
 
-## Tactical drift reading
+## Default-first key concept check
 
-When tactical structures look awkward, treat them as evidence of upstream model
-pressure before suggesting cleanup; semantic repository methods are evidence, not proof:
-multi-object saves need model evidence for one aggregate/owned children,
-accepted collaboration, or a documented transaction exception. Ask whether the
-pressure comes from aggregate boundary, invariant ownership, CQRS split,
-failure tolerance, application coordination, or local convention. Local convention is evidence to
+Tactical drift reading: when structures look awkward, treat them as upstream model
+pressure before suggesting cleanup. For Aggregate, Repository, Domain Event,
+Integration Message, Application Port, CQRS read, Bounded Context, and FSM
+state, state the default rule before local convention. semantic repository methods are evidence, not proof:
+multi-object saves need model evidence for one aggregate/owned children or event-driven coordination. Local convention is evidence to
 inspect, not a waiver.
 
 ## Review axes
@@ -85,12 +84,12 @@ DDD review:
 - Expected model sources:
 - Evidence gate:
 - Checked flows:
-- Rules Satisfied / Not Applicable / Exception / Evidence gap:
+- Rules Satisfied / Not Applicable / High-risk deviation / Evidence gap:
 
 Finding: <severity> <axis> <title>
 - Evidence: <file:line>
 - Violated guardrail:
-- Triage: <violation | allowed exception | harmless local style | evidence gap>
+- Triage: <violation | high-risk deviation | harmless local style | evidence gap>
 - Why it matters:
 - Model correction: <only for model-affecting findings>
 - Implementation mechanism: <when implementation placement is relevant>
@@ -102,4 +101,4 @@ No DDD findings: say that directly, then list residual test or evidence gaps. Do
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 
-Common mistakes: reviewing from grep hits; mixing domain/spec/code axes; treating local naming as a violation; ignoring accepted exceptions; saying "no issues" without residual test/evidence gaps.
+Common mistakes: reviewing from grep hits; mixing domain/spec/code axes; treating local naming as a violation; treating tolerated deviations as satisfied; saying "no issues" without residual test/evidence gaps.
