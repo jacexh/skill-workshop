@@ -863,7 +863,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.36`, release commit `60a8b98232bcff198a1df47c579ee24bc70ce667`.
 - preceding hotfix: `599c895853c7f5f3ea185b81c2727ea5cb568fa3`, PR #89, merge commit `94e5ee3ea44be5d8ec1eae23fd0962825d73a8e2`.
 - next hotfix branch: `hotfix/ddd-review-promotion-admission-control`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `e76a8960314973bf9a384dbb780fdd1446d311ba`; PR #90, merge commit `389853bddfa2ed516cb34ebcff23cb46b8730b89`, release `v1.14.37` (`c1d4f071999b4dfecafc530fbc6aa82a420d554d`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.36`.
