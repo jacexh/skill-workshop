@@ -389,7 +389,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.26`, release commit `635bacd86401da97d6de44f19bd7ae06ad9973fa`.
 - preceding hotfix: `9cac0c73d12fd172c91b7bccf92b43ab6037e1a8`, PR #79, merge commit `5b5b4b5548486f88a50e66feec97e7aa61c05d7c`.
 - next hotfix branch: `hotfix/ddd-review-counterfactual-gateway`.
-- next hotfix commit: `f2d0a1c415a86afba11464bf183b0788c4926d81`; PR / merge commit / tag: pending.
+- next hotfix commits: `f2d0a1c415a86afba11464bf183b0788c4926d81`, `e21625f55376ae6c25437b9de0bf58e45f898075`; PR #80, merge commit `e74441ce82d3a2f530e71f55bcd41032a928d466`, release `v1.14.27` (`ccdc239f16f98755c82da6c1144b590eb1ac4d42`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - sanhe FSM blocker status: fixed in dirty worktree; `go test ./...` passed after migrating to concrete v0.10 FSM states.
@@ -431,3 +431,48 @@ Coverage Matrix:
 
 - Added a generic counterfactual review gateway: draft findings and checked rows are provisional until the reviewer tries to falsify them against durable fact precedence, owner proof, reaction/recovery reachability, state-language semantics, and CQRS read/write semantics.
 - Added release assertions for the gateway in the review skill, risk router, and core rule cards so future edits cannot silently drop the self-disconfirmation pass.
+
+## Round 2026-07-08 v1.14.27 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.27`, release commit `ccdc239f16f98755c82da6c1144b590eb1ac4d42`.
+- preceding hotfix: `f2d0a1c415a86afba11464bf183b0788c4926d81` and `e21625f55376ae6c25437b9de0bf58e45f898075`, PR #80, merge commit `e74441ce82d3a2f530e71f55bcd41032a928d466`.
+- next hotfix branch: `hotfix/ddd-review-falsification-ledger`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- reviewer model / reasoning evidence: subagent and nested `codex exec` used no explicit override; `/home/xuhao/.codex/config.toml` sets `model = "gpt-5.5"` and `model_reasoning_effort = "xhigh"`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.27`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.27.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.27.md`, 5,457 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.27-reflection.md`, 11,061 bytes.
+
+### Output Summary
+
+- The reviewer found K2/K3 together: succeeded Payment can be durable while agreement remains `payment_pending`, cancellation checks only agreement state, and the reconciler lacks production reachability proof.
+- The reviewer found K4: split dispute emits refund/settlement money-execution events while aggregate closure happens separately without a dispute-resolution closure fact.
+- The reviewer found K8: `payment_failed` / `payment_cancelled` look like payment-attempt language leaking into agreement lifecycle and are not produced by normal command paths.
+- The reviewer missed K5 and K10 outright.
+- The reviewer overclaimed K6/K7 by clearing delivery/refund/dispute/settlement linkage with synchronous command/repository transaction shape and accepted design rather than owner proof, event/process/reconciler rationale, and semantic repository non-waiver.
+
+### Score
+
+- Breadth: 29 / 45. Strong coverage: K2, K3, K4, K8. Missed: K5 and K10. K6/K7 were touched only through overclaimed "no concrete finding" rows.
+- Depth: 26 / 45. K2/K3/K4/K8 had concrete evidence and direction, but K2 was bundled with recovery instead of separated as durable-fact precedence, and K5/K6/K7/K10 lacked required candidate, collaboration, non-waiver, and CQRS analysis.
+- Review discipline: 6 / 10. The review did not stop at executable verification failure and avoided compile-blocker anchoring, but it still omitted the required Mandatory coverage matrix and did not emit an explicit counterfactual defect-hunt / falsification ledger before final checked claims.
+- Total: 61 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partially effective. The counterfactual gateway likely helped surface K8 and made K2/K3 more explicit, but it remained a prose instruction rather than a hard final-output step.
+- Missing finding: K5 aggregate-boundary candidate classification was not run; the review did not classify every repository/API participant as aggregate root, owned child, decision record, execution record, reaction/process artifact, read model, or external fact.
+- Missing finding: K10 CQRS read/write blending remained absent; no mandatory row classified write-side repositories, QueryRepositories/read facades, DTO/read-model family, caller semantics, or shared adapter overlap.
+- Overclaim: K6 delivery/refund/dispute/settlement behavior linkage was cleared because command/repository transactions looked synchronous; the review did not force each cross-lifecycle transition to choose same-aggregate behavior, Domain Event reaction, process manager, reconciler, Integration Message, or owner-proven synchronous decision record.
+- Overclaim: K7 accepted design and semantic repository transaction shape were treated as strong evidence; the review did not restate accepted design as evidence-not-waiver or transaction shape as implementation evidence only.
+- Strategy change: move the counterfactual gateway from hidden/prose instruction into the required output schema. Final output must include a `Counterfactual defect hunt:` section with per-row falsification questions and decisions; a `No concrete finding` / `checked` row is invalid unless it names what would falsify it and the evidence inspected.
+
+### Generic Fix Summary
+
+- Added a mandatory counterfactual falsification ledger to the review output contract so checked/no-finding rows must name the falsifier question, inspected evidence, and decision.
+- Strengthened risk-router/core rules so no-finding rows remain provisional until falsification evidence is named.
+- Removed the unrelated hard 105-line review-skill limit from release tests; the user did not require it and it was pushing protocol text toward harmful compression.

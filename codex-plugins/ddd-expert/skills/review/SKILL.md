@@ -36,16 +36,18 @@ Before findings:
 ## Coverage pass
 
 For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
-Counterfactual defect hunt: Draft findings are not final. Before final output, try to prove each checked or Rules Satisfied conclusion wrong. Ask `What evidence would falsify this checked row?` Gateway questions: hidden stale-state command rights after durable facts; hidden owner proof behind Repository/API transactions; missing reaction/recovery path after facts; child-process language posing as aggregate lifecycle; hidden read/write semantic blending. If falsification is uninspected, classify as finding, evidence gap, or return route.
+Counterfactual defect hunt: Draft findings are not final. Before final output,
+try to prove each checked, no-finding, or Rules Satisfied conclusion wrong.
+Ask `What evidence would falsify this checked row?` Gateway questions: hidden stale-state command rights after durable facts; hidden owner proof behind
+Repository/API transactions; missing reaction/recovery path after facts;
+child-process language posing as aggregate lifecycle; hidden read/write semantic blending.
+No checked or no-finding row is final without a falsifier question and inspected evidence;
+if uninspected, classify as finding, evidence gap, or return route.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
 ## Default-first key concept check
 
-Tactical drift reading: when structures look awkward, treat them as upstream model
-pressure before suggesting cleanup. For Aggregate, Repository, Domain Event,
-Integration Message, Application Port, CQRS read, Bounded Context, and FSM
-state, state the default rule before local convention. semantic repository methods are evidence, not proof:
-Aggregate Boundary Conflict returns to `domain-modeling`; implementation transaction shape is not model evidence. Return routing: domain-modeling for aggregate boundary/lifecycle/invariant/fact/BC uncertainty; design for accepted-model placement/CQRS/port/adapter/repository API shape. Accepted design is evidence, not waiver. transaction-shaped evidence cannot satisfy Repository design: never list semantic repository transaction, lifecycle transaction, or cross-table transaction under Rules Satisfied. Rules Satisfied is scoped to one rule; it must not cover aggregate boundary or event-collaboration risk in the same flow. Local convention is evidence to inspect, not a waiver.
+Tactical drift reading: when structures look awkward, treat them as upstream model pressure before suggesting cleanup. For Aggregate, Repository, Domain Event, Integration Message, Application Port, CQRS read, Bounded Context, and FSM state, state the default rule before local convention. semantic repository methods are evidence, not proof: Aggregate Boundary Conflict returns to `domain-modeling`; implementation transaction shape is not model evidence. Return routing: domain-modeling for aggregate boundary/lifecycle/invariant/fact/BC uncertainty; design for accepted-model placement/CQRS/port/adapter/repository API shape. Accepted design is evidence, not waiver. transaction-shaped evidence cannot satisfy Repository design: never list semantic repository transaction, lifecycle transaction, or cross-table transaction under Rules Satisfied. Rules Satisfied is scoped to one rule; it must not cover aggregate boundary or event-collaboration risk in the same flow. Local convention is evidence to inspect, not a waiver.
 
 ## Review axes
 
@@ -85,6 +87,7 @@ DDD review:
 - Per-flow Event Timeline Reconciliation: Flow | Fact | Event/process/reconciler owner | Recovery/failure behavior | Decision
 - Recovery reachability table: Fact | Recovery trigger | Production entrypoint | Guard after durable fact | Decision
 - Mandatory coverage matrix: Coverage row | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return
+- Counterfactual defect hunt: Checked row | Falsifier question | Evidence inspected | Decision
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 
 Finding: <severity> <axis> <title>
