@@ -600,7 +600,7 @@ export interface UserRepository {
 - No business rules
 - Depends on Domain
 - Owns transaction boundaries
-- **Default transaction boundary: one transaction modifies one aggregate only.** To coordinate other lifecycle owners, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. If a same transaction appears to write several aggregate candidates, return to `domain-modeling`; do not implement one merely because the database transaction API makes it easy.
+- **Default transaction boundary: one transaction modifies one aggregate only.** To coordinate other lifecycle owners, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. If a same transaction appears to write several aggregate candidates, return to `domain-modeling`; do not implement one merely because the database transaction API, semantic repository transaction, lifecycle transaction, or cross-table transaction looks convenient. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, return to `design`.
 - Application is the sole drainer of Domain Events: after successful `repo.save()` it calls `collectEvents()` exactly once. Repository never drains.
 - Dispatch domain events only after successful persistence. Publish/admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - QueryRepository interfaces live here, return DTOs, and bypass Domain aggregates on the read side

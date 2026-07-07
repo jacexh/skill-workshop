@@ -149,7 +149,14 @@ Rules:
 - CQRS default: commands mutate Domain aggregates; queries return DTO/read models without loading aggregates for UI history or detail pages.
 - Bounded Context default: product language, authority, lifecycle, and invariant ownership define the boundary, not technology nouns.
 - FSM default: state-specific behavior lives in state methods and aggregate methods delegate to the current state, not raw state mutation.
-- Exception pressure returns to domain-modeling. Do not present exception-shaped mechanisms as alternatives in implementation or review.
+- Exception pressure returns to domain-modeling when it concerns model facts; tactical placement gaps return to design. Do not present exception-shaped mechanisms as alternatives in implementation or review.
+
+#### Return Routing Rule
+
+- Return to domain-modeling for aggregate boundary, lifecycle, invariant, fact language, or bounded-context uncertainty.
+- Return to design for layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted.
+- Report a violation directly when evidence proves the accepted model or architecture rule is broken and no new model/design decision is needed.
+- Red-flag evidence such as semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, ORM session, or multi-record lifecycle writes is implementation evidence. transaction-shaped evidence cannot satisfy Repository design.
 
 #### CQRS Port Granularity
 

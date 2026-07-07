@@ -113,7 +113,9 @@ Implementation shape:
 - `Save(ctx, aggregate)` covers create/update/state-driven soft delete; do not split into `Insert`, `Update`, `Delete` merely because SQL has those operations.
 - `Save(ctx, aggregate) is one mutable Aggregate Root`; it may persist owned child entities/value objects, but multiple independent Aggregate Root parameters are model pressure, not a nicer Repository API.
 - A semantic repository method name is not proof. If the API saves or coordinates several candidate roots, call it Aggregate Boundary Conflict and return to `domain-modeling`. Prefer one aggregate boundary or Domain Event / process manager / reconciler coordination.
+- Repository red-flag evidence: semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, `xorm.Session`, `gorm.Tx`, or multi-record lifecycle writes. These are implementation mapping evidence, not Repository design evidence.
 - Implementation transaction shape is not Repository design evidence. Cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
+- Return to design when the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong or missing.
 - Repository interface should not expose raw transaction/session/ORM objects.
 - Read-only product models belong to QueryRepository/read facade. Domain Repository finders load aggregates or command-side Domain facts needed to decide a write, not list/detail/summary/page DTOs.
 
