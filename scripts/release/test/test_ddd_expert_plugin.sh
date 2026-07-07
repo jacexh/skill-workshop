@@ -207,6 +207,7 @@ check_review_evidence_gate() {
   grep -q "business facts before code shape" "$review_skill" || fail "$label review should reason from business facts before code shape"
   grep -q "upstream model" "$review_skill" || fail "$label review should identify upstream model pressure before cleanup"
   grep -q "pressure before suggesting cleanup" "$review_skill" || fail "$label review should identify model pressure before cleanup"
+  grep -q "semantic repository methods are evidence, not proof" "$review_skill" || fail "$label review should not accept semantic repository method names as proof"
   grep -q "Local convention is evidence to" "$review_skill" || fail "$label review should not treat local convention as a waiver"
   grep -q "inspect, not a waiver" "$review_skill" || fail "$label review should inspect local convention instead of waiving"
   grep -q "Do not reduce finding count" "$review_skill" || fail "$label review should not suppress findings for template cost"
@@ -229,6 +230,8 @@ check_risk_router_reference() {
   grep -q "Awkward tactical structures are evidence, not diagnosis" "$router" || fail "$label risk router should treat tactical structures as evidence"
   grep -q "upstream model pressure" "$router" || fail "$label risk router should route tactical drift through model pressure"
   grep -q "CQRS/read-model split" "$router" || fail "$label risk router should include CQRS pressure without a dedicated rule card"
+  grep -q "Multi-Object Repository Save" "$router" || fail "$label risk router should route multi-object repository saves"
+  grep -q "semantic repository methods are evidence, not proof" "$router" || fail "$label risk router should reject semantic repository names as proof"
 }
 
 check_risk_router_reference "$CLAUDE_ROOT" "Claude"
@@ -304,6 +307,7 @@ check_go_reference_reorg() {
   grep -q "### 0.1 Aggregate Root Card" "$root/references/ddd-golang-domain.md" || fail "$label Go domain reference should include aggregate root card"
   grep -q "### 0.4 Repository Interface Card" "$root/references/ddd-golang-domain.md" || fail "$label Go domain reference should include repository interface card"
   grep -q "Save(ctx, aggregate) is one mutable Aggregate Root" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should reject multi-aggregate Save methods"
+  grep -q "semantic repository method name is not proof" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should not accept semantic Save method names as proof"
   grep -q "Read-only product models belong to QueryRepository/read facade" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should route product reads to CQRS"
   grep -q "State Pattern + transition table" "$root/references/ddd-golang-domain.md" || fail "$label Go FSM reference should teach state polymorphism"
   grep -q "State-specific behavior lives in polymorphic State methods" "$root/references/ddd-golang-domain.md" || fail "$label Go FSM reference should put behavior in state methods"

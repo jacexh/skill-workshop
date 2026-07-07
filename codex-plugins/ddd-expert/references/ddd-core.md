@@ -133,6 +133,7 @@ Rules:
 - Application constructs Domain inputs, calls Domain methods/validation, maps Domain errors outward, and manages transaction boundaries.
 - Default transaction boundary is one aggregate write per command.
 - A Repository is a write-side Aggregate collection. `Save(ctx, aggregate)` saves one mutable Aggregate Root; owned child rows may be persisted with it, but independent Aggregate Roots need an accepted collaboration model or a documented multi-aggregate transaction exception.
+- A semantic repository method name is not proof; a method saving several candidate Aggregate Roots must show aggregate ownership, accepted collaboration, or transaction-exception evidence.
 - After `Repository.Save()`, the in-memory aggregate is stale. Reload before further operations.
 - Query Handler structs are optional when they only delegate once to a QueryRepository.
 - Application command-side ports are exceptions. They require the Architecture Gate placement extension and the semantic fake test.

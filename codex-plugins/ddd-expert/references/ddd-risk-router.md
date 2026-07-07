@@ -76,6 +76,7 @@ When a card is triggered, load the required references before reporting a violat
 | Shared Umbrella Processor | `ddd-golang-events-messages.md` and/or `ddd-golang-taskqueue.md` | Shared processor type, inbound kinds/task types, dependency set, role/side-effect mix, transaction/failure policy | Same role, source family, side effect, transaction boundary, failure policy, and dependency set |
 | Business State Classification Outside Domain | `ddd-agent-contract.md`, `ddd-core.md`, active language guide | Application/handler/processor branch or helper over business state/status; evidence it drives a business decision, not mapping | Mechanical DTO/read-model/proto mapping without business decision semantics |
 | Command-Side Application Port Reflex | `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md` | New command-side interface, caller use case, semantic capability, rejected Domain/Repository/Domain Event/Integration Message/ACL/Infrastructure alternatives | Architecture Gate proves a stable use-case semantic lifecycle that is not mechanism plumbing |
+| Multi-Object Repository Save | `ddd-modeling-gates.md`, `ddd-core.md`, active language Domain/Infrastructure guide | Repository method saves several candidate Aggregate Roots or lifecycle roots; owned-child evidence; accepted collaboration model; transaction exception evidence | Same aggregate with owned children/value objects, or documented multi-aggregate transaction exception after alternatives |
 | Manual Runner Misplacement | `ddd-agent-contract.md`, `ddd-golang-taskqueue.md`, `ddd-golang-runtime.md`; active language guide when non-Go | Manual polling, reconciliation, scheduler, backlog drain, recovery, or outbox-drain loop evidence; lifecycle/start-stop ownership; cadence/backoff/limit policy; business work delegated inline vs through a task/processor | Written runtime exception proving a process-owned runner with lifecycle/shutdown/config impact and no hidden taskqueue, scheduling, or business policy |
 | Runtime/Entrypoint Provider Pollution | active runtime/language guide where available | Process entrypoint provider construction, business-layer imports, generated route registration, lifecycle/config ownership evidence | Process-owned provider with explicit runtime impact note |
 | Technical Bounded Context | `ddd-modeling.md`, `ddd-core.md`, `ddd-golang-runtime.md` | Product/operator language, lifecycle/state/invariant ownership, adapter-detail exclusion evidence | Stable lifecycle/invariant is recorded and deployment adapter mechanics stay outside Domain |
@@ -129,6 +130,14 @@ When a card is triggered, load the required references before reporting a violat
 - **Decision:** classify capability first; prefer Aggregate method, Repository, Domain Service, Domain Event, Integration Message, ACL, or Infrastructure adapter.
 - **Allowed exception:** written gate proves a stable use-case semantic lifecycle that is not mechanism plumbing.
 - **Reference:** `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md`.
+
+### Multi-Object Repository Save
+
+- **Smell:** a Repository method persists several candidate Aggregate Roots or lifecycle roots and the review only cites a semantic method name.
+- **Probe examples:** inspect Domain repository interfaces for `Save*` methods with several Domain parameters; classify each parameter as aggregate root, child entity/value object, external fact, read model, or transaction-only record.
+- **Decision:** semantic repository methods are evidence, not proof. Require model evidence that the objects are one aggregate/owned children, an accepted collaboration model, or a documented multi-aggregate transaction exception. Otherwise report model pressure or an evidence gap before proposing a repository rewrite.
+- **Allowed exception:** one aggregate plus owned children/value objects; documented multi-aggregate transaction exception satisfying invariant/failure-tolerance evidence.
+- **Reference:** `ddd-modeling-gates.md`, `ddd-core.md`, active language Domain/Infrastructure guide.
 
 ### Manual Runner Misplacement
 
