@@ -1049,7 +1049,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.40`, release commit `89b9826fc1cfa83352b6d12d3caef778334aa233`.
 - preceding hotfix: `ddbc0249c6fcca8b51dd45394114ec753d329404`, PR #93, merge commit `bed0d302a51626e535c9582f11a145b401da3723`.
 - next hotfix branch: `hotfix/ddd-review-cqrs-write-inventory`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `2dd5777f2af13f726b3e29fa3f23c124de40d09b`; PR #94, merge commit `83ccd5001e865a1eb0a45641ff8a55b1920b593e`, release `v1.14.41` (`71918a187b765bce95892edcb1d0dc71f2124110`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.40`.
@@ -1091,3 +1091,53 @@ Coverage Matrix:
 - Require checked CQRS rows to name the write-side method/adapter, caller semantics, returned model family, write-side influence, storage/adapter overlap, and why no read facade should own it.
 - Reject `all rows checked` or equivalent output-completion claims when any mandatory row is finding/return/evidence gap, grouped, compressed, or missing admission-control proof.
 - Strengthen repository/collaboration rows so multi-candidate method and cross-owner linked behavior rows cannot be compressed into broad F3 prose when they are the remaining risks.
+
+## Round 2026-07-08 v1.14.41 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.41`, release commit `71918a187b765bce95892edcb1d0dc71f2124110`.
+- preceding hotfix: `2dd5777f2af13f726b3e29fa3f23c124de40d09b`, PR #94, merge commit `83ccd5001e865a1eb0a45641ff8a55b1920b593e`.
+- next hotfix branch: `hotfix/ddd-review-hard-downgrade-admission`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` and `codex plugin add ddd-expert@skill-workshop-codex` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.41`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.41.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.41.md`, 17,081 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.41-reflection.md`, 4,448 bytes.
+- verification inside review: `go test ./internal/business/tasknegotiation/domain ./internal/business/tasknegotiation/application -count=1` passed; full `go test ./... -count=1` was interrupted after about 111 seconds, with infrastructure ending `signal: interrupt`.
+
+### Output Summary
+
+- The reviewer found K2/K3 as F1: durable `PaymentSucceeded` recovery is not production reachable and can leave `TaskAgreement` in `payment_pending`.
+- The reviewer partially found K8 as F2: `payment_failed` and `payment_cancelled` are child Payment outcomes encoded as parent `TaskAgreement` states, but `payment_pending` was still marked `checked with RR/F1 caveat`.
+- The reviewer partially found K10 as F3 by inventorying write-repository read-shaped methods and flagging `ListDeliveriesByTaskAgreement` / `ListRefundCasesByTaskAgreement`.
+- The reviewer overclaimed K4: split terminal/execution rows were marked checked from command sequencing and guards, without inspecting terminal lifecycle event emission timing.
+- The reviewer overclaimed K5: method rows for cross-candidate saves were checked from `design accepts`, `xorm tx`, and `accepted atomic write`.
+- The reviewer overclaimed K6: collaboration rows treated synchronous command paths, command-side checks, and accepted atomic transactions as proof without explicit mechanism/failure-tolerance decisions.
+- K7 remained shallow: the review knew the no-waiver rule in CQRS scrub rows, but inconsistently allowed accepted design and semantic transaction evidence in repository/collaboration rows.
+
+### Score
+
+- Breadth: 31 / 45. K2 and K3 were found strongly. K8 and K10 improved to shallow/partial. K4, K5, and K6 were overclaimed in checked rows; K7 was shallow.
+- Depth: 27 / 45. Payment recovery depth stayed good, and CQRS inventory improved. Terminal/execution event timing, row-local aggregate-boundary proof, and collaboration mechanism/failure-tolerance proof were not deep enough.
+- Review discipline: 6 / 10. Mandatory tables were present and verification limits were reported, but checked rows admitted caveats, accepted-design proof, transaction proof, and command-side mechanism proof that the protocol should have downgraded.
+- Total: 64 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: mixed. The CQRS write-side inventory gate improved K10 from an overclaim to a partial finding, but the same release regressed K4/K5/K6 because weak proof values were still allowed through checked-row admission control.
+- Overclaim: K4 needs lifecycle event emission timing and fact durability inspection, not just "both execution commands can eventually close" guard checks.
+- Overclaim: K5 needs hard downgrade when owner proof or coordination proof says only `design accepts`, semantic names, transaction shape, or accepted atomic write without an explicit model decision and failure-tolerance proof.
+- Overclaim: K6 needs hard downgrade when collaboration proof is only synchronous command path, command transaction, command-side check, or replay/idempotency guard without a named collaboration mechanism and failure tolerance.
+- Shallow root cause: K7 requires the same forbidden-promotion scrub across every table, not only the Overclaim scrub section.
+- Shallow root cause: K8 shows `checked with caveat` can still survive inside tables; caveated checked rows must be syntactically invalid and downgraded before final output.
+- Shallow root cause: K10 still needs full shared-adapter inventory; a QueryRepository/DTO row can be context but cannot be a checked CQRS row when related write-side inventory rows are findings.
+- Strategy change: make checked-row admission control a hard downgrade filter over cell values, not only a prose principle. Add terminal lifecycle event timing proof and require explicit model-decision IDs for accepted atomic transactions.
+
+### Generic Fix Summary
+
+- Add release assertions that `checked with caveat`, `design accepts`, `accepted by design`, `xorm tx`, `accepted atomic write`, `command-side check`, and `synchronous command path` cannot appear as the decisive proof in checked rows.
+- Require accepted atomic transaction rows to name an explicit model decision and failure-tolerance rule; otherwise downgrade to return/evidence gap/finding.
+- Require terminal/execution rows to include lifecycle event emission timing and durable fact ordering before any checked terminal/execution conclusion.
+- Require every checked row admission-control entry to list forbidden evidence scrub results and downgrade when any forbidden proof token is present.

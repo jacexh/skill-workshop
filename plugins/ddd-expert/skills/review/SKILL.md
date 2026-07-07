@@ -53,6 +53,10 @@ Irreversible fact command-admission matrix: Every durable succeeded, authorized,
 CQRS write-side inventory gate: Inventory every read-shaped method on write repositories and shared adapters before CQRS checked.
 Query DTO or read facade evidence alone cannot satisfy CQRS; each checked row must name the write-side method/adapter, caller semantics, returned model family, write-side influence, storage/adapter overlap, and why no read facade should own it.
 All-checked contradiction gate: Do not write all rows checked when any mandatory row is finding, return, evidence gap, grouped, compressed, or missing admission-control proof.
+Hard downgrade checked-row filter: Forbidden proof tokens in a checked row force downgrade.
+checked with caveat, design accepts, accepted by design, xorm tx, accepted atomic write, command-side check, or synchronous command path cannot be decisive checked proof.
+Accepted atomic transaction requires model decision id and failure-tolerance rule in the same row; otherwise downgrade.
+Terminal/event timing gate: Terminal/execution checked rows must inspect lifecycle event emission timing and durable fact ordering; command/domain guards alone cannot check terminal/execution separation.
 
 For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
 Counterfactual defect hunt: Draft findings are not final. Before final output,
@@ -143,7 +147,7 @@ DDD review:
 - Finding extraction gate: Row id | Mandatory row | Decision | Finding paragraph or same-scope finding | Extraction decision
 - Counterfactual defect hunt: Row id | Checked row | Falsifier question | Evidence inspected | Decision
 - Checked row proof artifacts: Row id | Checked row | Risk family | Required proof artifact | Evidence | Decision
-- Terminal/execution fact table: Row id | Flow | Execution fact | Authorization source | Amount/result scope | Idempotency/replay rule | Failure recovery | Aggregate closure condition | Decision
+- Terminal/execution fact table: Row id | Flow | Execution fact | Authorization source | Amount/result scope | Idempotency/replay rule | Failure recovery | Lifecycle event emission timing | Durable fact ordering | Aggregate closure condition | Decision
 - Parent-state language table: Row id | State | State word family | Parent aggregate fact | Child/process outcome risk | Owner proof | Decision
 - CQRS semantic split table: Row id | Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
 - CQRS read-shaped method inventory: Row id | Write-side method/adapter or read port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Read-facade ownership decision | Decision
