@@ -57,6 +57,8 @@ Ask:
 
 Outcome: event-storming timeline and candidate Domain Events, Integration
 Messages, state changes, process steps, read-model facts, or non-code facts.
+Event Timeline Reconciliation in review compares spec/design fact, Domain Event
+type, and handler/reconciler/process manager before accepting event coverage.
 
 ## Gate 3: Authority Before Ownership
 

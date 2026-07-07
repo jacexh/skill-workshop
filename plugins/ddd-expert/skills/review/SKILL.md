@@ -5,7 +5,7 @@ description: Use when reviewing DDD/backend domain abstractions, specs, plans, o
 
 # Review
 
-Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign.
+Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign. Build/runtime blockers only block executable verification; Independent static model review still runs.
 
 First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md), then load deeper references only for triggered evidence.
 
@@ -26,18 +26,20 @@ If the expected bounded context, data authority, invariant owner, model evidence
 Before findings:
 
 1. Confirm concrete evidence exists: diff, plan, files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written deviation.
-2. Start from business facts before code shape: reconstruct the command/trigger, past-tense facts, policies, reactions, and expected consistency before treating repositories, handlers, ports, or transactions as primary evidence.
+2. Start from business facts before code shape: Business fact timeline: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism. Do this before treating repositories, handlers, ports, or transactions as primary evidence.
 3. Classify touched surfaces from evidence: domain abstraction, spec behavior, generated/protocol boundary, persistence, runtime/config, messages/tasks, logging, external adapter, or repo-specific surface.
 4. Use the risk router and local convention to choose required proof. The examples are a router, not an inventory.
-5. Decide each candidate as `Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap`. Return to domain-modeling cannot be classified as Rules Satisfied.
-6. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
+5. For lifecycle, Repository, or event/reaction risks, require Event Timeline Reconciliation and a candidate classification table before Rules Satisfied.
+6. Decide each candidate as `Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap`. Return to domain-modeling cannot be classified as Rules Satisfied.
+7. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
 
 ## Coverage pass
 
 For lifecycle designs, enumerate named lifecycle, event, and recovery flows from
 the spec or design. Mark each as `checked`, `finding`, or `evidence gap`.
 Checked flows are a compact audit trail, not an exhaustive checklist. Do not
-stop after the first Blocker if other independent flows are in scope.
+stop after the first Blocker if other independent flows are in scope; report
+Independent modeling findings separately from executable verification gaps.
 
 ## Default-first key concept check
 
@@ -45,7 +47,7 @@ Tactical drift reading: when structures look awkward, treat them as upstream mod
 pressure before suggesting cleanup. For Aggregate, Repository, Domain Event,
 Integration Message, Application Port, CQRS read, Bounded Context, and FSM
 state, state the default rule before local convention. semantic repository methods are evidence, not proof:
-Aggregate Boundary Conflict returns to `domain-modeling`; implementation transaction shape is not model evidence. Return routing: domain-modeling for aggregate boundary/lifecycle/invariant/fact/BC uncertainty; design for accepted-model placement/CQRS/port/adapter/repository API shape. transaction-shaped evidence cannot satisfy Repository design: never list semantic repository transaction, lifecycle transaction, or cross-table transaction under Rules Satisfied. Local convention is evidence to inspect, not a waiver.
+Aggregate Boundary Conflict returns to `domain-modeling`; implementation transaction shape is not model evidence. Return routing: domain-modeling for aggregate boundary/lifecycle/invariant/fact/BC uncertainty; design for accepted-model placement/CQRS/port/adapter/repository API shape. Accepted design is evidence, not waiver. transaction-shaped evidence cannot satisfy Repository design: never list semantic repository transaction, lifecycle transaction, or cross-table transaction under Rules Satisfied. Rules Satisfied is scoped to one rule; it must not cover aggregate boundary or event-collaboration risk in the same flow. Local convention is evidence to inspect, not a waiver.
 
 ## Review axes
 
