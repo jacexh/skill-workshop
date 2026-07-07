@@ -482,7 +482,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.28`, release commit `b8ca0fa892abb89bb4546b24084c7b361fc80a36`.
 - preceding hotfix: `b083e1fbfda2ee531fdaecf601877acb7f390808`, PR #81, merge commit `ee253b56419d077b56a34d776cb83596fde9f7f3`.
 - next hotfix branch: `hotfix/ddd-review-proof-artifacts`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `7aeb2271ca6412c6c0810b68d95d5c0c036d2e69`; PR #82, merge commit `3e0c2f1c2f31a53022d95ca288357156e32286bf`, release `v1.14.29` (`6b15d3143cfc6f90dbca1515b86f9cdf43e954fe`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.28`.
@@ -522,3 +522,49 @@ Coverage Matrix:
 - Added proof-artifact requirements for checked rows: aggregate-boundary rows require candidate classification and owner proof, event/reaction rows require per-flow timeline proof, split/terminal rows require terminal/execution fact proof, and CQRS rows require semantic split proof.
 - Added output sections for checked-row proof artifacts, terminal/execution fact table, and CQRS semantic split table.
 - Strengthened router/core rules so transaction evidence, accepted design, QueryRepository names, DTOs, and package shape can populate evidence but cannot by themselves satisfy a checked row.
+
+## Round 2026-07-08 v1.14.29 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.29`, release commit `6b15d3143cfc6f90dbca1515b86f9cdf43e954fe`.
+- preceding hotfix: `7aeb2271ca6412c6c0810b68d95d5c0c036d2e69`, PR #82, merge commit `3e0c2f1c2f31a53022d95ca288357156e32286bf`.
+- next hotfix branch: `hotfix/ddd-review-lifecycle-output-gate`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.29`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.29.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.29.md`, 6,577 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.29-reflection.md`, 10,340 bytes.
+- verification inside review: targeted domain/application and eventhandler tests passed; infrastructure-focused test was interrupted after about 120 seconds.
+
+### Output Summary
+
+- The reviewer found K2 with concrete evidence: succeeded Payment can remain durable while agreement cancellation is still allowed.
+- The reviewer found K3 with concrete evidence: payment reconciler exists but is not reachable through production API/scheduler/runtime wiring.
+- The reviewer reported a minor FSM state-polymorphism drift, but this is outside the active K1/K9-retired scoring set and did not deeply cover K8.
+- The reviewer overclaimed K4/K5/K10 as checked and shallowly covered K6/K7/K8. It used candidate/flow/CQRS summary prose instead of the new proof artifact sections.
+
+### Score
+
+- Breadth: 19 / 45. Strong coverage: K2 and K3. Shallow/caveat coverage: K6, K7, K8. Overchecked/missed: K4, K5, K10.
+- Depth: 20 / 45. Payment precedence and recovery depth were strong, but split facts, aggregate candidate classification, event/process ownership, accepted-design non-waiver, state-language semantics, and CQRS semantic proof were weak.
+- Review discipline: 6 / 10. The review found real blockers and ran useful targeted tests, but it ignored the newly required proof-artifact tables and still used broad "checked" summaries.
+- Total: 45 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: failed. The proof-artifact rules existed in the plugin, but the reviewer did not emit the proof-artifact sections and still used compressed checked-flow prose.
+- Overclaim: K4 remains unchecked in substance because the review never produced a terminal/execution fact table for split dispute.
+- Overclaim: K5 remains unchecked because the "candidate ledger" was a noun inventory, not a Repository/API operation-level candidate classification with owner proof and return routes.
+- Shallow root cause: K6 remains shallow because non-payment flows were grouped as checked without forcing a behavior-linkage mechanism per transition.
+- Overclaim: K7 remains shallow because accepted design and semantic transaction shape still lowered proof requirements in checked rows.
+- Shallow root cause: K8 was mentioned as a caveat but not converted into a finding/evidence gap/return route.
+- Overclaim: K10 remains unchecked because "CQRS checked" appeared without the semantic split table.
+- Strategy change: make lifecycle scope a non-compact review. If lifecycle/repository/event/CQRS scope is present, the final answer is invalid unless all required proof-artifact sections are present and non-empty, and prohibited compressed checked phrases are downgraded before final output.
+
+### Generic Fix Summary
+
+- Added a lifecycle review completion gate: lifecycle/repository/event/CQRS scope is not a small review, and the final answer is invalid unless required proof-artifact sections are present and non-empty.
+- Added output completion gate columns and explicit downgrade rules for broad checked-flow summaries, checked-with-caveat rows, and accepted-design/naming/transaction/DTO-only proof.
+- Strengthened router/core rules so compact lifecycle output and empty required sections become evidence gaps or return routes.

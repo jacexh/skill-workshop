@@ -49,6 +49,9 @@ return route. Aggregate-boundary checks require a candidate ledger; event/reacti
 checks require per-flow timeline proof; split or terminal flows require terminal
 and execution fact proof; CQRS checks require semantic split proof. An accepted design row must name independent code evidence; accepted design, transaction shape,
 package names, QueryRepository names, or DTOs alone cannot satisfy a row.
+Lifecycle scope is not a small review. Output completion gate: for lifecycle, Repository, event/reaction, or CQRS scope, the final answer is invalid unless required proof-artifact sections are present and non-empty. Do not write broad checked-flow summaries; checked-with-caveat is not checked. A checked row with
+`caveat`, `appears`, accepted-design-only, naming-only, transaction-only, or
+DTO-only proof downgrades to evidence gap, return route, or finding.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
 ## Default-first key concept check
@@ -82,7 +85,7 @@ resolving model ownership.
 
 ## Output
 
-Lead with findings. Keep small reviews small.
+Lead with findings. Keep small reviews small only when lifecycle/repository/event/CQRS gates are not triggered.
 
 ```text
 DDD review:
@@ -97,6 +100,7 @@ DDD review:
 - Checked row proof artifacts: Checked row | Risk family | Required proof artifact | Evidence | Decision
 - Terminal/execution fact table: Flow | Authorization fact | Execution fact | Aggregate closure fact | Owner | Recovery stance | Decision
 - CQRS semantic split table: Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
+- Output completion gate: Required section | Present | Non-empty | If missing decision
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 
 Finding: <severity> <axis> <title>
