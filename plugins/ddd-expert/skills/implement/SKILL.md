@@ -24,6 +24,10 @@ Before editing, name the **Accepted model source** and confirm only the items im
 
 If business facts or modeling evidence are missing or contradictory, return to `domain-modeling`. If placement, layer ownership, or mechanism containment is missing, return to `design`. If the handoff asks for synchronous writes across several candidate Aggregate Roots without invariant and failure-tolerance evidence, stop and return to `design` before editing. If the conflict is an explicit user requirement, ask the user before editing.
 
+If a review finding includes `Model correction` that changes lifecycle owner,
+invariant owner, aggregate boundary, or failure tolerance, return to `design`
+unless that correction is already accepted by the user or design handoff.
+
 ## Workflow
 
 1. **Handoff check** — prove the patch has an accepted source. Small layer-local refactors may use an explicit existing model from code/ADR/spec.

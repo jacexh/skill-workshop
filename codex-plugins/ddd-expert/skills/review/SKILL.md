@@ -31,6 +31,13 @@ Before findings:
 4. Decide each candidate as `Rules Satisfied / Not Applicable / Exception / Evidence gap`, and classify DDD issues as modeling ambiguity, design violation, implementation placement error, or allowed exception.
 5. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
 
+## Coverage pass
+
+For lifecycle designs, enumerate named lifecycle, event, and recovery flows from
+the spec or design. Mark each as `checked`, `finding`, or `evidence gap`.
+Checked flows are a compact audit trail, not an exhaustive checklist. Do not
+stop after the first Blocker if other independent flows are in scope.
+
 ## Review axes
 
 Keep axes separate:
@@ -43,14 +50,17 @@ Report each finding under one primary axis. Mention secondary impact only when i
 
 ## Fix direction ordering
 
-For lifecycle, consistency, event-fact, or coordination findings, fix direction
-must put modeling responsibility before implementation mechanics:
+Do not reduce finding count to make every finding fully templated. Every
+finding needs evidence, guardrail, triage, and impact; follow-up fields are
+selected by finding type.
 
-- **Model correction** — name the invariant owner, lifecycle owner, aggregate
-  boundary, failure tolerance, or event fact that must change.
-- **Implementation mechanism** — only after the model correction, name the
-  repository, transaction, handler, event, task, reconciler, or test mechanism
-  that implements the accepted model.
+- **Model correction** — only for lifecycle, consistency, event-fact, or
+  coordination findings; name the invariant owner, lifecycle owner, aggregate
+  boundary, failure tolerance, or event fact before mechanisms.
+- **Implementation mechanism** — repository, transaction, handler, event, task,
+  reconciler, or test mechanism that implements the accepted model.
+- **Evidence needed** — for evidence gaps.
+- **Test / verification needed** — for missing or insufficient proof.
 
 Do not present repository, port, or transaction shape as a peer alternative to
 resolving model ownership.
@@ -63,6 +73,7 @@ Lead with findings. Keep small reviews small.
 DDD review:
 - Expected model sources:
 - Evidence gate:
+- Checked flows:
 - Rules Satisfied / Not Applicable / Exception / Evidence gap:
 
 Finding: <severity> <axis> <title>
@@ -70,8 +81,10 @@ Finding: <severity> <axis> <title>
 - Violated guardrail:
 - Triage: <violation | allowed exception | harmless local style | evidence gap>
 - Why it matters:
-- Model correction:
-- Implementation mechanism:
+- Model correction: <only for model-affecting findings>
+- Implementation mechanism: <when implementation placement is relevant>
+- Evidence needed: <for evidence gaps>
+- Test / verification needed: <for proof gaps>
 ```
 
 No DDD findings: say that directly, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
