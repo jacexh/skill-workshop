@@ -43,6 +43,12 @@ Repository/API transactions; missing reaction/recovery path after facts;
 child-process language posing as aggregate lifecycle; hidden read/write semantic blending.
 No checked or no-finding row is final without a falsifier question and inspected evidence;
 if uninspected, classify as finding, evidence gap, or return route.
+Checked row proof artifacts: a checked/no-finding row must cite the proof artifact
+required by its risk family; otherwise downgrade to finding, evidence gap, or
+return route. Aggregate-boundary checks require a candidate ledger; event/reaction
+checks require per-flow timeline proof; split or terminal flows require terminal
+and execution fact proof; CQRS checks require semantic split proof. An accepted design row must name independent code evidence; accepted design, transaction shape,
+package names, QueryRepository names, or DTOs alone cannot satisfy a row.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
 ## Default-first key concept check
@@ -88,6 +94,9 @@ DDD review:
 - Recovery reachability table: Fact | Recovery trigger | Production entrypoint | Guard after durable fact | Decision
 - Mandatory coverage matrix: Coverage row | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return
 - Counterfactual defect hunt: Checked row | Falsifier question | Evidence inspected | Decision
+- Checked row proof artifacts: Checked row | Risk family | Required proof artifact | Evidence | Decision
+- Terminal/execution fact table: Flow | Authorization fact | Execution fact | Aggregate closure fact | Owner | Recovery stance | Decision
+- CQRS semantic split table: Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 
 Finding: <severity> <axis> <title>
