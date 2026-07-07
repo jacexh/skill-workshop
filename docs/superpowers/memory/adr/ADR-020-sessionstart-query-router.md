@@ -28,6 +28,8 @@ When a KB and index exist, SessionStart emits only:
 
 Stale `covers_branch` is a review signal, not a write trigger by itself. Deployment-only image rollouts, image/tag/version-only updates, formatting-only edits, and comment-only changes do not update `index.md` or `covers_branch` just to match HEAD.
 
+**2026-07-07 addendum:** A later hotfix further reduced SessionStart prompt weight. Current SessionStart emits KB availability, the index path, and query guidance only; freshness/status and ingest maintenance guidance remain available through runtime status and finishing checks, but are no longer injected at SessionStart.
+
 ## Alternatives Rejected
 
 1. **Keep injecting `index.md` at SessionStart.** This preserves passive project-map awareness, but duplicates the query workflow and adds background context to unrelated turns.

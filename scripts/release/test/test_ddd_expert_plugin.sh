@@ -195,6 +195,8 @@ check_review_evidence_gate() {
   grep -q "Evidence gate" "$review_skill" || fail "$label review skill should define an evidence gate"
   grep -q "Rules Satisfied / Not Applicable / Exception / Evidence gap" "$review_skill" || fail "$label review output should require evidence status table"
   grep -q "Evidence gap, not finding" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
+  grep -q "Model correction" "$review_skill" || fail "$label review should put model correction before mechanism"
+  grep -q "Implementation mechanism" "$review_skill" || fail "$label review should separate implementation mechanism"
   grep -q "Lead with findings" "$review_skill" || fail "$label review should lead with findings"
   grep -q "No DDD findings" "$review_skill" || fail "$label review should define no-finding output"
 }
@@ -244,6 +246,8 @@ check_modeling_gates_reference() {
   grep -q "External-Language Leakage Scenario" "$gates" || fail "$label modeling gates missing external-language forward test"
   grep -q "Read-Model Backflow Scenario" "$gates" || fail "$label modeling gates missing read-model forward test"
   grep -q "Long-Running Coordination Scenario" "$gates" || fail "$label modeling gates missing long-running coordination forward test"
+  grep -q "transaction shape a peer of model correction" "$gates" || fail "$label modeling gates should prevent transaction-first fixes"
+  grep -q "semantic repository transaction as a peer alternative" "$gates" || fail "$label modeling gates should reject repository-transaction peer alternatives"
 }
 
 check_modeling_gates_reference "$CLAUDE_ROOT" "Claude"

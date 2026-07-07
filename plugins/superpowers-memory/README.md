@@ -43,7 +43,7 @@ Install via the Skill Workshop marketplace:
 
 | Hook | Event | Behavior |
 |------|-------|----------|
-| SessionStart | startup, clear, compact | Reports that the KB is available, adds lightweight freshness status and `superpowers-memory:query` guidance, or prompts the user to run `superpowers-memory:ingest` bootstrap mode when the KB is missing. Stale status is informational; it is not an automatic ingest trigger. |
+| SessionStart | startup, clear, compact | Reports that the KB is available and points the agent to `superpowers-memory:query`, or prompts the user to run `superpowers-memory:ingest` bootstrap mode when the KB is missing. It does not inject freshness status or inline `index.md`; `query` reads the index on demand. |
 | PreToolUse (Skill) | superpowers skill invocations | Intercepts `brainstorming`, `writing-plans`, `executing-plans`, `subagent-driven-development`, `finishing-a-development-branch`; advises `superpowers-memory:query` before work and asks the agent to inspect stale branch changes before finishing. It recommends `superpowers-memory:ingest` only when the finishing point is a maintenance checkpoint and durable changes affect capabilities, architecture, conventions, dependency choices, decisions, glossary terms, lifecycle rules, or query answerability. |
 | PreToolUse (Write/Edit/MultiEdit/NotebookEdit) | any file write under `docs/superpowers/memory/` | Blocks the write unless a write-lock is held. The lock is acquired/released only by `superpowers-memory:ingest`, so KB content can never drift from the canonical maintenance flow (no ad-hoc ADR commits, no manual edits). Lock has a 60-min TTL to prevent permanent lockout if a skill aborts midway. |
 

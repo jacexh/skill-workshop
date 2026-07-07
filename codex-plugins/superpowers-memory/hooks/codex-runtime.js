@@ -1361,39 +1361,6 @@ function buildKnowledgeStatus() {
   return status;
 }
 
-function formatKnowledgeStatusForContext(status) {
-  const covered = status.coversBranch
-    ? status.coversBranch.branch + (status.coversBranch.sha ? "@" + status.coversBranch.sha.slice(0, 12) : " (legacy: no SHA)")
-    : "(none recorded)";
-  const current = (status.currentBranch || "(unknown)") + (status.currentSHA ? "@" + status.currentSHA : "");
-  const lines = [
-    "",
-    "## Project KB status",
-    "- Current: " + current,
-    "- Covers: " + covered,
-    "- Status: " + (status.stale ? "stale" : "current"),
-    "- Reason: " + status.reason,
-  ];
-  if (status.stale && status.nonKbCommitCount > 0) {
-    lines.push("- Non-KB commits since coverage: " + status.nonKbCommitCount);
-  }
-  if (status.stale && status.changedFiles.length > 0) {
-    lines.push("- Changed files: " + status.changedFiles.slice(0, 10).join(", "));
-  }
-  if (status.uncommittedNonKbFiles.length > 0) {
-    lines.push("- Uncommitted non-KB files: " + status.uncommittedNonKbFiles.slice(0, 10).join(", "));
-  }
-  if (status.uncommittedKbFiles.length > 0) {
-    lines.push("- Uncommitted KB files: " + status.uncommittedKbFiles.slice(0, 10).join(", "));
-  }
-  if (status.stale) {
-    lines.push("- Default behavior is no ingest; stale coverage is an inspection signal, not a write trigger.");
-    lines.push("- Run ingest only at a maintenance checkpoint and only when changed source facts introduce or materially change durable project knowledge.");
-    lines.push("- If changes are deployment-only, image/tag/version-only, formatting, or comment-only, state that no ingest is needed and proceed.");
-  }
-  return lines.join("\n");
-}
-
 // Hook output format for Codex protocol: always hookSpecificOutput wrapper.
 // - Advisory (SessionStart/UserPromptSubmit/PreToolUse): hookSpecificOutput wrapper
 // - Blocking (PreToolUse only): hookSpecificOutput.permissionDecision = "deny"
@@ -1420,8 +1387,7 @@ function readStdin() {
 
 const STANDING_PRIMER =
   "\n\n## Project KB workflow (Codex)\n" +
-  "- Before broad code search, planning, architecture judgment, unfamiliar repo work, or answering project questions: invoke $superpowers-memory:query; it reads index.md and routes to owner files.\n" +
-  "- Default behavior is no ingest. Use $superpowers-memory:ingest only as a maintenance checkpoint: explicit user request, finishing/commit/PR/merge/switching tasks, or bootstrap/full-refresh for a missing or damaged KB.\n";
+  "- Use $superpowers-memory:query to query the project knowledge base when project knowledge would help; it reads index.md on demand and routes to owner files.\n";
 
 function buildSessionStartOutput() {
   if (!hasKnowledgeBase()) {
@@ -1441,12 +1407,10 @@ function buildSessionStartOutput() {
     );
   }
 
-  const statusContext = formatKnowledgeStatusForContext(buildKnowledgeStatus());
   return hookPayload(
     "SessionStart",
     "Project KB available at docs/superpowers/memory/.\n" +
       "Index: " + relativePath(indexPath) + " (read on demand by $superpowers-memory:query)." +
-      statusContext +
       STANDING_PRIMER
   );
 }

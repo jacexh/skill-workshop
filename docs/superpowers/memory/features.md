@@ -48,7 +48,7 @@ triggered_by_plan: "2026-07-07-ddd-expert-modeling-gates.md"
 
 **Actors / Entry Points** — `superpowers-memory:query`, SessionStart hooks, and `docs/superpowers/memory/index.md`.
 
-**Capability Boundary** — `query` reads `index.md` on demand as the first router; SessionStart only reports KB availability/freshness and query guidance. Stale freshness is a review signal, not an automatic ingest trigger; agents run ingest only when changed source facts introduce or materially change durable project knowledge. `query` reports question classification, retrieval route, skipped oversized/irrelevant files, and code search seeds. Full KB files are loaded on demand, with `glossary.md` used for alias expansion and `decisions.md` routed through ADR details or decision-family shards instead of eagerly loading large root files.
+**Capability Boundary** — `query` reads `index.md` on demand as the first router; SessionStart only reports KB availability and query guidance, with no freshness/status block and no ingest maintenance prompt. Stale freshness remains available through runtime status/finishing checks, but it is a review signal rather than an automatic ingest trigger; agents run ingest only when changed source facts introduce or materially change durable project knowledge. `query` reports question classification, retrieval route, skipped oversized/irrelevant files, and code search seeds. Full KB files are loaded on demand, with `glossary.md` used for alias expansion and `decisions.md` routed through ADR details or decision-family shards instead of eagerly loading large root files.
 
 **References** — `plugins/superpowers-memory/skills/query/`, `codex-plugins/superpowers-memory/skills/query/`, ADR-005, ADR-006.
 

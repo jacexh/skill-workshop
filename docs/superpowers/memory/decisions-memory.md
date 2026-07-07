@@ -13,8 +13,8 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 → [adr/ADR-024-retire-legacy-memory-migration.md](adr/ADR-024-retire-legacy-memory-migration.md)
 
 ## ADR-020: SessionStart no longer injects index content
-**Decision:** Memory SessionStart no longer inlines `docs/superpowers/memory/index.md`. It emits only KB availability, the index path, freshness status, and short query/ingest guidance; `superpowers-memory:query` reads `index.md` on demand and routes to owner files/shards.
-**Trade-off:** Agents lose passive project-map text on turns that never invoke `query`, but SessionStart becomes smaller and avoids duplicating the `query` workflow's first read. Accepted because `query` is now the preferred project-knowledge entry point and skill descriptions plus the primer carry adoption pressure.
+**Decision:** Memory SessionStart no longer inlines `docs/superpowers/memory/index.md`. It emits only KB availability, the index path, and short `superpowers-memory:query` guidance; it does not inject freshness/status or an ingest maintenance prompt. `superpowers-memory:query` reads `index.md` on demand and routes to owner files/shards.
+**Trade-off:** Agents lose passive project-map and freshness-status text on turns that never invoke `query`, but SessionStart becomes smaller and avoids duplicating the `query` workflow's first read. Accepted because `query` is now the preferred project-knowledge entry point and status/finishing checks retain stale-coverage evidence outside SessionStart.
 **Affects:** `plugins/superpowers-memory/hooks/hook-runtime.js`, `codex-plugins/superpowers-memory/hooks/codex-runtime.js`, `plugins/superpowers-memory/content-rules.md`, `codex-plugins/superpowers-memory/content-rules.md`, SessionStart tests.
 → [adr/ADR-020-sessionstart-query-router.md](adr/ADR-020-sessionstart-query-router.md)
 
@@ -73,7 +73,7 @@ triggered_by_plan: "2026-04-27-auto-release-versioning-plan.md"
 → [adr/ADR-005-kb-index-two-layer-injection.md](adr/ADR-005-kb-index-two-layer-injection.md)
 
 ## ADR-004: PreToolUse hook over SessionStart for KB context injection
-**Decision:** Inject KB context at the exact moment a relevant skill is called (PreToolUse) rather than at session start. Superseded in part by ADR-020: SessionStart now retains only KB availability/status and query guidance.
+**Decision:** Inject KB context at the exact moment a relevant skill is called (PreToolUse) rather than at session start. Superseded in part by ADR-020: SessionStart now retains only KB availability and query guidance.
 **Trade-off:** Coverage depends on hookable tool invocations; the benefit is lower background context and more task-specific instructions.
 **Affects:** `plugins/superpowers-memory/hooks/`, memory skill trigger behavior.
 → [adr/ADR-004-pretooluse-kb-context.md](adr/ADR-004-pretooluse-kb-context.md)

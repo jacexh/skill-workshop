@@ -423,8 +423,9 @@ llm_wiki_infra_codex_out="$(cd "$llm_wiki_infra" && node "$ROOT/codex-plugins/su
 echo "$llm_wiki_infra_codex_out" | jq -e '.shapeViolations[] | select(.kind == "noncanonical_memory_infrastructure_slot" and .file == "knowledge-graph.md")' >/dev/null
 echo "$llm_wiki_infra_codex_out" | jq -e '.shapeViolations[] | select(.kind == "noncanonical_memory_infrastructure_slot" and .file == "episodic-memory.md")' >/dev/null
 
-# Intent: Codex status should expose whether KB coverage matches HEAD, giving
-# Codex a lightweight compensation for prompt paths that cannot fire JIT hooks.
+# Intent: Codex status should expose whether KB coverage matches HEAD for
+# machine-readable checks, while SessionStart stays limited to KB availability
+# and query guidance.
 status_repo="$TMPDIR/status-repo"
 copy_fixture "clean" "$status_repo"
 (
@@ -447,9 +448,9 @@ copy_fixture "clean" "$status_repo"
   node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" status |
     jq -e '.stale == true and .nonKbCommitCount == 1 and (.changedFiles[] == "src-new.txt")' >/dev/null
   node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" session-start |
-    jq -e '.additional_context | contains("Project KB available at docs/superpowers/memory/") and contains("Project KB status") and contains("stale") and contains("superpowers-memory:query") and contains("Default behavior is no ingest") and contains("maintenance checkpoint") and (contains("Run ingest only when changed source facts introduce or materially change durable project knowledge.") | not) and (contains("if stale, invoke superpowers-memory:ingest") | not) and (contains("Before finishing, committing, merging, or opening a PR: run superpowers-memory:ingest.") | not) and (contains("# Project Knowledge Index") | not)' >/dev/null
+    jq -e '.additional_context | contains("Project KB available at docs/superpowers/memory/") and contains("superpowers-memory:query") and (contains("Project KB status") | not) and (contains("stale") | not) and (contains("Default behavior is no ingest") | not) and (contains("maintenance checkpoint") | not) and (contains("superpowers-memory:ingest") | not) and (contains("# Project Knowledge Index") | not)' >/dev/null
   node "$ROOT/codex-plugins/superpowers-memory/hooks/codex-runtime.js" session-start |
-    jq -e '.hookSpecificOutput.additionalContext | contains("Project KB available at docs/superpowers/memory/") and contains("Project KB status") and contains("stale") and contains("$superpowers-memory:query") and contains("Default behavior is no ingest") and contains("maintenance checkpoint") and (contains("Run ingest only when changed source facts introduce or materially change durable project knowledge.") | not) and (contains("if stale, invoke $superpowers-memory:ingest") | not) and (contains("Before finishing, committing, merging, or opening a PR: run $superpowers-memory:ingest.") | not) and (contains("# Project Knowledge Index") | not)' >/dev/null
+    jq -e '.hookSpecificOutput.additionalContext | contains("Project KB available at docs/superpowers/memory/") and contains("$superpowers-memory:query") and (contains("Project KB status") | not) and (contains("stale") | not) and (contains("Default behavior is no ingest") | not) and (contains("maintenance checkpoint") | not) and (contains("$superpowers-memory:ingest") | not) and (contains("# Project Knowledge Index") | not)' >/dev/null
   printf '%s' '{"command_name":"finishing-a-development-branch"}' |
     node "$ROOT/plugins/superpowers-memory/hooks/hook-runtime.js" user-prompt-expansion |
     jq -e '.additional_context | contains("Default behavior is no ingest") and contains("maintenance checkpoint review") and contains("Skip ingest for deployment-only, image/tag/version-only, formatting, or comment-only changes.") and (contains("Inspect the changed files before ingesting.") | not) and (contains("MUST invoke") | not) and (contains("VERY NEXT tool call") | not)' >/dev/null

@@ -8,7 +8,7 @@ covers_branch: hotfix/ddd-expert-modeling-gates@2b51d19
 # Project Knowledge Index
 
 - [architecture.md](architecture.md) — System boundaries, components, data flows
-  Key points: dual-track marketplace; ddd-expert is the standalone hookless DDD/backend plugin with domain-modeling/design modeling gates, implement/review evidence gates, and shared references; superpowers-architect is restored to its v1.13.10 dynamic design-pattern injection content including bundled DDD/database patterns; memory SessionStart reports KB availability/status only; designing-tests is evidence-choice guidance and Codex UserPromptSubmit-only
+  Key points: dual-track marketplace; ddd-expert is the standalone hookless DDD/backend plugin with domain-modeling/design modeling gates, implement/review evidence gates, and shared references; superpowers-architect is restored to its v1.13.10 dynamic design-pattern injection content including bundled DDD/database patterns; memory SessionStart reports KB availability/query guidance only, with status kept out of SessionStart; designing-tests is evidence-choice guidance and Codex UserPromptSubmit-only
 
 - [tech-stack.md](tech-stack.md) — Languages, frameworks, key dependencies
   Key points: Node.js + Bash + Markdown + JSON; Codex plugin runtime requires hooks/plugin_hooks flags and restart; release scripts use git + jq

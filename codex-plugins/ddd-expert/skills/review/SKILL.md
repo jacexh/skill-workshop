@@ -41,6 +41,20 @@ Keep axes separate:
 
 Report each finding under one primary axis. Mention secondary impact only when it changes severity.
 
+## Fix direction ordering
+
+For lifecycle, consistency, event-fact, or coordination findings, fix direction
+must put modeling responsibility before implementation mechanics:
+
+- **Model correction** — name the invariant owner, lifecycle owner, aggregate
+  boundary, failure tolerance, or event fact that must change.
+- **Implementation mechanism** — only after the model correction, name the
+  repository, transaction, handler, event, task, reconciler, or test mechanism
+  that implements the accepted model.
+
+Do not present repository, port, or transaction shape as a peer alternative to
+resolving model ownership.
+
 ## Output
 
 Lead with findings. Keep small reviews small.
@@ -56,7 +70,8 @@ Finding: <severity> <axis> <title>
 - Violated guardrail:
 - Triage: <violation | allowed exception | harmless local style | evidence gap>
 - Why it matters:
-- Fix direction:
+- Model correction:
+- Implementation mechanism:
 ```
 
 No DDD findings: say that directly, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
