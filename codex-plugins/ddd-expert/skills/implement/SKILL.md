@@ -25,7 +25,9 @@ Before editing, name the **Accepted model source** and confirm only the items im
 
 Default-first key concepts: implement the normal DDD path unless the accepted design reopened modeling and produced a new model decision. Aggregates own invariants; Repositories persist one write-side Aggregate Root; Domain Events model same-BC past-tense facts after state change; Integration Messages are cross-context contracts; QueryRepositories/read facades serve product reads. Aggregate Boundary Conflict returns to `domain-modeling`. Implementation transaction shape is not Repository design evidence; cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
 
-If business facts or modeling evidence are missing or contradictory, return to `domain-modeling`. If placement, layer ownership, or mechanism containment is missing, return to `design`. If the handoff asks Repository/API code to save or coordinate several candidate roots, classify Aggregate Boundary Conflict and return to `domain-modeling` before editing. If the conflict is an explicit user requirement, ask the user before editing.
+Return routing: Return to domain-modeling for aggregate boundary, lifecycle, invariant, fact language, or bounded-context uncertainty. Return to design for layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted.
+
+If business facts or modeling evidence are missing or contradictory, return to `domain-modeling`. If placement, layer ownership, or mechanism containment is missing, return to `design`. If the handoff asks Repository/API code to save or coordinate several candidate roots, classify Aggregate Boundary Conflict and return to `domain-modeling` before editing. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong or missing, return to `design`. If the conflict is an explicit user requirement, ask the user before editing.
 
 If a review finding includes `Model correction` that changes lifecycle owner,
 invariant owner, aggregate boundary, or failure tolerance, return to `design`
@@ -55,7 +57,7 @@ DDD implementation:
 - Changed files by layer:
 - Boundary mappings:
 - Mechanism containment:
-- Rules Satisfied / Not Applicable / Return to domain-modeling:
+- Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design:
 - Tests / verification:
 - Conflicts / stop conditions:
 ```

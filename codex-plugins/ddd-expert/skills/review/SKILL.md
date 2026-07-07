@@ -29,7 +29,7 @@ Before findings:
 2. Start from business facts before code shape: reconstruct the command/trigger, past-tense facts, policies, reactions, and expected consistency before treating repositories, handlers, ports, or transactions as primary evidence.
 3. Classify touched surfaces from evidence: domain abstraction, spec behavior, generated/protocol boundary, persistence, runtime/config, messages/tasks, logging, external adapter, or repo-specific surface.
 4. Use the risk router and local convention to choose required proof. The examples are a router, not an inventory.
-5. Decide each candidate as `Rules Satisfied / Not Applicable / Return to domain-modeling / Evidence gap`. Return to domain-modeling cannot be classified as Rules Satisfied.
+5. Decide each candidate as `Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap`. Return to domain-modeling cannot be classified as Rules Satisfied.
 6. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
 
 ## Coverage pass
@@ -45,8 +45,7 @@ Tactical drift reading: when structures look awkward, treat them as upstream mod
 pressure before suggesting cleanup. For Aggregate, Repository, Domain Event,
 Integration Message, Application Port, CQRS read, Bounded Context, and FSM
 state, state the default rule before local convention. semantic repository methods are evidence, not proof:
-Aggregate Boundary Conflict returns to `domain-modeling`; implementation transaction shape is not model evidence. Local convention is evidence to
-inspect, not a waiver.
+Aggregate Boundary Conflict returns to `domain-modeling`; implementation transaction shape is not model evidence. Return routing: domain-modeling for aggregate boundary/lifecycle/invariant/fact/BC uncertainty; design for accepted-model placement/CQRS/port/adapter/repository API shape. transaction-shaped evidence cannot satisfy Repository design: never list semantic repository transaction, lifecycle transaction, or cross-table transaction under Rules Satisfied. Local convention is evidence to inspect, not a waiver.
 
 ## Review axes
 
@@ -84,12 +83,12 @@ DDD review:
 - Expected model sources:
 - Evidence gate:
 - Checked flows:
-- Rules Satisfied / Not Applicable / Return to domain-modeling / Evidence gap:
+- Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 
 Finding: <severity> <axis> <title>
 - Evidence: <file:line>
 - Violated guardrail:
-- Triage: <violation | return to domain-modeling | harmless local style | evidence gap>
+- Triage: <violation | return to domain-modeling | return to design | harmless local style | evidence gap>
 - Why it matters:
 - Model correction: <only for model-affecting findings>
 - Implementation mechanism: <when implementation placement is relevant>

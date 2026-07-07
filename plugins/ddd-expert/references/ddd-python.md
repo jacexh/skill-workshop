@@ -798,7 +798,7 @@ class Repository(ABC):
 - No business rules (those belong in the Domain layer)
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
-- **Default transaction boundary: one transaction modifies one aggregate only.** To coordinate other lifecycle owners, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. If a same transaction appears to write several aggregate candidates, return to `domain-modeling`; do not implement one merely because SQLAlchemy session APIs make it easy.
+- **Default transaction boundary: one transaction modifies one aggregate only.** To coordinate other lifecycle owners, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. If a same transaction appears to write several aggregate candidates, return to `domain-modeling`; do not implement one merely because SQLAlchemy session APIs, semantic repository transaction, lifecycle transaction, or cross-table transaction look convenient. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, return to `design`.
 - Application is the sole drainer of Domain Events: after a successful `save()` it calls `collect_events()` exactly once. Repository never drains.
 - Domain events are dispatched after a successful persist via `collect_events()`. Dispatch/publish admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - After `save()`, the in-memory aggregate is stale — reload via `get()` if further operations are needed

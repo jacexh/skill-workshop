@@ -39,7 +39,7 @@ Use this file after the model/design has accepted the use case and layer owner. 
 
 **Rules**
 
-- Default write transaction changes one aggregate. If a command appears to coordinate several aggregate candidates in one Repository/API call, return to `domain-modeling`; do not justify it with transaction mechanics.
+- Default write transaction changes one aggregate. If a command appears to coordinate several aggregate candidates in one Repository/API call, return to `domain-modeling`; do not justify it with transaction mechanics, semantic repository transaction, lifecycle transaction, cross-table transaction, or ORM session evidence. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, return to `design`.
 - Do not implement business rules by branching over aggregate state in the handler. Move the rule to Domain.
 - Do not pass raw transactions, sessions, ORM objects, broker clients, Redis clients, or generated protocol DTOs into Domain.
 - Do not dispatch events before successful persistence.

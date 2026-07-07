@@ -23,6 +23,7 @@ gate is material and continue.
   modeling evidence.
 - In `review`, use missing or contradictory gate evidence as a model evidence
   gap or design violation.
+- Route precisely: model facts return to domain-modeling; tactical placement gaps return to design.
 
 ## Gate 1: Story Before Nouns
 
