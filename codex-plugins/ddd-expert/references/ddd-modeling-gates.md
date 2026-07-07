@@ -124,7 +124,7 @@ Ask:
 
 Outcome: same-aggregate transaction, Domain Event, Integration Message, task,
 compensation, process manager, or reconciler. Default path is one aggregate per command;
-synchronous multi-aggregate transactions are high-risk deviations, not normal outcomes.
+an aggregate boundary conflict returns to domain-modeling instead of being solved by persistence shape.
 
 ## Gate 7: Language Before Integration
 

@@ -12,7 +12,7 @@ Read this file with the active phase skill for DDD/backend architecture work. Us
 - Domain-modeling uses cards to generate high-fidelity questions: identify when a risk implies an implicit domain object, existing-model impact, missing lifecycle, invariant, event, repository, bounded context, or data-authority decision.
 - Design uses cards to surface design questions: identify when a risk implies missing subdomain, bounded context, data authority, context-map, or tactical model decisions. Do not report violations from design-only speculation.
 - Implement uses cards to translate accepted model decisions into code placement: identify which deeper reference is needed for adapters, mappings, ports, runtime, persistence, or tests. Do not use a card to invent a new model decision during implementation.
-- Review uses cards to demand evidence before findings: start from the default rule, then decide whether evidence shows a violation, harmless fit, high-risk deviation, or evidence gap.
+- Review uses cards to demand evidence before findings: start from the default rule, then decide whether evidence shows a violation, harmless fit, return-to-modeling trigger, or evidence gap.
 
 ## Responsibility Role Classifier
 
@@ -21,7 +21,7 @@ Classify responsibilities, not concept names. Do not create or apply risk cards 
 Awkward tactical structures are evidence, not diagnosis. Before routing to a tactical fix, ask what upstream model pressure the structure carries: aggregate boundary, invariant owner, CQRS/read-model split, failure tolerance, application coordination, or local convention.
 For reactions, repositories, and transaction shapes, reconstruct the business fact timeline and accepted collaboration model before choosing an event/message, process, repository, or port card.
 
-Default-first concept discipline: for Aggregate, Repository, Domain Event, Integration Message, Application Port, CQRS read, Bounded Context, and FSM state, state the normal DDD role before local convention or project-specific tolerance. Local convention can explain a deviation; it is not permission. High-risk deviation means the default path was rejected and residual coupling/risk remains.
+Default-first concept discipline: for Aggregate, Repository, Domain Event, Integration Message, Application Port, CQRS read, Bounded Context, and FSM state, state the normal DDD role before local convention or project-specific tolerance. Local convention can explain a conflict; it is not permission. Return to domain-modeling when exception pressure appears unless an accepted modeling decision already resolves it.
 
 | Role | Classifier question | Typical owner | Route when risky |
 |---|---|---|---|
@@ -70,16 +70,16 @@ Never paste a probe example unchanged unless the calibrated repository shape mat
 
 When a card is triggered, load the required references before reporting a violation. The card body still owns the detailed smell, decision, and probe examples.
 
-| Risk card | Required references | Required evidence | Default rule / risk if tolerated |
+| Risk card | Required references | Required evidence | Default rule / required action |
 |---|---|---|---|
-| Cross-Context Direct Imports | `ddd-core.md`, active language guide; Go event/message guide when async contracts are involved | Import path crossing calibrated bounded-context roots; caller/callee layer; whether the import is Domain/Application vs published API/protocol | Default rule: use Integration Messages, read facade, ACL, or protocol contract; compatibility bridges are high-risk deviations with migration target |
+| Cross-Context Direct Imports | `ddd-core.md`, active language guide; Go event/message guide when async contracts are involved | Import path crossing calibrated bounded-context roots; caller/callee layer; whether the import is Domain/Application vs published API/protocol | Default rule: use Integration Messages, read facade, ACL, or protocol contract; missing boundary decision returns to domain-modeling |
 | Generated Protocol Types in Semantic Ports | `ddd-core.md`, active language guide | Port/interface signature, Domain/Application package path, generated/protocol type import, mapping boundary evidence | Default rule: map protocol DTOs at boundaries; read DTO contracts need explicit read-side proof |
 | Fat Generated RPC Adapter | `ddd-core.md`, active language guide | Generated RPC/IDL adapter method with repository, save, dispatch, enqueue, transaction, or multi-port coordination evidence | Default rule: generated adapter maps -> delegates once -> maps response/error |
-| Shared Umbrella Processor | `ddd-golang-events-messages.md` and/or `ddd-golang-taskqueue.md` | Shared processor type, inbound kinds/task types, dependency set, role/side-effect mix, transaction/failure policy | Default rule: one concrete handler/processor per inbound fact or task type; shared processors need same role/source/effect/failure semantics |
+| Shared Umbrella Processor | `ddd-golang-events-messages.md` and/or `ddd-golang-taskqueue.md` | Shared processor type, inbound kinds/task types, dependency set, role/side-effect mix, transaction/failure policy | Default rule: one concrete handler/processor per inbound fact or task type; mixed roles return to domain-modeling/design |
 | Business State Classification Outside Domain | `ddd-agent-contract.md`, `ddd-core.md`, active language guide | Application/handler/processor branch or helper over business state/status; evidence it drives a business decision, not mapping | Default rule: business state classification lives behind Aggregate methods or Domain policies |
-| Command-Side Application Port Reflex | `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md` | New command-side interface, caller use case, semantic capability, rejected Domain/Repository/Domain Event/Integration Message/ACL/Infrastructure alternatives | Default rule: prefer Aggregate, Repository, Domain Service, Domain Event, Integration Message, ACL, Infrastructure adapter, or QueryRepository |
-| Multi-Object Repository Save | `ddd-modeling-gates.md`, `ddd-core.md`, active language Domain/Infrastructure guide | Repository method saves several candidate Aggregate Roots or lifecycle roots; owned-child evidence; accepted collaboration model; transaction exception evidence | Default rule: one Repository saves one Aggregate Root; multi-object saves are presumed modeling pressure and cannot be marked Rules Satisfied |
-| Manual Runner Misplacement | `ddd-agent-contract.md`, `ddd-golang-taskqueue.md`, `ddd-golang-runtime.md`; active language guide when non-Go | Manual polling, reconciliation, scheduler, backlog drain, recovery, or outbox-drain loop evidence; lifecycle/start-stop ownership; cadence/backoff/limit policy; business work delegated inline vs through a task/processor | Default rule: scheduled/retry/runtime loops live in taskqueue/runtime; process-owned runners are high-risk deviations with lifecycle evidence |
+| Command-Side Application Port Reflex | `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md` | New command-side interface, caller use case, semantic capability, rejected Domain/Repository/Domain Event/Integration Message/ACL/Infrastructure alternatives | Default rule: prefer Aggregate, Repository, Domain Service, Domain Event, Integration Message, ACL, Infrastructure adapter, or QueryRepository; unclear capability returns to domain-modeling |
+| Aggregate Boundary Conflict | `ddd-modeling-gates.md`, `ddd-core.md`, active language Domain/Infrastructure guide | Repository/API saves or coordinates several candidate roots/lifecycle owners; implementation transaction evidence; owned-child evidence; event-driven coordination evidence | Default rule: one Repository saves one Aggregate Root; implementation transaction evidence is not model evidence; return to domain-modeling |
+| Manual Runner Misplacement | `ddd-agent-contract.md`, `ddd-golang-taskqueue.md`, `ddd-golang-runtime.md`; active language guide when non-Go | Manual polling, reconciliation, scheduler, backlog drain, recovery, or outbox-drain loop evidence; lifecycle/start-stop ownership; cadence/backoff/limit policy; business work delegated inline vs through a task/processor | Default rule: scheduled/retry/runtime loops live in taskqueue/runtime; business lifecycle ambiguity returns to domain-modeling/design |
 | Runtime/Entrypoint Provider Pollution | active runtime/language guide where available | Process entrypoint provider construction, business-layer imports, generated route registration, lifecycle/config ownership evidence | Default rule: entrypoint loads config, selects modules, and runs the app |
 | Technical Bounded Context | `ddd-modeling.md`, `ddd-core.md`, `ddd-golang-runtime.md` | Product/operator language, lifecycle/state/invariant ownership, adapter-detail exclusion evidence | Default rule: bounded contexts follow product language and stable invariants, not technology nouns |
 
@@ -90,7 +90,7 @@ When a card is triggered, load the required references before reporting a violat
 - **Smell:** one bounded context imports another context's `domain/` or `application/`.
 - **Probe examples:** for Go repos with `internal/<context>/<layer>` layout, start from `rg -n 'internal/.*/(domain|application)' internal` and then narrow by actual bounded-context roots.
 - **Decision:** use Integration Messages, published read facades, ACL, or protocol contracts.
-- **High-risk deviation:** compatibility bridge with migration target; do not treat direct imports as a stable default.
+- **Return path:** missing bounded-context contract returns to `domain-modeling`; compatibility bridges need a migration target.
 - **Reference:** `ddd-core.md`, active language guide (`ddd-golang.md`, `ddd-python.md`, or `ddd-typescript.md`), and Go event/message guide when applicable.
 
 ### Generated Protocol Types in Semantic Ports
@@ -98,7 +98,7 @@ When a card is triggered, load the required references before reporting a violat
 - **Smell:** command-side or Domain-facing ports mention `pkg/gen`, `gen/go`, `proto.Message`, or ConnectRPC request/response types.
 - **Probe examples:** in Go/protobuf repos, search semantic inward layers for generated-code imports, e.g. `rg -n 'pkg/gen|gen/go|proto\.Message|connect\.Request|connect\.Response' <domain-or-application-paths>`.
 - **Decision:** map generated DTOs at Interface/Application/Infrastructure boundaries.
-- **High-risk deviation:** query/read DTOs may use generated contracts only with explicit read-side proof.
+- **Return path:** unclear read-side contract returns to `design`; protocol DTOs are not Domain objects.
 - **Reference:** `ddd-core.md` and active language guide (`ddd-golang.md`, `ddd-python.md`, or `ddd-typescript.md`).
 
 ### Fat Generated RPC Adapter
@@ -114,7 +114,7 @@ When a card is triggered, load the required references before reporting a violat
 - **Smell:** many one-kind message handlers delegate to one large `Processor` with unrelated message families or dependencies.
 - **Probe examples:** search async handler packages for shared processors or multi-kind dispatchers, e.g. `rg -n 'type Processor|NewProcessor|processor\.|switch .*Kind|Listening\\(\\)' <message-or-task-handler-paths>`.
 - **Decision:** prefer one concrete handler/processor per inbound fact or task type.
-- **High-risk deviation:** shared processors need same role, source family, side effect, transaction boundary, failure policy, and dependency set.
+- **Return path:** mixed roles, source families, side effects, or failure policies return to `domain-modeling` / `design`.
 - **Reference:** `ddd-golang-events-messages.md`, `ddd-golang-taskqueue.md`.
 
 ### Business State Classification Outside Domain
@@ -130,15 +130,15 @@ When a card is triggered, load the required references before reporting a violat
 - **Smell:** a command handler gets a new interface only because it needs to call an external mechanism.
 - **Probe examples:** review new command-side interfaces and names ending in `Client`, `Publisher`, `Router`, `Directory`, `Writer`, `Sender`, or `Fetcher`.
 - **Decision:** classify capability first; prefer Aggregate method, Repository, Domain Service, Domain Event, Integration Message, ACL, or Infrastructure adapter.
-- **High-risk deviation:** command-side Application ports need written proof of stable use-case semantics and rejected default mechanisms.
+- **Return path:** if the need cannot be placed in a normal Domain/Application/Infrastructure role, return to `domain-modeling`.
 - **Reference:** `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md`.
 
-### Multi-Object Repository Save
+### Aggregate Boundary Conflict
 
-- **Smell:** a Repository method persists several candidate Aggregate Roots or lifecycle roots and the review only cites a semantic method name.
-- **Probe examples:** inspect Domain repository interfaces for `Save*` methods with several Domain parameters; classify each parameter as aggregate root, child entity/value object, external fact, read model, or transaction-only record.
-- **Decision:** semantic repository methods are evidence, not proof. Prefer one aggregate boundary or Domain Event / process manager / reconciler coordination. If several candidate Aggregate Roots are saved synchronously, report model pressure or a High-risk deviation; it cannot be marked Rules Satisfied.
-- **High-risk deviation:** only after one aggregate/owned children, Domain Event, Integration Message, process manager, reconciler, and compensation paths are rejected with residual risk stated.
+- **Smell:** a Repository/API method appears to save or coordinate several candidate roots/lifecycle owners and the review cites transaction shape, table writes, or a semantic store method name.
+- **Probe examples:** inspect Domain repository interfaces for `Save*` methods with several Domain parameters; classify each parameter as aggregate root candidate, child entity/value object, external fact, read model, or persistence record.
+- **Decision:** semantic repository methods are evidence, not proof. Implementation transaction evidence is not model evidence. Prefer one aggregate boundary or Domain Event / process manager / reconciler coordination. If the model is unclear, return to `domain-modeling`; this cannot be marked Rules Satisfied.
+- **Return path:** reopened modeling decides aggregate boundary, lifecycle owner, event facts, and recoverability before any Repository design.
 - **Reference:** `ddd-modeling-gates.md`, `ddd-core.md`, active language Domain/Infrastructure guide.
 
 ### Manual Runner Misplacement
@@ -146,7 +146,7 @@ When a card is triggered, load the required references before reporting a violat
 - **Smell:** a bounded-context root or composition package owns a manual polling, reconciliation, scheduler, backlog drain, recovery, or outbox-drain loop that starts its own runtime loop, including calling an Application scheduler/service from a root package loop.
 - **Probe examples:** search calibrated module roots and runtime packages for `*_drain`, `*scheduler`, `*reconcile`, `fx.Lifecycle`, `OnStart`, `OnStop`, `go func`, `time.NewTimer`, `time.NewTicker`, `Interval`, `Backoff`, `Limit`, `for {`, or equivalent lifecycle/timer constructs. The filename is only a routing clue; require loop/lifecycle/cadence evidence.
 - **Decision:** classify the responsibility first. Scheduled triggers and polling/reconciliation work route to taskqueue/polling/periodic guidance; business task semantics live with the owning Application task/processor or coordination service; shared worker/scheduler lifecycle lives in runtime infrastructure such as `internal/pkg/taskqueue`. Bounded-context module roots may contribute providers/tasks/processors but should not hide manual loops, retry/backoff, shutdown, or provider lifecycle policy.
-- **High-risk deviation:** a process-owned runner outside taskqueue needs runtime ownership, lifecycle/shutdown, config/cadence, idempotency/failure, and rejected taskqueue/runtime defaults.
+- **Return path:** unclear business lifecycle or coordination ownership returns to `domain-modeling`; runtime-only placement goes to runtime/taskqueue references.
 - **Reference:** `ddd-agent-contract.md`, `ddd-golang-taskqueue.md`, `ddd-golang-runtime.md`, and the active language guide when not Go.
 
 ### Runtime/Entrypoint Provider Pollution
@@ -154,7 +154,7 @@ When a card is triggered, load the required references before reporting a violat
 - **Smell:** the process entrypoint constructs repositories, query repositories, ACL clients, handler wrappers, or generated route handlers.
 - **Probe examples:** search calibrated entrypoint/composition roots for business-layer imports, generated route registration, and provider-heavy wiring; in Go/fx repos this often includes `cmd/<service>/main.go` and `fx.Provide`.
 - **Decision:** the process entrypoint loads config, selects modules/composition roots, supplies process options, and runs the app.
-- **High-risk deviation:** process-owned provider with runtime impact note.
+- **Return path:** business-layer provider construction returns to module/design review; process-owned providers need runtime impact notes.
 - **Reference:** active runtime/language guide where available.
 
 ### Technical Bounded Context

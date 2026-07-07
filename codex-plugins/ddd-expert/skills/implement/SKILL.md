@@ -17,15 +17,15 @@ Before editing, name the **Accepted model source** and confirm only the items im
 - data authority and out-of-scope boundary;
 - aggregate, policy, service, read model, or explicit none;
 - commands, queries, Domain Events, Integration Messages, reactions, or explicit none;
-- collaboration model: aggregate-internal behavior, same-BC Domain Event/reaction, Integration Message, process manager/reconciler, query/read facade, or explicit high-risk deviation;
+- collaboration model: aggregate-internal behavior, same-BC Domain Event/reaction, Integration Message, process manager/reconciler, query/read facade, or return-to-domain-modeling decision;
 - consistency, transaction, idempotency, and failure boundary;
 - modeling evidence for lifecycle, authority, invariants, failure tolerance, and collaboration style when those decisions shaped the handoff;
 - layer ownership and mechanism containment;
 - testing seams or explicit verification target.
 
-Default-first key concepts: implement the normal DDD path unless the accepted design names a high-risk deviation. Aggregates own invariants; Repositories persist one write-side Aggregate Root; Domain Events model same-BC past-tense facts after state change; Integration Messages are cross-context contracts; QueryRepositories/read facades serve product reads. Synchronous multi-aggregate transactions are not collaboration models. High-risk deviations are not implementation options; stop unless the design states the rejected default path and residual risk.
+Default-first key concepts: implement the normal DDD path unless the accepted design reopened modeling and produced a new model decision. Aggregates own invariants; Repositories persist one write-side Aggregate Root; Domain Events model same-BC past-tense facts after state change; Integration Messages are cross-context contracts; QueryRepositories/read facades serve product reads. Aggregate Boundary Conflict returns to `domain-modeling`. Implementation transaction shape is not Repository design evidence; cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
 
-If business facts or modeling evidence are missing or contradictory, return to `domain-modeling`. If placement, layer ownership, or mechanism containment is missing, return to `design`. If the handoff coordinates several lifecycle objects without an accepted collaboration model, or asks for synchronous writes across several candidate Aggregate Roots without invariant and failure-tolerance evidence, stop and return to `design` before editing. If the conflict is an explicit user requirement, ask the user before editing.
+If business facts or modeling evidence are missing or contradictory, return to `domain-modeling`. If placement, layer ownership, or mechanism containment is missing, return to `design`. If the handoff asks Repository/API code to save or coordinate several candidate roots, classify Aggregate Boundary Conflict and return to `domain-modeling` before editing. If the conflict is an explicit user requirement, ask the user before editing.
 
 If a review finding includes `Model correction` that changes lifecycle owner,
 invariant owner, aggregate boundary, or failure tolerance, return to `design`
@@ -55,7 +55,7 @@ DDD implementation:
 - Changed files by layer:
 - Boundary mappings:
 - Mechanism containment:
-- Rules Satisfied / Not Applicable / High-risk Deviation:
+- Rules Satisfied / Not Applicable / Return to domain-modeling:
 - Tests / verification:
 - Conflicts / stop conditions:
 ```
