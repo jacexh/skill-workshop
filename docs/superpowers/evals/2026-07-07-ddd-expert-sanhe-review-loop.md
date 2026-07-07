@@ -903,3 +903,49 @@ Coverage Matrix:
 - Treat `semantic lifecycle transaction` as red-flag evidence only; it cannot appear as a checked decision.
 - Treat synchronous command plus transaction as invalid checked collaboration unless an explicit atomic-transaction model decision and failure-tolerance proof are named.
 - Treat command-handler caller location as CQRS evidence only; per-method read/write semantic proof remains required before checked.
+
+## Round 2026-07-08 v1.14.37 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.37`, release commit `c1d4f071999b4dfecafc530fbc6aa82a420d554d`.
+- preceding hotfix: `e76a8960314973bf9a384dbb780fdd1446d311ba`, PR #90, merge commit `389853bddfa2ed516cb34ebcff23cb46b8730b89`.
+- next hotfix branch: `hotfix/ddd-review-lifecycle-section-hard-gate`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.37`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.37.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.37.md`, 5,284 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.37-reflection.md`, 10,309 bytes.
+- verification inside review: `go test ./internal/business/tasknegotiation/domain -run TestTaskAgreementLifecycleStateUsesConcreteStateBehavior -count=1`, `go test ./internal/business/tasknegotiation/application -run 'Payment|Funding|CancelTaskAgreement|ReconcileSucceededPayments' -count=1`, and `go test ./...` passed.
+
+### Output Summary
+
+- The reviewer found K2 as a Blocker: `PaymentSucceeded` can be followed by agreement cancellation.
+- The reviewer found K3 as a Major finding: succeeded-payment reconciler exists but has no production entrypoint.
+- The reviewer found K8 as an evidence gap: `payment_failed` and `payment_cancelled` parent states have no production writer.
+- The reviewer overclaimed K4/K5/K6/K7/K10 by replacing mandatory lifecycle proof sections with short checked summaries. It did not emit negative decision inventory, terminal/execution fact table, CQRS read-shaped method inventory, strongest-decision inheritance, overclaim scrub, or checked-row admission-control table.
+
+### Score
+
+- Breadth: 24 / 45. Strong coverage: K2, K3, and K8. K4, K5, K6, K7, and K10 were touched only through unsupported checked summaries or omitted proof sections.
+- Depth: 20 / 45. Payment precedence and recovery reachability remained deep. Split terminal facts, repository candidate classification, collaboration model, accepted-design non-waiver, and CQRS semantics were shallow or unsupported.
+- Review discipline: 3 / 10. The output violated the exact-section and admission-control contract, started with findings, and allowed broad checked flows without the mandatory proof tables.
+- Total: 47 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: failed. The admission-control rule existed in the plugin, but the reviewer did not emit the admission-control table or exact lifecycle sections, so the rule never executed.
+- Overclaim: K4 was marked checked through "split-dispute closure requires both execution facts" without one row per execution fact and separate aggregate closure proof.
+- Overclaim: K5 remained a method-summary classification, not a per-method candidate ledger with owner proof, owned-child proof, invariant outcome, transaction evidence, and coordination alternative.
+- Overclaim: K6 was checked through synchronous command transaction, without classifying the linked lifecycle behavior mechanism or accepted atomic transaction failure tolerance.
+- Overclaim: K7 persisted because accepted design/source alignment and semantic repository method names were used as practical proof.
+- Overclaim: K10 persisted because CQRS was declared acceptable without the semantic split table or per-method read-shaped inventory.
+- Root cause: the exact-section gate is buried as prose and can be ignored. The output contract must make lifecycle/repository/event/CQRS scope a hard preamble: no Findings, no Checked Flows, and no Rules Satisfied may appear until every exact lifecycle section is emitted and admission-control is complete.
+
+### Generic Fix Summary
+
+- Add release assertions that lifecycle/repository/event/CQRS scope must start with exact mandatory sections before findings.
+- Prohibit lifecycle-scope final answers from using a Findings-first or Checked-flows-only shape.
+- Require the output completion gate to appear before any checked decisions and to enumerate exact required sections.
+- State that missing admission-control or exact lifecycle sections invalidates every related checked row and forces evidence gap/return instead of partial summary acceptance.
