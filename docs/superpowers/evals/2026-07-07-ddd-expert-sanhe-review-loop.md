@@ -996,3 +996,50 @@ Coverage Matrix:
 - Require every checked row in any mandatory section to appear in `Checked row admission control` with the same row id and complete proof tuple.
 - Forbid grouped row ids or row scopes that combine multiple methods, flows, execution facts, states, or ports from being checked.
 - Require output completion gate to mark a section non-empty only when it has table rows, not prose summaries.
+
+## Round 2026-07-08 v1.14.39 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.39`, release commit `5eb79a3c76f04493a542807e0b241210b069ab8d`.
+- preceding hotfix: `0b11cdd509feae90195b01aea1cd6330ac63159f`, PR #92, merge commit `a8c689ef5dc1cad7d2e1f9019a2e1464db7f92b8`.
+- next hotfix branch: `hotfix/ddd-review-command-admission-matrix`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.39`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.39.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.39.md`, 4,632 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.39-reflection.md`, 7,477 bytes.
+- verification inside review: `git diff --check` passed; Go tests could not run because read-only sandbox prevented creating `/tmp/go-build...`.
+
+### Output Summary
+
+- The reviewer found K4 as a Major split-dispute terminal event finding.
+- The reviewer found K8 as a return-to-modeling issue for parent `payment_failed/payment_cancelled` states.
+- The reviewer found K3 as an evidence gap / return-to-design for production-unreachable `PaymentSucceeded` recovery.
+- The reviewer missed K2: it looked at the normal event reaction and recovery path, but did not test cancel/retry command admission after a durable succeeded payment while the parent agreement projection is stale.
+- The reviewer still overclaimed K5/K7, shallowly covered K6, and wrong-triaged K10. It claimed lifecycle sections were covered, but the saved answer did not include the table-backed inventory rows required by v1.14.39.
+
+### Score
+
+- Breadth: 26 / 45. Found K3, K4, and K8. Missed K2. K5/K7/K10 were overclaimed or wrong-triaged; K6 was shallow.
+- Depth: 24 / 45. Split terminal/execution and parent-state findings were useful; Payment recovery was correct but incomplete without command-admission counterfactuals. Repository, collaboration, and CQRS remained too summary-level.
+- Review discipline: 5 / 10. It reported sandbox test limits honestly, but still used `Checked Rows` and `Lifecycle Sections covered` summaries instead of visible row-id mandatory tables.
+- Total: 55 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partial and unstable. Row-id backed gates existed in the plugin, but the reviewer bypassed them by asserting "Lifecycle Sections covered" rather than printing the table-backed sections.
+- Missing finding: K2 regressed because `PaymentSucceeded` review focused on event reaction/recovery and failed to force a durable-fact command-admission counterfactual for later cancel/retry commands.
+- Overclaim: K5 persisted because candidate ledger and Repository/API classification were claimed as covered but not emitted as method-level rows.
+- Shallow root cause: K6 persisted because only the split event symptom was found; the wider delivery/refund/dispute/settlement collaboration model still lacked per-trigger mechanism rows.
+- Overclaim: K7 persisted because checked/coverage assertions still carried positive conclusions without row-local non-transaction model proof.
+- Wrong triage: K10 persisted because CQRS was checked from query repository/DTO naming and did not inventory read-shaped methods on write repositories or shared adapters.
+- Root cause: the plugin has exact-section and row-id rules, but it lacks an explicit "coverage claim prohibition". A statement that sections are covered must be treated as invalid unless actual markdown tables follow. It also lacks a mandatory command-admission matrix for irreversible facts that can race with stale workflow-state commands.
+
+### Generic Fix Summary
+
+- Prohibit section-coverage summary claims as substitutes for mandatory tables.
+- Add a mandatory `Irreversible fact command-admission matrix` for lifecycle reviews.
+- Require every durable succeeded/authorized/completed/executed fact to be checked against later cancel/retry/reopen/refund commands that can still act from stale parent state.
+- Extend output completion/admission rules so a section is present only when the actual table follows the heading; a "covered" sentence is evidence gap.
