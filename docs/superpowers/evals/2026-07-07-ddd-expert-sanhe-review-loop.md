@@ -614,3 +614,51 @@ Coverage Matrix:
 - Removed the conflicting small-review escape for lifecycle/repository/event/CQRS scope and replaced it with concise-output wording only for non-triggered gates.
 - Added explicit rules/tests that `Evidence Matrix`, summary tables, or free-form matrices cannot replace mandatory proof-artifact sections and cannot carry checked decisions.
 - Required exact mandatory section names so broad summary matrices cannot satisfy lifecycle output completion.
+
+## Round 2026-07-08 v1.14.31 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.31`, release commit `6bb64743d99cfab191756f30624446523e4386db`.
+- preceding hotfix: `92f038cefa52b0c346527a13c4e91a2a969ba2b6`, PR #84, merge commit `6138f8be3a4b5e692ddd782d836a61fdd8fe0ab3`.
+- next hotfix branch: `hotfix/ddd-review-decision-proof-gate`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.31`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: background reviewer in `/home/xuhao/sanhe` using the fixed prompt after plugin upgrade.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.31.md`, 13,758 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.31-reflection.md`, 10,212 bytes.
+- verification inside review: `git diff --check origin/feature/task-agreement` passed; focused Go test could not start in the review sandbox because Go cache/module-cache paths were read-only.
+
+### Output Summary
+
+- The reviewer found K2 with concrete irreversible fact precedence evidence: a durable succeeded payment can leave the agreement `payment_pending`, while cancellation and retry paths still rely on stale agreement state.
+- The reviewer found K3 inside the same finding and recovery table: the reconciler exists as a callable command/test path but production RPC/module/scheduler reachability was not proven.
+- The reviewer found K4 with concrete split-dispute evidence: money execution facts can emit terminal-looking agreement events before the aggregate closure fact.
+- The reviewer found K5/K7 directionally: multi-root semantic repository transactions were returned to modeling/design, and transaction shape was not treated as aggregate-boundary proof.
+- The reviewer shallowly covered K6 and K8: linked delivery/refund/dispute/settlement behavior and parent payment failure/cancellation state language appeared as caveats/evidence gaps, not first-class findings or return routes.
+- The reviewer overclaimed K10: CQRS was marked checked from QueryRepository names, DTO returns, package split, and absence of generated imports without classifying caller semantics, write-side overlap, or adapter/storage overlap.
+
+### Score
+
+- Breadth: 37 / 45. Clearly found K2, K3, K4, and K7; shallowly covered K5, K6, and K8; overclaimed K10.
+- Depth: 30 / 45. Payment fact precedence, recovery reachability, and split terminal fact confusion were strong. Multi-method candidate classification, collaboration mechanism analysis, parent-state language semantics, and CQRS semantic proof remained weak.
+- Review discipline: 8 / 10. The review used the fixed prompt, kept mandatory sections, and did not stop at the first blocker. It lost points for `checked with caveat` rows and CQRS checked claims on insufficient proof.
+- Total: 75 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: materially improved. Removing `Evidence Matrix` and enforcing exact sections pushed the reviewer to cover K2/K3/K4/K5/K7 and emit mandatory sections, raising the score from 53 to 75.
+- Shallow root cause: K5 remained too compressed because the candidate ledger grouped several Repository/API methods rather than classifying each method, candidate role, owned-child proof, invariant, transaction evidence, and coordination alternative.
+- Shallow root cause: K6 was treated as an aggregate-boundary caveat, not a separate collaboration-model question. A synchronous command path was used as a descriptive row instead of forcing event/process manager/reconciler/task/accepted transaction classification.
+- Shallow root cause: K8 was downgraded to one evidence-gap row. Parent aggregate states named after child-process outcomes require proof that the parent lifecycle really moved, or a return route.
+- Overclaim: K10 was marked checked from surface CQRS separation. Names, DTOs, package layout, absent imports, and shared adapter separation are not semantic proof.
+- Discipline gap: mandatory matrices can still become summaries. Rows with caveats or references to another finding must downgrade to finding, return, or evidence gap; they cannot remain checked.
+- Strategy change: make mandatory rows decision gates, not summary devices. Add method-level candidate classification, collaboration-model proof, parent-state language proof, and stricter CQRS semantic proof; forbid checked rows that depend on caveats or other findings.
+
+### Generic Fix Summary
+
+- Added release assertions that mandatory rows are decision gates, `checked` rows cannot cite caveats/other findings, and multi-candidate Repository/API review must classify one method per row.
+- Added generic review protocol for linked lifecycle collaboration: synchronous command paths are evidence, not collaboration decisions; each linked flow must classify event/process manager/reconciler/task/Integration Message/accepted transaction/evidence gap.
+- Added parent-state language proof for aggregate states named after child process outcomes.
+- Hardened CQRS proof so checked rows require semantic evidence beyond names, DTOs, package layout, and absent imports.
