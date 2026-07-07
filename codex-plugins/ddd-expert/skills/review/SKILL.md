@@ -46,6 +46,10 @@ Every mandatory proof row must have a stable row id.
 Every checked row must appear in Checked row admission control with the same row id.
 Grouped row scopes cannot be checked; split any row that covers multiple methods, flows, execution facts, states, ports, commands, or owners.
 Output completion gate marks a section non-empty only when table rows exist.
+Section-coverage summary claims are invalid.
+Do not write that lifecycle sections are covered; emit the actual tables.
+A sentence saying a section was covered is an evidence gap until table rows follow the exact heading.
+Irreversible fact command-admission matrix: Every durable succeeded, authorized, completed, or executed fact must be tested against later cancel, retry, reopen, or refund commands that can act from stale parent state.
 
 For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
 Counterfactual defect hunt: Draft findings are not final. Before final output,
@@ -126,6 +130,7 @@ DDD review:
 - Expected model sources:
 - Evidence gate:
 - Negative decision inventory: Row id | Row scope | Initial decision | Evidence inspected | Row-local promotion proof | Final decision | Finding id
+- Irreversible fact command-admission matrix: Row id | Durable fact | Stale parent state | Later command | Guard consulted | Decision
 - Candidate ledger: Row id | Candidate | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return; Row id | Candidate | Role | Owner proof | Repository/API evidence | Decision | Return route
 - Repository/API candidate classification: Row id | Repository/API method | Candidate | Role | Owner proof | Owned-child proof | Invariant/command outcome | Transaction evidence | Coordination alternative | Decision/return route
 - Per-flow Event Timeline Reconciliation: Row id | Flow | Fact | Event/process/reconciler owner | Recovery/failure behavior | Decision
