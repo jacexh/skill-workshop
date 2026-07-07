@@ -763,7 +763,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.34`, release commit `6b3ee938a31adf2c3d6f567cf22bc96b73960d53`.
 - preceding hotfix: `7ea6fae80bcf95625bde47a201f5da8da8d60b0e`, PR #87, merge commit `67695d1b04d0a8fec1662a6a2c2ccb0b892b7cc5`.
 - next hotfix branch: `hotfix/ddd-review-negative-inventory`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `c8d58f93ea7c3c1160a8138ccc3c1bbeba5dfbf4`; PR #88, merge commit `bcaabac0578cfcb6d4aadf1cc675c8fd5c4f6a3a`, release `v1.14.35` (`0b71d3b9b9a33c880973a19672dd8c5450e0dc21`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.34`.
@@ -808,3 +808,52 @@ Coverage Matrix:
 - Require all mandatory lifecycle rows to start `unresolved`, then be promoted only by row-local proof.
 - Require finding generation from the inventory; pre-written findings cannot satisfy inventory rows.
 - Prohibit checked/Rules Satisfied output until the inventory is complete and every negative row is extracted or cited.
+
+## Round 2026-07-08 v1.14.35 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.35`, release commit `0b71d3b9b9a33c880973a19672dd8c5450e0dc21`.
+- preceding hotfix: `c8d58f93ea7c3c1160a8138ccc3c1bbeba5dfbf4`, PR #88, merge commit `bcaabac0578cfcb6d4aadf1cc675c8fd5c4f6a3a`.
+- next hotfix branch: `hotfix/ddd-review-proof-promotion-gates`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.35`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: background reviewer in `/home/xuhao/sanhe` using the fixed prompt after plugin upgrade.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.35.md`, 16,180 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.35-reflection.md`, 11,767 bytes.
+- verification inside review: `git diff --check` had no output; Go tests could not execute because the read-only review sandbox could not create Go cache under `/tmp`.
+
+### Output Summary
+
+- The reviewer found K2 and K3 together as F1: `PaymentSucceeded` recovery is not production-reachable, leaving `TaskAgreement` stale and cancellable.
+- The reviewer found K4 as F2: split dispute execution emits parent terminal events before the parent agreement is terminal.
+- The reviewer touched K5/K10 through inventory tables, but over-promoted many rows to `Checked` from accepted design, semantic method names, DTO/query names, and transaction shape.
+- The reviewer missed/overclaimed K6 by accepting `command transaction` as a collaboration mechanism for delivery/refund/dispute/settlement links.
+- The reviewer overclaimed K7 despite stating the correct rule; semantic repository transactions still became promotion evidence.
+- The reviewer missed K8 by enumerating only refunded/settled/closed parent states, not failed/cancelled payment-like states.
+
+### Score
+
+- Breadth: 30 / 45. Found K2, K3, and K4; touched K5 and K10 shallowly; missed/overclaimed K6, K7, and K8.
+- Depth: 24 / 45. Stronger on payment recovery/cancellation and split terminal events. Still weak on independent owner proof, collaboration mechanism proof, exhaustive state-language enumeration, and CQRS per-method proof.
+- Review discipline: 4 / 10. The negative inventory existed, but rows were promoted to checked using transaction/naming/accepted-design evidence, violating the plugin's own guardrails.
+- Total: 58 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: mixed. Negative inventory restored K4 and preserved K2/K3, but it did not prevent invalid row promotion.
+- Shallow root cause: K5 table presence became false confidence; multi-candidate methods were checked without independent owner proof per candidate.
+- Missing/overclaim: K6 failed because `command transaction` was accepted as final collaboration mechanism instead of being invalid without accepted atomic-transaction and failure-tolerance proof.
+- Overclaim: K7 persisted because transaction shape and accepted design still promoted rows despite the written rule.
+- Missing finding: K8 persisted because state-language enumeration remained selective rather than exhaustive over configured state words.
+- Overclaim: K10 persisted because grouped read-shaped method inventory rows were checked; summary rows cannot prove CQRS semantics.
+- Strategy change: add promotion gates. A row cannot be checked unless it has non-transaction model proof, explicit accepted atomic-transaction proof when using synchronous transactions, exhaustive state vocabulary rows, and one row per CQRS method/port. Grouped summary rows and transaction/name/design-only proof must force return/evidence gap.
+
+### Generic Fix Summary
+
+- Add release assertions for non-transaction model proof before checked promotion.
+- Reject `command transaction` / synchronous transaction as a final collaboration mechanism unless it names an accepted atomic-transaction decision and failure-tolerance proof.
+- Require exhaustive state-language rows for every discovered/declared parent state word in the configured vocabulary.
+- Require CQRS read-shaped method inventory to be one row per method/port; grouped rows cannot be checked.
+- Add a final overclaim scrub pass that downgrades checked rows whose strongest evidence is transaction shape, accepted design, semantic repository naming, DTO/query naming, or package separation.
