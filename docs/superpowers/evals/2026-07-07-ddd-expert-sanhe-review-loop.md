@@ -1291,7 +1291,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.45`, release commit `4922c43b84e5e8d4d7db89d1eece398bfb0e6d9a`.
 - preceding hotfix: `cc73d80c38f86ef1ed4ef3a5fd8d7eb96e347e09`, PR #98, merge commit `3e8f2b8aaca9533bccf2b7801054fc0f26b9676b`.
 - next hotfix branch: `hotfix/ddd-review-inventory-completeness`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `98a4ec99857f2fec1dbe2e2274402b0c77d77d8c`; PR #99, merge commit `b069220a4836fa6ee5d2bd513b20b7526fb42120`, release `v1.14.46` (`3e1503d`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.45`.
@@ -1332,3 +1332,28 @@ Coverage Matrix:
 - Require independent flow inventory after the first blocker; a blocker cannot shrink lifecycle scope.
 - Require repository/API, collaboration, terminal/execution, state-language, and CQRS sections to enumerate every discovered seed, not only rows implicated by an existing finding.
 - Reject one-row mandatory sections when multiple commands, methods, states, events, or read-shaped methods are present in scope.
+
+## Remediation Plan After v1.14.46
+
+- current baseline: `v1.14.46` has not yet been re-evaluated against `/home/xuhao/sanhe`; no new score is recorded.
+- current hotfix branch: `hotfix/ddd-review-default-deny-risk-axes`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- focused review inputs:
+  - Repository/API axis: current rules still treat multi-candidate lifecycle-owner Repository/API shape as a proof problem. Candidate classification can become shallow positive evidence. The shape should start negative by default.
+  - Terminal lifecycle axis: current gates require event timing only in checked rows. They do not first inventory every terminal lifecycle fact/event emission and map it to all required execution facts.
+  - Evidence/admission axis: mandatory tables are not independent risk axes. A checked, gap, or no-claim result in one axis can still mask missing collaboration, CQRS, state-language, terminal, or repository-owner review.
+
+### Problem List Update
+
+- K4 root cause update: terminal lifecycle event emission must be default-denied until every required execution fact is mapped, durable, separated or complete, idempotent/replay-safe, and recoverable before closure.
+- K5 root cause update: Repository/API methods that save or coordinate several aggregate/lifecycle-owner candidates are dangerous shapes. They should default to return/evidence gap/finding; candidate classification only chooses return route unless row-local owned-child or explicit coordination proof defeats the sentinel.
+- K6/K7 root cause update: accepted design, transaction shape, semantic names, command sequencing, local convention, DTO/package separation, or absence of forbidden imports cannot answer the first-principles shape challenge.
+- K10 root cause update: CQRS inventory remains an independent axis; it cannot be cleared by repository-shape or evidence-admission rows in another axis.
+
+### Generic Fix Summary
+
+- Add a dangerous-shape default-deny gate before proof promotion.
+- Add a first-principles challenge: ask whether the shape is genuinely necessary for the business invariant, or compensating for a wrong aggregate/lifecycle boundary.
+- Add a terminal-closure default-deny gate for terminal lifecycle facts/events versus required execution facts.
+- Add parallel risk-axis review: shape-sentinel, lifecycle-spec, and evidence-admission axes are run independently and aggregated side-by-side; one axis cannot clear another.
+- Add release assertions for the new default-deny, terminal-closure, and risk-axis rules across review skill, risk router, and core references.
