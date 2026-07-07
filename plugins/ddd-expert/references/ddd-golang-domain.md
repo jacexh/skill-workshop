@@ -112,6 +112,7 @@ Implementation shape:
 - `Get(ctx, id)` / `Find...` returns Domain aggregates.
 - `Save(ctx, aggregate)` covers create/update/state-driven soft delete; do not split into `Insert`, `Update`, `Delete` merely because SQL has those operations.
 - `Save(ctx, aggregate) is one mutable Aggregate Root`; it may persist owned child entities/value objects, but multiple independent Aggregate Root parameters are model pressure, not a nicer Repository API.
+- A semantic repository method name is not proof. If `Save*` takes several candidate Aggregate Roots or lifecycle roots, return to `design` unless the handoff proves one aggregate/owned children, accepted collaboration, or a documented multi-aggregate transaction exception.
 - Repository interface should not expose raw transaction/session/ORM objects.
 - Read-only product models belong to QueryRepository/read facade. Domain Repository finders load aggregates or command-side Domain facts needed to decide a write, not list/detail/summary/page DTOs.
 

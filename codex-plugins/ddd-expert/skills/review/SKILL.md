@@ -42,9 +42,11 @@ stop after the first Blocker if other independent flows are in scope.
 ## Tactical drift reading
 
 When tactical structures look awkward, treat them as evidence of upstream model
-pressure before suggesting cleanup. Ask whether the pressure comes from
-aggregate boundary, invariant ownership, CQRS split, failure tolerance,
-application coordination, or local convention. Local convention is evidence to
+pressure before suggesting cleanup; semantic repository methods are evidence, not proof:
+multi-object saves need model evidence for one aggregate/owned children,
+accepted collaboration, or a documented transaction exception. Ask whether the
+pressure comes from aggregate boundary, invariant ownership, CQRS split,
+failure tolerance, application coordination, or local convention. Local convention is evidence to
 inspect, not a waiver.
 
 ## Review axes
