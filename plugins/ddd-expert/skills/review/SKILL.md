@@ -35,6 +35,12 @@ Before findings:
 
 ## Coverage pass
 
+Lifecycle exact-section preamble: For lifecycle/repository/event/CQRS scope, do not start with Findings.
+First emit the exact lifecycle sections from the output contract, including Output completion gate and Checked row admission control.
+Checked Flows is forbidden until exact-section gate and admission control are complete.
+Missing admission-control table invalidates every related checked row.
+Output completion gate must appear before any checked decision.
+
 For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
 Counterfactual defect hunt: Draft findings are not final. Before final output,
 try to prove each checked, no-finding, or Rules Satisfied conclusion wrong.
@@ -114,7 +120,6 @@ DDD review:
 - Expected model sources:
 - Evidence gate:
 - Negative decision inventory: Row | Initial decision | Evidence inspected | Row-local promotion proof | Final decision | Finding id
-- Checked flows:
 - Candidate ledger: Candidate | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return; Candidate | Role | Owner proof | Repository/API evidence | Decision | Return route
 - Repository/API candidate classification: Repository/API method | Candidate | Role | Owner proof | Owned-child proof | Invariant/command outcome | Transaction evidence | Coordination alternative | Decision/return route
 - Per-flow Event Timeline Reconciliation: Flow | Fact | Event/process/reconciler owner | Recovery/failure behavior | Decision
@@ -130,8 +135,9 @@ DDD review:
 - CQRS read-shaped method inventory: Method/port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Decision
 - Strongest-decision inheritance: Checked row | Related finding/return/gap | Independence proof | Final decision
 - Overclaim scrub: Checked row | Strongest evidence source | Forbidden promotion source | Downgrade decision
-- Checked row admission control: Row | Proof tuple complete | Invalid category/prose/forbidden proof | Admission decision
 - Output completion gate: Exact lifecycle section | Present | Non-empty | If missing decision
+- Checked row admission control: Row | Proof tuple complete | Invalid category/prose/forbidden proof | Admission decision
+- Checked flows:
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 - Finding generation map: Inventory row | Final decision | Finding id or evidence-gap id | Extracted paragraph
 
