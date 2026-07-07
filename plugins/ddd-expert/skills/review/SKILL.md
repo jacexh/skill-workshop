@@ -64,6 +64,10 @@ Negative-scope lock: When any lifecycle/repository/event/CQRS row is finding, re
 Use not admitted or not claimed instead of checked for same-scope rows while the lock is active.
 Grouped method, flow, candidate, state, port, or execution rows cannot be admitted.
 Independent-scope checked exception requires row-local scope boundary proof.
+Not-claimed extraction gate: not claimed cannot be a final mandatory-row decision.
+Every not-claimed lifecycle/repository/event/CQRS row must become evidence gap, return, or finding.
+Positive-word scrub: covered, reachable, shape matches, appears guarded, or no blocker found are positive conclusions; downgrade them while negative decisions exist.
+Bare method-name lists are not CQRS inventory; each row needs caller semantics, returned model family, write influence, storage overlap, and read-facade ownership.
 
 For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
 Counterfactual defect hunt: Draft findings are not final. Before final output,
