@@ -35,7 +35,7 @@ Before findings:
 
 ## Coverage pass
 
-For lifecycle designs, enumerate named lifecycle, event, recovery, CQRS read/write split, and FSM API compatibility and state polymorphism flows from the spec or design. Mark each as `checked`, `finding`, or `evidence gap`; Checked means evidence-backed. No positive model-alignment conclusion until every mandatory coverage row is classified.
+For lifecycle designs, produce a Mandatory coverage matrix: lifecycle facts, event/recovery, aggregate-boundary candidate classification, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed; every probed risk must end as one decision. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not
 stop after the first Blocker if other independent flows are in scope; report
 Independent modeling findings separately from executable verification gaps.

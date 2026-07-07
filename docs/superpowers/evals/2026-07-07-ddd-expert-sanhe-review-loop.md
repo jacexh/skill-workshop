@@ -85,7 +85,7 @@ Rules Satisfied / Evidence:
 - skill-workshop release under evaluation: `v1.14.22`, release commit `49150d4db0ddae83f8f8309a689ab854482eff8e`.
 - preceding hotfix: `adc8af482047de9296460df69e36143031c35f02`, PR #75, merge commit `f6e86c0c4a20a8f23758c853dc3b01d31638cccc`.
 - next hotfix branch: `hotfix/ddd-review-anti-overclaim`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit / PR / merge commit / tag: `9c43a843e365e11007e738b668ab9a87591b2fc2` / PR #76 / `cc403925a5eb3a8c6f55f28ef1310419d74c454e` / `v1.14.23` (`42cc26f`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`, ahead of `origin/feature/task-agreement` by 1; dirty `go.mod`, `go.sum`.
 - fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
@@ -175,3 +175,70 @@ Rules Satisfied / Evidence:
 - Tightened recovery proof rules generically: handler registration alone and callable commands are not production recovery reachability proof; swallowed/logged dispatch failure after a durable fact requires retry, reconciliation, or command guards.
 - Updated review/core/router/event guidance so checked flows require evidence-backed classification rather than broad "aligned" conclusions.
 - Added a post-review calibration protocol: when a user provides a known issue or scoring set after the initial review conclusion, compare against the original output, reflect why misses happened, and convert repeated miss patterns into generic rules, output contracts, risk-router changes, or eval assertions.
+
+## Round 2026-07-07 v1.14.23 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.23`, release commit `42cc26f`.
+- preceding hotfix: `9c43a843e365e11007e738b668ab9a87591b2fc2`, PR #76, merge commit `cc403925a5eb3a8c6f55f28ef1310419d74c454e`.
+- next hotfix branch: `hotfix/ddd-review-coverage-matrix`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never --sandbox read-only review '<fixed review prompt>' > /tmp/sanhe-ddd-review-v1.14.23.md 2>&1`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.23.md`, 15,977 lines, 763,773 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.23-reflection.md`, 104 lines, 10,750 bytes.
+
+### Raw ddd-expert Review Output Summary
+
+The final review block was duplicated in the saved output. Its substantive findings were:
+
+```text
+- [P1] Keep the FSM dependency on the implemented API
+  go-jimu/components/fsm v0.10.0 requires StateContext.SetState and no longer exposes StateMachine.TransitionToNext, while the implementation still uses the older contract.
+
+- [P1] Provide a reachable payment-success reconciler
+  When a succeeded Payment is saved but event dispatch is rejected or missed, the agreement remains payment_pending. The reconciler command is only targeted by TaskAgreementID and only instantiated from tests, with no production Application/Fx/API/scheduler wiring.
+
+- [P2] Keep split refunds from marking agreements refunded
+  Split refund/settlement paths set terminal timestamps and emit terminal agreement facts while the agreement is still disputed and before split closure.
+```
+
+### Post-review Calibration Summary
+
+- Found: K1, K3, K4.
+- Shallowly found: K2, K6, K9.
+- Missed: K5, K7, K8, K10.
+- Reviewer-identified failure modes:
+  - coverage matrix was not enforced;
+  - PaymentSucceeded fact precedence was under-generalized to recovery only, not every stale-state retry/cancel/reopen command;
+  - FSM review anchored on API mismatch and skipped state-polymorphism conformance;
+  - accepted design/tests and semantic repository methods were over-trusted;
+  - probe output was not converted into explicit coverage decisions;
+  - terminal fact separation stayed a local split-dispute finding rather than a general collaboration/timeline review.
+
+### Score
+
+- Breadth: 26 / 45. Fully found K1, K3, K4; shallowly touched K2, K6, K9; missed K5, K7, K8, K10.
+- Depth: 24 / 45. The three concrete findings had useful evidence and impact. The review did not complete candidate classification, stale-state command enumeration, CQRS classification, state-language semantics, or FSM state-polymorphism analysis.
+- Review discipline: 6 / 10. It no longer stopped at the compile blocker and avoided the worst broad "all aligned" claim, but it omitted required evidence-gap/return rows, let probes disappear from final output, and duplicated the final answer block.
+- Total: 56 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partially effective. v1.14.23 improved from 16 to 56 and found K3/K4 after the overclaim/recovery-proof gates, but the final answer still omitted mandatory rows. The optimization approach is changing from more rule reminders to a mandatory coverage matrix/output contract where each probed risk must be classified.
+- Missing finding: K5 aggregate/lifecycle-owner candidate classification was loaded in rules but not emitted as finding, evidence gap, or return route.
+- Missing finding: K7 accepted design and semantic repository methods were still over-trusted because no candidate classification or repository-boundary row appeared.
+- Missing finding: K8 payment_failed/payment_cancelled state-language semantics were probed but not classified.
+- Missing finding: K10 CQRS split was probed but not classified; QueryRepository naming was treated as enough.
+- Shallow root cause: K2 was framed as missing recovery only; the review did not enumerate every stale workflow command that still permits retry/cancel/reopen/refund after an irreversible fact.
+- Shallow root cause: K6 appeared only through one split terminal-fact symptom, not a full same-BC event/process/reconciler collaboration review.
+- Shallow root cause: K9 stopped at FSM API compatibility and did not separately review state polymorphism.
+- Output contract issue: final review block was duplicated in the saved raw output.
+
+### Generic Fix Summary
+
+- Added release assertions for a mandatory coverage matrix, every probed risk ending as a decision, stale-state command enumeration after irreversible facts, candidate classification for multi-owner repository evidence, fact-to-event/process/reconciler ownership, FSM API/polymorphism subrows, QueryRepository-name insufficiency, state-language semantics, and duplicate final answer rejection.
+- Strengthened review output contract so lifecycle reviews classify mandatory rows before broad alignment claims.
+- Strengthened risk router rules for stale-state commands, multi-owner repository evidence, event/process/reconciler ownership, FSM subrows, and CQRS proof.
+- Strengthened core rules with a mandatory coverage matrix including state-language semantics.

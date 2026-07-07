@@ -162,6 +162,7 @@ Rules:
 - Rules Satisfied is scoped to one rule; it must not cover aggregate boundary or event-collaboration risk in the same flow.
 - Absence of forbidden nouns is not model proof. A positive model-alignment conclusion requires every mandatory lifecycle, event, recovery, repository-boundary, FSM, and CQRS review row to be classified as satisfied, violation, return-to-modeling/design, or evidence gap.
 - Positive conclusion calibration: when later scoring feedback or known issues contradict a review, convert the miss reason into a generic rule, protocol, output contract, or eval assertion instead of memorizing project-specific examples.
+- Mandatory coverage matrix: lifecycle reviews classify irreversible fact precedence, event/recovery reachability, candidate aggregate/lifecycle-owner classification, terminal lifecycle facts versus execution facts, FSM API compatibility, FSM state polymorphism, CQRS split, and state-language semantics before any broad alignment claim.
 
 #### Review Order Rule
 
