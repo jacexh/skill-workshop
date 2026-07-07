@@ -19,7 +19,7 @@ Read this file with the active phase skill for DDD/backend architecture work. Us
 Classify responsibilities, not concept names. Do not create or apply risk cards because a file or type contains a DDD term such as Event Handler, Message Handler, CQRS, Repository, Scheduler, or Drain. First identify the role the code is playing and the boundary it crosses:
 
 Awkward tactical structures are evidence, not diagnosis. Before routing to a tactical fix, ask what upstream model pressure the structure carries: aggregate boundary, invariant owner, CQRS/read-model split, failure tolerance, application coordination, or local convention.
-Business fact timeline: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism. For reactions, repositories, and transaction shapes, reconstruct this timeline and the accepted collaboration model before choosing an event/message, process, repository, or port card.
+Business fact timeline: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism. For reactions, repositories, and transaction shapes, reconstruct this timeline and the accepted collaboration model before choosing an event/message, process, repository, or port card. Irreversible facts such as succeeded, accepted, completed, authorized, executed, or externally committed facts outrank open workflow states.
 
 Default-first concept discipline: for Aggregate, Repository, Domain Event, Integration Message, Application Port, CQRS read, Bounded Context, and FSM state, state the normal DDD role before local convention or project-specific tolerance. Local convention can explain a conflict; it is not permission. Accepted design is evidence, not waiver. Return to domain-modeling when model exception pressure appears unless an accepted modeling decision already resolves it; accepted-model placement gaps return to design.
 
@@ -82,6 +82,9 @@ When a card is triggered, load the required references before reporting a violat
 | Business State Classification Outside Domain | `ddd-agent-contract.md`, `ddd-core.md`, active language guide | Application/handler/processor branch or helper over business state/status; evidence it drives a business decision, not mapping | Default rule: business state classification lives behind Aggregate methods or Domain policies |
 | Command-Side Application Port Reflex | `ddd-agent-contract.md`, `ddd-modeling.md`, `ddd-core.md` | New command-side interface, caller use case, semantic capability, rejected Domain/Repository/Domain Event/Integration Message/ACL/Infrastructure alternatives | Default rule: prefer Aggregate, Repository, Domain Service, Domain Event, Integration Message, ACL, Infrastructure adapter, or QueryRepository; unclear capability returns to domain-modeling |
 | Aggregate Boundary Conflict | `ddd-modeling-gates.md`, `ddd-core.md`, active language Domain/Infrastructure guide | Repository/API saves or coordinates several candidate roots/lifecycle owners; implementation transaction evidence; owned-child evidence; event-driven coordination evidence; candidate classification table; red-flag evidence such as semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, or ORM session | Default rule: one Repository saves one Aggregate Root; implementation transaction evidence is not model evidence; transaction-shaped evidence cannot satisfy Repository design; return to domain-modeling |
+| Lifecycle Fact Precedence | `ddd-core.md`, active language guide, Go event/message guide when events are involved | Durable succeeded/accepted/completed/authorized/executed facts; open workflow state; retry/cancel/reopen command; Event Timeline Reconciliation; Recovery reachability proof; terminal lifecycle facts and execution facts | Default rule: irreversible facts dominate lagging workflow projections; recovery gaps return to design or become violations |
+| FSM Contract Drift | active language Domain guide and runtime dependency evidence | Dependency version/API; StateContext contract; transition helper; state-specific behavior methods; tests for state polymorphism | Default rule: lifecycle FSMs must match the adopted library contract and keep state-specific behavior in states |
+| CQRS Read/Write Blend | `ddd-core.md`, active language CQRS/read-side guide | Repository/interface mixing aggregate load/save with product list/detail/history/projection reads; caller semantics; read model family | Default rule: write-side aggregate Repository and product QueryRepository/read facade stay separate unless the read is command-side Domain fact lookup |
 | Manual Runner Misplacement | `ddd-agent-contract.md`, `ddd-golang-taskqueue.md`, `ddd-golang-runtime.md`; active language guide when non-Go | Manual polling, reconciliation, scheduler, backlog drain, recovery, or outbox-drain loop evidence; lifecycle/start-stop ownership; cadence/backoff/limit policy; business work delegated inline vs through a task/processor | Default rule: scheduled/retry/runtime loops live in taskqueue/runtime; business lifecycle ambiguity returns to domain-modeling/design |
 | Runtime/Entrypoint Provider Pollution | active runtime/language guide where available | Process entrypoint provider construction, business-layer imports, generated route registration, lifecycle/config ownership evidence | Default rule: entrypoint loads config, selects modules, and runs the app |
 | Technical Bounded Context | `ddd-modeling.md`, `ddd-core.md`, `ddd-golang-runtime.md` | Product/operator language, lifecycle/state/invariant ownership, adapter-detail exclusion evidence | Default rule: bounded contexts follow product language and stable invariants, not technology nouns |
@@ -143,6 +146,29 @@ When a card is triggered, load the required references before reporting a violat
 - **Decision:** semantic repository methods are evidence, not proof. Implementation transaction evidence is not model evidence. Red-flag evidence includes semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, `xorm.Session`, `gorm.Tx`, or multi-record lifecycle writes. transaction-shaped evidence cannot satisfy Repository design and cannot be marked Rules Satisfied. Prefer one aggregate boundary or Domain Event / process manager / reconciler coordination. If the model is unclear, return to `domain-modeling`; if the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, Return to design.
 - **Return path:** reopened modeling decides aggregate boundary, lifecycle owner, event facts, and recoverability before any Repository design.
 - **Reference:** `ddd-modeling-gates.md`, `ddd-core.md`, active language Domain/Infrastructure guide.
+
+### Lifecycle Fact Precedence
+
+- **Smell:** a command treats an open workflow state as permission to retry, cancel, reopen, or refund even though a durable succeeded/accepted/completed/authorized/executed fact already exists.
+- **Probe examples:** compare lifecycle commands with event/reaction/reconciler gaps; search for command handlers that decide from the workflow aggregate state without checking durable execution or decision records.
+- **Decision:** irreversible business facts outrank stale workflow state. Require Event Timeline Reconciliation, Recovery reachability proof, and separation of terminal lifecycle facts and execution facts before marking coverage satisfied.
+- **Return path:** missing precedence or recovery design returns to `design`; concrete retry/cancel/reopen behavior after an irreversible fact is a violation.
+- **Reference:** `ddd-core.md`, active language guide, and event/message guide when a same-BC reaction or reconciler is involved.
+
+### FSM Contract Drift
+
+- **Smell:** lifecycle code uses an adopted FSM library as a transition table only, relies on removed/old API calls, or keeps state-specific behavior in aggregate/application `switch` branches.
+- **Probe examples:** inspect dependency version, `StateContext` implementation, transit helper calls, raw state mutation, `HasTransition` pre-checks, and tests for state-specific behavior.
+- **Decision:** match the selected library API and preserve state polymorphism. API mismatch is a build/runtime violation; state-polymorphism bypass is Domain behavior drift.
+- **Reference:** active language Domain guide.
+
+### CQRS Read/Write Blend
+
+- **Smell:** one Repository or port both saves mutable aggregates and serves product list/detail/history/projection reads.
+- **Probe examples:** compare repository methods and call sites; distinguish command-side fact lookup from UI/API read models.
+- **Decision:** command writes use Domain Repositories; product reads use QueryRepository/read facades grouped by read-model family.
+- **Return path:** accepted-model repository/read-side split gaps return to `design`.
+- **Reference:** `ddd-core.md` and active language CQRS/read-side guide.
 
 ### Manual Runner Misplacement
 

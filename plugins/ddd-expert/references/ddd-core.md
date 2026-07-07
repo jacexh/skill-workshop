@@ -165,6 +165,14 @@ Rules:
 
 For lifecycle/repository/event reviews, reason in this order: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism.
 
+#### Irreversible Fact Precedence Rule
+
+Durable succeeded, accepted, completed, authorized, executed, or externally committed facts outrank open workflow states. A lagging projection, event handler, or reconciler does not reopen retry, cancellation, refund, or mutation rights unless the accepted model explicitly says so. Review terminal lifecycle facts and execution facts separately: lifecycle closure records the product obligation state; execution facts record money, shipment, notification, or external side effects. If either side can advance without the other, require an explicit reaction/process/reconciler and failure-tolerance rule before marking Rules Satisfied.
+
+#### CQRS Read/Write Split Rule
+
+When one repository shape mixes aggregate saves with product list/detail/summary/page reads, treat it as CQRS split pressure: keep command-side aggregate loading in the Domain Repository and move product read models to QueryRepository/read facade unless the read is a command-side Domain fact needed to decide a write.
+
 #### CQRS Port Granularity
 
 Expose ports by caller semantics, not storage operations:
@@ -178,7 +186,7 @@ Expose ports by caller semantics, not storage operations:
 | Routing, peer lookup, hop headers, queue subjects, retry knobs, topology | Infrastructure, not Application query port |
 
 Do not create one QueryRepository per screen, RPC, SQL statement, or minor filter. Do not create storage-shaped omnibus ports that mix producer writes, UI history, audit lookup, projection bootstrap, and unrelated reads.
-When one repository shape mixes aggregate saves with product list/detail/summary/page reads, treat it as CQRS split pressure: keep command-side aggregate loading in the Domain Repository and move product read models to QueryRepository/read facade unless the read is a command-side Domain fact needed to decide a write.
+Do not merge write-side Repository and read-side QueryRepository responsibilities merely because one adapter or table can serve both.
 
 #### Aggregate Boundary Conflict Gate
 
