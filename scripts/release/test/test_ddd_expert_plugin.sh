@@ -138,6 +138,8 @@ check_domain_modeling_skill() {
   grep -q "Avoid low-fidelity questions" "$modeling_skill" || fail "$label domain-modeling should reject low-fidelity questions"
   grep -q "Domain Modeling Brief" "$modeling_skill" || fail "$label domain-modeling should emit a Domain Modeling Brief"
   grep -q "Model Decisions" "$modeling_skill" || fail "$label domain-modeling should emit material model decisions"
+  grep -q "event-storming timeline" "$modeling_skill" || fail "$label domain-modeling should reconstruct an event-storming timeline"
+  grep -q "past-tense business facts" "$modeling_skill" || fail "$label domain-modeling should start from past-tense business facts"
   grep -q "Do not write \`docs/superpowers/memory/\` directly" "$modeling_skill" || fail "$label domain-modeling should not write memory directly"
   grep -q "Memory candidates" "$modeling_skill" || fail "$label domain-modeling should emit memory candidates"
 }
@@ -154,6 +156,7 @@ check_design_skill() {
   grep -q "Implementation handoff" "$design_skill" || fail "$label design should emit an implementation handoff"
   grep -q "Accepted model source" "$design_skill" || fail "$label design handoff should name accepted model source"
   grep -q "Layer ownership" "$design_skill" || fail "$label design handoff should decide layer ownership"
+  grep -q "collaboration model before mechanism" "$design_skill" || fail "$label design should decide collaboration model before mechanism"
   grep -q "If any handoff item is material to implementation and unknown, Stop" "$design_skill" || fail "$label design should stop instead of leaving implement to guess"
 }
 
@@ -172,6 +175,7 @@ check_implement_skill() {
   grep -q "Accepted model source" "$implement_skill" || fail "$label implement should name accepted model source"
   grep -q "Object shape routing" "$implement_skill" || fail "$label implement should route confirmed objects"
   grep -q "Surface preflight" "$implement_skill" || fail "$label implement should classify touched surfaces"
+  grep -q "collaboration model" "$implement_skill" || fail "$label implement should require accepted collaboration model"
   grep -q "Rules Satisfied / Not Applicable / Exception" "$implement_skill" || fail "$label implement output should require rule status table"
   grep -q "Changed files by layer" "$implement_skill" || fail "$label implement should report changed files by layer"
   grep -q "Tests / verification" "$implement_skill" || fail "$label implement should report verification"
@@ -199,6 +203,8 @@ check_review_evidence_gate() {
   grep -q "Evidence gap, not finding" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
   grep -q "Checked flows" "$review_skill" || fail "$label review should expose checked lifecycle flows"
   grep -q "Tactical drift reading" "$review_skill" || fail "$label review should read tactical drift as model pressure"
+  grep -q "collaboration model" "$review_skill" || fail "$label review should reconstruct collaboration model"
+  grep -q "business facts before code shape" "$review_skill" || fail "$label review should reason from business facts before code shape"
   grep -q "upstream model" "$review_skill" || fail "$label review should identify upstream model pressure before cleanup"
   grep -q "pressure before suggesting cleanup" "$review_skill" || fail "$label review should identify model pressure before cleanup"
   grep -q "Local convention is evidence to" "$review_skill" || fail "$label review should not treat local convention as a waiver"
@@ -257,6 +263,7 @@ check_modeling_gates_reference() {
   local gates="$root/references/ddd-modeling-gates.md"
 
   grep -q "Story Before Nouns" "$gates" || fail "$label modeling gates missing Story Before Nouns"
+  grep -q "Event Timeline Before Objects" "$gates" || fail "$label modeling gates missing Event Timeline Before Objects"
   grep -q "Authority Before Ownership" "$gates" || fail "$label modeling gates missing Authority Before Ownership"
   grep -q "Lifecycle Before Type" "$gates" || fail "$label modeling gates missing Lifecycle Before Type"
   grep -q "Invariant Before Aggregate" "$gates" || fail "$label modeling gates missing Invariant Before Aggregate"
@@ -264,12 +271,8 @@ check_modeling_gates_reference() {
   grep -q "Language Before Integration" "$gates" || fail "$label modeling gates missing Language Before Integration"
   grep -q "Coordination Before Abstraction" "$gates" || fail "$label modeling gates missing Coordination Before Abstraction"
 
-  grep -q "TaskAgreement Boundary Scenario" "$gates" || fail "$label modeling gates missing TaskAgreement forward test"
-  grep -q "Noun-List Scenario" "$gates" || fail "$label modeling gates missing noun-list forward test"
-  grep -q "Event-as-Command Scenario" "$gates" || fail "$label modeling gates missing event-as-command forward test"
-  grep -q "External-Language Leakage Scenario" "$gates" || fail "$label modeling gates missing external-language forward test"
-  grep -q "Read-Model Backflow Scenario" "$gates" || fail "$label modeling gates missing read-model forward test"
-  grep -q "Long-Running Coordination Scenario" "$gates" || fail "$label modeling gates missing long-running coordination forward test"
+  grep -q "Forward-Test Principles" "$gates" || fail "$label modeling gates should define forward-test principles"
+  grep -q "Avoid project-specific scenario names" "$gates" || fail "$label modeling gates should avoid project-specific scenario names in hot path"
   grep -q "transaction shape a peer of model correction" "$gates" || fail "$label modeling gates should prevent transaction-first fixes"
   grep -q "semantic repository transaction as a peer alternative" "$gates" || fail "$label modeling gates should reject repository-transaction peer alternatives"
 }
@@ -282,6 +285,8 @@ grep -q "implementation/review risk router" "$CLAUDE_ROOT/references/ddd-risk-ro
 grep -q "implementation/review risk router" "$CODEX_ROOT/references/ddd-risk-router.md" || fail "Codex risk router should state implementation/review role"
 grep -q "ddd-modeling-gates.md" "$CLAUDE_ROOT/references/ddd-risk-router.md" || fail "Claude risk router should route modeling ambiguity to modeling gates"
 grep -q "ddd-modeling-gates.md" "$CODEX_ROOT/references/ddd-risk-router.md" || fail "Codex risk router should route modeling ambiguity to modeling gates"
+grep -q "FSM state polymorphism bypass" "$CLAUDE_ROOT/references/ddd-agent-contract.md" || fail "Claude agent contract should reject FSM state polymorphism bypass"
+grep -q "FSM state polymorphism bypass" "$CODEX_ROOT/references/ddd-agent-contract.md" || fail "Codex agent contract should reject FSM state polymorphism bypass"
 
 check_go_reference_reorg() {
   local root="$1"
@@ -298,6 +303,13 @@ check_go_reference_reorg() {
   grep -q "## 0. Go / go-jimu Domain Building Block Lookup" "$root/references/ddd-golang-domain.md" || fail "$label Go domain reference should include building block lookup"
   grep -q "### 0.1 Aggregate Root Card" "$root/references/ddd-golang-domain.md" || fail "$label Go domain reference should include aggregate root card"
   grep -q "### 0.4 Repository Interface Card" "$root/references/ddd-golang-domain.md" || fail "$label Go domain reference should include repository interface card"
+  grep -q "Save(ctx, aggregate) is one mutable Aggregate Root" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should reject multi-aggregate Save methods"
+  grep -q "Read-only product models belong to QueryRepository/read facade" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should route product reads to CQRS"
+  grep -q "State Pattern + transition table" "$root/references/ddd-golang-domain.md" || fail "$label Go FSM reference should teach state polymorphism"
+  grep -q "State-specific behavior lives in polymorphic State methods" "$root/references/ddd-golang-domain.md" || fail "$label Go FSM reference should put behavior in state methods"
+  grep -q "Aggregate business method delegates to current State" "$root/references/ddd-golang-domain.md" || fail "$label Go FSM reference should route aggregate methods through current state"
+  grep -q "TransitionTo is an FSM callback, not an Aggregate business API" "$root/references/ddd-golang-domain.md" || fail "$label Go FSM reference should hide raw transition callbacks"
+  grep -q "same business method behaves differently across states" "$root/references/ddd-golang-domain.md" || fail "$label Go FSM reference should require polymorphic state behavior tests"
 
   grep -q "## 0. Go / go-jimu Application Building Block Lookup" "$root/references/ddd-golang-application.md" || fail "$label Go application reference should include building block lookup"
   grep -q "### 0.1 Command Handler Card" "$root/references/ddd-golang-application.md" || fail "$label Go application reference should include command handler card"
@@ -307,6 +319,8 @@ check_go_reference_reorg() {
 
   grep -q "## 0. Go / go-jimu CQRS Building Block Lookup" "$root/references/ddd-golang-cqrs.md" || fail "$label Go CQRS reference should include building block lookup"
   grep -q "### 0.1 QueryRepository Card" "$root/references/ddd-golang-cqrs.md" || fail "$label Go CQRS reference should include QueryRepository card"
+  grep -q "mixed read/write repository is CQRS split pressure" "$root/references/ddd-golang-cqrs.md" || fail "$label Go CQRS reference should flag mixed read/write repositories"
+  grep -q "not one interface per query method" "$root/references/ddd-golang-cqrs.md" || fail "$label Go CQRS reference should avoid one-query-one-interface splits"
 
   grep -q "## 0. Go / go-jimu Scaffold Building Block Lookup" "$root/references/ddd-golang-scaffold.md" || fail "$label Go scaffold reference should include building block lookup"
   grep -q "### 0.1 Project Layout Card" "$root/references/ddd-golang-scaffold.md" || fail "$label Go scaffold reference should include project layout card"

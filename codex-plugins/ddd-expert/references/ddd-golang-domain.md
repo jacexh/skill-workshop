@@ -111,7 +111,9 @@ Implementation shape:
 - Methods operate on Aggregate Roots.
 - `Get(ctx, id)` / `Find...` returns Domain aggregates.
 - `Save(ctx, aggregate)` covers create/update/state-driven soft delete; do not split into `Insert`, `Update`, `Delete` merely because SQL has those operations.
+- `Save(ctx, aggregate) is one mutable Aggregate Root`; it may persist owned child entities/value objects, but multiple independent Aggregate Root parameters are model pressure, not a nicer Repository API.
 - Repository interface should not expose raw transaction/session/ORM objects.
+- Read-only product models belong to QueryRepository/read facade. Domain Repository finders load aggregates or command-side Domain facts needed to decide a write, not list/detail/summary/page DTOs.
 
 **Version and event rules**
 
@@ -123,6 +125,7 @@ Implementation shape:
 
 - If the interface is created only to wrap a database client, cache, queue, lock, retry, route, peer, or deployment detail, route to `ddd-modeling.md §0.1` / §0.2 before coding.
 - If the new method serves read-only product screens, use [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) instead.
+- If `Save` needs several mutable Aggregate Roots, return to `design`: choose one aggregate boundary, child entities/value objects, Domain Event/reaction, process manager/reconciler, Integration Message, or a documented multi-aggregate transaction exception.
 
 ### 0.5 State Machine Card
 
@@ -134,15 +137,41 @@ Use `github.com/go-jimu/components/fsm` when any of these are true:
 - transition rules affect resource release, capacity, billing, retry, archive, permission, or idempotency;
 - the design/spec includes a state diagram, transition table, or invariant list.
 
+Use the library as State Pattern + transition table. The Aggregate exposes
+stable business methods; the current State object implements state-specific
+behavior for those methods; the StateMachine chooses the next state after a
+successful action.
+
 Rules:
 
 - States, actions, and guard conditions are Domain concepts.
 - Aggregate Root implements the state context.
-- Domain methods call the registered state machine; they do not assign state directly.
+- State-specific behavior lives in polymorphic State methods such as
+  `AddItems`, `Checkout`, `Cancel`, or `Fail`.
+- Aggregate business method delegates to current State, then asks the
+  registered StateMachine to advance when the action succeeds.
+- Do not replace State polymorphism with `switch state` branches in Aggregate,
+  Application, handlers, processors, or repositories.
+- Do not pre-check `HasTransition` before calling the State method when the
+  State owns the rejection; otherwise state-specific Domain errors collapse
+  into generic transition errors.
+- `TransitionTo is an FSM callback, not an Aggregate business API`. External
+  Application code calls business methods, never raw target-state transitions.
+- If the Aggregate Root directly exposes `TransitionTo`, treat it as a callback
+  wrapper only: validate the target came from the registered transition and do
+  not let callers choose arbitrary next states.
 - Transitions may record Domain Events after state changes.
 - Infrastructure persists state labels only; it does not know transition rules.
 
 For simple 2-4 state mostly linear lifecycles, enum plus Domain methods is acceptable. Application, handlers, processors, and repositories still must not assemble their own transition tables.
+
+Review/test expectations:
+
+- The same business method behaves differently across states when the domain
+  requires it, e.g. active state accepts an action while full/closed/failed
+  states return state-specific Domain errors.
+- Tests cover state-specific behavior, successful transition, rejected action,
+  and that callers cannot bypass business methods through `TransitionTo`.
 
 ### 0.6 Error and Validation Card
 

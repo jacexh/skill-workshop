@@ -15,7 +15,7 @@ Reconstruct the expected model before judging code:
 
 - Domain Modeling Brief, user stories, strategic decisions, and out-of-scope rules;
 - DDD design, testing seams, and **Implementation handoff**;
-- model evidence for authority, lifecycle, invariant owner, failure tolerance, integration language, and coordination kind when those boundaries matter;
+- model evidence for authority, lifecycle, invariant owner, failure tolerance, integration language, collaboration model, and coordination kind when those boundaries matter;
 - spec/issue/ADR/glossary/CONTEXT;
 - changed files, neighboring code, tests, generated artifacts, migrations, config, runtime wiring, logs, and documented exceptions.
 
@@ -26,10 +26,11 @@ If the expected bounded context, data authority, invariant owner, model evidence
 Before findings:
 
 1. Confirm concrete evidence exists: diff, plan, files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written exception.
-2. Classify touched surfaces from evidence: domain abstraction, spec behavior, generated/protocol boundary, persistence, runtime/config, messages/tasks, logging, external adapter, or repo-specific surface.
-3. Use the risk router and local convention to choose required proof. The examples are a router, not an inventory.
-4. Decide each candidate as `Rules Satisfied / Not Applicable / Exception / Evidence gap`, and classify DDD issues as modeling ambiguity, design violation, implementation placement error, or allowed exception.
-5. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
+2. Start from business facts before code shape: reconstruct the command/trigger, past-tense facts, policies, reactions, and expected consistency before treating repositories, handlers, ports, or transactions as primary evidence.
+3. Classify touched surfaces from evidence: domain abstraction, spec behavior, generated/protocol boundary, persistence, runtime/config, messages/tasks, logging, external adapter, or repo-specific surface.
+4. Use the risk router and local convention to choose required proof. The examples are a router, not an inventory.
+5. Decide each candidate as `Rules Satisfied / Not Applicable / Exception / Evidence gap`, and classify DDD issues as modeling ambiguity, design violation, implementation placement error, or allowed exception.
+6. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
 
 ## Coverage pass
 

@@ -31,6 +31,7 @@ Infrastructure owns external mechanisms. It implements Domain/Application ports 
 - Constructor receives initialized clients from `internal/pkg/<capability>` or module wiring; it does not open config by itself.
 - Repository persists Aggregate Roots, not child entities as independent collections.
 - `Save(ctx, aggregate)` handles create/update/state-driven soft delete for one aggregate.
+- Infrastructure may persist owned child rows in the same transaction, but it must not disguise several independent Aggregate Root saves as one Repository implementation method.
 - Repository initializes `event.Collection` when rehydrating aggregates.
 - Repository never drains or dispatches Domain Events.
 

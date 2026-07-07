@@ -6,6 +6,7 @@ description: Go / go-jimu CQRS/read-side reference. Use when implementing or rev
 # Go CQRS and Read-Side Reference
 
 CQRS here means command writes go through Domain aggregates, while product/application reads use read-side DTOs and QueryRepository/read facade ports. Do not use CQRS as a reason to create one interface per query method.
+In review, a mixed read/write repository is CQRS split pressure: aggregate load/save methods belong to the Domain Repository, while product list/detail/summary/page reads belong to a QueryRepository/read facade.
 
 ## 0. Go / go-jimu CQRS Building Block Lookup
 
@@ -29,6 +30,7 @@ CQRS here means command writes go through Domain aggregates, while product/appli
 - Default to one QueryRepository per bounded-context product read-model family.
 - Add methods for new query scenarios when freshness, authorization, pagination, failure behavior, consistency window, data source, and test substitute semantics are the same.
 - Split only when one of those semantics differs materially.
+- This is not one interface per query method; method-per-scenario is normal when the read-model family semantics are shared.
 
 **Return shape**
 
@@ -97,6 +99,7 @@ Projection/read-model updates can be triggered by Domain Events, Integration Mes
 ## Common Misplacements
 
 - Creating one QueryRepository interface per screen, RPC method, or handler.
+- Leaving product read models in the write-side Domain Repository because they read from the same tables as the aggregate.
 - Using Domain aggregates as read DTOs.
 - Naming ports after storage technology (`ClickHouseReader`, `RedisQueryStore`) instead of product semantics.
 - Putting routing topology, peer address lookup, replica selection, or hop headers into QueryRepository.

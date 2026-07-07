@@ -39,7 +39,25 @@ Ask:
 Outcome: candidate commands, decisions, outcomes, and explicit non-domain or
 non-aggregate nouns.
 
-## Gate 2: Authority Before Ownership
+## Gate 2: Event Timeline Before Objects
+
+Use event storming to expose business facts before tactical object names.
+Event-storming facts are modeling evidence, not automatic code artifacts.
+
+Ask:
+
+- What happened, in past tense, after each command or external trigger?
+- Which facts are business-visible, repeated, reversed, retried, or
+  compensated?
+- Which policy or decision reacts to each fact?
+- Which facts stay inside one bounded context, and which need published
+  language?
+- Which facts are only audit, read-model, integration, or process clues?
+
+Outcome: event-storming timeline and candidate Domain Events, Integration
+Messages, state changes, process steps, read-model facts, or non-code facts.
+
+## Gate 3: Authority Before Ownership
 
 Before assigning a bounded context or model owner, identify authority.
 
@@ -54,7 +72,7 @@ Ask:
 Outcome: bounded-context owner, data authority, published-language boundary, or
 ACL need.
 
-## Gate 3: Lifecycle Before Type
+## Gate 4: Lifecycle Before Type
 
 Before choosing Entity, Value Object, Aggregate Root, read model, or adapter,
 identify lifecycle.
@@ -70,7 +88,7 @@ Ask:
 Outcome: Entity, Value Object, child Entity, Aggregate Root candidate, read
 model, or adapter shape.
 
-## Gate 4: Invariant Before Aggregate
+## Gate 5: Invariant Before Aggregate
 
 An Aggregate is a consistency boundary around business invariants, not an
 important noun.
@@ -89,7 +107,7 @@ Ask:
 Outcome: aggregate boundary, invariant owner, or reason to revisit candidate
 Aggregate Roots.
 
-## Gate 5: Failure Tolerance Before Transaction
+## Gate 6: Failure Tolerance Before Transaction
 
 Before accepting a synchronous transaction, decide what failure means.
 
@@ -108,7 +126,7 @@ Outcome: same-aggregate transaction, justified multi-aggregate exception,
 Domain Event, Integration Message, task, compensation, process manager, or
 reconciler.
 
-## Gate 6: Language Before Integration
+## Gate 7: Language Before Integration
 
 Before choosing Domain Event, Integration Message, ACL, protocol contract, or
 read facade, identify language scope.
@@ -125,7 +143,7 @@ Ask:
 Outcome: Domain Event, Boundary Publisher, Integration Message, ACL, protocol
 contract, or published read facade.
 
-## Gate 7: Coordination Before Abstraction
+## Gate 8: Coordination Before Abstraction
 
 Before creating a Repository, Domain Service, Application Service, port, task,
 or process manager, classify the work.
@@ -151,6 +169,7 @@ model without turning it into a large template:
 ```text
 Model Decisions:
 - Story / command:
+- Event timeline / facts:
 - Authority / data owner:
 - Lifecycle owner:
 - Invariant owner:
@@ -180,59 +199,18 @@ Do not make transaction shape a peer of model correction. Do not present a
 semantic repository transaction as a peer alternative to resolving invariant
 ownership.
 
-## Forward-Test Scenarios
+## Forward-Test Principles
 
-These scenarios define the reasoning behavior expected from the plugin. Tests
-should assert the outcome, not exact long prose.
+Keep concrete scenario fixtures outside this hot-path reference. Avoid project-specific scenario names here; use them in tests or benchmark prompts.
+Forward tests should pass raw artifacts and assert whether the agent:
 
-### TaskAgreement Boundary Scenario
-
-Input: `TaskAgreement` owns lifecycle, while `Payment`, `Delivery`,
-`RefundCase`, `Refund`, and `Settlement` are proposed as independent Aggregate
-Roots and commands synchronously update several of them.
-
-Expected: design stops or flags an aggregate-boundary contradiction, asks what
-invariant requires synchronous commit, and does not first generate
-`LifecycleRepository` or prettier multi-aggregate repository methods.
-
-### Noun-List Scenario
-
-Input: a spec lists many nouns such as `Order`, `OrderLine`, `Invoice`,
-`PaymentAttempt`, `Shipment`, `Address`, and `Coupon` without lifecycle or
-invariant evidence.
-
-Expected: domain-modeling asks for story, authority, and lifecycle before
-Aggregate Roots are named.
-
-### Event-as-Command Scenario
-
-Input: a design emits `UserShouldBeSuspended` or `StartPayment` as an event
-consumed by another context.
-
-Expected: modeling/design distinguishes past-tense facts from commands and
-review asks whether this is a Domain Event, Integration Message, command, or
-process step.
-
-### External-Language Leakage Scenario
-
-Input: an external payment provider's status names are used directly in Domain
-state.
-
-Expected: design routes through Authority Before Ownership and ACL; implement
-or review expects translation at the boundary.
-
-### Read-Model Backflow Scenario
-
-Input: a dashboard query shape is used to define the write aggregate.
-
-Expected: design separates product read model from write-side aggregate; CQRS
-guidance loads only after the model boundary is clear.
-
-### Long-Running Coordination Scenario
-
-Input: a command needs payment authorization, delivery acceptance, refund, and
-settlement over time.
-
-Expected: design considers process manager, reconciler, task, or event flow
-before synchronous transaction; implementation stops if the handoff lacks
-failure, idempotency, or compensation evidence.
+- reconstructs an event timeline from business facts before tactical objects;
+- decides aggregate boundary before repository or transaction shape;
+- distinguishes Event Storming facts from Domain Events, Integration Messages,
+  state changes, read models, process steps, and non-code facts;
+- separates product reads from command-side fact lookup before loading CQRS
+  mechanics;
+- treats repository, transaction, handler, and port shapes as evidence, not as
+  the diagnosis;
+- avoids mechanism suggestions until collaboration style and failure tolerance
+  are explicit.

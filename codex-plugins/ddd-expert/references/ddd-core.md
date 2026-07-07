@@ -132,6 +132,7 @@ Rules:
 - Commands modify state; Queries return read models and do not mutate state.
 - Application constructs Domain inputs, calls Domain methods/validation, maps Domain errors outward, and manages transaction boundaries.
 - Default transaction boundary is one aggregate write per command.
+- A Repository is a write-side Aggregate collection. `Save(ctx, aggregate)` saves one mutable Aggregate Root; owned child rows may be persisted with it, but independent Aggregate Roots need an accepted collaboration model or a documented multi-aggregate transaction exception.
 - After `Repository.Save()`, the in-memory aggregate is stale. Reload before further operations.
 - Query Handler structs are optional when they only delegate once to a QueryRepository.
 - Application command-side ports are exceptions. They require the Architecture Gate placement extension and the semantic fake test.
@@ -149,6 +150,7 @@ Expose ports by caller semantics, not storage operations:
 | Routing, peer lookup, hop headers, queue subjects, retry knobs, topology | Infrastructure, not Application query port |
 
 Do not create one QueryRepository per screen, RPC, SQL statement, or minor filter. Do not create storage-shaped omnibus ports that mix producer writes, UI history, audit lookup, projection bootstrap, and unrelated reads.
+When one repository shape mixes aggregate saves with product list/detail/summary/page reads, treat it as CQRS split pressure: keep command-side aggregate loading in the Domain Repository and move product read models to QueryRepository/read facade unless the read is a command-side Domain fact needed to decide a write.
 
 #### Multi-Aggregate Transaction Exception Gate
 
@@ -248,6 +250,7 @@ Do not call another context's Domain model, Application Service, Repository, or 
 ### 5.3 Domain Events and Integration Messages
 
 Domain Events are internal same-bounded-context facts. Integration Messages are cross-context contracts.
+Event-storming facts are earlier modeling evidence: not every fact becomes a Domain Event, and not every Domain Event is published. Classify each fact by language scope, consumer, timing, and failure policy before choosing Domain Event, Integration Message, state, read model, process coordination, or no code artifact.
 
 | Property | Domain Event | Integration Message |
 |---|---|---|
@@ -364,7 +367,7 @@ Mock/stub cross-layer seams, not Domain objects. Domain tests instantiate real a
 - Cross-context interaction uses §5 mechanisms.
 - Generated protocol types do not enter Domain.
 - Async handlers have one role and justified granularity.
-- Repeated same-BC reactions use Domain Events; cross-context facts use Integration Messages.
+- Repeated same-BC reactions use Domain Events selected from business facts; cross-context facts use Integration Messages.
 - New command-side Application ports have Architecture Gate exception and semantic fake evidence.
 
 ## 11. Key Principles Summary
