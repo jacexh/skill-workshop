@@ -40,6 +40,12 @@ First emit the exact lifecycle sections from the output contract, including Outp
 Checked Flows is forbidden until exact-section gate and admission control are complete.
 Missing admission-control table invalidates every related checked row.
 Output completion gate must appear before any checked decision.
+Mandatory proof sections are table-backed gates.
+A prose-only mandatory section counts as missing for its related rows.
+Every mandatory proof row must have a stable row id.
+Every checked row must appear in Checked row admission control with the same row id.
+Grouped row scopes cannot be checked; split any row that covers multiple methods, flows, execution facts, states, ports, commands, or owners.
+Output completion gate marks a section non-empty only when table rows exist.
 
 For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
 Counterfactual defect hunt: Draft findings are not final. Before final output,
@@ -119,24 +125,24 @@ Lead with findings only when lifecycle/repository/event/CQRS gates are not trigg
 DDD review:
 - Expected model sources:
 - Evidence gate:
-- Negative decision inventory: Row | Initial decision | Evidence inspected | Row-local promotion proof | Final decision | Finding id
-- Candidate ledger: Candidate | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return; Candidate | Role | Owner proof | Repository/API evidence | Decision | Return route
-- Repository/API candidate classification: Repository/API method | Candidate | Role | Owner proof | Owned-child proof | Invariant/command outcome | Transaction evidence | Coordination alternative | Decision/return route
-- Per-flow Event Timeline Reconciliation: Flow | Fact | Event/process/reconciler owner | Recovery/failure behavior | Decision
-- Collaboration model table: Flow | Trigger fact | Affected owner | Mechanism | Recovery/failure behavior | Decision
-- Recovery reachability table: Fact | Recovery trigger | Production entrypoint | Guard after durable fact | Decision
-- Mandatory coverage matrix: Coverage row | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return
-- Finding extraction gate: Mandatory row | Decision | Finding paragraph or same-scope finding | Extraction decision
-- Counterfactual defect hunt: Checked row | Falsifier question | Evidence inspected | Decision
-- Checked row proof artifacts: Checked row | Risk family | Required proof artifact | Evidence | Decision
-- Terminal/execution fact table: Flow | Execution fact | Authorization source | Amount/result scope | Idempotency/replay rule | Failure recovery | Aggregate closure condition | Decision
-- Parent-state language table: State | State word family | Parent aggregate fact | Child/process outcome risk | Owner proof | Decision
-- CQRS semantic split table: Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
-- CQRS read-shaped method inventory: Method/port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Decision
-- Strongest-decision inheritance: Checked row | Related finding/return/gap | Independence proof | Final decision
-- Overclaim scrub: Checked row | Strongest evidence source | Forbidden promotion source | Downgrade decision
-- Output completion gate: Exact lifecycle section | Present | Non-empty | If missing decision
-- Checked row admission control: Row | Proof tuple complete | Invalid category/prose/forbidden proof | Admission decision
+- Negative decision inventory: Row id | Row scope | Initial decision | Evidence inspected | Row-local promotion proof | Final decision | Finding id
+- Candidate ledger: Row id | Candidate | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return; Row id | Candidate | Role | Owner proof | Repository/API evidence | Decision | Return route
+- Repository/API candidate classification: Row id | Repository/API method | Candidate | Role | Owner proof | Owned-child proof | Invariant/command outcome | Transaction evidence | Coordination alternative | Decision/return route
+- Per-flow Event Timeline Reconciliation: Row id | Flow | Fact | Event/process/reconciler owner | Recovery/failure behavior | Decision
+- Collaboration model table: Row id | Flow | Trigger fact | Affected owner | Mechanism | Recovery/failure behavior | Decision
+- Recovery reachability table: Row id | Fact | Recovery trigger | Production entrypoint | Guard after durable fact | Decision
+- Mandatory coverage matrix: Row id | Coverage row | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return
+- Finding extraction gate: Row id | Mandatory row | Decision | Finding paragraph or same-scope finding | Extraction decision
+- Counterfactual defect hunt: Row id | Checked row | Falsifier question | Evidence inspected | Decision
+- Checked row proof artifacts: Row id | Checked row | Risk family | Required proof artifact | Evidence | Decision
+- Terminal/execution fact table: Row id | Flow | Execution fact | Authorization source | Amount/result scope | Idempotency/replay rule | Failure recovery | Aggregate closure condition | Decision
+- Parent-state language table: Row id | State | State word family | Parent aggregate fact | Child/process outcome risk | Owner proof | Decision
+- CQRS semantic split table: Row id | Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
+- CQRS read-shaped method inventory: Row id | Method/port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Decision
+- Strongest-decision inheritance: Row id | Checked row | Related finding/return/gap | Independence proof | Final decision
+- Overclaim scrub: Row id | Checked row | Strongest evidence source | Forbidden promotion source | Downgrade decision
+- Output completion gate: Row id | Exact lifecycle section | Present | Non-empty table rows | If missing decision
+- Checked row admission control: Row id | Proof tuple complete | Invalid category/prose/forbidden proof | Admission decision
 - Checked flows:
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 - Finding generation map: Inventory row | Final decision | Finding id or evidence-gap id | Extracted paragraph
