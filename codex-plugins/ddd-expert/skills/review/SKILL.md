@@ -50,6 +50,9 @@ Section-coverage summary claims are invalid.
 Do not write that lifecycle sections are covered; emit the actual tables.
 A sentence saying a section was covered is an evidence gap until table rows follow the exact heading.
 Irreversible fact command-admission matrix: Every durable succeeded, authorized, completed, or executed fact must be tested against later cancel, retry, reopen, or refund commands that can act from stale parent state.
+CQRS write-side inventory gate: Inventory every read-shaped method on write repositories and shared adapters before CQRS checked.
+Query DTO or read facade evidence alone cannot satisfy CQRS; each checked row must name the write-side method/adapter, caller semantics, returned model family, write-side influence, storage/adapter overlap, and why no read facade should own it.
+All-checked contradiction gate: Do not write all rows checked when any mandatory row is finding, return, evidence gap, grouped, compressed, or missing admission-control proof.
 
 For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
 Counterfactual defect hunt: Draft findings are not final. Before final output,
@@ -143,7 +146,7 @@ DDD review:
 - Terminal/execution fact table: Row id | Flow | Execution fact | Authorization source | Amount/result scope | Idempotency/replay rule | Failure recovery | Aggregate closure condition | Decision
 - Parent-state language table: Row id | State | State word family | Parent aggregate fact | Child/process outcome risk | Owner proof | Decision
 - CQRS semantic split table: Row id | Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
-- CQRS read-shaped method inventory: Row id | Method/port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Decision
+- CQRS read-shaped method inventory: Row id | Write-side method/adapter or read port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Read-facade ownership decision | Decision
 - Strongest-decision inheritance: Row id | Checked row | Related finding/return/gap | Independence proof | Final decision
 - Overclaim scrub: Row id | Checked row | Strongest evidence source | Forbidden promotion source | Downgrade decision
 - Output completion gate: Row id | Exact lifecycle section | Present | Non-empty table rows | If missing decision
