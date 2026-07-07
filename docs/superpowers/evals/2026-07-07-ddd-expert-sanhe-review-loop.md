@@ -1,5 +1,31 @@
 # ddd-expert sanhe Review Evaluation Loop
 
+## Current Evaluation Set After sanhe FSM Fix
+
+This section supersedes the earlier K1-K10 scoring set for the next sanhe
+review round. Historical rounds below keep their original scores.
+
+- sanhe branch / commit: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`, with uncommitted FSM fix changes in `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, and `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- FSM fix evidence: `go test ./internal/business/tasknegotiation/domain -count=1` passed; `go test ./internal/business/tasknegotiation/... -count=1` passed.
+- Retired from active scoring: former K1, the `go-jimu/components v0.10.0` FSM API compile blocker, is fixed in the current sanhe worktree.
+- Retired from active scoring: former K9, FSM v0.10 state-polymorphism usage, is fixed enough for this eval by concrete lifecycle states, `SetState`, `fsm.Transit`, and a regression test that `CurrentState()` exposes `taskAgreementLifecycleState` behavior. Future reviews may mention FSM residual design only if they prove a new bypass; do not score the old K9 miss.
+
+Active known issues for the next round:
+
+- K2: succeeded Payment 后仍可能 pre-funded cancellation，Payment 成功事实没有压过取消。
+- K3: PaymentSucceeded recovery / reconciler 不可生产触达或未被 wiring 证明。
+- K4: split dispute 把 money execution facts 和 agreement terminal facts 混淆。
+- K5: Repository/API 跨候选 aggregate / lifecycle owner 协作，缺 candidate classification 或未升级为 return-to-modeling/design。
+- K6: delivery/refund/dispute/settlement 行为联动缺 Domain Event / process manager / reconciler 解释。
+- K7: accepted design / semantic repository transaction 被当成过强证据或 waiver。
+- K8: payment_failed / payment_cancelled 状态语义不清。
+- K10: CQRS read/write repository 混杂风险。
+
+Scoring adjustment: keep the total rubric at 100 points. Redistribute the
+45-point breadth component across the eight active known issues above. Former
+K1/K9 are regression observations only and should not inflate or penalize the
+next-round score unless the reviewer identifies a newly introduced FSM problem.
+
 ## Round 2026-07-07 v1.14.21 Baseline
 
 - skill-workshop starting point: `main@1ea2037`, released as `ddd-expert` `1.14.21`.
@@ -181,7 +207,7 @@ Rules Satisfied / Evidence:
 - skill-workshop release under evaluation: `v1.14.23`, release commit `42cc26f`.
 - preceding hotfix: `9c43a843e365e11007e738b668ab9a87591b2fc2`, PR #76, merge commit `cc403925a5eb3a8c6f55f28ef1310419d74c454e`.
 - next hotfix branch: `hotfix/ddd-review-coverage-matrix`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit / PR / merge commit / tag: `8e49640d539a0bd24f88ea5d952fdb67047904c8` / PR #77 / `9dca4837b2c5d448fe177d9a0a2c0a9b8461cf59` / `v1.14.24` (`58da9fc`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`.
 - fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
@@ -248,7 +274,7 @@ The final review block was duplicated in the saved output. Its substantive findi
 - skill-workshop release under evaluation: `v1.14.24`, release commit `58da9fc`.
 - preceding hotfix: `8e49640d539a0bd24f88ea5d952fdb67047904c8`, PR #77, merge commit `9dca4837b2c5d448fe177d9a0a2c0a9b8461cf59`.
 - next hotfix branch: `hotfix/ddd-review-candidate-ledger`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit / PR / merge commit / tag: `a289847e1136a594f428cdb9b69b76435f5949dd` and `9c39ed752ec3bf8e376af79c568f6a081034dc0c` / PR #78 / `11d9d0c6d97b97955036b085584bf18da7959fef` / `v1.14.25` (`cd120ac`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`, ahead of `origin/feature/task-agreement` by 1; dirty `go.mod`, `go.sum`.
 - fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
@@ -306,3 +332,54 @@ Coverage Matrix:
 - Added release assertions for candidate ledger, per-flow Event Timeline Reconciliation, recovery reachability table, strict checked-row proof fields, split money execution versus aggregate terminal closure, retry-state semantics, and CQRS proof beyond names/shared adapters.
 - Strengthened review output contract so checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding.
 - Strengthened risk/core rules to separate split execution facts from aggregate terminal closure, route ambiguous failed/cancelled/pending states as state-language semantics risks, and reject shared infrastructure implementation as CQRS proof.
+
+## Round 2026-07-07 v1.14.25 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.25`, release commit `cd120ac`.
+- preceding hotfix: `a289847e1136a594f428cdb9b69b76435f5949dd` and `9c39ed752ec3bf8e376af79c568f6a081034dc0c`, PR #78, merge commit `11d9d0c6d97b97955036b085584bf18da7959fef`.
+- next hotfix branch: `hotfix/ddd-review-output-contract`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command template: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message <output> '<fixed review prompt>'`
+- complete raw review outputs:
+  - A: `/tmp/sanhe-ddd-review-v1.14.25.md`, 4,684 bytes.
+  - B: `/tmp/sanhe-ddd-review-v1.14.25-b.md`, 4,570 bytes.
+  - C: `/tmp/sanhe-ddd-review-v1.14.25-c.md`, 5,768 bytes.
+- post-review calibration outputs:
+  - A: `/tmp/sanhe-ddd-review-v1.14.25-reflection.md`, 15,436 bytes.
+  - B: `/tmp/sanhe-ddd-review-v1.14.25-b-reflection.md`, 14,210 bytes.
+  - C: `/tmp/sanhe-ddd-review-v1.14.25-c-reflection.md`, 12,626 bytes.
+
+### Three-Reviewer Output Summary
+
+- Reviewer A found K1/K2, shallowly covered K3/K9, and missed K4/K5/K6/K7/K8/K10. It produced only two findings and no mandatory ledger/matrix sections.
+- Reviewer B found K1/K2/K3, shallowly covered K5/K7/K9, and missed K4/K6/K8/K10. It still used a prose coverage classification rather than the required ledger/matrix sections.
+- Reviewer C found K1/K2/K3/K4, shallowly covered K5/K6/K9, and missed K7/K8/K10. It additionally found an infrastructure-owned delivery lifecycle transition, but still collapsed candidate ledger and coverage proof into prose.
+
+### Score
+
+- Breadth: 30 / 45. Stable coverage: K1, K2. Mostly stable: K3. Unstable/one-run coverage: K4. Shallow coverage: K5, K6, K7, K9. Missed across the ensemble: K8 and K10.
+- Depth: 29 / 45. K1-K3 had concrete evidence, impact, and implementation direction in most runs; K4 was deep only in one run. K5/K6/K7/K9 lacked complete candidate decisions, event/process/reconciler proof, accepted-design non-waiver analysis, or state-polymorphism depth.
+- Review discipline: 5 / 10. The review no longer always stops at compile blockers, but all three outputs failed to emit mandatory Candidate ledger / Per-flow Event Timeline Reconciliation / Recovery reachability table / Mandatory coverage matrix sections. `checked` rows remained unsupported prose, and high-severity findings still narrowed attention.
+- Total: 64 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partially effective but not reliable enough. The v1.14.24 fix improved some rows and one reviewer found K4, but the intended Candidate ledger / checked-row proof contract was not actually reflected in final output. The optimization did not become a hard output gate.
+- Missing finding: K8 state-language semantics was missed in all three outputs; failed/cancelled/pending style states were not forced into a state-language row.
+- Missing finding: K10 CQRS read/write blending was missed or over-checked; QueryRepository/read model naming was still treated too favorably without caller-semantics and shared-adapter proof.
+- Shallow root cause: K5 candidate aggregate/lifecycle-owner classification appeared only as prose in B/C, not as a decision ledger with evidence and return route.
+- Shallow root cause: K6 behavior linkage was detected in one extra delivery placement finding and one shallow reflection, but not as a full per-flow event/process/reconciler review.
+- Shallow root cause: K7 accepted design and semantic repository transaction non-waiver remained weak; the reviewers did not force accepted evidence through candidate classification.
+- Shallow root cause: K9 FSM API mismatch was consistently found, but state polymorphism was shallow or masked by compile errors.
+- Overclaim: coverage summaries used `checked` without the exact rule satisfied and why the risk was not a finding.
+- Strategy change: move from "instructions say produce a ledger" to "final output template contains required lifecycle sections with fixed proof columns, and tests assert those sections/columns exist". Findings or compile blockers cannot remove mandatory sections.
+
+### Generic Fix Summary
+
+- Added release assertions that the review output template must contain explicit `Candidate ledger:`, `Per-flow Event Timeline Reconciliation:`, `Recovery reachability table:`, and `Mandatory coverage matrix:` sections with generic proof columns.
+- Strengthened the review output contract so lifecycle sections are required even when findings already exist, compile/build blockers cannot remove sections, and checked-flow prose cannot replace mandatory sections.
+- Strengthened core/router rules to state that mandatory lifecycle output sections remain required after high-severity findings and compile blockers.
+- Strengthened the aggregate-boundary ledger so multi-candidate Repository/API evidence requires role, owner proof, Repository/API evidence, decision, and return route; unclassified or owner-unproven candidates cannot be marked checked.
