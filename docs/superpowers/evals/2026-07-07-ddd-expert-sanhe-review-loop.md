@@ -716,7 +716,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.33`, release commit `193f311be3bacc44e011f360b3f1828e21d4007c`.
 - preceding hotfix: `d51a77eaee30700bde3b8727043f2a549ec21ee5`, PR #86, merge commit `51727db8655da3812901a7ba2639d2a8e8512a42`.
 - next hotfix branch: `hotfix/ddd-review-exact-lifecycle-template`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `7ea6fae80bcf95625bde47a201f5da8da8d60b0e`; PR #87, merge commit `67695d1b04d0a8fec1662a6a2c2ccb0b892b7cc5`, release `v1.14.34` (`6b3ee938a31adf2c3d6f567cf22bc96b73960d53`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.33`.
@@ -757,3 +757,54 @@ Coverage Matrix:
 - Add release assertions that exact lifecycle section names are required and compact `Mandatory review sections` blocks cannot replace them.
 - Require the output completion gate to list each exact lifecycle section and mark missing sections as evidence gaps.
 - Forbid checked or Rules Satisfied rows when exact mandatory sections are missing.
+
+## Round 2026-07-08 v1.14.34 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.34`, release commit `6b3ee938a31adf2c3d6f567cf22bc96b73960d53`.
+- preceding hotfix: `7ea6fae80bcf95625bde47a201f5da8da8d60b0e`, PR #87, merge commit `67695d1b04d0a8fec1662a6a2c2ccb0b892b7cc5`.
+- next hotfix branch: `hotfix/ddd-review-negative-inventory`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.34`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: background reviewer in `/home/xuhao/sanhe` using the fixed prompt after plugin upgrade.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.34.md`, 8,517 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.34-reflection.md`, 10,960 bytes.
+- verification inside review: `git diff --check`, domain tests, application tests, and eventhandler/ui tests passed; full `go test ./internal/business/tasknegotiation/...` was interrupted after about 130 seconds while infrastructure tests were still running.
+
+### Output Summary
+
+- The reviewer found K3 as a blocker: `PaymentSucceeded` durable fact can be lost without a production recovery path.
+- The reviewer found K5 as a major issue: repositories bundle independent aggregate roots into multi-aggregate transactions beyond the design exception.
+- The reviewer partially covered K2 through stale lifecycle impact but did not enumerate pre-funded cancellation/retry command rights after durable success.
+- The reviewer overclaimed K4: terminal/execution fact table said same persistence call prevents immediate divergence and folded the concern into repository F2.
+- The reviewer shallowly covered K6 by saying delivery/refund/dispute/settlement flows use transactional coupling, but did not classify each link by collaboration mechanism.
+- The reviewer overclaimed K7 by leaving conditional positive language such as acceptable-if/covered-by-transaction without proof artifacts.
+- The reviewer missed K8: failed/cancelled parent-state language was not enumerated.
+- The reviewer overclaimed K10: CQRS no-finding relied on query DTO separation and a high-level read-shaped method inventory, not per-method semantic proof.
+
+### Score
+
+- Breadth: 27 / 45. Found K3 and K5; shallowly covered K2 and K6; overclaimed K4, K7, and K10; missed K8.
+- Depth: 21 / 45. Recovery and repository-boundary evidence were useful, but command-right enumeration, split execution proof, collaboration mechanisms, state vocabulary enumeration, and CQRS per-method proof were still weak.
+- Review discipline: 5 / 10. Exact section names appeared, but several sections were shallow prose rather than decision artifacts, and checked/no-finding rows were not earned.
+- Total: 53 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: failed. Exact section names were present, but the reviewer still wrote findings first and used the sections as post-hoc summaries. The structure did not force discovery of K8/K10 or extraction of K4/K6.
+- Shallow root cause: K2 needs a command-rights inventory after durable facts, not just a stale-lifecycle impact statement.
+- Overclaim: K4 shows that a terminal/execution section can still be written as a transaction justification; the review must derive negative decisions before findings.
+- Shallow root cause: K6 remains absorbed by broad repository collaboration instead of classified per linked behavior.
+- Overclaim: K7 persists when positive conditional phrases survive beside negative repository findings.
+- Missing finding: K8 persists because state-language enumeration was not mechanically required before findings.
+- Overclaim: K10 persists because CQRS inventory was category-level prose rather than per-method negative/positive decisions.
+- Strategy change: invert the review order. For lifecycle/repository/event/CQRS scope, the reviewer must build a negative decision inventory first, before writing findings or any checked/Rules Satisfied rows. Every mandatory row starts as `unresolved`; only row-local proof can promote it to checked. Findings are generated from unresolved/finding/return/evidence-gap rows after the inventory, not before it.
+
+### Generic Fix Summary
+
+- Add release assertions for a negative decision inventory before findings.
+- Require all mandatory lifecycle rows to start `unresolved`, then be promoted only by row-local proof.
+- Require finding generation from the inventory; pre-written findings cannot satisfy inventory rows.
+- Prohibit checked/Rules Satisfied output until the inventory is complete and every negative row is extracted or cited.

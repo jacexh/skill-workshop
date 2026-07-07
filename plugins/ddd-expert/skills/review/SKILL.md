@@ -64,6 +64,7 @@ CQRS read-shaped method inventory must inspect every read-shaped method on write
 checked rows inherit the strongest negative decision unless independence is proven; a related finding, return, evidence gap, or caveat dominates positive local proof.
 Use the exact mandatory section names. Evidence Matrix is not a substitute for mandatory sections. Free-form summary matrices may not contain checked decisions; they are commentary only after all mandatory sections are complete.
 Compact Mandatory review sections blocks are invalid for lifecycle scope. Lifecycle exact-section gate: when lifecycle, repository, event/reaction, terminal/execution, state-language, or CQRS scope is active, the final output must include each exact lifecycle section from the template, including Finding extraction gate:, Terminal/execution fact table:, Parent-state language table:, CQRS read-shaped method inventory:, and Strongest-decision inheritance:. If any exact lifecycle section is missing, do not mark any related row checked or Rules Satisfied. Output completion gate must list every exact lifecycle section. Missing exact section becomes evidence gap.
+Negative decision inventory runs before findings for lifecycle/repository/event/CQRS scope. All mandatory lifecycle rows start as `unresolved`; Row-local proof is the only promotion path from `unresolved` to `checked`. Findings are generated from negative inventory rows after the inventory is complete. Pre-written findings cannot satisfy inventory rows; a finding paragraph may cite an inventory row, but it cannot replace the row's evidence, promotion proof, and final decision.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
 ## Default-first key concept check
@@ -97,12 +98,13 @@ resolving model ownership.
 
 ## Output
 
-Lead with findings. Use concise output only when lifecycle/repository/event/CQRS gates are not triggered.
+Lead with findings only when lifecycle/repository/event/CQRS gates are not triggered. For lifecycle/repository/event/CQRS scope, lead with the negative decision inventory, then generate findings from it.
 
 ```text
 DDD review:
 - Expected model sources:
 - Evidence gate:
+- Negative decision inventory: Row | Initial decision | Evidence inspected | Row-local promotion proof | Final decision | Finding id
 - Checked flows:
 - Candidate ledger: Candidate | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return; Candidate | Role | Owner proof | Repository/API evidence | Decision | Return route
 - Repository/API candidate classification: Repository/API method | Candidate | Role | Owner proof | Owned-child proof | Invariant/command outcome | Transaction evidence | Coordination alternative | Decision/return route
@@ -120,6 +122,7 @@ DDD review:
 - Strongest-decision inheritance: Checked row | Related finding/return/gap | Independence proof | Final decision
 - Output completion gate: Exact lifecycle section | Present | Non-empty | If missing decision
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
+- Finding generation map: Inventory row | Final decision | Finding id or evidence-gap id | Extracted paragraph
 
 Finding: <severity> <axis> <title>
 - Evidence: <file:line>
