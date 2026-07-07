@@ -949,3 +949,50 @@ Coverage Matrix:
 - Prohibit lifecycle-scope final answers from using a Findings-first or Checked-flows-only shape.
 - Require the output completion gate to appear before any checked decisions and to enumerate exact required sections.
 - State that missing admission-control or exact lifecycle sections invalidates every related checked row and forces evidence gap/return instead of partial summary acceptance.
+
+## Round 2026-07-08 v1.14.38 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.38`, release commit `7fc8d7c1d8535fdf71a928c756b621cf4a6aa4f3`.
+- preceding hotfix: `056b6a227f3fc791e77e41955adffcaeff4d1db3`, PR #91, merge commit `3bb8698326647fbc9f747fe99e818ddf3b39dc0d`.
+- next hotfix branch: `hotfix/ddd-review-row-id-admission-gate`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.38`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.38.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.38.md`, 10,899 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.38-reflection.md`, 6,972 bytes.
+- verification inside review: `go test ./internal/business/tasknegotiation/domain -run 'TestTaskAgreement|TestPayment' -count=1` passed; `go test ./internal/business/tasknegotiation/application -run 'Payment|Funding|CancelTaskAgreement|ReconcileSucceededPayments' -count=1` passed; `go test ./internal/business/tasknegotiation/... -count=1` was interrupted after infrastructure stalled.
+
+### Output Summary
+
+- The reviewer found K2 as F1, K3 as F2, and K8 as F3.
+- The reviewer emitted the exact lifecycle sections and moved findings after the sections, so v1.14.38 fixed the v1.14.37 findings-first failure.
+- The reviewer still overclaimed K4/K6/K7, wrong-triaged K5, and shallowly handled K10. Exact sections were populated by prose or grouped rows such as "Refund/dispute/settlement terminal split", "delivery/refund/dispute terminal split", and "CQRS query DTO".
+- Checked row admission-control was not a real table of row-local proof tuples; it was a paragraph saying checked rows had been inspected.
+
+### Score
+
+- Breadth: 27 / 45. Strong coverage: K2, K3, K8. K4/K5/K6/K7/K10 were touched but stayed unsupported, overclaimed, or wrong-triaged.
+- Depth: 23 / 45. Payment precedence and recovery reachability remained concrete. Repository, split execution, collaboration, accepted-design non-waiver, and CQRS analysis stayed summary-level.
+- Review discipline: 5 / 10. The exact-section order improved and it avoided full-suite overclaim, but it still converted grouped/prose sections into checked conclusions.
+- Total: 55 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partial. The hard preamble forced section order and prevented findings-first output, but did not force table-backed row-local proof inside each section.
+- Overclaim: K4 persisted because the terminal/execution fact section was a prose sentence, not one row per execution fact plus a separate aggregate closure row.
+- Wrong triage: K5 persisted because a grouped repository classification sentence was accepted as "tight paired decision save" without per-method candidate roles, owner proof, owned-child proof, invariant outcome, failure tolerance, or coordination alternative.
+- Overclaim: K6 persisted because command-internal lifecycle progression was treated as collaboration proof without per-trigger mechanism and recovery/failure behavior.
+- Overclaim: K7 persisted because accepted design plus semantic transaction shape still carried positive decisions.
+- Shallow root cause: K10 remained shallow because CQRS read-shaped method inventory was a prose summary rather than one row per method/port.
+- Root cause: exact sections are still counted as populated when they contain prose or category rows. Checked admission must be row-id based: every checked row in every mandatory table must have a matching admission-control row with complete proof tuple; prose-only sections and grouped rows cannot produce checked decisions.
+
+### Generic Fix Summary
+
+- Require mandatory lifecycle proof sections to be markdown tables with stable row ids.
+- Define prose-only mandatory sections as missing/evidence-gap for related rows.
+- Require every checked row in any mandatory section to appear in `Checked row admission control` with the same row id and complete proof tuple.
+- Forbid grouped row ids or row scopes that combine multiple methods, flows, execution facts, states, or ports from being checked.
+- Require output completion gate to mark a section non-empty only when it has table rows, not prose summaries.
