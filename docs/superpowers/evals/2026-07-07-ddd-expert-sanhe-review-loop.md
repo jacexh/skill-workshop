@@ -437,7 +437,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.27`, release commit `ccdc239f16f98755c82da6c1144b590eb1ac4d42`.
 - preceding hotfix: `f2d0a1c415a86afba11464bf183b0788c4926d81` and `e21625f55376ae6c25437b9de0bf58e45f898075`, PR #80, merge commit `e74441ce82d3a2f530e71f55bcd41032a928d466`.
 - next hotfix branch: `hotfix/ddd-review-falsification-ledger`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `b083e1fbfda2ee531fdaecf601877acb7f390808`; PR #81, merge commit `ee253b56419d077b56a34d776cb83596fde9f7f3`, release `v1.14.28` (`b8ca0fa892abb89bb4546b24084c7b361fc80a36`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - reviewer model / reasoning evidence: subagent and nested `codex exec` used no explicit override; `/home/xuhao/.codex/config.toml` sets `model = "gpt-5.5"` and `model_reasoning_effort = "xhigh"`.
@@ -476,3 +476,49 @@ Coverage Matrix:
 - Added a mandatory counterfactual falsification ledger to the review output contract so checked/no-finding rows must name the falsifier question, inspected evidence, and decision.
 - Strengthened risk-router/core rules so no-finding rows remain provisional until falsification evidence is named.
 - Removed the unrelated hard 105-line review-skill limit from release tests; the user did not require it and it was pushing protocol text toward harmful compression.
+
+## Round 2026-07-08 v1.14.28 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.28`, release commit `b8ca0fa892abb89bb4546b24084c7b361fc80a36`.
+- preceding hotfix: `b083e1fbfda2ee531fdaecf601877acb7f390808`, PR #81, merge commit `ee253b56419d077b56a34d776cb83596fde9f7f3`.
+- next hotfix branch: `hotfix/ddd-review-proof-artifacts`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.28`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.28.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.28.md`, 9,316 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.28-reflection.md`, 9,381 bytes.
+
+### Output Summary
+
+- The reviewer found K2: durable `PaymentSucceeded` does not close retry/cancel rights while agreement remains open.
+- The reviewer found K3: the payment reconciler exists but is not production-reachable.
+- The reviewer found K8: `payment_failed` / `payment_cancelled` are unowned agreement states that look like child-process language.
+- The reviewer overclaimed K4: it marked split dispute terminal/execution facts checked after seeing separate money execution objects and a split-closure method, without proving every authorization, execution, and aggregate closure fact.
+- The reviewer overclaimed K5: it named aggregate-boundary candidates but marked them checked with accepted design and transaction disclaimers instead of owner-proof classification per Repository/API operation.
+- The reviewer shallowly covered K6/K7 and overclaimed K10: synchronous command/repository transactions, accepted design, QueryRepository naming, and DTO/package shape were treated as sufficient proof.
+
+### Score
+
+- Breadth: 23 / 45. Found K2, K3, and K8. K6/K7 were touched shallowly. K4/K5/K10 were present only as overchecked rows.
+- Depth: 20 / 45. Payment precedence/recovery depth was strong, state-language semantics was adequate, but split facts, aggregate candidate proof, event/process ownership, accepted-design non-waiver, and CQRS falsification were weak.
+- Review discipline: 6 / 10. The output included mandatory sections and a counterfactual defect hunt, but it violated the intent by marking several rows checked without their required proof artifacts.
+- Total: 49 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: failed in the intended direction. The falsification ledger appeared, but it covered only a few rows and did not force weak checked rows to downgrade.
+- Overclaim: K4 needs a terminal/execution proof artifact. A split or multi-execution flow cannot be checked from object separation alone; it needs authorization fact, execution fact, aggregate closure fact, owner, trigger, persistence boundary, and recovery stance.
+- Overclaim: K5 needs a Repository/API candidate proof artifact per operation. A generic candidate list plus accepted design disclaimer is not enough to mark aggregate-boundary risk checked.
+- Shallow root cause: K6 needs behavior-linkage classification for every cross-lifecycle transition: same-aggregate invariant, application coordination, Domain Event reaction, process manager, reconciler, Integration Message, or owner-proven synchronous decision record.
+- Overclaim: K7 shows that knowing "accepted design is not waiver" is insufficient; checked rows must name independent code evidence implementing the accepted decision, or return/evidence-gap.
+- Overclaim: K10 needs a CQRS semantic proof artifact covering caller semantics, port/interface methods, returned model family, write-side overlap, and adapter overlap. QueryRepository names and DTOs are not proof.
+- Strategy change: introduce checked-row proof artifacts. A mandatory coverage row can be `checked` only if it cites the artifact type required for that risk family; otherwise it must be finding, evidence gap, or return route.
+
+### Generic Fix Summary
+
+- Added proof-artifact requirements for checked rows: aggregate-boundary rows require candidate classification and owner proof, event/reaction rows require per-flow timeline proof, split/terminal rows require terminal/execution fact proof, and CQRS rows require semantic split proof.
+- Added output sections for checked-row proof artifacts, terminal/execution fact table, and CQRS semantic split table.
+- Strengthened router/core rules so transaction evidence, accepted design, QueryRepository names, DTOs, and package shape can populate evidence but cannot by themselves satisfy a checked row.
