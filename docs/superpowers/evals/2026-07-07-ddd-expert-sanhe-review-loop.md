@@ -1237,3 +1237,51 @@ Coverage Matrix:
 - Require same-scope `checked` decisions to be downgraded when any related negative row exists.
 - Require grouped method/flow/candidate rows to use `not admitted` instead of `checked`.
 - Require independent-scope exceptions to name a row-local scope boundary before any checked decision.
+
+## Round 2026-07-08 v1.14.44 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.44`, release commit `7ce336f65ba91a08992f313d3bb9fec8d724e0c5`.
+- preceding hotfix: `7cea8e6d62b06706b4f7d81309d80dd57c89e3c5`, PR #97, merge commit `5f7d1042a1f74d099a9283d889c6b5b2c925548f`.
+- next hotfix branch: `hotfix/ddd-review-not-claimed-extraction`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.44`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.44.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.44.md`, 10,940 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.44-reflection.md`, 2,732 bytes.
+- verification inside review: final saved review reported `go test ./internal/business/tasknegotiation/domain -run TestTaskAgreement -count=1` failed because the read-only sandbox blocked `/tmp/go-build...`.
+
+### Output Summary
+
+- The reviewer found K2: durable `PaymentSucceeded` can leave agreement in `payment_pending`, allowing cancel and duplicate payment start.
+- The reviewer shallowly found K3: it reported the production-reachability gap for reconciler, but the recovery table still said `PaymentSucceededHandler` is `fx subscribed | reachable`, treating handler registration too positively.
+- The reviewer shallowly touched K4: split closure was `not claimed` / evidence gap, but it did not identify terminal lifecycle events emitted before all execution facts are separated/completed.
+- The reviewer overclaimed K5: Repository/API classification used method summaries and `Repository: covered`, not method-level aggregate-boundary candidate ownership proof.
+- The reviewer shallowly touched K6: delivery/refund/dispute/settlement collaborations were listed as command transaction/authorization or command coordination and then `not claimed`, without finding the missing collaboration model.
+- The reviewer overclaimed K7: it still used positive coverage words such as `covered`, `reachable`, and `shape matches` from accepted design/event lists, DTO/query shape, command sequencing, and handler registration.
+- The reviewer shallowly touched K8: it identified `payment_pending` as overloaded, but did not enumerate `payment_failed` / `payment_cancelled` and parent-vs-child meaning.
+- The reviewer overclaimed K10: it said CQRS was covered and cited QueryRepository/DTO/read facade evidence, but did not inventory read-shaped methods on write repositories/shared adapters with caller semantics.
+- Negative-scope lock worked: no literal same-scope table row was left as `checked`; however, `not claimed` and positive wording became the new escape hatch.
+
+### Score
+
+- Breadth: 24 / 45. K2 was found strongly. K3/K4/K6/K8 were shallow. K5/K7/K10 were overclaimed.
+- Depth: 26 / 45. Payment stale-command depth was concrete. Recovery, terminal events, repository ownership, collaboration model, state vocabulary, and CQRS inventory were not carried deep enough.
+- Review discipline: 6 / 10. Checked rows were suppressed, but the output used `not claimed`, `covered`, `reachable`, and `shape matches` as substitutes for decision quality.
+- Total: 56 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: mixed/regressive. Negative-scope lock removed table-internal `checked`, but the reviewer replaced it with `not claimed` and positive coverage words, reducing false checked rows while lowering issue extraction depth.
+- Structural failure: `not claimed` is now treated as a safe terminal state. It must instead become evidence gap, return, or finding when the row is in mandatory lifecycle/repository/event/CQRS scope.
+- Overclaim root cause: words like `covered`, `reachable`, `shape matches`, `appears guarded`, and `no blocker found` are unchecked positive conclusions and should be forbidden while negative decisions exist.
+- Strategy change: add not-claimed extraction and positive-word scrub. Any `not claimed` mandatory row must be extracted as evidence gap/return/finding with a reason. Positive coverage words in mandatory rows must be downgraded unless admitted by row-local proof.
+
+### Generic Fix Summary
+
+- Add release assertions that `not claimed` cannot be a final mandatory-row decision.
+- Require every not-claimed lifecycle/repository/event/CQRS row to become evidence gap, return, or finding.
+- Forbid positive coverage words such as `covered`, `reachable`, `shape matches`, `appears guarded`, and `no blocker found` while negative decisions exist.
+- Require grouped CQRS inventory placeholders such as bare method-name lists to become evidence gaps unless every required column is filled.
