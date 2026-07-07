@@ -1189,3 +1189,51 @@ Coverage Matrix:
 - Require Output Completion to validate exact required columns, not just section presence/non-empty rows.
 - Replace checked-flow summaries with residual-risk summaries while negative decisions exist.
 - Forbid `Rules Satisfied` entries for lifecycle/repository/event/CQRS scopes when any same-scope row is finding, return, evidence gap, grouped, missing exact columns, or not admitted.
+
+## Round 2026-07-08 v1.14.43 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.43`, release commit `ee2b9c673500283e9f5c7faadd734b2a170b3d1f`.
+- preceding hotfix: `1e2a7ba8edbe80790595d9d46ef26623577bbc23`, PR #96, merge commit `38ab6bedf04b579b613004a9dca4922ebc321b02`.
+- next hotfix branch: `hotfix/ddd-review-negative-scope-lock`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.43`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.43.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.43.md`, 19,235 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.43-reflection.md`, 3,443 bytes.
+- verification inside review: `go test ./internal/business/tasknegotiation/domain`, `go test ./internal/business/tasknegotiation/application`, and `go test ./internal/business/tasknegotiation/...` passed from cache.
+
+### Output Summary
+
+- The reviewer found K2 as F1/N1/IR1/IR2: durable `PaymentSucceeded` can leave Agreement in `payment_pending`, with retry and cancel still admitted.
+- The reviewer found K3 as F2/N2/RR1/EV1/CM1: recovery is not production reachable and handler/command existence is insufficient.
+- The reviewer found K8 as F3: parent-state language table enumerated `payment_pending`, `payment_failed`, and `payment_cancelled`; F3 caught failed/cancelled as parent states without durable parent facts, and F1 handled stale `payment_pending`.
+- The reviewer found K10 as EG1: read-shaped write-side repository methods need caller/write-side ownership proof; it did not clear CQRS solely via QueryRepository/DTO evidence.
+- The reviewer overclaimed K4: split/refund/settlement terminal execution was checked in IR4, MC3, TE2-TE4, CM3, and SD4 without adequate lifecycle event timing/fact-separation proof.
+- The reviewer overclaimed K5: REP2/REP3 were checked while coordinating multiple lifecycle candidates; REP3 grouped methods and relied on transaction shape, accepted atomic creation, and owner method names.
+- The reviewer overclaimed K6: CM2/CM3 checked synchronous command coordination and command-side reconciliation instead of proving a selected process manager/reconciler/domain-event/atomic-transaction policy.
+- The reviewer overclaimed K7: Overclaim scrub said forbidden proof was not used, but checked rows still leaned on accepted design, DTO/query shape, package separation, and semantic names while unresolved model pressure remained.
+- Positive-conclusion quarantine worked: raw output explicitly omitted `Checked flows` and positive `Rules Satisfied` while negative decisions existed.
+
+### Score
+
+- Breadth: 34 / 45. K2, K3, K8, and K10 were found. K4, K5, K6, and K7 were touched but overclaimed.
+- Depth: 29 / 45. Payment stale-command/recovery and state-language findings were concrete, and CQRS improved to a real evidence gap. Terminal event timing, aggregate-boundary candidate proof, collaboration-policy proof, and non-waiver analysis were still too shallow.
+- Review discipline: 7 / 10. Positive summary quarantine worked and verification limits were clear, but table-internal checked rows still violated the review protocol.
+- Total: 70 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partial. Positive `Checked flows` / `Rules Satisfied` leakage was fixed, and K10 improved to found, but K4/K5/K6/K7 remained false-positive checked rows inside mandatory tables.
+- Structural failure: positive rows inside mandatory sections are still treated as harmless even when same-scope negative rows exist. The model obeyed the summary quarantine but not table-internal admission discipline.
+- Overclaim root cause: same-scope negative decisions do not currently lock the scope. Rows in the same lifecycle/repository/event/CQRS cluster can still be marked `checked` if they look locally plausible.
+- Strategy change: add a negative-scope lock. When any lifecycle/repository/event/CQRS row is finding, return, evidence gap, grouped, missing exact columns, or not admitted, every same-scope `checked` decision is invalid and must become `not admitted`, `not claimed`, `return`, or `evidence gap` unless it is explicitly marked unrelated by a row-local scope boundary.
+
+### Generic Fix Summary
+
+- Add release assertions for negative-scope lock and table-internal checked prohibition.
+- Require same-scope `checked` decisions to be downgraded when any related negative row exists.
+- Require grouped method/flow/candidate rows to use `not admitted` instead of `checked`.
+- Require independent-scope exceptions to name a row-local scope boundary before any checked decision.
