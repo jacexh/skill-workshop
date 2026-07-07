@@ -63,6 +63,7 @@ State-language enumeration must inspect every parent state whose vocabulary look
 CQRS read-shaped method inventory must inspect every read-shaped method on write repositories or shared adapters before marking read/write split checked.
 checked rows inherit the strongest negative decision unless independence is proven; a related finding, return, evidence gap, or caveat dominates positive local proof.
 Use the exact mandatory section names. Evidence Matrix is not a substitute for mandatory sections. Free-form summary matrices may not contain checked decisions; they are commentary only after all mandatory sections are complete.
+Compact Mandatory review sections blocks are invalid for lifecycle scope. Lifecycle exact-section gate: when lifecycle, repository, event/reaction, terminal/execution, state-language, or CQRS scope is active, the final output must include each exact lifecycle section from the template, including Finding extraction gate:, Terminal/execution fact table:, Parent-state language table:, CQRS read-shaped method inventory:, and Strongest-decision inheritance:. If any exact lifecycle section is missing, do not mark any related row checked or Rules Satisfied. Output completion gate must list every exact lifecycle section. Missing exact section becomes evidence gap.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
 ## Default-first key concept check
@@ -117,7 +118,7 @@ DDD review:
 - CQRS semantic split table: Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
 - CQRS read-shaped method inventory: Method/port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Decision
 - Strongest-decision inheritance: Checked row | Related finding/return/gap | Independence proof | Final decision
-- Output completion gate: Required section | Present | Non-empty | If missing decision
+- Output completion gate: Exact lifecycle section | Present | Non-empty | If missing decision
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 
 Finding: <severity> <axis> <title>
