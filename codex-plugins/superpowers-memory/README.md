@@ -39,7 +39,7 @@ Manual hook config is not recommended. Native lifecycle config lives in `hooks/h
 
 ## Capabilities
 
-- **SessionStart hook** — reports KB availability, lightweight KB freshness status, plus standing primer for using `$superpowers-memory:query`; `index.md` is read on demand by the query skill. Stale status is informational and is not an automatic ingest trigger.
+- **SessionStart hook** — reports KB availability and a standing primer for using `$superpowers-memory:query`; it does not inject freshness status or inline `index.md`. The query skill reads `index.md` on demand.
 - **Storage path** — uses `docs/superpowers/memory/`.
 - **UserPromptSubmit hook** — when user types `$superpowers:brainstorming` or `$superpowers:finishing-a-development-branch`, JIT-injects relevant context (query advisory or finishing-readiness review). For stale branches, it treats finishing as a maintenance checkpoint and asks the agent to inspect changed files before deciding whether `$superpowers-memory:ingest` is needed.
 - **PreToolUse hook** — blocks `apply_patch` and `mcp__filesystem__.*` writes to `docs/superpowers/memory/` unless write-lock is held by `$superpowers-memory:ingest`.
