@@ -1043,3 +1043,51 @@ Coverage Matrix:
 - Add a mandatory `Irreversible fact command-admission matrix` for lifecycle reviews.
 - Require every durable succeeded/authorized/completed/executed fact to be checked against later cancel/retry/reopen/refund commands that can still act from stale parent state.
 - Extend output completion/admission rules so a section is present only when the actual table follows the heading; a "covered" sentence is evidence gap.
+
+## Round 2026-07-08 v1.14.40 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.40`, release commit `89b9826fc1cfa83352b6d12d3caef778334aa233`.
+- preceding hotfix: `ddbc0249c6fcca8b51dd45394114ec753d329404`, PR #93, merge commit `bed0d302a51626e535c9582f11a145b401da3723`.
+- next hotfix branch: `hotfix/ddd-review-cqrs-write-inventory`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.40`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.40.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.40.md`, 10,659 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.40-reflection.md`, 7,217 bytes.
+- verification inside review: `go test ./internal/business/tasknegotiation/domain ./internal/business/tasknegotiation/application/eventhandler ./internal/business/tasknegotiation/application` passed from cache; full `go test ./...` was not run.
+
+### Output Summary
+
+- The reviewer strongly found K2 as F1: succeeded Payment can be invalidated by stale agreement cancel/retry commands.
+- The reviewer strongly found K3 via the same F1: reconciler exists but lacks production wiring.
+- The reviewer found K4 as F2: split dispute emits terminal `TaskAgreementRefunded/Settled` before terminal agreement closure and misses `TaskAgreementClosedByDisputeResolution`.
+- The reviewer found K7 pressure as F3 by challenging cross-root `SaveRefundExecution(refund, agreement)` / `SaveSettlementExecution(settlement, agreement)` instead of waiving semantic transactions.
+- The reviewer found K8 as an evidence gap around parent `payment_failed/payment_cancelled` states.
+- K5 and K6 were shallow: F3 returned the cross-root execution saves to design, but candidate classification and collaboration mechanism rows were still compressed.
+- K10 was overclaimed: CQRS was marked passing from query DTO repository evidence and absence of aggregate returns, without inventorying read-shaped methods on write repositories/shared adapters.
+
+### Score
+
+- Breadth: 37 / 45. Found K2, K3, K4, K7, and K8. Partially covered K5 and K6. Overclaimed K10.
+- Depth: 34 / 45. F1 and F2 were evidence-backed and behaviorally precise. F3 was directionally right but did not meet row-per-method candidate/collaboration depth. CQRS proof remained too weak.
+- Review discipline: 7 / 10. The review used the new command-admission matrix and reported verification limits, but still wrote an `Output completion gate` overclaim that all rows were checked while K5/K6 were compressed and K10 lacked write-side inventory.
+- Total: 78 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: effective for K2 and table pressure. The command-admission matrix restored the core PaymentSucceeded stale-command finding and improved K4/K7. It did not fully prevent K5/K6 compression or K10 overclaim.
+- Shallow root cause: K5 needs a row per repository/API method with one candidate per row or explicit candidate list, owner proof, owned-child proof, invariant outcome, transaction evidence, and coordination alternative. The review named two methods but did not fully classify candidates.
+- Shallow root cause: K6 needs one collaboration row per linked lifecycle reaction, with trigger fact, affected owner, mechanism, failure/recovery behavior, and whether synchronous atomic transaction is explicitly accepted.
+- Overclaim: K10 persisted because separate query DTO repository proof is not enough. CQRS review must start from write repositories/shared adapters and inventory every read-shaped `Get/List/Find/Query/Count` method or shared adapter read path before any checked conclusion.
+- Discipline gap: `Output completion gate` can still state "all rows checked" even when any section has return/finding/evidence-gap decisions or compressed rows.
+- Strategy change: add CQRS write-side inventory gate and all-checked contradiction gate.
+
+### Generic Fix Summary
+
+- Require CQRS checked rows to inventory read-shaped methods on write repositories and shared adapters first; query DTO/read-facade evidence alone cannot satisfy CQRS.
+- Require checked CQRS rows to name the write-side method/adapter, caller semantics, returned model family, write-side influence, storage/adapter overlap, and why no read facade should own it.
+- Reject `all rows checked` or equivalent output-completion claims when any mandatory row is finding/return/evidence gap, grouped, compressed, or missing admission-control proof.
+- Strengthen repository/collaboration rows so multi-candidate method and cross-owner linked behavior rows cannot be compressed into broad F3 prose when they are the remaining risks.
