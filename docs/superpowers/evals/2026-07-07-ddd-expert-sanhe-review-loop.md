@@ -4,7 +4,7 @@
 
 - skill-workshop starting point: `main@1ea2037`, released as `ddd-expert` `1.14.21`.
 - hotfix branch: `hotfix/ddd-review-lifecycle-evidence`.
-- hotfix commit / PR / merge commit / tag: this evaluation-fix commit / pending / pending / pending.
+- hotfix commit / PR / merge commit / tag: `adc8af482047de9296460df69e36143031c35f02` / PR #75 / `f6e86c0c4a20a8f23758c853dc3b01d31638cccc` / `v1.14.22` (`49150d4db0ddae83f8f8309a689ab854482eff8e`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe equivalent review path used for baseline capture: `/workspaces/sanhe` in container `optimistic_hawking`, same checkout as `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`, ahead of `origin/feature/task-agreement` by 1; dirty `go.mod`, `go.sum`.
@@ -12,7 +12,7 @@
 
 ### Raw ddd-expert Review Output
 
-```text
+````text
 DDD review findings first:
 
 Finding: Blocker Code-level DDD/technology FSM dependency/API mismatch breaks build
@@ -52,7 +52,7 @@ Rules Satisfied / Evidence:
 - Domain Event vs Integration Message boundary: Rules satisfied; `PaymentSucceeded` stays same-BC.
 - Repository transaction shape: accepted semantic lifecycle methods are present, but they do not cover the payment/cancellation invariant gap.
 - Verification: `git diff --exit-code -- gen proto` passed; `git diff --check` passed; `go test ./internal/business/tasknegotiation/domain -count=1` and focused application tests failed to compile due the FSM dependency/API mismatch.
-```
+````
 
 ### Score
 
@@ -79,3 +79,99 @@ Rules Satisfied / Evidence:
 - Added risk-router cards for Lifecycle Fact Precedence, FSM Contract Drift, and CQRS Read/Write Blend.
 - Added core rules for irreversible fact precedence and CQRS read/write separation.
 - Tightened Go event/message review guidance so handlers/reconcilers/process managers require production/runtime wiring proof.
+
+## Round 2026-07-07 v1.14.22 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.22`, release commit `49150d4db0ddae83f8f8309a689ab854482eff8e`.
+- preceding hotfix: `adc8af482047de9296460df69e36143031c35f02`, PR #75, merge commit `f6e86c0c4a20a8f23758c853dc3b01d31638cccc`.
+- next hotfix branch: `hotfix/ddd-review-anti-overclaim`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`, ahead of `origin/feature/task-agreement` by 1; dirty `go.mod`, `go.sum`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex -a never exec -C /home/xuhao/sanhe -s read-only -o /tmp/sanhe-ddd-review-v1.14.22.md '<fixed review prompt>'`
+
+### Raw ddd-expert Review Output
+
+````text
+**Findings**
+
+1. **Blocker: FSM 依赖合约与实现不一致，当前工作树无法编译。**
+   当前 [go.mod](/home/xuhao/sanhe/go.mod:7) 使用 `github.com/go-jimu/components v0.10.0`，但 [task_agreement_fsm.go](/home/xuhao/sanhe/internal/business/tasknegotiation/domain/task_agreement_fsm.go:24) 仍按旧 FSM API 实现：有 `TransitionTo`，并调用 [TransitionToNext](/home/xuhao/sanhe/internal/business/tasknegotiation/domain/task_agreement_fsm.go:124)。v0.10 的 `fsm.StateContext` 需要 `SetState(next State) error`，且应通过新的 transit API 推进状态。
+   我运行的验证命令失败：
+
+   ```bash
+   go test ./internal/business/tasknegotiation/domain -run TestTaskAgreementPaymentFundingAndCancellationBoundaries -count=1
+   ```
+
+   关键错误是：
+
+   ```text
+   *TaskAgreement does not implement fsm.StateContext (missing method SetState)
+   taskAgreementStateMachine().TransitionToNext undefined
+   ```
+
+   影响：`TaskAgreement` 生命周期域模型无法编译，后续 payment funding、delivery、refund/dispute、settlement 等测试和运行时 wiring 都无法被有效验证。
+   建议按本次 DDD 设计中采用的 v0.10 合约迁移：实现 `SetState(next fsm.State) error`，用 v0.10 的状态迁移入口替换 `TransitionToNext`，并把当前 `go.mod/go.sum` 依赖变更纳入同一个可编译提交。若团队决定继续用 v0.9.9，则应回退依赖并在设计/计划里明确版本基线。
+
+**审查结论**
+
+除上面的编译阻断项外，我没有看到实现偏离本次 spec 的核心领域模型：没有引入 `ManagedWorkspace`、`Funding`、`FundedTask/RefundTask/DisputedTask/SettledTask` 这类被设计排除的对象；`TaskAgreement` 仍是 post-agreement 生命周期核心，`Payment` 是支付尝试对象，`PaymentSucceeded` 作为同 BC domain event 被 handler 消费并推进 funding。
+
+我重点核对了这些边界：
+
+- `PaymentSucceeded` 事件处理与恢复路径存在：[payment_succeeded.go](/home/xuhao/sanhe/internal/business/tasknegotiation/application/eventhandler/payment_succeeded.go:38)、[task_agreement_payment.go](/home/xuhao/sanhe/internal/business/tasknegotiation/application/command/task_agreement_payment.go:299)。
+- 运行时注册存在：[tasknegotiation.go](/home/xuhao/sanhe/internal/business/tasknegotiation/tasknegotiation.go:130)。
+- Delivery accept/reject、refund case、dispute resolution、refund/settlement execution 都通过领域方法表达授权与状态推进。
+- generated proto 基本限制在应用适配层：[application.go](/home/xuhao/sanhe/internal/business/tasknegotiation/application/application.go:1216)，未发现泄漏到 domain/command/query。
+- SQL 使用单一 `scripts/sql/init.sql` 是当前项目已接受的早期开发约定，本次不作为 migration 缺陷。
+
+**验证状态**
+
+当前工作树还有未提交的 `go.mod/go.sum` 变更，且该变更直接触发了上述 blocker。由于 domain 包已经无法编译，我没有继续声明 full test 或 MySQL integration test 通过；这些需要先修复 FSM 合约后再跑。
+````
+
+### Score
+
+- Breadth: 6 / 45. Found K1 and partially K9 through the FSM API mismatch only. Missed K2-K8 and K10.
+- Depth: 7 / 45. K1 evidence, impact, and direction were concrete. It did not pursue independent static model review after the compile blocker.
+- Review discipline: 3 / 10. It avoided claiming executable verification, but it used the compile blocker plus absence of forbidden objects as a positive alignment shortcut, treated handler registration/callable command as recovery proof, and overclaimed multiple flows.
+- Total: 16 / 100.
+
+### Gap Analysis
+
+- Missing finding: K2 irreversible succeeded execution fact did not dominate the open workflow state.
+- Missing finding: K3 recovery/reconciler production reachability was incorrectly treated as satisfied because a handler, command, and runtime registration existed.
+- Missing finding: K4 terminal lifecycle facts and money execution facts were not separated.
+- Missing finding: K5 candidate aggregate/lifecycle-owner classification did not appear.
+- Missing finding: K6 delivery/refund/dispute/settlement behavior linkage was asserted without event/reaction/process-manager/reconciler proof.
+- Missing finding: K7 accepted design/local convention was still used as a waiver for SQL/migration shape.
+- Missing finding: K8 failed/cancelled state semantics were not challenged.
+- Shallow finding: K9 stayed at FSM API compatibility and did not inspect state polymorphism.
+- Missing finding: K10 CQRS read/write repository blending risk was not reported.
+- Overclaim: "no core model deviation" was concluded from compile-blocker scope, absence of forbidden nouns, handler existence, and broad checked-flow assertions.
+
+### Post-review Calibration
+
+- calibration command: `codex -a never exec -C /home/xuhao/sanhe -s read-only -o /tmp/sanhe-ddd-review-v1.14.22-reflection.md '<post-hoc known-issue reflection prompt>'`
+- calibration output path: `/tmp/sanhe-ddd-review-v1.14.22-reflection.md`.
+- calibration method: after the original review concluded, provide K1-K10 as the known issue / scoring set and ask the reviewer to explain why the original review missed or shallowly found each item.
+- reviewer-identified miss patterns:
+  - compile blocker anchoring stopped independent static model review after K1;
+  - handler existence, command existence, and runtime registration were treated as recovery proof;
+  - absence of forbidden tactical nouns was treated as model proof;
+  - accepted design and local convention were treated as waivers;
+  - checked flows were written as broad alignment without per-row classification;
+  - Event Timeline Reconciliation, candidate classification, CQRS split, and FSM state polymorphism were not carried through after API mismatch.
+- reviewer-identified downgrades:
+  - "no core model deviation" should be an evidence gap until lifecycle/event/recovery/repository/FSM/CQRS rows are classified;
+  - same-BC event handler and runtime registration should be evidence gap or return-to-design without production recovery reachability;
+  - delivery/refund/dispute/settlement alignment should be return-to-modeling/design without fact separation and collaboration mechanism proof;
+  - accepted SQL/local convention cannot waive repository transaction, aggregate boundary, or lifecycle collaboration questions.
+
+### Generic Fix Summary
+
+- Added release assertions that the review protocol reject compile blockers as positive model evidence, block broad model-alignment conclusions until mandatory coverage rows are classified, and reject absence of forbidden nouns as model proof.
+- Tightened recovery proof rules generically: handler registration alone and callable commands are not production recovery reachability proof; swallowed/logged dispatch failure after a durable fact requires retry, reconciliation, or command guards.
+- Updated review/core/router/event guidance so checked flows require evidence-backed classification rather than broad "aligned" conclusions.
+- Added a post-review calibration protocol: when a user provides a known issue or scoring set after the initial review conclusion, compare against the original output, reflect why misses happened, and convert repeated miss patterns into generic rules, output contracts, risk-router changes, or eval assertions.

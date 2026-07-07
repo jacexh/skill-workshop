@@ -158,8 +158,10 @@ Rules:
 - Report a violation directly when evidence proves the accepted model or architecture rule is broken and no new model/design decision is needed.
 - Red-flag evidence such as semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, ORM session, or multi-record lifecycle writes is implementation evidence. transaction-shaped evidence cannot satisfy Repository design.
 - Accepted design is evidence, not waiver. If a design contains synchronous writes across several lifecycle owners, review still requires invariant owner, failure tolerance, and event/process rationale.
-- Build/runtime blockers only block executable verification; Independent static model review still runs.
+- Build/runtime blockers only block executable verification; Independent static model review still runs. Compile blocker is never a positive model signal.
 - Rules Satisfied is scoped to one rule; it must not cover aggregate boundary or event-collaboration risk in the same flow.
+- Absence of forbidden nouns is not model proof. A positive model-alignment conclusion requires every mandatory lifecycle, event, recovery, repository-boundary, FSM, and CQRS review row to be classified as satisfied, violation, return-to-modeling/design, or evidence gap.
+- Positive conclusion calibration: when later scoring feedback or known issues contradict a review, convert the miss reason into a generic rule, protocol, output contract, or eval assertion instead of memorizing project-specific examples.
 
 #### Review Order Rule
 

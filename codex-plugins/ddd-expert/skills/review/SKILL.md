@@ -5,7 +5,7 @@ description: Use when reviewing DDD/backend domain abstractions, specs, plans, o
 
 # Review
 
-Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign. Build/runtime blockers only block executable verification; Independent static model review still runs.
+Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign. Build/runtime blockers only block executable verification; Independent static model review still runs. Compile blocker is never a positive model signal; Absence of forbidden nouns is not model proof.
 
 First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md), then load deeper references only for triggered evidence.
 
@@ -35,8 +35,8 @@ Before findings:
 
 ## Coverage pass
 
-For lifecycle designs, enumerate named lifecycle, event, recovery, CQRS read/write split, and FSM API compatibility and state polymorphism flows from the spec or design. Mark each as `checked`, `finding`, or `evidence gap`.
-Checked flows are a compact audit trail, not an exhaustive checklist. Do not
+For lifecycle designs, enumerate named lifecycle, event, recovery, CQRS read/write split, and FSM API compatibility and state polymorphism flows from the spec or design. Mark each as `checked`, `finding`, or `evidence gap`; Checked means evidence-backed. No positive model-alignment conclusion until every mandatory coverage row is classified.
+Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not
 stop after the first Blocker if other independent flows are in scope; report
 Independent modeling findings separately from executable verification gaps.
 
@@ -97,7 +97,7 @@ Finding: <severity> <axis> <title>
 - Test / verification needed: <for proof gaps>
 ```
 
-No DDD findings: say that directly, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
+No DDD findings: say that directly only after coverage classification, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 
