@@ -162,6 +162,24 @@ Model Decisions:
 Omit this block only when the change truly does not affect lifecycle,
 ownership, consistency, integration, or model boundaries.
 
+## Fix Direction Ordering
+
+When proposing fixes for consistency, lifecycle, event-fact, or coordination
+findings, order the reasoning before the mechanism:
+
+1. Identify the invariant owner and lifecycle owner.
+2. Decide whether the affected objects are one Aggregate, child
+   Entities/Value Objects, read models, external facts, or independent
+   Aggregates.
+3. Decide failure tolerance, retry, compensation, reconciliation, or process
+   ownership.
+4. Only then mention repository or transaction changes as persistence
+   mechanics for the accepted model.
+
+Do not make transaction shape a peer of model correction. Do not present a
+semantic repository transaction as a peer alternative to resolving invariant
+ownership.
+
 ## Forward-Test Scenarios
 
 These scenarios define the reasoning behavior expected from the plugin. Tests
