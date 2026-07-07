@@ -668,7 +668,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.32`, release commit `f806be7cb54be3540c77231cd16eb7ff988fc046`.
 - preceding hotfix: `36489eff84ad43a20f335bd1800f160b8b124a7f`, PR #85, merge commit `42d8f555e05e05bc85c53db80c2105bcc3a774fa`.
 - next hotfix branch: `hotfix/ddd-review-finding-extraction-gates`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `d51a77eaee30700bde3b8727043f2a549ec21ee5`; PR #86, merge commit `51727db8655da3812901a7ba2639d2a8e8512a42`, release `v1.14.33` (`193f311be3bacc44e011f360b3f1828e21d4007c`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.32`.
@@ -710,3 +710,50 @@ Coverage Matrix:
 
 - Added release assertions for finding extraction, split/multi-execution proof, parent-state language enumeration, CQRS read-shaped method inventory, and strongest-negative decision inheritance.
 - Next plugin changes will make table-only risks invalid output, require one row per split execution fact, enumerate generic child-process state words, and inspect every read-shaped method on write repositories/shared adapters.
+
+## Round 2026-07-08 v1.14.33 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.33`, release commit `193f311be3bacc44e011f360b3f1828e21d4007c`.
+- preceding hotfix: `d51a77eaee30700bde3b8727043f2a549ec21ee5`, PR #86, merge commit `51727db8655da3812901a7ba2639d2a8e8512a42`.
+- next hotfix branch: `hotfix/ddd-review-exact-lifecycle-template`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.33`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: background reviewer in `/home/xuhao/sanhe` using the fixed prompt after plugin upgrade.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.33.md`, 8,763 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.33-reflection.md`, 10,962 bytes.
+- verification inside review: attempted `go test ./internal/business/tasknegotiation/domain ./internal/business/tasknegotiation/application/command ./internal/business/tasknegotiation/application/eventhandler`, blocked because the read-only sandbox could not create `/tmp/go-build...`.
+
+### Output Summary
+
+- The reviewer found K2 deeply: durable `PaymentSucceeded` can be cancelled or superseded while funding reaction lags.
+- The reviewer found K5/K7 as a Major repository/collaboration design issue: multi-owner repository APIs coordinate lifecycle owners and transaction shape is not boundary proof.
+- The reviewer shallowly covered K3 in a recovery table but did not extract production recovery reachability as a standalone finding.
+- The reviewer shallowly covered K4/K6 by returning terminal/execution and collaboration rows to design, but it did not produce per-execution proof or one collaboration mechanism row per linked flow.
+- The reviewer missed K8 except for the obvious `payment_pending` state tied to K2.
+- The reviewer overclaimed K10 from QueryRepository/package separation and omitted the required read-shaped method inventory.
+
+### Score
+
+- Breadth: 29 / 45. Found K2, K5, and K7; shallowly covered K3, K4, and K6; missed K8; overclaimed K10.
+- Depth: 22 / 45. K2 and broad repository-boundary depth were good. Recovery reachability, split execution facts, collaboration mechanisms, state-language enumeration, and CQRS method inventory were insufficient.
+- Review discipline: 6 / 10. It led with real findings and rejected transaction-as-proof, but omitted several exact mandatory sections and left important risks table-only.
+- Total: 57 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: failed. Finding-extraction rules were present, but the reviewer collapsed the new exact sections into a generic `Mandatory review sections` block and omitted the exact `Finding extraction gate`, `Terminal/execution fact table`, `Parent-state language table`, `CQRS read-shaped method inventory`, and `Strongest-decision inheritance` sections.
+- Shallow root cause: K3 stayed table-only because the output did not require every `finding/return/evidence gap` table row to cite or create a same-scope Finding paragraph before finalization.
+- Shallow root cause: K4 stayed broad because terminal/execution proof was summarized as command sequencing and repository collaboration, not one row per execution fact.
+- Shallow root cause: K6 stayed broad because synchronous command path was described but not mechanically classified for every linked behavior.
+- Missing finding: K8 persists because state-language enumeration did not run across all parent states.
+- Overclaim: K10 persists because CQRS was marked checked without the mandatory read-shaped method inventory.
+- Strategy change: enforce the exact lifecycle output template as a hard completion gate. If lifecycle/repository/event/CQRS scope is active, compact `Mandatory review sections` summaries are invalid. The final answer must include every exact section name from the lifecycle template, including finding extraction, terminal/execution, parent-state language, CQRS inventory, and strongest-decision inheritance; missing sections force evidence gaps and no checked/Rules Satisfied conclusion.
+
+### Generic Fix Summary
+
+- Add release assertions that exact lifecycle section names are required and compact `Mandatory review sections` blocks cannot replace them.
+- Require the output completion gate to list each exact lifecycle section and mark missing sections as evidence gaps.
+- Forbid checked or Rules Satisfied rows when exact mandatory sections are missing.
