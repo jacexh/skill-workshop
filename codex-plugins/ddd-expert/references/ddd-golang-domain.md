@@ -139,27 +139,36 @@ Use `github.com/go-jimu/components/fsm` when any of these are true:
 
 Use the library as State Pattern + transition table. The Aggregate exposes
 stable business methods; the current State object implements state-specific
-behavior for those methods; the StateMachine chooses the next state after a
-successful action.
+behavior for those methods; `fsm.Transit` uses the StateMachine transition
+edges and builders to choose the next state after a successful action.
 
 Rules:
 
 - States, actions, and guard conditions are Domain concepts.
-- Aggregate Root implements the state context.
+- Aggregate Root implements the v0.10 `fsm.StateContext`: `CurrentState()` and
+  `SetState(next fsm.State)`.
+- `SetState(next fsm.State)` type-checks the next concrete state, updates the
+  current state field, and may record Domain Events or version changes for the
+  accepted transition.
 - State-specific behavior lives in polymorphic State methods such as
   `AddItems`, `Checkout`, `Cancel`, or `Fail`.
 - Aggregate business method delegates to current State, then asks the
-  registered StateMachine to advance when the action succeeds.
+  registered StateMachine to advance when the action succeeds, usually through
+  a private `transition(action)` helper that calls `fsm.Transit`.
 - Do not replace State polymorphism with `switch state` branches in Aggregate,
   Application, handlers, processors, or repositories.
 - Do not pre-check `HasTransition` before calling the State method when the
   State owns the rejection; otherwise state-specific Domain errors collapse
   into generic transition errors.
-- `TransitionTo is an FSM callback, not an Aggregate business API`. External
-  Application code calls business methods, never raw target-state transitions.
-- If the Aggregate Root directly exposes `TransitionTo`, treat it as a callback
-  wrapper only: validate the target came from the registered transition and do
-  not let callers choose arbitrary next states.
+- Do not reimplement Transit on every Aggregate. `fsm.Transit` reads
+  `StateMachine.Transitions`, evaluates each `Condition`, builds the target
+  state, sets its context, and delegates replacement to `SetState`.
+- `Condition` is a transition-edge guard, not the whole business validation.
+  Prefer calling Aggregate methods from conditions instead of recomputing
+  fields in transition registration code.
+- Keep StateMachine lookup and transition plumbing out of public business
+  method signatures. External Application code calls business methods, not raw
+  state-machine operations.
 - Transitions may record Domain Events after state changes.
 - Infrastructure persists state labels only; it does not know transition rules.
 
@@ -171,7 +180,8 @@ Review/test expectations:
   requires it, e.g. active state accepts an action while full/closed/failed
   states return state-specific Domain errors.
 - Tests cover state-specific behavior, successful transition, rejected action,
-  and that callers cannot bypass business methods through `TransitionTo`.
+  `SetState` type checks, and that callers cannot bypass business methods with
+  raw state-machine operations.
 
 ### 0.6 Error and Validation Card
 
