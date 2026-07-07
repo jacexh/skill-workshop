@@ -1333,9 +1333,58 @@ Coverage Matrix:
 - Require repository/API, collaboration, terminal/execution, state-language, and CQRS sections to enumerate every discovered seed, not only rows implicated by an existing finding.
 - Reject one-row mandatory sections when multiple commands, methods, states, events, or read-shaped methods are present in scope.
 
-## Remediation Plan After v1.14.46
+## Round 2026-07-08 v1.14.46 Re-evaluation
 
-- current baseline: `v1.14.46` has not yet been re-evaluated against `/home/xuhao/sanhe`; no new score is recorded.
+- skill-workshop release under evaluation: `v1.14.46`, release commit `3e1503d39a5091de865830945286cd6314d2ff5f`.
+- preceding hotfix: `98a4ec99857f2fec1dbe2e2274402b0c77d77d8c`, PR #99, merge commit `b069220a4836fa6ee5d2bd513b20b7526fb42120`.
+- next hotfix branch: `hotfix/ddd-review-collaboration-state-inventory`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.46`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.46.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.46.md`, 11,438 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.46-reflection.md`, 2,724 bytes.
+- verification inside review: attempted focused Go tests, but read-only sandbox blocked build/cache creation at `/tmp/sanhe-go-cache`.
+
+### Output Summary
+
+- The reviewer found K3: handler/command evidence was insufficient and no production recovery entrypoint was found for `PaymentSucceeded` recovery.
+- The reviewer found K4: split dispute emits misleading terminal lifecycle facts before execution/lifecycle separation is complete.
+- The reviewer found K10: CQRS read-shaped method inventory included caller semantics and write-side overlap, and did not rely only on QueryRepository/DTO/read-facade evidence.
+- The reviewer shallowly covered K2: it found durable `PaymentSucceeded` leaving `TaskAgreement.payment_pending` and allowing stale cancellation, but did not enumerate retry/open workflow rights broadly.
+- The reviewer shallowly covered K5: method-level repository/API rows existed and transaction-only proof was rejected, but ambiguous aggregate-boundary ownership was not elevated into a clear finding across all candidate lifecycle-owner methods.
+- The reviewer missed K6: only payment collaboration was modeled; delivery/refund/dispute/settlement collaboration policy and synchronous command-call ambiguity were not addressed.
+- The reviewer shallowly covered K7: it resisted positive waiver through overclaim scrub and not-admitted decisions, but did not explicitly generalize accepted design/names/DTOs/layout/import cleanliness as insufficient.
+- The reviewer shallowly covered K8: parent-state table mentioned `payment_failed/payment_cancelled` and `payment_pending`, but did not fully enumerate FSM state semantics or classify each parent state as lifecycle fact vs child/process outcome.
+- No known issue was mapped as overclaimed.
+
+### Score
+
+- Breadth: 34 / 45. K3, K4, and K10 were found. K2, K5, K7, and K8 were shallow. K6 was missed.
+- Depth: 31 / 45. Split terminal facts, recovery reachability, and CQRS were meaningfully deeper. Stale command rights, aggregate-boundary ownership, collaboration policy, and state vocabulary remained incomplete.
+- Review discipline: 7 / 10. The review avoided false checked rows and most positive wording, but inventory completeness was still uneven across collaboration/state areas.
+- Total: 72 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: improved. Inventory completeness restored K4/K10 and avoided overclaims, but it still did not force collaboration policy and state vocabulary to full depth.
+- Remaining miss root cause: collaboration inventory does not mandate rows for delivery, refund, dispute, settlement, split closure, and payment. K6 stays missed because payment collaboration satisfies the table too cheaply.
+- Remaining shallow root cause: state-language inventory does not require every FSM state word and the parent lifecycle fact vs child/process outcome classification per state.
+- Remaining shallow root cause: stale command rights need explicit enumeration of retry, cancel, reopen, refund/open-dispute, and other later commands after each durable fact.
+- Strategy change: add specialized full inventories for collaboration policy, state vocabulary, and stale-command rights.
+
+### Generic Fix Summary
+
+- Require collaboration model inventory rows for payment, delivery, refund, dispute, settlement, split closure, and any accepted lifecycle reaction.
+- Require every collaboration row to classify mechanism as domain event, process manager, reconciler, task processor, integration message, accepted atomic transaction with failure tolerance, or evidence gap.
+- Require full FSM parent-state vocabulary inventory and per-state classification as parent lifecycle fact or child/process outcome.
+- Require stale-command rights matrix to enumerate retry/start, cancel, reopen, refund/open-dispute/escalate, execution, and closure commands after durable facts.
+
+## Remediation Plan After v1.14.45
+
+- current baseline: `v1.14.45` score 56/100.
 - current hotfix branch: `hotfix/ddd-review-default-deny-risk-axes`.
 - next hotfix commit / PR / merge commit / tag: pending.
 - focused review inputs:
