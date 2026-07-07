@@ -1243,7 +1243,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.44`, release commit `7ce336f65ba91a08992f313d3bb9fec8d724e0c5`.
 - preceding hotfix: `7cea8e6d62b06706b4f7d81309d80dd57c89e3c5`, PR #97, merge commit `5f7d1042a1f74d099a9283d889c6b5b2c925548f`.
 - next hotfix branch: `hotfix/ddd-review-not-claimed-extraction`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `cc73d80c38f86ef1ed4ef3a5fd8d7eb96e347e09`; PR #98, merge commit `3e8f2b8aaca9533bccf2b7801054fc0f26b9676b`, release `v1.14.45` (`4922c43b84e5e8d4d7db89d1eece398bfb0e6d9a`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.44`.
@@ -1285,3 +1285,50 @@ Coverage Matrix:
 - Require every not-claimed lifecycle/repository/event/CQRS row to become evidence gap, return, or finding.
 - Forbid positive coverage words such as `covered`, `reachable`, `shape matches`, `appears guarded`, and `no blocker found` while negative decisions exist.
 - Require grouped CQRS inventory placeholders such as bare method-name lists to become evidence gaps unless every required column is filled.
+
+## Round 2026-07-08 v1.14.45 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.45`, release commit `4922c43b84e5e8d4d7db89d1eece398bfb0e6d9a`.
+- preceding hotfix: `cc73d80c38f86ef1ed4ef3a5fd8d7eb96e347e09`, PR #98, merge commit `3e8f2b8aaca9533bccf2b7801054fc0f26b9676b`.
+- next hotfix branch: `hotfix/ddd-review-inventory-completeness`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.45`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.45.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.45.md`, 8,185 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.45-reflection.md`, 3,451 bytes.
+- verification inside review: `go test -count=1 ./internal/business/tasknegotiation/domain ./internal/business/tasknegotiation/application ./internal/business/tasknegotiation/application/eventhandler` passed.
+
+### Output Summary
+
+- The reviewer found K2: persisted `PaymentSucceeded` while `TaskAgreement` remains `payment_pending`, with stale retry/cancel rights through `StartTaskAgreementPayment` and `CancelBeforeFunding`.
+- The reviewer found K3: handler/reconciler exists but is not production-wired; no runtime/API/scheduler entrypoint was found.
+- The reviewer missed K4: split/dispute terminal event ordering was absent; terminal/execution table only covered payment success.
+- The reviewer shallowly covered K5: it had one repository/API classification row for `SaveCancellationBeforeFunding`, but did not classify all repository/API methods coordinating candidate lifecycle owners.
+- The reviewer missed K6: delivery/refund/dispute/settlement collaboration models were not discussed; collaboration table only covered payment funding.
+- The reviewer shallowly covered K7: it avoided some positive waivers, but did not systematically apply the no-waiver rule against accepted design, semantic names, DTOs, package layout, or absence of forbidden imports.
+- The reviewer shallowly covered K8: state-language semantics were an evidence gap and `payment_failed/payment_cancelled` were mentioned, but `payment_pending` and the full parent-vs-child state vocabulary were not enumerated.
+- The reviewer shallowly covered K10: it included one CQRS inventory row for `PaymentRepository.ListPaymentsByTaskAgreement`, but did not inventory all read-shaped write repository/shared adapter methods.
+
+### Score
+
+- Breadth: 24 / 45. K2 and K3 were found. K5, K7, K8, and K10 were shallow. K4 and K6 were missed.
+- Depth: 25 / 45. Payment stale-command/recovery depth was useful, but split terminal events, broad repository ownership, collaboration policy, state vocabulary, and CQRS inventory stayed incomplete.
+- Review discipline: 7 / 10. Positive-word and not-claimed escape hatches were mostly closed, but mandatory section presence collapsed into one-row inventories around the first blocker.
+- Total: 56 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partial but coverage-regressive. Not-claimed extraction and positive-word scrub worked, but the reviewer narrowed the inventory to payment/FSM and omitted independent lifecycle flows.
+- Structural failure: mandatory sections can be present with one row. A section being non-empty is not enough; it must inventory all accepted model/code seeds for that risk family.
+- Miss root cause: first-blocker anchoring persists. Once PaymentSucceeded produced F1/F2, split/dispute, delivery/refund/settlement collaboration, state vocabulary, and full CQRS inventory were not explored.
+- Strategy change: add inventory completeness gates. Before decisions, extract required seeds from accepted model sources and code: lifecycle flows, repository/API methods, collaboration trigger facts, terminal execution facts, parent state vocabulary, domain event names, and read-shaped write-side methods/shared adapters. Every seed must have a row and final non-positive decision.
+
+### Generic Fix Summary
+
+- Add release assertions that mandatory sections are incomplete unless all accepted model/code seeds are inventoried.
+- Require independent flow inventory after the first blocker; a blocker cannot shrink lifecycle scope.
+- Require repository/API, collaboration, terminal/execution, state-language, and CQRS sections to enumerate every discovered seed, not only rows implicated by an existing finding.
+- Reject one-row mandatory sections when multiple commands, methods, states, events, or read-shaped methods are present in scope.
