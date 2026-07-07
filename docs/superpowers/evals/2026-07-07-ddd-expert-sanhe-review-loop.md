@@ -242,3 +242,67 @@ The final review block was duplicated in the saved output. Its substantive findi
 - Strengthened review output contract so lifecycle reviews classify mandatory rows before broad alignment claims.
 - Strengthened risk router rules for stale-state commands, multi-owner repository evidence, event/process/reconciler ownership, FSM subrows, and CQRS proof.
 - Strengthened core rules with a mandatory coverage matrix including state-language semantics.
+
+## Round 2026-07-07 v1.14.24 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.24`, release commit `58da9fc`.
+- preceding hotfix: `8e49640d539a0bd24f88ea5d952fdb67047904c8`, PR #77, merge commit `9dca4837b2c5d448fe177d9a0a2c0a9b8461cf59`.
+- next hotfix branch: `hotfix/ddd-review-candidate-ledger`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`, ahead of `origin/feature/task-agreement` by 1; dirty `go.mod`, `go.sum`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.24.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.24.md`, 5,417 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.24-reflection.md`, 13,763 bytes.
+
+### Raw ddd-expert Review Output Summary
+
+```text
+Finding: Blocker Domain Abstraction PaymentSucceeded 后仍可取消协议
+- Durable succeeded Payment can exist while TaskAgreement remains payment_pending, and cancellation only checks agreement state.
+
+Finding: Blocker Code-level DDD/technology PaymentSucceeded reconciler 没有生产可达路径
+- ReconcileSucceededPayments exists as a command handler but has no Application/RPC/scheduler/task/runtime production path.
+
+Finding: Blocker Code-level DDD/technology dirty go.mod bumps FSM to v0.10 without adapting StateContext
+- Current dirty dependency state requires SetState(next State) while TaskAgreement still implements old TransitionTo shape.
+
+Coverage Matrix:
+- Aggregate candidates: checked by naming candidate owners.
+- Terminal/execution facts: finding, but only payment success vs cancellation.
+- CQRS split: checked, read DTO/query repo separated from write repos.
+- State-language semantics: checked for core lifecycle naming and absence of FundedTask/Funding.
+```
+
+### Post-review Calibration Summary
+
+- Found: K1, K2, K3.
+- Shallowly found: K5, K9, K10.
+- Missed: K4, K6, K7, K8.
+- Previous optimization effectiveness: partially effective but not stable. The coverage matrix kept more rows visible and improved K2/K3, but it was used as a summary rather than a gate; bare `checked` rows had no per-flow evidence, candidate decisions, or explicit evidence gaps.
+- Required approach change: move from "matrix exists" to "candidate ledger and per-flow evidence gate". A checked row must name proof, the rule satisfied, and why it is not a finding; otherwise it becomes evidence gap or return-to-design/modeling.
+
+### Score
+
+- Breadth: 25 / 45. Fully found K1, K2, K3; shallowly touched K5, K9, K10; missed K4, K6, K7, K8.
+- Depth: 27 / 45. K1-K3 were evidence-backed with useful impact and direction. K5/K9/K10 were only matrix labels or partial checks without root-cause depth.
+- Review discipline: 6 / 10. It no longer stopped at compile blocker and avoided a broad no-finding conclusion, but overclaimed bare `checked` rows, used absence of forbidden nouns for state-language semantics, and let accepted repository/model evidence act too favorably.
+- Total: 58 / 100.
+
+### Gap Analysis
+
+- Missing finding: K4 split money execution and agreement terminal closure was missed after being found in v1.14.23.
+- Missing finding: K6 delivery/refund/dispute/settlement event/process/reconciler collaboration was not reviewed per flow.
+- Missing finding: K7 accepted design and semantic repository transaction evidence still acted as implicit waiver because candidate classification was only a list.
+- Missing finding: K8 payment_failed/payment_cancelled state-language semantics were not challenged.
+- Shallow root cause: K5 aggregate candidates were enumerated but not classified into a candidate ledger with decision/evidence/return route.
+- Shallow root cause: K9 FSM API mismatch was found, but state-polymorphism conformance remained shallow.
+- Shallow root cause: K10 CQRS was marked checked without proof of caller semantics, read-model family, or shared implementation separation.
+- Overclaim: `checked` rows lacked file/path/proof notes and did not name the specific rule satisfied.
+
+### Generic Fix Summary
+
+- Added release assertions for candidate ledger, per-flow Event Timeline Reconciliation, recovery reachability table, strict checked-row proof fields, split money execution versus aggregate terminal closure, retry-state semantics, and CQRS proof beyond names/shared adapters.
+- Strengthened review output contract so checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding.
+- Strengthened risk/core rules to separate split execution facts from aggregate terminal closure, route ambiguous failed/cancelled/pending states as state-language semantics risks, and reject shared infrastructure implementation as CQRS proof.
