@@ -66,6 +66,14 @@ Use the exact mandatory section names. Evidence Matrix is not a substitute for m
 Compact Mandatory review sections blocks are invalid for lifecycle scope. Lifecycle exact-section gate: when lifecycle, repository, event/reaction, terminal/execution, state-language, or CQRS scope is active, the final output must include each exact lifecycle section from the template, including Finding extraction gate:, Terminal/execution fact table:, Parent-state language table:, CQRS read-shaped method inventory:, and Strongest-decision inheritance:. If any exact lifecycle section is missing, do not mark any related row checked or Rules Satisfied. Output completion gate must list every exact lifecycle section. Missing exact section becomes evidence gap.
 Negative decision inventory runs before findings for lifecycle/repository/event/CQRS scope. All mandatory lifecycle rows start as `unresolved`; Row-local proof is the only promotion path from `unresolved` to `checked`. Findings are generated from negative inventory rows after the inventory is complete. Pre-written findings cannot satisfy inventory rows; a finding paragraph may cite an inventory row, but it cannot replace the row's evidence, promotion proof, and final decision.
 Checked promotion requires non-transaction model proof. Transaction shape, accepted design, semantic repository naming, DTO/query naming, or package separation cannot be the strongest checked evidence; if they are the strongest evidence, downgrade to return/evidence gap/finding. command transaction is not a final collaboration mechanism; accepted atomic transaction requires explicit model decision and failure-tolerance proof. State-language inventory must enumerate every discovered or declared parent state word; Missing configured state words force evidence gap. CQRS inventory rows must be one method or port each; Grouped CQRS rows cannot be checked. Run Overclaim scrub before final output.
+Checked row admission control: a row may be promoted to checked only when its
+row-local proof tuple is complete. Checked-row proof tuple: row scope, model fact, owner proof, coordination proof, forbidden evidence scrub, final decision.
+Category-level checked decisions are invalid; prose such as structurally checked,
+mostly acceptable, reasonable ownership, or no leakage found is commentary until
+every member row is admitted. semantic lifecycle transaction is red-flag evidence only, not checked proof.
+synchronous command plus transaction cannot be checked collaboration unless an explicit accepted atomic-transaction decision and failure-tolerance proof are named.
+caller-location-only CQRS proof is insufficient; command handler caller location must be paired with returned model family, product-read overlap, write-side influence, and adapter/storage overlap.
+checked with inherited negative is not checked; inherited findings, returns, evidence gaps, or caveats downgrade the row unless independence proof is row-local.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
 ## Default-first key concept check
@@ -122,6 +130,7 @@ DDD review:
 - CQRS read-shaped method inventory: Method/port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Decision
 - Strongest-decision inheritance: Checked row | Related finding/return/gap | Independence proof | Final decision
 - Overclaim scrub: Checked row | Strongest evidence source | Forbidden promotion source | Downgrade decision
+- Checked row admission control: Row | Proof tuple complete | Invalid category/prose/forbidden proof | Admission decision
 - Output completion gate: Exact lifecycle section | Present | Non-empty | If missing decision
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 - Finding generation map: Inventory row | Final decision | Finding id or evidence-gap id | Extracted paragraph

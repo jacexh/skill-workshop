@@ -814,7 +814,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.35`, release commit `0b71d3b9b9a33c880973a19672dd8c5450e0dc21`.
 - preceding hotfix: `c8d58f93ea7c3c1160a8138ccc3c1bbeba5dfbf4`, PR #88, merge commit `bcaabac0578cfcb6d4aadf1cc675c8fd5c4f6a3a`.
 - next hotfix branch: `hotfix/ddd-review-proof-promotion-gates`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `599c895853c7f5f3ea185b81c2727ea5cb568fa3`; PR #89, merge commit `94e5ee3ea44be5d8ec1eae23fd0962825d73a8e2`, release `v1.14.36` (`60a8b98232bcff198a1df47c579ee24bc70ce667`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: `codex plugin marketplace upgrade` completed; reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.35`.
@@ -857,3 +857,49 @@ Coverage Matrix:
 - Require exhaustive state-language rows for every discovered/declared parent state word in the configured vocabulary.
 - Require CQRS read-shaped method inventory to be one row per method/port; grouped rows cannot be checked.
 - Add a final overclaim scrub pass that downgrades checked rows whose strongest evidence is transaction shape, accepted design, semantic repository naming, DTO/query naming, or package separation.
+
+## Round 2026-07-08 v1.14.36 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.36`, release commit `60a8b98232bcff198a1df47c579ee24bc70ce667`.
+- preceding hotfix: `599c895853c7f5f3ea185b81c2727ea5cb568fa3`, PR #89, merge commit `94e5ee3ea44be5d8ec1eae23fd0962825d73a8e2`.
+- next hotfix branch: `hotfix/ddd-review-promotion-admission-control`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.36`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: background reviewer in `/home/xuhao/sanhe` using the fixed prompt after plugin upgrade.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.36.md`, 10,673 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.36-reflection.md`, 10,667 bytes.
+- verification inside review: `go test ./...` passed; `git diff --check` passed.
+
+### Output Summary
+
+- The reviewer found K2 and K3 as Finding 1: durable `PaymentSucceeded` can leave the agreement stale, the payment recovery path lacks production reachability, and retry/cancel rights remain open.
+- The reviewer found K4 as Finding 2: split dispute partial refund/settlement execution emits terminal agreement facts early and the true split closure event is missing.
+- The reviewer found K8 as Finding 3: `payment_failed` and `payment_cancelled` are child Payment outcome language on the parent aggregate without parent fact ownership.
+- The reviewer touched K5, K6, K7, and K10 but over-promoted them. It accepted "semantic lifecycle transactions", "synchronous app command plus transaction", and command-side read-shaped methods as checked without row-local owner, collaboration, failure-tolerance, or CQRS proof.
+
+### Score
+
+- Breadth: 31 / 45. Strong coverage: K2, K3, K4, K8. Touched but not accepted: K10. Overclaimed or softened: K5, K6, K7.
+- Depth: 29 / 45. Payment recovery, stale command rights, split terminal/execution facts, and state language were evidence-backed. Aggregate/repository candidate classification, linked behavior collaboration, accepted-design non-waiver, and CQRS method semantics remained too shallow.
+- Review discipline: 6 / 10. The output kept the required sections, negative inventory, extraction gate, and overclaim scrub, but then violated its own promotion rules by letting category-level checked rows survive.
+- Total: 66 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partially effective. Promotion gates fixed K8 and preserved K2/K3/K4, but did not prevent prose/category-level checked conclusions.
+- Overclaim: K5 remained unresolved because `semantic lifecycle transaction` was treated as positive proof instead of a red-flag requiring per-method candidate rows with owner/owned-child/invariant/coordination proof.
+- Overclaim: K6 remained unresolved because `synchronous app command plus transaction` was accepted as checked collaboration, even though linked lifecycle behavior requires Domain Event, process manager, reconciler, task processor, Integration Message, or explicitly accepted atomic transaction with failure-tolerance proof.
+- Overclaim: K7 persisted because the review stated the anti-waiver rule but still used semantic method names and transaction-shaped evidence as practical waivers.
+- Shallow root cause: K10 was inventoried but not downgraded; command-handler caller location was treated as enough to accept command-side read-shaped methods without per-method product-read/write-decision semantics.
+- Strategy change: add promotion admission-control. Checked is no longer a prose decision. Any grouped/category checked row, semantic-lifecycle-transaction checked row, synchronous-command-plus-transaction checked row, caller-location-only CQRS checked row, or "checked with inherited negative" row must self-downgrade before final output.
+
+### Generic Fix Summary
+
+- Add release assertions for checked-row admission control and prohibited promotion patterns.
+- Require checked rows to include a complete proof tuple rather than category labels or prose summaries.
+- Treat `semantic lifecycle transaction` as red-flag evidence only; it cannot appear as a checked decision.
+- Treat synchronous command plus transaction as invalid checked collaboration unless an explicit atomic-transaction model decision and failure-tolerance proof are named.
+- Treat command-handler caller location as CQRS evidence only; per-method read/write semantic proof remains required before checked.
