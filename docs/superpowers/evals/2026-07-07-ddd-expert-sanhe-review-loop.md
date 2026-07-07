@@ -338,7 +338,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.25`, release commit `cd120ac`.
 - preceding hotfix: `a289847e1136a594f428cdb9b69b76435f5949dd` and `9c39ed752ec3bf8e376af79c568f6a081034dc0c`, PR #78, merge commit `11d9d0c6d97b97955036b085584bf18da7959fef`.
 - next hotfix branch: `hotfix/ddd-review-output-contract`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix: `9cac0c73d12fd172c91b7bccf92b43ab6037e1a8`, PR #79, merge commit `5b5b4b5548486f88a50e66feec97e7aa61c05d7c`, release `v1.14.26` (`635bacd86401da97d6de44f19bd7ae06ad9973fa`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`.
 - fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
@@ -383,3 +383,51 @@ Coverage Matrix:
 - Strengthened the review output contract so lifecycle sections are required even when findings already exist, compile/build blockers cannot remove sections, and checked-flow prose cannot replace mandatory sections.
 - Strengthened core/router rules to state that mandatory lifecycle output sections remain required after high-severity findings and compile blockers.
 - Strengthened the aggregate-boundary ledger so multi-candidate Repository/API evidence requires role, owner proof, Repository/API evidence, decision, and return route; unclassified or owner-unproven candidates cannot be marked checked.
+
+## Round 2026-07-08 v1.14.26 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.26`, release commit `635bacd86401da97d6de44f19bd7ae06ad9973fa`.
+- preceding hotfix: `9cac0c73d12fd172c91b7bccf92b43ab6037e1a8`, PR #79, merge commit `5b5b4b5548486f88a50e66feec97e7aa61c05d7c`.
+- next hotfix branch: `hotfix/ddd-review-counterfactual-gateway`.
+- next hotfix commit: `f2d0a1c415a86afba11464bf183b0788c4926d81`; PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- sanhe FSM blocker status: fixed in dirty worktree; `go test ./...` passed after migrating to concrete v0.10 FSM states.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command template: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message <output> '<fixed review prompt>'`
+- complete raw review outputs:
+  - A: `/tmp/sanhe-ddd-review-v1.14.26-a.md`, 5,419 bytes.
+  - C: `/tmp/sanhe-ddd-review-v1.14.26-c.md`, 6,414 bytes.
+  - B: shutdown before completion after exceeding the new single-subagent objective; excluded from scoring.
+- post-review calibration outputs:
+  - A: `/tmp/sanhe-ddd-review-v1.14.26-a-reflection.md`, 19,094 bytes.
+  - C: `/tmp/sanhe-ddd-review-v1.14.26-c-reflection.md`, 19,150 bytes.
+
+### Output Summary
+
+- Reviewer A found K3 and K4. K5 and K7 were shallow. K2, K6, K8, and K10 were missed.
+- Reviewer C found K3 and K5. K2, K6, and K7 were shallow. K4, K8, and K10 were missed.
+- Former K1/K9 were not active scoring items after the sanhe FSM fix.
+
+### Score
+
+- Breadth: 26 / 45. Stable coverage: K3. One-run coverage: K4 and K5. Shallow coverage: K2, K6, and K7. Missed across completed runs: K8 and K10.
+- Depth: 26 / 45. K3 was evidence-backed with clear impact and fix direction. K4 was deep only in A; K5 was meaningful only in C. K2/K6/K7 lacked root-cause depth, and K8/K10 were absent.
+- Review discipline: 6 / 10. v1.14.26 improved by removing compile-blocker anchoring and causing one review to return K5 to modeling, but both outputs still compressed the mandatory ledger/timeline/matrix into prose and treated some checked rows as too easy.
+- Total: 58 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: partially effective but below target. The owner-proof candidate ledger helped C finally classify K5 as return-to-modeling, but the ledger was not consistently emitted or used as a reasoning tool. Mandatory sections became labels/prose rather than a reliable defect-discovery process.
+- Missing finding: K8 state-language semantics remains stable miss; reviewers do not ask whether failed/cancelled/pending names describe child-process facts rather than aggregate lifecycle facts.
+- Missing finding: K10 CQRS split remains stable miss; reviewers still accept QueryRepository naming without falsifying caller semantics, DTO family, write-side overlap, or shared adapter behavior.
+- Shallow root cause: K2 durable succeeded fact precedence was reduced to recovery in A and shallowly reflected in C; reviewers did not enumerate command rights that stale workflow state still grants.
+- Shallow root cause: K6 event/process/reconciler collaboration remained shallow and was not reconciled across delivery/refund/dispute/settlement flows.
+- Shallow root cause: K7 accepted design and semantic repository transactions were questioned in reflections but not consistently converted into final findings or returns.
+- Overclaim: checked rows were not tested against "what evidence would falsify this checked conclusion?"
+- Strategy change: stop adding one more scenario rule. Add a counterfactual discovery pass: after draft findings, the reviewer must try to falsify each checked row and ask gateway questions that expose hidden stale-state rights, owner-proof gaps, missing reaction contracts, state-language ambiguity, and CQRS semantic blending.
+
+### Generic Fix Summary
+
+- Added a generic counterfactual review gateway: draft findings and checked rows are provisional until the reviewer tries to falsify them against durable fact precedence, owner proof, reaction/recovery reachability, state-language semantics, and CQRS read/write semantics.
+- Added release assertions for the gateway in the review skill, risk router, and core rule cards so future edits cannot silently drop the self-disconfirmation pass.
