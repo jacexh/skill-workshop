@@ -57,6 +57,11 @@ For aggregate/repository risks, use one row per Repository/API method that saves
 For linked lifecycle behavior, synchronous command path is evidence, not a collaboration decision. Classify the mechanism as Domain Event, process manager, reconciler, task processor, Integration Message, accepted atomic transaction, or evidence gap.
 For state-language semantics, if a parent aggregate state is named after a child process outcome, prove the parent lifecycle fact and owner; otherwise return to modeling/design or mark an evidence gap.
 CQRS checked requires semantic proof beyond names, DTOs, packages, and absent imports: classify caller intent, returned model family, write-side product-read overlap, query-adapter write authority, shared storage/adapter coupling, and whether reads influence write-side decisions.
+Finding extraction gate: any mandatory row with finding, return, or evidence gap must become a Finding paragraph or cite an existing finding with the same scope; important risks cannot remain only in tables.
+Split or multi-execution outcomes require one row per execution fact with authorization source, amount/result scope, idempotency/replay rule, failure recovery, and exact aggregate closure condition; command sequencing alone cannot check terminal/execution separation.
+State-language enumeration must inspect every parent state whose vocabulary looks like pending, failed, cancelled, succeeded, authorized, executed, completed, refunded, settled, or closed.
+CQRS read-shaped method inventory must inspect every read-shaped method on write repositories or shared adapters before marking read/write split checked.
+checked rows inherit the strongest negative decision unless independence is proven; a related finding, return, evidence gap, or caveat dominates positive local proof.
 Use the exact mandatory section names. Evidence Matrix is not a substitute for mandatory sections. Free-form summary matrices may not contain checked decisions; they are commentary only after all mandatory sections are complete.
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
@@ -104,11 +109,14 @@ DDD review:
 - Collaboration model table: Flow | Trigger fact | Affected owner | Mechanism | Recovery/failure behavior | Decision
 - Recovery reachability table: Fact | Recovery trigger | Production entrypoint | Guard after durable fact | Decision
 - Mandatory coverage matrix: Coverage row | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return
+- Finding extraction gate: Mandatory row | Decision | Finding paragraph or same-scope finding | Extraction decision
 - Counterfactual defect hunt: Checked row | Falsifier question | Evidence inspected | Decision
 - Checked row proof artifacts: Checked row | Risk family | Required proof artifact | Evidence | Decision
-- Terminal/execution fact table: Flow | Authorization fact | Execution fact | Aggregate closure fact | Owner | Recovery stance | Decision
-- Parent-state language table: State | Parent aggregate fact | Child/process outcome risk | Owner proof | Decision
+- Terminal/execution fact table: Flow | Execution fact | Authorization source | Amount/result scope | Idempotency/replay rule | Failure recovery | Aggregate closure condition | Decision
+- Parent-state language table: State | State word family | Parent aggregate fact | Child/process outcome risk | Owner proof | Decision
 - CQRS semantic split table: Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
+- CQRS read-shaped method inventory: Method/port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Decision
+- Strongest-decision inheritance: Checked row | Related finding/return/gap | Independence proof | Final decision
 - Output completion gate: Required section | Present | Non-empty | If missing decision
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap:
 
