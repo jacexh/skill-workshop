@@ -38,6 +38,14 @@ the spec or design. Mark each as `checked`, `finding`, or `evidence gap`.
 Checked flows are a compact audit trail, not an exhaustive checklist. Do not
 stop after the first Blocker if other independent flows are in scope.
 
+## Tactical drift reading
+
+When tactical structures look awkward, treat them as evidence of upstream model
+pressure before suggesting cleanup. Ask whether the pressure comes from
+aggregate boundary, invariant ownership, CQRS split, failure tolerance,
+application coordination, or local convention. Local convention is evidence to
+inspect, not a waiver.
+
 ## Review axes
 
 Keep axes separate:

@@ -198,6 +198,11 @@ check_review_evidence_gate() {
   grep -q "Rules Satisfied / Not Applicable / Exception / Evidence gap" "$review_skill" || fail "$label review output should require evidence status table"
   grep -q "Evidence gap, not finding" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
   grep -q "Checked flows" "$review_skill" || fail "$label review should expose checked lifecycle flows"
+  grep -q "Tactical drift reading" "$review_skill" || fail "$label review should read tactical drift as model pressure"
+  grep -q "upstream model" "$review_skill" || fail "$label review should identify upstream model pressure before cleanup"
+  grep -q "pressure before suggesting cleanup" "$review_skill" || fail "$label review should identify model pressure before cleanup"
+  grep -q "Local convention is evidence to" "$review_skill" || fail "$label review should not treat local convention as a waiver"
+  grep -q "inspect, not a waiver" "$review_skill" || fail "$label review should inspect local convention instead of waiving"
   grep -q "Do not reduce finding count" "$review_skill" || fail "$label review should not suppress findings for template cost"
   grep -q "Model correction" "$review_skill" || fail "$label review should put model correction before mechanism"
   grep -q "Implementation mechanism" "$review_skill" || fail "$label review should separate implementation mechanism"
@@ -209,6 +214,19 @@ check_review_evidence_gate() {
 
 check_review_evidence_gate "$CLAUDE_ROOT/skills/review/SKILL.md" "Claude"
 check_review_evidence_gate "$CODEX_ROOT/skills/review/SKILL.md" "Codex"
+
+check_risk_router_reference() {
+  local root="$1"
+  local label="$2"
+  local router="$root/references/ddd-risk-router.md"
+
+  grep -q "Awkward tactical structures are evidence, not diagnosis" "$router" || fail "$label risk router should treat tactical structures as evidence"
+  grep -q "upstream model pressure" "$router" || fail "$label risk router should route tactical drift through model pressure"
+  grep -q "CQRS/read-model split" "$router" || fail "$label risk router should include CQRS pressure without a dedicated rule card"
+}
+
+check_risk_router_reference "$CLAUDE_ROOT" "Claude"
+check_risk_router_reference "$CODEX_ROOT" "Codex"
 
 for reference in \
   database.md \
