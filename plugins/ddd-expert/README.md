@@ -30,8 +30,6 @@ The plugin exposes four compact phase skills plus shared references:
 
 Each skill reads `references/ddd-risk-router.md` first, then loads only the deeper references required by the task or triggered risk cards. Hook output is limited to phase-skill routing; detailed context still loads only through the selected `ddd-expert` skill.
 
-For review, multi_agent is optional acceleration only. The review falls back to a single-process axis review when subagent tools are unavailable or fail.
-
 ## Activation Guidance
 
 Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting backend infrastructure. Mention the phase skill explicitly in the prompt when the task touches bounded contexts, Domain/Application/Infrastructure placement, generated RPC/protocol types, Go runtime/config/lifecycle, taskqueue/message behavior, database persistence, or backend logging.

@@ -14,14 +14,12 @@ hooks = true
 plugin_hooks = true
 ```
 
-The multi_agent feature flag is optional. It can accelerate local evaluation and large multi-axis reviews, but review falls back to a single-process axis review when subagent tools are unavailable or fail.
-
 ```bash
 codex plugin marketplace add jacexh/skill-workshop
 codex plugin add ddd-expert@skill-workshop-codex
 ```
 
-Restart Codex after installation so the skills and hooks are loaded.
+Restart Codex after installation so the skills and hook are loaded.
 
 ## Upgrade
 
