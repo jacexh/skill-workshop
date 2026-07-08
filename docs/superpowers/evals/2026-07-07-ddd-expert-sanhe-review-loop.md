@@ -1,5 +1,9 @@
 # ddd-expert sanhe Review Evaluation Loop
 
+## Current Accepted Review-Loop Lesson
+
+The active direction is not the historical axis-ledger, default subagent, risk-router, or smell-queue protocol. Use a short local loop: breadth scan -> Smell List -> merge same-shape smells -> explain why each smell is wrong -> follow related evidence -> synthesize root cause -> final judgment. Layer Baseline is the source of code-shape truth; references explain triggered concepts and mechanisms.
+
 ## Current Evaluation Set After sanhe FSM Fix
 
 This section supersedes the earlier K1-K10 scoring set for the next sanhe
@@ -2090,3 +2094,29 @@ Next evaluation should be against the first released version after this local br
 - K6 needs collaboration-mechanism admission before no-finding: delivery/refund/dispute/settlement behaviors need Domain Event / process manager / reconciler / task / explicit operator command explanation.
 - K10 needs method-level CQRS admission before no-finding: query DTOs alone do not prove write repositories are not serving product reads.
 - Next fix should not add another protocol file. Add no-finding admission rules directly to `review/SKILL.md`: no-finding notes are allowed only for non-smell surfaces with observed correct shape, and triggered first-hop families cannot be cleared by package names, object splitting, accepted design, or DTO/read-model presence alone.
+
+## Round 2026-07-08 v1.14.76 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.76`, release commit `01f58f8`.
+- preceding hotfix: PR #129 tightened no-finding admission in `review/SKILL.md`, especially weak positive proof such as object splitting, accepted design, DTO presence, QueryRepository presence, and passing tests.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.76`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.76-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.76-clean/original-review-final.md`, 3 findings.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.76-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.76-clean/reflection-final.md`.
+- verification inside clean review: `go test ./internal/business/tasknegotiation/domain ./internal/business/tasknegotiation/application` passed; `go test ./internal/business/tasknegotiation/...` was interrupted after 101.641s with `infrastructure` marked FAIL, so it is not full-suite evidence.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K5 partial; K6 partial; K4, K7, K8, and K10 missed.
+- Breadth: 22 / 45. It found payment fact precedence, recovery reachability, and one infrastructure-owned delivery transition, but did not inventory repository/API candidate owners, terminal/execution facts, state vocabulary, or CQRS read/write methods.
+- Depth: 22 / 45. K2/K3 were concrete; K5/K6 were adjacent symptoms only. The review still treated object splitting and semantic repository transactions as positive signals.
+- Review discipline: 5 / 10. It separated interrupted infra verification from passed focused tests, but still used weak positive proof in Notes.
+- Total: 49 / 100.
+
+### Gap Analysis
+
+- No-finding admission wording improved the run log behavior but not final breadth. The final artifact still collapsed most non-payment families into a positive note.
+- The review found a new useful symptom, "Delivery submission state transition is in MySQL repository", but did not generalize it into Repository/API candidate-owner classification across payment/delivery/refund/dispute/settlement.
+- K7 is the decisive failure mode: the final Notes used "拆分基本符合 spec" and "语义 repository 方法做事务持久化" as waiver-like positive evidence.
+- The next fix should remove remaining workflow micro-protocols and make the hot path a positive recipe, not more admission/proof text: six steps, smell guilty-presumption, related evidence follow-up, and weak positive proof downgraded inline in Output.

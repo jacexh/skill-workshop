@@ -133,7 +133,7 @@ Rules:
 - Application constructs Domain inputs, calls Domain methods/validation, maps Domain errors outward, and manages transaction boundaries.
 - Default transaction boundary is one aggregate write per command.
 - A Repository is a write-side Aggregate collection. It normally exposes only `Get(ctx, id)` and `Save(ctx, aggregate)` for one mutable Aggregate Root; owned child rows may be persisted with it.
-- Extra Repository methods start as wrong-shape smells. Semantic workflow verbs, product reads, `Save*` variants, and multi-object transaction methods return to design/modeling unless they are moved to Aggregate behavior, Application orchestration, QueryRepository/read facade, or an accepted same-aggregate fact lookup.
+- Extra Repository methods are outside the normal write-repository shape. Semantic workflow verbs, product reads, `Save*` variants, and multi-object transaction methods return to design/modeling unless they are moved to Aggregate behavior, Application orchestration, QueryRepository/read facade, or an accepted same-aggregate fact lookup.
 - Independent Aggregate Roots must not require the same transaction for business correctness. If they do, either remodel them as one Aggregate Root or coordinate with Domain Events/process managers/reconcilers/Integration Messages and explicit eventual consistency.
 - A semantic repository method name is not proof; an API saving or coordinating several candidate roots is Aggregate Boundary Conflict until modeling proves one aggregate or event-driven coordination.
 - Implementation transaction shape is not Repository design evidence. Cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
@@ -141,44 +141,38 @@ Rules:
 - Query Handler structs are optional when they only delegate once to a QueryRepository.
 - Application command-side port pressure returns to modeling/design before implementation. It requires the Architecture Gate placement extension and the semantic fake test.
 
-#### Default-First Concept Map
+#### Normal Shape Map
 
-- Aggregate default: one Aggregate owns one consistency boundary and protects invariants through behavior methods.
-- Repository default: one Repository is a collection for one write-side Aggregate Root, normally with only `Get` and `Save`; it does not serve product reads, expose workflow verbs, or bundle independent roots.
-- Domain Event default: same bounded-context, past-tense business fact recorded after Domain state changes for repeated local reactions.
-- Integration Message default: stable cross-context contract derived from a selected Domain fact or explicit published fact.
-- Application Port default: QueryRepository/read facade for reads, ACL/Infrastructure adapter for mechanisms, and Domain Repository/Domain Service/Domain Event for command-side domain needs.
-- CQRS default: commands mutate Domain aggregates; queries return DTO/read models without loading aggregates for UI history or detail pages.
-- Bounded Context default: product language, authority, lifecycle, and invariant ownership define the boundary, not technology nouns.
-- FSM default: state-specific behavior lives in state methods and aggregate methods delegate to the current state, not raw state mutation.
+- Aggregate: one Aggregate owns one consistency boundary and protects invariants through behavior methods.
+- Repository: one Repository is a collection for one write-side Aggregate Root, normally with only `Get` and `Save`; it does not serve product reads, expose workflow verbs, or bundle independent roots.
+- Domain Event: same bounded-context, past-tense business fact recorded after Domain state changes for repeated local reactions.
+- Integration Message: stable cross-context contract derived from a selected Domain fact or explicit published fact.
+- Application Port: QueryRepository/read facade for reads, ACL/Infrastructure adapter for mechanisms, and Domain Repository/Domain Service/Domain Event for command-side domain needs.
+- CQRS: commands mutate Domain aggregates; queries return DTO/read models without loading aggregates for UI history or detail pages.
+- Bounded Context: product language, authority, lifecycle, and invariant ownership define the boundary, not technology nouns.
+- FSM: state-specific behavior lives in state methods and aggregate methods delegate to the current state, not raw state mutation.
 - Exception pressure returns to domain-modeling when it concerns model facts; tactical placement gaps return to design. Do not present exception-shaped mechanisms as alternatives in implementation or review.
 
-#### Return Routing Rule
+#### Return Routing
 
 - Return to domain-modeling for aggregate boundary, lifecycle, invariant, fact language, or bounded-context uncertainty.
 - Return to design for layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted.
 - Report a violation directly when evidence proves the accepted model or architecture rule is broken and no new model/design decision is needed.
 - Red-flag evidence such as semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, ORM session, or multi-record lifecycle writes is implementation evidence. transaction-shaped evidence cannot satisfy Repository design.
-- Accepted design is evidence, not waiver. If a design contains synchronous writes across several lifecycle owners, review still requires invariant owner, failure tolerance, and event/process rationale.
-- Build/runtime blockers only block executable verification; Independent static model review still runs. Compile blocker is never a positive model signal.
-- Rules Satisfied is scoped to one rule; it must not cover aggregate boundary or event-collaboration risk in the same flow.
-- Absence of forbidden nouns is not model proof. No-finding needs observed correct shape for the touched surface.
+- Accepted design is evidence to inspect, not a waiver. If a design contains synchronous writes across several lifecycle owners, it still needs invariant owner, failure tolerance, and event/process rationale.
+- Build/runtime blockers only block executable verification. Compile blockers are never positive model signals.
+- Rule conclusions are scoped to one rule; they must not cover aggregate boundary or event-collaboration risk in the same flow.
 - Production wiring visibility matters: a reconciler, handler, recovery command, scheduler, route, subscription, or processor that exists in code but lacks production entrypoint or runtime registration is an evidence gap or violation.
-- Repository/API methods outside `Get`/`Save`, methods that save or coordinate several aggregate or lifecycle-owner candidates, and independent Aggregate Roots needing one transaction start as wrong-shape evidence.
+- Repository/API methods outside `Get`/`Save`, methods that save or coordinate several aggregate or lifecycle-owner candidates, and independent Aggregate Roots needing one transaction start outside the normal shape.
 - Candidate classification asks whether each coordinated object is the same Aggregate Root, an owned child/value object, a read model, or an independent lifecycle owner; independent owners route to modeling/design or eventized collaboration.
 - Linked lifecycle behavior must classify its mechanism as Domain Event, process manager, reconciler, task processor, Integration Message, or evidence gap; synchronous command path and command transaction are evidence, not a collaboration model.
 - Parent state words that look like child process outcomes must be checked against the parent lifecycle fact and owner.
 - CQRS proof comes from caller semantics, returned model family, write-side influence, storage/adapter overlap, and read-facade ownership; names, DTO packages, or absent imports are only routing clues.
 - Terminal lifecycle facts and terminal events must be checked against required execution facts, idempotency/replay rules, recovery, and closure conditions; command sequencing, domain guards, transaction shape, or event names alone are not enough.
-- Positive conclusion calibration: when later scoring feedback or known issues contradict a review, convert the miss reason into a generic rule, output contract, reference update, or eval assertion instead of memorizing project-specific examples.
-
-#### Review Order Rule
-
-For lifecycle/repository/event reviews, reason in this order: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism.
 
 #### Irreversible Fact Precedence Rule
 
-Durable succeeded, accepted, completed, authorized, executed, or externally committed facts outrank open workflow states. A lagging projection, event handler, or reconciler does not reopen retry, cancellation, refund, or mutation rights unless the accepted model explicitly says so. Review terminal lifecycle facts and execution facts separately: lifecycle closure records the product obligation state; execution facts record money, shipment, notification, or external side effects. If either side can advance without the other, require an explicit reaction/process/reconciler and failure-tolerance rule before marking Rules Satisfied. Split or multi-execution outcomes require one row per execution fact with authorization source, amount/result scope, idempotency/replay rule, failure recovery, and exact aggregate closure condition; command sequencing alone cannot prove terminal/execution separation.
+Durable succeeded, accepted, completed, authorized, executed, or externally committed facts outrank open workflow states. A lagging projection, event handler, or reconciler does not reopen retry, cancellation, refund, or mutation rights unless the accepted model explicitly says so. Terminal lifecycle facts and execution facts are separate: lifecycle closure records the product obligation state; execution facts record money, shipment, notification, or external side effects. If either side can advance without the other, define an explicit reaction/process/reconciler and failure-tolerance rule. Split or multi-execution outcomes require one row per execution fact with authorization source, amount/result scope, idempotency/replay rule, failure recovery, and exact aggregate closure condition; command sequencing alone cannot prove terminal/execution separation.
 
 #### CQRS Read/Write Split Rule
 
@@ -201,7 +195,7 @@ Do not merge write-side Repository and read-side QueryRepository responsibilitie
 
 #### Aggregate Boundary Conflict Gate
 
-Default path is one aggregate per command and one Repository API shaped as `Get` plus `Save`. If a Repository/API appears to save or coordinate several candidate roots, or if several independent Aggregate Roots need the same transaction for business correctness, do not justify it with transaction evidence. Classify Aggregate Boundary Conflict and return to `domain-modeling` unless a prior modeling discussion already changed the aggregate boundary.
+Normal path is one aggregate per command and one Repository API shaped as `Get` plus `Save`. If a Repository/API appears to save or coordinate several candidate roots, or if several independent Aggregate Roots need the same transaction for business correctness, do not justify it with transaction evidence. Classify Aggregate Boundary Conflict and return to `domain-modeling` unless a prior modeling discussion already changed the aggregate boundary.
 
 Reopened modeling must answer:
 

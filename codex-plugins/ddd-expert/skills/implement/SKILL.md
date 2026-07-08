@@ -23,7 +23,7 @@ Before editing, name the **Accepted model source** and confirm only the items im
 - layer ownership and mechanism containment;
 - testing seams or explicit verification target.
 
-Default-first key concepts: implement the normal DDD path unless the accepted design reopened modeling and produced a new model decision. Aggregates own invariants; Repositories persist one write-side Aggregate Root; Domain Events model same-BC past-tense facts after state change; Integration Messages are cross-context contracts; QueryRepositories/read facades serve product reads. Aggregate Boundary Conflict returns to `domain-modeling`. Implementation transaction shape is not Repository design evidence; cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
+Normal-shape concepts: implement the normal DDD path unless the accepted design reopened modeling and produced a new model decision. Aggregates own invariants; Repositories persist one write-side Aggregate Root; Domain Events model same-BC past-tense facts after state change; Integration Messages are cross-context contracts; QueryRepositories/read facades serve product reads. Aggregate Boundary Conflict returns to `domain-modeling`. Implementation transaction shape is not Repository design evidence; cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
 
 Return routing: Return to domain-modeling for aggregate boundary, lifecycle, invariant, fact language, or bounded-context uncertainty. Return to design for layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted.
 

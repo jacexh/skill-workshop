@@ -39,13 +39,11 @@ Before findings:
 ## Workflow
 
 1. **Breadth scan**: compare touched code shape against the layer baseline. Output: Smell List rows with layer, trigger, baseline miss, and code evidence.
-2. **First-hop completion**: add visible domain state/event vocabulary, application durable-fact admission/recovery, repository/API ownership, CQRS read/write split, and interface/runtime reachability misses. Output: completed first-hop Smell List.
-3. **Merge**: group same-shape smells by owner, lifecycle, boundary, or mechanism. Output: merged smell families preserving every trigger.
-4. **Explain one family**: process one merged smell family through business fact, owner, reaction/process, failure tolerance, and implementation mechanism. Output: violation, return-to-domain-modeling, return-to-design, evidence-gap, or adjacent-smell.
-5. **Expand siblings**: check sibling methods, flows, states, events, ports, and adapters that share the same baseline miss. Output: updated family verdict plus any new adjacent smell rows.
-6. **Close the list**: repeat explain/expand until every smell and adjacent smell has a terminal verdict; smells do not become no-finding, and triggered first-hop families without method/flow/state/event-level correct-shape evidence become evidence gaps. Output: closed Smell List.
-7. **Synthesize**: combine closed smell verdicts. Output: shared wrong model, boundary, lifecycle, mechanism, or missing recovery story.
-8. **Report**: turn closed verdicts into findings, evidence gaps / returns, non-smell positive notes, verification, and residual risk. Output: final review judgment.
+2. **Merge same-shape smells**: group rows by owner, lifecycle, boundary, state vocabulary, collaboration mechanism, runtime reachability, repository/API shape, or CQRS split. Output: merged smell families preserving every trigger.
+3. **Explain each family**: assume the smell is wrong until the relevant method, flow, state, event, port, or adapter shows the correct shape. Output: violation, return-to-domain-modeling, return-to-design, evidence-gap, or adjacent-smell.
+4. **Follow related evidence**: for each adjacent smell, inspect the nearest sibling methods, flows, states, events, ports, adapters, or runtime registrations that share the same reason. Output: updated Smell List with any new family rows.
+5. **Synthesize root cause**: combine family verdicts. Output: shared wrong model, boundary, lifecycle, state vocabulary, collaboration mechanism, repository/API shape, CQRS split, or recovery story.
+6. **Report**: turn the synthesized verdicts into findings, evidence gaps / returns, non-smell positive notes, verification, and residual risk. Output: final review judgment.
 
 Smell explanation stays local by default. Use subagents only when the user explicitly asks.
 
@@ -169,52 +167,18 @@ Forbidden shape:
 - Boundary isolation: Domain/Application semantic APIs use domain-owned language, not generated protocol, storage, runtime, or adapter concepts.
 - Recovery reachability: reconciler, task, event, or message recovery has a production entrypoint, runtime registration, and failure behavior.
 
-## No-Finding Admission
-
-- No-finding notes are allowed only for non-smell surfaces or triggered families with observed correct shape at the relevant method, flow, state, event, port, or adapter level.
-- Accepted design, semantic names, object splitting, package separation, DTO/read-model presence, and a passing test are not no-finding proof for a triggered family.
-- Repository/API no-finding needs a method inventory showing `Get`/`Save` shape or explicit owned-child/read-model/independent-owner classification for every extra method.
-- Collaboration no-finding needs each delivery/refund/dispute/settlement/recovery flow to name its Domain Event, process manager, reconciler, task, Integration Message, or explicit operator/API command mechanism.
-- Terminal/execution no-finding needs separate money execution facts and agreement terminal facts, with ordering and event evidence.
-- CQRS no-finding needs write-repository method inventory plus product-read QueryRepository/read-facade evidence; query DTOs alone are not enough.
-
-## Review axes
-
-Keep axes separate:
-
-- **Domain Abstraction** — terms, identity, lifecycle, invariants, aggregate/policy/service/read-model boundary, events/messages, bounded-context ownership.
-- **Spec/Behavior** — user stories, state transitions, exceptions, and out-of-scope behavior versus the plan or diff.
-- **Code-level DDD/technology** — dependency direction, generated/protocol isolation, persistence mapping, runtime/config, logging, tests, and local technology rules.
-
-Report each finding under one primary axis. Mention secondary impact only when it changes severity.
-
-## Fix direction ordering
-
-Do not reduce finding count to make every finding fully templated. Every finding needs evidence, guardrail, triage, and impact; follow-up fields are selected by finding type.
-
-- **Model correction** — only for lifecycle, consistency, event-fact, or
-  coordination findings; name the invariant owner, lifecycle owner, aggregate
-  boundary, failure tolerance, or event fact before mechanisms.
-- **Implementation mechanism** — repository, transaction, handler, event, task,
-  reconciler, or test mechanism that implements the accepted model.
-- **Evidence needed** — for evidence gaps.
-- **Test / verification needed** — for missing or insufficient proof.
-
-Do not present repository, port, or transaction shape as a peer alternative to
-resolving model ownership.
-
 ## Output
 
 Final answer is concise. Do not print the full working-evidence set by default.
-For lifecycle/repository/event/CQRS scope, complete and merge required smell verdicts before the final answer, then cite smell families in findings, evidence gaps, or returns.
+For lifecycle/repository/event/CQRS scope, complete and merge smell verdicts before the final answer, then cite smell families in findings, evidence gaps, or returns.
 Working evidence stays internal unless it is needed to understand a judgment. If a smell family cannot be explained from available evidence, report an evidence gap, not a positive claim.
-Every explained smell-family verdict must land in Findings or Evidence gaps / returns.
-Do not collapse production wiring, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader finding.
+Every explained smell-family verdict lands in Findings or Evidence gaps / returns. Do not suppress findings for template cost.
+Do not collapse production wiring, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader claim.
 
 Report in this order when present: scope/model evidence, findings, evidence gaps / returns, no-finding notes for non-smell surfaces with positive shape, verification, residual risk.
 
 No DDD findings: say that directly only when no concrete violation/return was found; list any smell-family evidence gaps and residual test gaps. Do not fill a finding template with harmless local style.
-No-finding notes must name the observed correct shape; if the proof is package names, object splitting, accepted design, DTO presence, or passing tests only, report an evidence gap.
+No-finding notes are only for non-smell surfaces or observed correct shape. Repository/API smells need method inventory; collaboration smells need named event/process/recovery mechanism; terminal/execution smells need separate execution and closure facts; CQRS smells need write/read method inventory. If the positive proof is only package names, object splitting, accepted design, DTO presence, QueryRepository presence, or passing tests, report an evidence gap.
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 
