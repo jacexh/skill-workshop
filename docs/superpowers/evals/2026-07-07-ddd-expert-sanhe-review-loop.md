@@ -2332,3 +2332,29 @@ Next evaluation should be against the first released version after this local br
 - K8 is partial because `payment_failed` / `payment_cancelled` were named, but `payment_pending` was not adjudicated as parent lifecycle vocabulary.
 - K6 remains partial because payment recovery and terminal event vocabulary were counted as adjacent collaboration evidence, but delivery/refund/dispute/settlement orchestration still lacks a named Domain Event / process manager / reconciler / operator command mechanism.
 - Next fix: accepted-design waiver, payment_pending vocabulary, and non-payment collaboration mechanism each need explicit final verdict rows.
+
+## Round 2026-07-08 v1.14.85 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.85`, release commit `aa21853`.
+- preceding hotfix: PR #138 attempted to keep accepted-design waiver, payment_pending vocabulary, and non-payment collaboration rows distinct.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.85`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.85-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.85-clean/original-review-final.md`, 2 payment findings plus evidence gaps.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.85-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.85-clean/reflection-final.md`.
+- verification inside clean review: `git diff --check master...HEAD`; two Go test commands were started and had to be interrupted after long integration wait.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K8 full; K5 partial; K10 partial; K4, K6, and K7 missed.
+- Breadth: 27 / 45. Payment rows are strong, but terminal/execution, collaboration, and accepted-design waiver collapsed.
+- Depth: 23 / 45. K2/K3 are concrete, K8 is useful but folded into the payment finding. K5/K10 are weakly acknowledged. K4/K6/K7 are false-negative or omitted.
+- Review discipline: 6 / 10. The review explicitly used `design/convention accepted MVP transaction` as a waiver and cleared non-payment lifecycle risk.
+- Total: 56 / 100.
+
+### Gap Analysis
+
+- This release regressed from v1.14.84. The attempted wording was too soft: "expected model sources are not waivers" did not stop the model from using "design/convention accepted" as a positive clearance.
+- K4 regressed because terminal/execution split was again cleared by state closure rather than event vocabulary.
+- K6 regressed because delivery/refund/dispute/settlement were declared outside the main risk without naming a collaboration mechanism.
+- Next fix must prohibit exact clearance shapes, not add softer intent: "design/convention accepted" and "MVP transaction" are evidence-gap triggers; terminal/execution verdict must cite event names; collaboration verdict must name the mechanism per non-payment lifecycle.
