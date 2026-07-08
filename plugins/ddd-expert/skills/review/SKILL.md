@@ -40,7 +40,7 @@ For lifecycle/repository/event/CQRS scope, do not start with Findings.
 First emit the exact lifecycle sections from the output contract, including Output completion gate and Checked row admission control.
 Lifecycle/repository/event/CQRS scope is a final-output gate, not only a checked/Rules Satisfied gate.
 Mandatory-axis completion preflight: final findings are prohibited until every triggered lifecycle, repository/API, collaboration, parent-state, terminal/execution, recovery, event-timeline, and CQRS axis has an emitted ledger.
-A mandatory axis may not be omitted. Absence of a ledger is itself an evidence gap and blocks final findings.
+A mandatory axis may not be omitted. Absence of a ledger becomes a missing-axis evidence-gap ledger. Missing axis ledgers block same-scope positive claims, not final artifact emission.
 Severe findings cannot abbreviate mandatory axes; continue inventories after Blocker or Critical findings.
 One-row or grouped mandatory sections are incomplete when multiple seeds exist; split rows that cover multiple methods, flows, execution facts, states, ports, commands, or owners.
 Inventory seeds: lifecycle flows, repository/API methods, collaboration trigger facts, terminal execution facts, parent state vocabulary, domain event names, and read-shaped write-side methods/shared adapters.
@@ -64,7 +64,10 @@ Subagents must not each perform a full global review; each receives one axis, re
 Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
 Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
 Coordinator merges returned ledgers; it does not restart full-repository review or let one high-salience issue truncate other axes.
-The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis result is merged into the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory.
+Delegation has a single bounded collection pass: after dispatching triggered axis reviews, merge returned ledgers once; do not wait indefinitely for missing subagent responses.
+A delegated axis that has not returned becomes a missing-axis evidence-gap ledger with reviewer `subagent-missing`, trigger evidence, and blocked positive claims.
+The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis is represented by a returned ledger or a missing-axis evidence-gap ledger in the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory.
+Never leave the review at a wait/collab wait state after returned ledgers exist; emit final output with missing-axis evidence gaps instead.
 A finding from one subagent cannot close or waive another axis.
 If a subagent call fails, record that axis as an evidence gap, block same-scope positive claims, and continue merging the completed axes.
 

@@ -1772,3 +1772,22 @@ Coverage Matrix:
 - Require collaboration/process mechanism rows for delivery, refund, dispute, settlement, split closure, and payment to be extracted independently of lifecycle/repository findings.
 - Forbid CQRS no-finding or "inventory completed" claims unless the final artifact shows read-shaped write-side method rows with caller semantics, returned model family, write-side influence, storage/adapter overlap, and read-facade ownership decision.
 - Require parent-state language inventory to include pending/open states such as `payment_pending`, not only failed/cancelled states.
+
+## Protocol Regression 2026-07-08 v1.14.62
+
+- skill-workshop release under evaluation: `v1.14.62`, release commit `e031ab3`.
+- preceding hotfix: PR #115 added the main-axis quick scan, focused axis subagents, evidence-derived axis summary, repository/API default-deny rows, collaboration row extraction, and CQRS visible-row proof.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade skill-workshop-codex` installed the latest marketplace revision; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.62`.
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.62.md '<fixed review prompt>' > /tmp/sanhe-ddd-review-v1.14.62-run.log 2>&1`
+- expected raw review output file: `/tmp/sanhe-ddd-review-v1.14.62.md`.
+- actual result: no output file was created; the process was stopped after more than 11 minutes without a final artifact.
+- run-log evidence: `/tmp/sanhe-ddd-review-v1.14.62-run.log` reached about 799 KB. Its tail showed useful axis progress: Repository/API returned a shape-sentinel result for multi-owner semantic repository methods; collaboration confirmed payment funding recovery was not production-reachable; lifecycle/recovery identified stale `payment_pending` cancellation and duplicate payment consequences after durable `PaymentSucceeded`. The run then stayed at `collab: Wait` while waiting for remaining FSM/CQRS axes.
+
+### Regression Root Cause
+
+- The v1.14.62 direction was correct: the reviewer did run a thin main-axis pass and extracted deeper independent axis evidence than v1.14.61.
+- The liveness contract was incomplete: the coordinator was told to wait until every delegated axis result was merged, but it was not told how to represent a missing or late axis.
+- Because missing axes had no bounded fallback representation, the review could wait indefinitely instead of emitting a final artifact with completed-axis findings plus evidence gaps for missing axes.
+- The next fix should preserve the subagent direction but make delegation a single bounded collection pass: returned axis ledgers are merged once; any missing axis becomes a missing-axis evidence-gap ledger; missing-axis ledgers block same-scope positive claims, not final artifact emission.
