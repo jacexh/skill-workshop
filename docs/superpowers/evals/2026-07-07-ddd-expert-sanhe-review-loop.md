@@ -1823,3 +1823,28 @@ Coverage Matrix:
 - Textual bans on wait/collab-wait did not override the current runtime behavior when the skill still required subagent delegation for multi-axis scope.
 - In this Codex execution environment, available subagent/collaboration collection is effectively open-ended; using it for review axes can prevent final artifact emission.
 - The next fix should keep the user's direction as a preference, but make it conditional: use subagents only when ledgers can be collected without wait/collab wait. If non-waiting collection is unavailable, skip delegation and complete bounded local axis ledgers in the coordinator.
+
+## Round 2026-07-08 v1.14.65 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.65`, release commit `ed461c3`.
+- preceding hotfix: PR #118 made subagent delegation non-waiting only and required bounded local axis ledgers when non-waiting collection is unavailable.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.65`.
+- review command: `timeout 900s codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.65.md '<fixed review prompt>' > /tmp/sanhe-ddd-review-v1.14.65-run.log 2>&1`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.65.md`, 44 lines, 4,880 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.65-reflection.md`, 17 lines, 2,238 bytes.
+- liveness result: recovered. No final `collab: Wait`; final artifact was emitted.
+
+### Score
+
+- Breadth: 24 / 45. K3 was found. K2, K5, K7, and K8 were shallow. K4 and K6 were missed. K10 was overclaimed.
+- Depth: 17 / 45. Recovery wiring had useful depth, but stale command admission, split terminal/execution ordering, repository candidate-owner rows, collaboration mechanism rows, and CQRS inventory were missing or grouped.
+- Review discipline: 5 / 10. The run avoided the liveness failure and some positive claims, but compacted mandatory axes into grouped rows and still wrote a CQRS no-branch finding without method-level inventory.
+- Total: 46 / 100.
+
+### Gap Analysis
+
+- The local fallback solved liveness but lost depth: without subagent rows, the coordinator collapsed required axis ledgers into one-line summaries or evidence gaps.
+- K2 stayed shallow because recovery evidence was not extended into stale-command admission rows for cancel/retry/new payment after durable success.
+- K4 and K6 were missed because split refund/settlement terminal/execution facts and delivery/refund/dispute/settlement/split-closure collaboration mechanisms were not independently inventoried.
+- K5/K7 stayed shallow because repository/API was represented by a grouped example row instead of one row per semantic method with owner proof and return route.
+- K10 remained unsafe because `CQRS/read-side` said "No branch finding" without visible method-level read-shaped write-side rows. When local fallback cannot complete a CQRS inventory, the only valid decision is evidence gap, not no-finding.

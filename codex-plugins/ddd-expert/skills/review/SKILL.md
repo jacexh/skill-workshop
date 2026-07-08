@@ -62,6 +62,11 @@ When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, t
 Use one subagent per triggered heavy axis only when the runtime can return ledgers without wait/collab wait: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods.
 Do not call asynchronous subagents or collaboration tools when their only collection path is wait/collab wait.
 If non-waiting subagent collection is unavailable, skip delegation and complete bounded local axis ledgers in the coordinator.
+Local fallback ledgers are not shorthand; each triggered fallback axis must emit the same row-local tables required of subagents.
+A bounded local ledger may not use one grouped row for multiple repository methods, collaboration flows, terminal facts, parent states, commands, or CQRS methods.
+If local fallback cannot complete row-level CQRS inventory, decision is evidence gap, not no branch finding.
+Local fallback stale-command matrix enumerates each later command after durable fact: cancel, retry/start, new payment, reopen, execution, and closure.
+Local fallback collaboration ledger enumerates delivery, refund, dispute, settlement, split closure, and payment recovery mechanisms independently.
 Subagents must not each perform a full global review; each receives one axis, relevant source seeds, required ledger columns, and a bounded output contract.
 Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
 Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
