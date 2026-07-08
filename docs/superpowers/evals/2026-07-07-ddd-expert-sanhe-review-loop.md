@@ -2060,3 +2060,33 @@ Coverage Matrix:
 - Release test now protects the simplified structure and includes negative assertions so the deleted risk-router/protocol/depth-axis vocabulary does not return.
 
 Next evaluation should be against the first released version after this local branch, not against v1.14.74.
+
+## Round 2026-07-08 v1.14.75 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.75`, release commit `13d5b5a`.
+- preceding hotfix: PR #128 removed the separate risk-router and review-smell-protocol references, moved Workflow and Layer Baseline into `review/SKILL.md`, removed default subagent depth execution, and synced current memory docs with the route-only hook contract.
+- plugin evidence: `codex plugin add ddd-expert@skill-workshop-codex --json` installed `ddd-expert` version `1.14.75`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.75-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.75-clean/original-review-final.md`, 15 lines.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.75-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.75-clean/reflection-final.md`.
+- verification inside clean review: focused lifecycle tests passed, and `go test ./...` passed including infrastructure tests (`171.053s`).
+- discarded dirty-worktree side run: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.75/original-review-final.md`. It found K2/K3/K4 full and K5/K6/K7 partial, but `/home/xuhao/sanhe` had uncommitted `go.mod`, `go.sum`, `task_agreement_fsm.go`, and `task_agreement_test.go` changes, so it is not the official score.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K8 partial; K4, K5, K6, K7, and K10 missed.
+- Breadth: 17 / 45. Payment fact precedence and recovery reachability were found, but the review closed delivery/refund/dispute/settlement and CQRS as no-finding without visible smell verdicts.
+- Depth: 17 / 45. K2 and K3 were concrete and useful, including cancel and repeat-start payment admission. The remaining triggered families were not explained; K8 was only adjacent to the durable-fact finding.
+- Review discipline: 5 / 10. The final answer was concise and verification was real, but it used spec/design shape and object split as positive proof for broad no-finding notes.
+- Total: 39 / 100.
+
+### Gap Analysis
+
+- Removing subagent/default depth and simplifying Workflow improved K2/K3 clarity, but the local Smell List still does not force every first-hop smell family to survive into final output.
+- The biggest regression is no-finding admission: "objects are split" and "QueryRepository returns DTO/read models" were accepted as enough proof to clear K4/K5/K6/K10.
+- The review still trusts accepted design/spec shape too early. Accepted design must be evidence to inspect, not a waiver for repository/API candidate-owner, collaboration mechanism, terminal/execution ordering, or CQRS method inventory.
+- K5 needs repository/API method-shape admission before no-finding: extra semantic methods and cross-owner transaction shapes must be either findings/returns or explicit evidence gaps.
+- K6 needs collaboration-mechanism admission before no-finding: delivery/refund/dispute/settlement behaviors need Domain Event / process manager / reconciler / task / explicit operator command explanation.
+- K10 needs method-level CQRS admission before no-finding: query DTOs alone do not prove write repositories are not serving product reads.
+- Next fix should not add another protocol file. Add no-finding admission rules directly to `review/SKILL.md`: no-finding notes are allowed only for non-smell surfaces with observed correct shape, and triggered first-hop families cannot be cleared by package names, object splitting, accepted design, or DTO/read-model presence alone.

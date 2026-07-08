@@ -34,6 +34,7 @@ Before findings:
 5. Missing proof is an evidence gap unless concrete evidence proves a violation.
 6. Accepted design and local convention are evidence to inspect, not waivers.
 7. Implementation transaction shape is not model evidence and cannot satisfy Repository design.
+8. Object splitting, package names, generated DTO mapping, and QueryRepository presence are not enough to clear a triggered smell family.
 
 ## Workflow
 
@@ -42,7 +43,7 @@ Before findings:
 3. **Merge**: group same-shape smells by owner, lifecycle, boundary, or mechanism. Output: merged smell families preserving every trigger.
 4. **Explain one family**: process one merged smell family through business fact, owner, reaction/process, failure tolerance, and implementation mechanism. Output: violation, return-to-domain-modeling, return-to-design, evidence-gap, or adjacent-smell.
 5. **Expand siblings**: check sibling methods, flows, states, events, ports, and adapters that share the same baseline miss. Output: updated family verdict plus any new adjacent smell rows.
-6. **Close the list**: repeat explain/expand until every smell and adjacent smell has a terminal verdict; smells do not become no-finding. Output: closed Smell List.
+6. **Close the list**: repeat explain/expand until every smell and adjacent smell has a terminal verdict; smells do not become no-finding, and triggered first-hop families without method/flow/state/event-level correct-shape evidence become evidence gaps. Output: closed Smell List.
 7. **Synthesize**: combine closed smell verdicts. Output: shared wrong model, boundary, lifecycle, mechanism, or missing recovery story.
 8. **Report**: turn closed verdicts into findings, evidence gaps / returns, non-smell positive notes, verification, and residual risk. Output: final review judgment.
 
@@ -168,6 +169,15 @@ Forbidden shape:
 - Boundary isolation: Domain/Application semantic APIs use domain-owned language, not generated protocol, storage, runtime, or adapter concepts.
 - Recovery reachability: reconciler, task, event, or message recovery has a production entrypoint, runtime registration, and failure behavior.
 
+## No-Finding Admission
+
+- No-finding notes are allowed only for non-smell surfaces or triggered families with observed correct shape at the relevant method, flow, state, event, port, or adapter level.
+- Accepted design, semantic names, object splitting, package separation, DTO/read-model presence, and a passing test are not no-finding proof for a triggered family.
+- Repository/API no-finding needs a method inventory showing `Get`/`Save` shape or explicit owned-child/read-model/independent-owner classification for every extra method.
+- Collaboration no-finding needs each delivery/refund/dispute/settlement/recovery flow to name its Domain Event, process manager, reconciler, task, Integration Message, or explicit operator/API command mechanism.
+- Terminal/execution no-finding needs separate money execution facts and agreement terminal facts, with ordering and event evidence.
+- CQRS no-finding needs write-repository method inventory plus product-read QueryRepository/read-facade evidence; query DTOs alone are not enough.
+
 ## Review axes
 
 Keep axes separate:
@@ -204,6 +214,7 @@ Do not collapse production wiring, collaboration mechanism, candidate-owner, sta
 Report in this order when present: scope/model evidence, findings, evidence gaps / returns, no-finding notes for non-smell surfaces with positive shape, verification, residual risk.
 
 No DDD findings: say that directly only when no concrete violation/return was found; list any smell-family evidence gaps and residual test gaps. Do not fill a finding template with harmless local style.
+No-finding notes must name the observed correct shape; if the proof is package names, object splitting, accepted design, DTO presence, or passing tests only, report an evidence gap.
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 
