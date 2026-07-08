@@ -7,7 +7,7 @@ description: Use when reviewing DDD/backend domain abstractions, specs, plans, o
 
 Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign. Build/runtime blockers only block executable verification; Independent static model review still runs. Compile blocker is never a positive model signal; Absence of forbidden nouns is not model proof. Report Independent modeling findings separately from build blockers.
 
-First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) once. In multi-axis reviews, the coordinator sends router section names to subagents; deeper references are for subagents or disputed row-local proof, not coordinator preload.
+First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) once. In multi-axis reviews, route by axis first; deeper references are for triggered row-local proof, not coordinator preload. Subagents are optional accelerators, and single-process fallback is the default when delegation is unavailable or brittle.
 
 ## Expected model sources
 
@@ -17,9 +17,9 @@ Reconstruct the expected model before judging code from: Domain Modeling Brief, 
 
 Before findings: confirm concrete evidence exists; start from business facts before code shape with Business fact timeline: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism; apply Irreversible fact precedence so durable succeeded/accepted/completed/executed facts outrank open workflow states; classify touched surfaces; choose proof from the risk router and local convention. For lifecycle, Repository, or event/reaction risks, require Event Timeline Reconciliation, Recovery reachability proof, terminal lifecycle facts and execution facts separation, and a candidate classification table before Rules Satisfied. Decide each candidate as `Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap`. Return to domain-modeling cannot be classified as Rules Satisfied. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
 
-## Coordinator budget
+## Coordinator discipline
 
-The coordinator is a merger, not another full reviewer. For multi-axis scope, keep coordinator reads to this skill, the risk router, model/spec/code seeds, and subagent outputs; do not load ddd-core or language references in full. Ask subagents to read their relevant reference slices. After spawning subagents, stop broad coordinator reads: no full-file reads, repo-wide searches, or local re-review passes except <=50-line cited snippets needed to merge a returned row. Budget fallback final: if proof would require more broad reading, emit the final answer with completed axes plus Evidence gap rows instead of reading until context exhaustion. Final answer target: 70 lines or fewer; subagent result target: 12 inventory rows or fewer per axis.
+The coordinator is a merger across completed axis rows, not another unbounded full reviewer. For multi-axis scope, keep reads to this skill, the risk router, model/spec/code seeds, local evidence, and optional subagent outputs; do not load ddd-core or language references in full before a row-local trigger requires them. Do not invoke generic dispatching-parallel-agents or subagent-driven-development inside review; this Axis review protocol is the only delegation protocol for review. Subagents are optional accelerators; absence or failure of subagent tools must not block final review output. Use single-process fallback and preserve completion discipline: if proof would require more broad reading, Budget fallback final means emit the final answer with completed axes plus Evidence gap rows instead of reading until context exhaustion.
 
 ## Coverage pass
 
@@ -31,11 +31,11 @@ Finding paragraphs are generated only from completed inventory rows; pre-written
 Parallel risk-axis review: run shape-sentinel, lifecycle-spec, and evidence-admission axes independently. One risk axis cannot clear another risk axis. First-principles shape challenge: after inventory questions and before admitting any tactical shape, ask: Is this shape genuinely necessary for the business invariant, or compensating for a wrong aggregate/lifecycle boundary? If the answer depends on accepted design, transaction shape, semantic names, DTO/package separation, command sequencing, or local convention without explicit model and failure-tolerance proof, keep the default-deny decision.
 Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. final output must not duplicate final answer blocks.
 
-## Axis subagent review protocol
+## Axis review protocol
 
-When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must delegate axis reviews to subagents before final output. If subagent tools are unavailable, stop with setup error: enable Codex `[features] multi_agent = true` or the equivalent Claude Code subagent support. Do not continue as a single-agent multi-axis review.
-Use one subagent per triggered heavy axis: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods. Each subagent receives expected model sources, scope trigger evidence, relevant code seeds, required ledger columns, and any needed reference slice names. Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
-The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis result is merged into the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory. A finding from one subagent cannot close or waive another axis. If a delegated subagent call fails after tools are available, record that axis as an evidence gap, block same-scope positive claims, and continue merging the completed axes.
+Run mandatory axes in-process by default. Optional delegation may split heavy axes across subagents: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods. Each delegated axis receives expected model sources, scope trigger evidence, relevant code seeds, required ledger columns, and any needed reference slice names; it returns inventory rows and negative decisions only, not the final overall conclusion.
+If using subagents in Codex, do not spawn full-history forked agents with agent_type, model, or reasoning_effort overrides; use fresh scoped prompts or omit those overrides. Absence or failure of subagent tools must not block final review output. Continue with single-process fallback. Any uninspected or failed-delegation axis row remains an evidence gap, blocks same-scope positive claims, and must be visible in the final axis completion summary.
+The reviewer may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every mandatory axis is represented in the Mandatory axis trigger ledger, Axis review ledger, and Negative decision inventory. A finding from one axis cannot close or waive another axis.
 
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope.
 
@@ -54,7 +54,7 @@ Final answer is concise. Do not print the full ledger set by default. For lifecy
 ```text
 DDD review:
 - Scope/model evidence:
-- Axis completion summary: Axis | Reviewer/subagent | Trigger evidence | Rows | Negative rows | Decision | Row ids
+- Axis completion summary: Axis | Reviewer | Trigger evidence | Rows | Negative rows | Decision | Row ids
 - Findings:
 Finding: <severity> <axis> <title> [row ids]
 - Evidence / guardrail / triage / impact:

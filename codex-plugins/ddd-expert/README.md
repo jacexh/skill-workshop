@@ -12,15 +12,16 @@ Codex hooks require these feature flags in `~/.codex/config.toml`:
 [features]
 hooks = true
 plugin_hooks = true
-multi_agent = true
 ```
+
+The multi_agent feature flag is optional. It can accelerate local evaluation and large multi-axis reviews, but review falls back to a single-process axis review when subagent tools are unavailable or fail.
 
 ```bash
 codex plugin marketplace add jacexh/skill-workshop
 codex plugin add ddd-expert@skill-workshop-codex
 ```
 
-Restart Codex after installation so the skills, hooks, and multi-agent review tools are loaded. `$ddd-expert:review` uses subagents for multi-axis lifecycle/repository/event/CQRS review.
+Restart Codex after installation so the skills and hooks are loaded.
 
 ## Upgrade
 
