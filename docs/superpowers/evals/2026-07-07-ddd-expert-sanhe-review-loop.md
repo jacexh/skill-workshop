@@ -2199,3 +2199,29 @@ Next evaluation should be against the first released version after this local br
 - K7 is now explicit: "accepted design/conventions explicitly allow semantic lifecycle transactions" was used as a no-finding reason. That must be impossible; accepted design can only be evidence to inspect or a return/evidence gap when ownership/failure tolerance is not proven.
 - K10 is similarly explicit: QueryRepository presence still becomes a positive no-finding. QueryRepository presence is not proof of write/shared-adapter inventory.
 - Next fix: required family rows end only as Findings or Evidence gaps / returns. No-finding notes are only for surfaces outside required family rows.
+
+## Round 2026-07-08 v1.14.80 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.80`, release commit `8de4950`.
+- preceding hotfix: PR #133 forced triggered required family rows and explained smell-family verdicts to end as Findings or Evidence gaps / returns, and kept positive notes outside smell rows.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.80`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.80-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.80-clean/original-review-final.md`, 3 findings plus Coverage Notes.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.80-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.80-clean/reflection-final.md`.
+- verification inside clean review: domain/application/eventhandler tests passed, generation/diff checks passed, infrastructure no-test smoke passed, and the focused infrastructure lifecycle test was interrupted after 90s with an environment/dependency limitation.
+
+### Score
+
+- Known-issue hits: K3 full; K4 full; K2 partial; K5 partial; K6 partial; K7 partial; K8 and K10 missed.
+- Breadth: 28 / 45. More required rows survived into final findings, especially split terminal/execution and accepted-design waiver pressure, but payment state vocabulary and CQRS inventory still failed to surface.
+- Depth: 21 / 45. K3 and K4 are concrete. K2 is still recovery-shaped rather than command-admission-shaped; K5/K6/K7 remain local symptoms rather than full candidate-owner/collaboration/waiver analysis.
+- Review discipline: 6 / 10. The output is concise and verification is honest, but it reintroduced a positive required-row clearance under `Coverage Notes`.
+- Total: 55 / 100.
+
+### Gap Analysis
+
+- `No-finding Notes` was removed as an exit, but the model used `Coverage Notes` for the same positive-clearance behavior.
+- K10 false-negative is explicit: write-side `List*ByTaskAgreement` methods were accepted as command-side fact lookups without method inventory / candidate-owner classification.
+- K8 still needs payment-scope parent-state vocabulary admission; `payment_pending`, `payment_failed`, and `payment_cancelled` did not become an evidence gap or finding.
+- Next fix: treat Coverage/positive/residual notes as the same as no-finding for required rows, and make write-side `List*`/read-shaped methods and payment parent-state vocabulary rows non-omittable.
