@@ -2398,3 +2398,30 @@ Durations below are approximate wall-clock measurements from raw-log birth time 
 | v1.14.84 | 73 | 6m39s | 199,104 | 1m16s | 20,051 |
 | v1.14.85 | 56 | 9m47s | 258,815 | 1m15s | 28,588 |
 | v1.14.86 | 78 | 7m41s | 215,064 | 1m06s | 17,504 |
+
+## Round 2026-07-08 v1.14.87 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.87`, release commit `b531637`.
+- preceding hotfix: PR #140 recorded v1.14.86 cost/score data, generalized sanhe-specific collaboration/state vocabulary wording, and tried to upgrade concrete negative evidence from pressure/inventory to final verdicts.
+- plugin evidence: `codex plugin add ddd-expert@skill-workshop-codex --json` installed `ddd-expert` version `1.14.87`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.87-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.87-clean/original-review-final.md`, 4 findings plus required-row verdict notes.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.87-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.87-clean/reflection-final.md`.
+- execution cost: original review consumed `213,464` tokens and took approximately `8m44s` by raw-log birth time to final-output mtime; calibration consumed `21,693` tokens and took approximately `1m18s` by the same file-timestamp method.
+- verification inside clean review: focused domain/application/eventhandler tests passed; `git diff --check` and `git diff --exit-code -- gen proto` passed; `buf generate` failed because `protoc-gen-es` was missing from `PATH`; infrastructure tests were interrupted after about 2 minutes with no output.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K4 full; K5 partial; K7 partial; K6, K8, and K10 missed.
+- Breadth: 25 / 45. K2-K4 stayed strong, but the generalized wording failed to keep collaboration mechanism, parent-state vocabulary, and CQRS inventory alive as real verdict rows.
+- Depth: 23 / 45. Payment fact precedence, recovery reachability, and split terminal/execution are concrete. Repository/API ownership was reduced to one Infrastructure-owned transition symptom; accepted-design waiver was narrowed to one method; K6/K8/K10 were shallow or incorrectly cleared.
+- Review discipline: 5 / 10. The final answer contains required-row verdict notes, but it uses weak clearance again: QueryRepository presence clears CQRS, parent-state vocabulary is treated as mostly correct, and accepted semantic repository transactions are accepted narrowly without model ownership/failure-tolerance proof.
+- Total: 53 / 100.
+
+### Gap Analysis
+
+- v1.14.87 is a regression from v1.14.86. Generalizing away sanhe-specific anchors was directionally clean but removed the concrete pressure that made required family rows survive to final output.
+- The negative-evidence wording did not force upgrades: the reviewer still left CQRS as "no product-read violation", parent-state vocabulary as mostly correct, and collaboration mechanism absent.
+- The lesson is not to add more project words, but to preserve stronger final-output obligations: clearing state vocabulary or CQRS must name observed state words / write-side methods checked, and clearing collaboration must name the mechanism for each linked lifecycle family. Without that concrete final proof, the row is a finding or return/evidence gap.
+- Latest released version is below the accepted 70+ band; restore or repair before treating the loop as complete.
