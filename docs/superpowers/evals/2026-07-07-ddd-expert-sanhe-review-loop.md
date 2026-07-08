@@ -2279,3 +2279,29 @@ Next evaluation should be against the first released version after this local br
 - The final-output problem is family merging: Repository/API, collaboration, accepted-design waiver, and CQRS are collapsed into one broad evidence gap.
 - K8 was omitted because the payment durable-fact finding consumed the payment attention; payment parent-state vocabulary needs a distinct final verdict even when K2 exists.
 - Next fix: final verdicts must keep required family labels distinct. A broad repository/lifecycle evidence gap may summarize root cause only after each required family row has its own finding or evidence-gap/return line.
+
+## Round 2026-07-08 v1.14.83 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.83`, release commit `a07a4af`.
+- preceding hotfix: PR #136 required distinct final verdict lines for triggered required family labels and kept payment parent-state vocabulary separate from durable-fact/recovery findings.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.83`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.83-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.83-clean/original-review-final.md`, 4 findings plus 3 evidence gaps/returns.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.83-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.83-clean/reflection-final.md`.
+- verification inside clean review: focused tasknegotiation tests and `go test ./... -count=1` passed.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K5 full; K7 full; K8 full; K6 partial; K10 partial; K4 missed.
+- Breadth: 37 / 45. Distinct required-row verdicts worked for repository/API, accepted-design waiver, CQRS, and payment state vocabulary.
+- Depth: 31 / 45. K2/K3/K5/K7/K8 are concrete enough to act on. K6 and K10 remain partial. K4 regressed into an explicit false negative.
+- Review discipline: 7 / 10. The report structure is stronger, but actively clearing K4 under `[Terminal/execution split]` is a real discipline failure.
+- Total: 75 / 100.
+
+### Gap Analysis
+
+- v1.14.83 improved family separation substantially, but terminal/execution split was evaluated too narrowly.
+- K4 false negative reason: the review checked whether split dispute closes after both refund/settlement executions, but did not inspect whether single-side execution emitted parent terminal events or whether final closure emitted its own terminal event.
+- Terminal/execution split needs an event-vocabulary clause: execution facts and parent terminal facts must have separate event names and timing.
+- Next fix: terminal/execution cannot be cleared by state closure alone; inspect same-named parent terminal events emitted during child execution and missing final closure events.

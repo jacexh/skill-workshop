@@ -164,6 +164,7 @@ Forbidden shape:
 - Durable fact precedence: succeeded/accepted/completed/executed facts outrank open workflow states; later commands check durable facts before retry/start, cancel, reopen, reversal/compensation, execution, or closure.
 - Durable-fact command admission: when a durable child fact can precede parent state reflection, inspect retry/start/cancel/reopen commands against the durable fact; recovery reachability alone does not clear admission.
 - Terminal closure: aggregate terminal facts and terminal events occur after required execution facts, idempotency/replay rules, and closure conditions are complete.
+- Terminal/execution event vocabulary: child execution events and parent terminal events have distinct names and timing; parent terminal events are not emitted during partial child execution, and state closure alone does not clear this row.
 - Collaboration: repeated external side effects, reversal/compensation, exception/dispute, settlement/closure, split execution/closure, or recovery reactions have one named collaboration mechanism and recovery behavior.
 - CQRS: write repositories serve command-side aggregate facts; product reads use QueryRepository/read facades returning DTO/read models.
 - Boundary isolation: Domain/Application semantic APIs use domain-owned language, not generated protocol, storage, runtime, or adapter concepts.
