@@ -126,6 +126,9 @@ resolving model ownership.
 
 Final answer is concise. Do not print the full ledger set by default.
 For lifecycle/repository/event/CQRS scope, complete and merge required ledgers before the final answer, then cite row ids in the summary and findings.
+For complex lifecycle/repository/event/CQRS scope, Ledger appendix is mandatory before Findings.
+Axis completion summary may cite only row ids that appear in the mandatory Ledger appendix.
+A missing appendix row becomes an evidence gap, not an emitted-row claim.
 Expand ledger rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks.
 Axis completion summary is evidence-derived: completed or no-finding axes must cite visible row ids whose decisions appear in findings, evidence gaps, returns, not-applicable rows, or the ledger appendix.
 Wildcard row families such as RC-*, COL-*, or CQ-* are not proof; cite the concrete rows or report an evidence gap for that axis.
@@ -147,7 +150,7 @@ Finding: <severity> <axis> <title> [row ids]
 - Evidence gaps / returns:
 - Verification:
 - Residual risk:
-- Ledger appendix: <omit unless needed/requested; include row ids and rows for disputed, negative, or checked claims>
+- Ledger appendix: <mandatory for complex lifecycle/repository/event/CQRS scope; include row-local rows for every triggered axis before Findings>
 ```
 
 No DDD findings: say that directly only after axis completion summary shows required ledgers completed, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
