@@ -1548,3 +1548,50 @@ Coverage Matrix:
 - Require one-to-one finding extraction: unrelated rows cannot be grouped under a broad gap id, and every negative row needs its own same-scope extracted paragraph or explicit same-scope finding reference.
 - Require stale-command rights matrix rows to be one durable fact and one later command each; grouped command cells such as `cancel/retry/fund` are invalid.
 - Require any collaboration row whose mechanism is `command transaction`, `application coordination`, `repository semantic transaction`, or `same DB transaction` to become evidence gap/finding/return unless the same row names an accepted atomic decision and failure-tolerance proof.
+
+## Round 2026-07-08 v1.14.50 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.50`, release commit `17ab0edebaa728451a25c49d1fabcd767dce9637`.
+- preceding hotfix: `5dd8d54 Extract not-admitted ddd review rows` plus `927adaa Generalize grouped command review example`; PR #103, merge commit `53bcf81fb12ed56ef10db2d5cd3112f7ea6de57b`.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade skill-workshop-codex` completed/already up to date; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.50`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.50.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.50.md`, 48 lines, 7,459 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.50-reflection.md`, 23 lines, 3,682 bytes.
+- verification inside review: `go test -count=1 ./...` passed.
+
+### Output Summary
+
+- The reviewer found K3: `PaymentSucceeded` recovery/reconciler is not production-reachable through service/scheduler wiring, and cancellation does not consult durable payment facts.
+- The reviewer found K4: split dispute emits money execution events as agreement terminal facts before aggregate closure.
+- The reviewer found K2: it directly reported that succeeded Payment can be followed by pre-funded cancellation if the funding event is missed.
+- The reviewer shallowly covered K6: it touched payment recovery and split closure, but did not inventory delivery/refund/dispute/settlement collaboration mechanisms row-by-row.
+- The reviewer missed K5: it did not produce per-method Repository/API candidate classification, owner proof, return route, or accepted atomic-transaction/failure-tolerance proof.
+- The reviewer missed K8: it did not run a parent-state language table for `payment_pending`, `payment_failed`, or `payment_cancelled` as possible child Payment process leakage.
+- The reviewer missed K7: it did not visibly waive findings through accepted design or semantic transaction proof, but it also did not evaluate that waiver risk.
+- The reviewer overclaimed K10: it claimed CQRS was scoped OK without exact read-shaped write-side method inventory and required caller/model/storage-overlap columns.
+
+### Score
+
+- Breadth: 23 / 45. K2, K3, and K4 were found. K6 was shallow. K5, K7, and K8 were missed. K10 was overclaimed.
+- Depth: 25 / 45. The concrete lifecycle findings were clear, but repository, collaboration, parent-state, and CQRS gates were mostly absent.
+- Review discipline: 5 / 10. The output used findings well, but stopped after obvious findings and left positive residual claims without completing mandatory gates.
+- Total: 53 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: mixed-to-negative. The not-admitted extraction rule made the reviewer convert K4 into a concrete finding, but the output no longer completed the mandatory repository/collaboration/state/CQRS inventories that v1.14.49 at least attempted.
+- Missing finding root cause: mandatory gates are still interruptible by early severe findings. The reviewer can stop after two strong lifecycle findings and skip lower-salience but required risk axes.
+- Overclaim root cause: residual positive summaries still survive when mandatory inventories are missing, especially CQRS and naming/package evidence.
+- Shallow root cause: stale-command admission still allows one concrete later command to stand in for every later command after a durable fact.
+- Wrong direction risk: adding more individual rules is now lower leverage. The next fix should change the review protocol shape so the model must finish an axis ledger before emitting residual positive claims.
+
+### Generic Fix Summary
+
+- Make mandatory lifecycle sections non-skippable before final findings: candidate ledger, repository/API candidate classification, collaboration model table, parent-state language table, CQRS read-shaped method inventory, output completion gate, and checked-row admission control.
+- Require stale-command matrices to enumerate every later command after each durable success/authorization/execution fact, not only the first concrete failure found.
+- Default-deny semantic transactions and command-path coordination until row-local proof names an accepted mechanism plus failure-tolerance rule.
+- Treat naming, package separation, DTO/query names, and caller location as routing clues only; forbid them as final positive proof.
+- Replace broad residual positive summaries with negative-scope residual risks whenever any lifecycle/repository/event/CQRS row remains missing, shallow, or overclaimed.
