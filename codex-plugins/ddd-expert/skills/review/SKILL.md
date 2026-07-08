@@ -57,10 +57,13 @@ final output must not duplicate final answer blocks.
 
 ## Axis subagent review protocol
 
+Main-axis quick scan: preflight reads only the task, spec/design/diff list, and minimal model evidence needed to identify triggered axes. Preflight identifies triggered axes only; do not deep-review or write findings in coordinator preflight.
 When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must delegate axis reviews to subagents before final output.
 Use one subagent per triggered heavy axis: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods.
+Subagents must not each perform a full global review; each receives one axis, relevant source seeds, required ledger columns, and a bounded output contract.
 Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
 Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
+Coordinator merges returned ledgers; it does not restart full-repository review or let one high-salience issue truncate other axes.
 The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis result is merged into the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory.
 A finding from one subagent cannot close or waive another axis.
 If a subagent call fails, record that axis as an evidence gap, block same-scope positive claims, and continue merging the completed axes.
@@ -101,6 +104,9 @@ resolving model ownership.
 Final answer is concise. Do not print the full ledger set by default.
 For lifecycle/repository/event/CQRS scope, complete and merge required ledgers before the final answer, then cite row ids in the summary and findings.
 Expand ledger rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks.
+Axis completion summary is evidence-derived: completed or no-finding axes must cite visible row ids whose decisions appear in findings, evidence gaps, returns, not-applicable rows, or the ledger appendix.
+Wildcard row families such as RC-*, COL-*, or CQ-* are not proof; cite the concrete rows or report an evidence gap for that axis.
+Do not claim CQRS inventory completed or product-read no-finding unless the final artifact shows method-level read-shaped write-side rows and decisions.
 
 ```text
 DDD review:
