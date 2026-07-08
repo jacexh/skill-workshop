@@ -21,6 +21,8 @@ Breadth is a thin main-axis scan. It reads the user task, named spec/design/diff
 
 Breadth emits coarse smell families, not per-method or per-flow inventories. Any touched shape that does not map to a whitelist row becomes a smell family.
 
+Breadth enqueues first-hop layer smells directly from names, signatures, state words, event names, imports, and runtime registration shape. Do not wait for one smell to imply another when the second shape is already visible.
+
 ## Family Handoff
 
 Each handoff names the smell family, the whitelist row it violated, the trigger evidence, and the sibling scope to check. Phrase the task as "explain why this shape is wrong," not "decide whether it is wrong."
@@ -151,6 +153,14 @@ Use these whitelist rows as the DDD shape baseline:
 - CQRS: write repositories serve command-side aggregate facts; product reads use QueryRepository/read facades returning DTO/read models.
 - Boundary isolation: Domain/Application semantic APIs use domain-owned language, not generated protocol, storage, runtime, or adapter concepts.
 - Recovery reachability: reconciler, task, event, or message recovery has a production entrypoint, runtime registration, and failure behavior.
+
+First-hop breadth sentinels:
+
+- Domain state/event sentinel: parent state words and terminal event names enter the Smell Queue when they can name child outcomes, execution facts, or premature closure.
+- Application durable-fact sentinel: durable-fact reactions and retry/cancel/reopen/execute/close commands enter the Smell Queue when admission or recovery shape is not visible.
+- Repository/API sentinel: signatures that save or coordinate multiple Aggregate or lifecycle-owner candidates enter candidate-owner and collaboration smell families.
+- CQRS sentinel: read-shaped methods on write Repositories or shared adapters enter CQRS inventory, even when QueryRepository also exists.
+- Interface/runtime reachability sentinel: recovery, reconciler, processor, subscriber, scheduler, or task definitions enter the Smell Queue when production entrypoint or registration is absent or unclear.
 
 The coordinator may use risk-router cards to classify a deviation, but it must not convert a card name into a finding before investigation.
 
