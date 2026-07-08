@@ -1,6 +1,6 @@
 {
   "name": "ddd-expert",
-  "version": "1.14.49",
+  "version": "1.14.50",
   "description": "Standalone DDD/backend architecture expert skills for code agents (Codex port)",
   "author": {
     "name": "xuhao"
