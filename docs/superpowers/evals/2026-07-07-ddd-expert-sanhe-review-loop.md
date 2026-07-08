@@ -1848,3 +1848,27 @@ Coverage Matrix:
 - K4 and K6 were missed because split refund/settlement terminal/execution facts and delivery/refund/dispute/settlement/split-closure collaboration mechanisms were not independently inventoried.
 - K5/K7 stayed shallow because repository/API was represented by a grouped example row instead of one row per semantic method with owner proof and return route.
 - K10 remained unsafe because `CQRS/read-side` said "No branch finding" without visible method-level read-shaped write-side rows. When local fallback cannot complete a CQRS inventory, the only valid decision is evidence gap, not no-finding.
+
+## Round 2026-07-08 v1.14.66 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.66`, release commit `ef90e51`.
+- preceding hotfix: PR #119 required local fallback axes to emit row-local ledgers, reject grouped fallback rows, enumerate stale commands and collaboration mechanisms, and downgrade incomplete CQRS inventory to evidence gap.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.66`.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.66.md`, 7,553 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.66-reflection.md`.
+
+### Score
+
+- Breadth: 33 / 45. K3 and K7 were found. K2 and K5 were mostly found but shallow. K6 and K8 were shallow. K4 was shallow/effectively missed. K10 remained overclaimed/missing evidence.
+- Depth: 25 / 45. The review had stronger evidence for durable success, recovery reachability, repository semantic transactions, and parent-state/FSM. It still lacked retry/new-payment stale-command expansion, split terminal/execution ordering, per-flow collaboration mechanisms, candidate-owner rows, and CQRS method-level rows.
+- Review discipline: 7 / 10. Liveness held, tests were focused, and positive claims were mostly blocked. However, the artifact still used generic/summary axis rows where mandatory rows were needed.
+- Total: 65 / 100.
+
+### Gap Analysis
+
+- K2 needs stale-command rows after durable `PaymentSucceeded`, including cancel, retry/start, and new payment while parent state remains `payment_pending`.
+- K4 must be a distinct terminal/execution row for split refund/settlement: whether terminal agreement facts/events occur before both execution facts and aggregate closure complete.
+- K5 must show one candidate-owner row per semantic repository method; example-only repository evidence is still shallow.
+- K6 must show one collaboration mechanism row per delivery/refund/dispute/settlement/split-closure flow. A generic repository/process finding cannot absorb these rows.
+- K8 must classify `payment_pending` as an open/stale parent state in the same parent-language ledger, not only `payment_failed` and `payment_cancelled`.
+- K10 must not say CQRS has no finding unless method-level rows are visible. If rows are not visible, the decision is evidence gap.
