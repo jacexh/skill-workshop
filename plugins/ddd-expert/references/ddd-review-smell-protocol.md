@@ -103,6 +103,13 @@ If a delegated family does not return, close it as `evidence-gap` or fill a boun
 
 The final answer reports judgments, not the full working evidence. Lead with findings, returns, evidence gaps, positive-shape no-finding rationale, verification, and residual risk. Print selected working evidence only when it is needed to understand a judgment or when the user asks.
 
+## Coordinator merge contract
+
+Every returned family verdict must be represented exactly once in the final judgment path: Findings, Evidence gaps / returns, No-finding notes, or Selected working evidence.
+Use selected working evidence for verdicts that support no-finding, partial coverage, evidence gap, or return but are not themselves Findings.
+A broader finding cannot absorb recovery wiring, collaboration mechanism, candidate-owner, state vocabulary, or CQRS inventory verdicts.
+Keep selected evidence terse: one row per non-finding verdict is enough.
+
 ## Proof Reminders
 
 These reminders are generic risk-card proof requirements for depth passes, not project-specific findings:
@@ -111,11 +118,14 @@ These reminders are generic risk-card proof requirements for depth passes, not p
 - If a depth investigator cannot prove positive CQRS shape, decision is evidence gap, not no branch finding.
 - Stale-command depth enumerates each later command after durable fact: cancel, retry/start, new payment, reopen, execution, and closure.
 - Collaboration depth enumerates delivery, refund, dispute, settlement, split closure, and payment recovery mechanisms independently.
+- Recovery-wiring depth distinguishes a recovery command or handler existing in code from that command being reachable in production.
 - payment_pending must be classified as an open/stale parent state when durable child or payment facts can outrank it.
 - Split refund/settlement terminal rows must decide whether terminal agreement facts or events occur before both execution facts and aggregate closure complete.
 - Repository/API depth rows must be one row per semantic method; examples such as SaveDeliveryRejection or SaveDisputeResolutionAuthorization do not cover the family.
+- Repository candidate-owner depth emits one terse row per semantic method whenever multiple aggregate or lifecycle-owner candidates are saved or coordinated.
 - Collaboration depth rows must be one row per lifecycle flow, not inherited from repository or recovery findings.
 - A CQRS axis summary may not say no finding, no branch finding, or inventory-only unless visible method-level CQ rows are emitted.
+- CQRS depth emits visible method-level inventory for read-shaped write-side methods and shared adapters before any product-read no-finding.
 - Do not emit a positive coverage table in complex lifecycle/repository/event/CQRS reviews.
 - Positive clearance phrases such as no issue, no similar issue, no branch finding, inventory-only, 未发现, or 适配正确 are valid only when the same decision names positive correct-shape evidence.
 - Triggered families with incomplete depth proof become evidence gap or return, never positive coverage.

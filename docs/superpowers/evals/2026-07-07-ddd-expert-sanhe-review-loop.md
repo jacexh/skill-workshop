@@ -1929,3 +1929,32 @@ Coverage Matrix:
   - append spawned smells to the same queue until all rows reach terminal verdict;
   - generate findings only from closed negative smell rows.
 - This is intentionally not a bad-smell inventory. The rule is whitelist-first: express correct shape, then treat deviations as smells.
+
+## Round 2026-07-08 v1.14.71 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.71`, release commit `5b41772`.
+- preceding hotfix: PR #124 changed review orchestration to coordinator breadth plus one subagent per coarse smell family, with axes as classification tags.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.71`.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.71.md`, 35 lines.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.71-reflection.md`.
+- verification inside review: `go test -count=1 ./...` passed.
+- depth execution evidence: final output reported 5 explorer subagents by smell family: payment fact precedence, terminal/execution facts, repository aggregate boundary, CQRS split, and FSM/state vocabulary.
+
+### Score
+
+- Known-issue hits: K2 full, K4 full, K5 partial, K7 partial, K8 partial, K10 partial, K3 missed, K6 missed.
+- Total: 50 / 100.
+
+### Gap Analysis
+
+- The orchestration change worked: review used subagents by smell family and avoided broad fixed-axis delegation.
+- The final output still compressed returned depth results too aggressively. K3 recovery/reconciler production wiring and K6 collaboration mechanisms did not appear in findings, returns, no-finding notes, or selected working evidence.
+- K5 repository/API candidate-owner proof remained grouped under a broad repository finding instead of visible per-method candidate-owner decisions.
+- K8 parent-state vocabulary identified `payment_failed` and `payment_cancelled`, but did not explicitly include `payment_pending` in the state-language return.
+- K10 named two read-shaped write repository methods but still lacked visible method-level CQRS inventory/proof columns before product-read no-finding.
+
+### Next Fix
+
+- Add a coordinator merge contract: every returned smell-family verdict must land in Findings, Evidence gaps / returns, No-finding notes, or Selected working evidence.
+- Keep the final answer concise, but require selected working evidence for non-finding verdicts in recovery wiring, collaboration mechanisms, repository candidate-owner classification, state vocabulary, and CQRS method inventory.
+- Prevent broad findings from absorbing linked depth verdicts; one repository or fact-precedence finding cannot hide independent production-wiring, collaboration, state-language, or CQRS decisions.
