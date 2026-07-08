@@ -1872,3 +1872,26 @@ Coverage Matrix:
 - K6 must show one collaboration mechanism row per delivery/refund/dispute/settlement/split-closure flow. A generic repository/process finding cannot absorb these rows.
 - K8 must classify `payment_pending` as an open/stale parent state in the same parent-language ledger, not only `payment_failed` and `payment_cancelled`.
 - K10 must not say CQRS has no finding unless method-level rows are visible. If rows are not visible, the decision is evidence gap.
+
+## Round 2026-07-08 v1.14.67 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.67`, release commit `74e7c05`.
+- preceding hotfix: PR #120 added specific local-row requirements for `payment_pending`, split terminal ordering, per-method repository rows, per-flow collaboration rows, and CQRS no-finding discipline.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.67`.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.67.md`, 5,559 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.67-reflection.md`.
+- verification inside review: focused domain/eventhandler/application lifecycle tests passed; full `go test ./... -count=1` passed with infrastructure integration taking about 183 seconds.
+
+### Score
+
+- Breadth: 20 / 45. K2 and K3 were found. K5/K7/K8 were shallow. K4 and K6 were missed. K10 was overclaimed.
+- Depth: 19 / 45. Payment success/cancellation and recovery reachability were concrete, but independent terminal, collaboration, repository candidate-owner, parent-state, and CQRS ledgers were missing.
+- Review discipline: 4 / 10. The artifact used a `Checked Coverage` table and positive "未发现" claims to clear independent axes without visible rows.
+- Total: 43 / 100.
+
+### Gap Analysis
+
+- The specific local-row rules were not enough because the final artifact could still collapse independent axes under `Checked Coverage`.
+- Positive clearance phrases such as "未发现同类问题", "未发现读模型混用问题", and "适配正确" must be forbidden unless the artifact prints row-level admission proof.
+- For complex multi-axis review, concision should not omit mandatory ledger appendix rows for terminal/execution, collaboration, repository/API, parent-state, and CQRS axes.
+- If a row is triggered but exact proof is incomplete, the decision must be evidence gap or return, never a no-issue coverage entry.
