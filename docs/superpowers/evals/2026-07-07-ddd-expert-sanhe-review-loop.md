@@ -1688,3 +1688,20 @@ Coverage Matrix:
 - Bounded preflight fixed project-memory overread, but mandatory-axis completion was still interpreted as exhaustive source traversal.
 - Long implementation files, integration tests, and SQL/schema evidence were read before any final-output path, so the axis ledger never became a final answer.
 - The next fix should make axis ledgers evidence-indexed: inventory with `rg`, open only row-local snippets needed for a negative/checked decision, and turn the rest into evidence gaps instead of reading every implementation/test line.
+
+## Protocol Regression 2026-07-08 v1.14.59
+
+- skill-workshop release under evaluation: `v1.14.59`, release commit `3bb236b19edb2de64b48617b36ba778014882e9d`.
+- preceding hotfix: PR #112, merge commit `b929672eaf8aefbfcaeb6195fa03a751e9200dc5`.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.59`; installed review skill contained `Axis ledgers are evidence-indexed`.
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.59.md '<fixed review prompt>' > /tmp/sanhe-ddd-review-v1.14.59-run.log 2>&1`
+- expected raw review output file: `/tmp/sanhe-ddd-review-v1.14.59.md`.
+- actual result: no output file was created.
+- session evidence: `/home/xuhao/.codex/sessions/2026/07/08/rollout-2026-07-08T10-04-43-019f3f78-6752-7ac3-b9be-9ea3135c861b.jsonl`.
+- process evidence: the reviewer skipped project memory and avoided the previous large overread, but the last session event after diff evidence was reasoning only. There was no `phase=final_answer` assistant message and no next row-local tool call.
+
+### Regression Root Cause
+
+- Evidence-indexing reduced source volume, but the review skill still allowed another analysis/tool turn before final output.
+- The final-output gate did not explicitly require a final answer after the initial model/spec/diff inventory batch.
+- The next fix should add a final-output checkpoint: after the first evidence inventory batch, emit the DDD review from the ledger; any remaining proof needs become evidence gaps unless a single row-local snippet is strictly necessary.
