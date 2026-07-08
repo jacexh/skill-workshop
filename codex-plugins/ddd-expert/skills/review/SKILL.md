@@ -1,13 +1,13 @@
 ---
 name: review
-description: Use when reviewing DDD/backend domain abstractions, specs, plans, or code diffs with concrete files, modules, generated artifacts, runtime wiring, persistence, logging, or boundary evidence to inspect.
+description: Use when reviewing DDD/backend domain abstractions, specs, plans, or code diffs with concrete files, modules, generated artifacts, runtime wiring, persistence, logging, or boundary evidence to inspect. Do not combine with project-memory lookup unless the user explicitly asks for memory.
 ---
 
 # Review
 
 Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign. Build/runtime blockers only block executable verification; Independent static model review still runs. Compile blocker is never a positive model signal; Absence of forbidden nouns is not model proof. Report Independent modeling findings separately from build blockers.
 
-First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) once. In multi-axis reviews, route by axis first; deeper references are for triggered row-local proof, not coordinator preload. Subagents are optional accelerators, and single-process fallback is the default when delegation is unavailable or brittle.
+Risk router is a bounded routing index, not a full-file preload. Use [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) to identify triggered card names and short row-local excerpts only; do not read it end to end before starting the axis ledger. Do not invoke superpowers-memory:query or read project memory files during review unless the user explicitly asks for memory. Already-injected memory context is a routing hint, not authority or a reason to open KB files. Subagents are optional accelerators, and single-process fallback is the default when delegation is unavailable or brittle.
 
 ## Expected model sources
 
@@ -19,7 +19,7 @@ Before findings: confirm concrete evidence exists; start from business facts bef
 
 ## Coordinator discipline
 
-The coordinator is a merger across completed axis rows, not another unbounded full reviewer. For multi-axis scope, keep reads to this skill, the risk router, model/spec/code seeds, local evidence, and optional subagent outputs; do not load ddd-core or language references in full before a row-local trigger requires them. Do not invoke generic dispatching-parallel-agents or subagent-driven-development inside review; this Axis review protocol is the only delegation protocol for review. Subagents are optional accelerators; absence or failure of subagent tools must not block final review output. Use single-process fallback and preserve completion discipline: if proof would require more broad reading, Budget fallback final means emit the final answer with completed axes plus Evidence gap rows instead of reading until context exhaustion.
+The coordinator is a merger across completed axis rows, not another unbounded full reviewer. For multi-axis scope, keep reads to this skill, model/spec/code seeds, local evidence, triggered router excerpts, and optional subagent outputs; do not load ddd-core, language references, project memory, or other broad sources in full before a row-local trigger requires them. Do not invoke generic dispatching-parallel-agents or subagent-driven-development inside review; this Axis review protocol is the only delegation protocol for review. Subagents are optional accelerators; absence or failure of subagent tools must not block final review output. Use single-process fallback and preserve completion discipline: if proof would require more broad reading, Budget fallback final means emit the final answer with completed axes plus Evidence gap rows instead of reading until context exhaustion. If a reference, memory file, or broad source would require unbounded reading, emit an evidence gap row and continue.
 
 ## Coverage pass
 

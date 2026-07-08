@@ -1598,7 +1598,46 @@ Coverage Matrix:
 - Treat naming, package separation, DTO/query names, and caller location as routing clues only; forbid them as final positive proof.
 - Make Finding paragraphs generated only from completed inventory rows; a broad finding cannot stand in for missing repository/API, collaboration, parent-state, or CQRS inventory rows.
 
-## Protocol Regression 2026-07-08 v1.14.52-v1.14.55
+## Round 2026-07-08 v1.14.53 Clean Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.53`, release commit `85a5c71ef2efb17d40882e37256f2595e6438ec0`.
+- preceding hotfixes: PR #105, merge commit `daaa5986f91f75fd9f31520e2b011d81a3688bf8`, release `v1.14.52`; PR #106, merge commit `458b0b33e499c44594d318313e3ccf58b0bbbf08`, release `v1.14.53`.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: clean run started at `2026-07-08T09:31:36+08:00` with `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.53`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review artifact: `/tmp/sanhe-ddd-review-clean-v1.14.53.md`, 25 lines, 4,139 bytes.
+- run log: `/tmp/sanhe-ddd-review-clean-v1.14.53-run.log`, 16,170 lines, 991,099 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-clean-v1.14.53-reflection.md`, 21 lines, 3,667 bytes.
+- process note: earlier fixed-path v1.14.52/v1.14.53/v1.14.54/v1.14.55 runs were contaminated by duplicate background review processes or terminated without a final artifact. The scored artifact is the clean unique-path run above.
+- verification inside review: targeted Go test commands passed; full MySQL integration was not run.
+
+### Output Summary
+
+- The reviewer found K2: a succeeded Payment can leave the agreement in `payment_pending`, allowing pre-funded cancel or another start-payment path.
+- The reviewer found K3: the `PaymentSucceeded` recovery/reconciler handler was not wired through `Application`, proto RPC, Fx module, scheduler, or another production entrypoint.
+- The reviewer found K4: split dispute resolution emits money execution facts (`TaskAgreementRefunded` / `TaskAgreementSettled`) before final agreement closure, while final closure has no event.
+- The reviewer found K5 with moderate depth: command-side Repository/API shape creates multi-aggregate semantic transactions across `TaskAgreement`, `Delivery`, `RefundCase`, `DisputeCase`, `Refund`, and `Settlement`, while the design records no command-side port exception.
+- The reviewer shallowly covered K6: it pointed toward event/process-manager or failure-semantics proof, but did not fully enumerate delivery/refund/dispute/settlement collaboration mechanisms in the final artifact.
+- The reviewer found K7: transaction/idempotency evidence was not accepted as an aggregate-boundary waiver without explicit design exception and failure semantics.
+- The reviewer found K8: `payment_failed` and `payment_cancelled` were called out as parent agreement states that actually belong to the child Payment process.
+- The reviewer found K10: write-side repositories expose read-shaped list methods returning domain models while a query facade already exists.
+
+### Score
+
+- Breadth: 41 / 45. K2, K3, K4, K5, K7, K8, and K10 were found; K6 remained shallow.
+- Depth: 34 / 45. Payment fact precedence, recovery reachability, terminal event separation, and state-language findings were strong. K5 was root-level but grouped `RA-04..RA-12`; K6 lacked mechanism-by-mechanism collaboration enumeration.
+- Review discipline: 8 / 10. The output avoided positive clearance, accepted-design waiver, CQRS overclaim, and repository transaction rationalization; row-id traceability was present.
+- Total: 83 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: successful. Mandatory-axis final-output gating and concise output shape finally prevented early severe lifecycle findings from masking Repository/API, parent-state, and CQRS axes.
+- Remaining shallow root cause: collaboration/process mechanism rows still need fuller final-output enumeration for every delivery/refund/dispute/settlement reaction.
+- Remaining depth issue: multi-aggregate Repository/API shape was finally identified, but final output grouped several rows under one finding instead of expanding each candidate method/owner/return route.
+- Stop condition: this clean round crossed the 80-point target. Later v1.14.52-v1.14.56 fixed-path runs are tracked separately as protocol liveness regressions, not as lower-quality scored reviews.
+
+## Protocol Regression 2026-07-08 v1.14.52-v1.14.56
 
 - v1.14.52 introduced a stronger mandatory-axis final-output gate but did not produce `/tmp/sanhe-ddd-review-v1.14.52.md`; the process log reached interim analysis but no final review conclusion.
 - v1.14.53 simplified output shape but still did not produce `/tmp/sanhe-ddd-review-v1.14.53.md`; no final DDD review findings were emitted.
@@ -1613,3 +1652,22 @@ Coverage Matrix:
 - Generic delegation workflows are too broad for this review skill; they encourage full-history or long-context coordination instead of the review-specific axis ledger protocol.
 - Numeric output/skill line caps treated brevity as the control mechanism. That compressed the protocol but did not guarantee mandatory-axis completion.
 - The repair direction is to keep mandatory-axis ledgers as the quality gate, make subagents optional accelerators only, and use single-process fallback with evidence gaps for uninspected or failed-delegation rows.
+
+## Protocol Regression 2026-07-08 v1.14.57
+
+- skill-workshop release under evaluation: `v1.14.57`, release commit `8ec4073cc428b0ba2f5f08ee12b34384b802308d`.
+- preceding hotfix: PR #110, merge commit `9c1bab6f25b10f51f6f6fbe82a759ce54554c7bf`.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.57`; installed review skill contained `Coordinator discipline` and `single-process fallback`.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.57.md '<fixed review prompt>'`
+- expected raw review output file: `/tmp/sanhe-ddd-review-v1.14.57.md`.
+- actual result: no output file was created.
+- session evidence: `/home/xuhao/.codex/sessions/2026/07/08/rollout-2026-07-08T09-53-06-019f3f6d-c534-7540-85db-bf729cc8ff06.jsonl`.
+- process evidence: the session reached 223,975 input tokens and 226,763 total tokens after reading the review skill, large risk-router excerpts, memory architecture/conventions, the spec, and the design. The final session events were tool output plus reasoning; there was no `phase=final_answer` assistant message.
+
+### Regression Root Cause
+
+- v1.14.57 removed the mandatory subagent dead end, but it still allowed unbounded preflight reads before any axis ledger was emitted.
+- The review skill still told the reviewer to read the risk router first, and the reviewer also invoked project memory. In this repo, those sources are large enough to consume the review before final output.
+- The next fix should make review preflight bounded: risk router and memory are routing indexes only, not full-file preload. If a source is too large or missing, the reviewer must continue from the provided spec/design/code seeds and emit evidence gaps instead of reading until the final answer disappears.
