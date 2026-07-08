@@ -58,8 +58,10 @@ final output must not duplicate final answer blocks.
 ## Axis subagent review protocol
 
 Main-axis quick scan: preflight reads only the task, spec/design/diff list, and minimal model evidence needed to identify triggered axes. Preflight identifies triggered axes only; do not deep-review or write findings in coordinator preflight.
-When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must delegate axis reviews to subagents before final output.
-Use one subagent per triggered heavy axis: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods.
+When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must use non-waiting axis delegation or bounded local axis ledgers before final output.
+Use one subagent per triggered heavy axis only when the runtime can return ledgers without wait/collab wait: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods.
+Do not call asynchronous subagents or collaboration tools when their only collection path is wait/collab wait.
+If non-waiting subagent collection is unavailable, skip delegation and complete bounded local axis ledgers in the coordinator.
 Subagents must not each perform a full global review; each receives one axis, relevant source seeds, required ledger columns, and a bounded output contract.
 Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
 Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
