@@ -1591,7 +1591,9 @@ Coverage Matrix:
 ### Generic Fix Summary
 
 - Make mandatory lifecycle sections non-skippable before final findings: candidate ledger, repository/API candidate classification, collaboration model table, parent-state language table, CQRS read-shaped method inventory, output completion gate, and checked-row admission control.
+- Treat lifecycle/repository/event/CQRS scope as a final-output gate: no final Finding paragraph, summary, no-finding claim, Rules Satisfied entry, or residual-risk summary may be emitted until every mandatory axis ledger has been emitted and classified.
+- Require a mandatory axis trigger ledger before findings, with inspected evidence for not-applicable axes and evidence-gap decisions for omitted ledgers.
 - Require stale-command matrices to enumerate every later command after each durable success/authorization/execution fact, not only the first concrete failure found.
 - Default-deny semantic transactions and command-path coordination until row-local proof names an accepted mechanism plus failure-tolerance rule.
 - Treat naming, package separation, DTO/query names, and caller location as routing clues only; forbid them as final positive proof.
-- Replace broad residual positive summaries with negative-scope residual risks whenever any lifecycle/repository/event/CQRS row remains missing, shallow, or overclaimed.
+- Make Finding paragraphs generated only from completed inventory rows; a broad finding cannot stand in for missing repository/API, collaboration, parent-state, or CQRS inventory rows.
