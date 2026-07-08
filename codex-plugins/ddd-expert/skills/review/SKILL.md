@@ -35,10 +35,11 @@ Before findings:
 6. Accepted design and local convention are evidence to inspect, not waivers.
 7. Implementation transaction shape is not model evidence and cannot satisfy Repository design.
 8. Object splitting, package names, generated DTO mapping, and QueryRepository presence are not enough to clear a triggered smell family.
+9. Scope narrows files to inspect; it does not remove required lifecycle/repository/event/CQRS family rows.
 
 ## Workflow
 
-1. **Breadth scan**: compare touched code shape against the layer baseline. Output: Smell List rows with layer, trigger, baseline miss, and code evidence. Lifecycle/repository/event/CQRS scope must include rows for durable-fact command admission, terminal/execution split, repository/API candidate owner, collaboration mechanism, parent state vocabulary, and CQRS inventory whenever the touched evidence reaches that family.
+1. **Breadth scan**: compare touched code shape against the layer baseline. Output: Smell List rows with layer, trigger, baseline miss, and code evidence. Lifecycle/repository/event/CQRS scope must include rows for durable-fact command admission, terminal/execution split, repository/API candidate owner, collaboration mechanism, parent state vocabulary, accepted-design waiver, and CQRS inventory whenever the touched evidence reaches that family.
 2. **Merge same-shape smells**: group rows by owner, lifecycle, boundary, state vocabulary, collaboration mechanism, runtime reachability, repository/API shape, or CQRS split. Output: merged smell families preserving every trigger and every required family row.
 3. **Explain each family**: assume the smell is wrong until the relevant method, flow, state, event, port, or adapter shows the correct shape. Output: violation, return-to-domain-modeling, return-to-design, evidence-gap, or adjacent-smell.
 4. **Follow related evidence**: for each adjacent smell, inspect the nearest sibling methods, flows, states, events, ports, adapters, or runtime registrations that share the same reason. Output: updated Smell List with any new family rows.
@@ -166,7 +167,10 @@ Forbidden shape:
 - CQRS: write repositories serve command-side aggregate facts; product reads use QueryRepository/read facades returning DTO/read models.
 - Boundary isolation: Domain/Application semantic APIs use domain-owned language, not generated protocol, storage, runtime, or adapter concepts.
 - Recovery reachability: reconciler, task, event, or message recovery has a production entrypoint, runtime registration, and failure behavior.
-- Required family rows: payment/delivery/refund/dispute/settlement scope keeps durable-fact command admission, terminal/execution split, repository/API candidate-owner, collaboration mechanism, parent state vocabulary, and CQRS inventory as separate rows when their evidence is present; one broader finding cannot clear another row.
+- Required family rows: payment/delivery/refund/dispute/settlement scope keeps durable-fact command admission, terminal/execution split, repository/API candidate-owner, collaboration mechanism, parent state vocabulary, accepted-design waiver, and CQRS inventory as separate rows when their evidence is present; one broader finding cannot clear another row.
+- Repository/API inventory: inspect Domain Repository interfaces, Application repository calls, Infrastructure store methods, and every method outside `Get`/`Save`; classify each extra method or coordinated object as same Aggregate Root, owned child/value object, read model, or independent lifecycle owner.
+- Accepted-design waiver inventory: when spec/design/local convention accepts semantic repository transactions, multi-object saves, or synchronous lifecycle-owner coordination, inspect whether the accepted text proves model ownership/failure tolerance or merely hides a boundary conflict.
+- CQRS inventory: inspect write repositories and shared adapters for list/detail/history/summary/read-shaped methods before no-finding; QueryRepository/read-facade presence proves only the read side exists.
 
 ## Output
 
@@ -179,7 +183,7 @@ Do not collapse production wiring, collaboration mechanism, candidate-owner, sta
 Report in this order when present: scope/model evidence, findings, evidence gaps / returns, no-finding notes for non-smell surfaces with positive shape, verification, residual risk.
 
 No DDD findings: say that directly only when no concrete violation/return was found; list any smell-family evidence gaps and residual test gaps. Do not fill a finding template with harmless local style.
-No-finding notes are only for non-smell surfaces or observed correct shape. Repository/API smells need method inventory and candidate-owner classification; collaboration smells need named event/process/recovery mechanism; terminal/execution smells need separate execution and closure facts; parent-state vocabulary smells need parent lifecycle fact language; CQRS smells need write-repository and shared-adapter read/write method inventory. If the positive proof is only package names, object splitting, accepted design, DTO presence, QueryRepository presence, or passing tests, report an evidence gap.
+No-finding notes are only for non-smell surfaces or observed correct shape. Repository/API smells need method inventory and candidate-owner classification; accepted-design waiver smells need explicit model ownership and failure-tolerance evidence; collaboration smells need named event/process/recovery mechanism; terminal/execution smells need separate execution and closure facts; parent-state vocabulary smells need parent lifecycle fact language; CQRS smells need write-repository and shared-adapter read/write method inventory. If the positive proof is only package names, object splitting, accepted design, DTO presence, QueryRepository presence, or passing tests, report an evidence gap.
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 

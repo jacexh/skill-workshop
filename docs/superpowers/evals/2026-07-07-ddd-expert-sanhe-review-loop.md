@@ -2147,3 +2147,29 @@ Next evaluation should be against the first released version after this local br
 - K4/K6 improvement is narrow: missing events are visible, but money execution facts, agreement terminal facts, and collaboration mechanism/recovery are not separated.
 - K10 shows the same weak-proof pattern in a different form: Product reads through a QueryRepository can be a positive clue, but it cannot clear CQRS without inventorying write repositories and shared adapters for read-shaped methods.
 - Next fix should not add a new section. Tighten the workflow output shape itself: Breadth scan must output required family rows for durable fact precedence, terminal/execution split, repository candidate-owner, collaboration mechanism, parent state vocabulary, and CQRS inventory; Report must account for each required family row rather than only each finding.
+
+## Round 2026-07-08 v1.14.78 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.78`, release commit `2fc8c15`.
+- preceding hotfix: PR #131 required breadth scan and report to account for required family rows: durable-fact admission, terminal/execution split, repository candidate-owner, collaboration mechanism, parent state vocabulary, and CQRS inventory.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.78`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.78-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.78-clean/original-review-final.md`, 2 findings plus 1 evidence gap.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.78-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.78-clean/reflection-final.md`.
+- verification inside clean review: focused tasknegotiation tests passed, `go test ./...` passed including infrastructure MySQL integration tests, and `git diff --check master...HEAD` passed.
+
+### Score
+
+- Known-issue hits: K3 full; K4 full; K2 partial; K6 partial; K8 partial; K5, K7, and K10 missed.
+- Breadth: 24 / 45. The review now keeps recovery reachability, split terminal/execution semantics, and parent-state vocabulary in the final output, but still drops repository/API candidate classification, accepted-design waiver, and CQRS inventory.
+- Depth: 20 / 45. K3 and K4 are concrete and actionable. K2 stops at recovery and does not reach pre-funded cancellation admission. K6 is local to payment/split closure rather than full delivery/refund/dispute/settlement collaboration.
+- Review discipline: 8 / 10. Verification is strong and the output is concise, but CQRS receives an unsupported positive no-finding from QueryRepository presence.
+- Total: 52 / 100.
+
+### Gap Analysis
+
+- Required family rows helped K4 and K8, but the model still narrowed scope before scanning Repository/API and CQRS rows.
+- K5 needs a mandatory Repository/API inventory for lifecycle reviews: domain repository interfaces, application repository calls, infrastructure store methods, and every method outside `Get`/`Save` classified as same root, owned child, read model, or independent lifecycle owner.
+- K7 needs a mandatory accepted-design waiver row: if the spec/design accepts semantic repository transactions or multi-lifecycle saves, the review must still test whether those transactions prove model ownership or merely hide a boundary conflict.
+- K10 needs a mandatory CQRS inventory row: a QueryRepository/read facade is only one side of the proof; write repositories and shared adapters must be scanned for read-shaped methods before no-finding.
