@@ -1807,3 +1807,19 @@ Coverage Matrix:
 - v1.14.63 fixed the final-output semantics for absent ledgers, but still allowed the coordinator to enter an open-ended collaboration wait before finalization.
 - The model interpreted "bounded collection pass" as permission to wait for more subagent results, rather than as a fire-and-collect rule.
 - The next fix should explicitly forbid wait/collab-wait progress loops: after any axis ledger returns, finalize from returned ledgers plus bounded local ledgers or missing-axis evidence-gap ledgers for all remaining axes.
+
+## Protocol Regression 2026-07-08 v1.14.64
+
+- skill-workshop release under evaluation: `v1.14.64`, release commit `c20ed58`.
+- preceding hotfix: PR #117 explicitly forbade wait/collab-wait progress loops and required finalization after partial axis returns.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.64`.
+- review command: `timeout 900s codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.64.md '<fixed review prompt>' > /tmp/sanhe-ddd-review-v1.14.64-run.log 2>&1`
+- expected raw review output file: `/tmp/sanhe-ddd-review-v1.14.64.md`.
+- actual result: no output file was created; the process was stopped after repeated `collab: Wait` loops.
+- run-log evidence: `/tmp/sanhe-ddd-review-v1.14.64-run.log` showed useful local evidence for recovery, split terminal events, and transaction-shaped repository/API rows. It then waited for delegated ledgers; after Repository/API and lifecycle axes returned, it still waited for collaboration/FSM/CQRS axis ledgers.
+
+### Regression Root Cause
+
+- Textual bans on wait/collab-wait did not override the current runtime behavior when the skill still required subagent delegation for multi-axis scope.
+- In this Codex execution environment, available subagent/collaboration collection is effectively open-ended; using it for review axes can prevent final artifact emission.
+- The next fix should keep the user's direction as a preference, but make it conditional: use subagents only when ledgers can be collected without wait/collab wait. If non-waiting collection is unavailable, skip delegation and complete bounded local axis ledgers in the coordinator.
