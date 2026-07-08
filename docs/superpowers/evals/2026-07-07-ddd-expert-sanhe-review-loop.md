@@ -1723,3 +1723,52 @@ Coverage Matrix:
 - The line-count cap was not the root cause and has already been removed. The latest failure happens despite optional subagents, bounded memory/risk-router preflight, evidence-indexed ledgers, and an explicit final-output checkpoint.
 - The reviewer can now find the right evidence, but the protocol still does not force conversion from evidence collection into a final artifact.
 - Additional numeric brevity caps would be the wrong repair direction. The remaining fix needs an execution-shape change that makes the first review answer final by construction, such as final-only review mode or a hard two-phase harness outside the skill text: collect bounded evidence, then invoke a separate no-tool finalizer on the ledger.
+
+## Round 2026-07-08 v1.14.61 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.61`, release commit `3f1ad71`.
+- preceding change: PR #114 reverted the review skill to v1.14.53 behavior after v1.14.52-v1.14.60 liveness regressions; release bump commit `3f1ad71`.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade skill-workshop-codex` was already up to date; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.61`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它理解本次迭代的需求，然后 $ddd-expert:review 本分支下的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.61.md '<fixed review prompt>' > /tmp/sanhe-ddd-review-v1.14.61-run.log 2>&1`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.61.md`, 33 lines, 4,805 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.61-reflection.md`, 31 lines, 3,927 bytes.
+- verification inside review: `go test ./internal/business/tasknegotiation/domain ./internal/business/tasknegotiation/application/...`, `go test ./internal/business/tasknegotiation/infrastructure -run TestMySQLTaskAgreement -count=1`, and `go test ./...` passed.
+
+### Output Summary
+
+- The reviewer found K2: a durable succeeded `Payment` can leave the agreement `payment_pending`, and later pre-funded cancellation can still rely only on `TaskAgreement` state.
+- The reviewer found K3, but bundled it into K2: the reconciler exists as a command but is not exposed in proto or wired through Fx/runtime production paths.
+- The reviewer found K4: split refund/settlement execution emits `TaskAgreementRefunded` / `TaskAgreementSettled` terminal-looking facts before the split agreement closure.
+- The reviewer shallowly found K5: it named `RC-2..RC-8` multi-owner semantic repository methods as evidence gaps, but did not emit visible per-method candidate classification or a clear return route.
+- The reviewer missed K6: delivery/refund/dispute/settlement behavior linkage was not reviewed as a per-flow Domain Event / process manager / reconciler / accepted-atomic-transaction mechanism question.
+- The reviewer shallowly covered K7: it said transaction shape/local convention is not proof, but also avoided marking methods as violations when they "match the accepted design", leaving accepted design as a soft waiver.
+- The reviewer shallowly covered K8: it returned `payment_failed` and `payment_cancelled` parent states to design, but did not include `payment_pending` in the state-language ambiguity.
+- The reviewer overclaimed K10: it said CQRS inventory completed with no product-read finding claimed, without visible row-level read/write repository proof.
+
+### Score
+
+- Breadth: 30 / 45. K2, K3, and K4 were found. K5, K7, and K8 were shallow. K6 was missed and K10 was overclaimed.
+- Depth: 25 / 45. Payment precedence/recovery and split terminal fact evidence were concrete. Repository candidate ownership, collaboration mechanisms, accepted-design non-waiver, parent-state vocabulary, and CQRS read/write inventory were too compressed.
+- Review discipline: 6 / 10. The run produced a final artifact and verified tests, but it relied on ledger labels without visible row-level proof, skipped subagents, bundled independent findings, and emitted an unsupported CQRS no-finding claim.
+- Total: 61 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: liveness recovered after the revert, but this run scored below the clean v1.14.53 high-water mark. User manual re-runs saw much higher scores, so treat v1.14.61 as directionally promising but unstable rather than fundamentally wrong.
+- Structural failure: the final artifact can say mandatory axes completed while only extracting the two obvious lifecycle findings plus one state evidence gap; axis labels are not enough to force independent findings.
+- Shallow root cause: K5/K7 remain weak because accepted design and semantic repository methods are still allowed to soften the return-to-modeling/design decision instead of forcing per-method candidate classification.
+- Missing root cause: K6 remains absent because collaboration rows are not independently extracted for delivery, refund, dispute, settlement, and split closure once payment recovery and split terminal facts are found.
+- Overclaim root cause: K10 remains vulnerable to a "CQRS inventory completed" negative claim without visible method-level read-shaped write-side inventory and caller/model/storage-overlap proof.
+- Strategy change: stabilize the promising path by changing execution shape, not by adding a large checklist. The coordinator does a thin main-axis scan, delegates triggered axes for deep analysis, and then merges bounded ledgers. Also make axis completion summary evidence-derived, not declarative: a final artifact may not claim an axis complete or no-finding unless it either cites concrete row ids with visible negative/extracted decisions or explicitly reports an evidence gap for that axis.
+
+### Generic Fix Summary
+
+- Add a main-axis quick scan followed by one focused subagent per triggered heavy axis; subagents must not each run full global reviews, and the coordinator only merges bounded ledgers.
+- Require final axis completion rows to cite visible ledger row ids whose decisions appear in the final artifact; bare `RC-*`, `COL-*`, or `CQ-*` completion claims are invalid.
+- Require Repository/API candidate rows that coordinate candidate aggregate/lifecycle owners to become return-to-modeling/design unless every candidate has owner proof, owned-child proof, coordination mechanism, and failure-tolerance proof.
+- Require collaboration/process mechanism rows for delivery, refund, dispute, settlement, split closure, and payment to be extracted independently of lifecycle/repository findings.
+- Forbid CQRS no-finding or "inventory completed" claims unless the final artifact shows read-shaped write-side method rows with caller semantics, returned model family, write-side influence, storage/adapter overlap, and read-facade ownership decision.
+- Require parent-state language inventory to include pending/open states such as `payment_pending`, not only failed/cancelled states.
