@@ -2358,3 +2358,43 @@ Next evaluation should be against the first released version after this local br
 - K4 regressed because terminal/execution split was again cleared by state closure rather than event vocabulary.
 - K6 regressed because delivery/refund/dispute/settlement were declared outside the main risk without naming a collaboration mechanism.
 - Next fix must prohibit exact clearance shapes, not add softer intent: "design/convention accepted" and "MVP transaction" are evidence-gap triggers; terminal/execution verdict must cite event names; collaboration verdict must name the mechanism per non-payment lifecycle.
+
+## Round 2026-07-08 v1.14.86 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.86`, release commit `62305fa`.
+- preceding hotfix: PR #139 blocked exact accepted-design clearance phrases, required terminal/execution verdicts to cite event names/timing, and stopped payment recovery or "main risk elsewhere" from clearing non-payment collaboration rows.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.86`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.86-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.86-clean/original-review-final.md`, 4 findings plus 3 evidence gaps/returns.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.86-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.86-clean/reflection-final.md`.
+- execution cost: original review consumed `215,064` tokens and took approximately `7m42s` by raw-log birth time to final-output mtime; calibration consumed `17,504` tokens and took approximately `1m06s` by the same file-timestamp method.
+- verification inside clean review: `go test ./...` passed; infrastructure tests took about `185s`; `git diff --check` passed.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K4 full; K5 full; K7 full; K6 partial; K10 partial; K8 missed.
+- Breadth: 38 / 45. The review preserved payment fact precedence, production recovery, terminal/execution event vocabulary, repository/API candidate-owner pressure, accepted-design non-waiver, collaboration mechanism pressure, and CQRS inventory in the final artifact. It missed the broader `payment_failed` / `payment_cancelled` / `payment_pending` parent-state taxonomy problem.
+- Depth: 32 / 45. K2-K5 are concrete and actionable, and K7 is correctly returned to design/modeling instead of waived by accepted transaction shape. K6 remains too compressed across delivery/refund/dispute/settlement, and K10 stays at pressure/inventory level rather than a clear read/write split finding.
+- Review discipline: 8 / 10. The report avoided the v1.14.85 waiver and state-closure regressions, kept evidence concise, and separated findings from evidence gaps. Main discipline loss is not upgrading K6/K10 systemic pressure and losing K8 once the payment command-admission finding existed.
+- Total: 78 / 100.
+
+### Gap Analysis
+
+- v1.14.86 recovers the v1.14.85 regression and slightly beats the v1.14.83/v1.14.84 band in this clean run.
+- The exact-clearance phrase block was effective for K7: accepted design and semantic multi-record repository methods became return/evidence-gap material, not no-finding proof.
+- The terminal/execution event wording was effective for K4: the review cited event names and timing rather than clearing by state closure.
+- Remaining weakness is depth compression, not first-hop breadth: K6 and K10 are visible but under-explained, and K8 is omitted because the durable-fact command-admission finding consumed the payment-state vocabulary attention.
+- Stop condition update: the user accepted multi-round stability above 70 as sufficient. v1.14.82, v1.14.83, v1.14.84, and v1.14.86 are all 70+ clean runs, with v1.14.85 treated as a known regression that v1.14.86 corrected. Further work should shift from score-chasing to structural cleanup and generalization.
+
+### Recent Cost Summary
+
+Durations below are approximate wall-clock measurements from raw-log birth time to raw-log mtime. Token counts are copied from each Codex raw log when present.
+
+| Round | Score | Original review duration | Original review tokens | Calibration duration | Calibration tokens |
+|---|---:|---:|---:|---:|---:|
+| v1.14.82 | 70 | 9m30s | 257,630 | 1m33s | 32,614 |
+| v1.14.83 | 75 | 7m39s | 238,240 | 1m14s | 25,997 |
+| v1.14.84 | 73 | 6m39s | 199,104 | 1m16s | 20,051 |
+| v1.14.85 | 56 | 9m47s | 258,815 | 1m15s | 28,588 |
+| v1.14.86 | 78 | 7m41s | 215,064 | 1m06s | 17,504 |
