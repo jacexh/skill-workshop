@@ -50,9 +50,9 @@ Use these whitelist rows as the default DDD shape unless accepted model evidence
 
 The coordinator may use risk-router cards to classify a deviation, but it must not convert a card name into a finding before investigation.
 
-## Depth investigation axes
+## Depth investigation tags
 
-Use one depth pass per triggered coarse family. Typical axes:
+Use one depth pass per triggered coarse family. Typical tags:
 
 - lifecycle / event timeline / recovery / irreversible fact precedence;
 - Repository/API candidate classification / aggregate ownership;
@@ -101,7 +101,7 @@ If a delegated family does not return, close it as `evidence-gap` or fill a boun
 
 ## Final report shape
 
-The final answer reports judgments, not the full working ledger. Lead with findings, returns, evidence gaps, positive-shape no-finding rationale, verification, and residual risk. Print selected working evidence only when it is needed to understand a judgment or when the user asks.
+The final answer reports judgments, not the full working evidence. Lead with findings, returns, evidence gaps, positive-shape no-finding rationale, verification, and residual risk. Print selected working evidence only when it is needed to understand a judgment or when the user asks.
 
 ## Proof Reminders
 
@@ -116,6 +116,6 @@ These reminders are generic risk-card proof requirements for depth passes, not p
 - Repository/API depth rows must be one row per semantic method; examples such as SaveDeliveryRejection or SaveDisputeResolutionAuthorization do not cover the family.
 - Collaboration depth rows must be one row per lifecycle flow, not inherited from repository or recovery findings.
 - A CQRS axis summary may not say no finding, no branch finding, or inventory-only unless visible method-level CQ rows are emitted.
-- Do not emit a Checked Coverage table in complex lifecycle/repository/event/CQRS reviews.
+- Do not emit a positive coverage table in complex lifecycle/repository/event/CQRS reviews.
 - Positive clearance phrases such as no issue, no similar issue, no branch finding, inventory-only, 未发现, or 适配正确 are valid only when the same decision names positive correct-shape evidence.
-- Triggered families with incomplete depth proof become evidence gap or return, never checked coverage.
+- Triggered families with incomplete depth proof become evidence gap or return, never positive coverage.
