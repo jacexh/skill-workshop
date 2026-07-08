@@ -67,6 +67,11 @@ A bounded local ledger may not use one grouped row for multiple repository metho
 If local fallback cannot complete row-level CQRS inventory, decision is evidence gap, not no branch finding.
 Local fallback stale-command matrix enumerates each later command after durable fact: cancel, retry/start, new payment, reopen, execution, and closure.
 Local fallback collaboration ledger enumerates delivery, refund, dispute, settlement, split closure, and payment recovery mechanisms independently.
+payment_pending must be classified as an open/stale parent state when durable child or payment facts can outrank it.
+Split refund/settlement terminal rows must decide whether terminal agreement facts or events occur before both execution facts and aggregate closure complete.
+Repository/API local fallback rows must be one row per semantic method; examples such as SaveDeliveryRejection or SaveDisputeResolutionAuthorization do not cover the family.
+Collaboration local fallback rows must be one row per lifecycle flow, not inherited from repository or recovery findings.
+A CQRS axis summary may not say no finding, no branch finding, or inventory-only unless visible method-level CQ rows are emitted.
 Subagents must not each perform a full global review; each receives one axis, relevant source seeds, required ledger columns, and a bounded output contract.
 Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
 Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
