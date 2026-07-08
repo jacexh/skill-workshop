@@ -12,26 +12,39 @@ First read [../../references/ddd-risk-router.md](../../references/ddd-risk-route
 ## Checklist
 
 1. Reconstruct the expected model from specs, briefs, designs, handoff, code, tests, and runtime evidence.
-2. Run a main-axis preflight that compares touched code shape against the correct-shape whitelist and emits deviations into a bounded Smell Queue.
-3. Investigate one smell at a time through a non-waiting subagent or bounded local pass.
-4. Append and close spawned smells before final output.
-5. Generate findings only from terminal negative smell rows.
+2. Run breadth first: a thin main-axis scan compares touched code shape against the correct-shape whitelist and emits coarse smell families.
+3. Dispatch depth by triggered axis; each investigator expands one coarse family into sibling methods, flows, states, events, and ports.
+4. Merge returned negative/gap decisions and new issue candidates; do not re-review the whole repo in the coordinator.
+5. Generate findings from depth decisions; generate no-finding notes only from positive correct-shape evidence.
 6. Report verification separately from model review.
 
 ## Process Flow
 
 ```dot
 digraph ddd_review {
-  "Expected model" -> "Main-axis smell scan";
-  "Main-axis smell scan" -> "Smell Queue";
-  "Smell Queue" -> "One-smell investigation";
-  "One-smell investigation" -> "Spawned smell?";
-  "Spawned smell?" -> "Smell Queue" [label="yes"];
-  "Spawned smell?" -> "Closed smell rows" [label="no"];
-  "Closed smell rows" -> "Findings / returns / gaps";
-  "Findings / returns / gaps" -> "Verification";
+  "Expected model" -> "Breadth scan";
+  "Breadth scan" -> "Coarse smell families";
+  "Coarse smell families" -> "Axis-specific depth";
+  "Axis-specific depth" -> "Sibling smells?";
+  "Sibling smells?" -> "Axis-specific depth" [label="yes"];
+  "Sibling smells?" -> "Depth decisions" [label="no"];
+  "Depth decisions" -> "Coordinator merge";
+  "Coordinator merge" -> "Judgment report";
+  "Judgment report" -> "Verification";
 }
 ```
+
+## Breadth and depth
+
+Breadth is a thin main-axis scan: read the user task, named spec/design/diff seeds, and minimum model evidence needed to identify triggered axes. Breadth emits coarse smell families, not findings and not per-method inventories.
+
+Depth is axis-specific investigation. Depth expands each coarse smell family into sibling methods, flows, states, events, and ports, then performs full-chain analysis from business fact to owner, reaction/process, failure tolerance, and implementation mechanism. Each depth pass includes a first-principles shape challenge.
+
+When non-waiting subagent tooling is available, dispatch one depth task per triggered axis before local fallback. Local fallback must name the missing capability or blocking reason in Depth execution.
+
+No-finding decisions require positive correct-shape evidence. Do not clear an axis because negative examples were not found; show the observed shape that satisfies the whitelist or report an evidence gap.
+
+The coordinator merges depth results and new issue candidates. A high-severity finding does not stop other triggered depth axes. Final output is judgment-oriented; ledgers are working evidence, not the user-facing report.
 
 ## Expected model sources
 
@@ -59,22 +72,17 @@ Before findings:
 
 ## Coverage pass
 
-Coverage pass is the orchestration checklist; detailed risk rules live in the risk router and core reference.
-For lifecycle/repository/event/CQRS scope, do not start with Findings.
-First emit the exact lifecycle sections from the output contract, including Output completion gate and Checked row admission control.
-Lifecycle/repository/event/CQRS scope is a final-output gate, not only a checked/Rules Satisfied gate.
-Mandatory-axis completion preflight: final findings are prohibited until every triggered lifecycle, repository/API, collaboration, parent-state, terminal/execution, recovery, event-timeline, and CQRS axis has an emitted ledger.
-A mandatory axis may not be omitted. Absence of a ledger becomes a missing-axis evidence-gap ledger. Missing axis ledgers block same-scope positive claims, not final artifact emission.
-Severe findings cannot abbreviate mandatory axes; continue inventories after Blocker or Critical findings.
-One-row or grouped mandatory sections are incomplete when multiple seeds exist; split rows that cover multiple methods, flows, execution facts, states, ports, commands, or owners.
-Inventory seeds: lifecycle flows, repository/API methods, collaboration trigger facts, terminal execution facts, parent state vocabulary, domain event names, and read-shaped write-side methods/shared adapters.
-Mandatory proof sections are table-backed gates; prose-only sections, coverage summaries, or broad checked-flow summaries do not count.
-Every mandatory proof row needs a stable row id and every checked row must appear in Checked row admission control with the same row id.
-Output completion gate marks a section non-empty only when table rows exist and must appear before any checked decision.
-Finding paragraphs are generated only from completed inventory rows; pre-written findings cannot replace inventory rows.
-Residual positive claims are forbidden when any triggered axis ledger is missing, incomplete, grouped, or skipped.
-Forbidden final decisions: scoped OK, no issue found, product reads separated, accepted by design, names look correct, used by commands.
-Parallel risk-axis review: run shape-sentinel, lifecycle-spec, and evidence-admission axes independently. One risk axis cannot clear another risk axis.
+Coverage pass is the breadth/depth orchestration checklist; detailed risk rules live in the risk router and core reference.
+For lifecycle/repository/event/CQRS scope, do not start with Findings; start with breadth scan.
+Lifecycle/repository/event/CQRS scope triggers depth axes, not a final-output ledger dump.
+Triggered axes become depth tasks: lifecycle/event timeline/recovery/fact precedence; Repository/API/aggregate ownership; collaboration/process mechanism; parent-state/FSM vocabulary; CQRS read/write split; runtime/wiring/persistence/protocol boundary.
+Missing depth results for a triggered axis become evidence gaps, not positive coverage claims.
+Severe findings cannot abbreviate triggered depth axes; continue independent depth tasks after Blocker or Critical findings.
+Depth investigators expand coarse families into sibling methods, flows, execution facts, parent states, domain events, and read-shaped ports when those siblings share the same whitelist deviation.
+No-finding decisions require observed positive shape, not absence of forbidden nouns, DTO/package separation, semantic names, or untriggered grep results.
+Finding paragraphs are generated from negative or gap depth decisions.
+Final report leads with judgment, not working ledgers.
+One risk axis cannot clear another risk axis.
 First-principles shape challenge: after inventory questions and before admitting any tactical shape, ask: Is this shape genuinely necessary for the business invariant, or compensating for a wrong aggregate/lifecycle boundary? If the answer depends on accepted design, transaction shape, semantic names, DTO/package separation, command sequencing, or local convention without explicit model and failure-tolerance proof, keep the default-deny decision.
 Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics.
 final output must not duplicate final answer blocks.
@@ -82,10 +90,10 @@ final output must not duplicate final answer blocks.
 ## Smell queue review protocol
 
 Use [../../references/ddd-review-smell-protocol.md](../../references/ddd-review-smell-protocol.md) for the detailed smell row schema, investigator contract, and risk-card proof reminders.
-Main axis emits a bounded Smell Queue before deep investigation. Main-axis preflight compares touched code shape against the correct-shape whitelist; deviations become smell rows. Do not try to enumerate every possible bad smell, and do not write findings in coordinator preflight. Fixed axes are classification tags, not delegation units.
-Investigate exactly one smell per subagent or local fallback pass. Subagents must not each perform a full global review.
-Use one subagent per triggered smell only when the runtime can return the smell verdict without wait/collab wait. If non-waiting smell delegation is unavailable, run bounded local investigation one smell at a time.
-A spawned smell is appended to the same Smell Queue and must reach a terminal verdict before final output. Finding paragraphs can only be generated from Smell Queue rows with terminal negative verdicts.
+Main axis emits a bounded Smell Queue before deep investigation. Main-axis preflight compares touched code shape against the correct-shape whitelist; deviations become smell rows. Breadth emits coarse smell families; depth expands the family and checks sibling shapes. Do not try to enumerate every possible bad smell, and do not write findings in coordinator preflight. Fixed axes are classification tags, not delegation units.
+Investigate exactly one smell family per subagent or local fallback pass. Subagents must not each perform a full global review.
+Use one subagent per triggered smell only when the runtime can return the smell verdict without wait/collab wait. If non-waiting smell delegation is unavailable, run bounded local investigation one smell family at a time.
+A spawned smell is appended to the same Smell Queue and must reach a terminal verdict before final output. Finding paragraphs can only be generated from negative or gap depth decisions.
 Never leave the review at a wait/collab wait state after returned smell verdicts exist; emit final output with missing-smell evidence gaps instead.
 
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
@@ -122,37 +130,35 @@ resolving model ownership.
 ## Output
 
 Final answer is concise. Do not print the full ledger set by default.
-For lifecycle/repository/event/CQRS scope, complete and merge required smell verdicts before the final answer, then cite smell ids in the summary and findings.
-For complex lifecycle/repository/event/CQRS scope, Smell Queue appendix is mandatory before Findings.
-Smell queue summary may cite only smell ids that appear in the mandatory Smell Queue appendix.
-A missing smell appendix row becomes an evidence gap, not an emitted-row claim.
+For lifecycle/repository/event/CQRS scope, complete and merge required smell verdicts before the final answer, then cite smell families in findings, evidence gaps, returns, or no-finding notes.
+Working evidence stays internal unless it justifies a finding, evidence gap, return, or positive-shape no-finding claim. A missing depth decision becomes an evidence gap, not a positive emitted-row claim.
 Expand ledger rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks.
-Smell queue summary is evidence-derived: completed or no-finding tags must cite visible smell ids whose decisions appear in findings, evidence gaps, returns, not-applicable rows, or the smell queue appendix.
-Wildcard row families such as RC-*, COL-*, or CQ-* are not proof; cite the concrete rows or report an evidence gap for that axis.
-Do not claim CQRS inventory completed or product-read no-finding unless the final artifact shows method-level read-shaped write-side rows and decisions.
+Smell queue summary is evidence-derived: completed or no-finding tags must cite decisions that appear in findings, evidence gaps, returns, no-finding notes, or selected working evidence.
+Wildcard row families such as RC-*, COL-*, or CQ-* are not proof; cite concrete depth decisions or report an evidence gap for that axis.
+Do not claim CQRS inventory completed or product-read no-finding unless depth found positive correct-shape evidence for read/write separation.
 
 ```text
 DDD review:
 - Scope/model evidence:
-- Smell Queue: smell_id | code shape | trigger evidence | suspected risk card | investigator | status | verdict | spawned_smells | final decision
-- Tag coverage summary: Tag | Smell ids | Negative smell ids | Decision
+- Axis coverage: Axis | coarse smell families | negative/gap decisions | positive-shape no-finding evidence
 - Findings:
 
-Finding: <severity> <axis> <title> [smell ids]
+Finding: <severity> <axis> <title> [smell family ids]
 - Evidence: <file:line>
 - Violated guardrail:
-- Triage: <violation | return to domain-modeling | return to design | harmless local style | evidence gap>
+- Triage: <violation | return to domain-modeling | return to design | evidence gap>
 - Why it matters:
 - Fix direction: <model correction | implementation mechanism | evidence needed | test/verification needed>
 
 - Evidence gaps / returns:
+- No-finding notes: <only when positive correct-shape evidence was observed>
+- Depth execution: <subagents used by axis, or local fallback reason>
 - Verification:
 - Residual risk:
-- Smell Queue appendix: <mandatory for complex lifecycle/repository/event/CQRS scope; include row-local verdict rows for every triggered smell before Findings>
-- Ledger appendix: <mandatory for complex lifecycle/repository/event/CQRS scope; include risk-card proof rows for every negative, no-finding, return, or evidence-gap smell>
+- Selected working evidence: <only rows needed to support judgments, gaps, returns, or no-finding notes>
 ```
 
-No DDD findings: say that directly only after the Smell Queue shows every triggered smell closed with row-local proof, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
+No DDD findings: say that directly only after every triggered depth axis has positive correct-shape evidence or an explicit evidence gap, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 
