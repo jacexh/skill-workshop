@@ -1958,3 +1958,32 @@ Coverage Matrix:
 - Add a coordinator merge contract: every returned smell-family verdict must land in Findings, Evidence gaps / returns, No-finding notes, or Selected working evidence.
 - Keep the final answer concise, but require selected working evidence for non-finding verdicts in recovery wiring, collaboration mechanisms, repository candidate-owner classification, state vocabulary, and CQRS method inventory.
 - Prevent broad findings from absorbing linked depth verdicts; one repository or fact-precedence finding cannot hide independent production-wiring, collaboration, state-language, or CQRS decisions.
+
+## Round 2026-07-08 v1.14.72 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.72`, release commit `3ecdbe2`.
+- preceding hotfix: PR #125 required returned smell-family verdicts to land in Findings, Evidence gaps / returns, No-finding notes, or Selected working evidence.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.72`.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.72-rerun.md`, 50 lines.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.72-rerun-reflection.md`.
+- depth execution evidence: final output reported subagent dispatch was not used because nested tool policy required explicit subagent request, so bounded local depth was used instead.
+
+### Score
+
+- Known-issue hits: K3 full, K4 full, K2 partial, K5 partial, K7 partial, K6 missed, K8 missed, K10 missed.
+- Total: 48 / 100.
+
+### Gap Analysis
+
+- The merge contract did not solve the root failure. The review still produced a small set of findings and broad no-finding notes while missing repository candidate-owner, collaboration mechanism, parent-state vocabulary, and CQRS method-level inventory.
+- CQRS regressed into a positive no-finding without visible method-level proof.
+- Repository/API smell was reframed as an infrastructure-domain-transition issue, while semantic repository methods coordinating multiple lifecycle-owner candidates were not classified.
+- The run did not use subagents despite the installed plugin expecting Codex/Claude Code subagent capability.
+
+### Next Fix
+
+- Shift from more final-output constraints to smell burden of proof.
+- A smell is a failed correct-shape match, not a neutral question. Depth starts from wrong shape and classifies root cause.
+- Define layer-level correct shapes for Domain, Application, Infrastructure, Interface, and Runtime. Any layer behavior outside those shapes becomes a smell family.
+- Default-deny examples: Repository/API touching non-aggregate roots or multiple aggregate roots is wrong shape; Application code reading entity state to decide domain behavior is wrong shape.
+- Do not negotiate local corner cases inside review. If a shape needs an exception to be valid, return to modeling or design so the exception is explicit upstream.

@@ -13,7 +13,7 @@ First read [../../references/ddd-risk-router.md](../../references/ddd-risk-route
 
 1. Reconstruct the expected model from specs, briefs, designs, handoff, code, tests, and runtime evidence.
 2. Run breadth first: a thin main-axis scan compares touched code shape against the correct-shape whitelist and emits coarse smell families.
-3. Dispatch depth by coarse smell family; each investigator expands one family into sibling methods, flows, states, events, and ports.
+3. Dispatch one depth explainer per coarse smell family; each explainer explains why the presumed-wrong shape is wrong and expands sibling methods, flows, states, events, and ports.
 4. Merge returned negative/gap decisions and new issue candidates; do not re-review the whole repo in the coordinator.
 5. Generate findings from depth decisions; generate no-finding notes only from positive correct-shape evidence.
 6. Report verification separately from model review.
@@ -38,11 +38,11 @@ digraph ddd_review {
 
 Breadth is a thin main-axis scan: read the user task, named spec/design/diff seeds, and minimum model evidence needed to identify triggered axes. Breadth emits coarse smell families, not findings and not per-method inventories.
 
-Depth is family-specific investigation, with axes used only as classification tags. Depth expands each coarse smell family into sibling methods, flows, states, events, and ports, then performs full-chain analysis from business fact to owner, reaction/process, failure tolerance, and implementation mechanism. Each depth pass includes a first-principles shape challenge.
+Depth is family-specific root-cause explanation, with axes used only as classification tags. Depth starts from a presumed-wrong smell family, expands sibling methods, flows, states, events, and ports, then explains the chain from business fact to owner, reaction/process, failure tolerance, and implementation mechanism. Each depth pass includes a first-principles shape challenge.
 
 Codex and Claude Code review runtimes are expected to have subagent/task capability. Dispatch one subagent per coarse smell family before coordinator depth analysis. If the runtime exposes no subagent tool, treat that as an environment defect and name it in Depth execution instead of silently falling back.
 
-No-finding decisions require positive correct-shape evidence. Do not clear an axis because negative examples were not found; show the observed shape that satisfies the whitelist or report an evidence gap.
+No-finding decisions require positive correct-shape evidence and apply only outside the Smell Queue. A handed-off smell family returns violation, return, evidence-gap, or spawned-family.
 
 The coordinator merges depth results and new issue candidates. A high-severity finding does not stop other triggered smell-family depth tasks. Final output is judgment-oriented; proof packets are working evidence, not the user-facing report.
 
@@ -62,37 +62,33 @@ If the expected bounded context, data authority, invariant owner, model evidence
 
 Before findings:
 
-1. Confirm concrete evidence exists: diff, plan, files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written deviation.
-2. Start from business facts before code shape: Business fact timeline: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism. Irreversible fact precedence: durable succeeded/accepted/completed/executed facts outrank open workflow states; delayed projection/reaction is not a retry/cancel window.
-3. Classify touched surfaces from evidence: domain abstraction, spec behavior, generated/protocol boundary, persistence, runtime/config, messages/tasks, logging, external adapter, or repo-specific surface.
-4. Use the risk router and local convention to choose required proof. The examples are a router, not an inventory.
-5. For lifecycle, Repository, or event/reaction risks, require Event Timeline Reconciliation, Recovery reachability proof, terminal lifecycle facts and execution facts separation, and a candidate classification table before Rules Satisfied.
-6. Decide each candidate as `Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap`. Return to domain-modeling cannot be classified as Rules Satisfied.
-7. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
+1. Confirm concrete evidence exists: files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written deviation.
+2. Start from business facts before code mechanics: command -> past-tense fact -> invariant owner -> reaction/process -> failure tolerance -> implementation mechanism.
+3. Compare touched code against the correct-shape whitelist; missing required shape or present forbidden shape becomes a smell.
+4. Use the risk router only to choose depth, not to enumerate findings.
+5. Missing proof is an evidence gap unless concrete evidence proves a violation.
 
 ## Coverage pass
 
 Coverage pass is the breadth/depth orchestration checklist; detailed risk rules live in the risk router and core reference.
 For lifecycle/repository/event/CQRS scope, do not start with Findings; start with breadth scan.
-Lifecycle/repository/event/CQRS scope tags smell-family depth tasks, not broad-axis delegation or final-output proof dumps.
-Axis tags classify smell-family tasks: lifecycle/event timeline/recovery/fact precedence; Repository/API/aggregate ownership; collaboration/process mechanism; parent-state/FSM vocabulary; CQRS read/write split; runtime/wiring/persistence/protocol boundary.
+Lifecycle/repository/event/CQRS names are tags for smell-family depth, not broad-axis delegation.
 Missing depth results for a triggered smell family become evidence gaps, not positive coverage claims.
-Severe findings cannot abbreviate triggered smell-family depth tasks; continue independent depth tasks after Blocker or Critical findings.
-Depth investigators expand coarse families into sibling methods, flows, execution facts, parent states, domain events, and read-shaped ports when those siblings share the same whitelist deviation.
-No-finding decisions require observed positive shape, not absence of forbidden nouns, DTO/package separation, semantic names, or untriggered grep results.
+Depth explainers expand coarse families into sibling methods, flows, execution facts, parent states, domain events, and read-shaped ports when those siblings share the same whitelist deviation.
+No-finding decisions outside the Smell Queue require observed positive shape, not absence of forbidden nouns, DTO/package separation, semantic names, or untriggered grep results.
 Finding paragraphs are generated from negative or gap depth decisions.
 Final report leads with judgment, not working evidence dumps.
-One risk axis cannot clear another risk axis.
-First-principles shape challenge: after inventory questions and before admitting any tactical shape, ask: Is this shape genuinely necessary for the business invariant, or compensating for a wrong aggregate/lifecycle boundary? If the answer depends on accepted design, transaction shape, semantic names, DTO/package separation, command sequencing, or local convention without explicit model and failure-tolerance proof, keep the default-deny decision.
-Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics.
-final output must not duplicate final answer blocks.
+First-principles shape challenge: is this shape genuinely required by the business invariant, or compensating for a wrong aggregate, lifecycle, or boundary?
 
 ## Smell queue review protocol
 
-Use [../../references/ddd-review-smell-protocol.md](../../references/ddd-review-smell-protocol.md) for the detailed smell row schema, investigator contract, and risk-card proof reminders.
+Use [../../references/ddd-review-smell-protocol.md](../../references/ddd-review-smell-protocol.md) for the correct-shape whitelist and smell-queue protocol.
 Main axis emits a bounded Smell Queue before deep investigation. Main-axis preflight compares touched code shape against the correct-shape whitelist; deviations become smell rows. Breadth emits coarse smell families; depth expands the family and checks sibling shapes. Do not try to enumerate every possible bad smell, and do not write findings in coordinator preflight. Fixed axes are classification tags, not delegation units.
-Investigate exactly one smell family per subagent. Subagents must not each perform a full global review.
-Dispatch one subagent per coarse smell family. The subagent owns depth for that family, expands sibling methods/flows/states/events/ports, and returns verdicts plus spawned smell families.
+A smell is a failed whitelist match, not a neutral question. Depth starts from wrong shape and explains why it is wrong: model boundary, design placement, implementation drift, evidence gap, or weak trigger evidence.
+Do not debate whether a smell might be allowed as a local corner case. If a shape needs an exception, return to modeling or design instead of acquitting it in review.
+Repository/API touching non-aggregate roots or multiple aggregate roots is wrong shape. Application code reading entity state to decide domain behavior is wrong shape.
+Explain exactly one smell family per subagent. Subagents must not each perform a full global review.
+Dispatch one subagent per coarse smell family. The subagent owns the why-wrong explanation for that family, expands sibling methods/flows/states/events/ports, and returns root-cause verdicts plus spawned smell families.
 A spawned smell is appended to the same Smell Queue and must reach a terminal verdict before final output. Finding paragraphs can only be generated from negative or gap depth decisions.
 Never leave the review at a wait/collab wait state after returned smell verdicts exist; emit final output with missing-smell evidence gaps instead.
 
@@ -130,39 +126,14 @@ resolving model ownership.
 ## Output
 
 Final answer is concise. Do not print the full working-evidence set by default.
-For lifecycle/repository/event/CQRS scope, complete and merge required smell verdicts before the final answer, then cite smell families in findings, evidence gaps, returns, or no-finding notes.
-Working evidence stays internal unless it justifies a finding, evidence gap, return, or positive-shape no-finding claim. A missing depth decision becomes an evidence gap, not a positive emitted-row claim.
-Expand working-evidence rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks.
-Every returned smell-family verdict must land in Findings, Evidence gaps / returns, No-finding notes, or Selected working evidence.
+For lifecycle/repository/event/CQRS scope, complete and merge required smell verdicts before the final answer, then cite smell families in findings, evidence gaps, or returns.
+Working evidence stays internal unless it is needed to understand a judgment. A missing depth decision becomes an evidence gap, not a positive claim.
+Every returned smell-family verdict must land in Findings or Evidence gaps / returns.
 Do not collapse production wiring, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader finding.
-Selected working evidence is mandatory when a repository, collaboration, state-language, recovery-wiring, or CQRS family returns partial, gap, return, or no-finding.
-Keep selected evidence terse: one row per omitted-or-nonfinding depth decision, not the full working set.
-Smell queue summary is evidence-derived: completed or no-finding tags must cite decisions that appear in findings, evidence gaps, returns, no-finding notes, or selected working evidence.
-Wildcard row families such as RC-*, COL-*, or CQ-* are not proof; cite concrete depth decisions or report an evidence gap for that axis.
-Do not claim CQRS inventory completed or product-read no-finding unless depth found positive correct-shape evidence for read/write separation.
 
-```text
-DDD review:
-- Scope/model evidence:
-- Axis coverage: Axis | coarse smell families | negative/gap decisions | positive-shape no-finding evidence
-- Findings:
+Report in this order when present: scope/model evidence, findings, evidence gaps / returns, no-finding notes for non-smell surfaces with positive shape, depth execution, verification, residual risk.
 
-Finding: <severity> <axis> <title> [smell family ids]
-- Evidence: <file:line>
-- Violated guardrail:
-- Triage: <violation | return to domain-modeling | return to design | evidence gap>
-- Why it matters:
-- Fix direction: <model correction | implementation mechanism | evidence needed | test/verification needed>
-
-- Evidence gaps / returns:
-- No-finding notes: <only when positive correct-shape evidence was observed>
-- Depth execution: <subagents used by smell family; if unavailable, environment defect>
-- Verification:
-- Residual risk:
-- Selected working evidence: <only rows needed to support judgments, gaps, returns, or no-finding notes>
-```
-
-No DDD findings: say that directly only after every triggered smell family has positive correct-shape evidence or an explicit evidence gap, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
+No DDD findings: say that directly only when no concrete violation/return was found; list any smell-family evidence gaps and residual test gaps. Do not fill a finding template with harmless local style.
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 
