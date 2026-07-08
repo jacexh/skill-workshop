@@ -2252,3 +2252,30 @@ Next evaluation should be against the first released version after this local br
 - K2 needs durable-fact command admission to mean checking retry/start/cancel commands after succeeded facts, not only checking recovery reachability.
 - K5/K10 need final verdict rows whenever repository/CQRS inventory was triggered; otherwise inventory work disappears before scoring.
 - Next fix: required row verdicts are not internal evidence. Every triggered required row gets a final finding or evidence gap/return bullet, even if detailed evidence stays internal.
+
+## Round 2026-07-08 v1.14.82 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.82`, release commit `13b6b7d`.
+- preceding hotfix: PR #135 made required row verdicts final-output obligations and separated durable-fact command admission from recovery reachability.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.82`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.82-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.82-clean/original-review-final.md`, 4 findings plus non-smell notes.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.82-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.82-clean/reflection-final.md`.
+- verification inside clean review: `go test ./internal/business/tasknegotiation/...` passed.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K4 full; K5 partial; K6 partial; K7 partial; K10 partial; K8 missed.
+- Breadth: 34 / 45. Durable-fact command admission, recovery reachability, split terminal/execution, and repository/CQRS pressure reached final output. Parent-state vocabulary still disappeared.
+- Depth: 28 / 45. K2/K3/K4 are concrete and actionable. K5/K6/K7/K10 are still merged into one broad Repository evidence gap instead of separate candidate-owner, collaboration, waiver, and CQRS verdicts.
+- Review discipline: 8 / 10. Verification is strong and the final output now preserves more required verdicts, but it still allows one broad evidence gap to stand in for several required family rows.
+- Total: 70 / 100.
+
+### Gap Analysis
+
+- v1.14.82 is the first run in this loop that reaches the 70-point band, mainly because K2 became a full blocker finding.
+- The remaining breadth problem is not scanning; raw logs touched parent-state vocabulary, repository list methods, query store, and lifecycle tests.
+- The final-output problem is family merging: Repository/API, collaboration, accepted-design waiver, and CQRS are collapsed into one broad evidence gap.
+- K8 was omitted because the payment durable-fact finding consumed the payment attention; payment parent-state vocabulary needs a distinct final verdict even when K2 exists.
+- Next fix: final verdicts must keep required family labels distinct. A broad repository/lifecycle evidence gap may summarize root cause only after each required family row has its own finding or evidence-gap/return line.

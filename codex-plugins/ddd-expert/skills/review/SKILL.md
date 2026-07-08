@@ -172,7 +172,7 @@ Forbidden shape:
 - Repository/API inventory: inspect Domain Repository interfaces, Application repository calls, Infrastructure store methods, and every method outside `Get`/`Save`; classify each extra `List*`, read-shaped, semantic, or coordinated-object method as same Aggregate Root, owned child/value object, read model, or independent lifecycle owner.
 - Accepted-design waiver inventory: when spec/design/local convention accepts semantic repository transactions, multi-object saves, or synchronous lifecycle-owner coordination, inspect whether the accepted text proves model ownership/failure tolerance or merely hides a boundary conflict.
 - CQRS inventory: inspect write repositories and shared adapters for list/detail/history/summary/read-shaped methods before clearing CQRS shape; QueryRepository/read-facade presence proves only the read side exists.
-- Payment parent-state vocabulary: when Payment exists beside TaskAgreement payment states, inspect `payment_pending`, `payment_failed`, `payment_cancelled`, and succeeded/funded words as parent lifecycle facts; do not omit this row because recovery already has a finding.
+- Payment parent-state vocabulary: when Payment exists beside TaskAgreement payment states, inspect `payment_pending`, `payment_failed`, `payment_cancelled`, and succeeded/funded words as parent lifecycle facts; do not omit this row because recovery or durable-fact command admission already has a finding.
 
 ## Output
 
@@ -182,6 +182,7 @@ Working evidence stays internal unless it is needed to understand a judgment. Re
 Every triggered required family row and every explained smell-family verdict lands in Findings or Evidence gaps / returns. Positive, coverage, and residual notes are only for surfaces that were not smell rows. Do not suppress findings for template cost.
 Do not collapse production wiring, durable-fact command admission, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader claim.
 If a required row was inspected, name its verdict family in the final answer even when detailed evidence stays internal.
+Each triggered required family label gets its own final verdict line; a broad repository/lifecycle evidence gap may summarize root cause only after candidate-owner, collaboration, accepted-design waiver, CQRS, and state-vocabulary rows are separately decided.
 
 Report in this order when present: scope/model evidence, findings, evidence gaps / returns, positive notes for non-smell surfaces, verification, residual risk.
 
