@@ -1500,3 +1500,51 @@ Coverage Matrix:
 - Forbid CQRS no-finding unless the exact CQRS inventory has one row per read-shaped write-side method or shared adapter method.
 - Forbid collaboration mechanism rows from using application coordination, repository semantic transaction, same DB transaction, or command transaction as final mechanism.
 - Require parent-state vocabulary to include pending-like configured parent states such as `payment_pending`, not only failed/cancelled states.
+
+## Round 2026-07-08 v1.14.49 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.49`, release commit `ac1eef4dceee108ba362878f8ff67b792e3d65e7`.
+- preceding hotfix: `1bca346fb2de215db17221e3c99fc6a4be58e5dd`, PR #102, merge commit `f7869d913fe0e8c9b9b7d6fabce6b603e2a652fe`.
+- next hotfix branch: `hotfix/ddd-review-not-admitted-extraction`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade skill-workshop-codex` completed; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.49`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.49.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.49.md`, 226 lines, 22,298 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.49-reflection.md`, 20 lines, 4,964 bytes.
+- verification inside review: `go test ./... -count=1` passed; infrastructure package took about 180s.
+
+### Output Summary
+
+- The reviewer found K3: `PaymentSucceeded` reconciler has no production entrypoint through proto, Application, module, scheduler, or runtime.
+- The reviewer found K7: overclaim scrub downgraded transaction-only and DTO/name-only evidence, and no positive Rules Satisfied entries were emitted.
+- The reviewer found K10: CQRS semantic split and read-shaped method inventory were emitted, and write-side repository list methods were extracted into an evidence gap.
+- The reviewer shallowly covered K2: `PaymentSucceeded` + `payment_pending` + `cancel/retry/fund` appeared, but the issue was still collapsed into the recovery gap instead of one row per stale command right.
+- The reviewer shallowly covered K4: split refund/settlement/closure appeared in terminal and collaboration tables, but rows stayed `not admitted` and no same-scope finding/evidence gap was extracted for terminal closure ordering.
+- The reviewer shallowly covered K5: Repository/API per-method rows existed, but candidates and owner proof were still grouped/placeholder-like and accepted atomic transaction failure tolerance remained broad.
+- The reviewer shallowly covered K6: collaboration rows did not enumerate delivery/refund/dispute/settlement mechanisms fully, and `command transaction` still appeared as a mechanism in not-admitted rows.
+- The reviewer shallowly covered K8: `payment_pending/payment_failed/payment_cancelled` appeared, but parent-state risk stayed table-only and `payment_pending` was too quickly treated as spec-supported.
+- No known issue was mapped as overclaimed.
+
+### Score
+
+- Breadth: 38 / 45. K3, K7, and K10 were found. K2, K4, K5, K6, and K8 were shallow.
+- Depth: 27 / 45. CQRS and recovery were much stronger. Stale command rights, split closure ordering, collaboration mechanisms, and state-language ownership remained insufficiently extracted.
+- Review discipline: 7 / 10. The output used exact tables and withheld checked/positive conclusions, but `not admitted` rows hid several active issues.
+- Total: 72 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: improved discipline but not final score. The proof-artifact gates stopped K4/K10 overclaims and restored CQRS inventory, but did not force every not-admitted row into a same-scope extracted finding/evidence gap.
+- Shallow root cause: `not admitted` is being used as a parking state rather than a final negative decision that must be extracted.
+- Shallow root cause: stale command rights can still be grouped as `cancel/retry/fund`, avoiding one row per durable fact and later command pair.
+- Shallow root cause: collaboration mechanisms can still mention `command transaction` in not-admitted rows without becoming an evidence gap or finding.
+
+### Generic Fix Summary
+
+- Make `not admitted` invalid as a final mandatory-row decision; every not-admitted lifecycle/repository/event/CQRS/terminal/state/collaboration row must become a same-scope finding, evidence gap, or return route.
+- Require one-to-one finding extraction: unrelated rows cannot be grouped under a broad gap id, and every negative row needs its own same-scope extracted paragraph or explicit same-scope finding reference.
+- Require stale-command rights matrix rows to be one durable fact and one later command each; grouped command cells such as `cancel/retry/fund` are invalid.
+- Require any collaboration row whose mechanism is `command transaction`, `application coordination`, `repository semantic transaction`, or `same DB transaction` to become evidence gap/finding/return unless the same row names an accepted atomic decision and failure-tolerance proof.

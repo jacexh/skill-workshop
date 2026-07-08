@@ -80,6 +80,11 @@ No terminal/execution no-finding without one exact Terminal/execution fact table
 No CQRS no-finding without one exact CQRS inventory row per read-shaped write-side method or shared adapter method.
 Collaboration mechanism rows cannot use application coordination, repository semantic transaction, same DB transaction, or command transaction as final mechanism.
 Parent-state vocabulary must include pending-like configured parent states, including payment_pending, not only failed or cancelled states.
+Not admitted cannot be a final mandatory-row decision.
+Every not-admitted lifecycle/repository/event/CQRS/terminal/state/collaboration row must become same-scope finding, evidence gap, or return route.
+Finding extraction map must be one-to-one: unrelated rows cannot be grouped under a broad gap id.
+Stale-command rights matrix rows must contain exactly one durable fact and one later command; grouped command cells such as cancel/retry/execute are invalid.
+A collaboration row using command transaction, application coordination, repository semantic transaction, or same DB transaction becomes evidence gap/finding/return unless the same row names an accepted atomic decision and failure-tolerance proof.
 Dangerous shape default-deny: shape sentinels run before proof promotion. Repository/API methods that save or coordinate several aggregate or lifecycle-owner candidates start as return/evidence gap/finding, not checked or not claimed. Candidate classification chooses the return route; it does not promote the row. Promotion requires row-local proof that every additional candidate is an owned child/value object under one lifecycle owner, or that coordination is handled by a named Domain Event, process manager, reconciler, task processor, Integration Message, or accepted atomic-transaction model decision with failure-tolerance proof. Semantic repository names, accepted design, same transaction/session, cross-table writes, or command-side synchronous coordination cannot waive the sentinel.
 First-principles shape challenge: after inventory questions and before admitting any tactical shape, ask: Is this shape genuinely necessary for the business invariant, or compensating for a wrong aggregate/lifecycle boundary? If the answer depends on accepted design, transaction shape, semantic names, DTO/package separation, command sequencing, or local convention without explicit model and failure-tolerance proof, keep the default-deny decision.
 Terminal-closure default-deny gate: inventory every terminal lifecycle fact and terminal lifecycle event emission from accepted model sources and code, then map each one to all required execution facts before any checked terminal/execution decision. A terminal lifecycle event or aggregate closure can be checked only when durable ordering proves every required execution fact is authorized, completed or explicitly separated, idempotent/replay-safe, and recoverable before the terminal event is emitted. If code emits terminal lifecycle closure/events before, during, or without proof of all required execution facts, default to finding, return, or evidence gap. Command sequencing, domain guards, same transaction, closure method names, or event names alone cannot admit the row.
@@ -187,6 +192,7 @@ DDD review:
 - Residual-risk summary: <use instead of checked-flow summaries while negative decisions exist>
 - Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap: <positive Rules Satisfied entries forbidden for same-scope rows while negative decisions exist>
 - Finding generation map: Inventory row | Final decision | Finding id or evidence-gap id | Extracted paragraph
+- Not-admitted extraction map: Row id | Not-admitted row | Same-scope finding/evidence-gap/return | Extracted paragraph
 
 Finding: <severity> <axis> <title>
 - Evidence: <file:line>
