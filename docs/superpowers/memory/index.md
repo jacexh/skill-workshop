@@ -2,7 +2,7 @@
 last_updated: 2026-07-08
 updated_by: superpowers-memory:ingest
 triggered_by_plan: "2026-07-07-ddd-expert-modeling-gates.md"
-covers_branch: hotfix/ddd-review-local-smell-synthesis@2877b34
+covers_branch: hotfix/ddd-review-no-finding-admission@7bd7dbf
 ---
 
 # Project Knowledge Index
@@ -14,10 +14,10 @@ covers_branch: hotfix/ddd-review-local-smell-synthesis@2877b34
   Key points: Node.js + Bash + Markdown + JSON; Codex plugin runtime requires hooks/plugin_hooks flags and restart; release scripts use git + jq
 
 - [features.md](features.md) — Current capability map
-  Key points: ddd-expert guidance is explicit with restrained route-only reminders and uses strategic event-storming plus modeling gates before DDD design, then handoff-based implement/review evidence checks; superpowers-architect still injects dynamic design-pattern standards; designing-tests chooses verification evidence before tests; memory query reads index on demand, ingest stays low-noise through Memory Candidate Gate / Diff Budget / ADR History Protection, and lint reports suggested ingest targets
+  Key points: ddd-expert guidance is explicit with restrained route-only reminders and uses strategic event-storming plus modeling gates before DDD design, then handoff-based implement/review evidence checks with observed-correct-shape admission before no-finding notes; superpowers-architect still injects dynamic design-pattern standards; designing-tests chooses verification evidence before tests; memory query reads index on demand, ingest stays low-noise through Memory Candidate Gate / Diff Budget / ADR History Protection, and lint reports suggested ingest targets
 
 - [conventions.md](conventions.md) — Coding standards, architecture rules, workflow
-  Key points: ddd-expert references live under plugin-root references while superpowers-architect restored legacy design-pattern defaults; DDD phases include evidence-first strategic event-storming/modeling gates, strategic-first design before tactical objects, accepted-model implementation translation, and evidence-driven review; designing-tests hooks stay restrained with no Codex SessionStart; KB rules require Slot Contracts, lightweight code-agent scope, Codex multi-file patch write-lock coverage, dual-track parity, and root README review when plugin READMEs change
+  Key points: ddd-expert references live under plugin-root references while superpowers-architect restored legacy design-pattern defaults; DDD phases include evidence-first strategic event-storming/modeling gates, strategic-first design before tactical objects, accepted-model implementation translation, and evidence-driven review with no-finding admission; designing-tests hooks stay restrained with no Codex SessionStart; KB rules require Slot Contracts, lightweight code-agent scope, Codex multi-file patch write-lock coverage, dual-track parity, and root README review when plugin READMEs change
 
 - [decisions.md](decisions.md) — Decision router / ADR family index
   Key points: routes to decisions-memory, decisions-architect, decisions-codex, and decisions-foundation shards; ADR-026 restores superpowers-architect v1.13.10 content while ADR-025 keeps superpowers-ddd-architect retired and ddd-expert standalone; ADR-024 retires legacy memory migration
