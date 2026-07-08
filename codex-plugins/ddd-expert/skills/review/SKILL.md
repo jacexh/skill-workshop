@@ -44,7 +44,7 @@ Before findings:
 3. **Explain each family**: assume the smell is wrong until the relevant method, flow, state, event, port, or adapter shows the correct shape. Output: violation, return-to-domain-modeling, return-to-design, evidence-gap, or adjacent-smell.
 4. **Follow related evidence**: for each adjacent smell, inspect the nearest sibling methods, flows, states, events, ports, adapters, or runtime registrations that share the same reason. Output: updated Smell List with any new family rows.
 5. **Synthesize root cause**: combine family verdicts. Output: shared wrong model, boundary, lifecycle, state vocabulary, collaboration mechanism, repository/API shape, CQRS split, or recovery story.
-6. **Report**: turn the synthesized verdicts into findings, evidence gaps / returns, non-smell positive notes, verification, and residual risk. Output: final review judgment that accounts for every required family row.
+6. **Report**: turn the synthesized verdicts into findings, evidence gaps / returns, non-required positive notes, verification, and residual risk. Output: final review judgment that places every triggered required family row under Findings or Evidence gaps / returns.
 
 Smell explanation stays local by default. Use subagents only when the user explicitly asks.
 
@@ -170,20 +170,20 @@ Forbidden shape:
 - Required family rows: payment/delivery/refund/dispute/settlement scope keeps durable-fact command admission, terminal/execution split, repository/API candidate-owner, collaboration mechanism, parent state vocabulary, accepted-design waiver, and CQRS inventory as separate rows when their evidence is present; one broader finding cannot clear another row.
 - Repository/API inventory: inspect Domain Repository interfaces, Application repository calls, Infrastructure store methods, and every method outside `Get`/`Save`; classify each extra method or coordinated object as same Aggregate Root, owned child/value object, read model, or independent lifecycle owner.
 - Accepted-design waiver inventory: when spec/design/local convention accepts semantic repository transactions, multi-object saves, or synchronous lifecycle-owner coordination, inspect whether the accepted text proves model ownership/failure tolerance or merely hides a boundary conflict.
-- CQRS inventory: inspect write repositories and shared adapters for list/detail/history/summary/read-shaped methods before no-finding; QueryRepository/read-facade presence proves only the read side exists.
+- CQRS inventory: inspect write repositories and shared adapters for list/detail/history/summary/read-shaped methods before clearing CQRS shape; QueryRepository/read-facade presence proves only the read side exists.
 
 ## Output
 
 Final answer is concise. Do not print the full working-evidence set by default.
-For lifecycle/repository/event/CQRS scope, complete and merge smell verdicts before the final answer, then cite smell families in findings, evidence gaps, returns, or no-finding notes with observed correct shape.
+For lifecycle/repository/event/CQRS scope, complete and merge smell verdicts before the final answer, then cite triggered required family rows only in Findings or Evidence gaps / returns.
 Working evidence stays internal unless it is needed to understand a judgment. If a smell family cannot be explained from available evidence, report an evidence gap, not a positive claim.
-Every required family row and every explained smell-family verdict lands in Findings, Evidence gaps / returns, or a no-finding note with observed correct shape. Do not suppress findings for template cost.
+Every triggered required family row and every explained smell-family verdict lands in Findings or Evidence gaps / returns. Positive notes are only for surfaces that were not smell rows. Do not suppress findings for template cost.
 Do not collapse production wiring, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader claim.
 
 Report in this order when present: scope/model evidence, findings, evidence gaps / returns, no-finding notes for non-smell surfaces with positive shape, verification, residual risk.
 
 No DDD findings: say that directly only when no concrete violation/return was found; list any smell-family evidence gaps and residual test gaps. Do not fill a finding template with harmless local style.
-No-finding notes are only for non-smell surfaces or observed correct shape. Repository/API smells need method inventory and candidate-owner classification; accepted-design waiver smells need explicit model ownership and failure-tolerance evidence; collaboration smells need named event/process/recovery mechanism; terminal/execution smells need separate execution and closure facts; parent-state vocabulary smells need parent lifecycle fact language; CQRS smells need write-repository and shared-adapter read/write method inventory. If the positive proof is only package names, object splitting, accepted design, DTO presence, QueryRepository presence, or passing tests, report an evidence gap.
+No-finding notes are only for surfaces outside required family rows that were not smell rows and have observed correct shape. Required family rows never go to No-Finding Notes. Repository/API smells need method inventory and candidate-owner classification; accepted-design waiver smells need explicit model ownership and failure-tolerance evidence; collaboration smells need named event/process/recovery mechanism; terminal/execution smells need separate execution and closure facts; parent-state vocabulary smells need parent lifecycle fact language; CQRS smells need write-repository and shared-adapter read/write method inventory. If the positive proof is only package names, object splitting, accepted design, DTO presence, QueryRepository presence, or passing tests, report an evidence gap.
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 
