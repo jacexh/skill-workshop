@@ -5,120 +5,62 @@ description: Use when reviewing DDD/backend domain abstractions, specs, plans, o
 
 # Review
 
-Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign. Build/runtime blockers only block executable verification; Independent static model review still runs. Compile blocker is never a positive model signal; Absence of forbidden nouns is not model proof.
+Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign. Build/runtime blockers only block executable verification; Independent static model review still runs. Compile blocker is never a positive model signal; Absence of forbidden nouns is not model proof. Report Independent modeling findings separately from build blockers.
 
-First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md), then load deeper references only for triggered evidence.
+First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md) once. In multi-axis reviews, the coordinator sends router section names to subagents; deeper references are for subagents or disputed row-local proof, not coordinator preload.
 
 ## Expected model sources
 
-Reconstruct the expected model before judging code:
-
-- Domain Modeling Brief, user stories, strategic decisions, and out-of-scope rules;
-- DDD design, testing seams, and **Implementation handoff**;
-- model evidence for authority, lifecycle, invariant owner, failure tolerance, integration language, collaboration model, and coordination kind when those boundaries matter;
-- spec/issue/ADR/glossary/CONTEXT;
-- changed files, neighboring code, tests, generated artifacts, migrations, config, runtime wiring, logs, and documented deviations.
-
-If the expected bounded context, data authority, invariant owner, model evidence, layer owner, or local convention cannot be reconstructed, report an evidence gap instead of inventing a model.
+Reconstruct the expected model before judging code from: Domain Modeling Brief, user stories, strategic decisions, out-of-scope rules, DDD design, testing seams, **Implementation handoff**, spec/issue/ADR/glossary/CONTEXT, changed files, neighboring code, tests, generated artifacts, migrations, config, runtime wiring, logs, and documented deviations. Include model evidence for authority, lifecycle, invariant owner, failure tolerance, integration language, collaboration model, and coordination kind. If the expected bounded context, data authority, invariant owner, model evidence, layer owner, or local convention cannot be reconstructed, report an evidence gap instead of inventing a model.
 
 ## Evidence gate
 
-Before findings:
+Before findings: confirm concrete evidence exists; start from business facts before code shape with Business fact timeline: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism; apply Irreversible fact precedence so durable succeeded/accepted/completed/executed facts outrank open workflow states; classify touched surfaces; choose proof from the risk router and local convention. For lifecycle, Repository, or event/reaction risks, require Event Timeline Reconciliation, Recovery reachability proof, terminal lifecycle facts and execution facts separation, and a candidate classification table before Rules Satisfied. Decide each candidate as `Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap`. Return to domain-modeling cannot be classified as Rules Satisfied. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
 
-1. Confirm concrete evidence exists: diff, plan, files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written deviation.
-2. Start from business facts before code shape: Business fact timeline: command -> past-tense fact -> invariant owner -> reaction/process -> consistency/failure tolerance -> repository mechanism. Irreversible fact precedence: durable succeeded/accepted/completed/executed facts outrank open workflow states; delayed projection/reaction is not a retry/cancel window.
-3. Classify touched surfaces from evidence: domain abstraction, spec behavior, generated/protocol boundary, persistence, runtime/config, messages/tasks, logging, external adapter, or repo-specific surface.
-4. Use the risk router and local convention to choose required proof. The examples are a router, not an inventory.
-5. For lifecycle, Repository, or event/reaction risks, require Event Timeline Reconciliation, Recovery reachability proof, terminal lifecycle facts and execution facts separation, and a candidate classification table before Rules Satisfied.
-6. Decide each candidate as `Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap`. Return to domain-modeling cannot be classified as Rules Satisfied.
-7. Evidence gap, not finding: missing proof stays a gap unless concrete evidence shows a violation.
+## Coordinator budget
+
+The coordinator is a merger, not another full reviewer. For multi-axis scope, keep coordinator reads to this skill, the risk router, model/spec/code seeds, and subagent outputs; do not load ddd-core or language references in full. Ask subagents to read their relevant reference slices. If proof is still missing after merge, inspect only cited sections or record Evidence gap. Final answer target: 70 lines or fewer; subagent result target: 12 inventory rows or fewer per axis.
 
 ## Coverage pass
 
-Coverage pass is the orchestration checklist; detailed risk rules live in the risk router and core reference.
-For lifecycle/repository/event/CQRS scope, do not start with Findings.
-First emit the exact lifecycle sections from the output contract, including Output completion gate and Checked row admission control.
-Lifecycle/repository/event/CQRS scope is a final-output gate, not only a checked/Rules Satisfied gate.
-Mandatory-axis completion preflight: final findings are prohibited until every triggered lifecycle, repository/API, collaboration, parent-state, terminal/execution, recovery, event-timeline, and CQRS axis has an emitted ledger.
-A mandatory axis may not be omitted. Absence of a ledger is itself an evidence gap and blocks final findings.
-Severe findings cannot abbreviate mandatory axes; continue inventories after Blocker or Critical findings.
-One-row or grouped mandatory sections are incomplete when multiple seeds exist; split rows that cover multiple methods, flows, execution facts, states, ports, commands, or owners.
-Inventory seeds: lifecycle flows, repository/API methods, collaboration trigger facts, terminal execution facts, parent state vocabulary, domain event names, and read-shaped write-side methods/shared adapters.
-Mandatory proof sections are table-backed gates; prose-only sections, coverage summaries, or broad checked-flow summaries do not count.
-Every mandatory proof row needs a stable row id and every checked row must appear in Checked row admission control with the same row id.
-Output completion gate marks a section non-empty only when table rows exist and must appear before any checked decision.
-Finding paragraphs are generated only from completed inventory rows; pre-written findings cannot replace inventory rows.
-Residual positive claims are forbidden when any triggered axis ledger is missing, incomplete, grouped, or skipped.
-Forbidden final decisions: scoped OK, no issue found, product reads separated, accepted by design, names look correct, used by commands.
-Parallel risk-axis review: run shape-sentinel, lifecycle-spec, and evidence-admission axes independently. One risk axis cannot clear another risk axis.
-First-principles shape challenge: after inventory questions and before admitting any tactical shape, ask: Is this shape genuinely necessary for the business invariant, or compensating for a wrong aggregate/lifecycle boundary? If the answer depends on accepted design, transaction shape, semantic names, DTO/package separation, command sequencing, or local convention without explicit model and failure-tolerance proof, keep the default-deny decision.
-Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics.
-final output must not duplicate final answer blocks.
+Coverage pass is the orchestration checklist; detailed risk rules live in the risk router and core reference. For lifecycle/repository/event/CQRS scope, do not start with Findings. First emit the exact lifecycle sections from the output contract, including Output completion gate and Checked row admission control. Lifecycle/repository/event/CQRS scope is a final-output gate, not only a checked/Rules Satisfied gate.
+Mandatory-axis completion preflight: final findings are prohibited until every triggered lifecycle, repository/API, collaboration, parent-state, terminal/execution, recovery, event-timeline, and CQRS axis has an emitted ledger. A mandatory axis may not be omitted. Absence of a ledger is itself an evidence gap and blocks final findings. Severe findings cannot abbreviate mandatory axes; continue inventories after Blocker or Critical findings.
+One-row or grouped mandatory sections are incomplete when multiple seeds exist; split rows that cover multiple methods, flows, execution facts, states, ports, commands, or owners. Inventory seeds: lifecycle flows, repository/API methods, collaboration trigger facts, terminal execution facts, parent state vocabulary, domain event names, and read-shaped write-side methods/shared adapters.
+Mandatory proof sections are table-backed gates; prose-only sections, coverage summaries, or broad checked-flow summaries do not count. Every mandatory proof row needs a stable row id and every checked row must appear in Checked row admission control with the same row id. Output completion gate marks a section non-empty only when table rows exist and must appear before any checked decision.
+Finding paragraphs are generated only from completed inventory rows; pre-written findings cannot replace inventory rows. Residual positive claims are forbidden when any triggered axis ledger is missing, incomplete, grouped, or skipped. Forbidden final decisions: scoped OK, no issue found, product reads separated, accepted by design, names look correct, used by commands.
+Parallel risk-axis review: run shape-sentinel, lifecycle-spec, and evidence-admission axes independently. One risk axis cannot clear another risk axis. First-principles shape challenge: after inventory questions and before admitting any tactical shape, ask: Is this shape genuinely necessary for the business invariant, or compensating for a wrong aggregate/lifecycle boundary? If the answer depends on accepted design, transaction shape, semantic names, DTO/package separation, command sequencing, or local convention without explicit model and failure-tolerance proof, keep the default-deny decision.
+Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. final output must not duplicate final answer blocks.
 
 ## Axis subagent review protocol
 
-When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must delegate axis reviews to subagents before final output.
-If subagent tools are unavailable, stop with setup error: enable Codex `[features] multi_agent = true` or the equivalent Claude Code subagent support. Do not continue as a single-agent multi-axis review.
-Use one subagent per triggered heavy axis: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods.
-Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
-Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
-The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis result is merged into the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory.
-A finding from one subagent cannot close or waive another axis.
-If a delegated subagent call fails after tools are available, record that axis as an evidence gap, block same-scope positive claims, and continue merging the completed axes.
+When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must delegate axis reviews to subagents before final output. If subagent tools are unavailable, stop with setup error: enable Codex `[features] multi_agent = true` or the equivalent Claude Code subagent support. Do not continue as a single-agent multi-axis review.
+Use one subagent per triggered heavy axis: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods. Each subagent receives expected model sources, scope trigger evidence, relevant code seeds, required ledger columns, and any needed reference slice names. Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
+The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis result is merged into the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory. A finding from one subagent cannot close or waive another axis. If a delegated subagent call fails after tools are available, record that axis as an evidence gap, block same-scope positive claims, and continue merging the completed axes.
 
-Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
+Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope.
 
 ## Default-first key concept check
 
 Tactical drift reading: when structures look awkward, treat them as upstream model pressure before suggesting cleanup. For Aggregate, Repository, Domain Event, Integration Message, Application Port, CQRS read, Bounded Context, and FSM state, state the default rule before local convention. semantic repository methods are evidence, not proof: Aggregate Boundary Conflict returns to `domain-modeling`; implementation transaction shape is not model evidence. Return routing: domain-modeling for aggregate boundary/lifecycle/invariant/fact/BC uncertainty; design for accepted-model placement/CQRS/port/adapter/repository API shape. Accepted design is evidence, not waiver. transaction-shaped evidence cannot satisfy Repository design: never list semantic repository transaction, lifecycle transaction, or cross-table transaction under Rules Satisfied. Rules Satisfied is scoped to one rule; it must not cover aggregate boundary or event-collaboration risk in the same flow. Local convention is evidence to inspect, not a waiver.
 
-## Review axes
-
-Keep axes separate:
-
-- **Domain Abstraction** — terms, identity, lifecycle, invariants, aggregate/policy/service/read-model boundary, events/messages, bounded-context ownership.
-- **Spec/Behavior** — user stories, state transitions, exceptions, and out-of-scope behavior versus the plan or diff.
-- **Code-level DDD/technology** — dependency direction, generated/protocol isolation, persistence mapping, runtime/config, logging, tests, and local technology rules.
-
-Report each finding under one primary axis. Mention secondary impact only when it changes severity.
-
 ## Fix direction ordering
 
-Do not reduce finding count to make every finding fully templated. Every finding needs evidence, guardrail, triage, and impact; follow-up fields are selected by finding type.
-
-- **Model correction** — only for lifecycle, consistency, event-fact, or
-  coordination findings; name the invariant owner, lifecycle owner, aggregate
-  boundary, failure tolerance, or event fact before mechanisms.
-- **Implementation mechanism** — repository, transaction, handler, event, task,
-  reconciler, or test mechanism that implements the accepted model.
-- **Evidence needed** — for evidence gaps.
-- **Test / verification needed** — for missing or insufficient proof.
-
-Do not present repository, port, or transaction shape as a peer alternative to
-resolving model ownership.
+Keep finding axes separate: Domain Abstraction, Spec/Behavior, and Code-level DDD/technology. Do not reduce finding count to make every finding fully templated. Every finding needs evidence, guardrail, triage, and impact. Fix direction order: Model correction for lifecycle/consistency/event-fact/coordination ownership before mechanisms; Implementation mechanism for repository, transaction, handler, event, task, reconciler, or tests; Evidence needed for gaps; Test / verification needed for missing proof. Do not present repository, port, or transaction shape as a peer alternative to resolving model ownership.
 
 ## Output
 
-Final answer is concise. Do not print the full ledger set by default.
-For lifecycle/repository/event/CQRS scope, complete and merge required ledgers before the final answer, then cite row ids in the summary and findings.
-Expand ledger rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks.
+Final answer is concise. Do not print the full ledger set by default. For lifecycle/repository/event/CQRS scope, complete and merge required ledgers before the final answer, then cite row ids in the summary and findings. Expand ledger rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks.
 
 ```text
 DDD review:
 - Scope/model evidence:
 - Axis completion summary: Axis | Reviewer/subagent | Trigger evidence | Rows | Negative rows | Decision | Row ids
 - Findings:
-
 Finding: <severity> <axis> <title> [row ids]
-- Evidence: <file:line>
-- Violated guardrail:
-- Triage: <violation | return to domain-modeling | return to design | harmless local style | evidence gap>
-- Why it matters:
+- Evidence / guardrail / triage / impact:
 - Fix direction: <model correction | implementation mechanism | evidence needed | test/verification needed>
-
 - Evidence gaps / returns:
-- Verification:
-- Residual risk:
+- Verification: / Residual risk:
 - Ledger appendix: <omit unless needed/requested; include row ids and rows for disputed, negative, or checked claims>
 ```
 

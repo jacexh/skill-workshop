@@ -225,6 +225,7 @@ check_review_evidence_gate() {
   [ "$coverage_lines" -le 35 ] || fail "$label review Coverage pass should stay an orchestration checklist, not a long rule catalog"
   output_lines=$(section_line_count "$review_skill" "## Output" "No DDD findings: say that directly only after axis completion summary shows required ledgers completed, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.")
   [ "$output_lines" -le 45 ] || fail "$label review output should stay concise and move detailed ledgers to appendix"
+  [ "$(wc -l <"$review_skill")" -le 105 ] || fail "$label review skill should stay short enough to finish multi-axis reviews"
   grep -q "Expected model sources" "$review_skill" || fail "$label review should reconstruct expected model from upstream outputs"
   grep -q "model evidence" "$review_skill" || fail "$label review should reconstruct model evidence"
   grep -q "Domain Modeling Brief" "$review_skill" || fail "$label review should read Domain Modeling Brief"
@@ -240,6 +241,7 @@ check_review_evidence_gate() {
   grep -q "Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap" "$review_skill" || fail "$label review output should route modeling/design exceptions upstream"
   grep -q "Independent modeling findings" "$review_skill" || fail "$label review output should separate independent modeling findings from build blockers"
   grep -q "Evidence gap, not finding" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
+  grep -q "Coordinator budget" "$review_skill" || fail "$label review should cap coordinator reference reading and final output"
 
   grep -q "Coverage pass is the orchestration checklist; detailed risk rules live in the risk router and core reference" "$review_skill" || fail "$label review should keep Coverage pass as orchestration"
   grep -q "For lifecycle/repository/event/CQRS scope, do not start with Findings" "$review_skill" || fail "$label review should reject findings-first lifecycle output"
