@@ -133,6 +133,10 @@ Final answer is concise. Do not print the full working-evidence set by default.
 For lifecycle/repository/event/CQRS scope, complete and merge required smell verdicts before the final answer, then cite smell families in findings, evidence gaps, returns, or no-finding notes.
 Working evidence stays internal unless it justifies a finding, evidence gap, return, or positive-shape no-finding claim. A missing depth decision becomes an evidence gap, not a positive emitted-row claim.
 Expand working-evidence rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks.
+Every returned smell-family verdict must land in Findings, Evidence gaps / returns, No-finding notes, or Selected working evidence.
+Do not collapse production wiring, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader finding.
+Selected working evidence is mandatory when a repository, collaboration, state-language, recovery-wiring, or CQRS family returns partial, gap, return, or no-finding.
+Keep selected evidence terse: one row per omitted-or-nonfinding depth decision, not the full working set.
 Smell queue summary is evidence-derived: completed or no-finding tags must cite decisions that appear in findings, evidence gaps, returns, no-finding notes, or selected working evidence.
 Wildcard row families such as RC-*, COL-*, or CQ-* are not proof; cite concrete depth decisions or report an evidence gap for that axis.
 Do not claim CQRS inventory completed or product-read no-finding unless depth found positive correct-shape evidence for read/write separation.
