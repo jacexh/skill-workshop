@@ -2173,3 +2173,29 @@ Next evaluation should be against the first released version after this local br
 - K5 needs a mandatory Repository/API inventory for lifecycle reviews: domain repository interfaces, application repository calls, infrastructure store methods, and every method outside `Get`/`Save` classified as same root, owned child, read model, or independent lifecycle owner.
 - K7 needs a mandatory accepted-design waiver row: if the spec/design accepts semantic repository transactions or multi-lifecycle saves, the review must still test whether those transactions prove model ownership or merely hide a boundary conflict.
 - K10 needs a mandatory CQRS inventory row: a QueryRepository/read facade is only one side of the proof; write repositories and shared adapters must be scanned for read-shaped methods before no-finding.
+
+## Round 2026-07-08 v1.14.79 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.79`, release commit `dbba4bc`.
+- preceding hotfix: PR #132 made scope narrowing unable to drop required family rows and added explicit repository/API, accepted-design waiver, and CQRS inventory rows.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.79`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.79-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.79-clean/original-review-final.md`, 2 findings plus no-finding notes.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.79-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.79-clean/reflection-final.md`.
+- verification inside clean review: focused tasknegotiation tests passed, `go test ./...` passed, and residual test gap was called out for retry/cancel after missed funding.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K4 partial; K5 partial; K8 partial; K6, K7, and K10 missed.
+- Breadth: 23 / 45. Payment rows are strong and repository pressure is noticed, but terminal/execution, collaboration, accepted-design waiver, and CQRS are still not kept as adjudicated rows.
+- Depth: 19 / 45. K2/K3 are concrete. K4/K5/K8 are only adjacent or downgraded. K7/K10 are actively cleared in the wrong direction.
+- Review discipline: 6 / 10. Verification is good, but required family rows are still allowed to become weak no-finding notes.
+- Total: 48 / 100.
+
+### Gap Analysis
+
+- Allowing required family rows to land in No-Finding Notes is the remaining loophole. The model uses that path to clear Repository/API and CQRS without the inventory the workflow asked for.
+- K7 is now explicit: "accepted design/conventions explicitly allow semantic lifecycle transactions" was used as a no-finding reason. That must be impossible; accepted design can only be evidence to inspect or a return/evidence gap when ownership/failure tolerance is not proven.
+- K10 is similarly explicit: QueryRepository presence still becomes a positive no-finding. QueryRepository presence is not proof of write/shared-adapter inventory.
+- Next fix: required family rows end only as Findings or Evidence gaps / returns. No-finding notes are only for surfaces outside required family rows.
