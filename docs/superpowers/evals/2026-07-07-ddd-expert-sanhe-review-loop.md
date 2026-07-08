@@ -1338,7 +1338,7 @@ Coverage Matrix:
 - skill-workshop release under evaluation: `v1.14.46`, release commit `3e1503d39a5091de865830945286cd6314d2ff5f`.
 - preceding hotfix: `98a4ec99857f2fec1dbe2e2274402b0c77d77d8c`, PR #99, merge commit `b069220a4836fa6ee5d2bd513b20b7526fb42120`.
 - next hotfix branch: `hotfix/ddd-review-collaboration-state-inventory`.
-- next hotfix commit / PR / merge commit / tag: pending.
+- next hotfix commit: `c2a2a46bcd4220b1fe137cbfd00618fedb56397b`; PR #101, merge commit `76f10ec990e02418db392a0e7912c82a87540682`, release `v1.14.48` (`f5fc7dc`).
 - sanhe project path: `/home/xuhao/sanhe`.
 - sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
 - plugin evidence: reviewer reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.46`.
@@ -1406,3 +1406,97 @@ Coverage Matrix:
 - Add a terminal-closure default-deny gate for terminal lifecycle facts/events versus required execution facts.
 - Add parallel risk-axis review: shape-sentinel, lifecycle-spec, and evidence-admission axes are run independently and aggregated side-by-side; one axis cannot clear another.
 - Add release assertions for the new default-deny, terminal-closure, and risk-axis rules across review skill, risk router, and core references.
+
+## Round 2026-07-08 v1.14.47 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.47`, release commit `dd76510`.
+- preceding hotfix: `214f041b82958d783266b13de96db5e5392220a1`, PR #100, merge commit `84992f454f843b4f23e8fc55501bb5cefb2cff3f`.
+- next hotfix branch: `hotfix/ddd-review-collaboration-state-inventory`.
+- next hotfix commit: `c2a2a46bcd4220b1fe137cbfd00618fedb56397b`; PR #101, merge commit `76f10ec990e02418db392a0e7912c82a87540682`, release `v1.14.48` (`f5fc7dc`).
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: initial review confirmed `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.47`; reflection was rerun artifact-only after marketplace advanced to `1.14.48`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.47.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.47.md`, 19,480 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.47-reflection.md`, 3,563 bytes.
+- verification inside review: initial review ran with `codex v0.142.5`, approval `never`, read-only sandbox.
+
+### Output Summary
+
+- The reviewer found K3: no production API/scheduler/Fx/proto entrypoint was found for `PaymentSucceeded` recovery; handler registration/callable command/test were not accepted as recovery proof.
+- The reviewer found K4: refund/settlement terminal lifecycle events can be emitted before split execution is fully separated/completed, and closure event semantics remain incomplete.
+- The reviewer shallowly covered K2: durable `Payment` success while parent stays pre-funded/`payment_pending` was found, but stale retry/cancel/open workflow rights were under-scoped.
+- The reviewer shallowly covered K5: it found one Repository/API boundary defect (`SaveDeliverySubmission` mutating aggregate state inside Infrastructure), but did not generalize the dangerous-shape rule across all multi-owner Repository/API coordination.
+- The reviewer shallowly covered K6: a collaboration table existed, but missing/ambiguous delivery/refund/dispute/settlement collaboration was not raised as its own issue; synchronous command/domain calls were treated too strongly.
+- The reviewer shallowly covered K7: overclaim scrub existed, but design shape, DTO/read facade evidence, package/wiring absence, and semantic transaction evidence still softened risks.
+- The reviewer shallowly covered K8: `payment_failed/payment_cancelled` were evidence gaps and `payment_pending` was only covered indirectly through K2, not as a full parent-state contract problem.
+- The reviewer shallowly covered K10: CQRS risk was inventoried but not promoted; read DTO/query facade separation still reduced the finding below the needed write/read mixing risk.
+
+### Score
+
+- Breadth: 34 / 45. K3 and K4 were found; K2/K5/K6/K7/K8/K10 were all touched but shallow.
+- Depth: 29 / 45. Recovery reachability and terminal execution separation were concrete. Stale command rights, Repository dangerous-shape generalization, collaboration model, state semantics, and CQRS proof remained shallow.
+- Review discipline: 7 / 10. Default-deny/output structure appeared in the artifact and overclaiming was limited, but evidence admission still allowed several soft passes.
+- Total: 70 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: mixed. Default-deny shape ledger and terminal-closure gate improved K4 and kept positives restrained, but K5/K6/K7/K10 were still not converted into strong findings.
+- Remaining shallow root cause: stale parent-state command rights need full enumeration after durable child/process facts, not one representative impact.
+- Remaining shallow root cause: Repository/API dangerous-shape handling must generalize across all multi-owner coordination rows, not only a single boundary defect.
+- Remaining shallow root cause: collaboration and CQRS evidence tables still allow soft residual gaps instead of first-principles findings.
+
+### Generic Fix Summary
+
+- Require stale-command rights matrix to enumerate retry/start, cancel, reopen, refund/open-dispute/escalate, execution, and closure commands after durable facts.
+- Require collaboration model inventory rows for payment, delivery, refund, dispute, settlement, split closure, and every accepted lifecycle reaction.
+- Require full FSM parent-state vocabulary inventory and per-state parent lifecycle fact vs child/process outcome classification.
+- Require CQRS and proof-admission rules to reject read DTO/query facade/package-layout evidence as softening proof for write/read mixing risks.
+
+## Round 2026-07-08 v1.14.48 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.48`, release commit `f5fc7dc03e6119b2b0896af0397e290c54ee2271`.
+- preceding hotfix: `c2a2a46bcd4220b1fe137cbfd00618fedb56397b`, PR #101, merge commit `76f10ec990e02418db392a0e7912c82a87540682`.
+- next hotfix branch: `hotfix/ddd-review-proof-artifact-admission`.
+- next hotfix commit / PR / merge commit / tag: pending.
+- sanhe project path: `/home/xuhao/sanhe`.
+- sanhe branch / commit / dirty files: `feature/task-agreement@8254c4166a2338ec4700311b8cef6c6fcb987719`; dirty `go.mod`, `go.sum`, `internal/business/tasknegotiation/domain/task_agreement_fsm.go`, `internal/business/tasknegotiation/domain/task_agreement_test.go`.
+- plugin evidence: `codex plugin marketplace upgrade skill-workshop-codex` completed; `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.48`.
+- fixed review prompt: `docs/superpowers/specs/2026-07-06-task-agreement-payment-delivery-design.md 这是本次迭代的spec文档，基于它来理解产品需求，然后使用 $ddd-expert:review 本分支的代码实现`
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.48.md '<fixed review prompt>'`
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.48.md`, 122 lines, 10,354 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.48-reflection.md`, 20 lines, 4,658 bytes.
+- verification inside review: `go test ./internal/business/tasknegotiation/...` passed from cache.
+
+### Output Summary
+
+- The reviewer found K2: durable `PaymentSucceeded` can leave the agreement stale while cancellation and retry paths still rely on parent state.
+- The reviewer found K3: `PaymentSucceeded` recovery exists as a handler/reconciler concept but is not production-reachable through `Application`, Fx, RPC, scheduler, or runtime wiring.
+- The reviewer shallowly covered K5: it identified multi-candidate Repository/API methods and rejected transaction-only proof, but the candidate classification was still a bare method-name list rather than one row per method/candidate/owner/return route.
+- The reviewer shallowly covered K6: collaboration was tabled, but delivery/refund/dispute/settlement links were collapsed into `application coordination + repository semantic transaction`.
+- The reviewer shallowly covered K8: it found `payment_failed/payment_cancelled` parent states not written by commands, but did not enumerate `payment_pending` and every parent-state word as parent lifecycle fact vs child/process outcome.
+- The reviewer overclaimed K4: it marked split refund + settlement closure as no finding/satisfied from a double-fact gate without one terminal/execution row per execution fact and aggregate closure fact.
+- The reviewer overclaimed K7: it stated repository transaction proof limits, but still used query DTO/repo separation, section completion, and split-closure satisfaction as positive proof.
+- The reviewer overclaimed K10: it marked CQRS no finding without a read-shaped write-side method inventory and caller semantics/storage-overlap proof.
+
+### Score
+
+- Breadth: 34 / 45. K2 and K3 were found. K5, K6, and K8 were shallow. K4, K7, and K10 were overclaimed.
+- Depth: 23 / 45. Payment fact precedence and recovery wiring were strong. Terminal/execution, collaboration, parent-state vocabulary, Repository/API candidate proof, and CQRS method proof were compressed.
+- Review discipline: 5 / 10. The output avoided Checked flows, but wrote several positive no-finding/satisfied conclusions without the exact proof artifacts.
+- Total: 62 / 100.
+
+### Gap Analysis
+
+- Previous optimization effectiveness: regressed in discipline. Collaboration/state inventory rules made K2/K3 strong and surfaced K5/K6/K8, but they also encouraged compact summary tables that the reviewer treated as sufficient.
+- Overclaim root cause: "no finding", "satisfied", "covered", and "output completion gate covered" are still allowed when exact Terminal/execution and CQRS rows are absent or grouped.
+- Shallow root cause: collaboration mechanism rows still accept `application coordination`, `repository semantic transaction`, `same DB transaction`, or `command transaction` as final mechanisms.
+- Shallow root cause: parent-state vocabulary still focuses on failed/cancelled states and misses pending-like configured parent states.
+
+### Generic Fix Summary
+
+- Forbid terminal/execution no-finding unless the exact Terminal/execution fact table has one row per execution fact and aggregate closure fact.
+- Forbid CQRS no-finding unless the exact CQRS inventory has one row per read-shaped write-side method or shared adapter method.
+- Forbid collaboration mechanism rows from using application coordination, repository semantic transaction, same DB transaction, or command transaction as final mechanism.
+- Require parent-state vocabulary to include pending-like configured parent states such as `payment_pending`, not only failed/cancelled states.
