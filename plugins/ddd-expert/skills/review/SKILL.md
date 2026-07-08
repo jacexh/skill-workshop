@@ -35,111 +35,36 @@ Before findings:
 
 ## Coverage pass
 
-Lifecycle exact-section preamble: For lifecycle/repository/event/CQRS scope, do not start with Findings.
+Coverage pass is the orchestration checklist; detailed risk rules live in the risk router and core reference.
+For lifecycle/repository/event/CQRS scope, do not start with Findings.
 First emit the exact lifecycle sections from the output contract, including Output completion gate and Checked row admission control.
-Checked Flows is forbidden until exact-section gate and admission control are complete.
-Missing admission-control table invalidates every related checked row.
-Output completion gate must appear before any checked decision.
-Mandatory proof sections are table-backed gates.
-A prose-only mandatory section counts as missing for its related rows.
-Every mandatory proof row must have a stable row id.
-Every checked row must appear in Checked row admission control with the same row id.
-Grouped row scopes cannot be checked; split any row that covers multiple methods, flows, execution facts, states, ports, commands, or owners.
-Output completion gate marks a section non-empty only when table rows exist.
-Section-coverage summary claims are invalid.
-Do not write that lifecycle sections are covered; emit the actual tables.
-A sentence saying a section was covered is an evidence gap until table rows follow the exact heading.
-Irreversible fact command-admission matrix: Every durable succeeded, authorized, completed, or executed fact must be tested against later cancel, retry, reopen, or refund commands that can act from stale parent state.
-CQRS write-side inventory gate: Inventory every read-shaped method on write repositories and shared adapters before CQRS checked.
-Query DTO or read facade evidence alone cannot satisfy CQRS; each checked row must name the write-side method/adapter, caller semantics, returned model family, write-side influence, storage/adapter overlap, and why no read facade should own it.
-All-checked contradiction gate: Do not write all rows checked when any mandatory row is finding, return, evidence gap, grouped, compressed, or missing admission-control proof.
-Hard downgrade checked-row filter: Forbidden proof tokens in a checked row force downgrade.
-checked with caveat, design accepts, accepted by design, xorm tx, accepted atomic write, command-side check, or synchronous command path cannot be decisive checked proof.
-Accepted atomic transaction requires model decision id and failure-tolerance rule in the same row; otherwise downgrade.
-Terminal/event timing gate: Terminal/execution checked rows must inspect lifecycle event emission timing and durable fact ordering; command/domain guards alone cannot check terminal/execution separation.
-Positive-conclusion quarantine: If any lifecycle/repository/event/CQRS row is finding, return, evidence gap, grouped, missing exact columns, or not admitted, omit Checked flows and positive Rules Satisfied entries.
-Output completion exact-column gate: A section is present only when its table header exactly matches the required template.
-Residual-risk summary replaces checked-flow summary while negative decisions exist.
-Negative-scope lock: When any lifecycle/repository/event/CQRS row is finding, return, evidence gap, grouped, missing exact columns, or not admitted, every same-scope checked decision is invalid.
-Use not admitted or not claimed instead of checked for same-scope rows while the lock is active.
-Grouped method, flow, candidate, state, port, or execution rows cannot be admitted.
-Independent-scope checked exception requires row-local scope boundary proof.
-Not-claimed extraction gate: not claimed cannot be a final mandatory-row decision.
-Every not-claimed lifecycle/repository/event/CQRS row must become evidence gap, return, or finding.
-Positive-word scrub: covered, reachable, shape matches, appears guarded, or no blocker found are positive conclusions; downgrade them while negative decisions exist.
-Bare method-name lists are not CQRS inventory; each row needs caller semantics, returned model family, write influence, storage overlap, and read-facade ownership.
-Inventory completeness gate: Mandatory sections are incomplete unless all accepted model and code seeds are inventoried.
-A blocker cannot shrink lifecycle scope; continue independent flow inventory after high-severity findings.
-One-row mandatory sections are incomplete when multiple commands, methods, states, events, flows, or read-shaped methods exist.
-Inventory seeds: lifecycle flows, repository/API methods, collaboration trigger facts, terminal execution facts, parent state vocabulary, domain event names, and read-shaped write-side methods/shared adapters.
-Collaboration policy inventory: Collaboration rows must include every accepted lifecycle reaction, external side effect, reversal/compensation path, closure/settlement fact, exception/dispute path, and cross-owner reaction found in expected model or code seeds.
-Each collaboration row must classify mechanism as domain event, process manager, reconciler, task processor, integration message, accepted atomic transaction with failure tolerance, or evidence gap.
-Full FSM parent-state vocabulary inventory: Every parent state word must be classified as parent lifecycle fact or child/process outcome.
-Stale-command rights matrix must enumerate retry/start, cancel, reopen, refund/open-dispute/escalate, execution, and closure commands after durable facts.
-No terminal/execution no-finding without one exact Terminal/execution fact table row per execution fact and aggregate closure fact.
-No CQRS no-finding without one exact CQRS inventory row per read-shaped write-side method or shared adapter method.
-Collaboration mechanism rows cannot use application coordination, repository semantic transaction, same DB transaction, or command transaction as final mechanism.
-Parent-state vocabulary must include pending-like configured parent states, including payment_pending, not only failed or cancelled states.
-Not admitted cannot be a final mandatory-row decision.
-Every not-admitted lifecycle/repository/event/CQRS/terminal/state/collaboration row must become same-scope finding, evidence gap, or return route.
-Finding extraction map must be one-to-one: unrelated rows cannot be grouped under a broad gap id.
-Stale-command rights matrix rows must contain exactly one durable fact and one later command; grouped command cells such as cancel/retry/execute are invalid.
-A collaboration row using command transaction, application coordination, repository semantic transaction, or same DB transaction becomes evidence gap/finding/return unless the same row names an accepted atomic decision and failure-tolerance proof.
-Mandatory-axis completion preflight: final findings are prohibited until every triggered lifecycle, repository/API, collaboration, parent-state, and CQRS axis has an emitted ledger.
-Severe findings cannot abbreviate mandatory axes; continue inventories after Blocker or Critical findings.
-Residual positive claims are forbidden when any triggered axis ledger is missing, incomplete, grouped, or skipped.
-One discovered stale command cannot stand in for the remaining later commands after the same durable fact.
-Naming, package separation, DTO/query names, and caller location are routing clues only, not final positive proof.
 Lifecycle/repository/event/CQRS scope is a final-output gate, not only a checked/Rules Satisfied gate.
-When any lifecycle/repository/event/CQRS scope is active, no final Finding paragraph, summary, no-finding claim, Rules Satisfied entry, or residual-risk summary may be emitted until every mandatory axis ledger has been emitted and classified.
-For lifecycle scope, the mandatory axis ledgers are exhaustive and non-optional: Repository/API candidate classification, Collaboration model table, Parent-state language table, CQRS read-shaped method inventory, Terminal/execution fact table, Per-flow Event Timeline Reconciliation, Recovery reachability table, Irreversible fact command-admission matrix, Finding extraction gate, Strongest-decision inheritance, Output completion gate, and Checked row admission control.
-A mandatory axis may not be omitted. If no candidates, states, collaborations, or read-shaped methods are found, emit a not applicable row naming the inspected evidence. If the evidence was not inspected, emit evidence gap. Absence of a ledger is itself an evidence gap and blocks final findings.
-Finding paragraphs are generated only from completed inventory rows. A finding may cite multiple rows only when each row has its own row id, inspected evidence, final decision, and extraction-map entry. A broad finding cannot stand in for missing repository/API, collaboration, parent-state, or CQRS inventory rows.
+Mandatory-axis completion preflight: final findings are prohibited until every triggered lifecycle, repository/API, collaboration, parent-state, terminal/execution, recovery, event-timeline, and CQRS axis has an emitted ledger.
+A mandatory axis may not be omitted. Absence of a ledger is itself an evidence gap and blocks final findings.
+Severe findings cannot abbreviate mandatory axes; continue inventories after Blocker or Critical findings.
+One-row or grouped mandatory sections are incomplete when multiple seeds exist; split rows that cover multiple methods, flows, execution facts, states, ports, commands, or owners.
+Inventory seeds: lifecycle flows, repository/API methods, collaboration trigger facts, terminal execution facts, parent state vocabulary, domain event names, and read-shaped write-side methods/shared adapters.
+Mandatory proof sections are table-backed gates; prose-only sections, coverage summaries, or broad checked-flow summaries do not count.
+Every mandatory proof row needs a stable row id and every checked row must appear in Checked row admission control with the same row id.
+Output completion gate marks a section non-empty only when table rows exist and must appear before any checked decision.
+Finding paragraphs are generated only from completed inventory rows; pre-written findings cannot replace inventory rows.
+Residual positive claims are forbidden when any triggered axis ledger is missing, incomplete, grouped, or skipped.
 Forbidden final decisions: scoped OK, no issue found, product reads separated, accepted by design, names look correct, used by commands.
-Dangerous shape default-deny: shape sentinels run before proof promotion. Repository/API methods that save or coordinate several aggregate or lifecycle-owner candidates start as return/evidence gap/finding, not checked or not claimed. Candidate classification chooses the return route; it does not promote the row. Promotion requires row-local proof that every additional candidate is an owned child/value object under one lifecycle owner, or that coordination is handled by a named Domain Event, process manager, reconciler, task processor, Integration Message, or accepted atomic-transaction model decision with failure-tolerance proof. Semantic repository names, accepted design, same transaction/session, cross-table writes, or command-side synchronous coordination cannot waive the sentinel.
+Parallel risk-axis review: run shape-sentinel, lifecycle-spec, and evidence-admission axes independently. One risk axis cannot clear another risk axis.
 First-principles shape challenge: after inventory questions and before admitting any tactical shape, ask: Is this shape genuinely necessary for the business invariant, or compensating for a wrong aggregate/lifecycle boundary? If the answer depends on accepted design, transaction shape, semantic names, DTO/package separation, command sequencing, or local convention without explicit model and failure-tolerance proof, keep the default-deny decision.
-Terminal-closure default-deny gate: inventory every terminal lifecycle fact and terminal lifecycle event emission from accepted model sources and code, then map each one to all required execution facts before any checked terminal/execution decision. A terminal lifecycle event or aggregate closure can be checked only when durable ordering proves every required execution fact is authorized, completed or explicitly separated, idempotent/replay-safe, and recoverable before the terminal event is emitted. If code emits terminal lifecycle closure/events before, during, or without proof of all required execution facts, default to finding, return, or evidence gap. Command sequencing, domain guards, same transaction, closure method names, or event names alone cannot admit the row.
-Parallel risk-axis review: Run shape-sentinel, lifecycle-spec, and evidence-admission axes independently, then aggregate them side by side. One risk axis cannot clear another risk axis. A checked, evidence-gap, return, finding, or not-applicable decision in one axis cannot satisfy, waive, or mask another triggered axis.
+Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics.
+final output must not duplicate final answer blocks.
 
-For lifecycle designs, final output must include these sections before broad conclusions: Candidate ledger:, Per-flow Event Timeline Reconciliation:, Recovery reachability table:, Mandatory coverage matrix:. If lifecycle scope is present, these sections are required even when findings already exist. A compile/build blocker cannot remove any mandatory review section. Do not compress mandatory sections into Checked flows. Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics. Mark each row as `checked`, `finding`, `evidence gap`, `return`, or `not applicable`; Checked means evidence-backed. Checked rows must name evidence, the exact rule satisfied, and why the risk is not a finding; every probed risk must end as one decision. Unproven owned-child classification cannot be checked. No positive model-alignment conclusion until every mandatory coverage row is classified; final output must not duplicate final answer blocks.
-Counterfactual defect hunt: Draft findings are not final. Before final output,
-try to prove each checked, no-finding, or Rules Satisfied conclusion wrong.
-Ask `What evidence would falsify this checked row?` Gateway questions: hidden stale-state command rights after durable facts; hidden owner proof behind
-Repository/API transactions; missing reaction/recovery path after facts;
-child-process language posing as aggregate lifecycle; hidden read/write semantic blending.
-No checked or no-finding row is final without a falsifier question and inspected evidence;
-if uninspected, classify as finding, evidence gap, or return route.
-Checked row proof artifacts: a checked/no-finding row must cite the proof artifact
-required by its risk family; otherwise downgrade to finding, evidence gap, or
-return route. Aggregate-boundary checks require a candidate ledger; event/reaction
-checks require per-flow timeline proof; split or terminal flows require terminal
-and execution fact proof; CQRS checks require semantic split proof. An accepted design row must name independent code evidence; accepted design, transaction shape,
-package names, QueryRepository names, or DTOs alone cannot satisfy a row.
-Lifecycle scope is not a small review. Output completion gate: for lifecycle, Repository, event/reaction, or CQRS scope, the final answer is invalid unless required proof-artifact sections are present and non-empty. Do not write broad checked-flow summaries; checked-with-caveat is not checked. A checked row with
-`caveat`, `appears`, accepted-design-only, naming-only, transaction-only, or
-DTO-only proof downgrades to evidence gap, return route, or finding.
-Mandatory rows are decision gates, not summaries. A row that cites a caveat or another finding cannot be checked; inherit the strongest decision from the caveat or downgrade to return/evidence gap. Summary rows that aggregate several methods, flows, states, or ports cannot be checked until each member has its own decision row.
-For aggregate/repository risks, use one row per Repository/API method that saves or coordinates multiple candidates. Each row names the method, every candidate, role, owner proof, owned-child proof when claimed, invariant or command outcome, transaction evidence, coordination alternative, and decision/return route.
-For linked lifecycle behavior, synchronous command path is evidence, not a collaboration decision. Classify the mechanism as Domain Event, process manager, reconciler, task processor, Integration Message, accepted atomic transaction, or evidence gap.
-For state-language semantics, if a parent aggregate state is named after a child process outcome, prove the parent lifecycle fact and owner; otherwise return to modeling/design or mark an evidence gap.
-CQRS checked requires semantic proof beyond names, DTOs, packages, and absent imports: classify caller intent, returned model family, write-side product-read overlap, query-adapter write authority, shared storage/adapter coupling, and whether reads influence write-side decisions.
-Finding extraction gate: any mandatory row with finding, return, or evidence gap must become a Finding paragraph or cite an existing finding with the same scope; important risks cannot remain only in tables.
-Split or multi-execution outcomes require one row per execution fact with authorization source, amount/result scope, idempotency/replay rule, failure recovery, and exact aggregate closure condition; command sequencing alone cannot check terminal/execution separation.
-State-language enumeration must inspect every parent state whose vocabulary looks like pending, failed, cancelled, succeeded, authorized, executed, completed, refunded, settled, or closed.
-CQRS read-shaped method inventory must inspect every read-shaped method on write repositories or shared adapters before marking read/write split checked.
-checked rows inherit the strongest negative decision unless independence is proven; a related finding, return, evidence gap, or caveat dominates positive local proof.
-Use the exact mandatory section names. Evidence Matrix is not a substitute for mandatory sections. Free-form summary matrices may not contain checked decisions; they are commentary only after all mandatory sections are complete.
-Compact Mandatory review sections blocks are invalid for lifecycle scope. Lifecycle exact-section gate: when lifecycle, repository, event/reaction, terminal/execution, state-language, or CQRS scope is active, the final output must include each exact lifecycle section from the template, including Finding extraction gate:, Terminal/execution fact table:, Parent-state language table:, CQRS read-shaped method inventory:, and Strongest-decision inheritance:. If any exact lifecycle section is missing, do not mark any related row checked or Rules Satisfied. Output completion gate must list every exact lifecycle section. Missing exact section becomes evidence gap.
-Negative decision inventory runs before findings for lifecycle/repository/event/CQRS scope. All mandatory lifecycle rows start as `unresolved`; Row-local proof is the only promotion path from `unresolved` to `checked`. Findings are generated from negative inventory rows after the inventory is complete. Pre-written findings cannot satisfy inventory rows; a finding paragraph may cite an inventory row, but it cannot replace the row's evidence, promotion proof, and final decision.
-Checked promotion requires non-transaction model proof. Transaction shape, accepted design, semantic repository naming, DTO/query naming, or package separation cannot be the strongest checked evidence; if they are the strongest evidence, downgrade to return/evidence gap/finding. command transaction is not a final collaboration mechanism; accepted atomic transaction requires explicit model decision and failure-tolerance proof. State-language inventory must enumerate every discovered or declared parent state word; Missing configured state words force evidence gap. CQRS inventory rows must be one method or port each; Grouped CQRS rows cannot be checked. Run Overclaim scrub before final output.
-Checked row admission control: a row may be promoted to checked only when its
-row-local proof tuple is complete. Checked-row proof tuple: row scope, model fact, owner proof, coordination proof, forbidden evidence scrub, final decision.
-Category-level checked decisions are invalid; prose such as structurally checked,
-mostly acceptable, reasonable ownership, or no leakage found is commentary until
-every member row is admitted. semantic lifecycle transaction is red-flag evidence only, not checked proof.
-synchronous command plus transaction cannot be checked collaboration unless an explicit accepted atomic-transaction decision and failure-tolerance proof are named.
-caller-location-only CQRS proof is insufficient; command handler caller location must be paired with returned model family, product-read overlap, write-side influence, and adapter/storage overlap.
-checked with inherited negative is not checked; inherited findings, returns, evidence gaps, or caveats downgrade the row unless independence proof is row-local.
+## Axis subagent review protocol
+
+When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must delegate axis reviews to subagents before final output.
+Use one subagent per triggered heavy axis: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods.
+Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
+Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
+The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis result is merged into the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory.
+A finding from one subagent cannot close or waive another axis.
+If a subagent call fails, record that axis as an evidence gap, block same-scope positive claims, and continue merging the completed axes.
+
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
 ## Default-first key concept check
@@ -173,53 +98,30 @@ resolving model ownership.
 
 ## Output
 
-Lead with findings only when lifecycle/repository/event/CQRS gates are not triggered. For lifecycle/repository/event/CQRS scope, lead with the negative decision inventory, then generate findings from it.
+Final answer is concise. Do not print the full ledger set by default.
+For lifecycle/repository/event/CQRS scope, complete and merge required ledgers before the final answer, then cite row ids in the summary and findings.
+Expand ledger rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks.
 
 ```text
 DDD review:
-- Expected model sources:
-- Evidence gate:
-- Mandatory axis trigger ledger: Axis | Scope trigger evidence | Seed evidence inspected | Required ledger emitted | Row count | If zero rows, inspected evidence proving not applicable | Final decision
-- Mandatory-axis completion preflight: Axis | Trigger seeds | Required ledger | Present | Non-empty rows | If missing decision
-- Negative decision inventory: Row id | Row scope | Initial decision | Evidence inspected | Row-local promotion proof | Final decision | Finding id
-- Default-deny shape ledger: Axis | Shape trigger | First-principles necessity | Required proof | Initial decision | Final decision | Finding/return
-- Irreversible fact command-admission matrix: Row id | Durable fact | Stale parent state | Later command | Guard consulted | Decision
-- Candidate ledger: Row id | Candidate | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return; Row id | Candidate | Role | Owner proof | Repository/API evidence | Decision | Return route
-- Repository/API candidate classification: Row id | Repository/API method | Candidate | Role | Owner proof | Owned-child proof | Invariant/command outcome | Transaction evidence | Coordination alternative | Decision/return route
-- Per-flow Event Timeline Reconciliation: Row id | Flow | Fact | Event/process/reconciler owner | Recovery/failure behavior | Decision
-- Collaboration model table: Row id | Flow | Trigger fact | Affected owner | Mechanism | Recovery/failure behavior | Decision
-- Recovery reachability table: Row id | Fact | Recovery trigger | Production entrypoint | Guard after durable fact | Decision
-- Mandatory coverage matrix: Row id | Coverage row | Decision | Evidence | Rule satisfied | Why not finding / Gap / Return
-- Finding extraction gate: Row id | Mandatory row | Decision | Finding paragraph or same-scope finding | Extraction decision
-- Counterfactual defect hunt: Row id | Checked row | Falsifier question | Evidence inspected | Decision
-- Checked row proof artifacts: Row id | Checked row | Risk family | Required proof artifact | Evidence | Decision
-- Terminal/execution fact table: Row id | Flow | Execution fact | Authorization source | Amount/result scope | Idempotency/replay rule | Failure recovery | Lifecycle event emission timing | Durable fact ordering | Aggregate closure condition | Decision
-- Parent-state language table: Row id | State | State word family | Parent aggregate fact | Child/process outcome risk | Owner proof | Decision
-- CQRS semantic split table: Row id | Port/interface | Caller semantics | Returned model family | Write-side overlap | Adapter overlap | Decision
-- CQRS read-shaped method inventory: Row id | Write-side method/adapter or read port | Location | Caller semantics | Returned model family | Product-read overlap | Write-side influence | Adapter/storage overlap | Read-facade ownership decision | Decision
-- Strongest-decision inheritance: Row id | Checked row | Related finding/return/gap | Independence proof | Final decision
-- Overclaim scrub: Row id | Checked row | Strongest evidence source | Forbidden promotion source | Downgrade decision
-- Output completion gate: Row id | Exact lifecycle section | Present | Non-empty table rows | If missing decision
-- Mandatory axis completion receipt: Axis | Trigger evidence | Ledger emitted | Completion decision | Missing rows/finding id
-- Checked row admission control: Row id | Proof tuple complete | Invalid category/prose/forbidden proof | Admission decision
-- Checked flows: <omit when any lifecycle/repository/event/CQRS row is finding, return, evidence gap, grouped, missing exact columns, or not admitted>
-- Residual-risk summary: <use instead of checked-flow summaries while negative decisions exist>
-- Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap: <positive Rules Satisfied entries forbidden for same-scope rows while negative decisions exist>
-- Finding generation map: Inventory row | Final decision | Finding id or evidence-gap id | Extracted paragraph
-- Not-admitted extraction map: Row id | Not-admitted row | Same-scope finding/evidence-gap/return | Extracted paragraph
+- Scope/model evidence:
+- Axis completion summary: Axis | Reviewer/subagent | Trigger evidence | Rows | Negative rows | Decision | Row ids
+- Findings:
 
-Finding: <severity> <axis> <title>
+Finding: <severity> <axis> <title> [row ids]
 - Evidence: <file:line>
 - Violated guardrail:
 - Triage: <violation | return to domain-modeling | return to design | harmless local style | evidence gap>
 - Why it matters:
-- Model correction: <only for model-affecting findings>
-- Implementation mechanism: <when implementation placement is relevant>
-- Evidence needed: <for evidence gaps>
-- Test / verification needed: <for proof gaps>
+- Fix direction: <model correction | implementation mechanism | evidence needed | test/verification needed>
+
+- Evidence gaps / returns:
+- Verification:
+- Residual risk:
+- Ledger appendix: <omit unless needed/requested; include row ids and rows for disputed, negative, or checked claims>
 ```
 
-No DDD findings: say that directly only after coverage classification, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
+No DDD findings: say that directly only after axis completion summary shows required ledgers completed, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 
