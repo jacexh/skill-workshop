@@ -7,7 +7,31 @@ description: Use when reviewing DDD/backend domain abstractions, specs, plans, o
 
 Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign. Build/runtime blockers only block executable verification; Independent static model review still runs. Compile blocker is never a positive model signal; Absence of forbidden nouns is not model proof.
 
-First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md), then load deeper references only for triggered evidence.
+First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md). For complex lifecycle/repository/event/CQRS scope, also read [../../references/ddd-review-smell-protocol.md](../../references/ddd-review-smell-protocol.md), then load deeper references only for triggered evidence.
+
+## Checklist
+
+1. Reconstruct the expected model from specs, briefs, designs, handoff, code, tests, and runtime evidence.
+2. Run a main-axis preflight that compares touched code shape against the correct-shape whitelist and emits deviations into a bounded Smell Queue.
+3. Investigate one smell at a time through a non-waiting subagent or bounded local pass.
+4. Append and close spawned smells before final output.
+5. Generate findings only from terminal negative smell rows.
+6. Report verification separately from model review.
+
+## Process Flow
+
+```dot
+digraph ddd_review {
+  "Expected model" -> "Main-axis smell scan";
+  "Main-axis smell scan" -> "Smell Queue";
+  "Smell Queue" -> "One-smell investigation";
+  "One-smell investigation" -> "Spawned smell?";
+  "Spawned smell?" -> "Smell Queue" [label="yes"];
+  "Spawned smell?" -> "Closed smell rows" [label="no"];
+  "Closed smell rows" -> "Findings / returns / gaps";
+  "Findings / returns / gaps" -> "Verification";
+}
+```
 
 ## Expected model sources
 
@@ -55,41 +79,14 @@ First-principles shape challenge: after inventory questions and before admitting
 Rows cover lifecycle facts, event/recovery, aggregate-boundary candidates, terminal/execution facts, CQRS read/write split, FSM API compatibility and state polymorphism, and state-language semantics.
 final output must not duplicate final answer blocks.
 
-## Axis subagent review protocol
+## Smell queue review protocol
 
-Main-axis quick scan: preflight reads only the task, spec/design/diff list, and minimal model evidence needed to identify triggered axes. Preflight identifies triggered axes only; do not deep-review or write findings in coordinator preflight.
-When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must use non-waiting axis delegation or bounded local axis ledgers before final output.
-Use one subagent per triggered heavy axis only when the runtime can return ledgers without wait/collab wait: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods.
-Do not call asynchronous subagents or collaboration tools when their only collection path is wait/collab wait.
-If non-waiting subagent collection is unavailable, skip delegation and complete bounded local axis ledgers in the coordinator.
-Local fallback ledgers are not shorthand; each triggered fallback axis must emit the same row-local tables required of subagents.
-A bounded local ledger may not use one grouped row for multiple repository methods, collaboration flows, terminal facts, parent states, commands, or CQRS methods.
-If local fallback cannot complete row-level CQRS inventory, decision is evidence gap, not no branch finding.
-Local fallback stale-command matrix enumerates each later command after durable fact: cancel, retry/start, new payment, reopen, execution, and closure.
-Local fallback collaboration ledger enumerates delivery, refund, dispute, settlement, split closure, and payment recovery mechanisms independently.
-payment_pending must be classified as an open/stale parent state when durable child or payment facts can outrank it.
-Split refund/settlement terminal rows must decide whether terminal agreement facts or events occur before both execution facts and aggregate closure complete.
-Repository/API local fallback rows must be one row per semantic method; examples such as SaveDeliveryRejection or SaveDisputeResolutionAuthorization do not cover the family.
-Collaboration local fallback rows must be one row per lifecycle flow, not inherited from repository or recovery findings.
-A CQRS axis summary may not say no finding, no branch finding, or inventory-only unless visible method-level CQ rows are emitted.
-Do not emit a Checked Coverage table in complex lifecycle/repository/event/CQRS reviews.
-Positive clearance phrases such as no issue, no similar issue, no branch finding, inventory-only, 未发现, or 适配正确 are forbidden unless exact admitted rows are printed.
-Complex multi-axis review must include a ledger appendix for triggered terminal/execution, collaboration, repository/API, parent-state, and CQRS axes.
-Triggered rows with incomplete exact proof become evidence gap or return, never checked coverage.
-Subagents must not each perform a full global review; each receives one axis, relevant source seeds, required ledger columns, and a bounded output contract.
-Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
-Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
-Coordinator merges returned ledgers; it does not restart full-repository review or let one high-salience issue truncate other axes.
-Delegation has a single bounded collection pass: after dispatching triggered axis reviews, merge returned ledgers once; do not wait indefinitely for missing subagent responses.
-Subagent delegation is fire-and-collect, not open-ended collaboration.
-Do not send wait/collab-wait progress messages while expecting subagent ledgers.
-After any axis ledger returns, finalize with returned ledgers plus bounded local ledgers or missing-axis evidence-gap ledgers for all remaining axes.
-A delegated axis that has not returned becomes a missing-axis evidence-gap ledger with reviewer `subagent-missing`, trigger evidence, and blocked positive claims.
-If a delegated axis has no returned ledger at finalization time, the coordinator must either fill a bounded local ledger from already-read evidence or emit a missing-axis evidence-gap ledger.
-The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis is represented by a returned ledger or a missing-axis evidence-gap ledger in the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory.
-Never leave the review at a wait/collab wait state after returned ledgers exist; emit final output with missing-axis evidence gaps instead.
-A finding from one subagent cannot close or waive another axis.
-If a subagent call fails, record that axis as an evidence gap, block same-scope positive claims, and continue merging the completed axes.
+Use [../../references/ddd-review-smell-protocol.md](../../references/ddd-review-smell-protocol.md) for the detailed smell row schema, investigator contract, and risk-card proof reminders.
+Main axis emits a bounded Smell Queue before deep investigation. Main-axis preflight compares touched code shape against the correct-shape whitelist; deviations become smell rows. Do not try to enumerate every possible bad smell, and do not write findings in coordinator preflight. Fixed axes are classification tags, not delegation units.
+Investigate exactly one smell per subagent or local fallback pass. Subagents must not each perform a full global review.
+Use one subagent per triggered smell only when the runtime can return the smell verdict without wait/collab wait. If non-waiting smell delegation is unavailable, run bounded local investigation one smell at a time.
+A spawned smell is appended to the same Smell Queue and must reach a terminal verdict before final output. Finding paragraphs can only be generated from Smell Queue rows with terminal negative verdicts.
+Never leave the review at a wait/collab wait state after returned smell verdicts exist; emit final output with missing-smell evidence gaps instead.
 
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
@@ -125,22 +122,23 @@ resolving model ownership.
 ## Output
 
 Final answer is concise. Do not print the full ledger set by default.
-For lifecycle/repository/event/CQRS scope, complete and merge required ledgers before the final answer, then cite row ids in the summary and findings.
-For complex lifecycle/repository/event/CQRS scope, Ledger appendix is mandatory before Findings.
-Axis completion summary may cite only row ids that appear in the mandatory Ledger appendix.
-A missing appendix row becomes an evidence gap, not an emitted-row claim.
+For lifecycle/repository/event/CQRS scope, complete and merge required smell verdicts before the final answer, then cite smell ids in the summary and findings.
+For complex lifecycle/repository/event/CQRS scope, Smell Queue appendix is mandatory before Findings.
+Smell queue summary may cite only smell ids that appear in the mandatory Smell Queue appendix.
+A missing smell appendix row becomes an evidence gap, not an emitted-row claim.
 Expand ledger rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks.
-Axis completion summary is evidence-derived: completed or no-finding axes must cite visible row ids whose decisions appear in findings, evidence gaps, returns, not-applicable rows, or the ledger appendix.
+Smell queue summary is evidence-derived: completed or no-finding tags must cite visible smell ids whose decisions appear in findings, evidence gaps, returns, not-applicable rows, or the smell queue appendix.
 Wildcard row families such as RC-*, COL-*, or CQ-* are not proof; cite the concrete rows or report an evidence gap for that axis.
 Do not claim CQRS inventory completed or product-read no-finding unless the final artifact shows method-level read-shaped write-side rows and decisions.
 
 ```text
 DDD review:
 - Scope/model evidence:
-- Axis completion summary: Axis | Reviewer/subagent | Trigger evidence | Rows | Negative rows | Decision | Row ids
+- Smell Queue: smell_id | code shape | trigger evidence | suspected risk card | investigator | status | verdict | spawned_smells | final decision
+- Tag coverage summary: Tag | Smell ids | Negative smell ids | Decision
 - Findings:
 
-Finding: <severity> <axis> <title> [row ids]
+Finding: <severity> <axis> <title> [smell ids]
 - Evidence: <file:line>
 - Violated guardrail:
 - Triage: <violation | return to domain-modeling | return to design | harmless local style | evidence gap>
@@ -150,10 +148,11 @@ Finding: <severity> <axis> <title> [row ids]
 - Evidence gaps / returns:
 - Verification:
 - Residual risk:
-- Ledger appendix: <mandatory for complex lifecycle/repository/event/CQRS scope; include row-local rows for every triggered axis before Findings>
+- Smell Queue appendix: <mandatory for complex lifecycle/repository/event/CQRS scope; include row-local verdict rows for every triggered smell before Findings>
+- Ledger appendix: <mandatory for complex lifecycle/repository/event/CQRS scope; include risk-card proof rows for every negative, no-finding, return, or evidence-gap smell>
 ```
 
-No DDD findings: say that directly only after axis completion summary shows required ledgers completed, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
+No DDD findings: say that directly only after the Smell Queue shows every triggered smell closed with row-local proof, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.
 
 Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
 
