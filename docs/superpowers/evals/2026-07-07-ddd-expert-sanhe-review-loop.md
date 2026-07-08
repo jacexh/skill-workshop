@@ -1705,3 +1705,21 @@ Coverage Matrix:
 - Evidence-indexing reduced source volume, but the review skill still allowed another analysis/tool turn before final output.
 - The final-output gate did not explicitly require a final answer after the initial model/spec/diff inventory batch.
 - The next fix should add a final-output checkpoint: after the first evidence inventory batch, emit the DDD review from the ledger; any remaining proof needs become evidence gaps unless a single row-local snippet is strictly necessary.
+
+## Protocol Regression 2026-07-08 v1.14.60
+
+- skill-workshop release under evaluation: `v1.14.60`, release commit `585c671849483192b61ec990730c52a5a6e85a41`.
+- preceding hotfix: PR #113, merge commit `d782c1f9367a12601484cac02ebf9f64bd954e96`.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.60`; installed review skill contained `Final-output checkpoint`.
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.60.md '<fixed review prompt>' > /tmp/sanhe-ddd-review-v1.14.60-run.log 2>&1`
+- expected raw review output file: `/tmp/sanhe-ddd-review-v1.14.60.md`.
+- actual result: no output file was created.
+- session evidence: `/home/xuhao/.codex/sessions/2026/07/08/rollout-2026-07-08T10-08-45-019f3f7c-199f-7f41-87a0-b839f62fc5bd.jsonl`.
+- process evidence: the run log declared `reasoning effort: xhigh`, loaded the final-output checkpoint, skipped project memory, and gathered useful row-local evidence for parent-state language, payment recovery, repository/API classification, and command exposure. Token usage reached 1,076,019 cumulative input tokens and 1,083,870 cumulative total tokens; the expected output file was still absent.
+- final-session evidence: the last recorded assistant-visible progress message was about `ReconcileSucceededPayments` being internally reachable but apparently lacking RPC or scheduled lifecycle entry. The session then ended after tool output; there was no `phase=final_answer` assistant message.
+
+### Regression Root Cause
+
+- The line-count cap was not the root cause and has already been removed. The latest failure happens despite optional subagents, bounded memory/risk-router preflight, evidence-indexed ledgers, and an explicit final-output checkpoint.
+- The reviewer can now find the right evidence, but the protocol still does not force conversion from evidence collection into a final artifact.
+- Additional numeric brevity caps would be the wrong repair direction. The remaining fix needs an execution-shape change that makes the first review answer final by construction, such as final-only review mode or a hard two-phase harness outside the skill text: collect bounded evidence, then invoke a separate no-tool finalizer on the ledger.
