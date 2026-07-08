@@ -13,7 +13,7 @@ First read [../../references/ddd-risk-router.md](../../references/ddd-risk-route
 
 1. Reconstruct the expected model from specs, briefs, designs, handoff, code, tests, and runtime evidence.
 2. Run breadth first: a thin main-axis scan compares touched code shape against the correct-shape whitelist and emits coarse smell families.
-3. Dispatch depth by triggered axis; each investigator expands one coarse family into sibling methods, flows, states, events, and ports.
+3. Dispatch depth by coarse smell family; each investigator expands one family into sibling methods, flows, states, events, and ports.
 4. Merge returned negative/gap decisions and new issue candidates; do not re-review the whole repo in the coordinator.
 5. Generate findings from depth decisions; generate no-finding notes only from positive correct-shape evidence.
 6. Report verification separately from model review.
@@ -40,7 +40,7 @@ Breadth is a thin main-axis scan: read the user task, named spec/design/diff see
 
 Depth is axis-specific investigation. Depth expands each coarse smell family into sibling methods, flows, states, events, and ports, then performs full-chain analysis from business fact to owner, reaction/process, failure tolerance, and implementation mechanism. Each depth pass includes a first-principles shape challenge.
 
-When non-waiting subagent tooling is available, dispatch one depth task per triggered axis before local fallback. Local fallback must name the missing capability or blocking reason in Depth execution.
+Codex and Claude Code review runtimes are expected to have subagent/task capability. Dispatch one subagent per coarse smell family before coordinator depth analysis. If the runtime exposes no subagent tool, treat that as an environment defect and name it in Depth execution instead of silently falling back.
 
 No-finding decisions require positive correct-shape evidence. Do not clear an axis because negative examples were not found; show the observed shape that satisfies the whitelist or report an evidence gap.
 
@@ -91,8 +91,8 @@ final output must not duplicate final answer blocks.
 
 Use [../../references/ddd-review-smell-protocol.md](../../references/ddd-review-smell-protocol.md) for the detailed smell row schema, investigator contract, and risk-card proof reminders.
 Main axis emits a bounded Smell Queue before deep investigation. Main-axis preflight compares touched code shape against the correct-shape whitelist; deviations become smell rows. Breadth emits coarse smell families; depth expands the family and checks sibling shapes. Do not try to enumerate every possible bad smell, and do not write findings in coordinator preflight. Fixed axes are classification tags, not delegation units.
-Investigate exactly one smell family per subagent or local fallback pass. Subagents must not each perform a full global review.
-Use one subagent per triggered smell only when the runtime can return the smell verdict without wait/collab wait. If non-waiting smell delegation is unavailable, run bounded local investigation one smell family at a time.
+Investigate exactly one smell family per subagent. Subagents must not each perform a full global review.
+Dispatch one subagent per coarse smell family. The subagent owns depth for that family, expands sibling methods/flows/states/events/ports, and returns verdicts plus spawned smell families.
 A spawned smell is appended to the same Smell Queue and must reach a terminal verdict before final output. Finding paragraphs can only be generated from negative or gap depth decisions.
 Never leave the review at a wait/collab wait state after returned smell verdicts exist; emit final output with missing-smell evidence gaps instead.
 
@@ -152,7 +152,7 @@ Finding: <severity> <axis> <title> [smell family ids]
 
 - Evidence gaps / returns:
 - No-finding notes: <only when positive correct-shape evidence was observed>
-- Depth execution: <subagents used by axis, or local fallback reason>
+- Depth execution: <subagents used by smell family; if unavailable, environment defect>
 - Verification:
 - Residual risk:
 - Selected working evidence: <only rows needed to support judgments, gaps, returns, or no-finding notes>

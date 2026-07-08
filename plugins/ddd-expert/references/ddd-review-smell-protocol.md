@@ -11,7 +11,7 @@ Use this with `review` when lifecycle, repository/API, event/reaction, CQRS, run
 
 The coordinator owns breadth. It scans model evidence and code shape to identify coarse smell families, then records them in one Smell Queue.
 
-Investigators own depth. Each subagent or local fallback pass investigates exactly one coarse smell family, expands sibling shapes in that family, proves or falsifies the full chain, and may spawn related families when the real cause is outside the original row.
+Investigators own depth. Each subagent investigates exactly one coarse smell family, expands sibling shapes in that family, proves or falsifies the full chain, and may spawn related families when the real cause is outside the original row.
 
 Fixed review axes are tags. They help classify coverage, but they do not own delegation and they do not close smells.
 
@@ -63,7 +63,7 @@ Use one depth pass per triggered coarse family. Typical axes:
 
 Depth investigators start from one coarse smell family and then search for sibling shapes in the same family. Siblings include related methods, flows, states, execution facts, events, commands, ports, or adapters that share the same whitelist deviation.
 
-When non-waiting subagent tooling is available, dispatch depth investigators before any local fallback. A local fallback verdict must name why delegation was unavailable.
+Codex and Claude Code review runtimes are expected to have subagent/task capability. Dispatch depth investigators for coarse smell families before coordinator depth analysis. If the runtime exposes no subagent tool, treat that as an environment defect and name it in the final Depth execution line.
 
 Depth analysis is full-chain: business fact -> owner -> reaction/process -> failure tolerance -> implementation mechanism. Each depth pass asks whether the shape is truly required by the business invariant or compensating for a wrong aggregate, lifecycle, or boundary.
 
@@ -97,10 +97,6 @@ A no-finding claim can only cite `positive-shape-no-finding` with positive corre
 
 ## Liveness Rules
 
-Use non-waiting subagents only when the runtime can return the verdict without wait/collab-wait loops.
-
-If non-waiting delegation is unavailable, the coordinator investigates locally one coarse family at a time.
-
 If a delegated family does not return, close it as `evidence-gap` or fill a bounded local verdict from already-read evidence. Do not wait indefinitely.
 
 ## Final report shape
@@ -112,13 +108,13 @@ The final answer reports judgments, not the full working ledger. Lead with findi
 These reminders are generic risk-card proof requirements for depth passes, not project-specific findings:
 
 - Depth notes may not collapse multiple repository methods, collaboration flows, terminal facts, parent states, commands, or CQRS methods when those siblings drive different judgments.
-- If local fallback cannot prove positive CQRS shape, decision is evidence gap, not no branch finding.
-- Local fallback stale-command matrix enumerates each later command after durable fact: cancel, retry/start, new payment, reopen, execution, and closure.
-- Local fallback collaboration ledger enumerates delivery, refund, dispute, settlement, split closure, and payment recovery mechanisms independently.
+- If a depth investigator cannot prove positive CQRS shape, decision is evidence gap, not no branch finding.
+- Stale-command depth enumerates each later command after durable fact: cancel, retry/start, new payment, reopen, execution, and closure.
+- Collaboration depth enumerates delivery, refund, dispute, settlement, split closure, and payment recovery mechanisms independently.
 - payment_pending must be classified as an open/stale parent state when durable child or payment facts can outrank it.
 - Split refund/settlement terminal rows must decide whether terminal agreement facts or events occur before both execution facts and aggregate closure complete.
-- Repository/API local fallback rows must be one row per semantic method; examples such as SaveDeliveryRejection or SaveDisputeResolutionAuthorization do not cover the family.
-- Collaboration local fallback rows must be one row per lifecycle flow, not inherited from repository or recovery findings.
+- Repository/API depth rows must be one row per semantic method; examples such as SaveDeliveryRejection or SaveDisputeResolutionAuthorization do not cover the family.
+- Collaboration depth rows must be one row per lifecycle flow, not inherited from repository or recovery findings.
 - A CQRS axis summary may not say no finding, no branch finding, or inventory-only unless visible method-level CQ rows are emitted.
 - Do not emit a Checked Coverage table in complex lifecycle/repository/event/CQRS reviews.
 - Positive clearance phrases such as no issue, no similar issue, no branch finding, inventory-only, 未发现, or 适配正确 are valid only when the same decision names positive correct-shape evidence.
