@@ -162,6 +162,7 @@ Forbidden shape:
 - Repository/API: one Repository normally exposes `Get` and `Save` for one Aggregate Root plus owned children/value objects; extra semantic methods, product reads, or cross-owner transaction methods start as smells.
 - Cross-aggregate coordination: independent Aggregate Roots do not need the same transaction for business correctness; coordination is done by Domain Event, process manager, reconciler, task processor, Integration Message, or an explicit modeling return that changes the aggregate boundary.
 - Durable fact precedence: succeeded/accepted/completed/executed facts outrank open workflow states; later commands check durable facts before retry/start, cancel, reopen, reversal/compensation, execution, or closure.
+- Durable-fact command admission: when a durable child fact can precede parent state reflection, inspect retry/start/cancel/reopen commands against the durable fact; recovery reachability alone does not clear admission.
 - Terminal closure: aggregate terminal facts and terminal events occur after required execution facts, idempotency/replay rules, and closure conditions are complete.
 - Collaboration: repeated external side effects, reversal/compensation, exception/dispute, settlement/closure, split execution/closure, or recovery reactions have one named collaboration mechanism and recovery behavior.
 - CQRS: write repositories serve command-side aggregate facts; product reads use QueryRepository/read facades returning DTO/read models.
@@ -177,9 +178,10 @@ Forbidden shape:
 
 Final answer is concise. Do not print the full working-evidence set by default.
 For lifecycle/repository/event/CQRS scope, complete and merge smell verdicts before the final answer, then cite triggered required family rows only in Findings or Evidence gaps / returns.
-Working evidence stays internal unless it is needed to understand a judgment. If a smell family cannot be explained from available evidence, report an evidence gap, not a positive claim.
+Working evidence stays internal unless it is needed to understand a judgment. Required family-row verdicts are not working evidence and cannot stay internal. If a smell family cannot be explained from available evidence, report an evidence gap, not a positive claim.
 Every triggered required family row and every explained smell-family verdict lands in Findings or Evidence gaps / returns. Positive, coverage, and residual notes are only for surfaces that were not smell rows. Do not suppress findings for template cost.
-Do not collapse production wiring, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader claim.
+Do not collapse production wiring, durable-fact command admission, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader claim.
+If a required row was inspected, name its verdict family in the final answer even when detailed evidence stays internal.
 
 Report in this order when present: scope/model evidence, findings, evidence gaps / returns, positive notes for non-smell surfaces, verification, residual risk.
 

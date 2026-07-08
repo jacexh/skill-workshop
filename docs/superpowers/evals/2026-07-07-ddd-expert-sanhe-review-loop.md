@@ -2225,3 +2225,30 @@ Next evaluation should be against the first released version after this local br
 - K10 false-negative is explicit: write-side `List*ByTaskAgreement` methods were accepted as command-side fact lookups without method inventory / candidate-owner classification.
 - K8 still needs payment-scope parent-state vocabulary admission; `payment_pending`, `payment_failed`, and `payment_cancelled` did not become an evidence gap or finding.
 - Next fix: treat Coverage/positive/residual notes as the same as no-finding for required rows, and make write-side `List*`/read-shaped methods and payment parent-state vocabulary rows non-omittable.
+
+## Round 2026-07-08 v1.14.81 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.81`, release commit `67e6700`.
+- preceding hotfix: PR #134 treated Coverage/positive/residual notes as invalid exits for required rows, required `List*`/read-shaped repository classification, and added payment parent-state vocabulary rows.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.81`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.81-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.81-clean/original-review-final.md`, 2 findings plus 2 evidence gaps/returns.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.81-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.81-clean/reflection-final.md`.
+- verification inside clean review: focused tasknegotiation command/eventhandler/domain tests passed; `go test ./...` was interrupted after about 2 minutes with integration packages still running.
+
+### Score
+
+- Known-issue hits: K3 full; K4 full; K8 full; K6 partial; K7 partial; K2, K5, and K10 missed.
+- Breadth: 27 / 45. Payment vocabulary became a real return-to-design row, but durable-fact command admission, repository/API owner classification, and CQRS read/write risk still did not reach final output.
+- Depth: 23 / 45. K3/K4/K8 are concrete. K6/K7 are adjacent symptoms only. K2/K5/K10 were visible in working evidence but not adjudicated in the final answer.
+- Review discipline: 7 / 10. The output avoided Coverage Notes as a required-row clearance, but it still hid required repository/CQRS/durable-admission verdicts behind internal working evidence.
+- Total: 57 / 100.
+
+### Gap Analysis
+
+- The review run did inspect `List*ByTaskAgreement`, multi-object `Save*`, and payment failed/cancelled state evidence, so breadth scan improved.
+- The final answer still treated "Working evidence stays internal" too broadly: evidence can stay internal, but a triggered required family-row verdict cannot.
+- K2 needs durable-fact command admission to mean checking retry/start/cancel commands after succeeded facts, not only checking recovery reachability.
+- K5/K10 need final verdict rows whenever repository/CQRS inventory was triggered; otherwise inventory work disappears before scoring.
+- Next fix: required row verdicts are not internal evidence. Every triggered required row gets a final finding or evidence gap/return bullet, even if detailed evidence stays internal.
