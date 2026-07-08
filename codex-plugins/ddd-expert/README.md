@@ -40,6 +40,8 @@ Restart Codex after upgrade.
 
 The plugin does not auto-inject context for natural-language architecture prompts. The Codex hook also cannot intercept agent-self-decided skill invocations; invoke a `ddd-expert` skill explicitly when DDD/backend guidance is needed.
 
+Each skill reads the smallest phase-specific baseline and then loads only the strategic or tactical references required by the task.
+
 ## Activation Guidance
 
 Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting backend infrastructure. Mention the phase skill explicitly in the prompt when the task touches bounded contexts, Domain/Application/Infrastructure placement, generated RPC/protocol types, Go runtime/config/lifecycle, taskqueue/message behavior, database persistence, or backend logging.
@@ -81,8 +83,6 @@ Canonical references live under `references/`:
 - `../skills/design/SKILL.md` — design-phase domain-brief-to-model method
 - `../skills/implement/SKILL.md` — implementation-phase model-to-code placement method
 - `../skills/review/SKILL.md` — review-phase evidence-to-judgment method
-- `ddd-risk-router.md` — implementation/review risk cards read with the active phase skill
-- `ddd-review-smell-protocol.md` — smell-queue review orchestration for broad detection plus one-smell investigation
 - `ddd-modeling-gates.md` — compact modeling thought gates for story, authority, lifecycle, invariants, failure tolerance, integration language, and coordination choices
 - `ddd-agent-contract.md` — on-demand agent prohibited actions, classification, and self-checks
 - `ddd-modeling.md` — on-demand strategic bounded-context, aggregate, and architecture gate guidance

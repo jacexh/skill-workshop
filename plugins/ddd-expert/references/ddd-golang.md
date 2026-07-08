@@ -1,6 +1,6 @@
 ---
 name: ddd-golang
-description: Go / go-jimu DDD reference router. Use when a DDD phase skill or risk card needs Go-specific file placement, object-shape routing, package boundaries, go-jimu component choices, logging, tests, or module assembly guidance.
+description: Go / go-jimu DDD reference. Use when a DDD phase skill needs Go-specific file placement, object-shape routing, package boundaries, go-jimu component choices, logging, tests, or module assembly guidance.
 ---
 
 # Go / go-jimu Reference Router
@@ -115,16 +115,15 @@ Execution boundaries include RPC/HTTP handlers, command/query handlers when they
 
 ## Review Shortcuts
 
-- Business condition branches over aggregate state outside Domain usually route to [`ddd-golang-domain.md`](ddd-golang-domain.md) and the Business State Classification risk card.
+- Business condition branches over aggregate state outside Domain usually route to [`ddd-golang-domain.md`](ddd-golang-domain.md) and the Domain behavior baseline.
 - New command-side Application ports route to [`ddd-modeling.md §0.2`](ddd-modeling.md) before implementation.
-- Generated RPC methods with repository calls, transactions, dispatch, enqueueing, or multi-port orchestration route to [`ddd-golang-application.md §0.7`](ddd-golang-application.md) and the Fat Generated RPC Adapter risk card.
+- Generated RPC methods with repository calls, transactions, dispatch, enqueueing, or multi-port orchestration route to [`ddd-golang-application.md §0.7`](ddd-golang-application.md) and the Interface/Application baseline.
 - Database schema, DO/converter, optimistic-lock, and soft-delete changes route to [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) plus [`database.md`](database.md).
 - Runtime loops, polling, schedulers, and shutdown behavior route to [`ddd-golang-runtime.md`](ddd-golang-runtime.md) and/or [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md).
 
 ## References
 
 - [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), [`review`](../skills/review/SKILL.md)
-- [`ddd-risk-router.md`](ddd-risk-router.md)
 - [`ddd-modeling.md`](ddd-modeling.md)
 - [`ddd-core.md`](ddd-core.md)
 - [`ddd-agent-contract.md`](ddd-agent-contract.md)
