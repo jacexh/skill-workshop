@@ -1895,3 +1895,24 @@ Coverage Matrix:
 - Positive clearance phrases such as "未发现同类问题", "未发现读模型混用问题", and "适配正确" must be forbidden unless the artifact prints row-level admission proof.
 - For complex multi-axis review, concision should not omit mandatory ledger appendix rows for terminal/execution, collaboration, repository/API, parent-state, and CQRS axes.
 - If a row is triggered but exact proof is incomplete, the decision must be evidence gap or return, never a no-issue coverage entry.
+
+## Round 2026-07-08 v1.14.68 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.68`, release commit `89cb963`.
+- preceding hotfix: PR #121 forbade checked coverage tables and positive clearance phrases without exact admitted rows.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.68`.
+- complete raw review output: `/tmp/sanhe-ddd-review-v1.14.68.md`, 48 lines, 6,886 bytes.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.68-reflection.md`.
+
+### Score
+
+- Breadth: 31 / 45. K2 and K4 were found; K3, K8, and K10 were shallow; K5/K6/K7 remained weak or missed.
+- Depth: 27 / 45. The review had strong lifecycle evidence but still did not print candidate-owner, collaboration-mechanism, parent-state, and CQRS method-level ledgers.
+- Review discipline: 6 / 10. Positive clearance was mostly avoided, but the artifact claimed rows emitted without showing the mandatory appendix rows.
+- Total: 64 / 100.
+
+### Gap Analysis
+
+- The output contract still lets the reviewer mention row ids in summaries without printing the row-local ledger appendix.
+- The existing template says `Ledger appendix: <omit unless needed/requested...>`, which is wrong for complex lifecycle/repository/event/CQRS review. In these reviews the appendix is mandatory evidence, not optional verbosity.
+- Next fix: make ledger appendix mandatory before Findings for complex scope. Axis summaries may only cite row ids that appear in the appendix, and missing appendix rows become evidence gaps.
