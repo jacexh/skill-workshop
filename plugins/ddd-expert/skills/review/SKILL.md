@@ -20,6 +20,7 @@ Before findings: confirm concrete evidence exists; start from business facts bef
 ## Coordinator discipline
 
 The coordinator is a merger across completed axis rows, not another unbounded full reviewer. For multi-axis scope, keep reads to this skill, model/spec/code seeds, local evidence, triggered router excerpts, and optional subagent outputs; do not load ddd-core, language references, project memory, or other broad sources in full before a row-local trigger requires them. Do not invoke generic dispatching-parallel-agents or subagent-driven-development inside review; this Axis review protocol is the only delegation protocol for review. Subagents are optional accelerators; absence or failure of subagent tools must not block final review output. Use single-process fallback and preserve completion discipline: if proof would require more broad reading, Budget fallback final means emit the final answer with completed axes plus Evidence gap rows instead of reading until context exhaustion. If a reference, memory file, or broad source would require unbounded reading, emit an evidence gap row and continue.
+Axis ledgers are evidence-indexed, not exhaustive source traversal. Use rg inventories before opening files. Do not read long implementation, test, generated, migration, or SQL files end to end before final output. One row-local snippet is enough to classify a row; otherwise emit evidence gap and continue.
 
 ## Coverage pass
 
