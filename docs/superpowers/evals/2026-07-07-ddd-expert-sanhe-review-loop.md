@@ -1916,3 +1916,16 @@ Coverage Matrix:
 - The output contract still lets the reviewer mention row ids in summaries without printing the row-local ledger appendix.
 - The existing template says `Ledger appendix: <omit unless needed/requested...>`, which is wrong for complex lifecycle/repository/event/CQRS review. In these reviews the appendix is mandatory evidence, not optional verbosity.
 - Next fix: make ledger appendix mandatory before Findings for complex scope. Axis summaries may only cite row ids that appear in the appendix, and missing appendix rows become evidence gaps.
+
+## Design Pivot 2026-07-08 Smell Queue / Correct Shape Whitelist
+
+- v1.14.69 improved lifecycle findings but still showed the same structural weakness: fixed-axis ledgers encouraged summary claims and did not reliably force repository/API, collaboration, parent-state, and CQRS rows to be investigated with equal depth.
+- User guidance changed the review architecture: the main axis should own breadth by spotting code-shape/model-pressure deviations, while subagents or local passes own depth by investigating one smell at a time.
+- The next fix changes review orchestration from fixed-axis delegation to a Smell Queue:
+  - first define the correct DDD/backend shape whitelist;
+  - compare touched code shape to that whitelist;
+  - record any non-mapping shape as a smell row;
+  - investigate exactly one smell per subagent or bounded local pass;
+  - append spawned smells to the same queue until all rows reach terminal verdict;
+  - generate findings only from closed negative smell rows.
+- This is intentionally not a bad-smell inventory. The rule is whitelist-first: express correct shape, then treat deviations as smells.
