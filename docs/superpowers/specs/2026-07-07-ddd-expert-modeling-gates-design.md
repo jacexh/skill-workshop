@@ -4,6 +4,8 @@
 - **Date**: 2026-07-07
 - **Author**: xuhao + Codex
 
+> Superseded note, 2026-07-08: the modeling-gates reference remains current, but the separate `ddd-risk-router.md` role described below was removed by the later ddd-expert simplification. Current review routing is: phase skill -> Layer Baseline / `ddd-core.md` -> narrow concept or language reference only for triggered smells.
+
 ## Context
 
 `ddd-expert` already has useful DDD/backend guidance:

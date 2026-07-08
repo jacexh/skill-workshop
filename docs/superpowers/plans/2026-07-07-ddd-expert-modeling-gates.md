@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
+> Superseded note, 2026-07-08: this completed plan is historical. The modeling-gates reference remains, but the later ddd-expert simplification removed the separate `ddd-risk-router.md`; current review guidance is the six-step workflow in `review/SKILL.md` plus the Layer Baseline and on-demand concept/language references.
+
 **Goal:** Add a compact modeling-gates thinking framework to `ddd-expert` and wire it into the four phase skills without turning the plugin into a rule catalog.
 
 **Architecture:** Introduce `ddd-modeling-gates.md` as the domain-modeling/design thought spine, keep `ddd-risk-router.md` focused on implementation/review risk routing, and update phase skills to use the new reference at the right moment. Extend the existing release test so it protects both plugin tracks and behavior-oriented forward-test scenarios.
