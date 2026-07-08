@@ -7,7 +7,7 @@ description: Use when implementing or refactoring DDD/backend code after accepte
 
 Turn an accepted Domain Modeling Brief and DDD design into code. Implementation maps decisions to files, mechanisms, and verification; it does not create domain facts.
 
-First read the accepted sources, current spec/docs/code/tests, local conventions, and [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md). The best input is a design **Implementation handoff**.
+First read the accepted sources, current spec/docs/code/tests, local conventions, and [../../references/ddd-core.md](../../references/ddd-core.md). Load strategic references only when the accepted model is unclear, and load active language/layer references only for touched code surfaces. The best input is a design **Implementation handoff**.
 
 ## Handoff check
 

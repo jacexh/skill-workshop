@@ -2013,3 +2013,50 @@ Coverage Matrix:
 
 - Add linked-family seeding rules to the smell protocol: when a lifecycle/repository/event/CQRS smell appears, the coordinator must enqueue the adjacent correct-shape sentinels that can be invalidated by that smell.
 - Keep depth explainers as "why wrong" agents, but make sibling scope concrete enough that recovery wiring, terminal/execution timing, collaboration mechanisms, parent-state vocabulary, and CQRS method inventory do not disappear into grouped returns.
+
+## Round 2026-07-08 v1.14.74 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.74`, release commit `a9baceb`.
+- preceding hotfix: PR #127 added concise first-hop breadth sentinels for Domain state/event vocabulary, Application durable-fact admission/recovery, Repository/API candidate-owner/collaboration, CQRS read-shaped write methods, and Interface/runtime reachability.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.74`.
+- clean worktree review output: `/tmp/sanhe-ddd-review-v1.14.74-clean.md`, 22 lines.
+- run log: `/tmp/sanhe-ddd-review-v1.14.74-clean-run.log`.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.74-clean-reflection.md`.
+- depth execution evidence: run log showed 4 explorer subagents: repository/aggregate boundary, event recovery wiring, FSM/state vocabulary, and CQRS inventory. Explorer waits returned eventually, so this was slow but not a no-output liveness regression.
+
+### Score
+
+- Known-issue hits: K3 full; K2 partial; K5 partial; K6 partial; K8 partial; K4 missed; K7 missed; K10 missed.
+- Total: 35 / 100.
+
+### Gap Analysis
+
+- First-hop breadth improved in the run log, not in the final artifact. The coordinator recognized recovery wiring and repository/FSM/CQRS families, but the final answer compressed or cleared several returned verdicts.
+- K3 improved from missed to full because recovery production reachability became a first-class finding.
+- K2 regressed from full to partial: the final finding named `Payment=succeeded` not funding the agreement, but omitted `payment_pending` stale parent state and unsafe cancel/retry/new-payment admission.
+- K4 remained missed because terminal/execution timing did not become its own family or final verdict.
+- K5/K6 stayed partial because repository/API and collaboration were grouped into one return-to-design paragraph instead of separate candidate-owner and mechanism decisions.
+- K7 missed because the final answer softened repository concerns when application code called domain behavior before repository persistence.
+- K10 regressed to missed because CQRS was cleared without visible method-level write-repository inventory.
+
+### Next Fix
+
+- Do not add more breadth sentinels yet. The bottleneck moved to coordinator merge/final extraction: every triggered first-hop family must either land as a finding/return/evidence gap or be explicitly marked missing, and `Cleared` must be disallowed for any triggered smell family without visible verdict.
+
+### Follow-up Direction After Review
+
+- Drop default subagent depth execution for now. The measured gain did not justify added latency, token use, and merge risk.
+- Use local smell synthesis instead: breadth scan -> Smell List -> merge same-shape smells -> explain why each smell is wrong -> synthesize the shared root cause -> final judgments.
+- Treat layer baselines as the source of truth and remove the `risk-router` middle layer. Phase skills should load baseline/protocol references directly, then load strategic or tactical references only when the triggered smell needs explanation.
+- Repository/API breadth rule is default-deny: a Repository normally exposes only `Get` and `Save`; extra methods, multi-root saves, and cross-aggregate same-transaction requirements start as smells. The valid modeling exits are one Aggregate Root or Domain Event/process/reconciler collaboration with eventual consistency.
+
+## Unreleased Local Optimization After v1.14.74
+
+- Replaced the `review` hot path with one inline Workflow: breadth scan -> first-hop completion -> merge -> explain one family -> expand siblings -> close Smell List -> synthesize -> report.
+- Removed the separate `ddd-risk-router.md` and `ddd-review-smell-protocol.md` references from both plugin tracks.
+- Moved layer correct-shape baseline into `review/SKILL.md`; review now derives smells from missing required shape or present forbidden shape.
+- Collapsed `ddd-core.md` back into compact DDD defaults and evidence rules. Removed review-protocol vocabulary such as positive-shape, depth-axis, counterfactual gateway, proof artifact, family proof tuple, and matrix proof.
+- Contract reference now provides cross-phase reporting facts only; phase skills own their output shapes.
+- Release test now protects the simplified structure and includes negative assertions so the deleted risk-router/protocol/depth-axis vocabulary does not return.
+
+Next evaluation should be against the first released version after this local branch, not against v1.14.74.

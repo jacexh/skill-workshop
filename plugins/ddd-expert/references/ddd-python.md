@@ -1,6 +1,6 @@
 ---
 name: ddd-python
-description: Python implementation guide for DDD + Clean Architecture. Use when a phase skill or DDD risk card routes to Python backend services with aggregates, repositories, domain events, CQRS, module assembly, dependency-injector wiring, or Python package boundaries.
+description: Python implementation guide for DDD + Clean Architecture. Use when a phase skill needs Python backend services with aggregates, repositories, domain events, CQRS, module assembly, dependency-injector wiring, or Python package boundaries.
 ---
 
 # Python Web System Architecture Guide
@@ -281,7 +281,7 @@ If the rule can be unit-tested without SQLAlchemy, Redis, a queue, FastAPI, or g
 
 ### 2.6 Mechanized Review Checks
 
-These checks operationalize the P1-P4 hot-path checks in [ddd-core.md §10](ddd-core.md) and the §5.1 self-check in [ddd-agent-contract.md](ddd-agent-contract.md). Treat the shell commands below as local smoke checks unless they are replaced by AST-aware Ruff/custom rules; they surface review targets, not architectural proof.
+These checks operationalize the P1-P4 self-checks in [ddd-agent-contract.md §5.1](ddd-agent-contract.md). Treat the shell commands below as local smoke checks unless they are replaced by AST-aware Ruff/custom rules; they surface review targets, not architectural proof.
 
 **P1 — Port eligibility: suspicious naming smoke scan**
 
@@ -2157,7 +2157,7 @@ dev = [
 
 ## 13. Key Principles Summary
 
-> These are the Python-specific implementations of the principles summarized in [ddd-core.md §11](ddd-core.md). For the architecture review checklist see [ddd-core.md §10](ddd-core.md).
+> These are the Python-specific implementations of the principles summarized in [ddd-core.md §10](ddd-core.md). For review workflow and layer baseline, see [`../skills/review/SKILL.md`](../skills/review/SKILL.md).
 
 1. **Domain layer has no concrete implementation dependencies** — no `import` of SQLAlchemy, FastAPI, HTTP/MQ clients, or generated protocol packages; standard library, `uuid`, `dataclasses`, and Pydantic-as-internal-validation-helper are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context, not by technical layer

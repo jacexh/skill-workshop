@@ -1,12 +1,12 @@
 ---
 name: ddd-modeling
-description: Strategic domain modeling rule cards for DDD. Use when domain-modeling, design, or a DDD risk card routes to bounded context, aggregate boundary, invariant, Architecture Gate, technical capability, or port-granularity decisions.
+description: Strategic domain modeling rule cards for DDD. Use when domain-modeling, design, implement, or review needs bounded context, aggregate boundary, invariant, Architecture Gate, technical capability, or port-granularity decisions.
 ---
 
 # Strategic Domain Modeling Rule Cards
 
 **Scope**: Backend services using DDD.
-**Usage**: This is an on-demand rule source, not a default entrypoint. Start from [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when a phase skill or [`ddd-risk-router.md`](ddd-risk-router.md) needs strategic model decisions.
+**Usage**: This is an on-demand rule source, not a default entrypoint. Start from [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when a phase skill needs strategic model decisions.
 
 This file is intentionally not a DDD tutorial. Assume the agent understands the concepts. Use these cards to decide ambiguous cases and to produce compact evidence for later design, implementation, and review.
 

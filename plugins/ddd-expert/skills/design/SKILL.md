@@ -7,7 +7,7 @@ description: Use when producing concrete DDD/backend design from an accepted Dom
 
 Turn an accepted Domain Modeling Brief into the smallest useful DDD/backend design.
 
-First read the brief, current spec/docs/code evidence, [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md), and [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md). The brief may be PRD-shaped: Problem Statement, Solution / Scenario, User Stories, Strategic Decisions, Model Decisions, Testing Decisions, Out of Scope, Further Notes.
+First read the brief, current spec/docs/code evidence, [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md), [../../references/ddd-modeling.md](../../references/ddd-modeling.md), and [../../references/ddd-core.md](../../references/ddd-core.md). The brief may be PRD-shaped: Problem Statement, Solution / Scenario, User Stories, Strategic Decisions, Model Decisions, Testing Decisions, Out of Scope, Further Notes.
 
 If material user scenario, event timeline, authority, policy, lifecycle, data authority, or bounded-context facts are still missing, stop and return to `domain-modeling`.
 

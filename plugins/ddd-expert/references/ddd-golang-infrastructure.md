@@ -107,7 +107,7 @@ Rules:
 - Domain does not import `pkg/gen/**`.
 - Use-case packages do not expose generated types in semantic ports unless the accepted design explicitly treats the type as a read contract.
 - Mapping happens at Application/Interface/Infrastructure boundaries.
-- Fat generated RPC adapters route back to [`ddd-golang-application.md §0.7`](ddd-golang-application.md) and the risk router.
+- Fat generated RPC adapters route back to [`ddd-golang-application.md §0.7`](ddd-golang-application.md) and the Interface/Application baseline.
 
 ### 0.5 Shared Client and Runtime Adapter Card
 

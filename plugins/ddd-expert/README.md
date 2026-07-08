@@ -28,7 +28,7 @@ The plugin exposes four compact phase skills plus shared references:
 - `implement` — accepted-model-to-code placement and refactoring guidance
 - `review` — evidence-based DDD boundary review for concrete plans, diffs, or files
 
-Each skill reads `references/ddd-risk-router.md` first, then loads only the deeper references required by the task or triggered risk cards. Hook output is limited to phase-skill routing; detailed context still loads only through the selected `ddd-expert` skill.
+Each skill reads the smallest phase-specific baseline and then loads only the strategic or tactical references required by the task. Hook output is limited to phase-skill routing; detailed context still loads only through the selected `ddd-expert` skill.
 
 ## Activation Guidance
 
@@ -71,8 +71,6 @@ Canonical references live under `references/`:
 - `../skills/design/SKILL.md` — design-phase domain-brief-to-model method
 - `../skills/implement/SKILL.md` — implementation-phase model-to-code placement method
 - `../skills/review/SKILL.md` — review-phase evidence-to-judgment method
-- `ddd-risk-router.md` — implementation/review risk cards read with the active phase skill
-- `ddd-review-smell-protocol.md` — smell-queue review orchestration for broad detection plus one-smell investigation
 - `ddd-modeling-gates.md` — compact modeling thought gates for story, authority, lifecycle, invariants, failure tolerance, integration language, and coordination choices
 - `ddd-agent-contract.md` — on-demand agent prohibited actions, classification, and self-checks
 - `ddd-modeling.md` — on-demand strategic bounded-context, aggregate, and architecture gate guidance

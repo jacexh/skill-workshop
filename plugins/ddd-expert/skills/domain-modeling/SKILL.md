@@ -7,7 +7,7 @@ description: Use after a product spec or change request exists and before DDD de
 
 Run a strategic domain-modeling grilling session.
 
-First inspect existing evidence: spec, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, product docs, current designs, code, tests, API/proto contracts, [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md), and [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md). Do not ask the user to restate facts the system already records.
+First inspect existing evidence: spec, `CONTEXT.md`, `CONTEXT-MAP.md`, ADRs, product docs, current designs, code, tests, API/proto contracts, [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md), and [../../references/ddd-modeling.md](../../references/ddd-modeling.md). Do not ask the user to restate facts the system already records.
 
 Talk about user scenarios, event storming, business lifecycle, authority, policies, evidence, and language. Do not start with fields, schemas, event payloads, Entities, Aggregates, Repositories, or implementation objects.
 

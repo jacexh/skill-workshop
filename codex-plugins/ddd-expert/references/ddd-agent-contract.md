@@ -1,6 +1,6 @@
 ---
 name: ddd-agent-contract
-description: Agent self-check and must-not contract for DDD/backend work. Use when an active DDD phase skill or risk card routes to task classification, prohibited actions, stop protocol, runtime/taskqueue classification, or completion self-checks for code agents.
+description: Agent self-check and must-not contract for DDD/backend work. Use when an active DDD phase skill routes to task classification, prohibited actions, stop protocol, runtime/taskqueue classification, or completion self-checks for code agents.
 ---
 
 # DDD Code Agent Usage Contract
@@ -33,7 +33,7 @@ Semantic fake rule: if the only meaningful fake is "pretend the external side ef
 
 ## 1. Trigger Conditions (when this contract applies)
 
-Apply this contract when the active phase skill or [`ddd-risk-router.md`](ddd-risk-router.md) routes here, especially when **any** of the following is true:
+Apply this contract when the active phase skill routes here, especially when **any** of the following is true:
 
 - The task touches files under `internal/business/<context>/**` or paths named `domain/`, `application/`, `interfaces/`, `infrastructure/`.
 - The task mentions any of: bounded context, aggregate, value object, repository, domain event, integration message, CQRS, anti-corruption layer, clean architecture, domain-driven design, DDD.
@@ -45,7 +45,7 @@ Apply this contract when the active phase skill or [`ddd-risk-router.md`](ddd-ri
 - The task mentions or edits task queues, polling tasks, reconciliation jobs, scheduled/background jobs, periodic task producers, asynq schedulers, `TaskType`, `PeriodicTask`, `PeriodicTaskScheduler`, task payload schemas, task processors, `internal/pkg/taskqueue`, worker lifecycle, task middleware, delayed enqueueing, or schema registry wiring.
 - The task mentions or edits a manual polling/reconciliation runner, manual runner, runtime loop, backlog drain, outbox drain, recovery loop, scheduler loop, `*_drain.go`, `*_scheduler.go`, `fx.Lifecycle` hook, goroutine worker, timer/ticker loop, backoff policy, or bounded-context root loop that calls an Application scheduler/service.
 
-If unsure whether the contract applies, consult the active phase skill and [`ddd-risk-router.md`](ddd-risk-router.md) before loading this file. Load this file when the task may hit one of the triggers above or needs an explicit self-check.
+If unsure whether the contract applies, consult the active phase skill before loading this file. Load this file when the task may hit one of the triggers above or needs an explicit self-check.
 
 ---
 
@@ -151,7 +151,7 @@ These are the most common DDD failure patterns an LLM produces when it shortcuts
 25. **Bloated Go RPC shortcut.** Do not use `application/application.go` as a place for business branches, transaction control, repository calls, event/message dispatch, task enqueueing, or cross-port coordination just because it implements a generated gRPC/ConnectRPC stub. The shortcut is only protocol mapping, one delegate call, response/error mapping, and small actor extraction. Larger workflows move to `application/command`, `application/query`, or a named Application coordination service. (`ddd-golang-application.md §0.7`)
 26. **Bloated Go fx entry point.** Do not use `cmd/<service>/main.go` as the place to construct shared middleware clients, repositories, query repositories, ACL clients, routing directories, publishers, handler wrappers, or cross-context HTTP/client adapters. `cmd` loads config, supplies the aggregate `Option`, selects modules, sets process-level fx options, and runs the app. Shared runtime wiring belongs in `internal/pkg/module.go`; multi-service differences are named module variables there (`FooModule`, `BarModule`, etc.) that each entry point loads. Bounded-context providers and handler registration belong in the bounded-context module. Adapter details belong in Infrastructure/ACL packages, not inline `fx.Provide` closures in `cmd`. (golang-runtime §2.2)
 27. **Mechanically extracted local helpers.** Do not create a private helper only to rename a one-off expression, select one return value from another helper, wrap a single field/getter access, or duplicate an equivalent same-package helper under a `*Local` / `local*` name. Before adding a private helper, search the current package for an existing equivalent. A single-call helper is acceptable when it names a durable domain/protocol invariant, externally visible contract rule, deterministic canonicalization rule, non-trivial normalization/validation, or repeated error-prone boundary access. The DDD requirement to name semantic capabilities applies to ports, use cases, events, handlers, and policies; do not mechanically apply it to every local expression. Prefer inline code or reuse when the helper adds only another jump. (`ddd-golang-scaffold.md`, active layer card)
-28. **Manual runner as bounded-context root wiring.** Do not create or bless a manual polling/reconciliation runner, backlog drain, outbox drain, recovery loop, scheduler loop, or timer/ticker goroutine in a bounded-context root merely because the root is the module composition point. A bounded-context module may contribute task definitions, processors, handlers, and providers, but cadence, backoff, retry, goroutine lifecycle, worker shutdown, and provider runtime policy belong in taskqueue/runtime infrastructure unless a documented process-owned runtime exception exists. Business orchestration belongs in Application services; the runtime loop must not become the hidden owner of scheduling or reconciliation policy. (risk-router Manual Runner Misplacement; taskqueue §1, §5-§6; golang-runtime §2-§4)
+28. **Manual runner as bounded-context root wiring.** Do not create or bless a manual polling/reconciliation runner, backlog drain, outbox drain, recovery loop, scheduler loop, or timer/ticker goroutine in a bounded-context root merely because the root is the module composition point. A bounded-context module may contribute task definitions, processors, handlers, and providers, but cadence, backoff, retry, goroutine lifecycle, worker shutdown, and provider runtime policy belong in taskqueue/runtime infrastructure unless a documented process-owned runtime exception exists. Business orchestration belongs in Application services; the runtime loop must not become the hidden owner of scheduling or reconciliation policy. (taskqueue §1, §5-§6; golang-runtime §2-§4)
 
 > When uncertain whether a pattern is on this list, search this file for the keyword (`Cacher`, `proto`, `validation`, `drain`, `Policy`, `Allocator`, `Domain Event`, `Integration Message`, …) before committing.
 
@@ -242,31 +242,16 @@ If a snippet contradicts what compiles in the real repository, **the real reposi
 
 ---
 
-## 7. Minimal Output Format
+## 7. Reporting Contract Notes
 
-Use this compact shape when reporting a DDD / runtime plan, review, or implementation result. Omit fields that genuinely do not apply; do not omit unknowns to avoid asking.
+Phase skills own their own output shape. This contract only adds cross-phase reporting facts when they matter:
 
-```text
-Standards read:
-- <phase skill + modeling/core/language/runtime/agent-contract files actually read>
+- name the phase skill and references actually read when the result depends on them;
+- state unresolved stop questions instead of guessing;
+- name the self-check or verification actually completed;
+- cite sections for plans, reviews, PR descriptions, and architecture-affecting decisions.
 
-Task classification:
-- <DDD/business | Go events/messages | Go taskqueue/polling/periodic | Go runtime-only | mixed>
-
-Architecture Gate:
-- <modeling §0 core block for DDD/business changes, plus the placement extension when required; or "n/a — runtime-only; runtime component is ...">
-
-Stop questions:
-- <none, or the exact unresolved questions>
-
-Planned / changed files:
-- <paths>
-
-Self-check result:
-- <DDD checklist / runtime checklist / docs-only checks completed>
-```
-
-For final summaries after straightforward implementation, keep this brief: mention the files changed, verification run, and any remaining risk. Section-by-section citations are required for plans, reviews, PR descriptions, and architecture-affecting decisions, not for every final response.
+For straightforward implementation summaries, keep output brief: changed files, verification run, and remaining risk.
 
 ---
 
@@ -282,7 +267,7 @@ For final summaries after straightforward implementation, keep this brief: menti
 | Aggregate Boundary Conflict gate | [`ddd-core.md`](ddd-core.md) §3.2 |
 | Cross-context mechanisms (4 legitimate ways) | [`ddd-core.md`](ddd-core.md) §5 |
 | Integration Message payload rules | [`ddd-core.md`](ddd-core.md) §5.4 |
-| Architecture review checklist | [`ddd-core.md`](ddd-core.md) §10 |
+| Review workflow and layer baseline | [`../skills/review/SKILL.md`](../skills/review/SKILL.md) |
 | Go file layout / module assembly | [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md), [`ddd-golang-runtime.md`](ddd-golang-runtime.md) |
 | Go Domain Events, Boundary Publishers, Integration Messages, Kafka adapter wiring | [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) |
 | Go Domain object shape | [`ddd-golang-domain.md`](ddd-golang-domain.md) |

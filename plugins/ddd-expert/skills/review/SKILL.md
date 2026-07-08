@@ -5,46 +5,11 @@ description: Use when reviewing DDD/backend domain abstractions, specs, plans, o
 
 # Review
 
-Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign. Build/runtime blockers only block executable verification; Independent static model review still runs. Compile blocker is never a positive model signal; Absence of forbidden nouns is not model proof.
+Review concrete evidence against the expected model. A review finds evidence-backed issues, return-to-modeling triggers, or evidence gaps; it does not redesign.
 
-First read [../../references/ddd-risk-router.md](../../references/ddd-risk-router.md). For complex lifecycle/repository/event/CQRS scope, also read [../../references/ddd-review-smell-protocol.md](../../references/ddd-review-smell-protocol.md), then load deeper references only for triggered evidence.
+Build/runtime blockers only block executable verification; independent static model review still runs. Compile blockers are never positive model signals, and absence of forbidden nouns is not model proof.
 
-## Checklist
-
-1. Reconstruct the expected model from specs, briefs, designs, handoff, code, tests, and runtime evidence.
-2. Run breadth first: a thin main-axis scan compares touched code shape against the correct-shape whitelist and emits coarse smell families.
-3. Dispatch one depth explainer per coarse smell family; each explainer explains why the presumed-wrong shape is wrong and expands sibling methods, flows, states, events, and ports.
-4. Merge returned negative/gap decisions and new issue candidates; do not re-review the whole repo in the coordinator.
-5. Generate findings from depth decisions; generate no-finding notes only from positive correct-shape evidence.
-6. Report verification separately from model review.
-
-## Process Flow
-
-```dot
-digraph ddd_review {
-  "Expected model" -> "Breadth scan";
-  "Breadth scan" -> "Coarse smell families";
-  "Coarse smell families" -> "Family-specific depth";
-  "Family-specific depth" -> "Sibling smells?";
-  "Sibling smells?" -> "Family-specific depth" [label="yes"];
-  "Sibling smells?" -> "Depth decisions" [label="no"];
-  "Depth decisions" -> "Coordinator merge";
-  "Coordinator merge" -> "Judgment report";
-  "Judgment report" -> "Verification";
-}
-```
-
-## Breadth and depth
-
-Breadth is a thin main-axis scan: read the user task, named spec/design/diff seeds, and minimum model evidence needed to identify triggered axes. Breadth emits coarse smell families, not findings and not per-method inventories.
-
-Depth is family-specific root-cause explanation, with axes used only as classification tags. Depth starts from a presumed-wrong smell family, expands sibling methods, flows, states, events, and ports, then explains the chain from business fact to owner, reaction/process, failure tolerance, and implementation mechanism. Each depth pass includes a first-principles shape challenge.
-
-Codex and Claude Code review runtimes are expected to have subagent/task capability. Dispatch one subagent per coarse smell family before coordinator depth analysis. If the runtime exposes no subagent tool, treat that as an environment defect and name it in Depth execution instead of silently falling back.
-
-No-finding decisions require positive correct-shape evidence and apply only outside the Smell Queue. A handed-off smell family returns violation, return, evidence-gap, or spawned-family.
-
-The coordinator merges depth results and new issue candidates. A high-severity finding does not stop other triggered smell-family depth tasks. Final output is judgment-oriented; proof packets are working evidence, not the user-facing report.
+First read [../../references/ddd-core.md](../../references/ddd-core.md). This skill owns the workflow and layer baseline. Load strategic references such as [../../references/ddd-modeling.md](../../references/ddd-modeling.md) / [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) only when model facts are unclear; load active language/layer references only for triggered code evidence.
 
 ## Expected model sources
 
@@ -64,40 +29,144 @@ Before findings:
 
 1. Confirm concrete evidence exists: files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written deviation.
 2. Start from business facts before code mechanics: command -> past-tense fact -> invariant owner -> reaction/process -> failure tolerance -> implementation mechanism.
-3. Compare touched code against the correct-shape whitelist; missing required shape or present forbidden shape becomes a smell.
-4. Use the risk router only to choose depth, not to enumerate findings.
+3. Compare touched code against the layer baseline; missing required shape or present forbidden shape becomes a smell.
+4. Use references only to explain triggered smells, not to enumerate findings.
 5. Missing proof is an evidence gap unless concrete evidence proves a violation.
+6. Accepted design and local convention are evidence to inspect, not waivers.
+7. Implementation transaction shape is not model evidence and cannot satisfy Repository design.
 
-## Coverage pass
+## Workflow
 
-Coverage pass is the breadth/depth orchestration checklist; detailed risk rules live in the risk router and core reference.
-For lifecycle/repository/event/CQRS scope, do not start with Findings; start with breadth scan.
-Lifecycle/repository/event/CQRS names are tags for smell-family depth, not broad-axis delegation.
-Missing depth results for a triggered smell family become evidence gaps, not positive coverage claims.
-Depth explainers expand coarse families into sibling methods, flows, execution facts, parent states, domain events, and read-shaped ports when those siblings share the same whitelist deviation.
-No-finding decisions outside the Smell Queue require observed positive shape, not absence of forbidden nouns, DTO/package separation, semantic names, or untriggered grep results.
-Finding paragraphs are generated from negative or gap depth decisions.
-Final report leads with judgment, not working evidence dumps.
-First-principles shape challenge: is this shape genuinely required by the business invariant, or compensating for a wrong aggregate, lifecycle, or boundary?
+1. **Breadth scan**: compare touched code shape against the layer baseline. Output: Smell List rows with layer, trigger, baseline miss, and code evidence.
+2. **First-hop completion**: add visible domain state/event vocabulary, application durable-fact admission/recovery, repository/API ownership, CQRS read/write split, and interface/runtime reachability misses. Output: completed first-hop Smell List.
+3. **Merge**: group same-shape smells by owner, lifecycle, boundary, or mechanism. Output: merged smell families preserving every trigger.
+4. **Explain one family**: process one merged smell family through business fact, owner, reaction/process, failure tolerance, and implementation mechanism. Output: violation, return-to-domain-modeling, return-to-design, evidence-gap, or adjacent-smell.
+5. **Expand siblings**: check sibling methods, flows, states, events, ports, and adapters that share the same baseline miss. Output: updated family verdict plus any new adjacent smell rows.
+6. **Close the list**: repeat explain/expand until every smell and adjacent smell has a terminal verdict; smells do not become no-finding. Output: closed Smell List.
+7. **Synthesize**: combine closed smell verdicts. Output: shared wrong model, boundary, lifecycle, mechanism, or missing recovery story.
+8. **Report**: turn closed verdicts into findings, evidence gaps / returns, non-smell positive notes, verification, and residual risk. Output: final review judgment.
 
-## Smell queue review protocol
+Smell explanation stays local by default. Use subagents only when the user explicitly asks.
 
-Use [../../references/ddd-review-smell-protocol.md](../../references/ddd-review-smell-protocol.md) for the correct-shape whitelist and smell-queue protocol.
-Main axis emits a bounded Smell Queue before deep investigation. Main-axis preflight compares touched code shape against the correct-shape whitelist; deviations become smell rows. Breadth emits coarse smell families; depth expands the family and checks sibling shapes. Do not try to enumerate every possible bad smell, and do not write findings in coordinator preflight. Fixed axes are classification tags, not delegation units.
-Main-axis first-hop breadth must enqueue visible layer-triggered smells directly: domain state/event vocabulary, application durable-fact admission/recovery, repository/API candidate-owner/collaboration, CQRS read-shaped write methods, and interface/runtime reachability.
-A smell is a failed whitelist match, not a neutral question. Depth starts from wrong shape and explains why it is wrong: model boundary, design placement, implementation drift, evidence gap, or weak trigger evidence.
-Do not debate whether a smell might be allowed as a local corner case. If a shape needs an exception, return to modeling or design instead of acquitting it in review.
-Repository/API touching non-aggregate roots or multiple aggregate roots is wrong shape. Application code reading entity state to decide domain behavior is wrong shape.
-Explain exactly one smell family per subagent. Subagents must not each perform a full global review.
-Dispatch one subagent per coarse smell family. The subagent owns the why-wrong explanation for that family, expands sibling methods/flows/states/events/ports, and returns root-cause verdicts plus spawned smell families.
-A spawned smell is appended to the same Smell Queue and must reach a terminal verdict before final output. Finding paragraphs can only be generated from negative or gap depth decisions.
-Never leave the review at a wait/collab wait state after returned smell verdicts exist; emit final output with missing-smell evidence gaps instead.
+Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why each issue was missed or shallowly found, and convert repeated misses into baseline rules, reference updates, or eval assertions.
 
-Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
+## Layer Baseline
 
-## Default-first key concept check
+Detect smells by asking two questions for each touched layer: which required shapes are missing, and which forbidden shapes appear.
 
-Tactical drift reading: when structures look awkward, treat them as upstream model pressure before suggesting cleanup. For Aggregate, Repository, Domain Event, Integration Message, Application Port, CQRS read, Bounded Context, and FSM state, state the default rule before local convention. semantic repository methods are evidence, not proof: Aggregate Boundary Conflict returns to `domain-modeling`; implementation transaction shape is not model evidence. Return routing: domain-modeling for aggregate boundary/lifecycle/invariant/fact/BC uncertainty; design for accepted-model placement/CQRS/port/adapter/repository API shape. Accepted design is evidence, not waiver. transaction-shaped evidence cannot satisfy Repository design: never list semantic repository transaction, lifecycle transaction, or cross-table transaction under Rules Satisfied. Rules Satisfied is scoped to one rule; it must not cover aggregate boundary or event-collaboration risk in the same flow. Local convention is evidence to inspect, not a waiver.
+### Domain Layer
+
+Required shape:
+
+- Domain accepts Domain objects, Value Objects, Domain commands, or method arguments named in the ubiquitous language.
+- Domain owns business facts, invariants, lifecycle states, transitions, policies, Domain errors, and Domain Events.
+- Aggregate Roots are the sole write entrypoint for their invariant boundary.
+- Value Objects validate on construction and are replaced, not mutated.
+- Aggregate and Entity state changes go through behavior methods or Domain policies.
+- Constructors and factories create valid objects and run business validation.
+- Same-bounded-context Domain Events are recorded by aggregates after Domain state changes.
+- Write Repository interfaces represent one Aggregate Root collection and normally expose only `Get` and `Save`.
+
+Forbidden shape:
+
+- Domain must not import generated protocol, transport, ORM/database, broker, cache, runtime, Infrastructure, or another bounded context's internal Domain packages.
+- Domain must not persist, dispatch, publish, enqueue, start goroutines, read config, or log.
+- Domain must not expose setters or public mutable state that outer layers use to perform business transitions.
+- Domain Services must not need repositories, raw transactions, external clients, generated DTOs, schedulers, or runtime state.
+- Domain must not treat storage ids, SQL constraints, `deleted_at`, JSON/proto tags, or persistence transactions as model proof.
+
+### Application Layer
+
+Required shape:
+
+- Application accepts command/query DTOs and returns DTOs, read models, results, or mapped errors.
+- Command flow loads one Aggregate Root through a Domain Repository, calls Aggregate or Domain Service behavior, saves it, then returns a result.
+- Application drains and dispatches Domain Events exactly once after successful persistence when Domain Events exist.
+- Application owns use-case orchestration, transaction boundary, authorization/session context, idempotency, retry admission, and error mapping.
+- Application emits one completion log when it is the active execution boundary.
+- Query flow calls a QueryRepository or read facade and returns Application read DTOs.
+- Same-bounded-context reactions use Domain Event Handlers, boundary publication uses Boundary Publishers, and cross-context consumption uses Integration Message Handlers.
+- Cross-context reads or reactions use published read facades, Integration Messages, ACLs, or protocol contracts.
+- Generated RPC shortcut methods, when allowed, only map request, delegate once, and map response/error.
+
+Forbidden shape:
+
+- Application must not implement business rules by branching on Aggregate or Entity state.
+- Application must not mutate Entity fields or perform Domain transitions through field assignment.
+- Application must not pass raw transactions, ORM sessions, database clients, broker clients, Redis clients, or generated protocol DTOs into Domain.
+- Application must not coordinate several Aggregate Root candidates through one Repository/API call as if transaction shape proved the model.
+- Application must not rely on one transaction across several independent Aggregate Roots to make a business invariant true.
+- Application must not define technology-shaped or topology-shaped ports without an accepted semantic capability.
+- Application must not split one semantic capability lifecycle into many verb-shaped ports merely because an adapter has separate operations.
+- Application must not dispatch Domain Events before successful persistence or let repositories drain events.
+- Application must not serve product list/detail/history reads through write-side Repositories unless the read is a command-side Domain fact lookup.
+- Application must not mix Domain Event Handler, Boundary Publisher, Integration Message Handler, and task processor roles in one concrete handler.
+- Application must not import another bounded context's internal Domain or Application packages.
+- Fat generated RPC methods must not call repositories, mutate aggregates, control transactions, dispatch events, enqueue tasks, or orchestrate multiple ports.
+
+### Infrastructure Layer
+
+Required shape:
+
+- Infrastructure implements Domain Repositories, Application QueryRepositories/read facades, ACLs, external adapters, publishers, and runtime adapters.
+- Infrastructure maps explicitly between Domain/DTO objects and storage, generated protocol, or external client objects.
+- Infrastructure owns storage transactions, optimistic-lock version increments, soft-delete columns, retries, topology, routing, and SDK mechanics.
+- Repository implementations persist one Aggregate Root plus owned children/value objects and rehydrate event collections.
+- Shared technical clients and runtime resources live in shared Infrastructure/runtime packages, not in Domain or Application.
+
+Forbidden shape:
+
+- Infrastructure must not own business decisions, invariants, lifecycle admission, or state transition authority.
+- Infrastructure must not call Domain transition methods as the business decision maker.
+- Infrastructure must not disguise several independent Aggregate Roots or lifecycle owners as one Repository save because they share a transaction.
+- Infrastructure must not make cross-aggregate correctness depend on one database transaction.
+- Infrastructure must not drain or dispatch Domain Events from repositories.
+- Infrastructure must not expose raw transactions, sessions, ORM objects, technical stores, broker clients, peer directories, or routing mechanisms inward without an accepted semantic port.
+- Infrastructure must not make business deletion, recovery, or compensation exist only as technical columns, retries, or adapter behavior.
+- Infrastructure must not import business packages into shared technical packages.
+
+### Interface Layer
+
+Required shape:
+
+- Interface translates protocol requests, responses, format validation, actor/context extraction, and protocol error mapping.
+- Interface delegates once to an Application command/query handler or thin read shortcut.
+- Interface keeps generated/protocol DTOs at the boundary and maps them before Domain-facing APIs.
+
+Forbidden shape:
+
+- Interface must not contain business workflow, business state branching, transaction control, repository calls, aggregate mutation, event dispatch, task enqueueing, or multi-port orchestration.
+- Interface must not expose Domain aggregates or Entities as product read responses.
+- Interface must not convert protocol schema validation into Domain business validation.
+
+### Runtime Layer
+
+Required shape:
+
+- Runtime loads configuration, supplies component options, assembles modules, registers routes/subscribers/processors/schedules, and runs the process.
+- Shared runtime packages own client construction, lifecycle hooks, health checks, start/stop behavior, and shutdown order.
+- Bounded-context modules provide Application services, adapters, handlers, processors, and registrations without exposing root wiring details.
+- Production recovery, reconciliation, message, or task paths have a registered entrypoint and runtime ownership.
+
+Forbidden shape:
+
+- Runtime must not own business decisions, lifecycle admission, retries, compensation, or recovery semantics.
+- Process entrypoints must not construct repositories, QueryRepositories, ACL clients, generated route handlers, workers, or business services directly.
+- Application and Domain code must not own process loops, timers, provider lifecycle, shutdown policy, or runtime resource closure.
+- Hidden manual loops, schedulers, or reconcilers without task/runtime ownership are smells even if the callable command exists.
+- Environment branches in code must not replace configuration profiles or component options.
+
+### Cross-Layer Sentinels
+
+- Aggregate lifecycle: one Aggregate Root owns one lifecycle and invariant boundary; state words name parent lifecycle facts, not child process outcomes.
+- Repository/API: one Repository normally exposes `Get` and `Save` for one Aggregate Root plus owned children/value objects; extra semantic methods, product reads, or cross-owner transaction methods start as smells.
+- Cross-aggregate coordination: independent Aggregate Roots do not need the same transaction for business correctness; coordination is done by Domain Event, process manager, reconciler, task processor, Integration Message, or an explicit modeling return that changes the aggregate boundary.
+- Durable fact precedence: succeeded/accepted/completed/executed facts outrank open workflow states; later commands check durable facts before retry/start, cancel, reopen, reversal/compensation, execution, or closure.
+- Terminal closure: aggregate terminal facts and terminal events occur after required execution facts, idempotency/replay rules, and closure conditions are complete.
+- Collaboration: repeated external side effects, reversal/compensation, exception/dispute, settlement/closure, split execution/closure, or recovery reactions have one named collaboration mechanism and recovery behavior.
+- CQRS: write repositories serve command-side aggregate facts; product reads use QueryRepository/read facades returning DTO/read models.
+- Boundary isolation: Domain/Application semantic APIs use domain-owned language, not generated protocol, storage, runtime, or adapter concepts.
+- Recovery reachability: reconciler, task, event, or message recovery has a production entrypoint, runtime registration, and failure behavior.
 
 ## Review axes
 
@@ -128,11 +197,11 @@ resolving model ownership.
 
 Final answer is concise. Do not print the full working-evidence set by default.
 For lifecycle/repository/event/CQRS scope, complete and merge required smell verdicts before the final answer, then cite smell families in findings, evidence gaps, or returns.
-Working evidence stays internal unless it is needed to understand a judgment. A missing depth decision becomes an evidence gap, not a positive claim.
-Every returned smell-family verdict must land in Findings or Evidence gaps / returns.
+Working evidence stays internal unless it is needed to understand a judgment. If a smell family cannot be explained from available evidence, report an evidence gap, not a positive claim.
+Every explained smell-family verdict must land in Findings or Evidence gaps / returns.
 Do not collapse production wiring, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader finding.
 
-Report in this order when present: scope/model evidence, findings, evidence gaps / returns, no-finding notes for non-smell surfaces with positive shape, depth execution, verification, residual risk.
+Report in this order when present: scope/model evidence, findings, evidence gaps / returns, no-finding notes for non-smell surfaces with positive shape, verification, residual risk.
 
 No DDD findings: say that directly only when no concrete violation/return was found; list any smell-family evidence gaps and residual test gaps. Do not fill a finding template with harmless local style.
 
