@@ -1791,3 +1791,19 @@ Coverage Matrix:
 - The liveness contract was incomplete: the coordinator was told to wait until every delegated axis result was merged, but it was not told how to represent a missing or late axis.
 - Because missing axes had no bounded fallback representation, the review could wait indefinitely instead of emitting a final artifact with completed-axis findings plus evidence gaps for missing axes.
 - The next fix should preserve the subagent direction but make delegation a single bounded collection pass: returned axis ledgers are merged once; any missing axis becomes a missing-axis evidence-gap ledger; missing-axis ledgers block same-scope positive claims, not final artifact emission.
+
+## Protocol Regression 2026-07-08 v1.14.63
+
+- skill-workshop release under evaluation: `v1.14.63`, release commit `a265f7a`.
+- preceding hotfix: PR #116 converted absent axis ledgers into missing-axis evidence-gap ledgers and stated that missing axis ledgers block positive claims, not final artifact emission.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.63`.
+- review command: `timeout 900s codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.63.md '<fixed review prompt>' > /tmp/sanhe-ddd-review-v1.14.63-run.log 2>&1`
+- expected raw review output file: `/tmp/sanhe-ddd-review-v1.14.63.md`.
+- actual result: no output file was created; the process was stopped after about 10 minutes when it remained in the same wait pattern.
+- run-log evidence: `/tmp/sanhe-ddd-review-v1.14.63-run.log` showed row-local reads and two concrete lifecycle findings, then emitted `collab: Wait` while "waiting for the independent axis ledgers". After the lifecycle subagent returned, it emitted another `collab: Wait` while waiting for repository, FSM/state, and CQRS axis ledgers.
+
+### Regression Root Cause
+
+- v1.14.63 fixed the final-output semantics for absent ledgers, but still allowed the coordinator to enter an open-ended collaboration wait before finalization.
+- The model interpreted "bounded collection pass" as permission to wait for more subagent results, rather than as a fire-and-collect rule.
+- The next fix should explicitly forbid wait/collab-wait progress loops: after any axis ledger returns, finalize from returned ledgers plus bounded local ledgers or missing-axis evidence-gap ledgers for all remaining axes.
