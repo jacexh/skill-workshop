@@ -173,6 +173,7 @@ Lead with findings only when lifecycle/repository/event/CQRS gates are not trigg
 DDD review:
 - Expected model sources:
 - Evidence gate:
+- Mandatory-axis completion preflight: Axis | Trigger seeds | Required ledger | Present | Non-empty rows | If missing decision
 - Negative decision inventory: Row id | Row scope | Initial decision | Evidence inspected | Row-local promotion proof | Final decision | Finding id
 - Default-deny shape ledger: Axis | Shape trigger | First-principles necessity | Required proof | Initial decision | Final decision | Finding/return
 - Irreversible fact command-admission matrix: Row id | Durable fact | Stale parent state | Later command | Guard consulted | Decision
