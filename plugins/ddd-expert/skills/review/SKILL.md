@@ -84,6 +84,7 @@ First-principles shape challenge: is this shape genuinely required by the busine
 
 Use [../../references/ddd-review-smell-protocol.md](../../references/ddd-review-smell-protocol.md) for the correct-shape whitelist and smell-queue protocol.
 Main axis emits a bounded Smell Queue before deep investigation. Main-axis preflight compares touched code shape against the correct-shape whitelist; deviations become smell rows. Breadth emits coarse smell families; depth expands the family and checks sibling shapes. Do not try to enumerate every possible bad smell, and do not write findings in coordinator preflight. Fixed axes are classification tags, not delegation units.
+Main-axis first-hop breadth must enqueue visible layer-triggered smells directly: domain state/event vocabulary, application durable-fact admission/recovery, repository/API candidate-owner/collaboration, CQRS read-shaped write methods, and interface/runtime reachability.
 A smell is a failed whitelist match, not a neutral question. Depth starts from wrong shape and explains why it is wrong: model boundary, design placement, implementation drift, evidence gap, or weak trigger evidence.
 Do not debate whether a smell might be allowed as a local corner case. If a shape needs an exception, return to modeling or design instead of acquitting it in review.
 Repository/API touching non-aggregate roots or multiple aggregate roots is wrong shape. Application code reading entity state to decide domain behavior is wrong shape.

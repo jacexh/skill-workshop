@@ -1987,3 +1987,29 @@ Coverage Matrix:
 - Define layer-level correct shapes for Domain, Application, Infrastructure, Interface, and Runtime. Any layer behavior outside those shapes becomes a smell family.
 - Default-deny examples: Repository/API touching non-aggregate roots or multiple aggregate roots is wrong shape; Application code reading entity state to decide domain behavior is wrong shape.
 - Do not negotiate local corner cases inside review. If a shape needs an exception to be valid, return to modeling or design so the exception is explicit upstream.
+
+## Round 2026-07-08 v1.14.73 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.73`, release commit `ca5a490`.
+- preceding hotfix: PR #126 changed smell depth from proof/falsification to root-cause explanation, added layer-level required/forbidden shape whitelist, and removed field-heavy output/proof contracts from the smell protocol.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.73`.
+- clean worktree review output: `/tmp/sanhe-ddd-review-v1.14.73-clean.md`.
+- first dirty-worktree output `/tmp/sanhe-ddd-review-v1.14.73.md` was discarded for scoring because `/home/xuhao/sanhe` had unrelated uncommitted FSM adaptation changes and the review naturally focused that diff.
+- post-review calibration output: `/tmp/sanhe-ddd-review-v1.14.73-clean-reflection.md`.
+- depth execution evidence: final output reported 4 focused depth explainers: lifecycle fact precedence, repository/API shape, parent state vocabulary, and CQRS read/write split.
+
+### Score
+
+- Known-issue hits: K2 full; K3 missed; K4 partial; K5 partial; K6 partial; K7 partial; K8 partial; K10 partial.
+- Total: 52 / 100.
+
+### Gap Analysis
+
+- The root-cause explainer shift restored subagent usage and produced a strong K2 finding.
+- The main-axis queue still did not spawn linked smell families after finding a wrong shape. Payment fact precedence should have spawned recovery production wiring; repository/API shape should have spawned terminal/execution timing and collaboration mechanism families; parent-state vocabulary should have included `payment_pending`; CQRS no-finding still lacked visible method-level inventory.
+- Grouped returns are still too lossy. A broad repository/API return cannot stand in for candidate-owner, collaboration, terminal timing, and accepted-transaction-waiver decisions.
+
+### Next Fix
+
+- Add linked-family seeding rules to the smell protocol: when a lifecycle/repository/event/CQRS smell appears, the coordinator must enqueue the adjacent correct-shape sentinels that can be invalidated by that smell.
+- Keep depth explainers as "why wrong" agents, but make sibling scope concrete enough that recovery wiring, terminal/execution timing, collaboration mechanisms, parent-state vocabulary, and CQRS method inventory do not disappear into grouped returns.
