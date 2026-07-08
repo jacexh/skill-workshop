@@ -80,6 +80,8 @@ jq -e '.plugins[] | select(.name == "superpowers-ddd-architect")' \
 [ -f "$CODEX_ROOT/.codex-plugin/plugin.json" ] || fail "Codex ddd-expert manifest missing"
 [ "$(jq -r .name "$CLAUDE_ROOT/.claude-plugin/plugin.json")" = "ddd-expert" ] || fail "Claude manifest name should be ddd-expert"
 [ "$(jq -r .name "$CODEX_ROOT/.codex-plugin/plugin.json")" = "ddd-expert" ] || fail "Codex manifest name should be ddd-expert"
+grep -q "multi_agent = true" "$ROOT/.codex/config.toml" || fail "Repo Codex config should enable multi_agent for axis-subagent review"
+grep -q "multi_agent = true" "$CODEX_ROOT/README.md" || fail "Codex ddd-expert README should require multi_agent feature flag"
 
 # ddd-expert owns only restrained workflow-routing hooks. Hooks remind agents
 # which ddd-expert skill to invoke; they must not inject reference content.
@@ -264,7 +266,9 @@ check_review_evidence_gate() {
   grep -q "Each subagent returns inventory rows and negative decisions only, not the final overall conclusion" "$review_skill" || fail "$label review should restrict subagent output shape"
   grep -q "The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis result is merged" "$review_skill" || fail "$label review should block final output until subagent results merge"
   grep -q "A finding from one subagent cannot close or waive another axis" "$review_skill" || fail "$label review should prevent one subagent finding from masking other axes"
-  grep -q "If a subagent call fails, record that axis as an evidence gap" "$review_skill" || fail "$label review should treat failed subagent calls as evidence gaps"
+  grep -q "If subagent tools are unavailable, stop with setup error" "$review_skill" || fail "$label review should stop when subagent tools are unavailable"
+  grep -q "Do not continue as a single-agent multi-axis review" "$review_skill" || fail "$label review should not fallback to single-agent multi-axis review"
+  grep -q "If a delegated subagent call fails after tools are available, record that axis as an evidence gap" "$review_skill" || fail "$label review should treat failed delegated calls as evidence gaps"
 
   grep -q "Final answer is concise" "$review_skill" || fail "$label review output should be explicitly concise"
   grep -q "Do not print the full ledger set by default" "$review_skill" || fail "$label review output should not print every ledger by default"

@@ -12,6 +12,7 @@ Codex hooks require these feature flags in `~/.codex/config.toml`:
 [features]
 hooks = true
 plugin_hooks = true
+multi_agent = true
 ```
 
 ```bash
@@ -19,7 +20,7 @@ codex plugin marketplace add jacexh/skill-workshop
 codex plugin add ddd-expert@skill-workshop-codex
 ```
 
-Restart Codex after installation so the skills and hook are loaded.
+Restart Codex after installation so the skills, hooks, and multi-agent review tools are loaded. `$ddd-expert:review` uses subagents for multi-axis lifecycle/repository/event/CQRS review.
 
 ## Upgrade
 
