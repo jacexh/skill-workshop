@@ -242,6 +242,8 @@ check_review_evidence_gate() {
   grep -q "Independent modeling findings" "$review_skill" || fail "$label review output should separate independent modeling findings from build blockers"
   grep -q "Evidence gap, not finding" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
   grep -q "Coordinator budget" "$review_skill" || fail "$label review should cap coordinator reference reading and final output"
+  grep -q "After spawning subagents" "$review_skill" || fail "$label review should stop broad coordinator reads after subagents start"
+  grep -q "Budget fallback final" "$review_skill" || fail "$label review should emit a final answer instead of reading until context exhaustion"
 
   grep -q "Coverage pass is the orchestration checklist; detailed risk rules live in the risk router and core reference" "$review_skill" || fail "$label review should keep Coverage pass as orchestration"
   grep -q "For lifecycle/repository/event/CQRS scope, do not start with Findings" "$review_skill" || fail "$label review should reject findings-first lifecycle output"

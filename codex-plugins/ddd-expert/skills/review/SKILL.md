@@ -19,7 +19,7 @@ Before findings: confirm concrete evidence exists; start from business facts bef
 
 ## Coordinator budget
 
-The coordinator is a merger, not another full reviewer. For multi-axis scope, keep coordinator reads to this skill, the risk router, model/spec/code seeds, and subagent outputs; do not load ddd-core or language references in full. Ask subagents to read their relevant reference slices. If proof is still missing after merge, inspect only cited sections or record Evidence gap. Final answer target: 70 lines or fewer; subagent result target: 12 inventory rows or fewer per axis.
+The coordinator is a merger, not another full reviewer. For multi-axis scope, keep coordinator reads to this skill, the risk router, model/spec/code seeds, and subagent outputs; do not load ddd-core or language references in full. Ask subagents to read their relevant reference slices. After spawning subagents, stop broad coordinator reads: no full-file reads, repo-wide searches, or local re-review passes except <=50-line cited snippets needed to merge a returned row. Budget fallback final: if proof would require more broad reading, emit the final answer with completed axes plus Evidence gap rows instead of reading until context exhaustion. Final answer target: 70 lines or fewer; subagent result target: 12 inventory rows or fewer per axis.
 
 ## Coverage pass
 
