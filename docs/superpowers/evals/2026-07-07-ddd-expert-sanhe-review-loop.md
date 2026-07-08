@@ -2425,3 +2425,30 @@ Durations below are approximate wall-clock measurements from raw-log birth time 
 - The negative-evidence wording did not force upgrades: the reviewer still left CQRS as "no product-read violation", parent-state vocabulary as mostly correct, and collaboration mechanism absent.
 - The lesson is not to add more project words, but to preserve stronger final-output obligations: clearing state vocabulary or CQRS must name observed state words / write-side methods checked, and clearing collaboration must name the mechanism for each linked lifecycle family. Without that concrete final proof, the row is a finding or return/evidence gap.
 - Latest released version is below the accepted 70+ band; restore or repair before treating the loop as complete.
+
+## Round 2026-07-08 v1.14.88 Stability Re-check
+
+- skill-workshop release under evaluation: `v1.14.88`, release commit `66d79eb`.
+- preceding hotfix: PR #141 restored the stable v1.14.86 review verdict behavior after the v1.14.87 regression, while preserving the v1.14.87 failed-experiment record.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.88`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.88-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.88-clean/original-review-final.md`, 4 findings plus 3 evidence gaps/returns.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.88-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.88-clean/reflection-final.md`.
+- execution cost: original review consumed `534,651` tokens and took approximately `9m24s` by raw-log birth time to final-output mtime; calibration consumed `20,676` tokens and took approximately `1m31s` by the same file-timestamp method.
+- verification inside clean review: focused domain/application/eventhandler tests passed and `git diff --check origin/master...HEAD` passed; `go test ./...` was interrupted after about 2 minutes with no new output; isolated `timeout 30s go test ./internal/business/tasknegotiation/infrastructure -count=1` also timed out with no output.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K4 full; K5 full; K7 full; K6 partial; K8 and K10 missed.
+- Breadth: 34 / 45. The rollback restored the strong first-hop coverage for durable fact precedence, production recovery, terminal/execution event split, repository/API owner pressure, and accepted-design non-waiver. It still did not preserve parent-state vocabulary or CQRS as independent failing rows.
+- Depth: 32 / 45. K2-K5 and K7 are actionable and grounded. K6 is recognized but too compressed into a single collaboration-mechanism gap. K8 is folded into the payment admission finding, and K10 is folded into the broader repository/API return.
+- Review discipline: 8 / 10. The review no longer shows the v1.14.87 weak-clearance failure for repository/waiver and keeps evidence concise. Discipline loss remains from clearing CQRS by product-read absence and omitting an independent parent-state vocabulary verdict.
+- Total: 74 / 100.
+
+### Gap Analysis
+
+- v1.14.88 confirms the rollback restored the 70+ behavior band, though this specific run scored below v1.14.86 because K10 was missed rather than partial.
+- Stability is acceptable against the user's revised stop condition: v1.14.82, v1.14.83, v1.14.84, v1.14.86, and v1.14.88 are all clean 70+ runs; v1.14.85 and v1.14.87 are documented regressions with causes.
+- Cost note: v1.14.88 consumed far more original-review tokens than v1.14.86 (`534,651` vs `215,064`) despite similar score band. The reviewer read extra memory/design material and then waited on long infrastructure verification; future optimization should target review cost, not more scoring rules.
+- Latest released version is back in the accepted band and can be treated as the current stable baseline.
