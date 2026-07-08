@@ -72,6 +72,10 @@ Split refund/settlement terminal rows must decide whether terminal agreement fac
 Repository/API local fallback rows must be one row per semantic method; examples such as SaveDeliveryRejection or SaveDisputeResolutionAuthorization do not cover the family.
 Collaboration local fallback rows must be one row per lifecycle flow, not inherited from repository or recovery findings.
 A CQRS axis summary may not say no finding, no branch finding, or inventory-only unless visible method-level CQ rows are emitted.
+Do not emit a Checked Coverage table in complex lifecycle/repository/event/CQRS reviews.
+Positive clearance phrases such as no issue, no similar issue, no branch finding, inventory-only, 未发现, or 适配正确 are forbidden unless exact admitted rows are printed.
+Complex multi-axis review must include a ledger appendix for triggered terminal/execution, collaboration, repository/API, parent-state, and CQRS axes.
+Triggered rows with incomplete exact proof become evidence gap or return, never checked coverage.
 Subagents must not each perform a full global review; each receives one axis, relevant source seeds, required ledger columns, and a bounded output contract.
 Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
 Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
