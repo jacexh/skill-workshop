@@ -241,6 +241,7 @@ check_review_evidence_gate() {
   grep -q "Compare touched code against the layer baseline" "$review_skill" || fail "$label review should use layer-baseline shape checks"
   grep -q "Use references only to explain triggered smells, not to enumerate findings" "$review_skill" || fail "$label review should not enumerate findings from references"
   grep -q "Missing proof is an evidence gap unless concrete evidence proves a violation" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
+  grep -q "\`design/convention accepted\`, \`MVP transaction\`, or similar waiver wording is an accepted-design evidence gap, not clearance" "$review_skill" || fail "$label review should block accepted-design waiver clearance phrases"
   grep -q "Object splitting, package names, generated DTO mapping, and QueryRepository presence are not enough to clear a triggered smell family" "$review_skill" || fail "$label review should not clear triggered families from structural presence alone"
   grep -q "Scope narrows files to inspect; it does not remove required lifecycle/repository/event/CQRS family rows" "$review_skill" || fail "$label review should not narrow away required family rows by scope"
 
@@ -306,8 +307,9 @@ check_review_evidence_gate() {
   grep -q "recovery reachability alone does not clear admission" "$review_skill" || fail "$label review should not let recovery clear command admission"
   grep -q "Terminal/execution event vocabulary: child execution events and parent terminal events have distinct names and timing" "$review_skill" || fail "$label review should inspect terminal event vocabulary"
   grep -q "parent terminal events are not emitted during partial child execution" "$review_skill" || fail "$label review should reject premature parent terminal events"
+  grep -q "final verdict cites event names" "$review_skill" || fail "$label review terminal verdicts should cite event names"
   grep -q "state closure alone does not clear this row" "$review_skill" || fail "$label review should not clear terminal row from state closure alone"
-  grep -q "payment recovery and terminal event vocabulary do not clear delivery/refund/dispute/settlement collaboration rows" "$review_skill" || fail "$label review should not let adjacent rows clear collaboration"
+  grep -q "payment recovery, terminal event vocabulary, or \"main risk elsewhere\" do not clear delivery/refund/dispute/settlement collaboration rows" "$review_skill" || fail "$label review should not let adjacent rows clear collaboration"
   grep -q "CQRS: write repositories serve command-side aggregate facts" "$review_skill" || fail "$label review should whitelist CQRS shape"
   grep -q "Required family rows: payment/delivery/refund/dispute/settlement scope keeps durable-fact command admission" "$review_skill" || fail "$label review should require separate family rows for lifecycle scopes"
   grep -q "Repository/API inventory: inspect Domain Repository interfaces, Application repository calls, Infrastructure store methods" "$review_skill" || fail "$label review should require repository/API inventory rows"

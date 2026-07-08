@@ -36,6 +36,7 @@ Before findings:
 7. Implementation transaction shape is not model evidence and cannot satisfy Repository design.
 8. Object splitting, package names, generated DTO mapping, and QueryRepository presence are not enough to clear a triggered smell family.
 9. Scope narrows files to inspect; it does not remove required lifecycle/repository/event/CQRS family rows.
+10. `design/convention accepted`, `MVP transaction`, or similar waiver wording is an accepted-design evidence gap, not clearance.
 
 ## Workflow
 
@@ -164,8 +165,8 @@ Forbidden shape:
 - Durable fact precedence: succeeded/accepted/completed/executed facts outrank open workflow states; later commands check durable facts before retry/start, cancel, reopen, reversal/compensation, execution, or closure.
 - Durable-fact command admission: when a durable child fact can precede parent state reflection, inspect retry/start/cancel/reopen commands against the durable fact; recovery reachability alone does not clear admission.
 - Terminal closure: aggregate terminal facts and terminal events occur after required execution facts, idempotency/replay rules, and closure conditions are complete.
-- Terminal/execution event vocabulary: child execution events and parent terminal events have distinct names and timing; parent terminal events are not emitted during partial child execution, and state closure alone does not clear this row.
-- Collaboration: repeated external side effects, reversal/compensation, exception/dispute, settlement/closure, split execution/closure, or recovery reactions have one named collaboration mechanism and recovery behavior; payment recovery and terminal event vocabulary do not clear delivery/refund/dispute/settlement collaboration rows.
+- Terminal/execution event vocabulary: child execution events and parent terminal events have distinct names and timing; parent terminal events are not emitted during partial child execution; final verdict cites event names, and state closure alone does not clear this row.
+- Collaboration: repeated external side effects, reversal/compensation, exception/dispute, settlement/closure, split execution/closure, or recovery reactions have one named collaboration mechanism and recovery behavior; payment recovery, terminal event vocabulary, or "main risk elsewhere" do not clear delivery/refund/dispute/settlement collaboration rows.
 - CQRS: write repositories serve command-side aggregate facts; product reads use QueryRepository/read facades returning DTO/read models.
 - Boundary isolation: Domain/Application semantic APIs use domain-owned language, not generated protocol, storage, runtime, or adapter concepts.
 - Recovery reachability: reconciler, task, event, or message recovery has a production entrypoint, runtime registration, and failure behavior.
