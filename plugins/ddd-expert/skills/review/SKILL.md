@@ -58,12 +58,13 @@ final output must not duplicate final answer blocks.
 ## Axis subagent review protocol
 
 When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must delegate axis reviews to subagents before final output.
+If subagent tools are unavailable, stop with setup error: enable Codex `[features] multi_agent = true` or the equivalent Claude Code subagent support. Do not continue as a single-agent multi-axis review.
 Use one subagent per triggered heavy axis: Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods.
 Each subagent receives the expected model sources, scope trigger evidence, relevant code seeds, and required ledger columns for its axis.
 Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
 The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis result is merged into the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory.
 A finding from one subagent cannot close or waive another axis.
-If a subagent call fails, record that axis as an evidence gap, block same-scope positive claims, and continue merging the completed axes.
+If a delegated subagent call fails after tools are available, record that axis as an evidence gap, block same-scope positive claims, and continue merging the completed axes.
 
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why the original review missed or shallowly found each item, and convert repeated misses into generic review rules, risk-router updates, or eval assertions. Do not stop after the first Blocker if other independent flows are in scope; report Independent modeling findings separately from executable verification gaps.
 
