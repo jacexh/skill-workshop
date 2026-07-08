@@ -65,7 +65,11 @@ Each subagent receives the expected model sources, scope trigger evidence, relev
 Each subagent returns inventory rows and negative decisions only, not the final overall conclusion.
 Coordinator merges returned ledgers; it does not restart full-repository review or let one high-salience issue truncate other axes.
 Delegation has a single bounded collection pass: after dispatching triggered axis reviews, merge returned ledgers once; do not wait indefinitely for missing subagent responses.
+Subagent delegation is fire-and-collect, not open-ended collaboration.
+Do not send wait/collab-wait progress messages while expecting subagent ledgers.
+After any axis ledger returns, finalize with returned ledgers plus bounded local ledgers or missing-axis evidence-gap ledgers for all remaining axes.
 A delegated axis that has not returned becomes a missing-axis evidence-gap ledger with reviewer `subagent-missing`, trigger evidence, and blocked positive claims.
+If a delegated axis has no returned ledger at finalization time, the coordinator must either fill a bounded local ledger from already-read evidence or emit a missing-axis evidence-gap ledger.
 The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis is represented by a returned ledger or a missing-axis evidence-gap ledger in the Mandatory axis trigger ledger, Axis subagent ledger, and Negative decision inventory.
 Never leave the review at a wait/collab wait state after returned ledgers exist; emit final output with missing-axis evidence gaps instead.
 A finding from one subagent cannot close or waive another axis.
