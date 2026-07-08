@@ -2305,3 +2305,30 @@ Next evaluation should be against the first released version after this local br
 - K4 false negative reason: the review checked whether split dispute closes after both refund/settlement executions, but did not inspect whether single-side execution emitted parent terminal events or whether final closure emitted its own terminal event.
 - Terminal/execution split needs an event-vocabulary clause: execution facts and parent terminal facts must have separate event names and timing.
 - Next fix: terminal/execution cannot be cleared by state closure alone; inspect same-named parent terminal events emitted during child execution and missing final closure events.
+
+## Round 2026-07-08 v1.14.84 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.84`, release commit `b600c87`.
+- preceding hotfix: PR #137 added terminal/execution event-vocabulary inspection and blocked clearing that row by state closure alone.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.84`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.84-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.84-clean/original-review-final.md`, 4 findings plus 2 evidence gaps.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.84-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.84-clean/reflection-final.md`.
+- verification inside clean review: focused domain/application/eventhandler tests passed, focused infrastructure lifecycle tests passed, and `git diff --check origin/master...HEAD` passed.
+
+### Score
+
+- Known-issue hits: K2 full; K3 full; K4 full; K10 full but shallow; K5 partial; K6 partial; K8 partial; K7 missed.
+- Breadth: 35 / 45. Terminal/execution recovered, and CQRS stayed visible. Accepted-design waiver disappeared, and parent-state vocabulary only covered failed/cancelled.
+- Depth: 30 / 45. K2/K3/K4 are strong. K5/K6/K8/K10 are still symptom-shaped rather than full model/owner/collaboration analysis. K7 is absent.
+- Review discipline: 8 / 10. Verification is good and output is concise; regression is accepting spec/design as expected model without separately testing waiver risk.
+- Total: 73 / 100.
+
+### Gap Analysis
+
+- K4 is fixed relative to v1.14.83.
+- K7 regressed because the review reconstructed spec/design as expected model but did not inspect whether accepted design or semantic transaction wording was acting as a waiver.
+- K8 is partial because `payment_failed` / `payment_cancelled` were named, but `payment_pending` was not adjudicated as parent lifecycle vocabulary.
+- K6 remains partial because payment recovery and terminal event vocabulary were counted as adjacent collaboration evidence, but delivery/refund/dispute/settlement orchestration still lacks a named Domain Event / process manager / reconciler / operator command mechanism.
+- Next fix: accepted-design waiver, payment_pending vocabulary, and non-payment collaboration mechanism each need explicit final verdict rows.
