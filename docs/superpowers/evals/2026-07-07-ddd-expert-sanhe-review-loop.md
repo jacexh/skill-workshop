@@ -1671,3 +1671,20 @@ Coverage Matrix:
 - v1.14.57 removed the mandatory subagent dead end, but it still allowed unbounded preflight reads before any axis ledger was emitted.
 - The review skill still told the reviewer to read the risk router first, and the reviewer also invoked project memory. In this repo, those sources are large enough to consume the review before final output.
 - The next fix should make review preflight bounded: risk router and memory are routing indexes only, not full-file preload. If a source is too large or missing, the reviewer must continue from the provided spec/design/code seeds and emit evidence gaps instead of reading until the final answer disappears.
+
+## Protocol Regression 2026-07-08 v1.14.58
+
+- skill-workshop release under evaluation: `v1.14.58`, release commit `ba14f81b3e3a1e0f58ee0f08fd4d2dd0ad5da4c3`.
+- preceding hotfix: PR #111, merge commit `f73f78041a7aa4cfa075f21ef2c37aa5bf07fb82`.
+- plugin evidence: `codex plugin list` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.58`; installed review skill contained bounded risk-router and no-default-memory rules.
+- review command: `codex --ask-for-approval never exec -C /home/xuhao/sanhe --sandbox read-only --color never --output-last-message /tmp/sanhe-ddd-review-v1.14.58.md '<fixed review prompt>' > /tmp/sanhe-ddd-review-v1.14.58-run.log 2>&1`
+- expected raw review output file: `/tmp/sanhe-ddd-review-v1.14.58.md`.
+- actual result: no output file was created.
+- session evidence: `/home/xuhao/.codex/sessions/2026/07/08/rollout-2026-07-08T09-59-45-019f3f73-dcbe-7022-851c-fd7791fade52.jsonl`.
+- process evidence: the reviewer obeyed the no-memory rule, but then did broad local source/test/SQL reads. Token usage reached 322,449 input tokens and 326,559 total tokens; the final session events again had no `phase=final_answer`.
+
+### Regression Root Cause
+
+- Bounded preflight fixed project-memory overread, but mandatory-axis completion was still interpreted as exhaustive source traversal.
+- Long implementation files, integration tests, and SQL/schema evidence were read before any final-output path, so the axis ledger never became a final answer.
+- The next fix should make axis ledgers evidence-indexed: inventory with `rg`, open only row-local snippets needed for a negative/checked decision, and turn the rest into evidence gaps instead of reading every implementation/test line.
