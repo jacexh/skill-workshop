@@ -1597,3 +1597,19 @@ Coverage Matrix:
 - Default-deny semantic transactions and command-path coordination until row-local proof names an accepted mechanism plus failure-tolerance rule.
 - Treat naming, package separation, DTO/query names, and caller location as routing clues only; forbid them as final positive proof.
 - Make Finding paragraphs generated only from completed inventory rows; a broad finding cannot stand in for missing repository/API, collaboration, parent-state, or CQRS inventory rows.
+
+## Protocol Regression 2026-07-08 v1.14.52-v1.14.55
+
+- v1.14.52 introduced a stronger mandatory-axis final-output gate but did not produce `/tmp/sanhe-ddd-review-v1.14.52.md`; the process log reached interim analysis but no final review conclusion.
+- v1.14.53 simplified output shape but still did not produce `/tmp/sanhe-ddd-review-v1.14.53.md`; no final DDD review findings were emitted.
+- v1.14.54 added a `multi_agent = true` prerequisite and setup-error path, but the sanhe run still ended without `/tmp/sanhe-ddd-review-v1.14.54.md` or a final assistant message.
+- v1.14.55 required internal axis subagent delegation; the run failed before final output when `SpawnAgent` rejected a full-history fork with `agent_type`, model, or reasoning-effort overrides.
+- v1.14.56 made the coordinator shorter, but the sanhe run still produced no final review file. It loaded the generic `dispatching-parallel-agents` workflow, spawned five reviewers, then the coordinator continued broad local reads (`task_agreement.go`, repository files, `go.mod`, and `go-jimu` module source) until context exhaustion.
+- These versions are non-scorable, not low-scoring: the primary defect is protocol liveness. A review skill must always have a final-output path after static evidence inspection.
+
+### Regression Root Cause
+
+- Mandatory subagent delegation made the review skill depend on an execution surface that may be absent or may reject inherited-history arguments.
+- Generic delegation workflows are too broad for this review skill; they encourage full-history or long-context coordination instead of the review-specific axis ledger protocol.
+- Numeric output/skill line caps treated brevity as the control mechanism. That compressed the protocol but did not guarantee mandatory-axis completion.
+- The repair direction is to keep mandatory-axis ledgers as the quality gate, make subagents optional accelerators only, and use single-process fallback with evidence gaps for uninspected or failed-delegation rows.

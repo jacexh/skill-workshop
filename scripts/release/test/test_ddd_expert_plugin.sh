@@ -80,8 +80,9 @@ jq -e '.plugins[] | select(.name == "superpowers-ddd-architect")' \
 [ -f "$CODEX_ROOT/.codex-plugin/plugin.json" ] || fail "Codex ddd-expert manifest missing"
 [ "$(jq -r .name "$CLAUDE_ROOT/.claude-plugin/plugin.json")" = "ddd-expert" ] || fail "Claude manifest name should be ddd-expert"
 [ "$(jq -r .name "$CODEX_ROOT/.codex-plugin/plugin.json")" = "ddd-expert" ] || fail "Codex manifest name should be ddd-expert"
-grep -q "multi_agent = true" "$ROOT/.codex/config.toml" || fail "Repo Codex config should enable multi_agent for axis-subagent review"
-grep -q "multi_agent = true" "$CODEX_ROOT/README.md" || fail "Codex ddd-expert README should require multi_agent feature flag"
+grep -q "multi_agent = true" "$ROOT/.codex/config.toml" || fail "Repo Codex config should keep optional multi_agent enabled for local evaluation"
+grep -q "multi_agent feature flag is optional" "$CODEX_ROOT/README.md" || fail "Codex ddd-expert README should document multi_agent as optional acceleration"
+grep -q "review falls back to a single-process axis review" "$CODEX_ROOT/README.md" || fail "Codex ddd-expert README should document single-process review fallback"
 
 # ddd-expert owns only restrained workflow-routing hooks. Hooks remind agents
 # which ddd-expert skill to invoke; they must not inject reference content.
@@ -218,14 +219,6 @@ check_implement_skill "$CODEX_ROOT/skills/implement/SKILL.md" "Codex"
 check_review_evidence_gate() {
   local review_skill="$1"
   local label="$2"
-  local coverage_lines
-  local output_lines
-
-  coverage_lines=$(section_line_count "$review_skill" "## Coverage pass" "## Axis subagent review protocol")
-  [ "$coverage_lines" -le 35 ] || fail "$label review Coverage pass should stay an orchestration checklist, not a long rule catalog"
-  output_lines=$(section_line_count "$review_skill" "## Output" "No DDD findings: say that directly only after axis completion summary shows required ledgers completed, then list residual test or evidence gaps. Do not fill a finding template with harmless local style.")
-  [ "$output_lines" -le 45 ] || fail "$label review output should stay concise and move detailed ledgers to appendix"
-  [ "$(wc -l <"$review_skill")" -le 105 ] || fail "$label review skill should stay short enough to finish multi-axis reviews"
   grep -q "Expected model sources" "$review_skill" || fail "$label review should reconstruct expected model from upstream outputs"
   grep -q "model evidence" "$review_skill" || fail "$label review should reconstruct model evidence"
   grep -q "Domain Modeling Brief" "$review_skill" || fail "$label review should read Domain Modeling Brief"
@@ -241,9 +234,14 @@ check_review_evidence_gate() {
   grep -q "Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design / Evidence gap" "$review_skill" || fail "$label review output should route modeling/design exceptions upstream"
   grep -q "Independent modeling findings" "$review_skill" || fail "$label review output should separate independent modeling findings from build blockers"
   grep -q "Evidence gap, not finding" "$review_skill" || fail "$label review skill should separate evidence gaps from findings"
-  grep -q "Coordinator budget" "$review_skill" || fail "$label review should cap coordinator reference reading and final output"
-  grep -q "After spawning subagents" "$review_skill" || fail "$label review should stop broad coordinator reads after subagents start"
+  grep -q "Coordinator discipline" "$review_skill" || fail "$label review should define coordinator discipline"
+  grep -q "Do not invoke generic dispatching-parallel-agents or subagent-driven-development inside review" "$review_skill" || fail "$label review should not load generic delegation workflows inside review"
+  grep -q "Subagents are optional accelerators" "$review_skill" || fail "$label review should make subagents optional, not mandatory"
+  grep -q "single-process fallback" "$review_skill" || fail "$label review should continue with single-process fallback when subagents are unavailable"
+  grep -qi "do not spawn full-history forked agents with agent_type, model, or reasoning_effort overrides" "$review_skill" || fail "$label review should document safe subagent invocation"
   grep -q "Budget fallback final" "$review_skill" || fail "$label review should emit a final answer instead of reading until context exhaustion"
+  ! grep -q "Final answer target: .*lines" "$review_skill" || fail "$label review should not impose final-answer line limits"
+  ! grep -q "subagent result target: .*rows" "$review_skill" || fail "$label review should not impose subagent row limits"
 
   grep -q "Coverage pass is the orchestration checklist; detailed risk rules live in the risk router and core reference" "$review_skill" || fail "$label review should keep Coverage pass as orchestration"
   grep -q "For lifecycle/repository/event/CQRS scope, do not start with Findings" "$review_skill" || fail "$label review should reject findings-first lifecycle output"
@@ -263,16 +261,15 @@ check_review_evidence_gate() {
   grep -q "First-principles shape challenge" "$review_skill" || fail "$label review should require first-principles shape challenge"
   grep -q "Is this shape genuinely necessary for the business invariant, or compensating for a wrong aggregate/lifecycle boundary" "$review_skill" || fail "$label review should challenge whether a dangerous shape is necessary or design error"
 
-  grep -q "Axis subagent review protocol" "$review_skill" || fail "$label review should define axis subagent protocol"
-  grep -q "When two or more mandatory lifecycle/repository/event/CQRS axes are triggered, the coordinator must delegate axis reviews to subagents before final output" "$review_skill" || fail "$label review should require subagent delegation for multi-axis scope"
-  grep -q "Use one subagent per triggered heavy axis" "$review_skill" || fail "$label review should split heavy axes across subagents"
-  grep -q "Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods" "$review_skill" || fail "$label review should name subagent axis split"
-  grep -q "Each subagent returns inventory rows and negative decisions only, not the final overall conclusion" "$review_skill" || fail "$label review should restrict subagent output shape"
-  grep -q "The coordinator may not emit final Finding paragraphs, Rules Satisfied entries, no-finding claims, or residual-risk summaries until every delegated axis result is merged" "$review_skill" || fail "$label review should block final output until subagent results merge"
-  grep -q "A finding from one subagent cannot close or waive another axis" "$review_skill" || fail "$label review should prevent one subagent finding from masking other axes"
-  grep -q "If subagent tools are unavailable, stop with setup error" "$review_skill" || fail "$label review should stop when subagent tools are unavailable"
-  grep -q "Do not continue as a single-agent multi-axis review" "$review_skill" || fail "$label review should not fallback to single-agent multi-axis review"
-  grep -q "If a delegated subagent call fails after tools are available, record that axis as an evidence gap" "$review_skill" || fail "$label review should treat failed delegated calls as evidence gaps"
+  grep -q "Axis review protocol" "$review_skill" || fail "$label review should define axis review protocol"
+  grep -q "Run mandatory axes in-process by default" "$review_skill" || fail "$label review should support in-process mandatory axes"
+  grep -q "Absence or failure of subagent tools must not block final review output" "$review_skill" || fail "$label review should not block final output on subagent availability"
+  grep -q "Any uninspected or failed-delegation axis row remains an evidence gap" "$review_skill" || fail "$label review should classify failed delegated axes as evidence gaps"
+  grep -q "Repository/API candidate classification; lifecycle/event/recovery/terminal-execution; collaboration/process mechanism; parent-state/FSM language; CQRS/read-shaped write-side methods" "$review_skill" || fail "$label review should name axis split"
+  grep -q "A finding from one axis cannot close or waive another axis" "$review_skill" || fail "$label review should prevent one axis finding from masking other axes"
+  ! grep -q "coordinator must delegate axis reviews to subagents before final output" "$review_skill" || fail "$label review should not require mandatory subagent delegation"
+  ! grep -q "If subagent tools are unavailable, stop with setup error" "$review_skill" || fail "$label review should not stop when subagent tools are unavailable"
+  ! grep -q "Do not continue as a single-agent multi-axis review" "$review_skill" || fail "$label review should allow single-agent fallback"
 
   grep -q "Final answer is concise" "$review_skill" || fail "$label review output should be explicitly concise"
   grep -q "Do not print the full ledger set by default" "$review_skill" || fail "$label review output should not print every ledger by default"
@@ -280,7 +277,7 @@ check_review_evidence_gate() {
   grep -q "cite row ids in the summary and findings" "$review_skill" || fail "$label review should cite ledger row ids"
   grep -q "Expand ledger rows only when they justify a finding/evidence gap/return, a no-finding claim, or the user asks" "$review_skill" || fail "$label review should expand ledgers only when needed"
   grep -q "Scope/model evidence" "$review_skill" || fail "$label review output should summarize scope and model evidence"
-  grep -q "Axis completion summary: Axis | Reviewer/subagent | Trigger evidence | Rows | Negative rows | Decision | Row ids" "$review_skill" || fail "$label review output should include compact axis completion summary"
+  grep -q "Axis completion summary: Axis | Reviewer | Trigger evidence | Rows | Negative rows | Decision | Row ids" "$review_skill" || fail "$label review output should include compact axis completion summary"
   grep -q "Findings:" "$review_skill" || fail "$label review output should include findings section"
   grep -q "Finding: <severity> <axis> <title> \\[row ids\\]" "$review_skill" || fail "$label review finding output should cite row ids"
   grep -q "Fix direction: <model correction | implementation mechanism | evidence needed | test/verification needed>" "$review_skill" || fail "$label review output should compress fix direction"
