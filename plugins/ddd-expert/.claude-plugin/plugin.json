@@ -1,7 +1,7 @@
 {
   "name": "ddd-expert",
   "description": "Standalone DDD/backend architecture expert skills for code agents",
-  "version": "1.14.60",
+  "version": "1.14.61",
   "author": {
     "name": "xuhao"
   },
