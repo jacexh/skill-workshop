@@ -2120,3 +2120,30 @@ Next evaluation should be against the first released version after this local br
 - The review found a new useful symptom, "Delivery submission state transition is in MySQL repository", but did not generalize it into Repository/API candidate-owner classification across payment/delivery/refund/dispute/settlement.
 - K7 is the decisive failure mode: the final Notes used "拆分基本符合 spec" and "语义 repository 方法做事务持久化" as waiver-like positive evidence.
 - The next fix should remove remaining workflow micro-protocols and make the hot path a positive recipe, not more admission/proof text: six steps, smell guilty-presumption, related evidence follow-up, and weak positive proof downgraded inline in Output.
+
+## Round 2026-07-08 v1.14.77 Re-evaluation
+
+- skill-workshop release under evaluation: `v1.14.77`, release commit `6c360a7`.
+- preceding hotfix: PR #130 collapsed `review/SKILL.md` to a six-step smell-list recipe, removed Default-first / no-finding / review-axis / fix-direction micro-protocol sections, and marked stale risk-router docs as superseded.
+- plugin evidence: `codex plugin list --json` reported `ddd-expert@skill-workshop-codex` installed/enabled at `1.14.77`.
+- official clean worktree: `/tmp/sanhe-ddd-review-v1.14.77-clean`, detached at sanhe `8254c41`.
+- clean review output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.77-clean/original-review-final.md`, 2 findings plus 1 design return.
+- clean run log: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.77-clean/original-review.raw.log`.
+- clean post-review calibration output: `/home/xuhao/skill-workshop/.tmp/ddd-review-evals/v1.14.77-clean/reflection-final.md`.
+- verification inside clean review: `go test ./...` passed; MySQL-backed infrastructure package ran about `180.798s`.
+
+### Score
+
+- Known-issue hits: K3 full; K2 partial; K4 partial; K5 partial; K6 partial; K7 missed; K8 missed; K10 missed with an opposite no-finding note.
+- Breadth: 20 / 45. The review found recovery wiring, delivery-in-infra, and event-vocabulary gaps, but did not keep durable fact precedence, candidate-owner classification, state vocabulary, or CQRS inventory alive.
+- Depth: 18 / 45. K3 is concrete. K2 stops at funding recovery and misses cancel/retry admission. K4 is reduced to event vocabulary. K5/K6 remain local symptoms rather than aggregate boundary / collaboration mechanism analysis.
+- Review discipline: 8 / 10. Verification was strong and the output was concise, but the CQRS no-finding note used QueryRepository/DTO presence as sufficient proof.
+- Total: 46 / 100.
+
+### Gap Analysis
+
+- The six-step recipe improved run-log exploration, but final extraction still selects a small subset of families and drops adjacent family obligations.
+- K2 regression is important: recovery reachability did not force the next command-admission question, "what commands can still happen while the durable success fact is not reflected on the parent aggregate?"
+- K4/K6 improvement is narrow: missing events are visible, but money execution facts, agreement terminal facts, and collaboration mechanism/recovery are not separated.
+- K10 shows the same weak-proof pattern in a different form: Product reads through a QueryRepository can be a positive clue, but it cannot clear CQRS without inventorying write repositories and shared adapters for read-shaped methods.
+- Next fix should not add a new section. Tighten the workflow output shape itself: Breadth scan must output required family rows for durable fact precedence, terminal/execution split, repository candidate-owner, collaboration mechanism, parent state vocabulary, and CQRS inventory; Report must account for each required family row rather than only each finding.
