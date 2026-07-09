@@ -39,7 +39,7 @@ Use this file after the model/design has accepted the use case and layer owner. 
 
 **Rules**
 
-- Default write transaction changes one aggregate. If a command appears to coordinate several aggregate candidates in one Repository/API call, return to `domain-modeling`; do not justify it with transaction mechanics, semantic repository transaction, lifecycle transaction, cross-table transaction, or ORM session evidence. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, return to `design`.
+- Default write transaction changes one aggregate. If a command appears to coordinate several aggregate candidates in one Repository/API call, classify it as a model-fact gap; do not justify it with transaction mechanics, semantic repository transaction, lifecycle transaction, cross-table transaction, or ORM session evidence. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, classify it as a tactical placement gap.
 - Do not implement business rules by branching over aggregate state in the handler. Move the rule to Domain.
 - Do not pass raw transactions, sessions, ORM objects, broker clients, Redis clients, or generated protocol DTOs into Domain.
 - Do not dispatch events before successful persistence.
@@ -60,7 +60,7 @@ Use a named Application service when the use case has meaningful orchestration t
 
 Keep the service in `application/` or the relevant `application/<role>/` package. It should depend on Domain and Application-owned ports, not concrete Infrastructure.
 
-If the service begins to classify Domain state, enforce lifecycle rules, or mutate multiple aggregates because it is convenient, return to `design`.
+If the service begins to classify Domain state, enforce lifecycle rules, or mutate multiple aggregates because it is convenient, classify it as a tactical placement gap.
 
 ### 0.3 Domain Event Handler Placement Card
 

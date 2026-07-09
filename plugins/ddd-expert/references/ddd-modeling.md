@@ -1,12 +1,12 @@
 ---
 name: ddd-modeling
-description: Strategic domain modeling rule cards for DDD. Use when domain-modeling, design, implement, or review needs bounded context, aggregate boundary, invariant, Architecture Gate, technical capability, or port-granularity decisions.
+description: Strategic domain modeling rule cards for DDD. Use when explore, shape, codify, or guard needs bounded context, aggregate boundary, invariant, Architecture Gate, technical capability, or port-granularity decisions.
 ---
 
 # Strategic Domain Modeling Rule Cards
 
 **Scope**: Backend services using DDD.
-**Usage**: This is an on-demand rule source, not a default entrypoint. Start from [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when a phase skill needs strategic model decisions.
+**Usage**: This is an on-demand rule source, not a default entrypoint. Load it only when the active DDD phase needs strategic model decisions.
 
 This file is intentionally not a DDD tutorial. Assume the agent understands the concepts. Use these cards to decide ambiguous cases and to produce compact evidence for later design, implementation, and review.
 
@@ -234,7 +234,7 @@ Escalate to Level 3 when the change crosses three or more contexts or the contra
 
 ### 7.5 Gate Failure
 
-If the required facts are missing, stop. Missing domain facts go back to `domain-modeling`; missing placement/layer decisions go back to `design`; missing implementation conventions go to the active language/runtime/database reference.
+If the required facts are missing, stop. Missing domain facts go back to `explore`; missing placement/layer decisions go back to `shape`; missing implementation conventions go to the active language/runtime/database reference.
 
 ## 8. Quick Reference: Decision Summary
 

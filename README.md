@@ -63,9 +63,9 @@ Injects architectural design pattern standards as constraints into planning, exe
 
 ### ddd-expert
 
-Standalone DDD/backend architecture expert skills for code agents. Provides `domain-modeling`, `design`, `implement`, and `review` skills plus the shared DDD reference set, with restrained workflow hooks that only remind agents which `ddd-expert` phase skill to invoke.
+Standalone hookless DDD/backend architecture expert skills for code agents. Provides `explore`, `shape`, `codify`, and `guard` skills for Strategic Modeling, Tactical Modeling, Model Realization, and Model Integrity, plus the shared DDD reference set. The skills use common development workflow descriptions for discovery instead of binding to another workflow plugin.
 
-Invoke `ddd-expert` directly for DDD/backend domain modeling, design, implementation placement, and review work. This is especially important when turning specs into explicit domain objects, or when touching bounded contexts, Domain/Application/Infrastructure boundaries, generated RPC/protocol code, Go runtime/config/lifecycle wiring, taskqueue/message behavior, database persistence, or backend logging.
+Invoke `ddd-expert` directly for DDD/backend exploration, tactical model shaping, model-to-code codification, and model integrity guarding. This is especially important when turning specs into explicit domain objects, or when touching bounded contexts, Domain/Application/Infrastructure boundaries, generated RPC/protocol code, Go runtime/config/lifecycle wiring, taskqueue/message behavior, database persistence, or backend logging.
 
 - **License:** MIT
 - **Claude details:** [plugins/ddd-expert/README.md](plugins/ddd-expert/README.md)
@@ -103,11 +103,12 @@ evidence gates.
 │   ├── superpowers-architect/    # Codex track: architectural design patterns
 │   ├── ddd-expert/               # Codex track: standalone DDD/backend skills
 │   └── designing-tests/          # Codex track: test design guidance
+├── CONTEXT.md                    # Project glossary
 ├── docs/
-│   └── superpowers/
-│       ├── specs/                # Plugin design specifications
-│       ├── plans/                # Implementation plans
-│       └── memory/               # Project Knowledge Base
+│   └── agents/                   # Agent workflow configuration
+│       ├── issue-tracker.md
+│       ├── triage-labels.md
+│       └── domain.md
 ├── scripts/
 │   └── release/                  # Release automation and tests
 └── .github/
@@ -121,7 +122,7 @@ evidence gates.
 
 1. For Claude Code support, create or update `plugins/<plugin-name>/`, add `.claude-plugin/plugin.json`, and update `.claude-plugin/marketplace.json`.
 2. For Codex support, create or update `codex-plugins/<plugin-name>/`, add `.codex-plugin/plugin.json`, add native hooks under `hooks/hooks.json` when needed, and update `.agents/plugins/marketplace.json`.
-3. Add or update design specs and implementation plans under `docs/superpowers/` when behavior changes.
+3. For cross-plugin or release/distribution changes, create or update GitHub issues/specs/tickets using `docs/agents/issue-tracker.md`; record ADRs under `docs/adr/` only for long-lived repo or release decisions.
 4. Keep same-named Claude Code and Codex plugin tracks semantically aligned unless the difference is intentionally host-specific.
 
 ### README synchronization rule

@@ -9,8 +9,8 @@ description: Go DDD events and messages patterns. Use when adding or reviewing D
 **Version**: v1.2
 **Date**: 2026-06-01
 **Scope**: Go event/message patterns complementing the Go reference router [`ddd-golang.md`](ddd-golang.md)
-**Phase routing**:
-- **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Go Domain Event, Boundary Publisher, Integration Message, message adapter, idempotency, or failure-semantics rules.
+**Reference role**:
+- Load this file only when the active DDD phase needs Go Domain Event, Boundary Publisher, Integration Message, message adapter, idempotency, or failure-semantics rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) - Load when the phase needs async-work classification, prohibited actions, or self-checks.
 - **DDD core**: [`ddd-core.md`](ddd-core.md) - Language-neutral Domain Event vs Integration Message boundaries.
 - **Go router**: [`ddd-golang.md`](ddd-golang.md) - Choose Go layer references before loading event/message details.
@@ -32,7 +32,7 @@ description: Go DDD events and messages patterns. Use when adding or reviewing D
 
 Use these cards to answer "what must this event/message construct contain?" before reading the longer sections below.
 
-Event Timeline Reconciliation: for lifecycle reviews, compare `spec/design fact | Domain Event type | handler/reconciler/process manager` before saying event coverage is satisfied. Recovery reachability proof means the handler/reconciler/process manager must be wired in production/runtime, not only named in design or tests; handler registration alone is not recovery reachability proof, and a callable command is not recovery reachability proof unless runtime/API/scheduler wiring invokes it after the original command returns. A swallowed or logged dispatch failure after a durable fact requires retry, reconciliation, or command guards before coverage is satisfied. A repository transaction is not a substitute for a missing same-BC Domain Event reaction; if a fact needs repeated same-context reaction and no event/reaction/process owner exists, return to `domain-modeling` for fact/owner ambiguity or `design` for accepted-model placement.
+Event Timeline Reconciliation: for lifecycle reviews, compare `spec/design fact | Domain Event type | handler/reconciler/process manager` before saying event coverage is satisfied. Recovery reachability proof means the handler/reconciler/process manager must be wired in production/runtime, not only named in design or tests; handler registration alone is not recovery reachability proof, and a callable command is not recovery reachability proof unless runtime/API/scheduler wiring invokes it after the original command returns. A swallowed or logged dispatch failure after a durable fact requires retry, reconciliation, or command guards before coverage is satisfied. A repository transaction is not a substitute for a missing same-BC Domain Event reaction; if a fact needs repeated same-context reaction and no event/reaction/process owner exists, classify fact/owner ambiguity as a model-fact gap or accepted-model placement as a tactical placement gap.
 
 | If the agent is implementing / reviewing... | Start here |
 |---|---|
@@ -546,7 +546,6 @@ Reject these in review:
 ---
 
 **References:**
-- [`design`](../skills/design/SKILL.md) / [`implement`](../skills/implement/SKILL.md) / [`review`](../skills/review/SKILL.md) - Phase entrypoints
 - [`ddd-agent-contract.md`](ddd-agent-contract.md) - Async-work prohibited actions and self-checks
 - [`ddd-core.md`](ddd-core.md) - Language-agnostic Domain Event / Integration Message rules
 - [`ddd-golang.md`](ddd-golang.md) - Go reference router

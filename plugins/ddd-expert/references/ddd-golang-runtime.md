@@ -9,8 +9,8 @@ description: Go runtime patterns for DDD services — fx-based configuration man
 **Version**: v1.1
 **Date**: 2026-06-01
 **Scope**: Go runtime patterns complementing the Go reference router [`ddd-golang.md`](ddd-golang.md)
-**Phase routing**:
-- **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Go runtime, config, lifecycle, shutdown, or Kubernetes rules.
+**Reference role**:
+- Load this file only when the active DDD phase needs Go runtime, config, lifecycle, shutdown, or Kubernetes rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs runtime-only classification, prohibited actions, or runtime self-checks.
 - **Go router**: [`ddd-golang.md`](ddd-golang.md) — Choose Go layer references before loading runtime details.
 - **Scaffold**: [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) — Layout and module ownership. This runtime guide covers config plumbing, process lifecycle, graceful shutdown, and Kubernetes.
@@ -536,7 +536,6 @@ Kubernetes initiates Pod deletion
 ---
 
 **References:**
-- [`design`](../skills/design/SKILL.md) / [`implement`](../skills/implement/SKILL.md) / [`review`](../skills/review/SKILL.md) — Phase entrypoints
 - [`ddd-agent-contract.md`](ddd-agent-contract.md) — Runtime classification, prohibited actions, and self-checks
 - [`ddd-golang.md`](ddd-golang.md) — Go reference router
 - [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) — Go layout and module ownership

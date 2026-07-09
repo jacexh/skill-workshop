@@ -5,7 +5,7 @@ description: Go / go-jimu DDD reference. Use when a DDD phase skill needs Go-spe
 
 # Go / go-jimu Reference Router
 
-This file is the Go entry point. It should help the agent choose the smallest Go reference set, not teach DDD from scratch. Load it after `domain-modeling` / `design` has accepted the model, or when `review` needs to map observed Go code to expected DDD shape.
+This file is the Go entry point. It should help the agent choose the smallest Go reference set, not teach DDD from scratch. Load it after `explore` / `shape` has accepted the model, or when `guard` needs to map observed Go code to expected DDD shape.
 
 Use [`ddd-modeling.md`](ddd-modeling.md) for model decisions, [`ddd-core.md`](ddd-core.md) for language-neutral architecture rules, and the layer files below for Go / go-jimu implementation shape.
 
@@ -123,7 +123,6 @@ Execution boundaries include RPC/HTTP handlers, command/query handlers when they
 
 ## References
 
-- [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), [`review`](../skills/review/SKILL.md)
 - [`ddd-modeling.md`](ddd-modeling.md)
 - [`ddd-core.md`](ddd-core.md)
 - [`ddd-agent-contract.md`](ddd-agent-contract.md)

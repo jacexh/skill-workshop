@@ -2,54 +2,48 @@
 
 Standalone DDD/backend architecture expert skills for Claude Code.
 
-Invoke the phase skill that matches the task:
+Invoke the phase skill that matches the project stage:
 
 ```text
-$ddd-expert:domain-modeling
-$ddd-expert:design
-$ddd-expert:implement
-$ddd-expert:review
+$ddd-expert:explore
+$ddd-expert:shape
+$ddd-expert:codify
+$ddd-expert:guard
 ```
 
-The plugin also registers a restrained `PreToolUse:Skill` hook for Superpowers workflow skills. The hook only emits a short routing reminder:
-
-- `superpowers:writing-plans` — ensure `$ddd-expert:domain-modeling` has produced an accepted domain model; if it has, use `$ddd-expert:design` before planning.
-- `superpowers:executing-plans` and `superpowers:subagent-driven-development` — use `$ddd-expert:implement` before code edits.
-- `superpowers:requesting-code-review` and `superpowers:receiving-code-review` — use `$ddd-expert:review` before findings.
-
-The hook does not inject DDD reference content, pattern indexes, file paths, or gate details.
+This plugin is hookless. Automatic intervention relies on each skill's own frontmatter description, written in common development workflow language, so the skills can be selected during discovery, planning, implementation, and review without binding to another workflow plugin.
 
 ## How It Works
 
 The plugin exposes four compact phase skills plus shared references:
 
-- `domain-modeling` — one-question-at-a-time spec-to-domain-decision interview
-- `design` — accepted domain brief to concrete DDD boundary design
-- `implement` — accepted-model-to-code placement and refactoring guidance
-- `review` — evidence-based DDD boundary review for concrete plans, diffs, or files
+- `explore` — Strategic Modeling for Core Domain focus, ubiquitous language, Bounded Contexts, Context Map relationships, and business facts
+- `shape` — Tactical Modeling for implementation-ready model decisions, consistency boundaries, collaboration style, and verification seams
+- `codify` — Model Realization that encodes accepted model decisions into code boundaries, layers, ports, adapters, persistence, messages, runtime, and tests
+- `guard` — Model Integrity review for specs, plans, diffs, files, persistence, messages, runtime wiring, and boundary evidence
 
-Each skill reads the smallest phase-specific baseline and then loads only the strategic or tactical references required by the task. Hook output is limited to phase-skill routing; detailed context still loads only through the selected `ddd-expert` skill.
+Each skill reads the smallest phase-specific baseline and then loads only the strategic or tactical references required by the task.
 
 ## Activation Guidance
 
-Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting backend infrastructure. Mention the phase skill explicitly in the prompt when the task touches bounded contexts, Domain/Application/Infrastructure placement, generated RPC/protocol types, Go runtime/config/lifecycle, taskqueue/message behavior, database persistence, or backend logging.
+Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting backend infrastructure. The phase skills are described to match common development actions, and you may also mention a phase skill explicitly when the task touches bounded contexts, Domain/Application/Infrastructure placement, generated RPC/protocol types, Go runtime/config/lifecycle, taskqueue/message behavior, database persistence, or backend logging.
 
 Choose the phase by timing:
 
-- `$ddd-expert:domain-modeling` after a spec exists and before design when implicit domain objects, lifecycles, invariants, events, repositories, bounded contexts, or existing-model impact need to be made explicit.
-- `$ddd-expert:design` after domain-modeling or an explicit existing model, before concrete backend design is accepted.
-- `$ddd-expert:implement` before editing or placing backend code after a design direction exists.
-- `$ddd-expert:review` when domain abstractions, specs, concrete files, diffs, plans, or evidence already exist.
+- `$ddd-expert:explore` during product discovery, PRD/spec writing, feature scoping, backlog refinement, story mapping, or change-request intake.
+- `$ddd-expert:shape` during backend architecture planning, technical design, solution design, ticket breakdown, implementation planning, or design review before coding.
+- `$ddd-expert:codify` during ticket implementation, refactoring, bug fixes, API/RPC handler work, persistence/migration work, message/job changes, runtime wiring, logging, or tests.
+- `$ddd-expert:guard` during code review, PR review, pull request review, diff review, design/spec review, architecture review, pre-merge checks, release readiness, or regression investigation.
 
 ## Scope
 
 Use this plugin for:
 
 - bounded contexts and context boundaries
-- high-fidelity spec-to-domain-modeling interviews
-- product-semantic backend modeling before implementation
-- model-to-code implementation placement
-- evidence-based DDD boundary review
+- high-fidelity Strategic Modeling interviews
+- product-semantic Tactical Modeling before codification
+- model-to-code realization and placement
+- evidence-based Model Integrity review
 - Domain/Application/Infrastructure ownership
 - Domain and Application port eligibility
 - generated protocol DTO boundaries
@@ -59,7 +53,8 @@ Use this plugin for:
 - taskqueue/runtime boundaries in DDD services
 - database-backed backend persistence design when schema, query, migration, transaction, or storage concerns are explicit
 
-Domain-modeling conclusions should normally land in the current spec's `Domain Modeling` section or a sibling domain brief. Emit memory candidates for later `superpowers-memory:ingest`; do not write project memory as part of the modeling interview.
+Explore writes confirmed model changes back to existing project documentation: glossary/terminology carriers for language, context-map or domain-boundary docs for ownership and boundaries, and the current PRD/spec for domain concepts, lifecycle, rules, policies, or any model content without a dedicated carrier.
+Shape writes accepted tactical design back to existing project documentation: design docs, architecture/domain docs, ADRs, or the current PRD/spec `Tactical Design` section when no dedicated carrier exists.
 
 Do not use this plugin for frontend architecture, browser QA, product UI design, or general dynamic standards lookup.
 
@@ -67,10 +62,6 @@ Do not use this plugin for frontend architecture, browser QA, product UI design,
 
 Canonical references live under `references/`:
 
-- `../skills/domain-modeling/SKILL.md` — one-question-at-a-time spec-to-domain-decision interview
-- `../skills/design/SKILL.md` — design-phase domain-brief-to-model method
-- `../skills/implement/SKILL.md` — implementation-phase model-to-code placement method
-- `../skills/review/SKILL.md` — review-phase evidence-to-judgment method
 - `ddd-modeling-gates.md` — compact modeling thought gates for story, authority, lifecycle, invariants, failure tolerance, integration language, and coordination choices
 - `ddd-agent-contract.md` — on-demand agent prohibited actions, classification, and self-checks
 - `ddd-modeling.md` — on-demand strategic bounded-context, aggregate, and architecture gate guidance

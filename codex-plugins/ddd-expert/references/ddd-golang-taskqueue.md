@@ -9,8 +9,8 @@ description: Go DDD taskqueue, polling-task, and periodic-task patterns. Use whe
 **Version**: v1.3
 **Date**: 2026-05-29
 **Scope**: Go task queue patterns complementing the Go reference router [`ddd-golang.md`](ddd-golang.md) and [`ddd-golang-runtime.md`](ddd-golang-runtime.md)
-**Phase routing**:
-- **Phase skill**: Start from [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Go taskqueue, polling, reconciliation, periodic producer, asynq worker/scheduler, schema, processor, or worker lifecycle rules.
+**Reference role**:
+- Load this file only when the active DDD phase needs Go taskqueue, polling, reconciliation, periodic producer, asynq worker/scheduler, schema, processor, or worker lifecycle rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) - Load when the phase needs taskqueue/runtime classification, prohibited actions, or self-checks.
 - **Go router**: [`ddd-golang.md`](ddd-golang.md) - Choose Go layer references before loading taskqueue details.
 - **Go Application/Scaffold**: [`ddd-golang-application.md`](ddd-golang-application.md), [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) - Processor placement and module layout.
@@ -685,7 +685,6 @@ Before claiming a taskqueue change is complete:
 ---
 
 **References:**
-- [`design`](../skills/design/SKILL.md) / [`implement`](../skills/implement/SKILL.md) / [`review`](../skills/review/SKILL.md) - Phase entrypoints
 - [`ddd-agent-contract.md`](ddd-agent-contract.md) - Taskqueue/runtime prohibited actions and self-checks
 - [`ddd-golang.md`](ddd-golang.md) - Go reference router
 - [`ddd-golang-application.md`](ddd-golang-application.md) - Task processor placement

@@ -1,11 +1,11 @@
 ---
 name: ddd-modeling-gates
-description: Use when domain-modeling or design needs to reason about business stories, authority, lifecycles, invariants, failure tolerance, integration language, or DDD mechanism choice before naming tactical objects.
+description: Use when explore or shape needs to reason about business stories, authority, lifecycles, invariants, failure tolerance, integration language, or DDD mechanism choice before naming tactical objects.
 ---
 
 # DDD Modeling Gates
 
-Use this file as a thinking spine for `domain-modeling` and `design`. It is not
+Use this file as a thinking spine for `explore` and `shape`. It is not
 a rule catalog. The gates help an agent slow down before turning product nouns
 into Aggregates, Repositories, Events, ports, handlers, schemas, or
 transactions.
@@ -16,14 +16,14 @@ gate is material and continue.
 
 ## How To Use
 
-- In `domain-modeling`, use the gates to form one high-fidelity question at a
+- In `explore`, use the gates to form one high-fidelity question at a
   time and to synthesize compact Model Decisions.
-- In `design`, answer the relevant gates before tactical mechanisms are named.
-- In `implement`, do not redo modeling; stop when the handoff lacks required
+- In `shape`, answer the relevant gates before tactical mechanisms are named.
+- In `codify`, do not redo modeling; stop when the handoff lacks required
   modeling evidence.
-- In `review`, use missing or contradictory gate evidence as a model evidence
+- In `guard`, use missing or contradictory gate evidence as a model evidence
   gap or design violation.
-- Route precisely: model facts return to domain-modeling; tactical placement gaps return to design.
+- Classify precisely: model facts are model-fact gaps; tactical placement uncertainty is a tactical placement gap.
 
 ## Gate 1: Story Before Nouns
 
@@ -127,7 +127,7 @@ Ask:
 
 Outcome: same-aggregate transaction, Domain Event, Integration Message, task,
 compensation, process manager, or reconciler. Default path is one aggregate per command;
-an aggregate boundary conflict returns to domain-modeling instead of being solved by persistence shape.
+an aggregate boundary conflict is a model-fact gap instead of being solved by persistence shape.
 
 ## Gate 7: Language Before Integration
 
