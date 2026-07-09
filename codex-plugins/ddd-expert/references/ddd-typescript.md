@@ -9,8 +9,8 @@ description: TypeScript implementation guide for DDD + Clean Architecture. Use w
 **Version**: v2.4
 **Date**: 2026-05-21
 **Scope**: Team backend service architecture standard  
-**Phase routing**:
-- **Phase skill**: Start from [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs TypeScript-specific DDD placement, package, naming, testing, or composition-root rules.
+**Reference role**:
+- Load this file only when the active DDD phase needs TypeScript-specific DDD placement, package, naming, testing, or composition-root rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs task classification, stop protocol, prohibited actions, or completion self-checks.
 - **Domain modeling rule cards**: [`ddd-modeling.md`](ddd-modeling.md) — Load only when the phase routes to bounded-context, aggregate, Architecture Gate, technical-capability, or port-granularity decisions.
 - **Architecture rule cards**: [`ddd-core.md`](ddd-core.md) — Load only when the phase routes to layer ownership, dependency direction, Domain Events / Integration Messages, CQRS, cross-context contracts, or review checklist rules.
@@ -315,7 +315,7 @@ Any reader/query method returning a Domain aggregate type (rather than a DTO int
 
 **P4 — Event/message extraction (manual)**
 
-When two or more handlers/subscribers react to the same same-BC state change, collapse the reaction behind one Domain Event and one same-BC handler. When the fact crosses a bounded-context boundary, publish an Integration Message instead of subscribing to another context's Domain Event. Long-running lifecycle coordination conflict returns to modeling; accepted coordination belongs in a Saga/Process Manager or compensating flow, not in a cluster of command-side Application ports.
+When two or more handlers/subscribers react to the same same-BC state change, collapse the reaction behind one Domain Event and one same-BC handler. When the fact crosses a bounded-context boundary, publish an Integration Message instead of subscribing to another context's Domain Event. Long-running lifecycle coordination conflict is a model-fact gap; accepted coordination belongs in a Saga/Process Manager or compensating flow, not in a cluster of command-side Application ports.
 
 **P1 semantic fake sub-check (manual)**
 
@@ -600,7 +600,7 @@ export interface UserRepository {
 - No business rules
 - Depends on Domain
 - Owns transaction boundaries
-- **Default transaction boundary: one transaction modifies one aggregate only.** To coordinate other lifecycle owners, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. If a same transaction appears to write several aggregate candidates, return to `domain-modeling`; do not implement one merely because the database transaction API, semantic repository transaction, lifecycle transaction, or cross-table transaction looks convenient. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, return to `design`.
+- **Default transaction boundary: one transaction modifies one aggregate only.** To coordinate other lifecycle owners, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. If a same transaction appears to write several aggregate candidates, classify it as a model-fact gap; do not implement one merely because the database transaction API, semantic repository transaction, lifecycle transaction, or cross-table transaction looks convenient. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, classify it as a tactical placement gap.
 - Application is the sole drainer of Domain Events: after successful `repo.save()` it calls `collectEvents()` exactly once. Repository never drains.
 - Dispatch domain events only after successful persistence. Publish/admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - QueryRepository interfaces live here, return DTOs, and bypass Domain aggregates on the read side
@@ -1106,7 +1106,7 @@ Guidelines:
 
 ## 11. Key Principles Summary
 
-> These are the TypeScript-specific phrasings of the principles summarized in [ddd-core.md §10](ddd-core.md). For review workflow and layer baseline, see [`../skills/review/SKILL.md`](../skills/review/SKILL.md).
+> These are the TypeScript-specific phrasings of the principles summarized in [ddd-core.md §10](ddd-core.md).
 
 1. **Domain layer has no concrete implementation dependencies** — no `import` of Kysely / Prisma / TypeORM, Fastify / Express / Nest, HTTP/MQ clients, or generated protocol packages; `node:crypto`, `ulid`, and small in-memory helpers are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context (`modules/<context>/`), not by technical layer

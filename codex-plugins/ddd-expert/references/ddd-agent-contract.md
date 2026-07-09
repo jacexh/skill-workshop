@@ -10,13 +10,13 @@ description: Agent self-check and must-not contract for DDD/backend work. Use wh
 **Audience**: Claude Code, Codex, and any other code agent expected to follow this repository's DDD standards.
 **Scope**: This is a behavior contract and deep rule source, not the phase entrypoint. It tells an agent how to classify backend/DDD work, when to **stop and ask**, what **never** to do, and what to **self-check** before reporting work as complete.
 
-> **Phase routing**: Start from the active phase skill: [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file when the active phase needs task classification, prohibited-action checks, stop protocol, or completion self-checks. The rules below exist because LLM agents tend to skip preconditions and copy snippets out of context — this page defends against that.
+> **Reference role**: Load this file from an active DDD phase when task classification, prohibited-action checks, stop protocol, or completion self-checks are needed. The rules below exist because LLM agents tend to skip preconditions and copy snippets out of context — this page defends against that.
 
 ---
 
 ## 0. Hot Path: Before Adding an Application Command-Side Port
 
-Application command-side ports require modeling/design review. Before creating one, answer this decision card in order:
+Application command-side ports require an explicit model/placement decision. Before creating one, answer this decision card in order:
 
 1. Rule on one aggregate? -> Aggregate method.
 2. Write-side aggregate collection? -> Domain Repository.
@@ -25,7 +25,7 @@ Application command-side ports require modeling/design review. Before creating o
 5. Cross-context fact propagation? -> Integration Message.
 6. Read-only product view? -> Application QueryRepository/read facade returning DTOs.
 7. External protocol, storage, routing, retry, topology, or vendor translation? -> Infrastructure adapter or ACL.
-8. Only after all above are rejected -> return to modeling/design for an Application command-side port decision.
+8. Only after all above are rejected -> classify the need as model-fact or tactical-placement pressure for an Application command-side port decision.
 
 Semantic fake rule: if the only meaningful fake is "pretend the external side effect succeeded", do not create an inward port; keep the mechanism behind Repository, QueryRepository, ACL, event/message publisher, named Application coordination service, or Infrastructure.
 
@@ -33,7 +33,7 @@ Semantic fake rule: if the only meaningful fake is "pretend the external side ef
 
 ## 1. Trigger Conditions (when this contract applies)
 
-Apply this contract when the active phase skill routes here, especially when **any** of the following is true:
+Apply this contract when the active DDD phase selects it, especially when **any** of the following is true:
 
 - The task touches files under `internal/business/<context>/**` or paths named `domain/`, `application/`, `interfaces/`, `infrastructure/`.
 - The task mentions any of: bounded context, aggregate, value object, repository, domain event, integration message, CQRS, anti-corruption layer, clean architecture, domain-driven design, DDD.
@@ -45,16 +45,16 @@ Apply this contract when the active phase skill routes here, especially when **a
 - The task mentions or edits task queues, polling tasks, reconciliation jobs, scheduled/background jobs, periodic task producers, asynq schedulers, `TaskType`, `PeriodicTask`, `PeriodicTaskScheduler`, task payload schemas, task processors, `internal/pkg/taskqueue`, worker lifecycle, task middleware, delayed enqueueing, or schema registry wiring.
 - The task mentions or edits a manual polling/reconciliation runner, manual runner, runtime loop, backlog drain, outbox drain, recovery loop, scheduler loop, `*_drain.go`, `*_scheduler.go`, `fx.Lifecycle` hook, goroutine worker, timer/ticker loop, backoff policy, or bounded-context root loop that calls an Application scheduler/service.
 
-If unsure whether the contract applies, consult the active phase skill before loading this file. Load this file when the task may hit one of the triggers above or needs an explicit self-check.
+If unsure whether the contract applies, use the active phase's workflow before loading this file. Load this file when the task may hit one of the triggers above or needs an explicit self-check.
 
 ---
 
 ## 2. On-Demand Classification Order
 
-When a phase skill routes here, use this sequence to classify the task and select the deeper rules. Do not replace the active phase workflow with this file.
+When an active phase loads this contract, use this sequence to classify the task and select the deeper rules. Do not replace the active phase workflow with this file.
 
 ```
-1. Confirm the active phase skill has been read (design / implement / review).
+1. Confirm the active phase workflow is already in use.
 2. Classify the task path (DDD/business, Go events/messages, Go taskqueue/polling/periodic, Go runtime-only, or mixed).
 3. Read only the required deeper specs (see the matrix below).
 4. Plan / edit / review within the active phase workflow.
@@ -113,7 +113,7 @@ Repository convention / conflict check:
 - Existing project standards or architecture tests that constrain this change:
 - Adopted library/component conventions:
 - Conflict with this guide:
-- Resolution: proceed / stop for user decision / return to domain-modeling / return to design
+- Resolution: proceed / stop for user decision / model-fact gap / tactical placement gap
 ```
 
 ---
@@ -128,7 +128,7 @@ These are the most common DDD failure patterns an LLM produces when it shortcuts
 4. **Implement business validation in Application / Handler.** Application constructs Domain inputs and calls Domain `Validate()` / domain methods. It must not run `validator.Struct(req)` against Domain fields or reproduce field rules in handlers. (core §3.1, §3.2)
 5. **Load a full Aggregate to serve a UI read.** Use the read path — Application-owned `QueryRepository` returning DTOs. Aggregates are write-side. (core §3.2, §3.4)
 6. **Import another context's `domain/` package.** Cross-context interaction uses one of: Integration Messages, cross-context query ports (`<ctx>/api/queries.go`), ACL, protocol contracts. Direct `import` of a neighbor's Domain is prohibited. (core §5, `ddd-golang-scaffold.md`, `ddd-golang-cqrs.md §0.4`)
-7. **Write several aggregate candidates in one transaction "because the ORM makes it easy".** The default is one aggregate per transaction. If the Repository/API coordinates several candidate roots, classify Aggregate Boundary Conflict and return to `domain-modeling`. `xorm.Session`, `gorm.Tx`, semantic repository transaction, lifecycle transaction, cross-table transaction, and same persistence boundary are red-flag evidence, not justification. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, return to `design`.
+7. **Write several aggregate candidates in one transaction "because the ORM makes it easy".** The default is one aggregate per transaction. If the Repository/API coordinates several candidate roots, classify Aggregate Boundary Conflict as a model-fact gap. `xorm.Session`, `gorm.Tx`, semantic repository transaction, lifecycle transaction, cross-table transaction, and same persistence boundary are red-flag evidence, not justification. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, classify it as a tactical placement gap.
 8. **Drain Domain Events inside the Repository.** Only the Application layer calls `aggregate.Events.Drain()`, `aggregate.DrainEvents()`, or the repository's established narrow drain accessor, and only once, after a successful `Save()`. (core §3.1, `ddd-golang-domain.md §0.1`, `ddd-golang-events-messages.md §0.2`)
 9. **Treat Domain Events and Integration Messages as the same thing.** Domain Events are bounded-context-internal facts (publisher's ubiquitous language, refactorable freely). Integration Messages are the cross-context contract (additive evolution, consumer-visible). Same struct ≠ same concept. (core §5.3)
 10. **Use Aggregate fields as the business decision API.** Mechanical DTO/DO/proto mapping, persistence mapping, read-model assembly, and log field enrichment may read exported fields. Business decisions and state changes must go through Aggregate Root methods or Domain policies that enforce invariants. Do not branch in Application/handlers/processors on fields such as `State`, `Status`, `Version`, or deadline flags when the decision belongs behind an entity method, and do not assign fields to perform a state transition. State classification helpers such as `isTerminal(state)`, `countsAsActive(state)`, `hasLiveRuntime(state)`, or `requiresCleanup(state)` are Domain concepts by default; putting them in Application requires an Architecture Gate exception. Anemic aggregates (fields plus getters/setters with rules in handlers) are rejected. (core §3.1, `ddd-golang-domain.md §0.1`)
@@ -145,7 +145,7 @@ These are the most common DDD failure patterns an LLM produces when it shortcuts
 19. **Application command-side port as default abstraction.** Do not create an Application command-side port merely because a Command Handler needs to call, mock, listen to, publish, route, or finalize something. First place the need as Domain Repository, Aggregate method, Domain Service, Domain Event handler, Integration Message, ACL, Application QueryRepository/read facade, or Infrastructure adapter. A command-side Application port that survives must have an Architecture Gate exception explaining why none of those mechanisms owns the semantic need. (modeling §0, §0.2.3; core §3.1 Domain Mechanism Placement)
 20. **Repeated side-effect handling without a Domain Event.** Do not duplicate the same post-state-change side effect across multiple Command Handlers, subscribers, adapters, or local listeners. If the reaction is triggered by the same same-BC domain fact, emit one Domain Event from the aggregate and handle it with one Domain Event Handler after `Save()`. If the reaction crosses bounded contexts, translate the Domain Event or explicit published fact into an Integration Message. Direct per-use-case side-effect calls are allowed only when the side effect is an explicit output of that command and the Architecture Gate says why it is not event/message-driven. (core §3.1 Domain Event Collection, §5.3, §6)
 21. **Suspicious naming without placement justification.** Do not name an Application/Domain interface `*Policy`, `*Specification`, `*Allocator`, `*Generator`, `*Resolver`, `*Finalizer`, `*Terminator`, `*Closer`, `*Calculator`, `*Scorer`, `*Pricer`, `*Decider`, `*Authorizer`, `*Validator` (outside Domain `Validate()`), `*Sink`, `*Hook`, `*Observer`, `*Client`, `*Directory`, `*Router`, or `*Forwarder` without an Architecture Gate entry under "Domain mechanism placement before Application ports". The entry must answer which DDD mechanism owns the need, not merely rename the interface. Application interfaces that survive must record the exception reason. (modeling §0.2.3)
-22. **Umbrella asynchronous handlers.** Do not create or grow a generic `EventHandler`, `MessageHandler`, `TaskHandler`, or `Handler` concrete type that listens to unrelated Domain Events / Integration Messages / task types and dispatches internally with a large `switch`, many `On*` methods, `Listening() []string` for task types, or chains of type assertions. Default to one inbound event/message kind per concrete handler and one `taskqueue.Processor` per `TaskType`. Multi-kind handlers require the same role, source context or contract family, target side effect, transaction boundary, failure policy, and dependency set to be stated in the Architecture Gate. Multi-task processors return to taskqueue/design review unless the taskqueue guide's one-processor-per-TaskType rule has explicit residual-risk evidence. (core §5.3 Async Reaction Roles; `ddd-golang-events-messages.md §0.3-§0.5`; `ddd-golang-taskqueue.md §0.2`)
+22. **Umbrella asynchronous handlers.** Do not create or grow a generic `EventHandler`, `MessageHandler`, `TaskHandler`, or `Handler` concrete type that listens to unrelated Domain Events / Integration Messages / task types and dispatches internally with a large `switch`, many `On*` methods, `Listening() []string` for task types, or chains of type assertions. Default to one inbound event/message kind per concrete handler and one `taskqueue.Processor` per `TaskType`. Multi-kind handlers require the same role, source context or contract family, target side effect, transaction boundary, failure policy, and dependency set to be stated in the Architecture Gate. Multi-task processors are taskqueue design gaps unless the taskqueue guide's one-processor-per-TaskType rule has explicit residual-risk evidence. (core §5.3 Async Reaction Roles; `ddd-golang-events-messages.md §0.3-§0.5`; `ddd-golang-taskqueue.md §0.2`)
 23. **Mixed asynchronous handler roles.** Do not implement same-BC Domain Event consumption and Integration Message consumption on the same concrete type. Classify each asynchronous reaction as Domain Event Handler, Boundary Publisher, or Integration Message Handler. A Boundary Publisher may consume a same-BC Domain Event and publish an Integration Message, but it must not consume Integration Messages, mutate aggregates, or advance workflow state. (core §5.3 Async Reaction Roles; `ddd-golang-events-messages.md §0.3-§0.5`)
 24. **Periodic scheduler callbacks and unstable periodic policy.** Do not add scheduler `HandleFunc`, callback registration, or business-service calls for periodic taskqueue work. Periodic producers enqueue concrete `taskqueue.PeriodicTask` values; the normal one-`TaskType`, one-`Processor` task contract handles execution. Do not model config toggles as `PeriodicTask.Enabled`, combine `IntervalSchedule` with `WithLocation`, put `WithProcessAt` / static `WithDeadline` into a periodic enqueue policy, or hide business-visible scheduling/deadline/eligibility rules inside processor-local conditionals. (taskqueue §1, §5)
 25. **Bloated Go RPC shortcut.** Do not use `application/application.go` as a place for business branches, transaction control, repository calls, event/message dispatch, task enqueueing, or cross-port coordination just because it implements a generated gRPC/ConnectRPC stub. The shortcut is only protocol mapping, one delegate call, response/error mapping, and small actor extraction. Larger workflows move to `application/command`, `application/query`, or a named Application coordination service. (`ddd-golang-application.md §0.7`)
@@ -169,7 +169,7 @@ Before claiming a task is done, run the matching checklist. Treat any applicable
 - [ ] **CQRS port granularity**: every new interface is named for a use-case semantic capability, command/query side, and consumer-specific product view. No item from §4(1), §4(2), the dependency-inversion-only prohibition, or the routing/topology prohibition was introduced.
 - [ ] **Capability lifecycle coherence**: every new port corresponds to the full lifecycle of one stable semantic capability; no capability has been sliced into per-mechanism-operation or per-verb ports. If two or more ports in this change look like different verbs on the same noun, they were reviewed as one lifecycle; if three or more appear, they were re-grouped or the split was explicitly justified.
 - [ ] **Port evolution path**: when touching an existing capability, the default was to add a method to the existing port. If a new port was introduced, the caller's freshness / ordering / authorization / pagination / failure / consistency-window / published API / dependency direction / test substitute difference from the existing port is named in writing.
-- [ ] **Transaction boundary**: each Command Handler writes one aggregate per transaction; aggregate boundary conflict returns to `domain-modeling`; raw transaction/session plumbing is not exposed as an Application/Domain port.
+- [ ] **Transaction boundary**: each Command Handler writes one aggregate per transaction; aggregate boundary conflict is a model-fact gap; raw transaction/session plumbing is not exposed as an Application/Domain port.
 - [ ] **Event lifecycle**: events are collected inside domain methods, persisted before dispatch, drained once by Application after `Save()`, never by Repository.
 - [ ] **Cross-context paths**: any cross-context communication uses one of Integration Messages / cross-context query port / ACL / protocol contracts; no new direct import of a neighbor's `domain/`.
 - [ ] **Validation contract**: Domain types expose `Validate()` (or the language's equivalent); external layers call it rather than re-validating Domain fields.
@@ -244,7 +244,7 @@ If a snippet contradicts what compiles in the real repository, **the real reposi
 
 ## 7. Reporting Contract Notes
 
-Phase skills own their own output shape. This contract only adds cross-phase reporting facts when they matter:
+Active phases own their own output shape. This contract only adds cross-phase reporting facts when they matter:
 
 - name the phase skill and references actually read when the result depends on them;
 - state unresolved stop questions instead of guessing;
@@ -267,7 +267,6 @@ For straightforward implementation summaries, keep output brief: changed files, 
 | Aggregate Boundary Conflict gate | [`ddd-core.md`](ddd-core.md) §3.2 |
 | Cross-context mechanisms (4 legitimate ways) | [`ddd-core.md`](ddd-core.md) §5 |
 | Integration Message payload rules | [`ddd-core.md`](ddd-core.md) §5.4 |
-| Review workflow and layer baseline | [`../skills/review/SKILL.md`](../skills/review/SKILL.md) |
 | Go file layout / module assembly | [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md), [`ddd-golang-runtime.md`](ddd-golang-runtime.md) |
 | Go Domain Events, Boundary Publishers, Integration Messages, Kafka adapter wiring | [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) |
 | Go Domain object shape | [`ddd-golang-domain.md`](ddd-golang-domain.md) |

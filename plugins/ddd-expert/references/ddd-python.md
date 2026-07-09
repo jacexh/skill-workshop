@@ -9,8 +9,8 @@ description: Python implementation guide for DDD + Clean Architecture. Use when 
 **Version**: v2.4
 **Date**: 2026-05-21
 **Scope**: Team backend service architecture standard
-**Phase routing**:
-- **Phase skill**: Start from [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), or [`review`](../skills/review/SKILL.md). Load this file only when the active phase needs Python-specific DDD placement, package, naming, testing, or module-assembly rules.
+**Reference role**:
+- Load this file only when the active DDD phase needs Python-specific DDD placement, package, naming, testing, or module-assembly rules.
 - **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs task classification, stop protocol, prohibited actions, or completion self-checks.
 - **Domain modeling rule cards**: [`ddd-modeling.md`](ddd-modeling.md) — Load only when the phase routes to bounded-context, aggregate, Architecture Gate, technical-capability, or port-granularity decisions.
 - **Architecture rule cards**: [`ddd-core.md`](ddd-core.md) — Load only when the phase routes to layer ownership, dependency direction, Domain Events / Integration Messages, CQRS, cross-context contracts, or review checklist rules.
@@ -342,7 +342,7 @@ Any reader/query method annotated `-> domain.X` or `-> list[domain.X]` from Appl
 
 **P4 — Event/message extraction (manual)**
 
-When two or more handlers/subscribers react to the same same-BC state change, collapse the reaction behind one Domain Event and one same-BC handler. When the fact crosses a bounded-context boundary, publish an Integration Message instead of subscribing to another context's Domain Event. Long-running lifecycle coordination conflict returns to modeling; accepted coordination belongs in a Saga/Process Manager or compensating flow, not in a cluster of command-side Application ports.
+When two or more handlers/subscribers react to the same same-BC state change, collapse the reaction behind one Domain Event and one same-BC handler. When the fact crosses a bounded-context boundary, publish an Integration Message instead of subscribing to another context's Domain Event. Long-running lifecycle coordination conflict is a model-fact gap; accepted coordination belongs in a Saga/Process Manager or compensating flow, not in a cluster of command-side Application ports.
 
 **P1 semantic fake sub-check (manual)**
 
@@ -798,7 +798,7 @@ class Repository(ABC):
 - No business rules (those belong in the Domain layer)
 - Depends only on the Domain layer
 - Transaction boundaries are controlled here
-- **Default transaction boundary: one transaction modifies one aggregate only.** To coordinate other lifecycle owners, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. If a same transaction appears to write several aggregate candidates, return to `domain-modeling`; do not implement one merely because SQLAlchemy session APIs, semantic repository transaction, lifecycle transaction, or cross-table transaction look convenient. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, return to `design`.
+- **Default transaction boundary: one transaction modifies one aggregate only.** To coordinate other lifecycle owners, prefer Domain Events / Integration Messages, a Saga / Process Manager, or compensating actions. If a same transaction appears to write several aggregate candidates, classify it as a model-fact gap; do not implement one merely because SQLAlchemy session APIs, semantic repository transaction, lifecycle transaction, or cross-table transaction look convenient. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, classify it as a tactical placement gap.
 - Application is the sole drainer of Domain Events: after a successful `save()` it calls `collect_events()` exactly once. Repository never drains.
 - Domain events are dispatched after a successful persist via `collect_events()`. Dispatch/publish admission failure after persistence does not imply persistence rollback; choose the explicit error policy from [ddd-core.md §5.3](ddd-core.md).
 - After `save()`, the in-memory aggregate is stale — reload via `get()` if further operations are needed
@@ -2157,7 +2157,7 @@ dev = [
 
 ## 13. Key Principles Summary
 
-> These are the Python-specific implementations of the principles summarized in [ddd-core.md §10](ddd-core.md). For review workflow and layer baseline, see [`../skills/review/SKILL.md`](../skills/review/SKILL.md).
+> These are the Python-specific implementations of the principles summarized in [ddd-core.md §10](ddd-core.md).
 
 1. **Domain layer has no concrete implementation dependencies** — no `import` of SQLAlchemy, FastAPI, HTTP/MQ clients, or generated protocol packages; standard library, `uuid`, `dataclasses`, and Pydantic-as-internal-validation-helper are allowed when they don't couple Domain to an external system
 2. **Vertical slicing** — organize by bounded context, not by technical layer

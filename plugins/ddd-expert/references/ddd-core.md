@@ -6,9 +6,7 @@ description: Compact DDD + Clean Architecture baseline for backend services. Use
 # Backend Architecture Rule Cards
 
 **Scope**: Language-agnostic DDD/Clean Architecture constraints.
-**Routing**: This is not an entrypoint. Start from the active phase skill. Use [`ddd-modeling.md`](ddd-modeling.md) first when the domain model, bounded context, aggregate boundary, or Architecture Gate is unsettled. Load this file when the phase needs tactical architecture rules.
-
-> **Phase routing**: Agent entrypoints are [`domain-modeling`](../skills/domain-modeling/SKILL.md), [`design`](../skills/design/SKILL.md), [`implement`](../skills/implement/SKILL.md), and [`review`](../skills/review/SKILL.md).
+**Reference role**: This is not an entrypoint. Load it from an active DDD phase when tactical architecture rules are needed. Use [`ddd-modeling.md`](ddd-modeling.md) first when the domain model, bounded context, aggregate boundary, or Architecture Gate is unsettled.
 
 ## 1. Architecture Principles
 
@@ -133,13 +131,13 @@ Rules:
 - Application constructs Domain inputs, calls Domain methods/validation, maps Domain errors outward, and manages transaction boundaries.
 - Default transaction boundary is one aggregate write per command.
 - A Repository is a write-side Aggregate collection. It normally exposes only `Get(ctx, id)` and `Save(ctx, aggregate)` for one mutable Aggregate Root; owned child rows may be persisted with it.
-- Extra Repository methods are outside the normal write-repository shape. Semantic workflow verbs, product reads, `Save*` variants, and multi-object transaction methods return to design/modeling unless they are moved to Aggregate behavior, Application orchestration, QueryRepository/read facade, or an accepted same-aggregate fact lookup.
+- Extra Repository methods are outside the normal write-repository shape. Semantic workflow verbs, product reads, `Save*` variants, and multi-object transaction methods are unresolved model/placement pressure unless they are moved to Aggregate behavior, Application orchestration, QueryRepository/read facade, or an accepted same-aggregate fact lookup.
 - Independent Aggregate Roots must not require the same transaction for business correctness. If they do, either remodel them as one Aggregate Root or coordinate with Domain Events/process managers/reconcilers/Integration Messages and explicit eventual consistency.
 - A semantic repository method name is not proof; an API saving or coordinating several candidate roots is Aggregate Boundary Conflict until modeling proves one aggregate or event-driven coordination.
 - Implementation transaction shape is not Repository design evidence. Cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
 - After `Repository.Save()`, the in-memory aggregate is stale. Reload before further operations.
 - Query Handler structs are optional when they only delegate once to a QueryRepository.
-- Application command-side port pressure returns to modeling/design before implementation. It requires the Architecture Gate placement extension and the semantic fake test.
+- Application command-side port pressure is a model-fact or tactical-placement gap before implementation. It requires the Architecture Gate placement extension and the semantic fake test.
 
 #### Normal Shape Map
 
@@ -151,12 +149,12 @@ Rules:
 - CQRS: commands mutate Domain aggregates; queries return DTO/read models without loading aggregates for UI history or detail pages.
 - Bounded Context: product language, authority, lifecycle, and invariant ownership define the boundary, not technology nouns.
 - FSM: state-specific behavior lives in state methods and aggregate methods delegate to the current state, not raw state mutation.
-- Exception pressure returns to domain-modeling when it concerns model facts; tactical placement gaps return to design. Do not present exception-shaped mechanisms as alternatives in implementation or review.
+- Exception pressure is a model-fact gap when it concerns model facts; placement/mechanism uncertainty is a tactical placement gap. Do not present exception-shaped mechanisms as alternatives in implementation or review.
 
-#### Return Routing
+#### Gap Classification
 
-- Return to domain-modeling for aggregate boundary, lifecycle, invariant, fact language, or bounded-context uncertainty.
-- Return to design for layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted.
+- Classify aggregate boundary, lifecycle, invariant, fact language, or bounded-context uncertainty as model-fact gaps.
+- Classify layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted as tactical placement gaps.
 - Report a violation directly when evidence proves the accepted model or architecture rule is broken and no new model/design decision is needed.
 - Red-flag evidence such as semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, ORM session, or multi-record lifecycle writes is implementation evidence. transaction-shaped evidence cannot satisfy Repository design.
 - Accepted design is evidence to inspect, not a waiver. If a design contains synchronous writes across several lifecycle owners, it still needs invariant owner, failure tolerance, and event/process rationale.
@@ -164,7 +162,7 @@ Rules:
 - Rule conclusions are scoped to one rule; they must not cover aggregate boundary or event-collaboration risk in the same flow.
 - Production wiring visibility matters: a reconciler, handler, recovery command, scheduler, route, subscription, or processor that exists in code but lacks production entrypoint or runtime registration is an evidence gap or violation.
 - Repository/API methods outside `Get`/`Save`, methods that save or coordinate several aggregate or lifecycle-owner candidates, and independent Aggregate Roots needing one transaction start outside the normal shape.
-- Candidate classification asks whether each coordinated object is the same Aggregate Root, an owned child/value object, a read model, or an independent lifecycle owner; independent owners route to modeling/design or eventized collaboration.
+- Candidate classification asks whether each coordinated object is the same Aggregate Root, an owned child/value object, a read model, or an independent lifecycle owner; independent owners are model-fact or tactical placement gaps unless eventized collaboration is accepted.
 - Linked lifecycle behavior must classify its mechanism as Domain Event, process manager, reconciler, task processor, Integration Message, or evidence gap; synchronous command path and command transaction are evidence, not a collaboration model.
 - Parent state words that look like child process outcomes must be checked against the parent lifecycle fact and owner.
 - CQRS proof comes from caller semantics, returned model family, write-side influence, storage/adapter overlap, and read-facade ownership; names, DTO packages, or absent imports are only routing clues.
@@ -195,9 +193,9 @@ Do not merge write-side Repository and read-side QueryRepository responsibilitie
 
 #### Aggregate Boundary Conflict Gate
 
-Normal path is one aggregate per command and one Repository API shaped as `Get` plus `Save`. If a Repository/API appears to save or coordinate several candidate roots, or if several independent Aggregate Roots need the same transaction for business correctness, do not justify it with transaction evidence. Classify Aggregate Boundary Conflict and return to `domain-modeling` unless a prior modeling discussion already changed the aggregate boundary.
+Normal path is one aggregate per command and one Repository API shaped as `Get` plus `Save`. If a Repository/API appears to save or coordinate several candidate roots, or if several independent Aggregate Roots need the same transaction for business correctness, do not justify it with transaction evidence. Classify Aggregate Boundary Conflict as a model-fact gap unless a prior modeling discussion already changed the aggregate boundary.
 
-Reopened modeling must answer:
+The unresolved model decision must answer:
 
 - Are these truly separate lifecycle/invariant owners, or one Aggregate with owned children/value objects?
 - Which past-tense Domain Event, process manager, reconciler, Integration Message, or compensation should express behavior linkage?
@@ -406,7 +404,7 @@ Mock/stub cross-layer seams, not Domain objects. Domain tests instantiate real a
 2. Organize by bounded context.
 3. Domain owns rules; Application orchestrates; Interface maps protocols; Infrastructure adapts mechanisms.
 4. Repositories are write-side aggregate collections; QueryRepositories/read facades are product read models.
-5. Application command-side port pressure returns to modeling/design; it is not a default.
+5. Application command-side port pressure is a model-fact or tactical-placement gap; it is not a default.
 6. Aggregates guard non-repairable invariants.
 7. Events dispatch after successful persistence.
 8. Integration Messages are cross-context contracts; Domain Events are internal facts.

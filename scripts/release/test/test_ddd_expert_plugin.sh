@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Validate ddd-expert is a standalone DDD/backend plugin with restrained
-# workflow-routing hooks.
+# Validate ddd-expert is a standalone hookless DDD/backend plugin whose skills
+# are discoverable from common development workflow trigger descriptions.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -25,43 +25,40 @@ section_line_count() {
   ' "$file"
 }
 
-extract_context() {
-  node -e '
-const fs = require("fs");
-const raw = fs.readFileSync(0, "utf8");
-const data = JSON.parse(raw);
-process.stdout.write(data.hookSpecificOutput?.additionalContext || data.additional_context || "");
-'
+skill_description() {
+  local file="$1"
+
+  awk '
+    NR == 1 && $0 == "---" { in_frontmatter = 1; next }
+    in_frontmatter && $0 == "---" { exit }
+    in_frontmatter && /^description:[[:space:]]*/ {
+      sub(/^description:[[:space:]]*/, "")
+      print
+      exit
+    }
+  ' "$file"
 }
 
-claude_skill_context() {
-  local skill="$1"
-  printf '{"tool_input":{"skill":"%s"}}\n' "$skill" |
-    CLAUDE_PLUGIN_ROOT="$CLAUDE_ROOT" "$CLAUDE_ROOT/hooks/pre-tool-use" |
-    extract_context
-}
-
-codex_prompt_context() {
-  local prompt="$1"
-  printf '{"prompt":"%s"}\n' "$prompt" |
-    node "$CODEX_ROOT/hooks/codex-runtime.js" user-prompt-submit |
-    extract_context
-}
-
-assert_restrained_hook_context() {
-  local context="$1"
+assert_description_contains() {
+  local file="$1"
   local label="$2"
+  local needle="$3"
 
-  [ -n "$context" ] || fail "$label hook should emit reminder context"
-  line_count=$(printf '%s\n' "$context" | sed '/^[[:space:]]*$/d' | wc -l)
-  [ "$line_count" -le 6 ] || fail "$label hook reminder should stay short"
-  grep -q '\$ddd-expert:' <<<"$context" || fail "$label hook should route to ddd-expert skills"
-  ! grep -q "Path:" <<<"$context" || fail "$label hook should not inject file paths"
-  ! grep -q "references/" <<<"$context" || fail "$label hook should not inject reference paths"
-  ! grep -q "ddd-golang" <<<"$context" || fail "$label hook should not inject Go reference names"
-  ! grep -q "Architecture Gate" <<<"$context" || fail "$label hook should not inject DDD gate details"
-  ! grep -q "Aggregate Root" <<<"$context" || fail "$label hook should not inject tactical DDD details"
-  ! grep -q "§" <<<"$context" || fail "$label hook should not inject section anchors"
+  skill_description "$file" | grep -Fqi "$needle" || fail "$label description should mention $needle"
+}
+
+assert_description_avoids_ddd_jargon() {
+  local file="$1"
+  local label="$2"
+  local desc
+
+  desc="$(skill_description "$file")"
+  printf '%s\n' "$desc" | grep -Eq '^Use when ' || fail "$label description should start with Use when"
+  if printf '%s\n' "$desc" | rg -i 'Aggregate|Bounded Context|Core Domain|Domain Event|Integration Message|CQRS|Repository|Value Object' >/dev/null; then
+    printf '%s\n' "$desc" >&2
+    fail "$label description should be written in common development language, not DDD internal jargon"
+  fi
+  ! grep -q "^## Project-stage triggers$" "$file" || fail "$label should not put trigger rules in the skill body"
 }
 
 # Users must be able to install ddd-expert independently from both marketplaces.
@@ -81,137 +78,264 @@ jq -e '.plugins[] | select(.name == "superpowers-ddd-architect")' \
 [ "$(jq -r .name "$CLAUDE_ROOT/.claude-plugin/plugin.json")" = "ddd-expert" ] || fail "Claude manifest name should be ddd-expert"
 [ "$(jq -r .name "$CODEX_ROOT/.codex-plugin/plugin.json")" = "ddd-expert" ] || fail "Codex manifest name should be ddd-expert"
 
-# ddd-expert owns only restrained workflow-routing hooks. Hooks remind agents
-# which ddd-expert skill to invoke; they must not inject reference content.
-[ "$(jq -r '.hooks // empty' "$CODEX_ROOT/.codex-plugin/plugin.json")" = "./hooks/hooks.json" ] || fail "Codex ddd-expert manifest should declare hooks"
-[ -f "$CLAUDE_ROOT/hooks/hooks.json" ] || fail "Claude ddd-expert should register hooks"
-[ -f "$CLAUDE_ROOT/hooks/pre-tool-use" ] || fail "Claude ddd-expert pre-tool-use hook missing"
-[ -f "$CLAUDE_ROOT/hooks/run-hook.cmd" ] || fail "Claude ddd-expert run-hook wrapper missing"
-[ -f "$CODEX_ROOT/hooks/hooks.json" ] || fail "Codex ddd-expert should register hooks"
-[ -f "$CODEX_ROOT/hooks/codex-runtime.js" ] || fail "Codex ddd-expert runtime missing"
-[ -f "$CODEX_ROOT/codex-hooks-snippet.json" ] || fail "Codex ddd-expert should ship hook snippet"
+# ddd-expert is hookless. Its skills must be discovered from their own common
+# development workflow descriptions, not by another workflow plugin.
+[ -z "$(jq -r '.hooks // empty' "$CODEX_ROOT/.codex-plugin/plugin.json")" ] || fail "Codex ddd-expert manifest should not declare hooks"
+[ ! -e "$CLAUDE_ROOT/hooks" ] || fail "Claude ddd-expert should not ship hooks"
+[ ! -e "$CODEX_ROOT/hooks" ] || fail "Codex ddd-expert should not ship hooks"
+[ ! -e "$CODEX_ROOT/codex-hooks-snippet.json" ] || fail "Codex ddd-expert should not ship hook snippet"
 
-jq -e '.hooks.PreToolUse[] | select(.matcher == "Skill")' "$CLAUDE_ROOT/hooks/hooks.json" >/dev/null || fail "Claude ddd-expert should intercept Skill invocations"
-jq -e '.hooks.UserPromptSubmit | type == "array"' "$CODEX_ROOT/hooks/hooks.json" >/dev/null || fail "Codex ddd-expert should register UserPromptSubmit"
-diff -u <(jq -S '.hooks' "$CODEX_ROOT/hooks/hooks.json") <(jq -S '.hooks' "$CODEX_ROOT/codex-hooks-snippet.json") >/dev/null || fail "Codex ddd-expert hooks should match fallback snippet"
+if rg -n '\$?superpowers(:|-memory|-architect|-ddd-architect)|docs/superpowers' "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null; then
+  rg -n '\$?superpowers(:|-memory|-architect|-ddd-architect)|docs/superpowers' "$CLAUDE_ROOT" "$CODEX_ROOT" >&2
+  fail "ddd-expert should not bind to superpowers plugins, skills, or paths"
+fi
 
-writing_context="$(claude_skill_context superpowers:writing-plans)"
-assert_restrained_hook_context "$writing_context" "Claude writing-plans"
-grep -q '\$ddd-expert:domain-modeling' <<<"$writing_context" || fail "Claude writing-plans should require domain-modeling when absent"
-grep -q '\$ddd-expert:design' <<<"$writing_context" || fail "Claude writing-plans should route accepted model to design"
-grep -qi "accepted domain model" <<<"$writing_context" || fail "Claude writing-plans should mention accepted domain model condition"
-
-codex_writing_context="$(codex_prompt_context 'Please use $superpowers:writing-plans for this backend plan')"
-assert_restrained_hook_context "$codex_writing_context" "Codex writing-plans"
-grep -q '\$ddd-expert:domain-modeling' <<<"$codex_writing_context" || fail "Codex writing-plans should require domain-modeling when absent"
-grep -q '\$ddd-expert:design' <<<"$codex_writing_context" || fail "Codex writing-plans should route accepted model to design"
-
-for skill in superpowers:executing-plans superpowers:subagent-driven-development; do
-  context="$(claude_skill_context "$skill")"
-  assert_restrained_hook_context "$context" "Claude $skill"
-  grep -q '\$ddd-expert:implement' <<<"$context" || fail "Claude $skill should route to implement"
-done
-
-for prompt in 'Please use $superpowers:executing-plans for this task' 'Please use $superpowers:subagent-driven-development for this task'; do
-  context="$(codex_prompt_context "$prompt")"
-  assert_restrained_hook_context "$context" "Codex $prompt"
-  grep -q '\$ddd-expert:implement' <<<"$context" || fail "Codex development prompt should route to implement"
-done
-
-for skill in superpowers:requesting-code-review superpowers:receiving-code-review; do
-  context="$(claude_skill_context "$skill")"
-  assert_restrained_hook_context "$context" "Claude $skill"
-  grep -q '\$ddd-expert:review' <<<"$context" || fail "Claude $skill should route to review"
-done
-
-for prompt in 'Please use $superpowers:requesting-code-review on this branch' 'Please use $superpowers:receiving-code-review for this feedback'; do
-  context="$(codex_prompt_context "$prompt")"
-  assert_restrained_hook_context "$context" "Codex $prompt"
-  grep -q '\$ddd-expert:review' <<<"$context" || fail "Codex review prompt should route to review"
-done
-
-brainstorming_context="$(claude_skill_context superpowers:brainstorming)"
-[ -z "$brainstorming_context" ] || fail "Claude ddd-expert should not trigger on brainstorming"
-[ "$(printf '{"prompt":"Please use $superpowers:brainstorming"}\n' | node "$CODEX_ROOT/hooks/codex-runtime.js" user-prompt-submit)" = "{}" ] || fail "Codex ddd-expert should not trigger on brainstorming"
-
-for skill in domain-modeling design implement review; do
+for skill in explore shape codify guard; do
   [ -f "$CLAUDE_ROOT/skills/$skill/SKILL.md" ] || fail "Claude ddd-expert missing $skill skill"
   [ -f "$CODEX_ROOT/skills/$skill/SKILL.md" ] || fail "Codex ddd-expert missing $skill skill"
+done
+for retired_skill in domain-modeling design implement review; do
+  [ ! -e "$CLAUDE_ROOT/skills/$retired_skill" ] || fail "Claude ddd-expert should not keep retired $retired_skill alias"
+  [ ! -e "$CODEX_ROOT/skills/$retired_skill" ] || fail "Codex ddd-expert should not keep retired $retired_skill alias"
 done
 ! find "$CLAUDE_ROOT/references" "$CODEX_ROOT/references" -name 'ddd-risk-router.md' | grep -q . || fail "ddd-expert should not ship ddd-risk-router reference"
 ! rg -ni "ddd-risk-router|risk[- ]?router|risk[- ]?card" "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null || fail "ddd-expert should not route through risk-router or risk-card terminology"
 
-check_domain_modeling_skill() {
-  local modeling_skill="$1"
+assert_references_classify_without_phase_returns() {
+  local root="$1"
   local label="$2"
+  local matches
 
-  grep -q "ddd-modeling-gates.md" "$modeling_skill" || fail "$label domain-modeling should load modeling gates"
-  grep -q "one-question-at-a-time" "$modeling_skill" || fail "$label domain-modeling should advertise one-question interview"
-  grep -q "Ask exactly one high-fidelity question at a time" "$modeling_skill" || fail "$label domain-modeling should force one high-fidelity question"
-  grep -q "Avoid low-fidelity questions" "$modeling_skill" || fail "$label domain-modeling should reject low-fidelity questions"
-  grep -q "Domain Modeling Brief" "$modeling_skill" || fail "$label domain-modeling should emit a Domain Modeling Brief"
-  grep -q "Model Decisions" "$modeling_skill" || fail "$label domain-modeling should emit material model decisions"
-  grep -q "event-storming timeline" "$modeling_skill" || fail "$label domain-modeling should reconstruct an event-storming timeline"
-  grep -q "past-tense business facts" "$modeling_skill" || fail "$label domain-modeling should start from past-tense business facts"
-  grep -q "Do not write \`docs/superpowers/memory/\` directly" "$modeling_skill" || fail "$label domain-modeling should not write memory directly"
-  grep -q "Memory candidates" "$modeling_skill" || fail "$label domain-modeling should emit memory candidates"
+  matches="$(rg -n 'return(s|ed)? to `?(explore|shape|codify|guard)`?|return-to-(explore|shape|codify|guard)' "$root/references" || true)"
+  if [ -n "$matches" ]; then
+    printf '%s\n' "$matches" >&2
+    fail "$label references should classify gaps instead of returning to phase skills"
+  fi
 }
 
-check_domain_modeling_skill "$CLAUDE_ROOT/skills/domain-modeling/SKILL.md" "Claude"
-check_domain_modeling_skill "$CODEX_ROOT/skills/domain-modeling/SKILL.md" "Codex"
-
-check_design_skill() {
-  local design_skill="$1"
+assert_references_do_not_link_skill_files() {
+  local root="$1"
   local label="$2"
+  local matches
 
-  grep -q "ddd-modeling-gates.md" "$design_skill" || fail "$label design should load modeling gates"
-  grep -q "before naming Aggregates" "$design_skill" || fail "$label design should gate tactical objects before naming aggregates"
-  grep -q "Normal-shape concepts" "$design_skill" || fail "$label design should state normal-shape concepts before deviations"
-  grep -q "Implementation handoff" "$design_skill" || fail "$label design should emit an implementation handoff"
-  grep -q "Accepted model source" "$design_skill" || fail "$label design handoff should name accepted model source"
-  grep -q "Layer ownership" "$design_skill" || fail "$label design handoff should decide layer ownership"
-  grep -q "collaboration model before mechanism" "$design_skill" || fail "$label design should decide collaboration model before mechanism"
-  grep -q "If any handoff item is material to implementation and unknown, Stop" "$design_skill" || fail "$label design should stop instead of leaving implement to guess"
-  grep -q "Aggregate Boundary Conflict returns to \`domain-modeling\`" "$design_skill" || fail "$label design should route aggregate boundary conflicts to domain-modeling"
-  grep -q "Return to domain-modeling for missing model facts" "$design_skill" || fail "$label design should route missing model facts to domain-modeling"
-  grep -q "Return to design for placement or mechanism decisions" "$design_skill" || fail "$label design should keep placement/mechanism decisions in design"
-  grep -q "Implementation transaction shape is not model evidence" "$design_skill" || fail "$label design should reject implementation transaction evidence"
-  ! grep -q "documented transaction exception" "$design_skill" || fail "$label design should not list documented transaction exception as a collaboration model"
+  matches="$(rg -n '\.\./skills/|skills/[[:alnum:]-]+/SKILL\.md' "$root/references" || true)"
+  if [ -n "$matches" ]; then
+    printf '%s\n' "$matches" >&2
+    fail "$label references should not link directly to phase skill files"
+  fi
 }
 
-check_design_skill "$CLAUDE_ROOT/skills/design/SKILL.md" "Claude"
-check_design_skill "$CODEX_ROOT/skills/design/SKILL.md" "Codex"
+assert_references_classify_without_phase_returns "$CLAUDE_ROOT" "Claude"
+assert_references_classify_without_phase_returns "$CODEX_ROOT" "Codex"
+assert_references_do_not_link_skill_files "$CLAUDE_ROOT" "Claude"
+assert_references_do_not_link_skill_files "$CODEX_ROOT" "Codex"
 
-check_implement_skill() {
-  local implement_skill="$1"
+check_explore_skill() {
+  local explore_skill="$1"
   local label="$2"
 
-  line_count=$(wc -l <"$implement_skill")
-  [ "$line_count" -le 110 ] || fail "$label implement skill should stay concise"
-  grep -q "Implementation handoff" "$implement_skill" || fail "$label implement should consume design handoff"
-  grep -q "Handoff check" "$implement_skill" || fail "$label implement should verify handoff before code"
-  grep -q "modeling evidence" "$implement_skill" || fail "$label implement should verify modeling evidence"
-  grep -q "Accepted model source" "$implement_skill" || fail "$label implement should name accepted model source"
-  grep -q "Object shape routing" "$implement_skill" || fail "$label implement should route confirmed objects"
-  grep -q "Normal-shape concepts" "$implement_skill" || fail "$label implement should use normal-shape concepts before deviations"
-  grep -q "Surface preflight" "$implement_skill" || fail "$label implement should classify touched surfaces"
-  grep -q "collaboration model" "$implement_skill" || fail "$label implement should require accepted collaboration model"
-  grep -q "Rules Satisfied / Not Applicable / Return to domain-modeling / Return to design" "$implement_skill" || fail "$label implement output should route modeling/design exceptions upstream"
-  grep -q "Changed files by layer" "$implement_skill" || fail "$label implement should report changed files by layer"
-  grep -q "Tests / verification" "$implement_skill" || fail "$label implement should report verification"
-  grep -q "return to \`domain-modeling\`" "$implement_skill" || fail "$label implement should return missing business facts upstream"
-  grep -q "return to \`design\`" "$implement_skill" || fail "$label implement should return missing placement upstream"
-  grep -q "review finding includes \`Model correction\`" "$implement_skill" || fail "$label implement should recognize review model corrections"
-  grep -q "already accepted by the user or design handoff" "$implement_skill" || fail "$label implement should not apply model corrections without accepted design"
-  grep -q "Aggregate Boundary Conflict returns to \`domain-modeling\`" "$implement_skill" || fail "$label implement should route aggregate boundary conflicts upstream"
-  grep -q "Return to domain-modeling for aggregate boundary, lifecycle, invariant, fact language, or bounded-context uncertainty" "$implement_skill" || fail "$label implement should route unresolved model facts upstream"
-  grep -q "Return to design for layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted" "$implement_skill" || fail "$label implement should route unresolved tactical placement upstream"
-  grep -q "Implementation transaction shape is not Repository design evidence" "$implement_skill" || fail "$label implement should reject persistence transaction evidence"
-  ! grep -q "documented transaction exception" "$implement_skill" || fail "$label implement should not list documented transaction exception as a collaboration model"
+  assert_description_avoids_ddd_jargon "$explore_skill" "$label explore"
+  assert_description_contains "$explore_skill" "$label explore" "product discovery"
+  assert_description_contains "$explore_skill" "$label explore" "PRD/spec writing"
+  assert_description_contains "$explore_skill" "$label explore" "feature scoping"
+  assert_description_contains "$explore_skill" "$label explore" "backlog refinement"
+  assert_description_contains "$explore_skill" "$label explore" "story mapping"
+  assert_description_contains "$explore_skill" "$label explore" "change-request intake"
+  assert_description_contains "$explore_skill" "$label explore" "before architecture planning"
+  assert_description_contains "$explore_skill" "$label explore" "ticket breakdown"
+  assert_description_contains "$explore_skill" "$label explore" "user workflows"
+  assert_description_contains "$explore_skill" "$label explore" "business rules"
+  grep -qi "strategic domain-modeling workflow" "$explore_skill" || fail "$label explore should be framed as strategic domain modeling"
+  grep -q "updating the project's existing documentation surfaces" "$explore_skill" || fail "$label explore should update existing project docs"
+  grep -q "not by producing a standalone modeling report" "$explore_skill" || fail "$label explore should not emit a standalone report"
+  grep -q "Core Domain" "$explore_skill" || fail "$label explore should focus the core domain"
+  grep -q "Context Map" "$explore_skill" || fail "$label explore should cover context maps"
+  grep -q "ddd-modeling-gates.md" "$explore_skill" || fail "$label explore should load modeling gates"
+  grep -q "target PRD/spec/change request" "$explore_skill" || fail "$label explore should read PRD/spec/change-request evidence first"
+  grep -q "glossary or terminology docs" "$explore_skill" || fail "$label explore should read glossary/terminology docs"
+  grep -q "only confirmed model changes" "$explore_skill" || fail "$label explore should output only confirmed model changes"
+  grep -q "Domain concepts are business-language concepts, not tactical classifications" "$explore_skill" || fail "$label explore should keep concepts at business-language level"
+  grep -q "one-question-at-a-time" "$explore_skill" || fail "$label explore should advertise one-question interview"
+  grep -q "Ask exactly one high-fidelity question at a time" "$explore_skill" || fail "$label explore should force one high-fidelity question"
+  grep -q "do not write partial output or a gap list" "$explore_skill" || fail "$label explore should ask instead of emitting gap lists"
+  grep -q "Avoid low-fidelity questions" "$explore_skill" || fail "$label explore should reject low-fidelity questions"
+  grep -q "event-storming timeline" "$explore_skill" || fail "$label explore should reconstruct an event-storming timeline"
+  grep -q "past-tense business facts" "$explore_skill" || fail "$label explore should start from past-tense business facts"
+  grep -q "write confirmed domain model changes to the project docs" "$explore_skill" || fail "$label explore should write confirmed model changes to docs"
+  grep -q "update the existing glossary" "$explore_skill" || fail "$label explore should update glossary carriers"
+  grep -q "update the existing context map" "$explore_skill" || fail "$label explore should update boundary/context carriers"
+  grep -q "update the relevant PRD/spec section" "$explore_skill" || fail "$label explore should update relevant PRD/spec sections"
+  grep -q 'append a concise `Domain Model` section to the current PRD/spec' "$explore_skill" || fail "$label explore should append to PRD/spec when no carrier exists"
+  grep -q "Mermaid or text diagram only when it clarifies a flow, lifecycle, boundary, or rule" "$explore_skill" || fail "$label explore should allow only useful business diagrams"
+  grep -q "Do not add class diagrams, ERDs, component diagrams, deployment diagrams, API call graphs, schemas, or DTO shapes" "$explore_skill" || fail "$label explore should ban technical diagrams"
+  grep -q "Do not duplicate content" "$explore_skill" || fail "$label explore should avoid duplicating clear PRD/spec content"
+  grep -q "Do not produce a complete model inventory" "$explore_skill" || fail "$label explore should avoid complete inventory output"
+  grep -q "ask about it instead of writing it as a candidate" "$explore_skill" || fail "$label explore should ask about unconfirmed concepts instead of emitting candidates"
+  grep -q "Final response: list the files updated" "$explore_skill" || fail "$label explore final response should summarize files updated"
+  grep -q "No domain model changes needed" "$explore_skill" || fail "$label explore should support no-change completion"
+  ! grep -q "When shared understanding is reached, write a PRD-shaped" "$explore_skill" || fail "$label explore should not emit the old PRD-shaped brief"
+  ! grep -q "knowledge candidates" "$explore_skill" || fail "$label explore should not emit memory candidates"
 }
 
-check_implement_skill "$CLAUDE_ROOT/skills/implement/SKILL.md" "Claude"
-check_implement_skill "$CODEX_ROOT/skills/implement/SKILL.md" "Codex"
+check_explore_skill "$CLAUDE_ROOT/skills/explore/SKILL.md" "Claude"
+check_explore_skill "$CODEX_ROOT/skills/explore/SKILL.md" "Codex"
+
+check_shape_skill() {
+  local shape_skill="$1"
+  local label="$2"
+
+  assert_description_avoids_ddd_jargon "$shape_skill" "$label shape"
+  assert_description_contains "$shape_skill" "$label shape" "backend architecture planning"
+  assert_description_contains "$shape_skill" "$label shape" "technical design"
+  assert_description_contains "$shape_skill" "$label shape" "solution design"
+  assert_description_contains "$shape_skill" "$label shape" "ticket breakdown"
+  assert_description_contains "$shape_skill" "$label shape" "implementation planning"
+  assert_description_contains "$shape_skill" "$label shape" "design review"
+  assert_description_contains "$shape_skill" "$label shape" "accepted requirements"
+  assert_description_contains "$shape_skill" "$label shape" "before coding"
+  assert_description_contains "$shape_skill" "$label shape" "boundaries"
+  assert_description_contains "$shape_skill" "$label shape" "data ownership"
+  assert_description_contains "$shape_skill" "$label shape" "transaction shape"
+  assert_description_contains "$shape_skill" "$label shape" "test seams"
+  grep -q "smallest useful DDD/backend design" "$shape_skill" || fail "$label shape should produce the smallest useful backend design"
+  grep -q "confirmed domain model content from project docs" "$shape_skill" || fail "$label shape should consume confirmed model content from project docs"
+  grep -q "^1\\. Read inputs:" "$shape_skill" || fail "$label shape workflow should use numbered list steps"
+  grep -q "target PRD/spec" "$shape_skill" || fail "$label shape should read the target PRD/spec"
+  grep -q "confirmed domain model sections" "$shape_skill" || fail "$label shape should read confirmed domain model sections"
+  grep -q "ddd-modeling-gates.md" "$shape_skill" || fail "$label shape should load modeling gates"
+  grep -q "Read deeper references only for touched surfaces" "$shape_skill" || fail "$label shape should load deeper references only for touched surfaces"
+  grep -q "^2\\. Reference routing:" "$shape_skill" || fail "$label shape workflow should list reference routing as a step"
+  grep -q "Reference routing: load only the narrow reference for the touched design surface" "$shape_skill" || fail "$label shape should route references by touched design surface"
+  grep -q "language/framework placement" "$shape_skill" || fail "$label shape should load language guides for language/framework placement"
+  grep -q "ddd-golang.md" "$shape_skill" || fail "$label shape should route Go design through the Go reference router"
+  grep -q "ddd-python.md" "$shape_skill" || fail "$label shape should route Python design through the Python reference"
+  grep -q "ddd-typescript.md" "$shape_skill" || fail "$label shape should route TypeScript design through the TypeScript reference"
+  grep -q "follow its router for domain, application, infrastructure, CQRS, events/messages, taskqueue, runtime, scaffold, or generated-code surfaces" "$shape_skill" || fail "$label shape should follow the Go router for narrow references"
+  grep -q "database.md" "$shape_skill" || fail "$label shape should load database reference for database decisions"
+  grep -q "schema, migration, index, or SQL decisions" "$shape_skill" || fail "$label shape should route database decisions narrowly"
+  grep -q "ddd-agent-contract.md" "$shape_skill" || fail "$label shape should load agent contract for execution handoff constraints"
+  grep -q "execution handoff, stop conditions, self-checks, or reporting constraints" "$shape_skill" || fail "$label shape should route agent-contract decisions narrowly"
+  grep -q "^3\\. Check phase fit:" "$shape_skill" || fail "$label shape workflow should list phase fit as a step"
+  grep -q "before naming Aggregates" "$shape_skill" || fail "$label shape should gate tactical objects before naming aggregates"
+  grep -q "Normal-shape concepts" "$shape_skill" || fail "$label shape should state normal-shape concepts before deviations"
+  grep -q "^4\\. Shape decisions:" "$shape_skill" || fail "$label shape workflow should list shaping as a step"
+  grep -q "accepted model facts first" "$shape_skill" || fail "$label shape should start from accepted model facts"
+  grep -q "^5\\. Gate-review output:" "$shape_skill" || fail "$label shape workflow should list gate review as a step"
+  grep -q "before writing Tactical Design, review the shaped result against" "$shape_skill" || fail "$label shape should review its own output before documentation"
+  grep -q "internal gate checklist" "$shape_skill" || fail "$label shape should use modeling gates as an internal checklist"
+  grep -q "story before nouns, event timeline before objects, authority before ownership, lifecycle before type" "$shape_skill" || fail "$label shape gate review should cover early modeling gates"
+  grep -q "invariant before aggregate, failure tolerance before transaction, language before integration, and coordination before abstraction" "$shape_skill" || fail "$label shape gate review should cover tactical modeling gates"
+  grep -q "If a material gate fails, do not publish the design" "$shape_skill" || fail "$label shape should block output when gate review fails"
+  grep -q "Do not print the gate checklist in project docs or the final response" "$shape_skill" || fail "$label shape should keep gate checklist internal"
+  grep -q "ask one focused design question" "$shape_skill" || fail "$label shape should ask focused design questions for unclear tactical choices"
+  grep -q "Implementation handoff" "$shape_skill" || fail "$label shape should emit an implementation handoff"
+  grep -q "accepted model source" "$shape_skill" || fail "$label shape handoff should name accepted model source"
+  grep -q "layer ownership" "$shape_skill" || fail "$label shape handoff should decide layer ownership"
+  grep -q "collaboration model before mechanism" "$shape_skill" || fail "$label shape should decide collaboration model before mechanism"
+  grep -q "Only shape decisions that are material before implementation" "$shape_skill" || fail "$label shape should output only material tactical decisions"
+  grep -q "Omit categories that do not affect this change" "$shape_skill" || fail "$label shape should omit irrelevant design categories"
+  grep -q "If any Implementation handoff item is material to codification and unknown" "$shape_skill" || fail "$label shape should stop instead of leaving codify to guess"
+  grep -q "Aggregate Boundary Conflict returns to \`explore\`" "$shape_skill" || fail "$label shape should route aggregate boundary conflicts to explore"
+  grep -q "Return to explore for missing model facts" "$shape_skill" || fail "$label shape should route missing model facts to explore"
+  grep -q "Return to shape for placement or mechanism decisions" "$shape_skill" || fail "$label shape should keep placement/mechanism decisions in shape"
+  grep -q "Implementation transaction shape is not model evidence" "$shape_skill" || fail "$label shape should reject implementation transaction evidence"
+  grep -q "Write the accepted tactical design back to the project docs" "$shape_skill" || fail "$label shape should write design decisions back to project docs"
+  grep -q "Prefer an existing design doc, architecture/domain doc, ADR, or PRD/spec design section" "$shape_skill" || fail "$label shape should prefer existing design carriers"
+  grep -q 'append a concise `Tactical Design` section to the current PRD/spec' "$shape_skill" || fail "$label shape should append Tactical Design when no carrier exists"
+  grep -q 'Write only the decisions `codify` must obey' "$shape_skill" || fail "$label shape should write only codify-relevant decisions"
+  grep -q "responsibility being shaped" "$shape_skill" || fail "$label shape output should name the shaped responsibility"
+  grep -q "Model Decisions, Boundary / Consistency, Implementation Constraints, Verification Seams" "$shape_skill" || fail "$label shape should use compact tactical design sections"
+  grep -q "tactical objects and responsibilities" "$shape_skill" || fail "$label shape model decisions should state tactical objects and responsibilities"
+  grep -q "aggregate, policy, service, read-model, command, query, event, or message choices" "$shape_skill" || fail "$label shape model decisions should state required tactical choices"
+  grep -q "aggregate boundary, invariant owner, data authority" "$shape_skill" || fail "$label shape boundary output should state boundary and authority"
+  grep -q "transaction boundary, idempotency, failure handling" "$shape_skill" || fail "$label shape consistency output should state transaction and failure rules"
+  grep -q "layer ownership, ports, repositories, adapters" "$shape_skill" || fail "$label shape constraints should state layer and adapter ownership"
+  grep -q "generated/protocol boundaries, runtime/task/message containment" "$shape_skill" || fail "$label shape constraints should state generated and runtime containment"
+  grep -q "forbidden shortcuts" "$shape_skill" || fail "$label shape constraints should forbid shortcuts"
+  grep -q "smallest domain, application, contract, or integration checks" "$shape_skill" || fail "$label shape verification seams should name minimal checks"
+  grep -q "The Tactical Design section is the Implementation handoff" "$shape_skill" || fail "$label shape should make project docs the implementation handoff"
+  grep -q "do not create a separate agent-to-agent report" "$shape_skill" || fail "$label shape should avoid agent-to-agent reports"
+  grep -q "Mermaid or text diagram only when it clarifies aggregate boundaries, lifecycle, collaboration, or consistency" "$shape_skill" || fail "$label shape should allow only useful tactical diagrams"
+  grep -q "Do not add ERDs, component diagrams, deployment diagrams, API call graphs, schemas, DTO shapes, or file-layout diagrams" "$shape_skill" || fail "$label shape should ban technical implementation diagrams"
+  ! grep -q "documented transaction exception" "$shape_skill" || fail "$label shape should not list documented transaction exception as a collaboration model"
+  ! grep -q "Domain Modeling Brief" "$shape_skill" || fail "$label shape should not depend on a standalone Domain Modeling Brief"
+  ! grep -q "Default shape:" "$shape_skill" || fail "$label shape should not use the old fixed output template"
+  ! grep -q "Open questions / Stop" "$shape_skill" || fail "$label shape should not emit open-question sections"
+  ! grep -q "candidate tactics" "$shape_skill" || fail "$label shape should not emit candidate tactics"
+}
+
+check_shape_skill "$CLAUDE_ROOT/skills/shape/SKILL.md" "Claude"
+check_shape_skill "$CODEX_ROOT/skills/shape/SKILL.md" "Codex"
+
+check_codify_skill() {
+  local codify_skill="$1"
+  local label="$2"
+
+  line_count=$(wc -l <"$codify_skill")
+  [ "$line_count" -le 110 ] || fail "$label codify skill should stay concise"
+  assert_description_avoids_ddd_jargon "$codify_skill" "$label codify"
+  assert_description_contains "$codify_skill" "$label codify" "writing or changing backend code"
+  assert_description_contains "$codify_skill" "$label codify" "implementing tickets"
+  assert_description_contains "$codify_skill" "$label codify" "refactoring"
+  assert_description_contains "$codify_skill" "$label codify" "bug fixes"
+  assert_description_contains "$codify_skill" "$label codify" "API/RPC handlers"
+  assert_description_contains "$codify_skill" "$label codify" "persistence"
+  assert_description_contains "$codify_skill" "$label codify" "migrations"
+  assert_description_contains "$codify_skill" "$label codify" "messages/jobs"
+  assert_description_contains "$codify_skill" "$label codify" "runtime wiring"
+  assert_description_contains "$codify_skill" "$label codify" "logging"
+  assert_description_contains "$codify_skill" "$label codify" "tests"
+  assert_description_contains "$codify_skill" "$label codify" "code placement"
+  grep -q "Tactical Design / Implementation handoff" "$codify_skill" || fail "$label codify should consume Tactical Design handoff"
+  grep -q "active reference implementation shape" "$codify_skill" || fail "$label codify should target reference-conforming code shape"
+  grep -q "repository scaffold, package boundaries, adopted libraries, abstract interfaces, adapters" "$codify_skill" || fail "$label codify should codify scaffold, libraries, interfaces, and adapters"
+  grep -q "Codification maps decisions" "$codify_skill" || fail "$label codify should be framed as codification"
+  grep -q "Implementation handoff" "$codify_skill" || fail "$label codify should consume shape handoff"
+  grep -q "Handoff check" "$codify_skill" || fail "$label codify should verify handoff before code"
+  grep -q "modeling evidence" "$codify_skill" || fail "$label codify should verify modeling evidence"
+  grep -q "Accepted model source" "$codify_skill" || fail "$label codify should name accepted model source"
+  grep -q "Object Shape Router" "$codify_skill" || fail "$label codify should route confirmed objects through the active reference"
+  grep -q "Layer Reference Map" "$codify_skill" || fail "$label codify should use layer reference routing"
+  grep -q "File Quick Index" "$codify_skill" || fail "$label codify should use file scaffold guidance"
+  grep -q "package boundary rules" "$codify_skill" || fail "$label codify should enforce package boundaries"
+  grep -q "adopted library defaults" "$codify_skill" || fail "$label codify should enforce adopted library defaults"
+  grep -q "Language:" "$codify_skill" || fail "$label codify should route references by language"
+  grep -q "ddd-golang.md" "$codify_skill" || fail "$label codify should route Go work to Go reference"
+  grep -q "ddd-python.md" "$codify_skill" || fail "$label codify should route Python work to Python reference"
+  grep -q "ddd-typescript.md" "$codify_skill" || fail "$label codify should route TypeScript work to TypeScript reference"
+  grep -q "Use:" "$codify_skill" || fail "$label codify should route references by implementation use"
+  grep -q "scaffold/layout" "$codify_skill" || fail "$label codify should route scaffold/layout work"
+  grep -q "command/query/RPC/application handlers" "$codify_skill" || fail "$label codify should route application handler work"
+  grep -q "persistence, DO/converter, schema, migration, index, or SQL" "$codify_skill" || fail "$label codify should route persistence and schema work"
+  grep -q "events/messages" "$codify_skill" || fail "$label codify should route events and messages work"
+  grep -q "jobs/tasks/schedulers/periodic work" "$codify_skill" || fail "$label codify should route task and scheduler work"
+  grep -q "runtime/config/module/lifecycle/logging" "$codify_skill" || fail "$label codify should route runtime and logging work"
+  grep -q "before adding or changing ports/interfaces" "$codify_skill" || fail "$label codify should load agent contract before port/interface changes"
+  grep -q "local conventions conflict with the reference shape" "$codify_skill" || fail "$label codify should stop on local-reference conflicts"
+  grep -q "reference-prescribed scaffold, package path, layer owner, abstract interface" "$codify_skill" || fail "$label codify should implement reference-prescribed shape"
+  grep -q "Do not invent local substitutes for adopted libraries" "$codify_skill" || fail "$label codify should not invent local library substitutes"
+  grep -q "Normal-shape concepts" "$codify_skill" || fail "$label codify should use normal-shape concepts before deviations"
+  grep -q "Surface preflight" "$codify_skill" || fail "$label codify should classify touched surfaces"
+  grep -q "collaboration model" "$codify_skill" || fail "$label codify should require accepted collaboration model"
+  grep -q "run the smallest checks that prove the accepted user stories, design decisions, touched technology rules, and reference conformance" "$codify_skill" || fail "$label codify should verify implemented reference shape"
+  grep -q "return to \`explore\`" "$codify_skill" || fail "$label codify should return missing business facts upstream"
+  grep -q "return to \`shape\`" "$codify_skill" || fail "$label codify should return missing placement upstream"
+  grep -q "guard finding includes \`Model correction\`" "$codify_skill" || fail "$label codify should recognize guard model corrections"
+  grep -q "already accepted by the user or shape handoff" "$codify_skill" || fail "$label codify should not apply model corrections without accepted shape"
+  grep -q "Aggregate Boundary Conflict returns to \`explore\`" "$codify_skill" || fail "$label codify should route aggregate boundary conflicts upstream"
+  grep -q "Return to explore for aggregate boundary, lifecycle, invariant, fact language, or bounded-context uncertainty" "$codify_skill" || fail "$label codify should route unresolved model facts upstream"
+  grep -q "Return to shape for layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted" "$codify_skill" || fail "$label codify should route unresolved tactical placement upstream"
+  grep -q "Implementation transaction shape is not Repository design evidence" "$codify_skill" || fail "$label codify should reject persistence transaction evidence"
+  ! grep -q "Domain Modeling Brief" "$codify_skill" || fail "$label codify should not depend on a standalone Domain Modeling Brief"
+  ! grep -q "## Output" "$codify_skill" || fail "$label codify should not define a separate output section"
+  ! grep -q "DDD implementation:" "$codify_skill" || fail "$label codify should not emit an implementation report template"
+  ! grep -q "Changed files by layer" "$codify_skill" || fail "$label codify should not prescribe final response fields"
+  ! grep -q "Rules Satisfied / Not Applicable" "$codify_skill" || fail "$label codify should not prescribe output status fields"
+  ! grep -q "documented transaction exception" "$codify_skill" || fail "$label codify should not list documented transaction exception as a collaboration model"
+}
+
+check_codify_skill "$CLAUDE_ROOT/skills/codify/SKILL.md" "Claude"
+check_codify_skill "$CODEX_ROOT/skills/codify/SKILL.md" "Codex"
 
 check_review_evidence_gate() {
   local review_skill="$1"
@@ -220,17 +344,45 @@ check_review_evidence_gate() {
   local output_lines
 
   line_count=$(wc -l < "$review_skill")
-  [ "$line_count" -le 280 ] || fail "$label review should keep merged review guidance concise"
-  output_lines=$(section_line_count "$review_skill" "## Output" "Severity is about architectural impact")
+  [ "$line_count" -le 280 ] || fail "$label guard should keep merged review guidance concise"
+  output_lines=$(section_line_count "$review_skill" "## Reporting" "## Calibration")
   [ "$output_lines" -le 25 ] || fail "$label review output should stay concise and avoid field-heavy templates"
 
-  grep -q "Expected model sources" "$review_skill" || fail "$label review should reconstruct expected model from upstream outputs"
+  assert_description_avoids_ddd_jargon "$review_skill" "$label guard"
+  assert_description_contains "$review_skill" "$label guard" "reviewing backend work"
+  assert_description_contains "$review_skill" "$label guard" "code review"
+  assert_description_contains "$review_skill" "$label guard" "PR review"
+  assert_description_contains "$review_skill" "$label guard" "pull request review"
+  assert_description_contains "$review_skill" "$label guard" "diff review"
+  assert_description_contains "$review_skill" "$label guard" "design/spec review"
+  assert_description_contains "$review_skill" "$label guard" "architecture review"
+  assert_description_contains "$review_skill" "$label guard" "pre-merge checks"
+  assert_description_contains "$review_skill" "$label guard" "release readiness"
+  assert_description_contains "$review_skill" "$label guard" "regression investigation"
+  assert_description_contains "$review_skill" "$label guard" "concrete plans"
+  assert_description_contains "$review_skill" "$label guard" "generated artifacts"
+  grep -q "guard review finds" "$review_skill" || fail "$label guard should be framed as a guard review"
+  grep -q "## Scope and References" "$review_skill" || fail "$label guard should separate scope/reference routing"
+  grep -q "## Expected Model Sources" "$review_skill" || fail "$label guard should reconstruct expected model from upstream outputs"
   grep -q "model evidence" "$review_skill" || fail "$label review should reconstruct model evidence"
-  grep -q "Domain Modeling Brief" "$review_skill" || fail "$label review should read Domain Modeling Brief"
+  grep -q "project Domain Model sections in PRD/spec/change requests" "$review_skill" || fail "$label guard should read current project model docs"
+  grep -q "Tactical Design, testing seams, and \\*\\*Implementation handoff\\*\\*" "$review_skill" || fail "$label guard should read tactical design and implementation handoff"
   grep -q "Implementation handoff" "$review_skill" || fail "$label review should read implementation handoff"
   grep -q "Evidence gate" "$review_skill" || fail "$label review skill should define an evidence gate"
   grep -q "First read \\[../../references/ddd-core.md\\]" "$review_skill" || fail "$label review should load core baseline directly"
   grep -q "This skill owns the workflow and layer baseline" "$review_skill" || fail "$label review should own workflow and layer baseline"
+  grep -q "quick smell detector" "$review_skill" || fail "$label guard should keep the body checklist as quick smell detector"
+  grep -q "Reference routing" "$review_skill" || fail "$label guard should route deeper references after smells"
+  grep -q "ddd-golang.md" "$review_skill" || fail "$label guard should route Go evidence to Go reference"
+  grep -q "ddd-python.md" "$review_skill" || fail "$label guard should route Python evidence to Python reference"
+  grep -q "ddd-typescript.md" "$review_skill" || fail "$label guard should route TypeScript evidence to TypeScript reference"
+  grep -q "database.md" "$review_skill" || fail "$label guard should route database evidence"
+  grep -q "ddd-agent-contract.md" "$review_skill" || fail "$label guard should route agent-contract evidence"
+  grep -q "Coverage boundary" "$review_skill" || fail "$label guard should state coverage boundary"
+  grep -q "guard covers DDD/backend model, layer, boundary, persistence, generated-protocol, async/recovery, runtime-wiring, logging, and verification evidence" "$review_skill" || fail "$label guard should cover backend DDD evidence surfaces"
+  grep -q "does not replace general security, performance, product UX, dependency-license, or capacity review" "$review_skill" || fail "$label guard should state non-DDD review boundaries"
+  ! grep -q "Domain Modeling Brief" "$review_skill" || fail "$label guard should not depend on standalone Domain Modeling Brief"
+  ! grep -q "return-to-modeling" "$review_skill" || fail "$label guard should use explore/shape return routing"
   ! grep -q "ddd-review-smell-protocol.md" "$review_skill" || fail "$label review should not depend on a separate smell protocol reference"
   ! rg -ni "risk[- ]?router|risk[- ]?card|Risk-Card" "$review_skill" >/dev/null || fail "$label review should not contain risk-router/risk-card vocabulary"
   grep -q "Build/runtime blockers only block executable verification" "$review_skill" || fail "$label review should not let build blockers stop static model review"
@@ -265,11 +417,11 @@ check_review_evidence_gate() {
   ! grep -q "## Fix direction ordering" "$review_skill" || fail "$label review should not keep separate fix-direction section"
   grep -q "## Workflow" "$review_skill" || fail "$label review should define workflow inline"
   grep -q "\\*\\*Breadth scan\\*\\*: compare touched code shape against the layer baseline\\. Output: Smell List rows" "$review_skill" || fail "$label review workflow should output smell rows from breadth"
-  grep -q "durable-fact command admission, terminal/execution split, repository/API candidate owner, collaboration mechanism, parent state vocabulary, accepted-design waiver, and CQRS inventory" "$review_skill" || fail "$label review workflow should seed required family rows"
+  grep -q "durable-fact command admission, terminal/execution split, repository/API candidate owner, collaboration mechanism, parent state vocabulary, accepted-design waiver, CQRS inventory, and recovery reachability" "$review_skill" || fail "$label review workflow should seed required family rows"
   grep -q "\\*\\*Merge same-shape smells\\*\\*: group rows by owner, lifecycle, boundary, state vocabulary, collaboration mechanism" "$review_skill" || fail "$label review workflow should merge same-shape smell families"
   grep -q "preserving every trigger and every required family row" "$review_skill" || fail "$label review workflow should preserve required family rows during merge"
   grep -q "\\*\\*Explain each family\\*\\*: assume the smell is wrong until" "$review_skill" || fail "$label review workflow should explain each smell family with guilty-presumption shape"
-  grep -q "Output: violation, return-to-domain-modeling, return-to-design, evidence-gap, or adjacent-smell" "$review_skill" || fail "$label review workflow should output constrained verdicts"
+  grep -q "Output: violation, return-to-explore, return-to-shape, evidence-gap, or adjacent-smell" "$review_skill" || fail "$label review workflow should output constrained verdicts"
   grep -q "\\*\\*Follow related evidence\\*\\*: for each adjacent smell, inspect the nearest sibling methods" "$review_skill" || fail "$label review workflow should follow adjacent smell evidence"
   grep -q "Output: updated Smell List with any new family rows" "$review_skill" || fail "$label review workflow should output updated smell list rows"
   grep -q "\\*\\*Synthesize root cause\\*\\*: combine family verdicts\\. Output: shared wrong model, boundary, lifecycle" "$review_skill" || fail "$label review workflow should output root synthesis"
@@ -277,13 +429,15 @@ check_review_evidence_gate() {
   grep -Fxq "Smell explanation stays local by default. Use subagents only when the user explicitly asks." "$review_skill" || fail "$label review should make subagents explicit opt-in"
   ! grep -q "or a smell family is independently large" "$review_skill" || fail "$label review should not add an implicit subagent escape hatch"
 
-  grep -q "## Layer Baseline" "$review_skill" || fail "$label review should define layer baseline"
+  grep -q "## Quick Smell Checklist" "$review_skill" || fail "$label guard should define quick smell checklist"
+  grep -q "### Layer Baseline" "$review_skill" || fail "$label review should define layer baseline"
   grep -q "which required shapes are missing, and which forbidden shapes appear" "$review_skill" || fail "$label review should derive smells from missing-required and present-forbidden shapes"
-  grep -q "### Domain Layer" "$review_skill" || fail "$label review should define domain layer shape"
-  grep -q "### Application Layer" "$review_skill" || fail "$label review should define application layer shape"
-  grep -q "### Infrastructure Layer" "$review_skill" || fail "$label review should define infrastructure layer shape"
-  grep -q "### Interface Layer" "$review_skill" || fail "$label review should define interface layer shape"
-  grep -q "### Runtime Layer" "$review_skill" || fail "$label review should define runtime layer shape"
+  grep -q "#### Domain Layer" "$review_skill" || fail "$label review should define domain layer shape"
+  grep -q "#### Application Layer" "$review_skill" || fail "$label review should define application layer shape"
+  grep -q "#### Infrastructure Layer" "$review_skill" || fail "$label review should define infrastructure layer shape"
+  grep -q "#### Interface Layer" "$review_skill" || fail "$label review should define interface layer shape"
+  grep -q "#### Runtime Layer" "$review_skill" || fail "$label review should define runtime layer shape"
+  grep -q "### Cross-Layer Sentinels" "$review_skill" || fail "$label review should define cross-layer sentinels"
   grep -q "Required shape:" "$review_skill" || fail "$label review should define required shape lists"
   grep -q "Forbidden shape:" "$review_skill" || fail "$label review should define forbidden shape lists"
   grep -q "Domain owns business facts, invariants, lifecycle states, transitions, policies, Domain errors, and Domain Events" "$review_skill" || fail "$label review should require domain business ownership"
@@ -309,17 +463,20 @@ check_review_evidence_gate() {
   grep -q "parent terminal events are not emitted during partial child execution" "$review_skill" || fail "$label review should reject premature parent terminal events"
   grep -q "final verdict cites event names" "$review_skill" || fail "$label review terminal verdicts should cite event names"
   grep -q "state closure alone does not clear this row" "$review_skill" || fail "$label review should not clear terminal row from state closure alone"
-  grep -q "payment recovery, terminal event vocabulary, or \"main risk elsewhere\" do not clear delivery/refund/dispute/settlement collaboration rows" "$review_skill" || fail "$label review should not let adjacent rows clear collaboration"
+  grep -q "adjacent recovery, terminal event vocabulary, or \"main risk elsewhere\" do not clear collaboration rows" "$review_skill" || fail "$label review should not let adjacent rows clear collaboration"
   grep -q "CQRS: write repositories serve command-side aggregate facts" "$review_skill" || fail "$label review should whitelist CQRS shape"
-  grep -q "Required family rows: payment/delivery/refund/dispute/settlement scope keeps durable-fact command admission" "$review_skill" || fail "$label review should require separate family rows for lifecycle scopes"
+  grep -q "Required family rows: multi-step value transfer, fulfillment/execution, reversal/compensation, dispute/exception, settlement/closure, or similar lifecycle scope keeps durable-fact command admission" "$review_skill" || fail "$label review should require separate family rows for lifecycle scopes"
   grep -q "Repository/API inventory: inspect Domain Repository interfaces, Application repository calls, Infrastructure store methods" "$review_skill" || fail "$label review should require repository/API inventory rows"
   grep -Fq 'classify each extra `List*`, read-shaped, semantic, or coordinated-object method' "$review_skill" || fail "$label review should classify List/read-shaped repository methods"
   grep -q "Accepted-design waiver inventory: when spec/design/local convention accepts semantic repository transactions" "$review_skill" || fail "$label review should require accepted-design waiver inventory"
   grep -q "expected model sources are not waivers" "$review_skill" || fail "$label review should not treat expected design as waiver"
   grep -q "CQRS inventory: inspect write repositories and shared adapters for list/detail/history/summary/read-shaped methods before clearing CQRS shape" "$review_skill" || fail "$label review should require CQRS inventory rows"
-  grep -q "Payment parent-state vocabulary: when Payment exists beside TaskAgreement payment states" "$review_skill" || fail "$label review should require payment parent-state vocabulary rows"
-  grep -q 'final verdict mentions `payment_pending` explicitly' "$review_skill" || fail "$label review should require payment_pending vocabulary verdict"
-  grep -q "does not omit this row because recovery or durable-fact command admission already has a finding" "$review_skill" || fail "$label review should not let payment findings hide state vocabulary"
+  grep -q "Parent-state vocabulary: when a parent aggregate has state words that mirror a child/execution lifecycle" "$review_skill" || fail "$label review should require parent-state vocabulary rows"
+  grep -q "final verdict names the actual state words" "$review_skill" || fail "$label review should name actual parent-state vocabulary"
+  grep -q "does not omit this row because recovery or durable-fact command admission already has a finding" "$review_skill" || fail "$label review should not let adjacent findings hide state vocabulary"
+  ! rg -n "TaskAgreement|payment_pending|payment_failed|payment_cancelled|payment/delivery/refund/dispute/settlement" "$review_skill" >/dev/null || fail "$label guard should not contain fixture-specific payment vocabulary"
+  grep -q "## Reporting" "$review_skill" || fail "$label guard should define reporting section"
+  ! grep -q "^## Output$" "$review_skill" || fail "$label guard should use Reporting section instead of Output"
   grep -q "Final answer is concise" "$review_skill" || fail "$label review output should be explicitly concise"
   grep -q "Do not print the full working-evidence set by default" "$review_skill" || fail "$label review output should not print every working evidence row by default"
   grep -q "complete and merge smell verdicts before the final answer" "$review_skill" || fail "$label review should complete smell verdicts before final output"
@@ -350,6 +507,7 @@ check_review_evidence_gate() {
   ! grep -q "Finding: <severity>" "$review_skill" || fail "$label review should not force a heavy finding template"
   ! grep -q "Axis coverage: Axis" "$review_skill" || fail "$label review should not force axis coverage table"
   ! grep -q "Selected working evidence:" "$review_skill" || fail "$label review should not force selected evidence section"
+  grep -q "## Calibration" "$review_skill" || fail "$label guard should separate calibration from hot-path workflow"
   grep -q "Post-review calibration" "$review_skill" || fail "$label review should support post-review calibration against known issue sets"
   grep -q "known issue or scoring set" "$review_skill" || fail "$label review should accept known issue sets after the initial conclusion"
   grep -q "reflect why each issue was missed or shallowly found" "$review_skill" || fail "$label review should reflect on missed findings after scoring feedback"
@@ -360,8 +518,8 @@ check_review_evidence_gate() {
   grep -q "No DDD findings: say that directly only when no concrete violation/return was found" "$review_skill" || fail "$label review should define no-finding output"
 }
 
-check_review_evidence_gate "$CLAUDE_ROOT/skills/review/SKILL.md" "Claude"
-check_review_evidence_gate "$CODEX_ROOT/skills/review/SKILL.md" "Codex"
+check_review_evidence_gate "$CLAUDE_ROOT/skills/guard/SKILL.md" "Claude"
+check_review_evidence_gate "$CODEX_ROOT/skills/guard/SKILL.md" "Codex"
 
 check_core_normal_shape_reference() {
   local root="$1"
@@ -379,7 +537,7 @@ check_core_normal_shape_reference() {
   grep -q "CQRS: commands mutate Domain aggregates" "$core" || fail "$label core should state CQRS normal shape"
   grep -q "Bounded Context: product language, authority, lifecycle" "$core" || fail "$label core should state bounded context normal shape"
   grep -q "Aggregate Boundary Conflict" "$core" || fail "$label core should name aggregate boundary conflict"
-  grep -q "Return Routing" "$core" || fail "$label core should define return routing"
+  grep -q "Gap Classification" "$core" || fail "$label core should define gap classification"
   grep -q "Accepted design is evidence to inspect, not a waiver" "$core" || fail "$label core should reject accepted design as waiver"
   grep -q "Build/runtime blockers only block executable verification" "$core" || fail "$label core should keep static review after blockers"
   grep -q "Compile blockers are never positive model signals" "$core" || fail "$label core should reject compile blockers as positive model evidence"
@@ -395,7 +553,7 @@ check_core_normal_shape_reference() {
   grep -q "Irreversible Fact Precedence Rule" "$core" || fail "$label core should define irreversible fact precedence"
   grep -q "CQRS Read/Write Split Rule" "$core" || fail "$label core should define CQRS read/write split rule"
   grep -q "Implementation transaction shape is not Repository design evidence" "$core" || fail "$label core should reject transaction shape as repository design evidence"
-  grep -q "Exception pressure returns to domain-modeling" "$core" || fail "$label core should route exception pressure to domain-modeling"
+  grep -q "Exception pressure is a model-fact gap when it concerns model facts" "$core" || fail "$label core should classify exception pressure without routing from references"
 
   ! grep -q "Counterfactual Review Gateway" "$core" || fail "$label core should not contain review gateway protocol"
   ! grep -q "positive-shape" "$core" || fail "$label core should not contain positive-shape proof protocol"
@@ -414,7 +572,7 @@ check_core_normal_shape_reference "$CODEX_ROOT" "Codex"
 
 if rg -n "multi-aggregate|High-risk deviation|High-risk Deviation|transaction exception|documented transaction exception|exception gate|multi-object Save|Multi-Object Repository Save" "$CLAUDE_ROOT/skills" "$CLAUDE_ROOT/references" "$CODEX_ROOT/skills" "$CODEX_ROOT/references" >/dev/null; then
   rg -n "multi-aggregate|High-risk deviation|High-risk Deviation|transaction exception|documented transaction exception|exception gate|multi-object Save|Multi-Object Repository Save" "$CLAUDE_ROOT/skills" "$CLAUDE_ROOT/references" "$CODEX_ROOT/skills" "$CODEX_ROOT/references" >&2
-  fail "ddd-expert should route boundary conflicts to domain-modeling instead of naming exception mechanisms"
+  fail "ddd-expert should route boundary conflicts to explore instead of naming exception mechanisms"
 fi
 
 for reference in \
@@ -458,8 +616,8 @@ check_modeling_gates_reference() {
   grep -q "transaction shape a peer of model correction" "$gates" || fail "$label modeling gates should prevent transaction-first fixes"
   grep -q "semantic repository transaction as a peer alternative" "$gates" || fail "$label modeling gates should reject repository-transaction peer alternatives"
   grep -q "Default path is one aggregate per command" "$gates" || fail "$label modeling gates should lead multi-object coordination with the default path"
-  grep -q "boundary conflict returns to domain-modeling" "$gates" || fail "$label modeling gates should route boundary conflicts back into modeling"
-  grep -q "model facts return to domain-modeling; tactical placement gaps return to design" "$gates" || fail "$label modeling gates should route model facts and placement gaps to the right phase"
+  grep -q "boundary conflict is a model-fact gap" "$gates" || fail "$label modeling gates should classify boundary conflicts as model-fact gaps"
+  grep -q "model facts are model-fact gaps; tactical placement uncertainty is a tactical placement gap" "$gates" || fail "$label modeling gates should classify model facts and placement gaps"
   grep -q "Event Timeline Reconciliation" "$gates" || fail "$label modeling gates should reconcile event timeline to artifacts"
 }
 
@@ -493,7 +651,7 @@ check_go_reference_reorg() {
   grep -q "Repository red-flag evidence" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should name red-flag evidence"
   grep -q "semantic repository transaction" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should reject semantic repository transaction evidence"
   grep -q "cross-table transaction" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should reject cross-table transaction evidence"
-  grep -q "Return to design when the accepted aggregate is clear" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should route accepted-model API shape gaps to design"
+  grep -q "accepted aggregate is clear but Repository API shape" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should classify accepted-model API shape gaps"
   grep -q "Implementation transaction shape is not Repository design evidence" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should reject transaction evidence"
   grep -q "Prefer one aggregate boundary or Domain Event" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should prefer aggregate redesign or domain events"
   grep -q "Read-only product models belong to QueryRepository/read facade" "$root/references/ddd-golang-domain.md" || fail "$label Go domain repository should route product reads to CQRS"
@@ -545,15 +703,11 @@ check_go_reference_reorg() {
 check_go_reference_reorg "$CLAUDE_ROOT" "Claude"
 check_go_reference_reorg "$CODEX_ROOT" "Codex"
 
-# The standalone plugin should not route users back to the retired Superpowers
-# DDD plugin.
-if grep -R -n -i 'superpowers-ddd-architect' "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null; then
-  grep -R -n -i 'superpowers-ddd-architect' "$CLAUDE_ROOT" "$CODEX_ROOT" >&2
-  fail "ddd-expert should not reference retired superpowers-ddd-architect"
-fi
-
 grep -Fq "/plugin install ddd-expert@skill-workshop" "$ROOT/README.md" || fail "root README missing Claude ddd-expert install command"
 grep -Fq "codex plugin add ddd-expert@skill-workshop-codex" "$ROOT/README.md" || fail "root README missing Codex ddd-expert install command"
-grep -Fq "domain-modeling" "$ROOT/README.md" || fail "root README should list ddd-expert domain-modeling capability"
+grep -Fq "explore" "$ROOT/README.md" || fail "root README should list ddd-expert explore capability"
+grep -Fq "shape" "$ROOT/README.md" || fail "root README should list ddd-expert shape capability"
+grep -Fq "codify" "$ROOT/README.md" || fail "root README should list ddd-expert codify capability"
+grep -Fq "guard" "$ROOT/README.md" || fail "root README should list ddd-expert guard capability"
 
-echo "  ddd-expert plugin: standalone routing-hook contract correct"
+echo "  ddd-expert plugin: standalone hookless phase-skill contract correct"

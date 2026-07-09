@@ -5,7 +5,7 @@ description: Go / go-jimu Domain-layer reference. Use when implementing or revie
 
 # Go Domain Layer Reference
 
-Use this file only after `domain-modeling` / `design` has accepted the Domain object. This file translates accepted Domain objects into Go / go-jimu code shape; it must not decide aggregate boundaries or classify objects by itself.
+Use this file only after `explore` / `shape` has accepted the Domain object. This file translates accepted Domain objects into Go / go-jimu code shape; it must not decide aggregate boundaries or classify objects by itself.
 
 ## 0. Go / go-jimu Domain Building Block Lookup
 
@@ -82,7 +82,7 @@ Use this file only after `domain-modeling` / `design` has accepted the Domain ob
 **Review checks**
 
 - If callers compare IDs or mutate state, it is not a Value Object.
-- If a child object is loaded/saved independently, revisit aggregate boundary in `domain-modeling`.
+- If a child object is loaded/saved independently, revisit aggregate boundary in `explore`.
 
 ### 0.3 Domain Service / Policy Card
 
@@ -112,11 +112,11 @@ Implementation shape:
 - `Get(ctx, id)` / `Find...` returns Domain aggregates.
 - `Save(ctx, aggregate)` covers create/update/state-driven soft delete; do not split into `Insert`, `Update`, `Delete` merely because SQL has those operations.
 - `Save(ctx, aggregate) is one mutable Aggregate Root`; it may persist owned child entities/value objects, but multiple independent Aggregate Root parameters are model pressure, not a nicer Repository API.
-- A semantic repository method name is not proof. If the API saves or coordinates several candidate roots, call it Aggregate Boundary Conflict and return to `domain-modeling`. Prefer one aggregate boundary or Domain Event / process manager / reconciler coordination.
+- A semantic repository method name is not proof. If the API saves or coordinates several candidate roots, call it Aggregate Boundary Conflict and classify it as a model-fact gap. Prefer one aggregate boundary or Domain Event / process manager / reconciler coordination.
 - When Aggregate Boundary Conflict is triggered, output a candidate classification table with columns: aggregate root candidate | owned child | decision record | execution record | domain event reaction | read model.
 - Repository red-flag evidence: semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, `xorm.Session`, `gorm.Tx`, or multi-record lifecycle writes. These are implementation mapping evidence, not Repository design evidence.
 - Implementation transaction shape is not Repository design evidence. Cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
-- Return to design when the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong or missing.
+- When the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong or missing, classify it as a tactical placement gap.
 - Repository interface should not expose raw transaction/session/ORM objects.
 - Read-only product models belong to QueryRepository/read facade. Domain Repository finders load aggregates or command-side Domain facts needed to decide a write, not list/detail/summary/page DTOs.
 
@@ -130,7 +130,7 @@ Implementation shape:
 
 - If the interface is created only to wrap a database client, cache, queue, lock, retry, route, peer, or deployment detail, route to `ddd-modeling.md §0.1` / §0.2 before coding.
 - If the new method serves read-only product screens, use [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) instead.
-- If `Save` appears to need several mutable aggregate candidates, return to `domain-modeling`: classify candidate roles, then choose one aggregate boundary, child entities/value objects, Domain Event/reaction, process manager/reconciler, or Integration Message before coding.
+- If `Save` appears to need several mutable aggregate candidates, classify candidate roles, then require one aggregate boundary, child entities/value objects, Domain Event/reaction, process manager/reconciler, or Integration Message before coding.
 
 ### 0.5 State Machine Card
 
