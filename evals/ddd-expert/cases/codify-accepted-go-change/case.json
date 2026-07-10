@@ -1,0 +1,36 @@
+{
+  "id": "codify-accepted-go-change",
+  "phase": "codify",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["explore", "shape"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": ["internal/order/domain/order.go"],
+      "forbidden_paths": ["internal/order/domain/order_test.go"]
+    },
+    "files": [
+      {
+        "path": "internal/order/domain/order.go",
+        "exists": true,
+        "contains": ["Rename"],
+        "excludes": ["database/sql"]
+      }
+    ],
+    "checks": [
+      {
+        "argv": ["go", "test", "./..."],
+        "exit": 0,
+        "timeout_seconds": 60
+      }
+    ]
+  }
+}

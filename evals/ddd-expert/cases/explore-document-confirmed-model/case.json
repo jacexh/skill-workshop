@@ -1,0 +1,31 @@
+{
+  "id": "explore-document-confirmed-model",
+  "phase": "explore",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": [] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": ["docs/ddd/model.md"],
+      "forbidden_paths": ["docs/spec.md"]
+    },
+    "files": [
+      {
+        "path": "docs/ddd/model.md",
+        "exists": true,
+        "contains": ["InventoryReservation", "StockReserved"],
+        "excludes": ["CREATE TABLE"],
+        "excludes_words": ["Repository", "table"]
+      }
+    ],
+    "checks": []
+  }
+}

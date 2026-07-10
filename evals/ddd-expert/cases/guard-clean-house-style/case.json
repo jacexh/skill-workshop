@@ -1,0 +1,25 @@
+{
+  "id": "guard-clean-house-style",
+  "phase": "guard",
+  "suites": ["full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["clear"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["explore", "shape"] },
+    "verdicts": [],
+    "forbid_verdicts": ["violation", "evidence_gap"],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": [
+      {
+        "argv": ["go", "test", "./..."],
+        "exit": 0,
+        "timeout_seconds": 60
+      }
+    ]
+  }
+}

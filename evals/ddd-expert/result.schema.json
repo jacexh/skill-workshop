@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["explore", "shape", "codify", "guard"]
+    },
+    "completion": {
+      "type": "string",
+      "enum": ["completed", "stopped", "needs_clarification"]
+    },
+    "review_conclusion": {
+      "type": "string",
+      "enum": ["not_applicable", "clear", "violations", "evidence_gaps"]
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "maxItems": 3
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "target": {
+            "type": "string",
+            "enum": ["explore", "shape"]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["target", "reason"]
+      }
+    },
+    "verdicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["violation", "evidence_gap"]
+          },
+          "family": {
+            "type": "string",
+            "enum": [
+              "aggregate_boundary",
+              "repository_shape",
+              "cqrs_boundary",
+              "model_evidence",
+              "lifecycle_integrity",
+              "collaboration",
+              "runtime_recovery",
+              "persistence_conformance",
+              "layer_boundary"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "line": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "detail": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": ["path", "line", "detail"]
+            }
+          }
+        },
+        "required": ["kind", "family", "summary", "evidence"]
+      }
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "verification": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "outcome": {
+            "type": "string",
+            "enum": ["passed", "failed", "not_run"]
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": ["command", "outcome", "detail"]
+      }
+    }
+  },
+  "required": [
+    "scenario_id",
+    "phase",
+    "completion",
+    "review_conclusion",
+    "questions",
+    "routes",
+    "verdicts",
+    "changed_files",
+    "verification"
+  ]
+}

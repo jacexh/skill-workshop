@@ -1,0 +1,25 @@
+{
+  "id": "guard-missing-model-evidence",
+  "phase": "guard",
+  "suites": ["full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed", "stopped"],
+    "review_conclusion": ["evidence_gaps"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": ["explore"], "excludes": ["shape"] },
+    "verdicts": [
+      {
+        "kind": "evidence_gap",
+        "family": "model_evidence",
+        "evidence_paths": ["internal/checkout/domain/repository.go"]
+      }
+    ],
+    "forbid_verdicts": ["violation"],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": []
+  }
+}

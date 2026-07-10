@@ -1,0 +1,19 @@
+{
+  "id": "shape-missing-model-fact",
+  "phase": "shape",
+  "suites": ["smoke", "full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["stopped", "needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 1 },
+    "routes": { "contains": ["explore"], "excludes": ["shape"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": []
+  }
+}

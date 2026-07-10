@@ -23,15 +23,15 @@ Restart Codex after upgrade.
 
 ## Capabilities
 
-- **`$ddd-expert:explore` skill** — Strategic Modeling workflow for Core Domain focus, ubiquitous language, Bounded Contexts, Context Map relationships, and business facts
-- **`$ddd-expert:shape` skill** — Tactical Modeling workflow for implementation-ready model decisions, consistency boundaries, collaboration style, and verification seams
-- **`$ddd-expert:codify` skill** — Model Realization workflow that encodes accepted model decisions into code boundaries, layers, ports, adapters, persistence, messages, runtime, and tests
-- **`$ddd-expert:guard` skill** — Model Integrity workflow for specs, plans, diffs, files, persistence, messages, runtime wiring, and boundary evidence
+- **`$ddd-expert:explore` skill** — Domain clarification for accepted language, business facts, lifecycle, authority, policies, and context relationships
+- **`$ddd-expert:shape` skill** — Tactical Design for Aggregate boundaries, consistency, collaboration, ports, persistence boundaries, runtime containment, and verification seams
+- **`$ddd-expert:codify` skill** — House-Style Realization of accepted model and design decisions in working backend code
+- **`$ddd-expert:guard` skill** — Hypothesis-driven Model Integrity review of concrete implementation evidence
 - **References** — canonical files live under `references/`
 
 The plugin does not auto-inject context. Skill discovery is driven by the four phase-skill descriptions; invoke a `ddd-expert` skill explicitly when you want to force a phase.
 
-Each skill reads the smallest phase-specific baseline and then loads only the strategic or tactical references required by the task.
+Each skill runs its compact phase workflow and then loads only the reference sections required by the touched responsibility.
 
 ## Activation Guidance
 
@@ -39,10 +39,10 @@ Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting b
 
 Choose the phase by timing:
 
-- `$ddd-expert:explore` during product discovery, PRD/spec writing, feature scoping, backlog refinement, story mapping, or change-request intake.
-- `$ddd-expert:shape` during backend architecture planning, technical design, solution design, ticket breakdown, implementation planning, or design review before coding.
-- `$ddd-expert:codify` during ticket implementation, refactoring, bug fixes, API/RPC handler work, persistence/migration work, message/job changes, runtime wiring, logging, or tests.
-- `$ddd-expert:guard` during code review, PR review, pull request review, diff review, design/spec review, architecture review, pre-merge checks, release readiness, or regression investigation.
+- `$ddd-expert:explore` when a backend product request needs business-language, lifecycle, authority, invariant, policy, failure-semantics, or bounded-context clarification.
+- `$ddd-expert:shape` when accepted domain facts need Tactical Design before coding, or that design must be reviewed or changed.
+- `$ddd-expert:codify` when accepted facts and tactical decisions must be realized as house-style backend code.
+- `$ddd-expert:guard` when a concrete backend diff or implementation must be reviewed before merge or release.
 
 ## Scope
 
@@ -62,8 +62,9 @@ Use this plugin for:
 - taskqueue/runtime boundaries in DDD services
 - database-backed backend persistence design when schema, query, migration, transaction, or storage concerns are explicit
 
-Explore writes confirmed model changes back to existing project documentation: glossary/terminology carriers for language, context-map or domain-boundary docs for ownership and boundaries, and the current PRD/spec for domain concepts, lifecycle, rules, policies, or any model content without a dedicated carrier.
-Shape writes accepted tactical design back to existing project documentation: design docs, architecture/domain docs, ADRs, or the current PRD/spec `Tactical Design` section when no dedicated carrier exists.
+Explore lazily maintains the terminal-state domain model in `docs/ddd/model.md`; Shape maintains the terminal-state Tactical Design in `docs/ddd/design.md`. Multiple bounded contexts use explicit sections in these same artifacts.
+
+These artifacts contain only current DDD facts and tactical decisions. They do not copy feature descriptions, ADRs, tickets, project architecture, implementation progress, or review reports. Purely mechanical work with unambiguous ownership does not force document creation.
 
 Do not use this plugin for frontend architecture, browser QA, product UI design, or general dynamic standards lookup.
 

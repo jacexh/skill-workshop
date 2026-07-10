@@ -1,0 +1,30 @@
+{
+  "id": "shape-mysql-default-handoff",
+  "phase": "shape",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["explore"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": ["docs/ddd/design.md"],
+      "forbidden_paths": ["docs/ddd/model.md"]
+    },
+    "files": [
+      {
+        "path": "docs/ddd/design.md",
+        "exists": true,
+        "contains": ["Tactical Design", "MySQL", "Verification Seams"],
+        "excludes": ["PostgreSQL", "SQLite"]
+      }
+    ],
+    "checks": []
+  }
+}

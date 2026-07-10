@@ -1,45 +1,60 @@
 ---
 name: shape
-description: Use when backend architecture planning, technical design, solution design, ticket breakdown, implementation planning, or design review needs to turn accepted requirements or model notes into concrete backend design before coding. Helps decide boundaries, responsibilities, data ownership, transaction shape, interfaces, events/messages, and test seams.
+description: Use when Tactical Design must be created from accepted backend domain facts or an existing Tactical Design needs pre-code evaluation.
 ---
 
 # Shape
 
+Turn the accepted DDD model into the smallest `codify_ready` Tactical Design. Shape owns tactical choices; it does not rediscover business facts or choose routine physical implementation mechanics.
+
+## Tactical Design artifact
+
+The project-owned artifact is `docs/ddd/design.md`. Create it lazily for the touched responsibility. For multiple bounded contexts, keep their tactical designs in explicit context sections and resolve the relationships recorded in `model.md` before shaping cross-context collaboration.
+
+The design describes the current accepted target state, not a feature narrative, change log, ADR summary, task plan, or implementation report. Include only material DDD design:
+
+- Aggregate boundaries and invariant ownership;
+- Application responsibilities, commands, and queries;
+- Domain Events, Integration Messages, and collaboration mechanisms;
+- Repository, CQRS, consistency, transaction, and idempotency boundaries;
+- semantic ports, adapters, protocol boundaries, and runtime ownership;
+- verification seams that prove the accepted model and design.
+
+Do not prescribe schemas, DTO fields, file lists, package inventories, event payloads, or implementation steps unless that detail is itself a material design decision. A non-default choice is written as the chosen design in its normal section; do not maintain a separate exception ledger.
+
 ## Workflow
 
-Turn confirmed domain model content from project docs into the smallest useful DDD/backend design before coding.
+1. **Read accepted inputs**: start from the exact model sections for this responsibility, the context-relationship sections when contexts collaborate, the existing Tactical Design, and the scoped request. Treat code and tests as current-state evidence, not as authority over accepted model facts. When bootstrapping the DDD design artifact, inspect existing accepted project design evidence to avoid contradiction, but do not copy its history or general project knowledge into `design.md`.
+2. **Check phase fit**: if a material scenario, authority, lifecycle, invariant, failure-tolerance, business language, or bounded-context fact is missing or contradictory, return to `explore` with the single highest-leverage missing fact. Aggregate and collaboration choices based on complete facts belong to `shape`; aggregate uncertainty alone is not a reason to return upstream.
+3. **Shape the target state**: resolve every applicable handoff obligation listed under Tactical Design artifact.
+4. **Review the design internally**: check story before objects, authority before ownership, lifecycle before type, invariant before Aggregate, failure tolerance before transaction, language before integration, and coordination before mechanism. Implementation transaction shape and storage convenience are evidence, not model proof.
+5. **Pass the write gate**: if a material tactical decision cannot be resolved from accepted facts and project evidence, follow the clarification gate below. Write nothing until that gate is complete.
+6. **Write once**: after acceptance, merge the design delta into the terminal-state Tactical Design. Update only affected sections and remove superseded design statements instead of appending history.
 
-1. Read inputs: target PRD/spec, confirmed domain model sections, glossary/terminology docs, `CONTEXT.md`, `CONTEXT-MAP.md`, domain docs, ADRs, current design notes, relevant code/tests/contracts, [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md), [../../references/ddd-modeling.md](../../references/ddd-modeling.md), and [../../references/ddd-core.md](../../references/ddd-core.md). Read deeper references only for touched surfaces.
+## Clarification gate
 
-2. Reference routing: load only the narrow reference for the touched design surface. For language/framework placement, load the active guide: [../../references/ddd-golang.md](../../references/ddd-golang.md), [../../references/ddd-python.md](../../references/ddd-python.md), or [../../references/ddd-typescript.md](../../references/ddd-typescript.md). For Go, load `ddd-golang.md` first and follow its router for domain, application, infrastructure, CQRS, events/messages, taskqueue, runtime, scaffold, or generated-code surfaces. Load [../../references/database.md](../../references/database.md) only for schema, migration, index, or SQL decisions. Load [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) only when shaping execution handoff, stop conditions, self-checks, or reporting constraints.
+Ask exactly one focused design question and end the turn. Do not modify project files while clarification is active. Once every material tactical question is resolved, present one integrated proposed design delta and wait for explicit user acceptance.
 
-3. Check phase fit: if material user scenario, event timeline, authority, policy, lifecycle, data authority, or bounded-context facts are still missing, stop and return to `explore`. If the model facts are accepted but a tactical placement or mechanism decision is still unclear, resolve it in `shape`; ask one focused design question if evidence is insufficient.
+## Decision boundary
 
-4. Shape decisions: accepted model facts first, modeling gates second, collaboration model before mechanism, tactical mechanisms third, implementation constraints last. Use the modeling gates before naming Aggregates, Repositories, ports, handlers, layers, files, schemas, transactions, or event payloads; do not name them before the accepted model and relevant gates are clear.
+The applicable handoff obligations under Tactical Design artifact are Shape's complete decision boundary. Shape must leave Codify no semantic design work.
 
-5. Gate-review output: before writing Tactical Design, review the shaped result against [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) as an internal gate checklist: story before nouns, event timeline before objects, authority before ownership, lifecycle before type, invariant before aggregate, failure tolerance before transaction, language before integration, and coordination before abstraction. If a material gate fails, do not publish the design; return to `explore` for missing model facts or ask one focused design question for accepted-model placement/mechanism uncertainty. Do not print the gate checklist in project docs or the final response unless a failed gate changes the decision.
+Codify decides routine scaffold and file placement, adopted house-style libraries, concrete adapter mechanics, MySQL mapping details, message/runtime wiring mechanics, and the smallest sufficient verification implementation when those choices do not alter the accepted tactical design.
 
-## Design rules
+## Completion
 
-Normal-shape concepts: state the normal DDD path before naming deviations. Aggregates own invariants; Repositories persist one write-side Aggregate Root; Domain Events model same-BC past-tense facts after state change; Integration Messages are cross-context contracts; QueryRepositories/read facades serve product reads. Aggregate Boundary Conflict returns to `explore`; it is not a design option. Return routing: Return to explore for missing model facts such as aggregate boundary, lifecycle, invariant, fact language, bounded context, data authority, or failure tolerance. Return to shape for placement or mechanism decisions after the model is accepted: layer ownership, CQRS split, port placement, adapter boundary, repository API shape, task/runtime wiring. Implementation transaction shape is not model evidence. If a proposed exception depends on persistence convenience, cross-table writes, or semantic store names, stop and reopen modeling.
+The Tactical Design is the Implementation handoff. It is `codify_ready` only when every applicable handoff obligation above is resolved and Codify can implement without choosing business facts or semantic design.
 
-Only shape decisions that are material before implementation: tactical objects and responsibilities, boundary/consistency choices, collaboration model, required commands/queries/events/messages, repository or port boundaries, transaction/idempotency/failure rules, layer ownership, mechanism containment, and verification seams. Omit categories that do not affect this change.
+Finish with one of:
 
-Do not produce schemas, DTOs, file lists, repository inventories, event payloads, API details, or implementation plans unless that detail is the design decision itself. Do not output alternative candidates; decide from the accepted model or ask a focused question. If any Implementation handoff item is material to codification and unknown, stop before implementation.
+- `changed`: the design artifact was updated once; name the exact sections.
+- `no_change`: the existing design already makes the scoped work codify-ready.
+- `needs_clarification`: ask the single active tactical question and stop without writing.
+- `returned`: identify `explore`, the missing business fact, and the evidence exposing the gap.
+- `blocked`: an external constraint prevents reading or writing the artifact.
 
-## Documentation output
+Keep the final response short. Do not produce a separate agent-to-agent handoff report.
 
-Write the accepted tactical design back to the project docs. Prefer an existing design doc, architecture/domain doc, ADR, or PRD/spec design section. If no dedicated carrier exists, append a concise `Tactical Design` section to the current PRD/spec.
+## References
 
-Write only the decisions `codify` must obey. Every Tactical Design update should name the accepted model source and the responsibility being shaped. Use these compact tactical design sections only when material: Model Decisions, Boundary / Consistency, Implementation Constraints, Verification Seams.
-
-- **Model Decisions**: tactical objects and responsibilities; aggregate, policy, service, read-model, command, query, event, or message choices that must exist.
-- **Boundary / Consistency**: aggregate boundary, invariant owner, data authority, transaction boundary, idempotency, failure handling, and cross-context ownership.
-- **Implementation Constraints**: layer ownership, ports, repositories, adapters, generated/protocol boundaries, runtime/task/message containment, and forbidden shortcuts.
-- **Verification Seams**: the smallest domain, application, contract, or integration checks that prove the accepted model and tactical decisions.
-
-The Tactical Design section is the Implementation handoff; do not create a separate agent-to-agent report.
-
-Add a Mermaid or text diagram only when it clarifies aggregate boundaries, lifecycle, collaboration, or consistency better than prose. Do not add ERDs, component diagrams, deployment diagrams, API call graphs, schemas, DTO shapes, or file-layout diagrams.
-
-Final response: list the files updated and summarize the accepted tactical decisions in one or two bullets. Do not paste the full design unless the user asks.
+After phase fit succeeds, load only the sections needed by the touched design surface: [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) to test whether accepted facts support the design, returning to `explore` when a business gate fails; the relevant aggregate or collaboration section of [../../references/ddd-modeling.md](../../references/ddd-modeling.md); and the relevant tactical normal shape in [../../references/ddd-core.md](../../references/ddd-core.md). Load the active language guide ([../../references/ddd-golang.md](../../references/ddd-golang.md), [../../references/ddd-python.md](../../references/ddd-python.md), or [../../references/ddd-typescript.md](../../references/ddd-typescript.md)) only when framework placement constrains a tactical decision. Load [../../references/database.md](../../references/database.md) only when MySQL 8.0 capabilities constrain an accepted consistency or transaction boundary; physical schema, migration, index, and SQL mechanics belong to `codify`.

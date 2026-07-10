@@ -1,204 +1,88 @@
 ---
 name: guard
-description: Use when reviewing backend work, including code review, PR review, pull request review, diff review, design/spec review, architecture review, pre-merge checks, release readiness, or regression investigation. Helps inspect concrete plans, files, generated artifacts, runtime wiring, persistence, logging, and tests for model or boundary issues, evidence gaps, and residual risk.
+description: Use when reviewing concrete backend implementation changes before merge or release for conformance with accepted domain decisions, Tactical Design, and the ddd-expert house style. Finds evidence-backed model, boundary, persistence, messaging, runtime, and verification issues.
 ---
 
 # Guard
 
-Review concrete evidence against the expected model. A guard review finds evidence-backed issues, return-to-explore / return-to-shape triggers, or evidence gaps; it does not redesign.
+Review concrete implementation evidence against the accepted DDD model, Tactical Design, and house style. Breadth produces falsifiable hypotheses; depth clears or proves them. Guard reports and routes non-clear outcomes; it does not redesign or modify project files.
 
-Build/runtime blockers only block executable verification; independent static model review still runs. Compile blockers are never positive model signals, and absence of forbidden nouns is not model proof.
+Build or runtime blockers limit executable verification only. Continue independent static review, and never treat compilation failure, passing tests, package names, or absence of suspicious words as model proof.
 
-## Scope and References
+## Review authority
 
-First read [../../references/ddd-core.md](../../references/ddd-core.md). This skill owns the workflow and layer baseline. Use the checklist below as the quick smell detector; load references for depth after a smell is triggered, not to enumerate every possible finding.
+Establish these inputs before judging code:
 
-Reference routing: load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) / [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) when model facts are unclear; load the active language guide ([../../references/ddd-golang.md](../../references/ddd-golang.md), [../../references/ddd-python.md](../../references/ddd-python.md), or [../../references/ddd-typescript.md](../../references/ddd-typescript.md)) for triggered code evidence; load [../../references/database.md](../../references/database.md) for schema/migration/index/SQL evidence; load [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) for ports/interfaces, adopted libraries, runtime/taskqueue/message wiring, stop decisions, or self-checks.
+1. the exact review target, comparison base, and requested scope;
+2. the relevant `docs/ddd/model.md` sections for accepted business meaning and context relationships;
+3. the relevant `docs/ddd/design.md` sections for accepted tactical choices;
+4. the `ddd-expert` house-style sections applicable to touched surfaces;
+5. changed files and the necessary neighboring code, generated artifacts, migrations, configuration, runtime wiring, logs, and verification evidence.
 
-Coverage boundary: guard covers DDD/backend model, layer, boundary, persistence, generated-protocol, async/recovery, runtime-wiring, logging, and verification evidence. It does not replace general security, performance, product UX, dependency-license, or capacity review unless that evidence proves a model or boundary risk.
-
-## Expected Model Sources
-
-Reconstruct the expected model before judging code:
-
-- project Domain Model sections in PRD/spec/change requests, glossary/context map, ADRs, user stories, strategic decisions, and out-of-scope rules;
-- Tactical Design, testing seams, and **Implementation handoff**;
-- model evidence for authority, lifecycle, invariant owner, failure tolerance, integration language, collaboration model, and coordination kind when those boundaries matter;
-- spec/issue/ticket/ADR/glossary/context docs;
-- changed files, neighboring code, tests, generated artifacts, migrations, config, runtime wiring, logs, and documented deviations.
-
-If the expected bounded context, data authority, invariant owner, model evidence, layer owner, or local convention cannot be reconstructed, report an evidence gap instead of inventing a model.
+Code and tests are observed implementation evidence, not authority over the model or design. Missing DDD artifacts do not stop independently provable static findings; they block only verdicts that depend on the absent facts or decisions.
 
 ## Workflow
 
-Evidence gate before findings:
+1. **Establish scope**: confirm the target/base and locate the accepted authority for each touched responsibility. Scope narrows inspection; it does not make absent unrelated layers an evidence gap.
+2. **Breadth scan**: inventory touched layers, boundaries, and specialized surfaces. Apply the compact baselines below to seed an internal Review Ledger with `hypothesis` and `coverage_obligation` entries. A baseline signal is never a finding.
+3. **Merge families**: group related entries by semantic owner, lifecycle, boundary, state vocabulary, collaboration, Repository/CQRS shape, runtime reachability, or specialized reference surface.
+4. **Deep-check**: load only the relevant reference sections. Try to falsify each hypothesis with confirming and disconfirming evidence. Give it `clear`, `violation`, or `evidence_gap`; attach route `explore`, `shape`, or `codify` only when applicable. Clear a coverage obligation as conforming/not applicable, or promote a concrete miss to a hypothesis.
+5. **Follow adjacent evidence**: inspect the nearest sibling flows, states, events, ports, adapters, persistence methods, and runtime registrations that share the same reason. Merge and deep-check again whenever a new entry appears; stop only after a complete pass adds nothing.
+6. **Synthesize and verify**: combine related symptoms into the smallest evidence-backed root cause. Run available executable verification and record blockers or residual risk without converting them into model claims.
+7. **Enforce completion**: every coverage obligation is clear/not applicable or promoted; every hypothesis has a terminal verdict; every adjacent candidate is checked; the ledger is stable; and every reported item cites concrete evidence and the authority it is judged against.
 
-1. Confirm concrete evidence exists: files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written deviation.
-2. Start from business facts before code mechanics: command -> past-tense fact -> invariant owner -> reaction/process -> failure tolerance -> implementation mechanism.
-3. Compare touched code against the layer baseline; missing required shape or present forbidden shape becomes a smell.
-4. Use references only to explain triggered smells, not to enumerate findings.
-5. Missing proof is an evidence gap unless concrete evidence proves a violation.
-6. Accepted design and local convention are evidence to inspect, not waivers.
-7. Implementation transaction shape is not model evidence and cannot satisfy Repository design.
-8. Object splitting, package names, generated DTO mapping, and QueryRepository presence are not enough to clear a triggered smell family.
-9. Scope narrows files to inspect; it does not remove required lifecycle/repository/event/CQRS family rows or runtime/recovery rows.
-10. `design/convention accepted`, `MVP transaction`, or similar waiver wording is an accepted-design evidence gap, not clearance.
+## Hypothesis discipline
 
-1. **Breadth scan**: compare touched code shape against the layer baseline. Output: Smell List rows with layer, trigger, baseline miss, and code evidence. Lifecycle/repository/event/CQRS/runtime scope must include rows for durable-fact command admission, terminal/execution split, repository/API candidate owner, collaboration mechanism, parent state vocabulary, accepted-design waiver, CQRS inventory, and recovery reachability whenever the touched evidence reaches that family.
-2. **Merge same-shape smells**: group rows by owner, lifecycle, boundary, state vocabulary, collaboration mechanism, runtime reachability, repository/API shape, or CQRS split. Output: merged smell families preserving every trigger and every required family row.
-3. **Explain each family**: assume the smell is wrong until the relevant method, flow, state, event, port, or adapter shows the correct shape. Output: violation, return-to-explore, return-to-shape, evidence-gap, or adjacent-smell.
-4. **Follow related evidence**: for each adjacent smell, inspect the nearest sibling methods, flows, states, events, ports, adapters, or runtime registrations that share the same reason. Output: updated Smell List with any new family rows.
-5. **Synthesize root cause**: combine family verdicts. Output: shared wrong model, boundary, lifecycle, state vocabulary, collaboration mechanism, repository/API shape, CQRS split, or recovery story.
-6. **Report**: turn the synthesized verdicts into findings, evidence gaps / returns, non-required positive notes, verification, and residual risk. Output: final review judgment that places every triggered required family row under Findings or Evidence gaps / returns.
+- A smell candidate is innocent until depth evidence proves a violation; seek evidence that clears it as actively as evidence that confirms it.
+- Missing proof is an evidence gap only when a material applicable responsibility should expose that proof in the reviewed scope.
+- Implementation transaction shape, object splitting, DTO presence, QueryRepository presence, or accepted local convention cannot by themselves prove model correctness.
+- An explicit accepted design choice governs its exact scope; vague waiver wording does not.
+- Prefer the shared model or boundary cause over listing every mechanical symptom.
 
-Smell explanation stays local by default. Use subagents only when the user explicitly asks.
+## Breadth baseline
 
-## Quick Smell Checklist
+### Specialized obligations
 
-### Layer Baseline
+Seed one coverage obligation for every touched specialized surface without loading its full reference during breadth:
 
-Detect smells by asking two questions for each touched layer: which required shapes are missing, and which forbidden shapes appear.
+- **Language/framework**: classify changed code by layer and mechanism.
+- **Database**: classify schema, migration, SQL, mapping, index, constraint, and persistence configuration against the MySQL 8.0 profile.
+- **Generated/protocol**: classify generated boundaries and translation ownership.
+- **Async/runtime**: classify events, messages, tasks, schedules, recovery paths, configuration, registration, and lifecycle wiring.
+- **Model evidence**: classify unclear authority, lifecycle, invariant, failure tolerance, language, boundary, or coordination as a possible phase return.
 
-#### Domain Layer
+### Layer signals
 
-Required shape:
+| Layer | Expected responsibility signals | Boundary-leak signals |
+|---|---|---|
+| Domain | Business behavior, invariants, lifecycle, policies, Domain Events, Aggregate-root writes, semantic Repository interfaces | Generated/storage/runtime types, persistence or dispatch mechanics, public mutation, external clients |
+| Application | Command/query orchestration, transaction and idempotency boundary, event dispatch after persistence, DTO/read-model mapping | Business state decisions, direct Entity mutation, technical clients in Domain, cross-owner transactions, mixed handler roles |
+| Infrastructure | Repository/query adapters, explicit mapping, storage and SDK mechanics, external adapters, publishers | Business decisions, lifecycle admission, several independent owners disguised as one save, raw mechanisms exposed inward |
+| Interface | Protocol translation, actor/context extraction, one delegation, response/error mapping | Business workflow, repository or transaction control, Aggregate mutation, event/task orchestration |
+| Runtime | Configuration, module assembly, registration, process lifecycle, reachable recovery paths | Business policy, compensation semantics, hidden process loops, runtime lifecycle owned by Application or Domain |
 
-- Domain accepts Domain objects, Value Objects, Domain commands, or method arguments named in the ubiquitous language.
-- Domain owns business facts, invariants, lifecycle states, transitions, policies, Domain errors, and Domain Events.
-- Aggregate Roots are the sole write entrypoint for their invariant boundary.
-- Value Objects validate on construction and are replaced, not mutated.
-- Aggregate and Entity state changes go through behavior methods or Domain policies.
-- Constructors and factories create valid objects and run business validation.
-- Same-bounded-context Domain Events are recorded by aggregates after Domain state changes.
-- Write Repository interfaces represent one Aggregate Root collection and normally expose only `Get` and `Save`.
+### Cross-layer sentinels
 
-Forbidden shape:
+Each applicable sentinel seeds a hypothesis, never a verdict:
 
-- Domain must not import generated protocol, transport, ORM/database, broker, cache, runtime, Infrastructure, or another bounded context's internal Domain packages.
-- Domain must not persist, dispatch, publish, enqueue, start goroutines, read config, or log.
-- Domain must not expose setters or public mutable state that outer layers use to perform business transitions.
-- Domain Services must not need repositories, raw transactions, external clients, generated DTOs, schedulers, or runtime state.
-- Domain must not treat storage ids, SQL constraints, `deleted_at`, JSON/proto tags, or persistence transactions as model proof.
+- one Aggregate Root owns one lifecycle and invariant boundary;
+- one write Repository represents one Aggregate Root plus owned children/value objects, while product reads use QueryRepository/read facades;
+- independent Aggregate Roots do not depend on one transaction for business correctness;
+- durable facts govern later command admission, terminal closure, and replay behavior;
+- execution facts and parent terminal facts use distinct timing and language;
+- multi-step external collaboration has one named coordination and recovery mechanism;
+- Domain/Application APIs use domain-owned language rather than protocol, storage, or runtime concepts;
+- production messages, tasks, schedules, reconciliation, and recovery have reachable runtime ownership.
 
-#### Application Layer
+## Routing and reporting
 
-Required shape:
+- Missing or contradictory business facts: `evidence_gap`, route to `explore`.
+- Accepted facts but missing or contradictory tactical design: `evidence_gap`, route to `shape`.
+- Implementation violates clear accepted authority or house style: `violation`, route `codify`.
+- Missing runtime, test, or operational proof: report the material evidence gap; do not edit code to make the review pass.
 
-- Application accepts command/query DTOs and returns DTOs, read models, results, or mapped errors.
-- Command flow loads one Aggregate Root through a Domain Repository, calls Aggregate or Domain Service behavior, saves it, then returns a result.
-- Application drains and dispatches Domain Events exactly once after successful persistence when Domain Events exist.
-- Application owns use-case orchestration, transaction boundary, authorization/session context, idempotency, retry admission, and error mapping.
-- Application emits one completion log when it is the active execution boundary.
-- Query flow calls a QueryRepository or read facade and returns Application read DTOs.
-- Same-bounded-context reactions use Domain Event Handlers, boundary publication uses Boundary Publishers, and cross-context consumption uses Integration Message Handlers.
-- Cross-context reads or reactions use published read facades, Integration Messages, ACLs, or protocol contracts.
-- Generated RPC shortcut methods, when allowed, only map request, delegate once, and map response/error.
+Report only non-clear outcomes. Put findings first by architectural severity, with concrete file/line evidence, impact, root cause, and correction direction. Then report material evidence gaps/returns, verification performed or blocked, and residual risk. Omit empty sections and internal ledger rows. Assign Blocker/Major/Minor only to concrete violations; describe an evidence gap by potential impact instead. If none exist, say `No DDD findings` and include only material evidence or verification gaps.
 
-Forbidden shape:
+## References
 
-- Application must not implement business rules by branching on Aggregate or Entity state.
-- Application must not mutate Entity fields or perform Domain transitions through field assignment.
-- Application must not pass raw transactions, ORM sessions, database clients, broker clients, Redis clients, or generated protocol DTOs into Domain.
-- Application must not coordinate several Aggregate Root candidates through one Repository/API call as if transaction shape proved the model.
-- Application must not rely on one transaction across several independent Aggregate Roots to make a business invariant true.
-- Application must not define technology-shaped or topology-shaped ports without an accepted semantic capability.
-- Application must not split one semantic capability lifecycle into many verb-shaped ports merely because an adapter has separate operations.
-- Application must not dispatch Domain Events before successful persistence or let repositories drain events.
-- Application must not serve product list/detail/history reads through write-side Repositories unless the read is a command-side Domain fact lookup.
-- Application must not mix Domain Event Handler, Boundary Publisher, Integration Message Handler, and task processor roles in one concrete handler.
-- Application must not import another bounded context's internal Domain or Application packages.
-- Fat generated RPC methods must not call repositories, mutate aggregates, control transactions, dispatch events, enqueue tasks, or orchestrate multiple ports.
-
-#### Infrastructure Layer
-
-Required shape:
-
-- Infrastructure implements Domain Repositories, Application QueryRepositories/read facades, ACLs, external adapters, publishers, and runtime adapters.
-- Infrastructure maps explicitly between Domain/DTO objects and storage, generated protocol, or external client objects.
-- Infrastructure owns storage transactions, optimistic-lock version increments, soft-delete columns, retries, topology, routing, and SDK mechanics.
-- Repository implementations persist one Aggregate Root plus owned children/value objects and rehydrate event collections.
-- Shared technical clients and runtime resources live in shared Infrastructure/runtime packages, not in Domain or Application.
-
-Forbidden shape:
-
-- Infrastructure must not own business decisions, invariants, lifecycle admission, or state transition authority.
-- Infrastructure must not call Domain transition methods as the business decision maker.
-- Infrastructure must not disguise several independent Aggregate Roots or lifecycle owners as one Repository save because they share a transaction.
-- Infrastructure must not make cross-aggregate correctness depend on one database transaction.
-- Infrastructure must not drain or dispatch Domain Events from repositories.
-- Infrastructure must not expose raw transactions, sessions, ORM objects, technical stores, broker clients, peer directories, or routing mechanisms inward without an accepted semantic port.
-- Infrastructure must not make business deletion, recovery, or compensation exist only as technical columns, retries, or adapter behavior.
-- Infrastructure must not import business packages into shared technical packages.
-
-#### Interface Layer
-
-Required shape:
-
-- Interface translates protocol requests, responses, format validation, actor/context extraction, and protocol error mapping.
-- Interface delegates once to an Application command/query handler or thin read shortcut.
-- Interface keeps generated/protocol DTOs at the boundary and maps them before Domain-facing APIs.
-
-Forbidden shape:
-
-- Interface must not contain business workflow, business state branching, transaction control, repository calls, aggregate mutation, event dispatch, task enqueueing, or multi-port orchestration.
-- Interface must not expose Domain aggregates or Entities as product read responses.
-- Interface must not convert protocol schema validation into Domain business validation.
-
-#### Runtime Layer
-
-Required shape:
-
-- Runtime loads configuration, supplies component options, assembles modules, registers routes/subscribers/processors/schedules, and runs the process.
-- Shared runtime packages own client construction, lifecycle hooks, health checks, start/stop behavior, and shutdown order.
-- Bounded-context modules provide Application services, adapters, handlers, processors, and registrations without exposing root wiring details.
-- Production recovery, reconciliation, message, or task paths have a registered entrypoint and runtime ownership.
-
-Forbidden shape:
-
-- Runtime must not own business decisions, lifecycle admission, retries, compensation, or recovery semantics.
-- Process entrypoints must not construct repositories, QueryRepositories, ACL clients, generated route handlers, workers, or business services directly.
-- Application and Domain code must not own process loops, timers, provider lifecycle, shutdown policy, or runtime resource closure.
-- Hidden manual loops, schedulers, or reconcilers without task/runtime ownership are smells even if the callable command exists.
-- Environment branches in code must not replace configuration profiles or component options.
-
-### Cross-Layer Sentinels
-
-- Aggregate lifecycle: one Aggregate Root owns one lifecycle and invariant boundary; state words name parent lifecycle facts, not child process outcomes.
-- Repository/API: one Repository normally exposes `Get` and `Save` for one Aggregate Root plus owned children/value objects; extra semantic methods, product reads, or cross-owner transaction methods start as smells.
-- Cross-aggregate coordination: independent Aggregate Roots do not need the same transaction for business correctness; coordination is done by Domain Event, process manager, reconciler, task processor, Integration Message, or an explicit return-to-explore decision that changes the aggregate boundary.
-- Durable fact precedence: succeeded/accepted/completed/executed facts outrank open workflow states; later commands check durable facts before retry/start, cancel, reopen, reversal/compensation, execution, or closure.
-- Durable-fact command admission: when a durable child fact can precede parent state reflection, inspect retry/start/cancel/reopen commands against the durable fact; recovery reachability alone does not clear admission.
-- Terminal closure: aggregate terminal facts and terminal events occur after required execution facts, idempotency/replay rules, and closure conditions are complete.
-- Terminal/execution event vocabulary: child execution events and parent terminal events have distinct names and timing; parent terminal events are not emitted during partial child execution; final verdict cites event names, and state closure alone does not clear this row.
-- Collaboration: repeated external side effects, reversal/compensation, exception/dispute, settlement/closure, split execution/closure, or recovery reactions have one named collaboration mechanism and recovery behavior; adjacent recovery, terminal event vocabulary, or "main risk elsewhere" do not clear collaboration rows.
-- CQRS: write repositories serve command-side aggregate facts; product reads use QueryRepository/read facades returning DTO/read models.
-- Boundary isolation: Domain/Application semantic APIs use domain-owned language, not generated protocol, storage, runtime, or adapter concepts.
-- Recovery reachability: reconciler, task, event, or message recovery has a production entrypoint, runtime registration, and failure behavior.
-- Required family rows: multi-step value transfer, fulfillment/execution, reversal/compensation, dispute/exception, settlement/closure, or similar lifecycle scope keeps durable-fact command admission, terminal/execution split, repository/API candidate-owner, collaboration mechanism, parent state vocabulary, accepted-design waiver, and CQRS inventory as separate rows when their evidence is present; one broader finding cannot clear another row.
-- Repository/API inventory: inspect Domain Repository interfaces, Application repository calls, Infrastructure store methods, and every method outside `Get`/`Save`; classify each extra `List*`, read-shaped, semantic, or coordinated-object method as same Aggregate Root, owned child/value object, read model, or independent lifecycle owner.
-- Accepted-design waiver inventory: when spec/design/local convention accepts semantic repository transactions, multi-object saves, or synchronous lifecycle-owner coordination, inspect whether the accepted text proves model ownership/failure tolerance or merely hides a boundary conflict; expected model sources are not waivers.
-- CQRS inventory: inspect write repositories and shared adapters for list/detail/history/summary/read-shaped methods before clearing CQRS shape; QueryRepository/read-facade presence proves only the read side exists.
-- Parent-state vocabulary: when a parent aggregate has state words that mirror a child/execution lifecycle, inspect pending/failed/cancelled/succeeded-like words as parent lifecycle facts; final verdict names the actual state words and does not omit this row because recovery or durable-fact command admission already has a finding.
-
-## Reporting
-
-Final answer is concise. Do not print the full working-evidence set by default.
-For lifecycle/repository/event/CQRS/runtime scope, complete and merge smell verdicts before the final answer, then cite triggered required family rows only in Findings or Evidence gaps / returns.
-Working evidence stays internal unless it is needed to understand a judgment. Required family-row verdicts are not working evidence and cannot stay internal. If a smell family cannot be explained from available evidence, report an evidence gap, not a positive claim.
-Every triggered required family row and every explained smell-family verdict lands in Findings or Evidence gaps / returns. Positive, coverage, and residual notes are only for surfaces that were not smell rows. Do not suppress findings for template cost.
-Do not collapse production wiring, durable-fact command admission, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader claim.
-If a required row was inspected, name its verdict family in the final answer even when detailed evidence stays internal.
-Each triggered required family label gets its own final verdict line; a broad repository/lifecycle evidence gap may summarize root cause only after candidate-owner, collaboration, accepted-design waiver, CQRS, and state-vocabulary rows are separately decided.
-
-Report in this order when present: scope/model evidence, findings, evidence gaps / returns, positive notes for non-smell surfaces, verification, residual risk.
-
-No DDD findings: say that directly only when no concrete violation/return was found; list any smell-family evidence gaps and residual test gaps. Do not fill a finding template with harmless local style.
-No-finding, coverage, positive, and residual notes are only for surfaces outside required family rows that were not smell rows and have observed correct shape. Required family rows never go to No-Finding Notes or Coverage Notes. Repository/API smells need method inventory and candidate-owner classification; accepted-design waiver smells need explicit model ownership and failure-tolerance evidence; collaboration smells need named event/process/recovery mechanism; terminal/execution smells need separate execution and closure facts; parent-state vocabulary smells need parent lifecycle fact language; CQRS smells need write-repository and shared-adapter read/write method inventory. If the positive proof is only package names, object splitting, accepted design, DTO presence, QueryRepository presence, command-side fact lookup, or passing tests, report an evidence gap.
-
-Severity is about architectural impact: Blocker for invariant/cross-context/generated/storage/runtime safety breaks; Major for likely boundary drift; Minor for localized maintainability or missing proof; Evidence gap when proof is missing.
-
-Common mistakes: reviewing from grep hits; mixing domain/spec/code axes; treating local naming as a violation; treating return-to-explore / return-to-shape triggers as satisfied; saying "no issues" without residual test/evidence gaps.
-
-## Calibration
-
-Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why each issue was missed or shallowly found, and convert repeated misses into baseline rules, reference updates, or eval assertions.
+Start with the compact baselines in this skill. Do not load [../../references/ddd-core.md](../../references/ddd-core.md) wholesale before breadth. During depth, load only the relevant tactical section and the specialized section required by an investigating family: [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) or [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for missing model evidence; the active language guide ([../../references/ddd-golang.md](../../references/ddd-golang.md), [../../references/ddd-python.md](../../references/ddd-python.md), or [../../references/ddd-typescript.md](../../references/ddd-typescript.md)) for triggered code; [../../references/database.md](../../references/database.md) for MySQL 8.0 persistence evidence; and the active language sections for generated, event/message, taskqueue, or runtime evidence.
