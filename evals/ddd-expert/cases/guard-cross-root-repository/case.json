@@ -1,0 +1,25 @@
+{
+  "id": "guard-cross-root-repository",
+  "phase": "guard",
+  "suites": ["smoke", "full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["violations"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["shape"] },
+    "verdicts": [
+      {
+        "kind": "violation",
+        "family": "aggregate_boundary",
+        "evidence_paths": ["internal/checkout/domain/repository.go"]
+      }
+    ],
+    "forbid_verdicts": ["evidence_gap"],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": []
+  }
+}
