@@ -1,58 +1,54 @@
 ---
 name: explore
-description: Use when product discovery, PRD/spec writing, feature scoping, backlog refinement, story mapping, or change-request intake needs backend domain clarification before architecture planning or ticket breakdown. Helps turn product requests, user workflows, and business rules into clear domain language, lifecycle, ownership, policies, and model decisions.
+description: Use when domain discovery must clarify a backend request before Tactical Design, either through scenario/lifecycle/rule analysis or language/authority/context-boundary analysis.
 ---
 
 # Explore
 
+Turn product evidence into accepted business facts that `shape` can design from.
+
+## DDD model artifact
+
+The project-owned artifact is `docs/ddd/model.md`. Create it lazily and cover only the context touched by the request; never backfill the whole system speculatively. For multiple bounded contexts, keep explicit context sections and their relationships in this one artifact.
+
+The model describes the current accepted state, not a change log. It contains only material DDD facts:
+
+- ubiquitous language;
+- bounded contexts, business authority, and context relationships;
+- scenarios, past-tense business facts, and lifecycle;
+- invariants, policies, and decision ownership;
+- business semantics for duplication, failure, cancellation, compensation, and recovery.
+
+Do not copy feature descriptions, ADRs, tickets, acceptance criteria, project architecture, implementation status, or code inventories into this artifact. Read them as evidence when relevant. Tactical classifications and implementation decisions belong to `shape` and `codify`, not the model artifact.
+
 ## Workflow
 
-Run a one-question-at-a-time strategic domain-modeling workflow. Start from PRD/spec/change-request evidence and end by updating the project's existing documentation surfaces, not by producing a standalone modeling report.
+1. **Inspect evidence**: read the request and the smallest relevant project evidence, starting with existing DDD model sections. Look up recorded facts before asking the user to restate them.
+2. **Check phase fit**: identify the material business facts this change needs. If the existing model already supplies them and no business meaning changes, return `no_change` with the exact model sections that make `shape` safe.
+3. **Choose the discovery path**: for scenario, lifecycle, or rule uncertainty, reconstruct `business intent -> past-tense fact -> policy or decision -> reaction`. For terminology, authority, or context-boundary uncertainty, investigate that evidence directly; do not force every request through an event timeline.
+4. **Build a model delta**: resolve the smallest material delta across the model categories above.
+5. **Pass the write gate**: when any material fact is unknown, contradictory, or guessed, follow the clarification discipline below. Write nothing until that gate is complete.
+6. **Write once**: after acceptance, merge the confirmed delta into the terminal-state model artifact. Update only affected sections and avoid restating project knowledge owned elsewhere.
 
-First inspect existing project evidence: the target PRD/spec/change request, glossary or terminology docs, `CONTEXT.md`, `CONTEXT-MAP.md`, domain docs, ADRs, product docs, current designs, code, tests, and API/proto contracts. Do not ask the user to restate facts the system already records.
+## Clarification discipline
 
-Use DDD discovery methods to extract only confirmed model changes that matter for this request: glossary terms, domain concepts, business lifecycle, business rules, policies, authority, ownership, boundaries, and context relationships. Domain concepts are business-language concepts, not tactical classifications.
+Ask for a business decision, not a tactical label. State the evidence and recommendation briefly, ask exactly one focused question, and end the turn. Do not modify project files while clarification is active. Continue one question per turn until the whole material hotspot is understood; do not turn each answer into a partial document update.
 
-Talk about user scenarios, event storming, Core Domain focus, Bounded Contexts, Context Map relationships, business lifecycle, authority, policies, evidence, and language. Do not start with fields, schemas, event payloads, Entities, Aggregates, Repositories, or implementation objects. Do not decide Aggregate, Entity, Value Object, Repository, table, DTO, API, handler, or file placement in this phase.
+After all material questions are resolved, present one integrated proposed model delta and wait for explicit user acceptance. This completes the write gate.
 
-Reconstruct an event-storming timeline before naming tactical objects: command or trigger -> past-tense business facts -> policy or decision -> follow-up reactions. Treat these facts as modeling evidence; only later decide which become Domain Events, Integration Messages, state, read models, process steps, or non-code facts.
+Useful questions distinguish authority, lifecycle, admissible transitions, durable facts, failure tolerance, language, or context ownership.
 
-## Clarification loop
+## Completion
 
-If a critical model fact is missing, contradictory, or only a guess, do not write partial output or a gap list. Ask exactly one high-fidelity question at a time. Keep each turn short:
+Explore is `shape_ready` only when every material business fact needed by this change is accepted and represented in an exact DDD model section. Finish with one of:
 
-```text
-Evidence: <one sentence>
-Hotspot: <one sentence>
-Recommendation: <one sentence>
-Question: <one question>
-```
+- `changed`: the model artifact was updated once; name the exact sections.
+- `no_change`: existing sections already express the required facts.
+- `needs_clarification`: ask the single active question and stop without writing.
+- `blocked`: an external constraint prevents reading or writing the artifact; state the constraint and intended path.
 
-Do not turn every answer into a conclusion. Ask a short chain of designed questions around one strategic hotspot, then synthesize.
-
-Avoid low-fidelity questions:
-
-- "What fields does this have?"
-- "Is this an Entity?"
-- "Do we need a Domain Event?"
-- "What Aggregates are there?"
-- "Should this have a Repository?"
-- "What should the event payload contain?"
-
-## Documentation output
-
-When the critical facts are clear, write confirmed domain model changes to the project docs:
-
-- Glossary / ubiquitous language: update the existing glossary, terminology section, `CONTEXT.md`, or equivalent source of truth.
-- Boundaries / ownership / context relationships: update the existing context map, domain boundary doc, architecture/domain doc, or equivalent source of truth.
-- Domain concepts, lifecycle, rules, policies, and authority: update the relevant PRD/spec section or a dedicated domain doc if one already exists.
-- If no dedicated carrier exists, append a concise `Domain Model` section to the current PRD/spec. Include only model facts that changed, were clarified, or are required before `shape` can design safely.
-- Add a Mermaid or text diagram only when it clarifies a flow, lifecycle, boundary, or rule better than prose. Do not add class diagrams, ERDs, component diagrams, deployment diagrams, API call graphs, schemas, or DTO shapes.
-
-Do not duplicate content that the PRD/spec already states clearly. Do not produce a complete model inventory. If a plausible concept is material but unconfirmed, ask about it instead of writing it as a candidate. If the workspace is read-only or the target document cannot be identified, return patch-ready content with the intended destination.
-
-Final response: list the files updated and summarize the confirmed model changes in one or two bullets. Do not paste the full model unless the user asks. If no documentation change is needed, say `No domain model changes needed` and name the evidence that made it safe.
+Keep the final response short. Do not paste the model unless asked.
 
 ## References
 
-After project evidence exposes a strategic hotspot, load only the modeling guidance needed to resolve it: [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) for authority, lifecycle, invariant, failure-tolerance, language, or coordination gates; and [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for bounded-context, aggregate-candidate, or capability-classification depth. Do not load implementation, language, runtime, or database references during `explore`.
+After project evidence exposes a material hotspot, load only the guidance needed to resolve it: [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) for authority, lifecycle, invariant, failure-tolerance, language, or coordination gates; and the relevant section of [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for bounded-context or strategic-modeling depth. Do not load implementation, language, runtime, database, or `ddd-core.md` references during `explore`.

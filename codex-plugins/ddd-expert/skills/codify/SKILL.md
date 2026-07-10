@@ -1,35 +1,58 @@
 ---
 name: codify
-description: Use when writing or changing backend code, including implementing tickets, refactoring, bug fixes, API/RPC handlers, persistence, migrations, messages/jobs, runtime wiring, logging, or tests after requirements or design decisions exist. Helps keep code placement, adapters, database/message/runtime mechanics, and verification aligned with the accepted model.
+description: Use when house-style backend coding must implement accepted Tactical Design, make an unambiguous mechanical change, or repair a Guard finding already covered by accepted authority.
 ---
 
 # Codify
 
-Turn an accepted Tactical Design / Implementation handoff into code that conforms to the active reference implementation shape. Codification maps decisions to repository scaffold, package boundaries, adopted libraries, abstract interfaces, adapters, persistence/runtime/message mechanics, and verification; it does not create domain facts.
+Realize an accepted Tactical Design as working, verified backend code in the `ddd-expert` house style. Codify implements decisions; it does not invent business facts or semantic design.
+
+## Authority
+
+Use this order when inputs disagree:
+
+1. `docs/ddd/model.md` owns business meaning and context relationships.
+2. `docs/ddd/design.md` owns tactical choices.
+3. The `ddd-expert` references own implementation defaults and house-style shape.
+4. The request or ticket owns the current change scope.
+5. Existing code, tests, and local conventions are compatibility evidence.
+
+An explicit accepted design choice controls its exact scope. Vague waiver language, current transaction shape, package names, or local convention do not override higher authority.
+
+DDD artifacts may be absent for a purely mechanical change whose behavior, semantic owner, and layer are already unambiguous. Do not create DDD documents from Codify. If implementation requires a material business or tactical choice, return upstream before editing.
 
 ## Workflow
 
-1. **Read accepted sources** — start from the Tactical Design / Implementation handoff in project docs, current PRD/spec/ticket, relevant code/tests/contracts, and local conventions. Small layer-local refactors may use an explicit existing model from code/ADR/spec; otherwise missing accepted design returns upstream before editing.
-2. **Handoff check** — confirm the **Accepted model source**, target responsibility, boundary/consistency decision, implementation constraints, verification seams, modeling evidence needed by implementation, and accepted collaboration model. Return to `explore` for missing business/model facts; return to `shape` for missing layer ownership, CQRS split, port placement, adapter boundary, Repository API shape, runtime/task/message containment, or verification seam.
-3. **Surface preflight** — classify language and touched surfaces from requirements, planned files, imports, generated artifacts, migrations, runtime entrypoints, tests, and local conventions: Domain, Application, Infrastructure, Interface, Runtime, database, generated protocol, events/messages, taskqueue, or tests.
-4. **Load touched references** — after surface preflight, follow the `References` section at the end and load only the smallest set for the confirmed language and touched surfaces. If local conventions conflict with the reference shape, stop for user direction unless an accepted exception already exists.
-5. **Codify reference shape** — map accepted decisions to the reference-prescribed scaffold, package path, layer owner, abstract interface, adapter, DO/converter, generated/protocol boundary, adopted library, transaction/retry/idempotency rule, runtime wiring, migration, and test seam. Do not invent local substitutes for adopted libraries or place mechanics by convenience.
-6. **Verify reference shape** — run the smallest checks that prove the accepted user stories, design decisions, touched technology rules, and reference conformance. Use tests/build/static checks/import grep/migration dry runs as appropriate to the touched surfaces.
+1. **Preflight before edits**: read the scoped request, relevant DDD model and design sections when present, touched code, generated artifacts, migrations, runtime entrypoints, and verification surface. Resolve every material authority conflict before changing files.
+2. **Check readiness**: return to `explore` for missing or contradictory business facts. Return to `shape` for missing or contradictory Aggregate, semantic-owner, consistency, collaboration, Repository/CQRS, port, layer, runtime-containment, or verification-intent decisions. Routine scaffold, package placement, adopted library, adapter, database, message, and runtime mechanics belong to Codify.
+3. **Map obligations internally**: account for every accepted design obligation across its semantic owner, layer/package, abstraction or adapter, adopted library, MySQL/message/runtime mechanics, and verification evidence. Do not print this ledger by default.
+4. **Classify touched surfaces**: identify Domain, Application, Infrastructure, Interface, Runtime, database, generated protocol, events/messages, taskqueue, and verification surfaces. Then load only the corresponding reference sections.
+5. **Implement the house style**: preserve business decisions in the semantic owner, keep dependencies inward, use the adopted abstractions and libraries, isolate generated/storage/runtime types at adapters, and wire every production path required by the design. Do not broaden the change to unrelated legacy conformance.
+6. **Verify both gates**: prove Design Realization and House-Style Conformance with the smallest sufficient combination of tests, build/static checks, import inspection, migration dry run, runtime wiring evidence, or smoke checks appropriate to the touched surfaces.
 
-## Coding rules
+## Guard remediation
 
-Normal-shape concepts: codify the normal DDD path unless the accepted shape reopened exploration and produced a new model decision. Aggregates own invariants; Repositories persist one write-side Aggregate Root; Domain Events model same-BC past-tense facts after state change; Integration Messages are cross-context contracts; QueryRepositories/read facades serve product reads. Aggregate Boundary Conflict returns to `explore`. Implementation transaction shape is not Repository design evidence; cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
+A Guard finding is evidence, not implementation authority. Before fixing it, compare the current worktree with the accepted model, Tactical Design, and house style:
 
-Return routing: Return to explore for aggregate boundary, lifecycle, invariant, fact language, or bounded-context uncertainty. Return to shape for layer ownership, CQRS split, port placement, adapter boundary, or repository API shape after the model is accepted.
+- if the finding is stale or already fixed, return `no_change` with evidence;
+- if accepted authority already defines the correct shape, fix the implementation and finish `changed` with route `guard`;
+- if the correction changes business meaning, return to `explore`;
+- if it changes tactical design, return to `shape`;
+- if proof is missing, gather evidence rather than guessing or editing.
 
-If business facts or modeling evidence are missing or contradictory, return to `explore`. If placement, layer ownership, mechanism containment, adopted library choice, scaffold/package placement, or reference conformance is missing, return to `shape`. If the handoff asks Repository/API code to save or coordinate several candidate roots, classify Aggregate Boundary Conflict and return to `explore` before editing. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong or missing, return to `shape`. If the conflict is an explicit user requirement, ask the user before editing.
+## Completion
 
-If a guard finding includes `Model correction` that changes lifecycle owner, invariant owner, aggregate boundary, or failure tolerance, return to `shape` unless that correction is already accepted by the user or shape handoff.
+Codify is complete only when every material handoff obligation is implemented or shown not applicable, touched code conforms to the house style or an explicit accepted design choice, required migrations/generated artifacts/runtime registrations are present, and verification evidence is recorded. `no_change` is valid only when the requested behavior already exists and the touched scope already conforms.
 
-Common mistakes: implementing from a vague PRD without accepted design; treating references as optional advice; inventing object classification; inventing local substitutes for adopted component libraries; leaking generated/protocol/storage types into Domain; placing database/message/runtime mechanics by convenience instead of the semantic owner; skipping local convention conflicts or reference-conformance checks.
+Finish with one of:
+
+- `changed`: summarize code behavior and verification; set route `guard` after Guard remediation.
+- `no_change`: cite the evidence that made editing unnecessary.
+- `returned`: identify `explore` or `shape`, the exact unresolved decision, and the evidence exposing it.
+- `blocked`: identify only the external execution constraint and the unrun verification.
+
+Keep the final response focused on changed files, verification, and residual risk.
 
 ## References
 
-- **Language:** Go -> [../../references/ddd-golang.md](../../references/ddd-golang.md) and its Object Shape Router, Layer Reference Map, File Quick Index, package boundary rules, and adopted library defaults; Python -> [../../references/ddd-python.md](../../references/ddd-python.md); TypeScript -> [../../references/ddd-typescript.md](../../references/ddd-typescript.md). Infer the language from touched files and local conventions before loading a guide.
-- **Use:** scaffold/layout -> active language scaffold/layout guidance; Domain object, Aggregate, Entity, Value Object, Domain Service, or Repository interface -> active language Domain guidance plus the relevant section of [../../references/ddd-core.md](../../references/ddd-core.md); command/query/RPC/application handlers -> Application/CQRS guidance; persistence, DO/converter, schema, migration, index, or SQL -> Infrastructure guidance plus [../../references/database.md](../../references/database.md); events/messages -> events/messages guidance; jobs/tasks/schedulers/periodic work -> taskqueue plus runtime guidance; runtime/config/module/lifecycle/logging -> runtime guidance.
-- **Agent contract:** load [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) before adding or changing ports/interfaces, adopted component libraries, runtime/taskqueue/message wiring, stop decisions, or self-checks.
+After surface classification, load the smallest relevant sections. Infer the active language from touched files; use Go house style when the backend language choice is open. For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md) and follow its router. Use [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md) only for an existing project in that language. Load the relevant [../../references/ddd-core.md](../../references/ddd-core.md) section for tactical shape and [../../references/database.md](../../references/database.md) for MySQL 8.0 schema, migration, index, SQL, or persistence work. Load only the active language sections for Domain, Application, CQRS, Infrastructure, events/messages, taskqueue, runtime, scaffold, or generated-code surfaces that are actually touched.

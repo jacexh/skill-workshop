@@ -14,12 +14,12 @@
     "forbid_verdicts": [],
     "git": {
       "changed": "some",
-      "required_paths": ["docs/design.md"],
-      "forbidden_paths": ["docs/domain.md"]
+      "required_paths": ["docs/ddd/design.md"],
+      "forbidden_paths": ["docs/ddd/model.md"]
     },
     "files": [
       {
-        "path": "docs/design.md",
+        "path": "docs/ddd/design.md",
         "exists": true,
         "contains": ["Tactical Design", "MySQL", "Verification Seams"],
         "excludes": ["PostgreSQL", "SQLite"]

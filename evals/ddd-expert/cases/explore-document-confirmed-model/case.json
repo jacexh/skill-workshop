@@ -14,12 +14,12 @@
     "forbid_verdicts": [],
     "git": {
       "changed": "some",
-      "required_paths": ["docs/domain.md"],
+      "required_paths": ["docs/ddd/model.md"],
       "forbidden_paths": ["docs/spec.md"]
     },
     "files": [
       {
-        "path": "docs/domain.md",
+        "path": "docs/ddd/model.md",
         "exists": true,
         "contains": ["InventoryReservation", "StockReserved"],
         "excludes": ["CREATE TABLE"],

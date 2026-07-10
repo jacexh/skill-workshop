@@ -1,3 +1,6 @@
-Turn the accepted model in `docs/domain.md` into an implementation design in
-`docs/design.md`. The feature requires persistence, and this project has not
-declared a database override. Keep the accepted model source unchanged.
+The domain facts in `docs/ddd/model.md` are complete and accepted. I also accept
+this tactical direction: `InventoryReservation` owns its invariant boundary,
+the write Repository persists that Aggregate, cross-context notification uses
+an Integration Message, and persistence uses the MySQL 8.0 default. Merge the
+complete target-state Tactical Design into `docs/ddd/design.md` now. Keep the
+accepted model unchanged.
