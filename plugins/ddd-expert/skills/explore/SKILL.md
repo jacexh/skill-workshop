@@ -51,4 +51,4 @@ Keep the final response short. Do not paste the model unless asked.
 
 ## References
 
-After project evidence exposes a material hotspot, load only the guidance needed to resolve it: [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) for authority, lifecycle, invariant, failure-tolerance, language, or coordination gates; and the relevant section of [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for bounded-context or strategic-modeling depth. Do not load implementation, language, runtime, database, or `ddd-core.md` references during `explore`.
+After project evidence exposes a material hotspot, load only the relevant section of [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for language, authority, lifecycle, invariant, failure-tolerance, subdomain, bounded-context, Aggregate, or coordination analysis. Do not load implementation, language, runtime, database, or `ddd-core.md` references during `explore`.

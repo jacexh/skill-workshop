@@ -1,252 +1,113 @@
 ---
 name: ddd-modeling
-description: Strategic domain modeling rule cards for DDD. Use when explore, shape, codify, or guard needs bounded context, aggregate boundary, invariant, Architecture Gate, technical capability, or port-granularity decisions.
+description: Language-neutral DDD guidance for Ubiquitous Language, subdomains, Bounded Contexts, authority, lifecycles, invariants, and model boundaries.
 ---
 
-# Strategic Domain Modeling Rule Cards
+# DDD Modeling
 
-**Scope**: Backend services using DDD.
-**Usage**: This is an on-demand rule source, not a default entrypoint. Load it only when the active DDD phase needs strategic model decisions.
+This Knowledge Leaf combines established DDD concepts with focused reasoning
+probes. It is informed by multiple mainstream DDD viewpoints; no single author
+or school is its sole authority.
 
-This file is intentionally not a DDD tutorial. Assume the agent understands the concepts. Use these cards to decide ambiguous cases and to produce compact evidence for later design, implementation, and review.
+## Rule Strength
 
-## 0. Mandatory Architecture Gate
+- **[DDD Principle]** A durable DDD meaning or boundary. Apply it through the accepted domain model rather than as a mechanical code rule.
+- **[House Rule]** A conditional implementation or architecture constraint. It does not apply before its stated condition is true; once applicable, it is mandatory.
+- **[Heuristic]** A question or pressure signal. It invites investigation and never proves a conclusion alone.
 
-Emit the smallest gate that preserves the decision before implementation or approval when a change touches bounded-context ownership, aggregate boundaries, stable language, data authority, inward interfaces, cross-context contracts, or technical capabilities with state/policy/invariant semantics.
+Unless a rule states a narrower condition, its House Rule applies to backend
+design governed by `ddd-expert` when the stated model facts are established; it
+does not require a separate rule-by-rule opt-in.
 
-Runtime-only exception: Go runtime/config/lifecycle work that does not change a bounded context, aggregate, repository, command/query handler, event/message contract, task processor, or domain rule uses [`ddd-agent-contract.md`](ddd-agent-contract.md) plus runtime/taskqueue references instead of fabricating DDD gate values.
+## Navigation
 
-```text
-Architecture Gate (core):
-- Gate level: <Level 1 | Level 2 | Level 3 | Cross-context>
-- Bounded context / business capability:
-- Business facts / event timeline:
-- Stable language / data authority:
-- Affected aggregate, policy, service, or explicit none:
-- Invariants and lifecycle rules:
-- Technical capability classification: <Domain-facing | Application orchestration | Infrastructure | n/a>
-- Layer ownership:
-- Proceed / Stop:
-```
-
-Add the placement extension when the change adds an inward interface, modifies an event/message handler, touches cross-aggregate decisions, duplicates a reaction to the same domain fact, coordinates multiple aggregate writes, changes publication failure semantics, or is Level 2/3/cross-context work:
-
-```text
-Architecture Gate (placement extension):
-- New inward interfaces introduced:
-- Collaboration model before mechanism:
-- Domain mechanism placement before Application ports:
-  - <need>: <Aggregate method | Domain Repository | Domain Service | Domain Event handler | Integration Message | named Application coordination service | ACL | Infrastructure adapter | Application QueryRepository/read facade | return-to-modeling Application command-side port decision>
-- Placement per new inward interface:
-  - <interface>: semantic contract; rule owner; fake-test result when relevant
-- Cross-aggregate business decisions:
-- Repeated side effects / event candidates:
-- Async reaction handlers:
-  - role: <Domain Event Handler | Boundary Publisher | Integration Message Handler>
-  - input/output/failure policy:
-- Application command-side port review:
-- Proceed / Stop:
-```
-
-Stop when any required answer is unknown. `n/a` is allowed only when the change truly does not touch the field.
-
-## 0.1 Technical capability classification
-
-Technical-facing modules still require modeling when they own stable language, state transitions, admission rules, ownership policy, routing policy, scheduling policy, or invariants. Dispatchers, registries, schedulers, routers, connectors, projections, ownership managers, delivery engines, and observability pipelines are not automatically Infrastructure.
-
-| Classification | Use when | Owner |
-|---|---|---|
-| Domain-facing | Stable language, lifecycle, admission/routing policy, ownership semantics, or derivation rules can be tested without external systems | Domain method, Value Object, Domain Service, or policy |
-| Application orchestration | The capability sequences a use case, manages transactions, chooses already-classified mechanisms, or coordinates Domain objects without owning the rule | Application handler/service |
-| Infrastructure | The capability adapts DB/cache/queue/RPC/filesystem/K8s/SDK/framework lifecycle/retry/topology without owning semantic rules | Infrastructure adapter or shared technical package |
-
-Routing policy and routing mechanics are different. Policy names destination/admission/priority/tenant/retry eligibility/ownership rules. Mechanics resolve addresses, peers, hops, replicas, queue subjects, retry timers, or deployment topology.
-
-## 0.1.1 Litmus test: semantic fake implementability
-
-When classification is unclear, ask:
-
-> Can a no-external-dependency fake preserve the same observable contract for business/use-case tests?
-
-If yes, the interface may encode a semantic capability. Continue choosing the narrowest owner. If no, and the fake can only "pretend the DB/broker/RPC/SDK succeeded", the interface is a mechanism adapter and belongs in Infrastructure behind the semantic owner.
-
-Passing this test is necessary, not sufficient. It does not by itself justify an Application command-side port.
-
-## 0.2 Port granularity
-
-Define ports by use-case semantics, not by implementation operations. Adding Redis, MySQL, Kafka, an HTTP client, or another technical dependency does not automatically justify a new Domain/Application interface.
-
-Before adding an inward port, answer:
-
-- What semantic capability does the caller need?
-- Is the caller command/write, query/read, cross-context facade, or coordination?
-- Which existing capability lifecycle already owns this observation?
-- Which layer owns the rule behind it?
-- Does the caller observe distinct freshness, ordering, authorization, pagination, consistency-window, failure, dependency-direction, or test-substitute semantics?
-- Would the caller change if the implementation switched technology?
-
-Reject inward ports shaped around peer addresses, instance IDs used only for routing, cache/coordination rows, RPC forwarding, hop headers, retry/backoff knobs, queue subjects, storage keys, replicas, or deployment topology.
-
-## 0.2.1 Capability lifecycle is the unit of granularity, not the mechanism operation
-
-One semantic lifecycle may have multiple methods: observe, mutate, publish, transfer, retire, release, recover, retry. Do not split it into `*Reader`, `*Writer`, `*Opener`, `*Sender`, `*Fetcher`, or similar verb ports only because the adapter exposes separate operations.
-
-Good port names start from a domain noun plus lifecycle role: `AttachmentContentStore`, `WorkspaceArtifactStore`, `OrderRepository`, `PaymentSettlementGateway`, `NotificationDeliveryPort`. A verb-suffix port is acceptable only when the capability is genuinely one-directional and the design records why the opposite lifecycle stages do not share identity, consistency, authorization, or failure semantics.
-
-One Infrastructure adapter may implement several inward semantic ports. The inward side still exposes capability lifecycles, not adapter method groups.
-
-## 0.2.2 Inward-defined ports evolve by adding methods, not by forking
-
-When a new use case touches an existing semantic capability, default to adding a method on the existing port. Fork only when the new caller observes different freshness, ordering, authorization, pagination, failure, consistency-window semantics, published API surface, dependency direction, test substitute, or aggregate.
-
-For QueryRepository, the default unit is the bounded context's stable product read-model family, not one screen, RPC method, handler, or SQL statement. Split only when the read model family or its runtime semantics materially differ.
-
-If one use case is about to inject two or more ports that look like verbs on the same noun, regroup. At three or more, stop unless the semantic split is already justified in writing.
-
-## 0.2.3 Suspicious naming and Application-port eligibility
-
-These names are review signals. They are not forbidden, but they require an Architecture Gate entry explaining which DDD mechanism owns the need before Application gets a command-side port.
-
-| Name pattern | First owner to check |
+| Need | Section |
 |---|---|
-| `*Policy`, `*Specification`, `*Validator` | Value Object, Aggregate method, Domain Service, Interface format validation |
-| `*Allocator`, `*Generator`, `*Calculator`, `*Scorer`, `*Pricer`, `*Decider`, `*Authorizer` | Aggregate method, Domain Service, Domain Repository uniqueness, external ACL |
-| `*Resolver`, `*Client` | ACL, published read facade, Infrastructure adapter |
-| `*Finalizer`, `*Terminator`, `*Closer` | Aggregate lifecycle method, Domain Service, Domain Event, Integration Message |
-| `*Sink`, `*Hook`, `*Observer` | Domain Event handler, Integration Message subscriber, Infrastructure adapter |
-| `*Directory`, `*Router`, `*Forwarder` | Domain routing policy only when ubiquitous language; otherwise Infrastructure topology/routing |
+| Establish shared business language | Ubiquitous Language |
+| Separate problem space from model boundaries | Subdomains and Bounded Contexts |
+| Identify truth and decision owners | Authority |
+| Describe relationships between contexts | Context Map |
+| Reconstruct identity, facts, and closure | Lifecycle and Fact Timeline |
+| Find invariants and Aggregate candidates | Consistency Boundaries |
+| Place policy, orchestration, and mechanism | Capability Classification |
 
-## 1. Purpose
+## 1. Ubiquitous Language
 
-Use this file to answer two recurring modeling questions:
+- **[DDD Principle]** A Bounded Context owns a coherent language shared by domain experts and implementers.
+- **[DDD Principle]** The same term may have different meanings in different contexts. Translation is safer than forcing one enterprise-wide object model.
+- **[DDD Principle]** Names in the Domain model, Application semantic contracts, and accepted design artifacts express business meaning rather than storage, transport, or vendor vocabulary. Adapter and Runtime names accurately expose the mechanisms they own.
+- **[Heuristic]** Start with behavior: who initiates the story, what decision changes business state, what outcome becomes visible, and which exception matters?
+- **[Heuristic]** Treat nouns copied from screens, tables, reports, or protocol schemas as unclassified evidence, not ready-made Entities.
+- **[Heuristic]** Look for synonyms describing one fact, one noun with competing definitions, and state words whose authority or terminal meaning is unclear.
 
-- Where is the stable language and authority boundary?
-- Which DDD mechanism owns this decision before Application or Infrastructure gets a new abstraction?
+## 2. Subdomains and Bounded Contexts
 
-When a candidate capability is only a vendor wrapper (auth provider, transactional email, object storage, observability backend, billing SaaS, payment gateway), prefer an ACL/Infrastructure adapter and skip full bounded-context/aggregate design unless the team owns stable rules and language around it.
+- **[DDD Principle]** A Subdomain is part of the business problem space. A Bounded Context is a boundary within which one model and language apply. They are related but not necessarily one-to-one.
+- **[Heuristic]** Classify Core, Supporting, or Generic Subdomains only when the distinction changes investment, ownership, sourcing, or boundary decisions.
+- **[Heuristic]** Consider a boundary when language, authority, lifecycle, policy, model purpose, change cadence, or team ownership diverges.
+- **[Heuristic]** Shared storage, deployment, UI, or technology does not prove one context; separate deployment does not prove two.
+- **[Heuristic]** Ask whether a proposed context owns meaningful language and policy or merely wraps a vendor or technical mechanism.
+- **[House Rule]** When two areas have distinct accepted language or authority, keep their Domain models separate and integrate through an explicit contract; shared deployment or storage does not waive this rule.
 
-## 2. Bounded Context Discovery
+## 3. Authority
 
-Use bounded-context discovery only when language, authority, or lifecycle may change. Do not run it as a checklist for every small implementation task.
+- **[DDD Principle]** Business authority owns a decision or fact. Data custody owns only a stored representation.
+- **[DDD Principle]** A projection, cache, replica, or downstream consumer cannot grant rights that contradict the authoritative fact.
+- **[Heuristic]** For each material fact, ask who proposes, confirms, changes, reverses, expires, and publishes it.
+- **[Heuristic]** Distinguish command authority, confirmation authority, observation source, and storage owner when they differ.
+- **[Heuristic]** If two contexts both appear to own a fact, identify whether they own different meanings, different lifecycle stages, or an unresolved boundary.
+- **[House Rule]** When authority is external to the local context, represent the accepted external fact explicitly and translate it into local language at the boundary; do not import the external model as the local Domain model.
 
-High-signal probes:
+## 4. Context Map
 
-- Same noun, different meaning, attributes, lifecycle, authority, or behavior?
-- Different source of truth or confirmation authority?
-- Different actors/operators use different language for the same data?
-- Change reasons diverge enough that one model would constantly branch?
-- Cross-boundary interaction is better as Integration Message, published query, ACL, or protocol contract than direct model sharing?
+Relationship names describe collaboration and power, not package dependencies:
 
-Context relationship choices:
-
-| Relationship | Use when |
+| Relationship | Meaning |
 |---|---|
-| Customer-Supplier | Downstream depends on upstream and can influence its published model |
-| Conformist | Downstream adopts upstream's model because it has no influence |
-| Anti-Corruption Layer | Downstream protects its model from upstream/external language |
-| Open-Host Service / Published Language | Upstream serves many consumers through a stable contract |
-| Partnership / Shared Kernel | Rare high-coupling relationship; record why merging is worse |
-| Separate Ways | No business reason to integrate |
+| Partnership | Two contexts coordinate closely and accept mutual planning cost |
+| Shared Kernel | A deliberately small model has explicit joint ownership |
+| Customer-Supplier | Downstream needs influence over an upstream contract |
+| Conformist | Downstream adopts the upstream model without meaningful influence |
+| Anti-Corruption Layer | Downstream translates to protect its local model |
+| Open Host Service / Published Language | Upstream publishes a stable service and language for consumers |
+| Separate Ways | Contexts intentionally do not integrate |
 
-Proceed only when the owning context, data authority, and allowed cross-context mechanisms are explicit.
+- **[DDD Principle]** A cross-context interaction must be consistent with its accepted relationship and contract owner.
+- **[Heuristic]** Revisit the relationship when consumer count, team power, change cadence, or translation cost changes materially.
+- **[Heuristic]** A Shared Kernel is a coordination commitment, not a convenient shared-types package.
 
-## 3. Aggregate Design
+## 5. Lifecycle and Fact Timeline
 
-The only strong reason to put multiple Entities in one Aggregate is a business invariant that must be enforced in one transaction.
+- **[DDD Principle]** A lifecycle describes identity, admissible transitions, terminal conditions when they exist, and the authority behind each change.
+- **[DDD Principle]** A past-tense business fact is modeling evidence; it is not automatically a Domain Event or Integration Message.
+- **[Heuristic]** Reconstruct trigger or intent -> decision -> past-tense fact -> reaction, including reversal, cancellation, expiry, retry, compensation, and recovery where material.
+- **[Heuristic]** Ask which facts are business-visible, durable, externally confirmed, repeated, or only useful for a projection or audit.
+- **[Heuristic]** Separate the lifecycle of a business obligation from execution facts of external work when either can advance independently.
+- **[Heuristic]** Check whether a candidate is an Entity, immutable snapshot, attribute, read model, external representation, or durable process state before choosing a tactical type.
+- **[Heuristic]** Do not infer precedence between conflicting state words. Identify the authoritative fact and the rights it grants or removes.
 
-Entity / Value Object probes:
+## 6. Consistency Boundaries
 
-- Stable identity across attribute changes, versions, retries, or ownership transfer? Entity.
-- Equality entirely by attributes and replaceable as a whole? Value Object.
-- Externally referenced or independently lifecycle-managed? Entity, often Aggregate Root.
+- **[DDD Principle]** An invariant states what must be true at a defined consistency boundary. A policy states how the business decides or reacts.
+- **[DDD Principle]** An Aggregate is a consistency and mutation boundary governed by one root; table shape and transaction shape do not define it.
+- **[Heuristic]** Ask what must be true immediately after the command and what invalid state cannot be repaired by retry, compensation, reconciliation, or a later reaction.
+- **[Heuristic]** Ask what can change independently, what has its own lifecycle, and what external actors reference directly.
+- **[Heuristic]** Independent lifecycle, different authority, unbounded collections, and high write contention pressure a boundary toward separate Aggregates.
+- **[Heuristic]** Cross-table persistence may represent one Aggregate; one database transaction across several objects does not prove one Aggregate.
+- **[House Rule]** Model candidates as separate Aggregates when the accepted facts establish independent identity, lifecycle, authority, or direct external reference and no invariant requires their atomic mutation. Absence of a cross-object invariant alone does not split an owned Entity or Value Object from its root.
+- **[House Rule]** When an accepted invariant does require immediate consistency, choose the smallest Aggregate boundary that protects it without loading or locking an unbounded graph.
 
-Aggregate boundary probes:
+## 7. Capability Classification
 
-- If A changes without B in the same transaction, can the system enter a non-repairable invalid business state?
-- Does B have meaningful identity outside A?
-- Can B exist without A?
-- When B changes, must A's invariants be revalidated synchronously?
-- Is the collection bounded and routinely loaded with the root?
-- Are modifications concurrent enough that a shared optimistic lock would create contention?
+- **[DDD Principle]** Stable business language, admission, ownership, eligibility, state, and derivation rules belong to the Domain model even when their subject sounds technical.
+- **[DDD Principle]** Use-case sequencing and coordination of already-modeled behavior belong to Application.
+- **[House Rule]** Durable coordination state and transition rules for an accepted Process Manager belong to Application. Protocol, persistence, SDK, topology, timer, retry-runner, scheduling, and process-runtime lifecycle mechanics remain in outer adapters or Runtime.
+- **[Heuristic]** Separate routing policy from address lookup, scheduling policy from timer mechanics, and ownership rules from lease storage.
+- **[Heuristic]** Before naming a Service, Repository, port, handler, task, or Process Manager, ask who owns its rule, state, transaction, retry, and recovery.
+- **[Heuristic]** Technology-shaped names and many unrelated dependencies are placement pressure, not automatic violations.
+- **[House Rule]** When an inner responsibility needs an external capability, define the contract in the inner caller's language and adapt the mechanism outside it.
 
-Cross-aggregate decision placement:
+## Related References
 
-- If one aggregate clearly owns the invariant, pass the other aggregate's immutable snapshot/value object into an Aggregate method.
-- If the decision has a domain name and genuinely spans aggregates, use a Domain Service after ruling out aggregate redesign, a new decision aggregate, Domain Event/Integration Message flow, or a database uniqueness/exclusion constraint surfaced as a Domain error.
-- Do not push cross-aggregate business decisions into Application `*Policy`, `*Allocator`, `*Resolver`, or `*Decider` ports.
-
-Default to small aggregates. Reference other aggregates by ID. Use read models for UI composition.
-
-## 4. Worked Examples with Reasoning
-
-Omit generic worked examples from the hot path. For examples, use the current project's specs, `CONTEXT.md`, ADRs, tests, and code. If an example is needed in an answer, make it project-specific and no longer than one scenario.
-
-## 5. Common Modeling Mistakes
-
-- Foreign key or "belongs to" treated as Aggregate containment.
-- UI screen shape treated as write model shape.
-- CRUD table nouns treated as Aggregates without behavior.
-- Every Entity promoted to Aggregate Root.
-- Application command-side port created before Aggregate method, Domain Repository, Domain Service, Domain Event, Integration Message, named Application coordination service, ACL, QueryRepository, and Infrastructure adapter are ruled out.
-- Technical routing/topology mechanics promoted to Application because they are easy to mock.
-
-## 6. Modeling Process Checklist
-
-Use this compact order:
-
-1. Read spec, glossary/CONTEXT, ADRs, and relevant code.
-2. Surface implicit objects and existing-model impact.
-3. Reconstruct the command/trigger -> past-tense facts -> policies/reactions timeline.
-4. Ask one high-fidelity question at a time until material facts are decided.
-5. Classify context authority, lifecycle, invariants, aggregate candidates, event-storming facts, event/message candidates, repository candidates, and open risks.
-6. Produce the Domain Modeling Brief or Architecture Gate needed by the next phase.
-
-## 7. Planning Gates
-
-Choose the smallest gate that fits the change.
-
-### 7.1 Level 1 - Local Change
-
-Use for changes inside an existing bounded context that do not add a new aggregate, repository, QueryRepository, domain event, cross-context contract, or external integration.
-
-State: bounded context, affected layer, aggregate/use case, changed rule or explicit none, technical capability classification if touched, tests, and whether any existing inward interface/event/message responsibility shifted.
-
-### 7.2 Level 2 - New Use Case
-
-Use for a new command, query, event handler, repository method, QueryRepository method, DTO, assembler, or external integration inside an existing bounded context.
-
-State: use-case kind; aggregate and invariants; repository/query repository changes; DTO/assembler changes; transaction boundary; event/message publication or consumption; async handler role; port-pressure declaration when command handlers inject four or more semantic outbound dependencies; placement extension for every new inward interface.
-
-### 7.3 Level 3 - New Bounded Context or Aggregate
-
-Use for a new bounded context, aggregate root, event family, repository, or cross-context communication channel.
-
-State: bounded context, capability, language, data authority, aggregate root/entities/value objects/invariants, transaction boundaries, Integration Messages, cross-context mechanisms, technical capability classification, and a domain-mechanism inventory of every Aggregate rule, Repository, Domain Service, Domain Event, Integration Message, Application coordination service, ACL, QueryRepository/read facade, and Application command-side port decision.
-
-### 7.4 Cross-Context Change Without a New Context
-
-Treat as Level 2 on each affected side:
-
-- Producing side: published event/message/query/contract, payload, timing, and failure policy.
-- Consuming side: handler/consumer, idempotency, transaction boundary, ACL or facade, and whether a new inward interface is justified.
-
-Escalate to Level 3 when the change crosses three or more contexts or the contract itself is unstable.
-
-### 7.5 Gate Failure
-
-If the required facts are missing, stop. Missing domain facts go back to `explore`; missing placement/layer decisions go back to `shape`; missing implementation conventions go to the active language/runtime/database reference.
-
-## 8. Quick Reference: Decision Summary
-
-- Same Aggregate: non-repairable invariant, bounded child lifecycle, same transaction required.
-- Separate Aggregates: independent identity/lifecycle, eventual consistency acceptable, unbounded collection, different authority or context.
-- Event Storming fact: business evidence; later classify as Domain Event, Integration Message, state change, read-model fact, process step, or non-code fact.
-- Domain Event: selected same bounded-context fact after state changes, for repeated same-BC reactions.
-- Integration Message: cross-context contract.
-- Repository: write-side aggregate collection.
-- QueryRepository/read facade: product/application read model.
-- Infrastructure adapter: DB/cache/broker/RPC/SDK/routing/topology mechanics.
-
-Golden aggregate test:
-
-> If I modify A but not B in the same transaction, can the system enter a business-invalid state that cannot be repaired by retry, compensation, reconciliation, or event/message flow?
+- [ddd-core.md](ddd-core.md) for DDD tactical building blocks and the integrated DDD + Clean Architecture baseline.
+- [ddd-collaboration.md](ddd-collaboration.md) for cross-context contracts and long-running collaboration.

@@ -1,106 +1,158 @@
 ---
 name: ddd-golang-cqrs
-description: Go / go-jimu CQRS/read-side reference. Use when implementing or reviewing QueryRepository interfaces, read DTOs, query handlers, product read models, cross-context read facades, projections, read-model freshness, authorization, pagination, or QueryRepository port granularity.
+description: Conditional Go read-side house style for focused Aggregate reads, Application read models, QueryRepository ports and projections.
 ---
 
-# Go CQRS and Read-Side Reference
+# Go CQRS and Read Side
 
-CQRS here means command writes go through Domain aggregates, while product/application reads use read-side DTOs and QueryRepository/read facade ports. Do not use CQRS as a reason to create one interface per query method.
-In review, a mixed read/write repository is CQRS split pressure: aggregate load/save methods belong to the Domain Repository, while product list/detail/summary/page reads belong to a QueryRepository/read facade.
+CQRS here is responsibility and model separation, not a requirement for separate services, databases, asynchronous projections or Event Sourcing. Adopt a distinct read side when the read model has actually diverged from Aggregate loading.
 
-## 0. Go / go-jimu CQRS Building Block Lookup
+## Choose from Read Facts
 
-| Object | Start here |
-|---|---|
-| QueryRepository | §0.1 QueryRepository Card |
-| Read DTO / read model | §0.2 Read DTO Card |
-| Query Handler | §0.3 Query Handler Card |
-| Cross-context read facade | §0.4 Read Facade Card |
-| Projection/read-model updater | §0.5 Projection Card |
+Do not create a QueryRepository merely because an endpoint or method is named `Get`.
 
-### 0.1 QueryRepository Card
+A focused single-Aggregate read may load through the Domain Repository when:
 
-**Placement**
+- full Aggregate reconstitution is reasonable;
+- the result is a mechanical read-only mapping;
+- the query needs no joins, denormalized/display-only state or partial optimized load;
+- freshness, authorization, source and performance have not diverged from the write model.
 
-- Interface: `internal/business/<context>/application/query/repository.go` or a focused file in `application/query/`.
-- Implementation: `internal/business/<context>/infrastructure/<read_model>_query_repository.go`.
+Lists, pages, history, reports, statistics, cross-Aggregate composition, denormalized views, partial optimized reads, projections or independently governed freshness/authorization/source/performance use an Application-owned QueryRepository.
 
-**Granularity**
+In either case the call path is:
 
-- Default to one QueryRepository per bounded-context product read-model family.
-- Add methods for new query scenarios when freshness, authorization, pagination, failure behavior, consistency window, data source, and test substitute semantics are the same.
-- Split only when one of those semantics differs materially.
-- This is not one interface per query method; method-per-scenario is normal when the read-model family semantics are shared.
+```text
+Transport -> Application.Queries.<UseCase>.Handle -> Repository port -> Infrastructure
+```
 
-**Return shape**
+Transport never calls either Repository directly.
 
-- Return Application/read DTOs, generated read contracts when explicitly accepted, or local read-model structs.
-- Do not return Domain aggregates for product read models.
-- Do not expose storage-shaped methods such as `Select`, `Scan`, `FindBySQL`, or table-centric stores.
+## Focused Aggregate Read
 
-**Review checks**
+A focused read can remain small and use the write Repository without adding product-query methods to that interface:
 
-- A new `XxxReader`, `XxxFetcher`, or `XxxStore` must prove semantic split, not just a new screen/RPC.
-- Same read store/projection source is a merge signal.
-- Different sources such as OLTP current-state rows versus analytics buckets are split signals, but names remain product-semantic.
+```go
+package query
 
-### 0.2 Read DTO Card
+import (
+	"context"
 
-- DTOs live in `application/query/dto.go` or next to the query when narrow.
-- DTOs are read contracts, not Domain objects.
-- They may include denormalized fields, masked fields, pagination metadata, or display-specific values.
-- Business writes still go through commands and Domain aggregates.
-- Do not add behavior methods that enforce write-side invariants on DTOs.
+	"example/internal/business/user/domain"
+)
 
-### 0.3 Query Handler Card
+type User struct {
+	ID, Name, Email string
+}
 
-Use a dedicated query handler only when the read path does meaningful work:
+type GetUserHandler struct {
+	repository domain.Repository
+}
 
-- composes multiple QueryRepository/facade calls;
-- decodes cursors or applies read-specific authorization/masking;
-- applies named cache/read policy;
-- normalizes or filters data in a way that is part of the read use case.
+func NewGetUserHandler(repository domain.Repository) *GetUserHandler {
+	return &GetUserHandler{repository: repository}
+}
 
-For trivial reads, the generated RPC shortcut or Interface handler may call QueryRepository directly and map the result. The QueryRepository interface still exists.
+func (h *GetUserHandler) Handle(ctx context.Context, id string) (User, error) {
+	entity, err := h.repository.Get(ctx, id)
+	if err != nil {
+		return User{}, err
+	}
+	return User{ID: entity.ID, Name: entity.Name, Email: entity.Email}, nil
+}
+```
 
-### 0.4 Read Facade Card
+This is a read-only mechanical mapping. It does not authorize the handler to make business decisions from exported Domain fields. If this path starts polluting the Aggregate API or loading unnecessary state, introduce the read model below.
 
-Use a read facade/API when another bounded context needs current data owned by this context.
+## QueryRepository and Read Model
 
-**Placement**
+Place a cohesive read-family interface and DTOs under `application/query/`; implement the interface in Infrastructure:
 
-- Owning context publishes a small port/API under `internal/business/<context>/api/**` or an existing local convention.
-- Consuming context depends on that published API, not on the owner's internal `application/query.Repository`.
+```go
+package query
 
-Rules:
+import "context"
 
-- Return DTOs/read models, not Domain aggregates.
-- Keep facade names product-semantic (`UserSummaryReader`, `CustomerEligibilityReader`) rather than technology-semantic.
-- Cross-process reads use protocol contracts under `proto/**` / `pkg/gen/**`.
+type User struct {
+	ID    string
+	Name  string
+	Email string
+}
 
-### 0.5 Projection Card
+type UserPage struct {
+    Users    []User
+    Page     int
+    PageSize int
+}
 
-Projection/read-model updates can be triggered by Domain Events, Integration Messages, or tasks.
+type ListUsers struct {
+	NamePrefix string
+	Page       int
+	PageSize   int
+}
 
-- Same-BC projection update from a Domain Event routes through `application/eventhandler`.
-- Cross-context projection update from an Integration Message routes through `application/messagehandler`.
-- Durable retry/backfill/reconciliation routes through `application/taskprocessor` and `ddd-golang-taskqueue.md`.
-- Projection state is read-side state; do not treat the projection row as the write aggregate unless the model explicitly says it is.
+type ListFilter struct {
+	NamePrefix string
+	Page       int
+	PageSize   int
+}
 
-## CQRS Naming
+type Repository interface {
+	List(context.Context, ListFilter) (UserPage, error)
+}
 
-| Object | Preferred naming |
-|---|---|
-| Main read-model family | `Repository` inside `application/query`, or `<ProductArea>QueryRepository` when multiple families exist |
-| Analytics read family | `<ProductArea>MetricRepository`, `<ProductArea>AnalyticsRepository` |
-| Cross-context facade | `<PublishedConcept>Reader` / `<PublishedConcept>Facade` |
-| Read DTO | `<UseCase>DTO`, `<Concept>Summary`, `<Concept>Detail`, `<Concept>Page` |
+type ListUsersHandler struct {
+	repository Repository
+}
 
-## Common Misplacements
+func NewListUsersHandler(repository Repository) *ListUsersHandler {
+	return &ListUsersHandler{repository: repository}
+}
 
-- Creating one QueryRepository interface per screen, RPC method, or handler.
-- Leaving product read models in the write-side Domain Repository because they read from the same tables as the aggregate.
-- Using Domain aggregates as read DTOs.
-- Naming ports after storage technology (`ClickHouseReader`, `RedisQueryStore`) instead of product semantics.
-- Putting routing topology, peer address lookup, replica selection, or hop headers into QueryRepository.
-- Calling another context's internal QueryRepository instead of its published facade/API.
+func (h *ListUsersHandler) Handle(
+	ctx context.Context,
+	input ListUsers,
+) (UserPage, error) {
+	if input.Page < 1 {
+		input.Page = 1
+	}
+	if input.PageSize < 1 {
+		input.PageSize = 20
+	}
+	if input.PageSize > 100 {
+		input.PageSize = 100
+	}
+	return h.repository.List(ctx, ListFilter(input))
+}
+```
+
+Read models are Application DTOs, not Aggregates. They may contain denormalized, masked, pagination or display-oriented fields, but no write-side invariant behavior. Query filters and read models do not become Domain Entities and do not carry Domain validator tags; simple pagination/filter semantics stay explicit in the query use case.
+
+One QueryRepository serves one cohesive product read-model family. Add a method when authorization, freshness, source, failure and test-substitute semantics remain aligned. Split when those semantics materially differ, not for every screen or RPC. Name methods in product language; never expose `Select`, `Scan`, SQL strings, xorm sessions or provider cursors.
+
+Infrastructure may map SQL rows or DOs directly to the Application read model. This is the intentional exception to `DO -> Domain Entity`: the read path is not creating or changing Domain state.
+
+## Write and Read Responsibilities
+
+- Domain Repository loads and saves Aggregate Roots for behavior.
+- QueryRepository returns read models and never saves an Aggregate.
+- Even when both use the same table, their interfaces remain distinct once read-model separation applies.
+- Infrastructure may share private SQL fragments, DOs and mapping helpers without merging the two contracts.
+- A QueryRepository optimization must not change Application-visible ordering, pagination, masking or freshness semantics silently.
+
+## Cross-Context Reads
+
+Another bounded context does not import the source context's internal QueryRepository, Application package or Domain model. Use an accepted published read contract and an ACL when languages differ. Do not create a baseline `api/` directory without an accepted same-process public contract; cross-process reads use versioned RPC contracts under `proto/` with generated code under `gen/`.
+
+## Projections
+
+A projection is read-side state, not an Aggregate by virtue of being mutable in storage.
+
+- Same-context Domain Event reactions call an Application projection use case from `application/eventhandler`.
+- Integration Message reactions enter through `transport/messagesubscriber`.
+- Durable repair/backfill enters through an accepted `transport/taskprocessor` flow.
+- Define delivery, ordering, replay, rebuild and consistency-window behavior before relying on asynchronous projection state.
+
+## Verification
+
+Application query tests cover result shape, authorization, pagination and composition with focused Repository fakes. Infrastructure integration tests exercise real filtering, ordering, pagination and storage mapping; apply the persistence rules in [`database.md`](database.md). Projection tests cover duplicate, out-of-order, replay and rebuild behavior whenever the accepted delivery design permits them.

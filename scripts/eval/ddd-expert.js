@@ -188,7 +188,7 @@ function validateCase(caseDir, config) {
   stringArray(expect.routes.contains, `${config.id}.expect.routes.contains`);
   stringArray(expect.routes.excludes, `${config.id}.expect.routes.excludes`);
   for (const target of [...expect.routes.contains, ...expect.routes.excludes]) {
-    if (!["explore", "shape"].includes(target)) {
+    if (!["explore", "shape", "codify", "guard"].includes(target)) {
       fail(`${config.id}: invalid expected route ${target}`, 2);
     }
   }
@@ -298,7 +298,7 @@ function validateResultShape(result) {
     }
   }
   for (const route of Array.isArray(result.routes) ? result.routes : []) {
-    if (!hasOnlyKeys(route, ["target", "reason"]) || !["explore", "shape"].includes(route.target) || typeof route.reason !== "string" || route.reason.length === 0) {
+    if (!hasOnlyKeys(route, ["target", "reason"]) || !["explore", "shape", "codify", "guard"].includes(route.target) || typeof route.reason !== "string" || route.reason.length === 0) {
       errors.push("route is invalid");
     }
   }
@@ -624,7 +624,7 @@ function buildPrompt(loadedCase) {
     `Set scenario_id to ${loadedCase.config.id} and phase to ${loadedCase.config.phase}.`,
     `Set review_conclusion to ${loadedCase.config.phase === "guard" ? "clear, violations, or evidence_gaps" : "not_applicable"}.`,
     "Use questions only for questions that must be answered before work can continue.",
-    "Use routes only for an explicit return to explore or shape.",
+    "Use routes only for an explicit phase handoff required by the named skill.",
     "For guard, classify each violation or evidence gap with the closest schema-defined family.",
     "Report only workspace-relative evidence and changed-file paths.",
     "",
@@ -972,7 +972,7 @@ function selfTestCommand() {
           completion: ["completed"],
           review_conclusion: ["violations"],
           questions: { min: 0, max: 0 },
-          routes: { contains: [], excludes: ["shape"] },
+          routes: { contains: ["codify"], excludes: ["shape"] },
           verdicts: [{ kind: "violation", family: "aggregate_boundary", evidence_paths: ["internal/repository.go"] }],
           forbid_verdicts: ["evidence_gap"],
           git: { changed: "none", required_paths: [], forbidden_paths: [] },
@@ -987,7 +987,7 @@ function selfTestCommand() {
       completion: "completed",
       review_conclusion: "violations",
       questions: [],
-      routes: [],
+      routes: [{ target: "codify", reason: "repair the implementation" }],
       verdicts: [{
         kind: "violation",
         family: "aggregate_boundary",

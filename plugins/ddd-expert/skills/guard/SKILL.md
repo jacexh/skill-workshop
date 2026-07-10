@@ -66,7 +66,7 @@ Seed one coverage obligation for every touched specialized surface without loadi
 Each applicable sentinel seeds a hypothesis, never a verdict:
 
 - one Aggregate Root owns one lifecycle and invariant boundary;
-- one write Repository represents one Aggregate Root plus owned children/value objects, while product reads use QueryRepository/read facades;
+- one write Repository represents one Aggregate Root plus owned children/value objects; focused non-CQRS queries may map an Aggregate in Application, while list/report/projection reads use QueryRepository/read facades;
 - independent Aggregate Roots do not depend on one transaction for business correctness;
 - durable facts govern later command admission, terminal closure, and replay behavior;
 - execution facts and parent terminal facts use distinct timing and language;
@@ -85,4 +85,4 @@ Report only non-clear outcomes. Put findings first by architectural severity, wi
 
 ## References
 
-Start with the compact baselines in this skill. Do not load [../../references/ddd-core.md](../../references/ddd-core.md) wholesale before breadth. During depth, load only the relevant tactical section and the specialized section required by an investigating family: [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) or [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for missing model evidence; the active language guide ([../../references/ddd-golang.md](../../references/ddd-golang.md), [../../references/ddd-python.md](../../references/ddd-python.md), or [../../references/ddd-typescript.md](../../references/ddd-typescript.md)) for triggered code; [../../references/database.md](../../references/database.md) for MySQL 8.0 persistence evidence; and the active language sections for generated, event/message, taskqueue, or runtime evidence.
+Start with the compact baselines in this skill. Do not load [../../references/ddd-core.md](../../references/ddd-core.md) wholesale before breadth. During depth, load only the rule owner and specialized section required by an investigating family: [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for missing model evidence; [../../references/ddd-core.md](../../references/ddd-core.md) for tactical ownership; [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for event, message, or cross-context evidence; the active language guide ([../../references/ddd-golang.md](../../references/ddd-golang.md), [../../references/ddd-python.md](../../references/ddd-python.md), or [../../references/ddd-typescript.md](../../references/ddd-typescript.md)) for triggered code; [../../references/database.md](../../references/database.md) for persistence evidence; and the active language sections for generated, event/message, taskqueue, or runtime evidence.

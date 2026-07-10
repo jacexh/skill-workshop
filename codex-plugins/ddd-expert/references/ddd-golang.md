@@ -1,128 +1,115 @@
 ---
 name: ddd-golang
-description: Go / go-jimu DDD reference. Use when a DDD phase skill needs Go-specific file placement, object-shape routing, package boundaries, go-jimu component choices, logging, tests, or module assembly guidance.
+description: Go DDD House Style baseline and navigation index for dependency boundaries, mandatory components, and the focused layer, flow, or platform guide to load.
 ---
 
-# Go / go-jimu Reference Router
+# Go DDD House Style Baseline
 
-This file is the Go entry point. It should help the agent choose the smallest Go reference set, not teach DDD from scratch. Load it after `explore` / `shape` has accepted the model, or when `guard` needs to map observed Go code to expected DDD shape.
+Load this baseline after the model and design are accepted. It does not decide Aggregate boundaries, consistency, or collaboration. It fixes how accepted responsibilities are implemented in Go and routes detailed work to the smallest relevant Knowledge Leaf.
 
-Use [`ddd-modeling.md`](ddd-modeling.md) for model decisions, [`ddd-core.md`](ddd-core.md) for language-neutral architecture rules, and the layer files below for Go / go-jimu implementation shape.
+Every Go rule below is a House Rule: it applies only when its stated concern exists, and it is mandatory once applicable. An existing alternative is a House Style conflict, not an automatic exception. An uncovered concern or explicit exception requires an accepted technology or design decision; do not choose another library ad hoc.
 
-## Layer Reference Map
+## Dependency Direction
 
-| Concern | Load | Use for |
+```text
+Transport -> Application -> Domain
+Infrastructure -> Application and Domain contracts
+<context>.go and internal/pkg -> composition and Runtime
+```
+
+| Layer | Owns | Must not own |
 |---|---|---|
-| Scaffold / project layout | [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) | `internal/business/<context>`, `internal/pkg`, `pkg/gen`, module roots, generated-code layout, test layout |
-| Domain | [`ddd-golang-domain.md`](ddd-golang-domain.md) | Aggregate Root, Entity, Value Object, Domain Service, Repository interface, Domain Event recording, FSM, Domain errors |
-| Application | [`ddd-golang-application.md`](ddd-golang-application.md) | command handler, Application service, generated RPC shortcut, event/message handler placement, execution-boundary logging |
-| CQRS / read side | [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) | QueryRepository, read DTO, query handler, read facade, projection/read-model update |
-| Infrastructure | [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) | Repository implementation, DO/converter, persistence adapter, ACL/external adapter, generated protocol adapter placement |
-| Database standards | [`database.md`](database.md) | SQL fields, timestamp type, soft delete, optimistic lock, migration/index rules |
-| Domain Events / messages | [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) | `event.Collection`, Domain Event Handler, Boundary Publisher, Integration Message Handler, Kafka adapter |
-| Taskqueue / periodic work | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) | `TaskType`, Processor, enqueue policy, `PeriodicTask`, asynq runtime wiring |
-| Runtime / config / lifecycle | [`ddd-golang-runtime.md`](ddd-golang-runtime.md) | `cmd`, `fx.Module`, `Option`, `fx.Lifecycle`, shutdown, config profiles, Kubernetes |
+| Domain | Aggregates, Entities, Value Objects, Domain Services, Domain Events, write Repository contracts | protocol, persistence, logging, task/message providers, Runtime |
+| Application | Commands, Queries, use-case coordination, `Application` registry, DTO assemblers, same-context reactions, internal task contracts | ConnectRPC/HTTP handlers, xorm, Kafka/Asynq clients, process lifecycle |
+| Transport | ConnectRPC/HTTP handlers, Integration Message subscribers, task processors, scheduled inbound triggers | Repositories, transactions, Aggregate mutation, provider runtimes |
+| Infrastructure | Repository/QueryRepository implementations, DO conversion, ACLs, external adapters | Domain decisions, inbound protocol handling, process lifecycle |
+| Runtime | Fx composition, configuration, shared clients, servers, consumers, workers, schedulers, telemetry, shutdown | business rules and bounded-context language |
 
-## Object Shape Router
+Application has two narrow, accepted provider-neutral exceptions:
 
-| Accepted object shape | Start with | Stop / return upstream when |
+- a producing Application event handler may map a Domain Event to its own generated Integration Message contract and call `message.Publisher`;
+- an accepted internal task contract may use `components/taskqueue`, `SchemaRegistry`, and `Enqueuer` under `application/task`.
+
+Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xorm sessions, Fx, and active loops remain outside Application.
+
+## Reference Map
+
+### Layer Guides
+
+| Responsibility | Load |
+|---|---|
+| Aggregate, Entity, Value Object, Domain Service, Repository contract, FSM | [`ddd-golang-domain.md`](ddd-golang-domain.md) |
+| Command, Query, Application service, `application.go`, assembler, transaction coordination | [`ddd-golang-application.md`](ddd-golang-application.md) |
+| ConnectRPC, Chi HTTP, message subscriber, task processor, error mapping | [`ddd-golang-transport.md`](ddd-golang-transport.md) |
+| xorm persistence, DO/convert, QueryRepository adapter, ACL/external adapter | [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) |
+
+### Flow Guides
+
+| End-to-end flow | Load |
+|---|---|
+| Read model separation, QueryRepository, projections | [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) |
+| Domain Events, published facts/intents, Kafka, Outbox | [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) |
+| Internal task, processor, polling, periodic task, Asynq | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) |
+
+### Platform Guides
+
+| Platform concern | Load |
+|---|---|
+| Multi-BC layout, generated code, modules, tests | [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) |
+| Configuration, Fx, server/worker lifecycle, logging, telemetry, shutdown | [`ddd-golang-runtime.md`](ddd-golang-runtime.md) |
+| MySQL schema, SQL, indexes, locking, migrations | [`database.md`](database.md) |
+
+Use [`ddd-modeling.md`](ddd-modeling.md) for model discovery, [`ddd-core.md`](ddd-core.md) for the DDD + Clean Architecture baseline, and [`ddd-collaboration.md`](ddd-collaboration.md) for cross-Aggregate or cross-context design.
+
+## Mandatory Adopted Stack
+
+| Concern | Mandatory implementation | Applicability |
 |---|---|---|
-| Aggregate Root | [`ddd-golang-domain.md §0.1`](ddd-golang-domain.md) | aggregate boundary, identity, lifecycle, or invariant owner is not accepted |
-| Entity / Value Object | [`ddd-golang-domain.md §0.2`](ddd-golang-domain.md) | identity vs value semantics are unclear |
-| Domain Service / policy | [`ddd-golang-domain.md §0.3`](ddd-golang-domain.md) | the rule can belong to one aggregate or is actually Application orchestration |
-| Repository interface | [`ddd-golang-domain.md §0.4`](ddd-golang-domain.md) | repository exists only because a database table exists |
-| Command Handler / Application service | [`ddd-golang-application.md §0.1`](ddd-golang-application.md) | use-case boundary, transaction owner, or event dispatch timing is not designed |
-| QueryRepository | [`ddd-golang-cqrs.md §0.1`](ddd-golang-cqrs.md) | read model family, freshness, authorization, or source semantics are unknown |
-| Read DTO / read model | [`ddd-golang-cqrs.md §0.2`](ddd-golang-cqrs.md) | read contract shape is mixed with write-side Domain behavior |
-| Query Handler | [`ddd-golang-cqrs.md §0.3`](ddd-golang-cqrs.md) | it is unclear whether the read path is trivial delegation or real orchestration |
-| Cross-context read facade | [`ddd-golang-cqrs.md §0.4`](ddd-golang-cqrs.md) | owning context, publication boundary, or freshness semantics are unknown |
-| Projection / read-model updater | [`ddd-golang-cqrs.md §0.5`](ddd-golang-cqrs.md) | projection trigger, source event/message/task, or consistency semantics are unknown |
-| Repository implementation / DO / converter | [`ddd-golang-infrastructure.md §0.1`](ddd-golang-infrastructure.md), [`database.md`](database.md) | Domain object shape or persistence authority is not accepted |
-| Domain Event type | [`ddd-golang-events-messages.md §0.1`](ddd-golang-events-messages.md), [`ddd-golang-domain.md §0.1`](ddd-golang-domain.md) | same-BC fact vs cross-context contract is unclear |
-| Event collection / command-side dispatch | [`ddd-golang-events-messages.md §0.2`](ddd-golang-events-messages.md), [`ddd-golang-application.md §0.1`](ddd-golang-application.md) | drain/dispatch owner or persistence timing is unclear |
-| Domain Event Handler | [`ddd-golang-events-messages.md §0.3`](ddd-golang-events-messages.md) | same-BC reaction role is not classified |
-| Boundary Publisher | [`ddd-golang-events-messages.md §0.4`](ddd-golang-events-messages.md) | Domain Event to Integration Message boundary is unclear |
-| Integration Message Handler | [`ddd-golang-events-messages.md §0.5`](ddd-golang-events-messages.md) | cross-context consumer role is not classified |
-| Task contract / processor / periodic producer | [`ddd-golang-taskqueue.md §0`](ddd-golang-taskqueue.md) | task lifecycle is business-visible and not modeled |
-| Runtime component / entrypoint / lifecycle | [`ddd-golang-runtime.md §0`](ddd-golang-runtime.md) | process ownership, shutdown, config, or module placement is unknown |
-| Generated RPC / protocol adapter | [`ddd-golang-application.md §0.7`](ddd-golang-application.md), [`ddd-golang-scaffold.md §0.4`](ddd-golang-scaffold.md) | generated type would leak into Domain or use-case packages |
-| Logging-only change | [`ddd-golang-application.md §0.8`](ddd-golang-application.md), [`ddd-golang-runtime.md §0`](ddd-golang-runtime.md) | log owner is not an execution boundary |
+| Dependency injection and lifecycle | `go.uber.org/fx` | Go service Runtime |
+| RPC | `connectrpc.com/connect` | RPC API exists |
+| HTTP routing | `github.com/go-chi/chi/v5` | ConnectRPC mounting or hand-written HTTP exists |
+| Contract toolchain | Buf, Protobuf, `google.golang.org/protobuf` | RPC or Integration Message contract exists; output is `gen/` |
+| Business-data validation | `github.com/go-playground/validator/v10` | Domain Entity or Value Object validation |
+| ORM | `xorm.io/xorm` | MySQL persistence or QueryRepository exists |
+| MySQL driver | `github.com/go-sql-driver/mysql` | MySQL Runtime exists |
+| UUID identity | `github.com/google/uuid`, UUIDv7 | A new UUID identity is required |
+| Domain Events | `github.com/go-jimu/components/ddd/event` | Aggregate records same-context facts |
+| Integration Messages | `github.com/go-jimu/components/ddd/message` | Cross-context asynchronous collaboration is accepted |
+| Kafka | `github.com/go-jimu/contrib/message/kafka` | Kafka delivery is accepted |
+| Kafka Runtime | `github.com/twmb/franz-go` | Kafka exists; import only from Runtime/provider code |
+| Outbox | `github.com/go-jimu/components/ddd/message/outbox` | Outbox is explicitly accepted |
+| Task Queue | `github.com/go-jimu/components/taskqueue` | Internal deferred work is accepted |
+| Asynq adapter | `github.com/go-jimu/contrib/taskqueue/asynq` | Asynq delivery is accepted |
+| Asynq Runtime | `github.com/hibiken/asynq` | Asynq exists; import only from Runtime/provider code |
+| State machine | `github.com/go-jimu/components/fsm` | Lifecycle behavior warrants FSM |
+| Logging | `log/slog` and `github.com/go-jimu/components/sloghelper` | Every Go service |
+| Error enrichment | `github.com/samber/oops` | Errors cross a controlled boundary |
+| Configuration | `github.com/go-jimu/components/config/loader` | Go service Runtime |
+| Distributed tracing | OpenTelemetry Go, OTLP, `connectrpc.com/otelconnect` | Tracing is accepted and a backend/collector is available |
 
-## Go Planning Additions
+Do not substitute Gin/Echo for Chi, grpc-go for ConnectRPC, GORM/sqlc for xorm, Sarama for the go-jimu Kafka adapter, Zap for slog, or a project-local wrapper for an adopted go-jimu contract. A technology concern absent from this table remains uncovered until its choice is accepted and documented.
 
-For Go implementation plans, keep the DDD model source separate from code placement:
+## Cross-cutting House Rules
 
-- **Local package change:** name the bounded context, package path, layer, and why the layer owns the behavior.
-- **New use case:** name command/query/event/message/task shape, transaction boundary, event/message dispatch timing, and tests.
-- **New aggregate or bounded context:** name package layout, data authority, Repository/QueryRepository split, module assembly owner, and cross-context contracts.
-- **Cross-context change:** name producing context, published payload contract, consuming handler/facade/ACL, idempotency, and generated-code impact.
-- **Runtime-only change:** use `ddd-golang-runtime.md`; do not fabricate DDD gate fields for pure process/config/shutdown work.
+- Every bounded context exposes `application/application.go`, `application/assembler.go`, and `<context>.go` as described by the Scaffold guide.
+- `Application.Commands` contains every Command Handler; `Application.Queries` contains every Query Handler. Transport receives the registry and delegates once.
+- Application DTO/Domain Entity conversion lives in `application/assembler.go`. DO/Domain Entity conversion lives in `infrastructure/convert.go`.
+- Exported Domain fields are a mechanical mapping surface. New Aggregates use `domain.NewXxx` or another Domain Factory; outer layers do not assign fields to perform business changes.
+- Business data is validated in Domain. Application DTOs and DOs do not duplicate validator tags. Query filters/read models follow the CQRS guide.
+- A saved Aggregate instance is stale: it may be read, assembled, and drained of already-recorded events, but it is not mutated or saved again.
+- Transport or Runtime owns one execution completion log. Application emits a separate business-semantic log only when it adds independent value or owns a terminal/suppressed outcome.
+- One bounded context never imports another context's `internal/business/<context>` packages. Collaborate through an accepted published contract, Integration Message, or ACL.
 
-## Go Defaults
+## Change Router
 
-These defaults apply when a repository has adopted this guide or existing code already uses these components.
-
-| Concern | Default |
+| Change | Load in addition to this baseline |
 |---|---|
-| Dependency injection | `go.uber.org/fx` |
-| Generated RPC | ConnectRPC / gRPC generated stubs; thin mapping at the accepted adapter boundary |
-| Domain Events | `github.com/go-jimu/components/ddd/event` |
-| Integration Messages | `github.com/go-jimu/components/ddd/message` |
-| Kafka adapter | `github.com/go-jimu/contrib/message/kafka` with explicit `FailurePolicy` |
-| Taskqueue | `github.com/go-jimu/components/taskqueue` and `github.com/go-jimu/contrib/taskqueue/asynq` |
-| FSM | `github.com/go-jimu/components/fsm` when lifecycle complexity crosses the FSM threshold |
-| Logging | `log/slog` plus `github.com/go-jimu/components/sloghelper` |
-| Error wrapping | `github.com/samber/oops` when the repository uses it |
-| Configuration | `github.com/go-jimu/components/config` + `config/loader` |
+| Domain behavior, invariant, lifecycle, Repository contract | Domain |
+| Command/Query/use-case coordination, assembler | Application; CQRS when the read model separates |
+| RPC/HTTP endpoint, message consumer, task processor | Transport plus the relevant Flow Guide |
+| Repository/QueryRepository implementation, DO/schema, external adapter | Infrastructure plus Database when persisted |
+| Domain Event or Integration Message publication/consumption | Events/messages plus every touched Layer Guide |
+| Internal task, polling, periodic work | Task queue plus every touched Layer Guide |
+| Fx/config/server/worker/goroutine/shutdown/telemetry | Runtime and Scaffold |
 
-If existing repository code has standardized on a different component, record the local convention and use it consistently. Do not invent local substitutes for adopted go-jimu component contracts.
-
-## Package Boundary Rules
-
-- Domain never imports generated protocol packages, database/ORM clients, message brokers, Redis/cache clients, runtime packages, `internal/pkg` adapters, another bounded context's Domain package, or Infrastructure.
-- Application use-case packages depend on Domain and Application-owned ports. `application/application.go` may import generated RPC types only when the repository uses the Go RPC shortcut and the method remains thin.
-- Infrastructure implements Domain/Application ports and owns database, broker, external API, retry, cache, and SDK mechanics.
-- `internal/pkg/<capability>` owns shared technical clients and runtime adapters; bounded-context Infrastructure receives initialized clients.
-- `pkg/gen/**` is generated protocol code, not Domain model.
-
-## Logging Rule
-
-Domain code does not log. It returns errors and records Domain Events. Every active execution boundary logs exactly one completion summary for success, failure, skip, or retry with `operation`, `outcome`, `duration_ms`, relevant IDs, and `sloghelper.Error(err)` on failure.
-
-Execution boundaries include RPC/HTTP handlers, command/query handlers when they are entrypoints, Domain Event handlers, Integration Message handlers, task processors, scheduler ticks, long-running loops, and lifecycle hooks. Avoid duplicate error logs when outer middleware already owns the completion log.
-
-## File Quick Index
-
-| Path | Owner |
-|---|---|
-| `internal/business/<context>/domain/<aggregate>.go` | Aggregate Root / Entity |
-| `internal/business/<context>/domain/valueobject.go` | Value Objects |
-| `internal/business/<context>/domain/event.go` | Domain Event types |
-| `internal/business/<context>/domain/repository.go` | write-side Repository interface |
-| `internal/business/<context>/application/command/<use_case>.go` | command + command handler |
-| `internal/business/<context>/application/query/repository.go` | QueryRepository/read-side ports |
-| `internal/business/<context>/application/query/dto.go` | read DTOs/read models |
-| `internal/business/<context>/application/eventhandler/<event>.go` | same-BC Domain Event Handler |
-| `internal/business/<context>/application/messagepublisher/<event>_publisher.go` | Domain Event -> Integration Message Boundary Publisher |
-| `internal/business/<context>/application/messagehandler/<message>.go` | Integration Message Handler |
-| `internal/business/<context>/application/taskprocessor/<task>.go` | taskqueue Processor |
-| `internal/business/<context>/application/application.go` | Application constructor and optional generated RPC shortcut |
-| `internal/business/<context>/interfaces/**` | hand-written protocol adapters only |
-| `internal/business/<context>/infrastructure/**` | repository implementations, DOs, converters, ACLs, external adapters |
-| `internal/business/<context>/api/**` | published same-process read facade/API for other bounded contexts |
-| `internal/pkg/<capability>/**` | shared technical runtime/client package |
-| `pkg/gen/**` | generated protocol contracts |
-
-## Review Shortcuts
-
-- Business condition branches over aggregate state outside Domain usually route to [`ddd-golang-domain.md`](ddd-golang-domain.md) and the Domain behavior baseline.
-- New command-side Application ports route to [`ddd-modeling.md §0.2`](ddd-modeling.md) before implementation.
-- Generated RPC methods with repository calls, transactions, dispatch, enqueueing, or multi-port orchestration route to [`ddd-golang-application.md §0.7`](ddd-golang-application.md) and the Interface/Application baseline.
-- Database schema, DO/converter, optimistic-lock, and soft-delete changes route to [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) plus [`database.md`](database.md).
-- Runtime loops, polling, schedulers, and shutdown behavior route to [`ddd-golang-runtime.md`](ddd-golang-runtime.md) and/or [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md).
-
-## References
-
-- [`ddd-modeling.md`](ddd-modeling.md)
-- [`ddd-core.md`](ddd-core.md)
-- [`ddd-agent-contract.md`](ddd-agent-contract.md)
+If the change would alter accepted boundaries, consistency, durability, published contracts, recovery, or Runtime commitments, require an accepted design decision before implementation. Otherwise follow the applicable House Rule without offering alternative stacks.

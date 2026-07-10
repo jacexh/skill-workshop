@@ -26,7 +26,7 @@ Each skill runs its compact phase workflow and then loads only the reference sec
 
 ## Activation Guidance
 
-Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting backend infrastructure. The phase skills are described to match common development actions, and you may also mention a phase skill explicitly when the task touches bounded contexts, Domain/Application/Infrastructure placement, generated RPC/protocol types, Go runtime/config/lifecycle, taskqueue/message behavior, database persistence, or backend logging.
+Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting backend infrastructure. The phase skills are described to match common development actions, and you may also mention a phase skill explicitly when the task touches bounded contexts, Domain/Application/Transport/Infrastructure placement, generated RPC/protocol types, Go runtime/config/lifecycle, taskqueue/message behavior, database persistence, or backend logging.
 
 Choose the phase by timing:
 
@@ -44,12 +44,12 @@ Use this plugin for:
 - product-semantic Tactical Modeling before codification
 - model-to-code realization and placement
 - evidence-based Model Integrity review
-- Domain/Application/Infrastructure ownership
+- Domain/Application/Transport/Infrastructure ownership
 - Domain and Application port eligibility
 - generated protocol DTO boundaries
-- Go ConnectRPC/gRPC shortcut pressure
+- Go RPC/HTTP adapter boundaries
 - Python and TypeScript backend DDD module/layer placement
-- Domain Events, Boundary Publishers, Integration Messages, and async handlers
+- Domain Events, published-fact/intent contracts, Integration Messages, and async handlers
 - taskqueue/runtime boundaries in DDD services
 - database-backed backend persistence design when schema, query, migration, transaction, or storage concerns are explicit
 
@@ -63,21 +63,21 @@ Do not use this plugin for frontend architecture, browser QA, product UI design,
 
 Canonical references live under `references/`:
 
-- `ddd-modeling-gates.md` — compact modeling thought gates for story, authority, lifecycle, invariants, failure tolerance, integration language, and coordination choices
-- `ddd-agent-contract.md` — on-demand agent prohibited actions, classification, and self-checks
-- `ddd-modeling.md` — on-demand strategic bounded-context, aggregate, and architecture gate guidance
-- `ddd-core.md` — on-demand dependency direction, bounded contexts, and service layer boundaries
-- `ddd-golang.md` — Go/go-jimu reference router
-- `ddd-golang-scaffold.md` — Go project layout, bounded-context package shape, generated code, and test placement
-- `ddd-golang-domain.md` — Aggregate Root, Entity, Value Object, Domain Service, Repository interface, and Domain Event recording shape
-- `ddd-golang-application.md` — command handlers, Application services, generated RPC shortcut, handler placement, and execution-boundary logging
-- `ddd-golang-cqrs.md` — QueryRepository, read DTOs, query handlers, read facades, and projections
-- `ddd-golang-infrastructure.md` — Repository implementations, DO/converters, persistence adapters, ACLs, and generated protocol adapters
+- `ddd-modeling.md` — strategic language, subdomain, bounded-context, authority, lifecycle, and aggregate guidance
+- `ddd-core.md` — language-neutral DDD and Clean Architecture layers, tactical building blocks, Repository, and conditional CQRS guidance
+- `ddd-collaboration.md` — published APIs, Domain Events, Integration Messages, process managers, and reliable delivery
+- `ddd-golang.md` — Go/go-jimu house-style router and adopted stack
+- `ddd-golang-scaffold.md` — multi-bounded-context Go layout, generated code, module composition, and test placement
+- `ddd-golang-domain.md` — Aggregate Root, Entity, Value Object, Domain Service, Repository, validation, events, and FSM guidance
+- `ddd-golang-application.md` — transport-neutral commands, queries, Application registry, assemblers, transactions, and outbound ports
+- `ddd-golang-transport.md` — inbound ConnectRPC/HTTP, message-subscriber, and task-processor adapters
+- `ddd-golang-cqrs.md` — conditional QueryRepository, read DTO, query-handler, and projection guidance
+- `ddd-golang-infrastructure.md` — xorm persistence, DO conversion, QueryRepository, ACL, and outbound adapter guidance
+- `ddd-golang-events-messages.md` — Domain Event timing, published facts, asynchronous intents, Kafka runtime, and conditional outbox guidance
+- `ddd-golang-taskqueue.md` — Application task contracts, task processors, scheduling, follow-up work, and Asynq runtime guidance
+- `ddd-golang-runtime.md` — configuration, Fx composition, ConnectRPC/Chi lifecycle, logging, shutdown, and conditional telemetry guidance
+- `database.md` — MySQL persistence, table roles, types, indexes, SQL, transactions, concurrency, migrations, and sharding rules
 - `ddd-python.md` — Python-specific DDD implementation guidance
 - `ddd-typescript.md` — TypeScript-specific DDD implementation guidance
-- `ddd-golang-events-messages.md` — Domain Events, Boundary Publishers, Integration Messages, and Kafka adapter wiring
-- `ddd-golang-runtime.md` — Go runtime guidance for config, fx lifecycle, graceful shutdown, and Kubernetes
-- `ddd-golang-taskqueue.md` — polling jobs, TaskType/schema registry, processors, asynq wiring, and middleware
-- `database.md` — on-demand schema conventions, index strategy, migrations, and persistence rules
 
 This plugin intentionally does not scan generic `design-patterns/` directories. Project-specific architecture facts should be read from explicit project docs or project knowledge sources.

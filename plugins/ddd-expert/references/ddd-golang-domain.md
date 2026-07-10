@@ -1,210 +1,225 @@
 ---
 name: ddd-golang-domain
-description: Go / go-jimu Domain-layer reference. Use when implementing or reviewing Aggregate Roots, Entities, Value Objects, Domain Services, Domain policies, Repository interfaces, Domain Event recording, FSM state, validation, or Domain import boundaries.
+description: Go house style for Aggregate Roots, Entities, Value Objects, Domain Services, Repository contracts, Domain Events, validation and lifecycle behavior.
 ---
 
-# Go Domain Layer Reference
+# Go Domain Layer
 
-Use this file only after `explore` / `shape` has accepted the Domain object. This file translates accepted Domain objects into Go / go-jimu code shape; it must not decide aggregate boundaries or classify objects by itself.
+Use this guide after Tactical Design has accepted the model and its consistency boundary. Domain code owns business state, rules and language. It does not own use-case coordination, protocol mapping, persistence mechanics or runtime policy.
 
-## 0. Go / go-jimu Domain Building Block Lookup
+## Aggregate Shape and Mapping Surface
 
-| Object | Start here |
-|---|---|
-| Aggregate Root | §0.1 Aggregate Root Card |
-| Entity / Value Object | §0.2 Entity / Value Object Card |
-| Domain Service / policy | §0.3 Domain Service / Policy Card |
-| Repository interface | §0.4 Repository Interface Card |
-| Lifecycle state machine | §0.5 State Machine Card |
-| Domain error / validation | §0.6 Error and Validation Card |
+Place an Aggregate in `internal/business/<context>/domain/<aggregate>.go`. Use semantic filenames such as `pricing.go` or `subscription.go`; do not pre-create generic `service.go`, `policy.go` or `state.go` files.
 
-### 0.1 Aggregate Root Card
+This house style permits exported Domain fields so hand-written assemblers and converters can mechanically map existing state:
 
-**Placement**
+- export is a representation surface, not a business behavior API;
+- Application, Transport and Infrastructure must not branch on exported fields to make Domain decisions or assign them to perform a state transition;
+- new Aggregates are created through `domain.NewXxx` or another Domain-named Factory, never by copying a DTO into a struct literal;
+- `application/assembler.go` may map existing Application DTO state; `infrastructure/convert.go` may reconstitute persisted DO state;
+- mutable slices, maps and pointers are copied at the mapping boundary so a caller cannot mutate Aggregate state through an alias;
+- Domain structs may carry `validate` tags, but never protobuf, JSON, HTTP or ORM tags.
 
-- `internal/business/<context>/domain/<aggregate>.go`
-- Domain Events usually live in `domain/event.go`.
-- Repository interface lives in `domain/repository.go`; implementation lives in Infrastructure.
+The Aggregate still exposes intention-revealing methods for every business change:
 
-**Required / conditional fields**
+```go
+package domain
 
-| Field | Rule |
-|---|---|
-| Identity | Required. Use a stable Domain identity such as `ID string` or a Value Object. |
-| Business state | Required when lifecycle or invariants depend on state. |
-| Business data | Required. Invariant-bearing data belongs on the aggregate, child Entity, or Value Object. |
-| `Version int` | Required for persisted mutable aggregates using optimistic locking. Domain treats it as read-only. SQL increments it. |
-| `Events event.Collection` | Required when the aggregate records same-BC Domain Events; acceptable by default for mutable aggregates that may emit events. |
-| Timestamps | Include only when business rules need time values or the existing Domain model already exposes them. Infrastructure audit columns alone do not create Domain behavior. |
+import (
+	"errors"
+	"fmt"
+	"strings"
+	"time"
 
-**Required behavior**
+	"github.com/go-jimu/components/ddd/event"
+	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+)
 
-- Constructor/factory establishes valid initial state, identity, `Version`, and event collection.
-- State changes happen through methods. Do not expose setters for invariant-bearing fields.
-- Domain methods mutate in-memory state first, then record Domain Events through `event.Collection`.
-- Domain returns errors and records facts; it never persists, dispatches, publishes, enqueues, starts goroutines, or logs.
-- Exported fields are allowed for mapping/read/log enrichment, but external code must not branch on them to make business decisions or assign them to perform transitions.
+var (
+	domainValidator = validator.New()
+	ErrInvalidUser  = errors.New("invalid user")
+)
 
-**go-jimu component usage**
+const EventKindUserCreated event.Kind = "user.created"
 
-- Use `github.com/go-jimu/components/ddd/event` for `event.Collection` and Domain Event types.
-- Use `github.com/go-jimu/components/fsm` when lifecycle complexity crosses the FSM threshold in §0.5.
-- Do not invent local event collection or FSM substitutes when the repository has adopted go-jimu.
+type User struct {
+	ID      string `validate:"required,uuid"`
+	Name    string `validate:"required,max=24"`
+	Email   string `validate:"required,email,max=48"`
+	Version int
+	Events  event.Collection
+}
 
-**Application obligations**
+// NewUser establishes valid initial state and records the creation fact.
+func NewUser(name, email string, occurredAt time.Time) (*User, error) {
+	user := &User{
+		ID:     uuid.Must(uuid.NewV7()).String(),
+		Name:   strings.TrimSpace(name),
+		Email:  strings.ToLower(strings.TrimSpace(email)),
+		Events: event.NewCollection(),
+	}
+	if err := user.Validate(); err != nil {
+		return nil, err
+	}
+	user.Events.Add(UserCreated{
+		UserID:     user.ID,
+		Name:       user.Name,
+		Email:      user.Email,
+		OccurredAt: occurredAt,
+	})
+	return user, nil
+}
 
-- Load aggregate, call Domain method, `repo.Save(ctx, aggregate)`, then drain/dispatch `aggregate.Events.Drain()` exactly once after successful save.
-- Repository never drains events.
-- After `Save()`, the in-memory aggregate is stale; reload before further mutation.
+func (u *User) Validate() error {
+	if err := domainValidator.Struct(u); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidUser, err)
+	}
+	return nil
+}
 
-**Fast review checks**
+func (u *User) Rename(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > 24 {
+		return ErrInvalidUser
+	}
+	u.Name = name
+	return nil
+}
 
-- Reject business rules in command handlers, event/message handlers, task processors, generated RPC handlers, or infrastructure when they belong to aggregate methods/policies.
-- Reject Domain imports of generated protocol packages, HTTP/gRPC server packages, ORM/database clients, broker clients, Redis/cache clients, `internal/pkg` adapters, Infrastructure, or another bounded context's Domain package.
-- Reject Domain logging. Move the observable result to a returned error, Domain Event, or execution-boundary completion log.
+type UserCreated struct {
+	UserID     string
+	Name       string
+	Email      string
+	OccurredAt time.Time
+}
 
-### 0.2 Entity / Value Object Card
+func (UserCreated) Kind() event.Kind { return EventKindUserCreated }
+```
 
-**Entity**
+`validator/v10` is the single validator for business data represented as a Domain Entity or Value Object. Application DTOs and persistence DOs do not duplicate its tags. Cross-field invariants, state transitions, authorization facts and external evidence remain explicit Domain code; tags do not replace them.
 
-- Has identity and lifecycle inside an aggregate boundary.
-- Lives beside the aggregate unless it is large enough to justify its own `domain/<entity>.go`.
-- Mutations go through methods that preserve invariants.
-- Child entities are normally persisted through the aggregate Repository, not their own Repository.
+An Infrastructure converter may restore an existing Aggregate with a struct literal, initialize a fresh `event.Collection`, then call `Validate()`. It must not replay creation rules or record a creation event. An Application assembler follows the same rule for existing DTO state. These are the only mapping exceptions to Factory creation.
 
-**Value Object**
+## Mutation and Persistence Lifecycle
 
-- Defined by attributes, not identity.
-- Prefer immutable construction: validate in constructor or `Validate() error`; expose methods that return a new value when a change is needed.
-- Keep external/protocol validation out of Domain. Domain validation is business validation.
-- Do not attach JSON/proto/ORM semantics that make the Value Object a transport or persistence DTO.
+- The Aggregate Root controls changes to owned Entities and enforces invariants synchronously.
+- Domain methods may change in-memory state and record Domain Events. They never save, publish, enqueue, log, start a goroutine or choose retry/provider policy.
+- Persist owned Entities and Value Objects with their root unless Tactical Design has accepted an independent Aggregate.
+- Technical audit timestamps stay in the DO. Put time in Domain only when business behavior uses it, and pass the authoritative time into the operation when determinism matters.
 
-**Review checks**
+A persisted mutable Aggregate uses optimistic locking:
 
-- If callers compare IDs or mutate state, it is not a Value Object.
-- If a child object is loaded/saved independently, revisit aggregate boundary in `explore`.
+- a new in-memory Aggregate has `Version == 0` and is inserted with stored version `1`;
+- an update increments the stored version only when `id`, loaded `version` and non-deleted predicate match;
+- an affected-row mismatch maps to a stable concurrency-conflict error;
+- `Repository.Save` does not update the in-memory version.
 
-### 0.3 Domain Service / Policy Card
+After a successful `Save`, that Aggregate instance is stale. Application may read already-produced result fields, assemble a DTO and drain the events recorded by that transaction. It must not invoke another business mutation or save the instance again. Because its `Version` is also stale, a post-Save result must not present that value as the newly persisted concurrency token; reload when a caller requires the current token. A later transaction reloads a new Aggregate with a fresh `event.Collection`.
 
-Use a Domain Service or policy only when the business rule:
+## Entity and Value Object
 
-- spans multiple aggregates or Value Objects;
-- cannot naturally live on one aggregate;
-- is pure Domain logic without database, broker, RPC, runtime, or clock/scheduler mechanics.
+An Entity has identity and a lifecycle within its Aggregate. Its exported fields follow the same mapping-only rule as the root, and its mutations remain behind Domain methods reached through the root.
 
-Implementation shape:
+A Value Object is defined by attributes:
 
-- Keep it in `domain/service.go`, `domain/policy.go`, or a focused file such as `domain/pricing_policy.go`.
-- Accept Domain objects and Value Objects, return decisions/errors/events, and keep side effects outside.
-- If it needs a Repository, external client, runtime state, cache, or generated DTO, it is probably Application orchestration or Infrastructure.
+- construct and validate it in Domain;
+- prefer immutable values and methods returning a new value;
+- compare by value;
+- keep protocol and storage representation outside Domain.
 
-### 0.4 Repository Interface Card
+If a child is independently loaded, saved or concurrently modified, revisit the Aggregate boundary instead of adding a child Repository mechanically.
 
-**Placement**
+## Domain Service
 
-- `internal/business/<context>/domain/repository.go`
-- Interface name is normally `Repository` inside the Domain package.
-- It represents write-side aggregate collection semantics, not SQL operation names.
+Use a Domain Service for an important named Domain operation that does not naturally belong to an Entity, Value Object or Aggregate. It does not need to span multiple Aggregates.
 
-**Required shape**
+A responsible Domain Service:
 
-- Methods operate on Aggregate Roots.
-- `Get(ctx, id)` / `Find...` returns Domain aggregates.
-- `Save(ctx, aggregate)` covers create/update/state-driven soft delete; do not split into `Insert`, `Update`, `Delete` merely because SQL has those operations.
-- `Save(ctx, aggregate) is one mutable Aggregate Root`; it may persist owned child entities/value objects, but multiple independent Aggregate Root parameters are model pressure, not a nicer Repository API.
-- A semantic repository method name is not proof. If the API saves or coordinates several candidate roots, call it Aggregate Boundary Conflict and classify it as a model-fact gap. Prefer one aggregate boundary or Domain Event / process manager / reconciler coordination.
-- When Aggregate Boundary Conflict is triggered, output a candidate classification table with columns: aggregate root candidate | owned child | decision record | execution record | domain event reaction | read model.
-- Repository red-flag evidence: semantic repository transaction, lifecycle transaction, cross-table transaction, same persistence boundary, `xorm.Session`, `gorm.Tx`, or multi-record lifecycle writes. These are implementation mapping evidence, not Repository design evidence.
-- Implementation transaction shape is not Repository design evidence. Cross-table writes are persistence mapping evidence only when they persist one accepted aggregate.
-- When the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong or missing, classify it as a tactical placement gap.
-- Repository interface should not expose raw transaction/session/ORM objects.
-- Read-only product models belong to QueryRepository/read facade. Domain Repository finders load aggregates or command-side Domain facts needed to decide a write, not list/detail/summary/page DTOs.
+- has a ubiquitous-language name and a semantic filename;
+- is stateless and deterministic by default;
+- accepts Domain values, snapshots, time and authoritative evidence;
+- returns a decision, value, error or fact;
+- calls public Aggregate behavior rather than assigning exported state;
+- does not save, control transactions, log, retry, schedule or depend on generated/provider APIs.
 
-**Version and event rules**
+```go
+package domain
 
-- Domain `Version` is a concurrency token. Repository SQL increments `version = version + 1`.
-- Repository initializes `event.Collection` when rehydrating an aggregate.
-- Repository never drains or dispatches events.
+type AllocationService struct{}
 
-**Stop conditions**
+func (AllocationService) Allocate(
+	demand Demand,
+	candidates []CapacitySnapshot,
+) (Allocation, error) {
+	// The decision is Domain logic; Application supplied the facts.
+	return chooseCapacity(demand, candidates)
+}
+```
 
-- If the interface is created only to wrap a database client, cache, queue, lock, retry, route, peer, or deployment detail, route to `ddd-modeling.md §0.1` / §0.2 before coding.
-- If the new method serves read-only product screens, use [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) instead.
-- If `Save` appears to need several mutable aggregate candidates, classify candidate roles, then require one aggregate boundary, child entities/value objects, Domain Event/reaction, process manager/reconciler, or Integration Message before coding.
+Application normally loads facts and participants before calling the service. A Domain-owned semantic collaborator, including a narrow Repository query capability, is allowed only when precomputing a primitive would erase Domain meaning. The query does not eliminate a time-of-check/time-of-use race; correctness that depends on concurrent state requires an accepted constraint, lock, isolation, or other consistency mechanism outside the service's control. The service still never calls `Save` or controls the transaction. A cross-Aggregate calculation does not authorize atomic persistence of several roots.
 
-### 0.5 State Machine Card
+## Repository Contract
 
-Use `github.com/go-jimu/components/fsm` when any of these are true:
+Place the write Repository contract in `domain/repository.go`. It represents a collection of Aggregate Roots, not a table API:
 
-- 5+ business states;
-- forbidden transitions or guard conditions matter;
-- multiple actors/commands/events drive lifecycle;
-- transition rules affect resource release, capacity, billing, retry, archive, permission, or idempotency;
-- the design/spec includes a state diagram, transition table, or invariant list.
+```go
+package domain
 
-Use the library as State Pattern + transition table. The Aggregate exposes
-stable business methods; the current State object implements state-specific
-behavior for those methods; `fsm.Transit` uses the StateMachine transition
-edges and builders to choose the next state after a successful action.
+import "context"
 
-Rules:
+type Repository interface {
+	Get(context.Context, string) (*User, error)
+	Save(context.Context, *User) error
+}
+```
 
-- States, actions, and guard conditions are Domain concepts.
-- Aggregate Root implements the v0.10 `fsm.StateContext`: `CurrentState()` and
-  `SetState(next fsm.State)`.
-- `SetState(next fsm.State)` type-checks the next concrete state, updates the
-  current state field, and may record Domain Events or version changes for the
-  accepted transition.
-- State-specific behavior lives in polymorphic State methods such as
-  `AddItems`, `Checkout`, `Cancel`, or `Fail`.
-- Aggregate business method delegates to current State, then asks the
-  registered StateMachine to advance when the action succeeds, usually through
-  a private `transition(action)` helper that calls `fsm.Transit`.
-- Do not replace State polymorphism with `switch state` branches in Aggregate,
-  Application, handlers, processors, or repositories.
-- Do not pre-check `HasTransition` before calling the State method when the
-  State owns the rejection; otherwise state-specific Domain errors collapse
-  into generic transition errors.
-- Do not reimplement Transit on every Aggregate. `fsm.Transit` reads
-  `StateMachine.Transitions`, evaluates each `Condition`, builds the target
-  state, sets its context, and delegates replacement to `SetState`.
-- `Condition` is a transition-edge guard, not the whole business validation.
-  Prefer calling Aggregate methods from conditions instead of recomputing
-  fields in transition registration code.
-- Keep StateMachine lookup and transition plumbing out of public business
-  method signatures. External Application code calls business methods, not raw
-  state-machine operations.
-- Transitions may record Domain Events after state changes.
-- Infrastructure persists state labels only; it does not know transition rules.
+- Operate on one accepted root; owned child persistence is an implementation detail of that root.
+- Keep SQL, xorm sessions, transactions, cache keys and provider options out of the interface.
+- Return stable not-found and concurrency errors that outer layers can classify with `errors.Is/As`.
+- Command-side loading and a focused single-Aggregate read may use this Repository.
+- Lists, pages, history, reports, statistics, cross-Aggregate composition and optimized projections use an Application QueryRepository; see [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md).
 
-For simple 2-4 state mostly linear lifecycles, enum plus Domain methods is acceptable. Application, handlers, processors, and repositories still must not assemble their own transition tables.
+Several independent root parameters, workflow verbs or table-shaped methods are model pressure. A shared transaction or table does not prove a shared Aggregate.
 
-Review/test expectations:
+## Domain Events
 
-- The same business method behaves differently across states when the domain
-  requires it, e.g. active state accepts an action while full/closed/failed
-  states return state-specific Domain errors.
-- Tests cover state-specific behavior, successful transition, rejected action,
-  `SetState` type checks, and that callers cannot bypass business methods with
-  raw state-machine operations.
+Use `github.com/go-jimu/components/ddd/event`. An internal Domain Event is a past-tense fact in this bounded context and is not an Integration Message contract.
 
-### 0.6 Error and Validation Card
+- The Aggregate records accepted facts in `event.Collection`.
+- Only Application drains the collection, once, after successful persistence.
+- Infrastructure reconstitution initializes `event.NewCollection()` and never drains it.
+- Do not expose another bounded context to this event type.
 
-- Domain errors describe business invalidity or invariant violations.
-- `Validate() error` is the canonical validation shape when an object owns business field validation.
-- `github.com/go-playground/validator/v10` may be used inside `Validate()` if the repository already uses it; tags are implementation detail, not a transport contract.
-- Cross-field invariants and state transitions should be explicit Go code.
-- Use `github.com/samber/oops` only when the project has adopted it; do not hide Domain error identity behind unmatchable wrapping.
+`Save -> Events.Drain() -> event.Dispatcher.DispatchAll()` is used only when the accepted design permits a same-context, post-commit best-effort follow-up. `DispatchAll` accepts background work; it does not prove that handlers completed. Durable or recoverable delivery requires an accepted mechanism; do not describe in-memory dispatch as reliable. The complete flow belongs to [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md).
 
-## Domain Import Boundary
+## Lifecycle and FSM
 
-Allowed examples: standard library, `errors`, `fmt`, `strings`, `time`, UUID libraries, `github.com/samber/oops` if adopted, `github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/fsm`.
+Use enum plus Aggregate methods for a simple lifecycle. When the accepted lifecycle has many states, guarded edges, several actors or genuinely state-specific behavior, use `github.com/go-jimu/components/fsm` instead of duplicating transition switches across callers.
 
-Prohibited examples: `pkg/gen/**`, `connectrpc.com/connect`, `google.golang.org/grpc`, HTTP server packages, ORM/database clients, Kafka/NATS/Rabbit/Redis clients, `internal/pkg/**` adapters, Infrastructure packages, another bounded context's Domain package.
+The Aggregate remains the `fsm.StateContext`; callers still invoke business methods:
 
-## Test Expectations
+```go
+func (o *Order) CurrentState() fsm.State { return o.state }
 
-- Domain tests instantiate aggregates/value objects directly.
-- Test invariants, state transitions, event recording, idempotent/no-op behavior, and error cases.
-- No mocks are needed for pure Domain tests.
-- If a Domain object is hard to test without infrastructure, it probably owns the wrong responsibility.
+func (o *Order) SetState(next fsm.State) error {
+	state, ok := next.(orderState)
+	if !ok {
+		return ErrInvalidOrderState
+	}
+	o.state = state
+	return nil
+}
+
+func (o *Order) transition(action fsm.Action) error {
+	return fsm.Transit(o, fsm.MustGetStateMachine("order"), action)
+}
+```
+
+State behavior and guards stay in Domain. Application calls `Pay`, `Cancel` or another business method, not `fsm.Transit`. Infrastructure persists the state label, not transition rules. A state count is evidence of complexity, not a keyword trigger; do not introduce FSM until the facts warrant it.
+
+## Import Boundary and Verification
+
+Domain may import the standard library and the adopted Domain-focused packages such as `validator/v10`, `google/uuid`, `components/ddd/event` and conditional `components/fsm`. It must not import generated contracts under `gen/`, ConnectRPC/Chi, xorm, Kafka, Asynq, Redis, Fx, `internal/pkg`, Infrastructure or another bounded context's internal packages.
+
+Test Factories, `Validate`, Aggregate invariants, state transitions, Domain Service decisions, event recording and no-op/idempotent behavior directly. Domain tests normally need no mocks; a focused fake is justified only for an accepted semantic Domain collaborator.

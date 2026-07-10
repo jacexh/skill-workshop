@@ -11,7 +11,6 @@ description: TypeScript implementation guide for DDD + Clean Architecture. Use w
 **Scope**: Team backend service architecture standard  
 **Reference role**:
 - Load this file only when the active DDD phase needs TypeScript-specific DDD placement, package, naming, testing, or composition-root rules.
-- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs task classification, stop protocol, prohibited actions, or completion self-checks.
 - **Domain modeling rule cards**: [`ddd-modeling.md`](ddd-modeling.md) — Load only when the phase routes to bounded-context, aggregate, Architecture Gate, technical-capability, or port-granularity decisions.
 - **Architecture rule cards**: [`ddd-core.md`](ddd-core.md) — Load only when the phase routes to layer ownership, dependency direction, Domain Events / Integration Messages, CQRS, cross-context contracts, or review checklist rules.
 - This document is the TypeScript implementation guide layered on accepted Domain Modeling Brief / design decisions and the rule cards above.
@@ -20,7 +19,7 @@ description: TypeScript implementation guide for DDD + Clean Architecture. Use w
 
 > **Cross-reference convention**: major architecture sections align with the corresponding `ddd-core.md` sections where applicable. This guide adds TypeScript-specific workflow, placement, event/message, testing, and composition-root guidance.
 
-> **Code blocks in this guide are illustrative**, not copy-paste templates. Imports may be omitted and identifiers may reference types defined elsewhere in the project. See [`ddd-agent-contract.md` §6](ddd-agent-contract.md).
+> **Code blocks in this guide are illustrative**, not copy-paste templates. Imports may be omitted and identifiers may reference types defined elsewhere in the project.
 
 ---
 
@@ -254,7 +253,7 @@ If the rule can be unit-tested without SQL, Redis, a queue, framework request ob
 
 ### 2.6 Mechanized Review Checks
 
-These checks operationalize the P1-P4 self-checks in [ddd-agent-contract.md §5.1](ddd-agent-contract.md). Treat the shell commands below as local smoke checks unless they are replaced by AST-aware ESLint/custom rules; they surface review targets, not architectural proof.
+Treat the P1-P4 shell commands below as local smoke checks unless they are replaced by AST-aware ESLint/custom rules; they surface review targets, not architectural proof.
 
 **P1 — Port eligibility: suspicious naming smoke scan**
 

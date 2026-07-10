@@ -1,145 +1,298 @@
 ---
 name: ddd-golang-infrastructure
-description: Go / go-jimu Infrastructure-layer reference. Use when implementing or reviewing Repository implementations, DO/converter code, migrations, database adapters, ACLs, external clients, generated protocol adapters, shared internal/pkg clients, transaction mechanics, soft delete, or optimistic locking.
+description: Executable Go House Style for xorm/MySQL persistence, DO conversion, Repository and QueryRepository adapters, outbound adapters, and provider-boundary errors.
 ---
 
-# Go Infrastructure Layer Reference
+# Go Infrastructure Layer
 
-Infrastructure owns external mechanisms. It implements Domain/Application ports and keeps database, broker, SDK, cache, retry, routing, and generated-protocol mechanics outside Domain.
+Infrastructure implements Domain/Application ports and owns external mechanisms. For MySQL persistence in this House Style, use `xorm.io/xorm` with `github.com/go-sql-driver/mysql`. Use `github.com/samber/oops` when an external error first enters controlled code.
 
-## 0. Go / go-jimu Infrastructure Building Block Lookup
+## Responsibility And File Shape
 
-| Object | Start here |
-|---|---|
-| Repository implementation / DO / converter | §0.1 Repository Implementation / DO / Converter Card |
-| Migration / schema / SQL rule | §0.2 Persistence Migration Card and [`database.md`](database.md) |
-| External adapter / ACL | §0.3 External Adapter / ACL Card |
-| Generated protocol adapter | §0.4 Generated Protocol Adapter Card |
-| Shared technical client / runtime adapter | §0.5 Shared Client and Runtime Adapter Card |
+```text
+internal/business/<context>/infrastructure/
+  do.go                    # private xorm Data Objects
+  convert.go               # pure DO <-> exported Domain/read-model mapping
+  <aggregate>_repository.go
+  <read_model>_query_repository.go
+  <capability>_adapter.go  # ACL or outbound provider adapter
+```
 
-### 0.1 Repository Implementation / DO / Converter Card
+- Data Objects describe persistence, not Domain behavior. Mandatory columns and physical types follow [database.md](database.md); this guide owns their Go mapping.
+- `convert.go` performs pure mechanical mapping. It does no I/O, logging, transaction control, authorization, or business decisions.
+- A Domain Repository adapter persists one Aggregate Root and its owned state.
+- A QueryRepository adapter implements an Application-owned read port and returns Application read models.
+- Compile-time assertions make the implemented inward contract visible.
+- Shared engines and provider clients arrive from `internal/pkg`; a bounded-context adapter does not load config or open process-wide clients.
 
-**Placement**
+Use [database.md](database.md) for mandatory schema fields, physical types, indexes, locking, and migrations.
 
-- `internal/business/<context>/infrastructure/<aggregate>_repository.go`
-- `internal/business/<context>/infrastructure/do.go`
-- `internal/business/<context>/infrastructure/converter.go`
+## Data Object
 
-**Required shape**
+Keep xorm tags and storage-only fields private to Infrastructure. The example follows the mandatory database profile; do not weaken or reinterpret that profile from a Go mapping guide.
 
-- Compile-time assertion: implementation satisfies the Domain Repository interface.
-- Constructor receives initialized clients from `internal/pkg/<capability>` or module wiring; it does not open config by itself.
-- Repository persists Aggregate Roots, not child entities as independent collections.
-- `Save(ctx, aggregate)` handles create/update/state-driven soft delete for one aggregate.
-- Infrastructure may persist owned child rows in the same transaction, but it must not disguise several independent Aggregate Root saves as one Repository implementation method.
-- Repository initializes `event.Collection` when rehydrating aggregates.
-- Repository never drains or dispatches Domain Events.
+```go
+// internal/business/user/infrastructure/do.go
+package infrastructure
 
-**Version and transaction**
+import "example/internal/pkg/database"
 
-- Domain `Version` is read-only.
-- New aggregate insert sets persisted version to the initial stored value used by the repository convention.
-- Existing aggregate update uses optimistic lock (`WHERE id = ? AND version = ?`) and increments in SQL/ORM (`version = version + 1`).
-- Storage transaction/session mechanics stay inside Infrastructure.
-- Application owns the semantic transaction boundary; Infrastructure owns the storage transaction mechanism.
+type userDO struct {
+    ID        string             `xorm:"id pk"`
+    Name      string             `xorm:"name"`
+    Password  []byte             `xorm:"password"`
+    Email     string             `xorm:"email"`
+    Version   int                `xorm:"version"`
+    CreatedAt database.Timestamp `xorm:"created_at"`
+    UpdatedAt database.Timestamp `xorm:"updated_at"`
+    DeletedAt database.Timestamp `xorm:"deleted_at"`
+}
 
-**DO / converter**
+func (userDO) TableName() string { return "user_account" }
+```
 
-- DOs mirror storage shape, not Domain behavior.
-- Converter maps between DO and Domain explicitly where names/types differ.
-- Use project timestamp value types where present; otherwise make Unix-millisecond mapping explicit.
-- Do not put business decisions in converters.
+Use the timestamp representation required by [database.md](database.md) and keep its converter in the shared database package. Do not make the Domain import a storage timestamp type.
 
-**Soft delete**
+## Exported Domain Mapping
 
-- If deletion is business-visible, Domain owns lifecycle/status and Repository maps that state to `deleted_at`.
-- If deletion is purely technical, Infrastructure manages `deleted_at` transparently.
-- Domain never knows the `deleted_at` column.
+Exported Domain fields are an intentional mapping surface. They permit a converter to construct rehydrated state; they do not permit Application, Transport, or Infrastructure to mutate an existing Aggregate or make business decisions from its fields.
 
-### 0.2 Persistence Migration Card
+```go
+// internal/business/user/infrastructure/convert.go
+package infrastructure
 
-Route to [`database.md`](database.md) for SQL standards. The implementation trace should record:
+import (
+    "github.com/go-jimu/components/ddd/event"
+    "example/internal/business/user/application/query"
+    "example/internal/business/user/domain"
+    "github.com/samber/oops"
+)
 
-- migration path and naming;
-- table name and standard fields;
-- timestamp representation;
-- `deleted_at` strategy;
-- optimistic-lock column and update expression;
-- indexes needed by use cases;
-- rollback/backfill risk when applicable.
+func userToDO(user *domain.User) *userDO {
+    return &userDO{
+        ID:       user.ID,
+        Name:     user.Name,
+        Password: append([]byte(nil), user.HashedPassword...),
+        Email:    user.Email,
+        Version:  user.Version,
+    }
+}
 
-Review checks:
+func userFromDO(data *userDO) (*domain.User, error) {
+    if data.Version < 1 {
+        return nil, oops.With("version", data.Version).
+            With("source", "persistence").
+            Wrap(domain.ErrInvalidUser)
+    }
+    user := &domain.User{
+        ID:             data.ID,
+        Name:           data.Name,
+        HashedPassword: append([]byte(nil), data.Password...),
+        Email:          data.Email,
+        Version:        data.Version,
+        Events:         event.NewCollection(),
+    }
+    if err := user.Validate(); err != nil {
+        return nil, err
+    }
+    return user, nil
+}
 
-- `deleted_at` filter is present where needed.
-- version increments happen in persistence, not Domain.
-- migration does not encode Domain invariants only as SQL constraints without Domain checks.
+func userReadModelFromDO(data *userDO) query.User {
+    return query.User{ID: data.ID, Name: data.Name, Email: data.Email}
+}
+```
 
-### 0.3 External Adapter / ACL Card
+Conversion restores already-existing state. New Aggregate creation calls the Domain factory so initial invariants and creation events remain Domain-owned. Do not add reflection, unsafe setters, `Restore`, or `Rehydrate` only to hide explicit mapping.
 
-Use Infrastructure for adapters to external systems or legacy models:
+## xorm Repository Adapter
 
-- third-party APIs;
-- broker/client SDKs;
-- cache implementations;
-- ACL mapping from external language into Domain language;
-- routing or peer-forwarding mechanisms.
+Use an initialized `*xorm.Engine`. Always bind external values, select intentional columns, filter accepted deletion state, and wrap provider errors at this first controlled boundary.
 
-Rules:
+```go
+package infrastructure
 
-- Adapter implements a Domain/Application-owned semantic port when such a port has been accepted by design.
-- Adapter may use generated protocol/client types internally.
-- Domain-facing methods accept/return Domain or Application DTO types, not generated transport structs.
-- Business decisions extracted from external payloads must be translated before Domain is called.
+import (
+    "context"
+    "database/sql"
+    "errors"
+    "time"
 
-### 0.4 Generated Protocol Adapter Card
+    "example/internal/business/user/domain"
+    "example/internal/pkg/database"
+    "github.com/samber/oops"
+    "xorm.io/xorm"
+)
 
-Generated types are protocol contracts, not Domain objects.
+type userRepository struct{ engine *xorm.Engine }
 
-Accepted placements:
+var _ domain.Repository = (*userRepository)(nil)
 
-- `application/application.go` for the Go generated RPC shortcut when the method is thin.
-- `interfaces/**` for hand-written protocol adapters or repos with that convention.
-- `infrastructure/**` for outbound generated clients or ACLs.
-- `pkg/gen/**` only for generated code.
+func NewUserRepository(engine *xorm.Engine) domain.Repository {
+    return &userRepository{engine: engine}
+}
 
-Rules:
+func (r *userRepository) Get(ctx context.Context, userID string) (*domain.User, error) {
+    data := new(userDO)
+    found, err := r.engine.Context(ctx).
+        Cols("id", "name", "password", "email", "version").
+        Where("id = ? AND deleted_at = 0", userID).
+        Get(data)
+    if err != nil {
+        return nil, oops.With("operation", "user.get").
+            With("user_id", userID).
+            Wrap(err)
+    }
+    if !found {
+        return nil, oops.With("operation", "user.get").
+            With("user_id", userID).
+            Wrap(domain.ErrUserNotFound)
+    }
+    user, err := userFromDO(data)
+    if err != nil {
+        return nil, oops.With("operation", "user.rehydrate").
+            With("user_id", userID).
+            Wrap(err)
+    }
+    return user, nil
+}
 
-- Domain does not import `pkg/gen/**`.
-- Use-case packages do not expose generated types in semantic ports unless the accepted design explicitly treats the type as a read contract.
-- Mapping happens at Application/Interface/Infrastructure boundaries.
-- Fat generated RPC adapters route back to [`ddd-golang-application.md §0.7`](ddd-golang-application.md) and the Interface/Application baseline.
+func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
+    if user == nil {
+        return oops.With("operation", "user.save").
+            Wrap(errors.New("nil aggregate"))
+    }
 
-### 0.5 Shared Client and Runtime Adapter Card
+    data := userToDO(user)
+    now := time.Now().UTC()
+    if user.Version == 0 {
+        data.Version = 1
+        data.CreatedAt = database.NewTimestamp(now)
+        data.UpdatedAt = database.NewTimestamp(now)
+        data.DeletedAt = database.NewTimestamp(database.UnixEpoch)
+        affected, err := r.engine.Context(ctx).Insert(data)
+        if err != nil {
+            return oops.With("operation", "user.insert").
+                With("user_id", user.ID).
+                Wrap(err)
+        }
+        if affected != 1 {
+            return oops.With("operation", "user.insert").
+                With("user_id", user.ID).
+                Wrap(sql.ErrNoRows)
+        }
+        return nil
+    }
 
-Shared technical clients live under `internal/pkg/<capability>`:
+    data.UpdatedAt = database.NewTimestamp(now)
+    affected, err := r.engine.Context(ctx).
+        Cols("name", "password", "email", "updated_at").
+        Incr("version").
+        Where("id = ? AND version = ? AND deleted_at = 0", user.ID, user.Version).
+        Update(data)
+    if err != nil {
+        return oops.With("operation", "user.update").
+            With("user_id", user.ID).
+            With("version", user.Version).
+            Wrap(err)
+    }
+    if affected != 1 {
+        return oops.With("operation", "user.update").
+            With("user_id", user.ID).
+            With("version", user.Version).
+            Wrap(domain.ErrConcurrentModification)
+    }
+    return nil
+}
+```
 
-- database engines/session factories;
-- Kafka/message runners;
-- taskqueue runtime adapters;
-- Redis/cache clients;
-- HTTP clients or SDK wrappers;
-- config/runtime/lifecycle modules.
+New Aggregates have in-memory `Version == 0` and are inserted with stored version `1`. Updates compare the loaded version and increment it atomically. `Save` does not refresh the Aggregate. After success, the caller may assemble a result and drain events already recorded by that transaction, but it must not expose the stale Version as the newly persisted concurrency token, mutate, or save that instance again; the next transaction reloads a fresh Aggregate and event collection.
 
-Bounded-context Infrastructure receives initialized clients. Domain and Application use cases do not import `internal/pkg` adapters unless the project has an accepted provider-neutral component contract in that package.
+When one accepted Aggregate maps to several tables, keep `*xorm.Session` inside the adapter: `NewSession`, `defer Close`, `Begin`, rollback on error, then `Commit`. A session is persistence machinery, not evidence that independent Aggregates share one consistency boundary.
 
-Runtime loops, lifecycle hooks, shutdown order, and process config route to [`ddd-golang-runtime.md`](ddd-golang-runtime.md). Task queues route to [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md).
+## QueryRepository Adapter
 
-## Infrastructure File Layout
+Product lists, pages, history, reports, projections, and optimized partial reads use an Application-owned QueryRepository. A focused read of exactly one reasonably sized Aggregate may use the Domain Repository only when the accepted design does not introduce distinct read semantics.
 
-| Path | Contents |
-|---|---|
-| `infrastructure/<aggregate>_repository.go` | write Repository implementation |
-| `infrastructure/<read_model>_query_repository.go` | QueryRepository implementation |
-| `infrastructure/do.go` | storage models |
-| `infrastructure/converter.go` | DO <-> Domain / DTO conversion |
-| `infrastructure/<external>_client.go` | context-specific external adapter/ACL |
-| `infrastructure/<message>_publisher.go` | adapter-specific publisher when not already in shared runtime |
-| `internal/pkg/<capability>/**` | shared technical clients/runtime packages |
+```go
+package infrastructure
 
-## Common Misplacements
+import (
+    "context"
 
-- Application receives raw `*xorm.Session`, `*gorm.DB`, `database/sql.Tx`, `TxManager`, or `UnitOfWork` to coordinate persistence mechanics.
-- Repository drains Domain Events.
-- DO/converter contains business branching over state.
-- Infrastructure is the only place that enforces a business invariant.
-- A cache, peer directory, queue subject, or retry policy becomes a Domain/Application port without a semantic capability gate.
+    "example/internal/business/user/application/query"
+    "example/internal/business/user/domain"
+    "github.com/samber/oops"
+    "xorm.io/xorm"
+)
+
+type userQueryRepository struct{ engine *xorm.Engine }
+
+var _ query.Repository = (*userQueryRepository)(nil)
+
+func NewUserQueryRepository(engine *xorm.Engine) query.Repository {
+    return &userQueryRepository{engine: engine}
+}
+
+func (r *userQueryRepository) Get(ctx context.Context, userID string) (query.User, error) {
+    data := new(userDO)
+    found, err := r.engine.Context(ctx).
+        Cols("id", "name", "email").
+        Where("id = ? AND deleted_at = 0", userID).
+        Get(data)
+    if err != nil {
+        return query.User{}, oops.With("operation", "user.query.get").
+            With("user_id", userID).
+            Wrap(err)
+    }
+    if !found {
+        return query.User{}, oops.With("operation", "user.query.get").
+            With("user_id", userID).
+            Wrap(domain.ErrUserNotFound)
+    }
+    return userReadModelFromDO(data), nil
+}
+
+func (r *userQueryRepository) List(ctx context.Context, filter query.ListFilter) (query.UserPage, error) {
+    rows := make([]userDO, 0, filter.PageSize)
+    session := r.engine.Context(ctx).
+        Cols("id", "name", "email").
+        Where("deleted_at = 0")
+    if filter.NamePrefix != "" {
+        session = session.Where("name LIKE ?", filter.NamePrefix+"%")
+    }
+    err := session.Desc("created_at", "id").
+        Limit(filter.PageSize, (filter.Page-1)*filter.PageSize).
+        Find(&rows)
+    if err != nil {
+        return query.UserPage{}, oops.With("operation", "user.query.list").
+            Wrap(err)
+    }
+
+    users := make([]query.User, len(rows))
+    for index := range rows {
+        users[index] = userReadModelFromDO(&rows[index])
+    }
+    return query.UserPage{Users: users, Page: filter.Page, PageSize: filter.PageSize}, nil
+}
+```
+
+Count and page queries may use separate xorm sessions. Use stable ordering with a tie-breaker and design indexes from the actual filter/order path.
+
+## Outbound Adapters And Outbox
+
+Infrastructure maps semantic Application ports to external APIs, Kafka, cache, taskqueue, or other providers. Keep generated clients, credentials, topics, retry settings, and serialization here.
+
+If accepted state and publish intent must commit atomically, persist an outbox record in the same local xorm transaction and run the relay from Runtime. This is conditional: do not introduce an outbox when best-effort loss is accepted or no durable handoff is required. The message flow guide owns envelope and delivery details.
+
+## Error And Logging Boundary
+
+- At the first controlled boundary, enrich and wrap once with `oops.With(...).Wrap(providerErr)`; use `oops.Wrap(providerErr)` only when there is no owned context. Never wrap an already wrapped provider error again.
+- Preserve `errors.Is/As` and stable Domain/Application errors. Later layers add context only when they add new semantics.
+- Do not log and return the same error. Transport or Runtime owns the Execution Completion Log.
+- Infrastructure logs only when it suppresses/retries an error or owns a terminal provider operation.
+- Never attach passwords, DSNs, tokens, message payloads, or unbounded SQL values to errors or logs.
+
+## Verification
+
+Use MySQL-backed integration tests for Repository and QueryRepository behavior. Cover insert version `1`, update version comparison/increment, affected-row conflict mapping, soft-delete filtering when applicable, DO conversion validation, owned-row rollback, stale Save behavior, deterministic query ordering, and first-boundary error preservation. Outbox tests cover atomic state/message insertion and relay retry only when that design is active.

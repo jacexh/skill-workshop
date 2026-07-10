@@ -1,545 +1,348 @@
 ---
 name: ddd-golang-runtime
-description: Go runtime patterns for DDD services — fx-based configuration management, graceful shutdown, lifecycle hooks, and Kubernetes deployment. Use when editing cmd/**/main.go, internal/pkg/<middleware>/**.go (mysql, redis, kafka, taskqueue, httpsrv, grpcsrv, eventbus, etc.), fx.Module assembly, fx.Lifecycle hooks, OnStart/OnStop logic, shutdown ordering, or Kubernetes preStop hooks in Go DDD services. Complements ddd-golang.md (layers, aggregates, repositories), ddd-golang-events-messages.md (events/messages), and ddd-golang-taskqueue.md (task queues, polling jobs, asynq workers).
+description: Executable Go House Style for config loading, Fx composition and lifecycle, ConnectRPC/Chi servers, execution-boundary logging, shutdown, and conditional OpenTelemetry.
 ---
 
-# Go Runtime Patterns for DDD
-## Configuration, Lifecycle, Graceful Shutdown
+# Go Runtime
 
-**Version**: v1.1
-**Date**: 2026-06-01
-**Scope**: Go runtime patterns complementing the Go reference router [`ddd-golang.md`](ddd-golang.md)
-**Reference role**:
-- Load this file only when the active DDD phase needs Go runtime, config, lifecycle, shutdown, or Kubernetes rules.
-- **Agent contract**: [`ddd-agent-contract.md`](ddd-agent-contract.md) — Load when the phase needs runtime-only classification, prohibited actions, or runtime self-checks.
-- **Go router**: [`ddd-golang.md`](ddd-golang.md) — Choose Go layer references before loading runtime details.
-- **Scaffold**: [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) — Layout and module ownership. This runtime guide covers config plumbing, process lifecycle, graceful shutdown, and Kubernetes.
-- **Events / messages**: [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Domain Event / Integration Message semantics, handler roles, and message adapter boundaries.
-- **Task queues / polling**: [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) — Task-specific placement, `TaskType`, schema registry, processors, asynq worker wiring, and middleware.
+Runtime owns process configuration, shared technical resources, active loops, composition, startup, and shutdown. It contains no business policy. Shared runtime packages live under `internal/pkg/<capability>`; bounded contexts contribute modules, handlers, and adapters.
+## Mandatory Runtime Stack
 
-> **Code blocks are illustrative**, not copy-paste templates. Imports may be omitted and identifiers may reference types defined elsewhere in the project. See [`ddd-agent-contract.md` §6](ddd-agent-contract.md).
+For covered Go House Style concerns use:
+- `github.com/go-jimu/components/config/loader` for configuration;
+- `go.uber.org/fx` for dependency injection and lifecycle;
+- `log/slog` with `github.com/go-jimu/components/sloghelper` for structured logs;
+- ConnectRPC with `github.com/go-chi/chi/v5` for the shared RPC/HTTP server;
+- `github.com/samber/oops` when an external/runtime error first enters controlled code.
+Generated Protobuf and Connect files live under `gen/` and are never edited manually. Contract sources live under `proto/`. Runtime mounts generated handlers; Application never implements generated server interfaces.
+## Component-Owned Configuration
 
-> **When to read this file**:
-> - Editing `cmd/server/main.go` or any `cmd/**/main.go`
-> - Editing `internal/pkg/<middleware>/*.go` (adding a new shared middleware client)
-> - Editing `internal/pkg/taskqueue/**`, task worker lifecycle hooks, or asynq client/worker wiring
-> - Adding `fx.Lifecycle` hooks or `OnStart` / `OnStop` logic anywhere
-> - Designing graceful shutdown for a component with in-flight work
-> - Wiring fx.Module / fx.Provide / fx.Supply at the top level
-> - Tuning Kubernetes deployment manifests for the service
-
----
-
-## 0. Go / go-jimu Runtime Building Block Lookup
-
-Use these cards to answer "what must this runtime construct contain?" before reading the longer sections below.
-
-| If the agent is implementing / reviewing... | Start here |
-|---|---|
-| Component `Option`, config tags, constructor config dependency | §0.1 Component Option Card |
-| `cmd/**/main.go`, aggregate `Option`, config loading, `fx.Supply` | §0.2 Entrypoint Card |
-| `fx.Module`, `fx.Provide`, `fx.Invoke`, module boundaries | §0.3 Module Assembly Card |
-| `fx.Lifecycle`, `OnStart`, `OnStop`, goroutine ownership | §0.4 Lifecycle Hook Card |
-| HTTP/gRPC/message/taskqueue worker shutdown and Kubernetes `preStop` | §0.5 Shutdown Card |
-
-### 0.1 Component Option Card
-
-- Declare each runtime component's `Option` in the component package, usually beside `NewXxx` or in `option.go`.
-- Add `json`, `yaml`, and `toml` tags for every config field.
-- Constructors consume their own `Option` directly: `NewXxx(lc fx.Lifecycle, opt Option, ...)`.
-- Shared middleware packages such as `internal/pkg/mysql`, `redis`, `kafka`, `taskqueue`, `httpsrv`, `grpcsrv`, and `eventbus` own their config, client construction, health/lifecycle hooks, and provider.
-- Bounded-context infrastructure receives initialized clients; it does not read shared middleware config or close shared clients.
-
-### 0.2 Entrypoint Card
-
-- Keep `cmd/**/main.go` as process composition only: load config, log resolved config, `fx.Supply(opt)`, select modules, and run the app.
-- The top-level aggregate `Option` embeds `fx.Out` and has one field per component option.
-- Do not construct repositories, query repositories, ACL clients, generated route handlers, workers, or business services in `main`.
-- Do not branch on environment names in code. Use config profiles and placeholders.
-- Use `app.Run()` unless the service has a documented process-level reason to manage start/stop manually.
-
-### 0.3 Module Assembly Card
-
-- Each bounded context exposes a module that provides its Application, Domain-facing adapters, interface adapters, event/message handlers, task processors, and registrations.
-- Shared runtime packages expose modules for middleware clients and worker/runtime loops.
-- `fx.Provide` constructs components; `fx.Invoke` performs registration such as routes, subscribers, processors, schemas, or periodic tasks.
-- Generated protocol registration belongs in the owning interface/runtime adapter module, not in `cmd/main.go`.
-- Avoid provider pollution: if a root module starts importing many business internals directly, move wiring behind the bounded-context module.
-
-### 0.4 Lifecycle Hook Card
-
-- Add `fx.Lifecycle` hooks only in packages that own a runtime resource or loop.
-- `OnStart` starts servers, workers, consumers, schedulers, informers, or long-running loops; `OnStop` stops them and waits for in-flight work according to the component contract.
-- Every goroutine started by a component must have a stop path through context cancellation, `Close`, `Shutdown`, `Stop`, or equivalent.
-- Application/Domain code should not own process loops, timers, shutdown policy, or provider lifecycle.
-- Log runtime start/stop outcomes at the runtime component boundary.
-
-### 0.5 Shutdown Card
-
-- Stop ingress first, then background consumers/workers/schedulers, then shared clients they depend on.
-- Pick and document how in-flight requests, messages, tasks, and event handlers finish or cancel.
-- Kubernetes `preStop` must give enough time for readiness removal, ingress drain, worker stop, and client close.
-- Shutdown behavior is not a Domain Event or task processor concern unless the business explicitly models a product lifecycle state.
-- When editing message/taskqueue runner lifecycle, also check [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) or [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md).
-
----
-
-## 1. Configuration Management
-
-### 1.1 Option Declaration Convention
-
-Each component owns its `Option`; the top-level `main` only aggregates and distributes. Three rules:
-
-1. **Component-owned `Option`** — Every fx-provided component declares its own `Option` struct in **its own package** (alongside `NewXxx`, or in a sibling `option.go`). Fields carry `json/yaml/toml` tags so the loader can map config files into them.
-2. **Constructor consumes `Option` directly** — Signature pattern: `NewXxx(lc fx.Lifecycle, opt Option, ...) (*Xxx, error)`. The component does not know where `Option` came from; `fx` injects it.
-3. **Top-level only aggregates** — `cmd/server/main.go` declares one `Option` struct embedding `fx.Out`, with **one field per component**. Field tags map to top-level YAML keys. Never inline a component's leaf fields (host, port, dsn …) into the top-level struct — those belong inside the component's package.
-
-**Business modules follow the same rule.** If a bounded context needs runtime config (e.g., `user.MaxLoginAttempts`), declare `user.Option` in `internal/business/user/option.go` and add a `User user.Option` field to the top-level `Option`.
-
-#### Shared Middleware Client Ownership
-
-- Initialize shared middleware clients in `internal/pkg/<middleware>`: `internal/pkg/mysql`, `internal/pkg/redis`, `internal/pkg/kafka`, `internal/pkg/taskqueue`, etc.
-- Each middleware package owns its `Option`, constructor, health/lifecycle hooks, and fx provider.
-- Bounded-context Infrastructure packages must not read shared middleware config, open connections, or close clients.
-- Repository / QueryRepository / Publisher / Consumer constructors receive initialized clients and adapt them to Domain/Application interfaces.
-- Do not create technology-shaped interfaces for raw clients (`RedisClient`, `MysqlReader`, `Cacher`) when an existing Repository / QueryRepository / semantic port already expresses the caller's need. Compose those clients inside the Infrastructure implementation.
-- Example: `internal/pkg/mysql.NewClient(...) -> *xorm.Engine`, then `internal/business/user/infrastructure/persistence.NewRepository(db *xorm.Engine)`.
-
-**Example — adding a Redis client.** Declare `Option` next to the constructor:
-
+Each runtime component owns an Option/Config type and `Validate() error` beside its constructor. The process aggregates those types only for loading and Fx supply.
 ```go
-// internal/pkg/redis/redis.go
-package redis
-
-import (
-    "context"
-
-    "github.com/redis/go-redis/v9"
-    "go.uber.org/fx"
-)
-
-type Option struct {
-    Addr     string `json:"addr" yaml:"addr" toml:"addr"`
-    Password string `json:"password" yaml:"password" toml:"password"`
-    DB       int    `json:"db" yaml:"db" toml:"db"`
-}
-
-func NewClient(lc fx.Lifecycle, opt Option) *redis.Client {
-    client := redis.NewClient(&redis.Options{
-        Addr: opt.Addr, Password: opt.Password, DB: opt.DB,
-    })
-    lc.Append(fx.Hook{
-        OnStop: func(ctx context.Context) error { return client.Close() },
-    })
-    return client
-}
-```
-
-Then: register `fx.Provide(redis.NewClient)` in `internal/pkg/module.go`, add a `Redis redis.Option` field (with `yaml:"redis"` tag) to the top-level `Option` in `cmd/server/main.go` (see §1.2), and add a `redis:` block to `configs/defaults.yml`. The component never imports anything from `cmd/`, and `main` never imports `redis.Client` — `fx` wires both ends through the typed `Option`.
-
-### 1.2 Aggregate Configuration in `main`
-
-The aggregate `Option` lives in `cmd/server/main.go`. It embeds `fx.Out` so each field is automatically injected into the component declaring a matching type dependency. Load it once at startup, log it (success or failure), and hand it to `fx.Supply` — no helper function needed. Always log the resolved config so problems are diagnosable from a single line.
-
-```go
-// cmd/server/main.go
+// cmd/user-api/main.go
 package main
 
 import (
     "log/slog"
     "os"
+    "time"
 
     "github.com/go-jimu/components/config/loader"
     "github.com/go-jimu/components/sloghelper"
-    "github.com/example/project/internal/pkg/eventbus"
-    "github.com/example/project/internal/pkg/grpcsrv"
-    "github.com/example/project/internal/pkg/httpsrv"
-    "github.com/example/project/internal/pkg/mysql"
+    "example/internal/business/notification"
+    "example/internal/business/user"
+    "example/internal/pkg"
+    sharedconnect "example/internal/pkg/connectrpc"
+    "example/internal/pkg/database"
+    "example/internal/pkg/eventbus"
+    "example/internal/pkg/messagebus"
+    "github.com/samber/oops"
     "go.uber.org/fx"
 )
 
-// Option holds all infrastructure configuration.
-// fx.Out enables automatic distribution — each field is injected
-// into the component that declares a matching type dependency.
 type Option struct {
     fx.Out
-    Logger     sloghelper.Options `json:"logger" toml:"logger" yaml:"logger"`
-    MySQL      mysql.Option       `json:"mysql" toml:"mysql" yaml:"mysql"`
-    HTTPServer httpsrv.Option     `json:"http-server" toml:"http-server" yaml:"http-server"`
-    GRPCServer grpcsrv.Option     `json:"grpc" toml:"grpc" yaml:"grpc"`
-    Eventbus   eventbus.Option    `json:"eventbus" toml:"eventbus" yaml:"eventbus"`
+    Logger   sloghelper.Options   `json:"logger" yaml:"logger" toml:"logger"`
+    MySQL    database.Option      `json:"mysql" yaml:"mysql" toml:"mysql"`
+    EventBus eventbus.Config      `json:"eventbus" yaml:"eventbus" toml:"eventbus"`
+    Kafka    messagebus.Option    `json:"kafka" yaml:"kafka" toml:"kafka"`
+    Connect  sharedconnect.Option `json:"connect" yaml:"connect" toml:"connect"`
 }
 
 func main() {
-    var opt Option
-    err := loader.Load(
-        &opt,
-        loader.WithConfigurationDirectory("./configs", "defaults"),
-        loader.WithConfigFilePrefix("app"),
-        loader.WithEnvVarsPrefix("APP"),
-    )
-    // Always log the resolved config — even on partial failure it helps diagnose.
-    slog.Info("load config", slog.Any("config", opt))
-    if err != nil {
-        slog.Error("load config failed", slog.Any("error", err))
+    var option Option
+    if err := loader.Load(
+        &option,
+        loader.WithConfigurationDirectory("./configs/user-api", "defaults"),
+    ); err != nil {
+        slog.Error("failed to load configuration", sloghelper.Error(oops.Wrap(err)))
         os.Exit(1)
     }
 
+    // Allow-list only non-secret startup facts. Never log option or its %+v form.
+    slog.Info("configuration loaded",
+        slog.String("connect_addr", option.Connect.Addr),
+        slog.Int("mysql_port", option.MySQL.Port),
+        slog.Int("kafka_broker_count", len(option.Kafka.Brokers)),
+    )
+
     app := fx.New(
-        fx.Supply(opt),  // distributes every field via fx.Out
-        // ... other providers and modules (see §2.1)
+        fx.Supply(option),
+        fx.Provide(sloghelper.NewLog),
+        fx.Provide(eventbus.NewDispatcher),
+        pkg.Module,
+        user.Module,
+        notification.Module,
+        fx.StartTimeout(15*time.Second),
+        fx.StopTimeout(30*time.Second),
     )
     app.Run()
 }
 ```
+Each `cmd/<service>` loads only its own `configs/<service>` directory; never scan the shared `configs` parent in a multi-service repository. `loader.Load` automatically applies `JIMU_PROFILES_ACTIVE` after caller options. When profiles are supported, also pass `loader.WithConfigFilePrefix("app")`; an active profile without a prefix is invalid. Use `loader.WithEnvVarsPrefix("APP")` only when the repository wants a filtered flat environment source. Verify placeholder behavior against the adopted components version rather than inventing nested environment-key translation.
+Never log the aggregate Option, a resolved config map, DSN, password, token, API key, certificate/private key, cookie, secret-bearing URL, or full environment. Startup summaries are allow-list based: profile/source, enabled modules, non-secret listen addresses, counts, and a non-reversible config version/hash.
+## Composition Boundaries
 
-> The bootstrap log uses slog's default handler (the configured logger from `sloghelper.NewLog` is not yet wired). That is expected — keep it; it is the only signal you have if `fx` itself fails to start.
-
-### 1.3 Configuration Files & Profiles
-
-Configuration files are stored under the `configs/` directory. `loader.Load` uses these defaults unless the service passes explicit loader options:
-
-- Configuration directory: `./configs`
-- Base config file name without extension: `defaults`
-- Profile file prefix: empty by default; required when a profile is active
-- Environment variable prefix: empty
-- Profile source: `JIMU_PROFILES_ACTIVE`, applied automatically by `loader.Load`
-
-Prefer passing `loader.WithConfigurationDirectory("./configs", "defaults")` in `main` even when using the defaults. The explicit call documents the runtime contract and makes non-standard command layouts obvious during review. If the service supports environment profiles, also pass `loader.WithConfigFilePrefix("<service-or-app-name>")`; otherwise setting `JIMU_PROFILES_ACTIVE` makes startup fail because the loader cannot identify which profile file belongs to the process.
-
-`loader.Load` discovers the base file by exact stem and the profile file by exact `prefix + "_" + profile` stem:
-
-```
-configs/
-├── defaults.yml         # Base configuration, loaded first when present
-├── app_prod.yml         # Profile override when prefix=app and profile=prod
-└── app_staging.toml     # Profile override when prefix=app and profile=staging
-```
-
-Profile switching uses a single profile alias. At startup `loader.Load` applies `loader.WithProfilesActiveFromEnvVar()` after caller-supplied options, so the environment variable overrides any `loader.WithProfilesAlias(...)` value in code:
-
-```bash
-export JIMU_PROFILES_ACTIVE=prod
-```
-
-With `JIMU_PROFILES_ACTIVE=prod` and `loader.WithConfigFilePrefix("app")`, the loader reads the base file whose stem is exactly `defaults`, then the profile file whose stem is exactly `app_prod`. Profile files are merged on top of the base file, so they should contain only the environment-specific deltas. Keep profile names simple (`dev`, `test`, `staging`, `prod`); do not rely on comma-separated multi-profile semantics unless the adopted `config/loader` version explicitly documents splitting.
-
-Supported formats include YAML, TOML, JSON, and any registered config codec. The file extension determines the codec.
-
-### 1.4 Environment Variable Override
-
-`loader.Load` appends an environment-variable source after file sources. `loader.WithEnvVarsPrefix("APP")` makes the env source read only variables with the `APP_` prefix and strips that prefix before inserting keys into the config map. The profile selector `JIMU_PROFILES_ACTIVE` is read separately and is not affected by this prefix.
-
-The env source is flat. It can override a config key only when the remaining env key matches the config path the loader understands; it does not translate conventional shell names such as `APP_MYSQL_DSN` into nested `mysql.dsn`. For nested service settings, prefer **placeholder syntax** `${VAR:default}` in config files:
-
-With the `loader.WithEnvVarsPrefix("APP")` example in §1.2, set variables such as `APP_LOG_LEVEL` or `APP_MYSQL_DSN`; the prefix is stripped before placeholder resolution, so the YAML still references `${LOG_LEVEL:...}` and `${MYSQL_DSN:...}`.
-
-```yaml
-# configs/defaults.yml
-logger:
-  level: "${LOG_LEVEL:info}"
-
-mysql:
-  dsn: "${MYSQL_DSN:root:123456@tcp(localhost:3306)/mydb}"
-
-http-server:
-  addr: "${HTTP_ADDR::8080}"
-
-grpc:
-  addr: "${GRPC_ADDR::9090}"
-
-eventbus:
-  buffer-size: 1024
-  delay-close: "5s"
-  handler-timeout: "30s"
-```
-
-Loading and resolution order:
-
-1. Loader options are resolved. Defaults are `./configs`, `defaults`, no profile file prefix, and no env prefix; `JIMU_PROFILES_ACTIVE` then overrides any code-supplied profile alias.
-2. Base file source — the file whose stem equals the configured default name, loaded first when present.
-3. Profile file source — when a profile is active, the file whose stem equals `WithConfigFilePrefix(...) + "_" + profile`, merged on top of the base file. Startup fails if a profile is active and no config-file prefix was configured.
-4. Environment source — variables collected into a flat key-value pool, optionally filtered and trimmed by `WithEnvVarsPrefix`.
-5. Resolve phase — `${VAR:default}` placeholders in the merged config are expanded using the config map, including values contributed by the env source. If the key is absent, the default value after `:` is used.
-
-Do not branch in `main` on deployment environment names. Express environment differences as profile files plus placeholders, then load once into the aggregate `Option` and supply it to `fx`.
-
----
-
-## 2. Entry Point & Graceful Shutdown
-
-### 2.1 Entry Point
-
-Use `app.Run()` as the standard entry point — it encapsulates Start → Wait for SIGINT/SIGTERM → Stop → Exit. The full `main()` (with config loading and bootstrap logging) is in §1.2; the module wiring inside `fx.New` is what differs per service:
-
-```go
-app := fx.New(
-    fx.Supply(opt),                  // distributes every field via fx.Out (see §1.2)
-    fx.Provide(sloghelper.NewLog),
-    fx.Provide(eventbus.NewDispatcher),
-    pkg.Module,                      // infrastructure adapters (internal/pkg)
-    user.Module,                     // bounded contexts (internal/business/<module>)
-    fx.StopTimeout(30*time.Second),
-    fx.NopLogger,
-)
-app.Run()
-```
-
-`Run()` internally uses `app.Wait()` (not `app.Done()`), which returns `ShutdownSignal{Signal, ExitCode}` — properly propagating exit codes when a component triggers shutdown via `fx.Shutdowner`.
-
-**When to use manual Start/Wait/Stop instead**: only when you need post-shutdown logic before exit (e.g., flushing telemetry). For most services, `app.Run()` is sufficient.
-
-### 2.2 Fx Module Assembly Guardrails
-
-`cmd/<service>/main.go` is the process entry point, not the place where provider details accumulate. It loads config, logs the resolved config, supplies the aggregate `Option`, selects modules, sets process-level fx options, and runs the app. Provider construction belongs to modules.
-
-Use this ownership split:
-
-- `cmd/<service>/main.go` — config load, `fx.Supply(opt)` or `fx.Provide(parseOption)`, module selection, `fx.StopTimeout`, `fx.NopLogger`, `app.Run()`.
-- `internal/pkg/module.go` — shared runtime module assembly. It registers middleware clients, servers, telemetry, taskqueue/message runtime, and named service runtime modules when a multi-service repo needs different shared runtime sets.
-- `internal/business/<context>/<context>.go` — bounded-context module assembly: repositories, query repositories, application service, event/message handlers, handler registration, and context-scoped Infrastructure adapters.
-- `internal/business/<context>/infrastructure` or an explicit ACL package — adapter implementation details for context-owned ports and cross-context/client translations. `cmd` must not implement those adapters as inline `fx.Provide(func(...) SomePort { ... })` closures.
-
-For a multi-service project, keep the service-to-service runtime difference in `internal/pkg/module.go`, not spread across `cmd/**/main.go`. Define multiple module variables such as `FooModule`, `BarModule`, `DispatcherModule`, or `SandboxModule` in that file; each entry point imports `internal/pkg` and loads the one it needs.
+`cmd/main.go` loads configuration, selects modules, sets process timeouts, and runs Fx. It does not construct Repositories, clients, generated handlers, or lifecycle loops individually.
 
 ```go
 // internal/pkg/module.go
 package pkg
 
 import (
-    "github.com/example/project/internal/pkg/httpserver"
-    "github.com/example/project/internal/pkg/kafka"
-    "github.com/example/project/internal/pkg/mysql"
-    "github.com/example/project/internal/pkg/redis"
-    "github.com/example/project/internal/pkg/taskqueue"
+    sharedconnect "example/internal/pkg/connectrpc"
+    "example/internal/pkg/database"
+    "example/internal/pkg/messagebus"
     "go.uber.org/fx"
 )
 
-var DispatcherModule = fx.Module(
-    "internal.pkg.dispatcher",
-    fx.Provide(httpserver.New),
-    fx.Provide(redis.NewClient),
-    fx.Provide(kafka.NewProducer),
-    fx.Provide(kafka.NewConsumerFactory),
-    fx.Provide(mysql.NewClient),
-)
-
-var SandboxModule = fx.Module(
-    "internal.pkg.sandbox",
-    fx.Provide(httpserver.New),
-    fx.Provide(redis.NewClient),
-    taskqueue.Module,
-    fx.Provide(mysql.NewClient),
+var Module = fx.Module(
+    "internal.pkg",
+    fx.Provide(sharedconnect.NewServer),
+    fx.Provide(database.NewMySQLDriver),
+    fx.Provide(messagebus.NewKafka),
 )
 ```
 
-Then the entry point stays thin:
+A bounded-context module owns its providers and registrations. It may import generated Transport contracts from `gen/`; `cmd` does not.
 
 ```go
-app := fx.New(
-    fx.Supply(opt),
-    fx.Provide(sloghelper.NewLog),
-    pkg.DispatcherModule, // service runtime difference is selected here
-    dispatcher.Module,    // bounded context owns its own providers
-    fx.StopTimeout(30*time.Second),
-    fx.NopLogger,
+// internal/business/user/user.go
+package user
+
+import (
+    connect "connectrpc.com/connect"
+    "github.com/go-jimu/components/ddd/event"
+    "example/gen/user/v1/userv1connect"
+    "example/internal/business/user/application"
+    "example/internal/business/user/application/command"
+    "example/internal/business/user/application/eventhandler"
+    "example/internal/business/user/application/query"
+    "example/internal/business/user/infrastructure"
+    userconnect "example/internal/business/user/transport/connectrpc"
+    sharedconnect "example/internal/pkg/connectrpc"
+    "go.uber.org/fx"
 )
-app.Run()
+
+var Module = fx.Module(
+    "business.user",
+    fx.Provide(
+        infrastructure.NewUserRepository,
+        infrastructure.NewUserQueryRepository,
+        command.NewCreateUserHandler,
+        query.NewGetUserHandler,
+        eventhandler.NewUserCreatedHandler,
+        application.NewApplication,
+        userconnect.NewHandler,
+    ),
+    fx.Invoke(func(sub event.Subscriber, handler *eventhandler.UserCreatedHandler) {
+        sub.Subscribe(handler)
+    }),
+    fx.Invoke(func(
+        handler userv1connect.UserServiceHandler,
+        server sharedconnect.Server,
+    ) {
+        server.Register(userv1connect.NewUserServiceHandler(
+            handler,
+            connect.WithInterceptors(server.GetGlobalInterceptors()...),
+        ))
+    }),
+)
 ```
 
-Review signals that require a rewrite or a written exception:
+For multi-service repositories, expose named `internal/pkg` modules rather than copying provider lists across `cmd/<service>`. Use `fx.ValidateApp` in a wiring test to prove the graph is complete without starting providers.
 
-- `cmd/**/main.go` imports a bounded context's `infrastructure`, `application/command`, `application/query`, `application/eventhandler`, `application/messagehandler`, or `application/messagepublisher` package.
-- `cmd/**/main.go` imports generated Connect/gRPC handler packages to register routes directly. Handler registration belongs to the bounded-context module.
-- `cmd/**/main.go` contains provider closures that return Domain/Application ports, repositories, query repositories, ACL clients, routing directories, peer clients, publishers, or handler wrappers.
-- `cmd/**/main.go` manually supplies many config fields such as `fx.Supply(opt.Redis)`, `fx.Supply(opt.Kafka)`, or `fx.Supply(opt.HTTPServer)` instead of supplying one aggregate `Option` with `fx.Out`.
-- A repo has multiple shared runtime packages under `internal/pkg/*` but no `internal/pkg/module.go` that names the public runtime modules.
-- Service-specific runtime choices are encoded as repeated provider lists in each `cmd/<service>/main.go` instead of named modules in `internal/pkg/module.go`.
+## ConnectRPC And Chi Lifecycle
 
-Lightweight smoke scans before approving runtime wiring:
-
-```bash
-# cmd should select modules, not import inner business implementation packages.
-rg -n 'internal/.*/(infrastructure|application/(command|query|eventhandler|messagehandler|messagepublisher))' cmd
-
-# handler registration should live in bounded-context modules.
-rg -n 'pkg/gen/.*(connect|grpc)|connectrpc.com/connect|google.golang.org/grpc' cmd
-
-# per-field option supply usually means the aggregate Option is not doing its job.
-rg -n 'fx\.Supply\(opt\.' cmd
-
-# provider-heavy cmd files are review targets; most should have only config/bootstrap providers.
-rg -n 'fx\.Provide\(' cmd
-
-# shared runtime packages should have a public module assembly point.
-test -f internal/pkg/module.go || rg -n 'fx\.Module|fx\.Provide' internal/pkg
-```
-
-Treat these scans as review targets, not proof. A hit is acceptable only when the Architecture Gate or runtime impact note states why the provider is truly process-owned and cannot live in `internal/pkg/module.go`, a bounded-context module, or an ACL/infrastructure package.
-
-### 2.3 Lifecycle Hooks
-
-Components that have **in-flight work** at shutdown time must register `fx.Lifecycle` hooks to drain gracefully. Pure connection clients do not need drain-style hooks, but they may register `Close` hooks for cleanup when the library exposes one.
-
-**Needs OnStop** (has in-flight work):
-
-| Component | In-flight work | OnStop action |
-|-----------|---------------|---------------|
-| HTTP Server | HTTP requests being processed | `srv.Shutdown(ctx)` — stop accepting, drain in-flight requests |
-| gRPC Server | RPC calls being processed | `server.GracefulStop()` — stop accepting, drain in-flight calls |
-| EventBus (Dispatcher) | Queued event batches + the handler invocation currently running on the worker | `dispatcher.Close(ctx)` — wait `delayClose`, reject new events, drain queued/in-flight batches |
-| Message queue consumer | Messages being processed | Stop consuming, finish current batch |
-| Task queue worker | Task processors currently running | `worker.Shutdown(ctx)` — stop accepting new tasks, wait for in-flight processors |
-
-Pure connection clients (MySQL, Redis, HTTP Client) do not need drain-style OnStop hooks — they have no in-flight work of their own. They may still register cleanup hooks such as `client.Close()`.
-
-#### Server: Listen/Serve Separation
-
-Separate `net.Listen` (synchronous, in OnStart) from `Serve` (asynchronous, in goroutine). Startup errors (e.g., port already in use) are caught immediately and cause `app.Start` to fail. OnStop drains in-flight requests before returning.
+Bind the listener synchronously in `OnStart` so address errors fail startup. Serve in an owned goroutine. `OnStop` calls `http.Server.Shutdown`. An unexpected Serve failure is an Execution Owner failure and requests process shutdown.
 
 ```go
-// internal/pkg/httpsrv/server.go
-func NewHTTPServer(lc fx.Lifecycle, opt Option) *http.Server {
-    srv := &http.Server{Addr: opt.Addr, Handler: mux}
-
-    lc.Append(fx.Hook{
-        OnStart: func(ctx context.Context) error {
-            ln, err := net.Listen("tcp", srv.Addr)
-            if err != nil {
-                return err
-            }
-            go func() {
-                if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
-                    slog.Error("http server stopped unexpectedly", sloghelper.Error(err))
-                }
-            }()
-            return nil
-        },
-        OnStop: func(ctx context.Context) error {
-            return srv.Shutdown(ctx)
-        },
-    })
-    return srv
-}
-```
-
-gRPC Server follows the same pattern: OnStart binds listener + starts `server.Serve(ln)` in a goroutine that records unexpected serve errors; OnStop calls `server.GracefulStop()`.
-
-#### EventBus: Drain Queued Event Batches
-
-```go
-// internal/pkg/eventbus/eventbus.go
-package eventbus
+// internal/pkg/connectrpc/connectrpc.go
+package connectrpc
 
 import (
     "context"
+    "errors"
     "log/slog"
+    "net"
+    "net/http"
+    "strings"
     "time"
 
-    "github.com/go-jimu/components/ddd/event"
+    connect "connectrpc.com/connect"
+    "github.com/go-chi/chi/v5"
+    "github.com/go-jimu/components/sloghelper"
+    "github.com/samber/oops"
     "go.uber.org/fx"
+    "golang.org/x/net/http2"
+    "golang.org/x/net/http2/h2c"
 )
 
-// Option owns the dispatcher's tunable settings (per §1.1 — each component
-// declares its own Option; the third-party package no longer ships a config struct).
 type Option struct {
-    BufferSize     int           `json:"buffer-size" toml:"buffer-size" yaml:"buffer-size"`
-    DelayClose     time.Duration `json:"delay-close" toml:"delay-close" yaml:"delay-close"`
-    HandlerTimeout time.Duration `json:"handler-timeout" toml:"handler-timeout" yaml:"handler-timeout"`
+    Addr string `json:"addr" yaml:"addr" toml:"addr"`
 }
 
-// NewDispatcher returns the in-memory dispatcher under both faces it implements.
-// fx wires each return value by its declared type, so consumers inject whichever
-// face they need; both views point to the same underlying *event.InMemoryDispatcher.
-func NewDispatcher(lc fx.Lifecycle, opt Option, logger *slog.Logger) (event.Dispatcher, event.Subscriber) {
-    d := event.NewDispatcher(
-        event.WithLogger(logger),
-        event.WithBufferSize(opt.BufferSize),
-        event.WithDelayClose(opt.DelayClose),
-        event.WithHandlerTimeout(opt.HandlerTimeout),
-    )
-    lc.Append(fx.Hook{
+type Server interface {
+    GetGlobalInterceptors() []connect.Interceptor
+    Register(string, http.Handler)
+    Address() string
+}
+
+type server struct {
+    option       Option
+    logger       *slog.Logger
+    shutdowner   fx.Shutdowner
+    interceptors []connect.Interceptor
+    router       *chi.Mux
+    httpServer   *http.Server
+    listener     net.Listener
+}
+
+func NewServer(
+    lifecycle fx.Lifecycle,
+    shutdowner fx.Shutdowner,
+    option Option,
+    logger *slog.Logger,
+) (Server, error) {
+    if strings.TrimSpace(option.Addr) == "" {
+        return nil, errors.New("connectrpc address is required")
+    }
+
+    router := chi.NewRouter()
+    router.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+        w.WriteHeader(http.StatusOK)
+    })
+    result := &server{
+        option:       option,
+        logger:       logger,
+        shutdowner:   shutdowner,
+        interceptors: []connect.Interceptor{NewCarrier(logger).Intercept()},
+        router:       router,
+    }
+    result.httpServer = &http.Server{
+        Addr:              option.Addr,
+        Handler:           h2c.NewHandler(router, &http2.Server{}),
+        ReadHeaderTimeout: 3 * time.Second,
+        IdleTimeout:       60 * time.Second,
+        MaxHeaderBytes:    16 * 1024,
+    }
+
+    lifecycle.Append(fx.Hook{
+        OnStart: func(context.Context) error {
+            listener, err := net.Listen("tcp", option.Addr)
+            if err != nil {
+                return oops.With("operation", "connectrpc.listen").
+                    With("address", option.Addr).
+                    Wrap(err)
+            }
+            result.listener = listener
+            go result.serve()
+            return nil
+        },
         OnStop: func(ctx context.Context) error {
-            // Close first sleeps for delayClose (the dispatcher still accepts new
-            // events during this grace window), then marks itself closed and waits
-            // for the single worker to drain the queue and finish the in-flight
-            // batch. fx.StopTimeout (passed via ctx) is the hard cap on the total.
-            return d.Close(ctx)
+            return oops.Wrap(result.httpServer.Shutdown(ctx))
         },
     })
-    return d, d
+    return result, nil
+}
+
+func (s *server) Register(pattern string, handler http.Handler) {
+    pattern = strings.TrimSuffix(pattern, "/")
+    s.router.Handle(pattern+"/*", handler)
+}
+
+func (s *server) GetGlobalInterceptors() []connect.Interceptor {
+    return append([]connect.Interceptor(nil), s.interceptors...)
+}
+
+func (s *server) Address() string {
+    if s.listener != nil {
+        return s.listener.Addr().String()
+    }
+    return s.option.Addr
+}
+
+func (s *server) serve() {
+    err := s.httpServer.Serve(s.listener)
+    if err == nil || errors.Is(err, http.ErrServerClosed) {
+        return
+    }
+    err = oops.With("operation", "connectrpc.serve").Wrap(err)
+    s.logger.Error("ConnectRPC server stopped unexpectedly", sloghelper.Error(err))
+    if shutdownErr := s.shutdowner.Shutdown(fx.ExitCode(1)); shutdownErr != nil {
+        s.logger.Error("failed to request shutdown",
+            sloghelper.Error(oops.Wrap(shutdownErr)))
+    }
 }
 ```
 
-The example wires only the YAML-friendly options. `event` also exposes callback-shaped hooks that don't belong in config but are wired here when needed: `event.WithContextFactory` (per-dispatch context derivation, e.g. propagate trace IDs), `event.WithUnhandledEventHandler` (events with no registered handler — useful for surfacing typos and dead kinds), `event.WithPanicHandler` (recovered handler panics — forward to metrics/alerting), and `event.WithCloseInterruptedHandler` (snapshot of accepted-but-unhandled batches when `Close` is cut short by `ctx.Done()`).
+The Message Runner, task worker/scheduler, event dispatcher, poller, and telemetry exporter follow the same ownership rule: the package that creates the active resource owns its `fx.Lifecycle` hooks, goroutines, terminal errors, and bounded drain.
 
-#### Runtime Execution Boundary Logs
+## Execution Owner Logs And Errors
 
-Runtime components that own execution without an outer request middleware must log one completion summary per operation. This includes consumer loops, scheduler ticks, reconcilers, task processors, lifecycle hooks that perform work, and external-system call wrappers that own retry or polling behavior.
+Transport middleware owns one Execution Completion Log per inbound RPC/message/task. Runtime owns one for each terminal loop, scheduler tick, reconciliation run, or lifecycle operation it executes. Application does not duplicate that record; Infrastructure enriches and returns errors unless it owns retry, suppression, or a terminal operation.
 
-Use the same completion-log fields as [`ddd-golang-application.md §0.8`](ddd-golang-application.md):
+A Connect interceptor creates the request-scoped logger and records the final outcome:
 
-- `operation`: stable operation name such as `kafka.consumer.tick`, `work.reconcile`, or `task.process`
-- `outcome`: `success`, `failed`, `skipped`, or `retrying`
-- `duration_ms`: wall-clock duration
-- `error`: `sloghelper.Error(err)` on failed or retrying outcomes
-- relevant IDs: aggregate/entity IDs, `event_kind`, `message_id`, `correlation_id`, consumer name, task type, or scheduler name
+```go
+startedAt := time.Now()
+requestID := request.Header().Get("X-Request-ID")
+logger := root.With(slog.String("request_id", requestID))
+ctx = sloghelper.NewContext(ctx, logger)
 
-`started` / `requested` logs may appear when useful, but they do not replace the completion summary. Missing targets, already-applied inputs, disabled work, and no-op guards are observable outcomes and should be logged as `outcome=skipped` with a stable `skip_reason`.
-
-### 2.4 Shutdown Ordering
-
-`fx` executes OnStop hooks in **reverse order of OnStart**. Correct shutdown order comes from actual constructor dependencies, `fx.Invoke` wiring, and lifecycle hook registration order; it is not implied by the conceptual architecture diagram. Encode the dependencies that must remain available during drain, so servers/consumers/workers stop before event dispatchers and storage clients they may still use:
-
-```
-Start order (must be encoded by dependency graph / invokes):
-  EventBus → MySQL → Application → Server
-
-Stop order (automatic reverse of the encoded start order):
-  Server.OnStop        → drain in-flight requests
-                          (last requests may dispatch final events via dispatcher.DispatchAll(events.Drain()))
-  EventBus.OnStop      → drain queued/in-flight event batches (single worker, sequential)
-                          (handlers can still access MySQL)
-  Process exits        → OS reclaims all connections
-```
-
-MySQL has no in-flight work to drain, so it remains available while Server and EventBus handlers finish. If the MySQL package registers a `Close` cleanup hook, it must run after consumers have stopped.
-
-### 2.5 Kubernetes Deployment
-
-When deploying to Kubernetes, there is a **race condition** between SIGTERM delivery to the Pod and kube-proxy removing the Pod from the Service's Endpoints. During this window (typically a few seconds), new requests may still be routed to a Pod that is already shutting down.
-
-This is a **network-layer concern, not an application-layer concern**. The recommended solution is a `preStop` hook that delays SIGTERM delivery, giving kube-proxy time to complete the endpoint update:
-
-```yaml
-spec:
-  terminationGracePeriodSeconds: 60
-  containers:
-  - name: app
-    lifecycle:
-      preStop:
-        exec:
-          command: ["sleep", "5"]
+response, err := next(ctx, request)
+attrs := []any{
+    slog.String("operation", request.Spec().Procedure),
+    slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
+}
+if err != nil {
+    logger.ErrorContext(ctx, "request complete",
+        append(attrs,
+            slog.String("outcome", "failed"),
+            slog.String("connect_code", connect.CodeOf(err).String()),
+            sloghelper.Error(err),
+        )...,
+    )
+    return response, err
+}
+logger.InfoContext(ctx, "request complete",
+    append(attrs, slog.String("outcome", "success"))...,
+)
 ```
 
-The sequence becomes:
+At the first controlled boundary, enrich and wrap once with `oops.With(...).Wrap(providerErr)`; use `oops.Wrap(providerErr)` only when there is no owned context. Never wrap an already wrapped provider error again. Later layers add context only for new semantics, preserve `errors.Is/As`, and do not mechanically wrap or log-and-return the same error. Expected rejection is not an internal failure. Never log secret configuration, credentials, full payloads, or sensitive personal data.
 
+## Shutdown Ordering
+
+Encode dependencies so shutdown happens in this order:
+
+1. stop accepting RPC/HTTP ingress and scheduled triggers;
+2. stop message consumers and task workers taking new work;
+3. drain or cancel in-flight executions according to their contract;
+4. drain accepted event/outbox/telemetry work within the Fx stop timeout;
+5. close MySQL, broker, Redis, and other clients after their users stop.
+
+Fx lifecycle order follows the constructor dependency graph and hook registration, not the conceptual layer diagram. Every goroutine needs cancellation or Close plus a surfaced terminal-error path. Readiness becomes false before drain; deployment termination grace and pre-stop behavior must exceed the measured drain budget rather than a universal sleep value.
+
+## Conditional OpenTelemetry
+
+Do not add OTel merely because the library exists. It becomes mandatory only when distributed tracing is an Accepted Design Decision and an observability backend is available.
+
+Runtime then owns OTLP exporter/resource/TracerProvider construction, global propagation, and `TracerProvider.Shutdown(ctx)` in `fx.Lifecycle`. Add `connectrpc.com/otelconnect` to global Connect interceptors using its verified constructor:
+
+```go
+func NewOTelConnectInterceptor() (connect.Interceptor, error) {
+    interceptor, err := otelconnect.NewInterceptor()
+    if err != nil {
+        return nil, oops.With("operation", "otelconnect.create").
+            Wrap(err)
+    }
+    return interceptor, nil
+}
 ```
-Kubernetes initiates Pod deletion
-  ├─ async: kube-proxy starts removing Pod from Endpoints
-  ├─ sync:  preStop executes → sleep 5s (app still serving normally)
-  └─ after preStop: SIGTERM → app.Run() triggers OnStop hooks → graceful shutdown
-```
 
-> **Note**: For low-traffic internal services, the impact of this race condition is minimal (a few connection-refused errors, retried by clients). The `preStop` hook is most important for high-traffic, user-facing services.
+Propagate trace context through accepted Integration Message/task headers, and include `trace_id`, `span_id`, and `request_id` in execution logs when present. The current in-memory `event.Dispatcher.DispatchAll` has no caller `context.Context`, so it cannot automatically continue the request span; do not put trace fields in a Domain Event to simulate propagation. Domain stays telemetry-free. If there is no accepted backend, sampling/retention decision, and shutdown owner, omit OTel rather than shipping a half-wired tracer.
 
----
+## Verification
 
-**References:**
-- [`ddd-agent-contract.md`](ddd-agent-contract.md) — Runtime classification, prohibited actions, and self-checks
-- [`ddd-golang.md`](ddd-golang.md) — Go reference router
-- [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) — Go layout and module ownership
-- [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) — Go Domain Events, Boundary Publishers, Integration Messages, Kafka adapter wiring
-- [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) — Go taskqueue and polling patterns
-- [`ddd-core.md`](ddd-core.md) — Language-agnostic DDD + Clean Architecture specification
-- [`ddd-modeling.md`](ddd-modeling.md) — Strategic domain modeling
+Test component Option validation, loader defaults/profile behavior, secret-redacted startup logs, `fx.ValidateApp` composition, generated-handler registration, synchronous listener failure, unexpected Serve shutdown, request completion logging, runner reachability, cancellation, dependency-aware drain, and bounded stop. When OTel is active, test interceptor registration, propagation, exporter failure, and provider shutdown.

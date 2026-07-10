@@ -35,7 +35,7 @@
         "properties": {
           "target": {
             "type": "string",
-            "enum": ["explore", "shape"]
+            "enum": ["explore", "shape", "codify", "guard"]
           },
           "reason": {
             "type": "string",
