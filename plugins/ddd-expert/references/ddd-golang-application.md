@@ -1,164 +1,238 @@
 ---
 name: ddd-golang-application
-description: Go / go-jimu Application-layer reference. Use when implementing or reviewing command handlers, Application services, generated RPC shortcut methods, event/message handler placement, task processor delegation, transaction orchestration, event dispatch timing, or execution-boundary logging.
+description: Go house style for the bounded-context Application entry point, command/query orchestration, DTO assembly, semantic transactions, Domain Event reactions and outbound ports.
 ---
 
-# Go Application Layer Reference
+# Go Application Layer
 
-Use this file after the model/design has accepted the use case and layer owner. Application coordinates Domain objects and ports; it does not decide Domain boundaries.
+Application implements use cases. It coordinates Domain behavior and semantic ports without knowing whether a caller is ConnectRPC, HTTP, an Integration Message or a task processor.
 
-## 0. Go / go-jimu Application Building Block Lookup
+## Boundary and Allowed Exceptions
 
-| Object | Start here |
-|---|---|
-| Command Handler | §0.1 Command Handler Card |
-| Application Service / coordination service | §0.2 Application Service Card |
-| Domain Event Handler | §0.3 Domain Event Handler Placement Card |
-| Boundary Publisher | §0.4 Boundary Publisher Placement Card |
-| Integration Message Handler | §0.5 Integration Message Handler Placement Card |
-| Task processor delegation | §0.6 Task Processor Placement Card |
-| Generated RPC shortcut | §0.7 Generated RPC Shortcut Card |
-| Execution-boundary logging | §0.8 Logging Card |
+Application owns transport-neutral commands, queries, results and DTOs. It must not import ConnectRPC/Chi, RPC generated types, xorm sessions, Kafka, Asynq, Redis, Fx or server lifecycle APIs.
 
-### 0.1 Command Handler Card
+Two accepted, narrow exceptions do not collapse the layer boundary:
 
-**Placement**
+- a producer-side `application/eventhandler` may map its own Domain Event to the same bounded context's generated Published Fact Contract under `gen/<context>/integration/...` and publish it through `github.com/go-jimu/components/ddd/message.Publisher`;
+- after Task Queue has been accepted, `application/task` may define the provider-neutral task contract and use `github.com/go-jimu/components/taskqueue` types such as `Definition`, `SchemaRegistry` and `Enqueuer`.
 
-- `internal/business/<context>/application/command/<use_case>.go`
-- Command types and command handlers live together unless the package already uses a narrower split.
-- Exceptional command-side ports live beside the command that owns them, not in a generic `application/port` package.
+Generated RPC types remain Transport. Kafka and Asynq types remain Runtime. A sender of an asynchronous intent calls a local semantic port; Infrastructure/ACL maps that intent to the receiving context's generated contract.
 
-**Required flow**
+## Mandatory `application.go`
 
-1. Map accepted command input into Domain values.
-2. Load the aggregate through a Domain Repository.
-3. Call Domain method(s) or Domain Service/policy.
-4. Save the aggregate through the Repository.
-5. Drain/dispatch Domain Events exactly once after successful save.
-6. Log completion if this handler is the active execution boundary.
+Every bounded context has `application/application.go`. It groups all Command and Query handlers exposed to inbound Transport adapters:
 
-**Rules**
+```go
+package application
 
-- Default write transaction changes one aggregate. If a command appears to coordinate several aggregate candidates in one Repository/API call, classify it as a model-fact gap; do not justify it with transaction mechanics, semantic repository transaction, lifecycle transaction, cross-table transaction, or ORM session evidence. If the accepted aggregate is clear but Repository API shape, CQRS split, or adapter mapping is wrong, classify it as a tactical placement gap.
-- Do not implement business rules by branching over aggregate state in the handler. Move the rule to Domain.
-- Do not pass raw transactions, sessions, ORM objects, broker clients, Redis clients, or generated protocol DTOs into Domain.
-- Do not dispatch events before successful persistence.
-- After `Save()`, treat the aggregate instance as stale.
+import (
+	"example/internal/business/user/application/command"
+	"example/internal/business/user/application/query"
+)
 
-**Tests**
+type Commands struct {
+	Create         *command.CreateUserHandler
+	ChangePassword *command.ChangePasswordHandler
+}
 
-- Application tests mock Repository / QueryRepository / external boundary interfaces only.
-- Test command-to-domain orchestration, transaction/event timing, error mapping, and completion-log outcome when logging is owned here.
+type Queries struct {
+	Get  *query.GetUserHandler
+	List *query.ListUsersHandler
+}
 
-### 0.2 Application Service Card
+type Application struct {
+	Commands Commands
+	Queries  Queries
+}
 
-Use a named Application service when the use case has meaningful orchestration that is not a single command handler:
+func NewApplication(
+	create *command.CreateUserHandler,
+	changePassword *command.ChangePasswordHandler,
+	get *query.GetUserHandler,
+	list *query.ListUsersHandler,
+) *Application {
+	return &Application{
+		Commands: Commands{Create: create, ChangePassword: changePassword},
+		Queries:  Queries{Get: get, List: list},
+	}
+}
+```
 
-- coordinates multiple accepted ports;
-- composes a command with read-side lookup, ACL, event/message publisher, or task enqueue;
-- owns a use-case-level policy such as authorization, masking, idempotency, or retry admission.
+`NewApplication` only groups dependencies. It performs no I/O, transaction, event dispatch, runtime registration or forwarding facade work, and it does not import Fx. Domain Event handlers, message subscribers and task processors are registered separately by `<context>.go`.
 
-Keep the service in `application/` or the relevant `application/<role>/` package. It should depend on Domain and Application-owned ports, not concrete Infrastructure.
+## Mandatory `assembler.go`
 
-If the service begins to classify Domain state, enforce lifecycle rules, or mutate multiple aggregates because it is convenient, classify it as a tactical placement gap.
+`application/assembler.go` owns pure mapping between existing Application DTO state and Domain Entity state. Use the house naming consistently:
 
-### 0.3 Domain Event Handler Placement Card
+```go
+package application
 
-Role: same bounded-context reaction to a Domain Event after the producing aggregate has been saved.
+import (
+	"github.com/go-jimu/components/ddd/event"
+	"example/internal/business/user/domain"
+)
 
-- Place in `application/eventhandler/<event>.go`.
-- Implement the handler contract described in [`ddd-golang-events-messages.md §0.3`](ddd-golang-events-messages.md).
-- Handler may call Application services/ports, update read models, enqueue follow-up work, or publish messages through a Boundary Publisher path.
-- Handler errors do not roll back the producing command.
-- Handler owns idempotency posture and completion logging.
+type User struct {
+	ID      string
+	Name    string
+	Email   string
+	Version int
+}
 
-Do not consume another bounded context's Domain Event type. Use Integration Messages instead.
+// AssembleUserDTO maps existing DTO state; it is not a creation path.
+func AssembleUserDTO(dto *User) *domain.User {
+	if dto == nil {
+		return nil
+	}
+	return &domain.User{
+		ID: dto.ID, Name: dto.Name, Email: dto.Email, Version: dto.Version,
+		Events: event.NewCollection(),
+	}
+}
 
-### 0.4 Boundary Publisher Placement Card
+func AssembleUserEntity(entity *domain.User) *User {
+	if entity == nil {
+		return nil
+	}
+	return &User{
+		ID: entity.ID, Name: entity.Name, Email: entity.Email, Version: entity.Version,
+	}
+}
+```
 
-Role: translate selected same-BC Domain Events or explicit published facts into stable Integration Messages.
+The assembler has no logging, I/O, transaction or business branch. It does not map protobuf or DO types. DTO-to-Entity assembly is for existing data and is followed by Domain validation before behavior. A create-user use case calls `domain.NewUser(...)`; it never calls `AssembleUserDTO` to bypass Factory rules or creation events. After `Save`, an assembled `Version` is the stale in-memory value and must not be returned as the current persistence concurrency token.
 
-- Place in `application/messagepublisher/<event>_publisher.go`.
-- Follow [`ddd-golang-events-messages.md §0.4`](ddd-golang-events-messages.md).
-- Do not mutate aggregates.
-- Do not consume Integration Messages.
-- Map from Domain language to published language at this boundary.
+Persistence mapping belongs in `infrastructure/convert.go` and follows the analogous `DO <-> Domain Entity` shape.
 
-### 0.5 Integration Message Handler Placement Card
+## Command Handler
 
-Role: consume a published cross-context Integration Message.
+Place a command in `application/command/<use_case>.go`. The handler constructs or loads Domain state, calls Domain behavior and persists the accepted Aggregate. Do not repeat Domain validation on the command DTO.
 
-- Place in `application/messagehandler/<message>.go`.
-- Follow [`ddd-golang-events-messages.md §0.5`](ddd-golang-events-messages.md).
-- Translate payload into receiving-context commands/Domain values.
-- Own idempotency, skip/retry/failure outcome, transaction boundary, and completion log.
-- Keep broker offsets/topics/partitions and Kafka failure policy in Infrastructure/runtime.
+The following shape applies when the design has accepted post-commit best-effort Domain Event dispatch:
 
-### 0.6 Task Processor Placement Card
+```go
+package command
 
-Role: execute one durable task contract.
+import (
+	"context"
+	"log/slog"
+	"time"
 
-- Place processor in `application/taskprocessor/<task>.go`.
-- Follow [`ddd-golang-taskqueue.md §0.2`](ddd-golang-taskqueue.md).
-- Processor decodes validated payload, calls an Application use case or Domain workflow, handles retry/skip/idempotency, and logs completion.
-- Task schema, periodic producer, enqueue policy, and asynq runtime wiring are separate concerns routed by `ddd-golang-taskqueue.md`.
-- Domain never imports taskqueue.
+	"github.com/go-jimu/components/ddd/event"
+	"github.com/go-jimu/components/sloghelper"
+	"example/internal/business/user/domain"
+)
 
-### 0.7 Generated RPC Shortcut Card
+type CreateUser struct {
+	Name  string
+	Email string
+}
 
-The Go shortcut is allowed only when the repository already implements generated ConnectRPC/gRPC service stubs from `application/application.go`, or the accepted design chooses that convention.
+type CreatedUser struct {
+	ID, Name, Email string
+}
 
-Allowed in `application/application.go`:
+type CreateUserHandler struct {
+	repository domain.Repository
+	dispatcher event.Dispatcher
+}
 
-- protocol request -> command/query mapping;
-- small actor/auth extraction needed to build the command/query;
-- one delegate call to a command/query handler or trivial QueryRepository read;
-- protocol response/error mapping.
+func NewCreateUserHandler(
+	repository domain.Repository,
+	dispatcher event.Dispatcher,
+) *CreateUserHandler {
+	return &CreateUserHandler{repository: repository, dispatcher: dispatcher}
+}
 
-Prohibited:
+func (h *CreateUserHandler) Handle(
+	ctx context.Context,
+	cmd CreateUser,
+) (CreatedUser, error) {
+	user, err := domain.NewUser(cmd.Name, cmd.Email, time.Now().UTC())
+	if err != nil {
+		return CreatedUser{}, err
+	}
+	if err = h.repository.Save(ctx, user); err != nil {
+		return CreatedUser{}, err
+	}
 
-- Repository calls;
-- aggregate mutation;
-- transaction control;
-- event dispatch;
-- task enqueueing;
-- multi-port orchestration;
-- business condition branches;
-- generated/protocol types leaking into Domain or use-case packages.
+	// Save makes user stale; only result mapping and this transaction's drain remain.
+	result := CreatedUser{ID: user.ID, Name: user.Name, Email: user.Email}
+	if err = h.dispatcher.DispatchAll(user.Events.Drain()); err != nil {
+		// The state is committed. This best-effort failure is swallowed and logged here.
+		sloghelper.FromContext(ctx).WarnContext(
+			ctx, "domain event dispatch rejected",
+			slog.String("operation", "user.events.dispatch"),
+			slog.String("user_id", user.ID),
+			sloghelper.Error(err),
+		)
+	}
+	return result, nil
+}
+```
 
-When a generated RPC method grows beyond `map -> delegate once -> map response/error`, move orchestration to `application/command`, `application/query`, or a named Application service.
+Without an accepted best-effort follow-up, omit the dispatcher. When durable handoff is accepted, use the prescribed outbox/task/process design rather than adding a second direct-publish path.
 
-### 0.8 Logging Card
+A normal command changes one Aggregate. If correctness appears to require saving several independent roots atomically, return to the collaboration design instead of hiding the conflict in a transaction or Repository method.
 
-If Application is the execution boundary, it emits one completion log for every success, failure, skip, or retry.
+## Query Handler
 
-Required fields:
+All inbound reads delegate through `Application.Queries`. A focused read of one Aggregate may use the Domain Repository when full reconstitution is reasonable and no distinct read semantics result. A read that has a different model, composition, performance, freshness, source or authorization uses an Application QueryRepository. See [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md).
 
-- `operation`
-- `outcome`
-- `duration_ms`
-- relevant business IDs (`tenant_id`, `aggregate_id`, `message_id`, etc.)
-- `sloghelper.Error(err)` on failure
+Transport never calls a Domain Repository or QueryRepository directly.
 
-Do not duplicate an error log already emitted by outer middleware. Do not replace completion logs with only `started` or `requested` logs.
+## Domain Event Handler and Published Fact
 
-## Application File Layout
+A same-context reaction lives in `application/eventhandler/<fact>.go` and implements `event.Handler`. It is a follow-up transaction; it cannot roll back the producing command.
 
-| Path | Contents |
-|---|---|
-| `application/application.go` | Application constructor and optional generated RPC shortcut |
-| `application/command/<use_case>.go` | command type, handler, command-owned exceptional port |
-| `application/query/**` | see [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) |
-| `application/eventhandler/<event>.go` | same-BC Domain Event Handler |
-| `application/messagepublisher/<event>_publisher.go` | Domain Event -> Integration Message Boundary Publisher |
-| `application/messagehandler/<message>.go` | Integration Message Handler |
-| `application/taskprocessor/<task>.go` | taskqueue Processor |
-| `application/assembler.go` | DTO/protocol/Data Object mapping helpers when shared by Application boundary code |
+When it publishes this context's accepted fact, Application may use the producer-owned generated contract and provider-neutral publisher directly:
 
-## Common Misplacements
+```go
+payload := &userintegrationv1.UserRegisteredV1{
+	UserId: created.UserID,
+	Name: created.Name,
+	Email: created.Email,
+}
+integrationMessage, err := message.New(
+	message.KindOf(payload),
+	payload,
+	message.WithKey(created.UserID),
+	message.WithOccurredAt(created.OccurredAt),
+)
+if err == nil {
+	err = h.publisher.Publish(ctx, integrationMessage)
+}
+```
 
-- Generic `application/port` package containing unrelated interfaces.
-- Command handler introduces `Cacher`, `Peer`, `Directory`, `TxManager`, `UnitOfWork`, or broker client ports without the modeling gate.
-- Generated RPC handler directly saves aggregates or dispatches events.
-- Event handler and message handler share one umbrella processor with mixed roles.
-- Handler logs inside Domain or logs the same returned error twice.
+The full implementation imports `github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/ddd/message` and its own `example/gen/user/integration/v1` package. It must not import Kafka. Because `event.Handler.Handle` has no error result, this handler owns logging for a failure it cannot return. Do not treat direct publication as reliable delivery; use [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) for the accepted delivery design.
+
+## Application Services, Ports and Transactions
+
+Use a named Application service only for meaningful use-case orchestration. It may coordinate Domain behavior, authorization, a read model, ACL, published fact or accepted background-work capability. It must not classify Domain state or become a provider facade.
+
+Place an outbound port beside the use case that consumes it. Name the semantic capability (`EligibilityProvider`, `ReserveCredit`, `CustomerIntentSender`), not the mechanism (`HTTPClient`, `BrokerPublisher`, `RedisStore`, `TxManager`). Do not wrap an already accepted provider-neutral go-jimu port with a same-shape local interface.
+
+Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction. An accepted state-plus-outbox design needs an explicit semantic atomic capability; raw `xorm.Session` never enters Application.
+
+## Errors, Logging and Tests
+
+- Preserve stable Domain error identity with `errors.Is/As`; add `oops` context only when this layer contributes new diagnostics.
+- Command and Query handlers do not duplicate the Transport completion log.
+- Application logs a business-semantic fact only when it has independent operational value. Durable evidence is a Domain Event, audit record or persisted state, not a log line.
+- Application becomes the execution logger only for a terminal flow with no outer observer or when it deliberately swallows a best-effort failure.
+
+Test handlers with real Domain objects and focused fakes for Repository, QueryRepository, ACL and outbound ports. Cover orchestration, stable errors, persistence-before-dispatch and committed-but-not-delivered behavior. Do not reimplement Domain rules in Application tests.
+
+## File Shape
+
+```text
+application/
+  application.go
+  assembler.go
+  command/<use_case>.go
+  query/<use_case>.go
+  eventhandler/<fact>.go       # when same-BC reaction exists
+  task/<task>.go               # only after Task Queue is accepted
+```
+
+ConnectRPC handlers, Integration Message subscribers and task processors belong to Transport, not Application.

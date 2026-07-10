@@ -1,0 +1,3 @@
+# Domain Services are semantic and mostly pure
+
+A Go Domain Service represents a named Domain operation that does not naturally belong to an Entity, Value Object, or Aggregate; spanning multiple Aggregates is not a prerequisite. Application normally supplies Domain values, snapshots, time, and authoritative evidence. A Domain Service may depend on a Domain-owned semantic collaborator, including narrowly required Repository query capability, only when precomputing a primitive would erase Domain meaning; the query does not eliminate a time-of-check/time-of-use race, whose correctness requires an accepted consistency mechanism outside the service's control. The service still does not save, control transactions, log, retry, or depend on provider/generated mechanisms.

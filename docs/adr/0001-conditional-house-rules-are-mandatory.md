@@ -1,0 +1,7 @@
+# Conditional House Rules are mandatory
+
+`ddd-expert` expresses House Style as applicability conditions plus mandatory implementation rules. It does not introduce mechanisms such as an outbox when the accepted design does not require them; when a condition does apply, Codify uses the prescribed house library and shape rather than inventing or selecting an alternative. An uncovered dependency or architectural choice is exposed for decision instead of being filled by LLM discretion. This trades implementation flexibility for consistent, reviewable backend code.
+
+Codify may perform an Implementation Upgrade when repository facts justify the prescribed code shape without changing accepted semantics, such as adopting the house FSM for an already-defined complex lifecycle. A mechanism that changes consistency, persistence, published contracts, recovery, or runtime ownership is a Design Escalation: the LLM identifies the pressure, but Shape resolves it before Codify implements it. Numeric thresholds are reasoning signals rather than automatic gates.
+
+A Design Escalation becomes executable only after the user explicitly accepts the recommendation or an authoritative project artifact already records it as current/accepted. Silence, incidental code, and an LLM's own recommendation do not establish acceptance. Once accepted, downstream implementation uses the prescribed House Style; materially conflicting new evidence returns the decision to Shape rather than prompting an unapproved substitute.
