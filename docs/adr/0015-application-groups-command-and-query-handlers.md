@@ -1,3 +1,0 @@
-# Application groups Command and Query Handlers
-
-Every Go bounded context has `application/application.go`. It defines an `Application` whose `Commands` group contains all Command Handlers and whose `Queries` group contains all Query Handlers exposed to inbound Transport adapters. `NewApplication` performs only type-safe dependency grouping; it does not execute use cases, add forwarding facade methods, access Repositories, control transactions, register runtimes, or import Fx and protocol/provider types. ConnectRPC, HTTP, and other Transport adapters depend on this protocol-neutral entry point and delegate to one selected Handler. Event handlers, message subscribers, task processors, and their runtime registration remain outside this registry.

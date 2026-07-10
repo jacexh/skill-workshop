@@ -281,19 +281,20 @@ import (
 
 	"github.com/go-jimu/components/ddd/message"
 	userintegrationv1 "example.com/service/gen/user/integration/v1"
+	"example.com/service/internal/business/notification/application"
 	"example.com/service/internal/business/notification/application/command"
 )
 
 type UserRegisteredSubscriber struct {
-	handler *command.SendWelcomeNotificationHandler
+	app *application.Application
 }
 
 var _ message.Handler = (*UserRegisteredSubscriber)(nil)
 
 func NewUserRegisteredSubscriber(
-	handler *command.SendWelcomeNotificationHandler,
+	app *application.Application,
 ) *UserRegisteredSubscriber {
-	return &UserRegisteredSubscriber{handler: handler}
+	return &UserRegisteredSubscriber{app: app}
 }
 
 func (*UserRegisteredSubscriber) Listening() []message.Kind {
@@ -307,7 +308,7 @@ func (s *UserRegisteredSubscriber) Handle(ctx context.Context, msg message.Messa
 	if !ok {
 		return fmt.Errorf("unexpected payload for %s: %T", msg.Kind(), msg.Payload())
 	}
-	return s.handler.Handle(ctx, command.SendWelcomeNotification{
+	return s.app.Commands.SendWelcomeNotification.Handle(ctx, command.SendWelcomeNotification{
 		UserID: payload.GetUserId(),
 		Name:   payload.GetName(),
 		Email:  payload.GetEmail(),

@@ -161,22 +161,23 @@ import (
 	"fmt"
 
 	"github.com/go-jimu/components/taskqueue"
+	"example.com/service/internal/business/document/application"
 	"example.com/service/internal/business/document/application/command"
 	applicationtask "example.com/service/internal/business/document/application/task"
 )
 
 type ReviewDocumentProcessor struct {
 	registry *taskqueue.SchemaRegistry
-	handler  *command.ReviewDocumentHandler
+	app      *application.Application
 }
 
 var _ taskqueue.Processor = (*ReviewDocumentProcessor)(nil)
 
 func NewReviewDocumentProcessor(
 	registry *taskqueue.SchemaRegistry,
-	handler *command.ReviewDocumentHandler,
+	app *application.Application,
 ) *ReviewDocumentProcessor {
-	return &ReviewDocumentProcessor{registry: registry, handler: handler}
+	return &ReviewDocumentProcessor{registry: registry, app: app}
 }
 
 func (*ReviewDocumentProcessor) TaskType() taskqueue.TaskType {
@@ -192,7 +193,7 @@ func (p *ReviewDocumentProcessor) Process(ctx context.Context, queued taskqueue.
 	if !ok {
 		return fmt.Errorf("%w: unexpected review payload %T", taskqueue.ErrSkipRetry, decoded)
 	}
-	return p.handler.Handle(ctx, command.ReviewDocument{
+	return p.app.Commands.ReviewDocument.Handle(ctx, command.ReviewDocument{
 		DocumentID: payload.DocumentID,
 	})
 }

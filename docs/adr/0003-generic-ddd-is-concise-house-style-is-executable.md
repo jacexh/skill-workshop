@@ -1,5 +1,0 @@
-# Generic DDD is concise and House Style is executable
-
-Generic DDD references retain precise meanings, decision boundaries, probes, counterexamples, and distinctions between DDD principles and optional architecture choices; they omit tutorials, framework code, phase workflow, completion templates, and fixture-specific symptoms. House Style retains prescribed dependencies, verified APIs, concrete code and SQL examples, and conditional implementation rules. We deliberately optimize these two reference families differently instead of applying one global line-reduction target.
-
-`ddd-core.md` remains one integrated DDD + Clean Architecture baseline rather than being split by school or source. It owns Layered Architecture, the Dependency Rule, language-neutral layer responsibilities, tactical building blocks, and basic CQRS boundaries; wording distinguishes concept definitions from plugin-specific constraints. Collaboration depth remains in its own Knowledge Leaf, while Go references realize the baseline with concrete packages and APIs.

@@ -93,9 +93,8 @@ internal/
     taskqueue/                    # Asynq client/worker/scheduler Runtime
     telemetry/                    # only when OpenTelemetry is accepted
 
-scripts/
-  sql/
-    001_<change>.sql
+migrations/
+  001_<change>.sql
 ```
 
 Do not add `api/`, `service.go`, `policy.go`, `state.go`, `processmanager/`, Outbox/Inbox folders, or provider directories merely because a future design might need them. Use Domain-language filenames and create conditional mechanisms only after their responsibility is accepted.

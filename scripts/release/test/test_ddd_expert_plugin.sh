@@ -54,9 +54,6 @@ check_local_markdown_links() {
       case "$target" in
         ""|http://*|https://*|mailto:*) continue ;;
       esac
-      case "$file:$target" in
-        */references/ddd-python.md:ddd-agent-contract.md|*/references/ddd-typescript.md:ddd-agent-contract.md) continue ;;
-      esac
       resolved="$(realpath -m "$(dirname "$file")/$target")"
       [ -f "$resolved" ] || fail "$label broken Markdown link in ${file#$root/}: $target"
     done < <(rg -o '\]\([^)]*\.md(#[^)]*)?\)' "$file" || true)
@@ -123,8 +120,8 @@ assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '`clear`, `violation`, or `
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'does not redesign or modify project files' "guard should remain read-only"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'route `codify`' "guard should route implementation violations to codify"
 
-# Canonical reference inventory. Python and TypeScript are retained unchanged but
-# deliberately excluded from this revision's content and link migration.
+# Canonical reference inventory. Python and TypeScript house-style content is
+# outside this revision; only links invalidated by retired shared files change.
 references=(
   ddd-modeling.md
   ddd-core.md
@@ -164,13 +161,11 @@ for retired_reference in ddd-agent-contract.md ddd-modeling-gates.md mysql.md; d
   [ ! -e "$CODEX_ROOT/references/$retired_reference" ] || fail "Codex should not keep $retired_reference"
 done
 
-if rg -n 'ddd-agent-contract\.md|ddd-modeling-gates\.md|mysql\.md' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
-  fail "phase skills should not load retired reference files"
+if rg -n 'ddd-agent-contract\.md|ddd-modeling-gates\.md|mysql\.md' \
+  "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" \
+  "$CLAUDE_ROOT/references" "$CODEX_ROOT/references" >/dev/null; then
+  fail "skills and references should not load retired reference files"
 fi
-
-# Lock the explicitly out-of-scope language leaves to their pre-refactor bodies.
-[ "$(git hash-object "$CLAUDE_ROOT/references/ddd-python.md")" = "a7f0081a0282a895dca6b41646707630e4b75ae1" ] || fail "Python reference changed during the Go/generic reference refactor"
-[ "$(git hash-object "$CLAUDE_ROOT/references/ddd-typescript.md")" = "3946207ff7353c28e8f13735d5460584ecb65b6e" ] || fail "TypeScript reference changed during the Go/generic reference refactor"
 
 check_local_markdown_links "$CLAUDE_ROOT" "Claude"
 check_local_markdown_links "$CODEX_ROOT" "Codex"
@@ -240,6 +235,7 @@ assert_contains "$scaffold" 'messagesubscriber/' "Go scaffold should separate me
 assert_contains "$scaffold" 'taskprocessor/' "Go scaffold should separate task processors"
 assert_contains "$scaffold" 'convert.go' "Go scaffold should use convert.go for persistence mapping"
 assert_contains "$scaffold" 'gen/' "Go scaffold should place generated stubs under gen"
+assert_contains "$scaffold" 'migrations/' "Go scaffold should use the canonical migration directory"
 
 application="$CLAUDE_ROOT/references/ddd-golang-application.md"
 assert_contains "$application" 'type Application struct' "Go Application should expose a grouped registry"
@@ -264,17 +260,20 @@ assert_contains "$transport" 'transport/messagesubscriber' "Go Transport should 
 assert_contains "$transport" 'transport/taskprocessor' "Go Transport should own task processors"
 assert_contains "$transport" 'message.Subscriber.Subscribe' "Go Transport should separate subscriber registration"
 assert_contains "$transport" 'message.Runner.Run' "Go Runtime should own the message runner lifecycle"
+assert_contains "$transport" 'app.Commands' "Go Transport adapters should delegate through the Application registry"
 
 events="$CLAUDE_ROOT/references/ddd-golang-events-messages.md"
 assert_contains "$events" 'Published Fact Contract' "Go messaging should define producer-owned facts"
 assert_contains "$events" 'Asynchronous Intent Contract' "Go messaging should define receiver-owned intents"
 assert_contains "$events" 'Use outbox only after the design accepts' "Go messaging should keep outbox conditional"
 assert_contains "$events" 'does not supply an xorm Store' "Go messaging should not invent missing outbox adapters"
+assert_contains "$events" 'app.Commands' "Go message subscribers should delegate through the Application registry"
 
 taskqueue="$CLAUDE_ROOT/references/ddd-golang-taskqueue.md"
 assert_contains "$taskqueue" 'application/task' "Go taskqueue should own task contracts in Application"
 assert_contains "$taskqueue" 'transport/taskprocessor' "Go taskqueue should own processors in Transport"
 assert_contains "$taskqueue" 'internal/pkg/taskqueue' "Go taskqueue should keep Asynq runtime technical"
+assert_contains "$taskqueue" 'app.Commands' "Go task processors should delegate through the Application registry"
 
 infrastructure="$CLAUDE_ROOT/references/ddd-golang-infrastructure.md"
 assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure should own DO/Domain conversion"

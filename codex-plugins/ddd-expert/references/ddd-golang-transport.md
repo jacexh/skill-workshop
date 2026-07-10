@@ -83,19 +83,20 @@ import (
 
 	"github.com/go-jimu/components/ddd/message"
 	userintegrationv1 "example/gen/user/integration/v1"
+	"example/internal/business/notification/application"
 	"example/internal/business/notification/application/command"
 )
 
 type UserRegisteredSubscriber struct {
-	handler *command.SendWelcomeNotificationHandler
+	app *application.Application
 }
 
 var _ message.Handler = (*UserRegisteredSubscriber)(nil)
 
 func NewUserRegisteredSubscriber(
-	handler *command.SendWelcomeNotificationHandler,
+	app *application.Application,
 ) *UserRegisteredSubscriber {
-	return &UserRegisteredSubscriber{handler: handler}
+	return &UserRegisteredSubscriber{app: app}
 }
 
 func (*UserRegisteredSubscriber) Listening() []message.Kind {
@@ -110,7 +111,7 @@ func (s *UserRegisteredSubscriber) Handle(
 	if !ok {
 		return fmt.Errorf("unexpected integration payload %T", integrationMessage.Payload())
 	}
-	return s.handler.Handle(ctx, command.SendWelcomeNotification{
+	return s.app.Commands.SendWelcomeNotification.Handle(ctx, command.SendWelcomeNotification{
 		UserID: payload.GetUserId(),
 		Name:   payload.GetName(),
 		Email:  payload.GetEmail(),
@@ -136,22 +137,23 @@ import (
 	"fmt"
 
 	"github.com/go-jimu/components/taskqueue"
+	"example/internal/business/notification/application"
 	"example/internal/business/notification/application/command"
 	notificationtask "example/internal/business/notification/application/task"
 )
 
 type SendWelcomeProcessor struct {
 	registry *taskqueue.SchemaRegistry
-	handler  *command.SendWelcomeNotificationHandler
+	app      *application.Application
 }
 
 var _ taskqueue.Processor = (*SendWelcomeProcessor)(nil)
 
 func NewSendWelcomeProcessor(
 	registry *taskqueue.SchemaRegistry,
-	handler *command.SendWelcomeNotificationHandler,
+	app *application.Application,
 ) *SendWelcomeProcessor {
-	return &SendWelcomeProcessor{registry: registry, handler: handler}
+	return &SendWelcomeProcessor{registry: registry, app: app}
 }
 
 func (p *SendWelcomeProcessor) TaskType() taskqueue.TaskType {
@@ -170,7 +172,7 @@ func (p *SendWelcomeProcessor) Process(
 	if !ok {
 		return fmt.Errorf("%w: unexpected task payload %T", taskqueue.ErrSkipRetry, decoded)
 	}
-	return p.handler.Handle(ctx, command.SendWelcomeNotification{
+	return p.app.Commands.SendWelcomeNotification.Handle(ctx, command.SendWelcomeNotification{
 		UserID: payload.UserID,
 	})
 }

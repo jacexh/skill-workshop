@@ -1,3 +1,0 @@
-# Business data validation is Domain-owned
-
-Go business-data validation uses `github.com/go-playground/validator/v10` in Domain Entity and Value Object validation. Application DTOs and persistence Data Objects do not duplicate validator tags or business validation; their assemblers/converters produce Domain state, and Domain `Validate()` or a Domain Factory establishes validity. Transport decodes input and maps Domain validation errors without reimplementing the rules, while Application does not repeat them. QueryRepository filters and read models do not become Domain Entities and therefore require a separate read-side decision.

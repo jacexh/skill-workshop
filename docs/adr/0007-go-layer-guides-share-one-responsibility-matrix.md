@@ -1,3 +1,0 @@
-# Go Layer Guides share one responsibility matrix
-
-Go House Style separates Domain, Application, Transport, and Infrastructure responsibilities consistently across every guide. Transport owns ConnectRPC, Integration Message inbound mapping, and task processors; Application owns `application.go`, use cases, same-context event handlers, internal task contracts, and producer-side published-contract translation through provider-neutral ports; Domain owns model behavior and write Repository contracts; Infrastructure implements persistence, ACL, external, and provider mechanisms. Runtime remains a Platform concern rather than a fifth business layer. Flow Guides may explain cross-layer execution but cannot redefine this matrix.
