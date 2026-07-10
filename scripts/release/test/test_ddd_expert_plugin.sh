@@ -354,6 +354,8 @@ assert_contains "$taskqueue" 'app.Commands' "Go task processors should delegate 
 infrastructure="$CLAUDE_ROOT/references/ddd-golang-infrastructure.md"
 assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure should own DO/Domain conversion"
 assert_contains "$infrastructure" 'xorm.io/xorm' "Go Infrastructure should use the adopted ORM"
+assert_contains "$infrastructure" 'Prefer small Aggregates' "Go Infrastructure should keep small Aggregates as the default"
+assert_contains "$infrastructure" 'mutation journal keyed by Entity kind and identity' "Go Infrastructure should expose optional Aggregate change tracking"
 assert_contains "$infrastructure" 'Do not log and return the same error' "Go Infrastructure should avoid duplicate error logs"
 
 runtime="$CLAUDE_ROOT/references/ddd-golang-runtime.md"

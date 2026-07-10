@@ -210,6 +210,8 @@ New Aggregates have in-memory `Version == 0` and are inserted with stored versio
 
 When one accepted Aggregate maps to several tables, keep `*xorm.Session` inside the adapter: `NewSession`, `defer Close`, `Begin`, rollback on error, then `Commit`. A session is persistence machinery, not evidence that independent Aggregates share one consistency boundary.
 
+Prefer small Aggregates. When an accepted Aggregate nevertheless owns several Entity collections and commands usually change only a small subset, its root may maintain a non-persisted mutation journal keyed by Entity kind and identity so `Save` writes only the recorded changes; an Entity-level `Dirty` flag is a simpler update-only variant. This is an optional write-amplification optimization, not a Domain fact or concurrency mechanism; every owned change still advances the root version and commits atomically.
+
 ## QueryRepository Adapter
 
 Product lists, pages, history, reports, projections, and optimized partial reads use an Application-owned QueryRepository. A focused read of exactly one reasonably sized Aggregate may use the Domain Repository only when the accepted design does not introduce distinct read semantics.
