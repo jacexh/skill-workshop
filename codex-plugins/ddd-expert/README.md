@@ -35,7 +35,7 @@ Each skill runs its compact phase workflow and then loads only the reference sec
 
 ## Activation Guidance
 
-Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting backend infrastructure. The phase skills are described to match common development actions, and you may also mention a phase skill explicitly when the task touches bounded contexts, Domain/Application/Transport/Infrastructure placement, generated RPC/protocol types, Go runtime/config/lifecycle, taskqueue/message behavior, database persistence, or backend logging.
+Use `ddd-expert` whenever backend work may affect DDD boundaries or supporting backend infrastructure. The phase skills are described to match common development actions, and you may also mention a phase skill explicitly when the task touches bounded contexts, Domain/Application/Transport/Infrastructure placement, generated RPC/protocol types, Go/Python/TypeScript runtime/config/lifecycle, taskqueue/message behavior, database persistence, or backend logging.
 
 Choose the phase by timing:
 
@@ -56,8 +56,7 @@ Use this plugin for:
 - Domain/Application/Transport/Infrastructure ownership
 - Domain and Application port eligibility
 - generated protocol DTO boundaries
-- Go RPC/HTTP adapter boundaries
-- Python and TypeScript backend DDD module/layer placement
+- Go, Python, and TypeScript backend House Style, HTTP/RPC adapter boundaries, module placement, and Runtime wiring
 - Domain Events, published-fact/intent contracts, Integration Messages, and async handlers
 - taskqueue/runtime boundaries in DDD services
 - database-backed backend persistence design when schema, query, migration, transaction, or storage concerns are explicit
@@ -86,7 +85,7 @@ Canonical references live under `references/`:
 - `ddd-golang-taskqueue.md` — Application task contracts, task processors, scheduling, follow-up work, and Asynq runtime guidance
 - `ddd-golang-runtime.md` — configuration, Fx composition, ConnectRPC/Chi lifecycle, logging, shutdown, and conditional telemetry guidance
 - `database.md` — MySQL persistence, table roles, types, indexes, SQL, transactions, concurrency, migrations, and sharding rules
-- `ddd-python.md` — Python-specific DDD implementation guidance
-- `ddd-typescript.md` — TypeScript-specific DDD implementation guidance
+- `ddd-python.md` — compact Python DDD House Style for stack, layers, flows, scaffold, and Runtime
+- `ddd-typescript.md` — compact TypeScript DDD House Style for stack, layers, flows, scaffold, and Runtime
 
 This plugin intentionally does not scan generic `design-patterns/` directories. Project-specific architecture facts should be read from explicit project docs or project knowledge sources.
