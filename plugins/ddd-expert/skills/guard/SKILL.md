@@ -9,11 +9,7 @@ Review concrete evidence against the expected model. A guard review finds eviden
 
 Build/runtime blockers only block executable verification; independent static model review still runs. Compile blockers are never positive model signals, and absence of forbidden nouns is not model proof.
 
-## Scope and References
-
-First read [../../references/ddd-core.md](../../references/ddd-core.md). This skill owns the workflow and layer baseline. Use the checklist below as the quick smell detector; load references for depth after a smell is triggered, not to enumerate every possible finding.
-
-Reference routing: load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) / [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) when model facts are unclear; load the active language guide ([../../references/ddd-golang.md](../../references/ddd-golang.md), [../../references/ddd-python.md](../../references/ddd-python.md), or [../../references/ddd-typescript.md](../../references/ddd-typescript.md)) for triggered code evidence; load [../../references/database.md](../../references/database.md) for schema/migration/index/SQL evidence; load [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) for ports/interfaces, adopted libraries, runtime/taskqueue/message wiring, stop decisions, or self-checks.
+## Scope
 
 Coverage boundary: guard covers DDD/backend model, layer, boundary, persistence, generated-protocol, async/recovery, runtime-wiring, logging, and verification evidence. It does not replace general security, performance, product UX, dependency-license, or capacity review unless that evidence proves a model or boundary risk.
 
@@ -27,7 +23,7 @@ Reconstruct the expected model before judging code:
 - spec/issue/ticket/ADR/glossary/context docs;
 - changed files, neighboring code, tests, generated artifacts, migrations, config, runtime wiring, logs, and documented deviations.
 
-If the expected bounded context, data authority, invariant owner, model evidence, layer owner, or local convention cannot be reconstructed, report an evidence gap instead of inventing a model.
+If the expected bounded context, data authority, invariant owner, or other material model evidence cannot be reconstructed, report an evidence gap and route to `explore` instead of inventing a model. If the model is accepted but layer ownership or another tactical placement decision cannot be reconstructed, report an evidence gap and route to `shape`.
 
 ## Workflow
 
@@ -35,19 +31,20 @@ Evidence gate before findings:
 
 1. Confirm concrete evidence exists: files, paths, imports, tests, generated artifacts, schema/config/runtime/log evidence, or written deviation.
 2. Start from business facts before code mechanics: command -> past-tense fact -> invariant owner -> reaction/process -> failure tolerance -> implementation mechanism.
-3. Compare touched code against the layer baseline; missing required shape or present forbidden shape becomes a smell.
-4. Use references only to explain triggered smells, not to enumerate findings.
-5. Missing proof is an evidence gap unless concrete evidence proves a violation.
-6. Accepted design and local convention are evidence to inspect, not waivers.
-7. Implementation transaction shape is not model evidence and cannot satisfy Repository design.
-8. Object splitting, package names, generated DTO mapping, and QueryRepository presence are not enough to clear a triggered smell family.
-9. Scope narrows files to inspect; it does not remove required lifecycle/repository/event/CQRS family rows or runtime/recovery rows.
-10. `design/convention accepted`, `MVP transaction`, or similar waiver wording is an accepted-design evidence gap, not clearance.
+3. Classify touched specialized surfaces and seed the corresponding house-style depth obligations from the specialized baseline below; a touched surface is not a smell, finding, or evidence gap by itself.
+4. Compare touched code against the layer baseline; missing required shape or present forbidden shape becomes a smell candidate, never a finding or evidence gap by itself.
+5. Use references only to prove or clear triggered smells and depth obligations, not to enumerate findings; load them after same-shape smells are merged and specialized obligations are grouped.
+6. Missing proof is an evidence gap unless concrete evidence proves a violation.
+7. Accepted design and local convention are evidence to inspect, not waivers.
+8. Implementation transaction shape is not model evidence and cannot satisfy Repository design.
+9. Object splitting, package names, generated DTO mapping, and QueryRepository presence are not enough to clear a triggered smell family.
+10. Scope narrows files to inspect; it does not remove required lifecycle/repository/event/CQRS family rows or runtime/recovery rows.
+11. `design/convention accepted`, `MVP transaction`, or similar waiver wording is an accepted-design evidence gap, not clearance.
 
-1. **Breadth scan**: compare touched code shape against the layer baseline. Output: Smell List rows with layer, trigger, baseline miss, and code evidence. Lifecycle/repository/event/CQRS/runtime scope must include rows for durable-fact command admission, terminal/execution split, repository/API candidate owner, collaboration mechanism, parent state vocabulary, accepted-design waiver, CQRS inventory, and recovery reachability whenever the touched evidence reaches that family.
-2. **Merge same-shape smells**: group rows by owner, lifecycle, boundary, state vocabulary, collaboration mechanism, runtime reachability, repository/API shape, or CQRS split. Output: merged smell families preserving every trigger and every required family row.
-3. **Explain each family**: assume the smell is wrong until the relevant method, flow, state, event, port, or adapter shows the correct shape. Output: violation, return-to-explore, return-to-shape, evidence-gap, or adjacent-smell.
-4. **Follow related evidence**: for each adjacent smell, inspect the nearest sibling methods, flows, states, events, ports, adapters, or runtime registrations that share the same reason. Output: updated Smell List with any new family rows.
+1. **Breadth scan**: compare touched code shape against the layer baseline and seed every applicable specialized house-style depth obligation. Output: Smell List rows with layer, trigger, suspected baseline miss, and code evidence; plus a Depth List with specialized surface, evidence, and required reference profile. A smell row is only a candidate, and a depth obligation is only coverage; neither is a finding or evidence gap during breadth. Lifecycle/repository/event/CQRS/runtime scope must include smell rows for durable-fact command admission, terminal/execution split, repository/API candidate owner, collaboration mechanism, parent state vocabulary, accepted-design waiver, CQRS inventory, and recovery reachability whenever the touched evidence reaches that family.
+2. **Merge and group**: merge smell rows by owner, lifecycle, boundary, state vocabulary, collaboration mechanism, runtime reachability, repository/API shape, or CQRS split; group specialized depth obligations by reference and section. Output: merged smell families preserving every trigger and every required family row, plus grouped depth obligations.
+3. **Deep-check smells and obligations**: load only the relevant `ddd-core.md` sections and specialized references. For a smell, assume it is wrong until the relevant method, flow, state, event, port, adapter, model fact, or runtime evidence shows the correct shape; output violation, return-to-explore, return-to-shape, evidence-gap, or adjacent-smell. For a specialized obligation, clear it internally when all applicable rules conform or are not applicable; promote only a concrete rule miss to a Smell List row and return to Step 2.
+4. **Follow related evidence**: for each adjacent smell, inspect the nearest sibling methods, flows, states, events, ports, adapters, or runtime registrations that share the same reason. Output: updated Smell List and Depth List. If this adds a row or obligation, return to Step 2 and repeat merge, deep-check, and adjacent-evidence inspection until neither list grows.
 5. **Synthesize root cause**: combine family verdicts. Output: shared wrong model, boundary, lifecycle, state vocabulary, collaboration mechanism, repository/API shape, CQRS split, or recovery story.
 6. **Report**: turn the synthesized verdicts into findings, evidence gaps / returns, non-required positive notes, verification, and residual risk. Output: final review judgment that places every triggered required family row under Findings or Evidence gaps / returns.
 
@@ -55,9 +52,20 @@ Smell explanation stays local by default. Use subagents only when the user expli
 
 ## Quick Smell Checklist
 
+### Specialized House-Style Baseline
+
+Seed one depth obligation for every touched specialized surface during breadth, without loading its full reference yet:
+
+- **Language/framework:** changed Go, Python, or TypeScript code seeds an obligation classified by touched layer or mechanism so the deep check loads only the corresponding language-guide section.
+- **Database:** schema, migration, table/column/index/constraint, SQL, DO/converter, or persistence configuration evidence seeds a database-profile obligation.
+- **Agent contract:** ports/interfaces, adopted component libraries, generated boundaries, runtime/taskqueue/message wiring, stop decisions, or self-check evidence seeds an agent-contract obligation.
+- **Modeling depth:** unclear or contradictory authority, lifecycle, invariant, failure tolerance, language, boundary, or coordination evidence seeds a modeling-depth obligation or an immediate return/evidence-gap verdict when the expected model cannot be reconstructed.
+
+These obligations make specialized house-style coverage explicit; touched-surface classification alone never proves conformance or violation. Clear an obligation internally when touched evidence proves every applicable rule or makes a rule not applicable. Only a concrete suspected rule miss enters the Smell List; missing proof becomes an evidence gap only when a material applicable rule requires evidence that the touched responsibility should expose.
+
 ### Layer Baseline
 
-Detect smells by asking two questions for each touched layer: which required shapes are missing, and which forbidden shapes appear.
+This baseline is a high-recall scan projection of `ddd-core.md`, not a conformance verdict. Detect smell candidates by asking two questions for each touched layer: which required shapes may be missing, and which forbidden shapes appear. Missing shape in a narrow diff is not an evidence gap unless the touched responsibility should expose that shape; every candidate requires a deep check before reporting.
 
 #### Domain Layer
 
@@ -163,6 +171,8 @@ Forbidden shape:
 
 ### Cross-Layer Sentinels
 
+Sentinels seed smell candidates only when touched evidence reaches the family. A sentinel match is not a verdict; prove or clear it during the family deep check.
+
 - Aggregate lifecycle: one Aggregate Root owns one lifecycle and invariant boundary; state words name parent lifecycle facts, not child process outcomes.
 - Repository/API: one Repository normally exposes `Get` and `Save` for one Aggregate Root plus owned children/value objects; extra semantic methods, product reads, or cross-owner transaction methods start as smells.
 - Cross-aggregate coordination: independent Aggregate Roots do not need the same transaction for business correctness; coordination is done by Domain Event, process manager, reconciler, task processor, Integration Message, or an explicit return-to-explore decision that changes the aggregate boundary.
@@ -183,7 +193,7 @@ Forbidden shape:
 ## Reporting
 
 Final answer is concise. Do not print the full working-evidence set by default.
-For lifecycle/repository/event/CQRS/runtime scope, complete and merge smell verdicts before the final answer, then cite triggered required family rows only in Findings or Evidence gaps / returns.
+For lifecycle/repository/event/CQRS/runtime scope, complete and merge smell verdicts before the final answer, then cite triggered required family rows only in Findings or Evidence gaps / returns. Only deep-checked family verdicts may enter the report.
 Working evidence stays internal unless it is needed to understand a judgment. Required family-row verdicts are not working evidence and cannot stay internal. If a smell family cannot be explained from available evidence, report an evidence gap, not a positive claim.
 Every triggered required family row and every explained smell-family verdict lands in Findings or Evidence gaps / returns. Positive, coverage, and residual notes are only for surfaces that were not smell rows. Do not suppress findings for template cost.
 Do not collapse production wiring, durable-fact command admission, collaboration mechanism, candidate-owner, state vocabulary, or CQRS method-inventory decisions into a broader claim.
@@ -202,3 +212,9 @@ Common mistakes: reviewing from grep hits; mixing domain/spec/code axes; treatin
 ## Calibration
 
 Post-review calibration: when the user provides a known issue or scoring set after the initial conclusion, compare it to the original output, reflect why each issue was missed or shallowly found, and convert repeated misses into baseline rules, reference updates, or eval assertions.
+
+## References
+
+Start with the compact specialized, layer, and cross-layer baselines in this skill. Guard owns the workflow and breadth-scan projection; [../../references/ddd-core.md](../../references/ddd-core.md) owns the normative depth rules. Do not load `ddd-core.md` wholesale before the breadth scan. Do not load a specialized reference wholesale before its depth obligation or smell family reaches depth check.
+
+After same-shape smells are merged, load only the references needed to prove or clear each family: the relevant `ddd-core.md` section first; [../../references/ddd-modeling.md](../../references/ddd-modeling.md) / [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) when model facts are unclear; the active language guide ([../../references/ddd-golang.md](../../references/ddd-golang.md), [../../references/ddd-python.md](../../references/ddd-python.md), or [../../references/ddd-typescript.md](../../references/ddd-typescript.md)) for triggered code evidence; [../../references/database.md](../../references/database.md) for schema/migration/index/SQL evidence; and [../../references/ddd-agent-contract.md](../../references/ddd-agent-contract.md) for ports/interfaces, adopted libraries, runtime/taskqueue/message wiring, stop decisions, or self-checks.

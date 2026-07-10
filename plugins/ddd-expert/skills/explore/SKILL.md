@@ -9,7 +9,7 @@ description: Use when product discovery, PRD/spec writing, feature scoping, back
 
 Run a one-question-at-a-time strategic domain-modeling workflow. Start from PRD/spec/change-request evidence and end by updating the project's existing documentation surfaces, not by producing a standalone modeling report.
 
-First inspect existing evidence: the target PRD/spec/change request, glossary or terminology docs, `CONTEXT.md`, `CONTEXT-MAP.md`, domain docs, ADRs, product docs, current designs, code, tests, API/proto contracts, [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md), and [../../references/ddd-modeling.md](../../references/ddd-modeling.md). Do not ask the user to restate facts the system already records.
+First inspect existing project evidence: the target PRD/spec/change request, glossary or terminology docs, `CONTEXT.md`, `CONTEXT-MAP.md`, domain docs, ADRs, product docs, current designs, code, tests, and API/proto contracts. Do not ask the user to restate facts the system already records.
 
 Use DDD discovery methods to extract only confirmed model changes that matter for this request: glossary terms, domain concepts, business lifecycle, business rules, policies, authority, ownership, boundaries, and context relationships. Domain concepts are business-language concepts, not tactical classifications.
 
@@ -52,3 +52,7 @@ When the critical facts are clear, write confirmed domain model changes to the p
 Do not duplicate content that the PRD/spec already states clearly. Do not produce a complete model inventory. If a plausible concept is material but unconfirmed, ask about it instead of writing it as a candidate. If the workspace is read-only or the target document cannot be identified, return patch-ready content with the intended destination.
 
 Final response: list the files updated and summarize the confirmed model changes in one or two bullets. Do not paste the full model unless the user asks. If no documentation change is needed, say `No domain model changes needed` and name the evidence that made it safe.
+
+## References
+
+After project evidence exposes a strategic hotspot, load only the modeling guidance needed to resolve it: [../../references/ddd-modeling-gates.md](../../references/ddd-modeling-gates.md) for authority, lifecycle, invariant, failure-tolerance, language, or coordination gates; and [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for bounded-context, aggregate-candidate, or capability-classification depth. Do not load implementation, language, runtime, or database references during `explore`.
