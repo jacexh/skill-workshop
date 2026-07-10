@@ -120,8 +120,23 @@ assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '`clear`, `violation`, or `
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'does not redesign or modify project files' "guard should remain read-only"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'route `codify`' "guard should route implementation violations to codify"
 
-# Canonical reference inventory. Python and TypeScript house-style content is
-# outside this revision; only links invalidated by retired shared files change.
+if rg -n 'ddd-golang-(scaffold|domain|application|transport|cqrs|infrastructure|events-messages|taskqueue|runtime)\.md' \
+  "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
+  fail "phase skills should enter Go House Style through its router rather than link implementation leaves directly"
+fi
+if rg -n 'ddd-(golang|python|typescript)\.md' \
+  "$CLAUDE_ROOT/skills/explore/SKILL.md" "$CODEX_ROOT/skills/explore/SKILL.md" >/dev/null; then
+  fail "explore should not load language House Style"
+fi
+assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'For Go, start with' "shape should enter Go guidance through its router"
+assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'For Python or TypeScript, load only the relevant section' "shape should load compact language guides selectively"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Go, start with' "codify should enter Go guidance through its router"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Python or TypeScript, load only the sections for touched surfaces' "codify should load compact language guides selectively"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For triggered Go code, start with' "guard should enter Go guidance through its router during depth"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For triggered Python or TypeScript code, load only the relevant section' "guard should load compact language guides selectively"
+
+# Canonical reference inventory. Go uses a baseline/router plus focused leaves;
+# lower-frequency Python and TypeScript each use one compact language guide.
 references=(
   ddd-modeling.md
   ddd-core.md
@@ -170,12 +185,20 @@ fi
 check_local_markdown_links "$CLAUDE_ROOT" "Claude"
 check_local_markdown_links "$CODEX_ROOT" "Codex"
 
-optimized_refs=(
+common_refs=(
   "$CLAUDE_ROOT/references/ddd-modeling.md"
   "$CLAUDE_ROOT/references/ddd-core.md"
   "$CLAUDE_ROOT/references/ddd-collaboration.md"
-  "$CLAUDE_ROOT/references/ddd-golang"*.md
   "$CLAUDE_ROOT/references/database.md"
+)
+language_refs=(
+  "$CLAUDE_ROOT"/references/ddd-golang*.md
+  "$CLAUDE_ROOT/references/ddd-python.md"
+  "$CLAUDE_ROOT/references/ddd-typescript.md"
+)
+optimized_refs=(
+  "${common_refs[@]}"
+  "${language_refs[@]}"
 )
 
 for reference in ddd-modeling.md ddd-core.md ddd-collaboration.md; do
@@ -199,7 +222,28 @@ if rg -n '\.\./skills/|skills/[[:alnum:]-]+/SKILL\.md' "${optimized_refs[@]}" >/
   fail "references should not link directly to phase skill files"
 fi
 
-# One Go router reaches every layer, flow, and platform guide.
+if rg -ni '^#{1,4}[[:space:]]+.*(Planning Workflow|Architecture Gate|Level [123]|Boundary Checklist|Mechanized Review Checks|DDD Tactical Design Reference|Key Principles Summary)' \
+  "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >/dev/null; then
+  rg -ni '^#{1,4}[[:space:]]+.*(Planning Workflow|Architecture Gate|Level [123]|Boundary Checklist|Mechanized Review Checks|DDD Tactical Design Reference|Key Principles Summary)' \
+    "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >&2
+  fail "language references should not retain planning workflows or review-checklist sediment"
+fi
+
+if rg -ni 'active (DDD )?phase|phase skill|phase route|plan/spec must|apply the gates' \
+  "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >/dev/null; then
+  rg -ni 'active (DDD )?phase|phase skill|phase route|plan/spec must|apply the gates' \
+    "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >&2
+  fail "language references should not duplicate phase workflow contracts"
+fi
+
+if rg -ni '\b(FastAPI|Uvicorn|Pydantic|SQLAlchemy|Celery|Structlog|Fastify|TypeBox|Kysely|BullMQ|XState|Pino)\b' \
+  "${common_refs[@]}" >/dev/null; then
+  rg -ni '\b(FastAPI|Uvicorn|Pydantic|SQLAlchemy|Celery|Structlog|Fastify|TypeBox|Kysely|BullMQ|XState|Pino)\b' \
+    "${common_refs[@]}" >&2
+  fail "common DDD and persistence references should not own language-framework choices"
+fi
+
+# The primary Go router reaches every layer, flow, and platform guide.
 go_router="$CLAUDE_ROOT/references/ddd-golang.md"
 for leaf in "$CLAUDE_ROOT"/references/ddd-golang-*.md; do
   basename="$(basename "$leaf")"
@@ -224,6 +268,38 @@ for adopted in \
   'connectrpc.com/otelconnect'
 do
   assert_contains "$go_router" "$adopted" "Go router missing adopted stack entry $adopted"
+done
+
+python_guide="$CLAUDE_ROOT/references/ddd-python.md"
+for adopted in \
+  'FastAPI' \
+  'Uvicorn' \
+  'Pydantic' \
+  'pydantic-settings' \
+  'SQLAlchemy' \
+  'mysqlclient' \
+  'grpcio' \
+  'confluent-kafka' \
+  'Celery' \
+  'OpenTelemetry Python SDK'
+do
+  assert_contains "$python_guide" "$adopted" "Python guide missing adopted stack entry $adopted"
+done
+
+typescript_guide="$CLAUDE_ROOT/references/ddd-typescript.md"
+for adopted in \
+  'Fastify' \
+  '@fastify/type-provider-typebox' \
+  '@connectrpc/connect-fastify' \
+  'typebox' \
+  'Kysely' \
+  'mysql2' \
+  '@confluentinc/kafka-javascript' \
+  'BullMQ' \
+  'XState' \
+  'OpenTelemetry JS'
+do
+  assert_contains "$typescript_guide" "$adopted" "TypeScript guide missing adopted stack entry $adopted"
 done
 
 # High-value Go boundaries, intentionally sparse and independent of section numbers.
@@ -285,13 +361,32 @@ assert_contains "$runtime" 'Execution Completion Log' "Go Runtime should define 
 assert_contains "$runtime" 'trace_id' "Go Runtime should define trace correlation fields"
 assert_contains "$runtime" 'request_id' "Go Runtime should define request correlation fields"
 
+# Sparse compact-guide ownership sentinels. These protect architectural
+# boundaries and adopted entry points without snapshotting prose or line counts.
+assert_contains "$python_guide" 'application/application.py' "Python guide should expose the Application registry"
+assert_contains "$python_guide" 'application/assembler.py' "Python guide should own Application mapping"
+assert_contains "$python_guide" 'messagesubscriber/' "Python guide should separate message subscribers"
+assert_contains "$python_guide" 'taskprocessor/' "Python guide should separate task processors"
+assert_contains "$python_guide" 'gen/' "Python guide should isolate generated contracts"
+
+assert_contains "$typescript_guide" 'application/application.ts' "TypeScript guide should expose the Application registry"
+assert_contains "$typescript_guide" 'src/business/' "TypeScript guide should organize bounded contexts before layers"
+assert_contains "$typescript_guide" 'transport/' "TypeScript guide should keep inbound adapters in Transport"
+assert_contains "$typescript_guide" 'infrastructure/persistence/convert.ts' "TypeScript guide should own persistence conversion"
+assert_contains "$typescript_guide" 'gen/' "TypeScript guide should isolate generated contracts"
+assert_contains "$typescript_guide" 'A saved Aggregate is stale' "TypeScript guide should define the post-Save lifecycle"
+
 database="$CLAUDE_ROOT/references/database.md"
 assert_contains "$database" 'Every table governed by this profile' "database profile should define standard columns"
 for column in '`id` varchar(36)' '`version` int unsigned' '`created_at` bigint' '`updated_at` bigint' '`deleted_at` bigint'; do
   assert_contains "$database" "$column" "database profile missing standard column $column"
 done
-assert_contains "$database" 'new in-memory Aggregate has `Version == 0`' "database profile should define initial versions"
-assert_contains "$database" 'After a successful Save, the instance is stale' "database profile should align post-Save behavior"
+assert_contains "$database" 'new in-memory Aggregate has version `0`' "database profile should define initial versions"
+assert_contains "$database" 'After a successful save, the instance is stale' "database profile should align post-save behavior"
+if rg -n 'xorm|go-sql-driver|github\.com/google/uuid|convert\.go|\*xorm' "$database" >/dev/null; then
+  rg -n 'xorm|go-sql-driver|github\.com/google/uuid|convert\.go|\*xorm' "$database" >&2
+  fail "shared database profile should not own Go adapter choices"
+fi
 
 # Public documentation exposes the same final reference catalog.
 claude_reference_section="$(sed -n '/^## References$/,$p' "$CLAUDE_ROOT/README.md")"

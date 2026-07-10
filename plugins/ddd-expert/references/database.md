@@ -1,6 +1,6 @@
 ---
 name: database
-description: Mandatory MySQL persistence house style for xorm adapters, schemas, SQL, indexes, concurrency, migrations, read models, integration state, and scale mechanisms.
+description: Language-neutral MySQL persistence house style for schemas, SQL, indexes, concurrency, migrations, read models, integration state, and scale mechanisms.
 ---
 
 # MySQL Persistence House Style
@@ -13,14 +13,14 @@ Use this reference whenever accepted Tactical Design requires MySQL persistence.
 - **[House Rule]** A mandatory implementation rule once its described scenario applies. An uncovered capability requires an explicit accepted technology or design decision; do not silently choose another convention or library.
 - **[Heuristic]** A fact-finding or capacity signal. It helps decide whether a scenario applies; it is not permission to ignore an applicable House Rule.
 
-The adopted stack is MySQL 8 with `xorm.io/xorm` and `github.com/go-sql-driver/mysql`. Verify the deployed MySQL minor version, InnoDB row format, SQL mode, topology, and migration tooling before relying on a version-dependent capability. That verification may select the supported execution mechanism; it does not weaken the schema and persistence rules below.
+The adopted database is MySQL 8. The active language House Style selects the adapter, connection API, and UUIDv7 implementation. Verify the deployed MySQL minor version, InnoDB row format, SQL mode, topology, and migration tooling before relying on a version-dependent capability. That verification may select the supported execution mechanism; it does not weaken the schema and persistence rules below.
 
 ## Navigation
 
 | Need | Section |
 |---|---|
 | Repository, QueryRepository, and Runtime ownership | Persistence Responsibilities |
-| Table names, standard columns, and physical types | Naming, Engine, and Encoding; Standard Columns; Physical Types |
+| Table names, standard columns, and physical types | Naming, Storage, and Encoding; Standard Columns; Physical Types |
 | Aggregate, read-model, integration, and process tables | Role-Specific Table Shapes |
 | Indexes, query shape, writes, and pagination | Index Design; SQL Shape |
 | Optimistic/pessimistic concurrency | Transactions and Concurrency |
@@ -34,27 +34,16 @@ The adopted stack is MySQL 8 with `xorm.io/xorm` and `github.com/go-sql-driver/m
 - **[House Rule]** A command-side Repository persists exactly one Aggregate Root and its owned state in one local transaction. Independent Aggregate changes require an accepted coordination design.
 - **[House Rule]** Lists, pages, history, reports, statistics, cross-Aggregate composition, denormalized views, and optimized projections use an Application-owned QueryRepository. A focused read of one reasonably sized Aggregate may use its Domain Repository when full reconstitution is appropriate and no distinct read semantics exist.
 - **[House Rule]** Integration tables, idempotency records, projection checkpoints, and process state are introduced only by an accepted flow. Once introduced, they use this file's naming, standard columns, types, indexes, migration, and concurrency rules.
-- **[House Rule]** Transport never queries tables or Repositories directly. Infrastructure owns xorm DOs and adapters; Runtime owns the shared engine lifecycle.
+- **[House Rule]** Transport never queries tables or Repositories directly. Infrastructure owns persistence records, mappings, and adapters; Runtime owns the shared connection-pool or database-client lifecycle.
 
-### Adopted Go Dependencies
+### Language Adapter Boundary
 
-```go
-import (
-    _ "github.com/go-sql-driver/mysql"
-    "xorm.io/xorm"
-)
+- **[House Rule]** Runtime validates the DSN, opens and verifies the database client, configures bounded connection pools, and closes it during shutdown.
+- **[House Rule]** Bounded-context Infrastructure receives an initialized database client, transaction factory, or equivalent language-specific capability; it does not load configuration or open a process-wide connection.
+- **[House Rule]** Use ordered SQL migrations for production schema changes. ORM metadata creation, auto-sync, and schema-push features are not deployment mechanisms.
+- **[House Rule]** Bind external values through the adopted adapter's parameter API. Never build SQL by concatenating input.
 
-func OpenEngine(dsn string) (*xorm.Engine, error) {
-    return xorm.NewEngine("mysql", dsn)
-}
-```
-
-- **[House Rule]** Runtime validates the DSN, opens and pings the engine, configures bounded connection pools, and closes the engine during shutdown.
-- **[House Rule]** Bounded-context Infrastructure receives an initialized `*xorm.Engine`; it does not load configuration or open a process-wide connection.
-- **[House Rule]** Use migrations for production schema changes. Do not use xorm auto-sync as a deployment mechanism.
-- **[House Rule]** Bind external values through xorm/driver parameters. Never build SQL by concatenating input.
-
-## 2. Naming, Engine, and Encoding
+## 2. Naming, Storage, and Encoding
 
 ### Identifiers
 
@@ -92,8 +81,8 @@ For a partitioned or sharded physical table, the primary key may include the rou
 `deleted_at` bigint NOT NULL DEFAULT '0' COMMENT 'Deletion time in Unix milliseconds; 0 means active'
 ```
 
-- **[House Rule]** Generate `id` as UUIDv7 in the application with `github.com/google/uuid` and store its canonical text in `varchar(36)`.
-- **[House Rule]** A new in-memory Aggregate has `Version == 0`; its `INSERT` explicitly writes stored `version = 1`. Rows created outside an Aggregate also start at stored version `1`.
+- **[House Rule]** Generate `id` as UUIDv7 before persistence through the accepted Domain creation path, or through the owning Application path for records that are not Domain objects, and store its canonical text in `varchar(36)`.
+- **[House Rule]** A new in-memory Aggregate has version `0`; its `INSERT` explicitly writes stored `version = 1`. Rows created outside an Aggregate also start at stored version `1`.
 - **[House Rule]** `created_at`, `updated_at`, and `deleted_at` use Unix milliseconds supplied by the application. `timestamp` and `datetime` are not used in this house style.
 - **[House Rule]** Active-row reads include `deleted_at = 0`. Reads of deleted data are explicit administrative, retention, audit, or recovery paths.
 - **[House Rule]** A soft delete is a version-checked update that sets `deleted_at`, `updated_at`, and increments `version`; it is not an unguarded flag update.
@@ -167,8 +156,8 @@ CREATE TABLE `sales_order` (
 ```
 
 - **[House Rule]** Owned child rows carry the root identity and a child identity or stable ordinal. Uniqueness and indexes reflect root ownership.
-- **[House Rule]** Infrastructure DOs contain xorm tags and storage-only fields; Domain Entities contain neither ORM tags nor storage timestamps.
-- **[House Rule]** `infrastructure/convert.go` performs explicit DO/Domain conversion for existing data. New objects use a Domain Factory, not a DO converter.
+- **[House Rule]** Infrastructure persistence records contain ORM mapping metadata and storage-only fields; Domain Entities contain neither ORM metadata nor storage timestamps.
+- **[House Rule]** The active language House Style owns explicit persistence-record/Domain conversion for existing data. New objects use a Domain Factory, not a persistence converter.
 
 ### CQRS Read Model
 
@@ -199,7 +188,7 @@ CREATE TABLE `order_summary` (
 
 These tables are conditional. Do not introduce them merely because the schema profile describes them.
 
-- **[House Rule]** When committed Aggregate state and publish intent must not diverge, an accepted outbox row is inserted in the same local xorm transaction as the Aggregate state. Its minimum business columns are `message_kind`, `message_version`, `payload`, `occurred_at`, `available_at`, `status`, `attempts`, and bounded error evidence in addition to the five standard columns.
+- **[House Rule]** When committed Aggregate state and publish intent must not diverge, an accepted outbox row is inserted in the same local database transaction as the Aggregate state. Its minimum business columns are `message_kind`, `message_version`, `payload`, `occurred_at`, `available_at`, `status`, `attempts`, and bounded error evidence in addition to the five standard columns.
 - **[House Rule]** When a local transactional consumer side effect must be idempotent, an accepted inbox/idempotency table enforces a consumer-scoped message or business key with a unique index and commits the record in the same local transaction. External RPC, broker, and file effects require a separate accepted idempotency or recovery protocol.
 - **[House Rule]** A durable Process Manager or orchestrated Saga stores its correlation key, process kind, current state, input/message checkpoint, next action or wake-up time, and terminal outcome in addition to the five standard columns. State changes use optimistic locking.
 - **[House Rule]** Pending-work scans use a concrete composite index that begins with equality state and availability predicates and ends with a deterministic tie-breaker such as `id`.
@@ -284,7 +273,7 @@ Do not assume a row-constructor range such as `(created_at, id) < (?, ?)` will p
 ### Optimistic Aggregate Lifecycle
 
 ```sql
--- New in-memory Aggregate Version == 0; stored row begins at 1.
+-- New in-memory Aggregate version == 0; stored row begins at 1.
 INSERT INTO sales_order (
   id, order_no, user_id, merchant_id, status,
   amount_minor, currency, paid_at, remark,
@@ -298,22 +287,9 @@ WHERE id = ? AND version = ? AND deleted_at = 0;
 ```
 
 - **[House Rule]** The Repository checks affected rows. An update count other than one maps to a stable concurrency-conflict error; do not hide it as not-found or success.
-- **[House Rule]** `Repository.Save` does not increment the in-memory Aggregate version. After a successful Save, the instance is stale: Application may assemble a result and drain already-recorded events, but it must not expose the stale Version as the newly persisted concurrency token, mutate, or save that instance again. A later transaction reloads it.
-- **[House Rule]** An Aggregate spanning several owned tables uses one `*xorm.Session` transaction. All writes succeed or roll back together.
-
-```go
-affected, err := session.Where(
-    "id = ? AND version = ? AND deleted_at = 0",
-    aggregate.ID,
-    aggregate.Version,
-).Incr("version").Cols("status", "updated_at").Update(data)
-if err != nil {
-    return err // Infrastructure wraps once with owned operation context.
-}
-if affected != 1 {
-    return domain.ErrConcurrentModification
-}
-```
+- **[House Rule]** Repository save does not increment the in-memory Aggregate version. After a successful save, the instance is stale: Application may assemble a result and drain already-recorded events, but it must not expose the stale version as the newly persisted concurrency token, mutate, or save that instance again. A later transaction reloads it.
+- **[House Rule]** An Aggregate spanning several owned tables uses one local database transaction. All writes succeed or roll back together.
+- **[House Rule]** The adapter binds the identity, loaded version, and active-row predicate, performs the increment in SQL, checks the affected-row count, and translates provider failures at its owned boundary. Language-specific syntax belongs in the active language House Style.
 
 ### Pessimistic Locking
 
@@ -384,7 +360,7 @@ MySQL requires every unique key on a partitioned table to include every column u
 
 ## 11. Required Verification
 
-- **[House Rule]** Repository integration tests run against MySQL and cover insert version `1`, update comparison/increment, affected-row conflict mapping, active-row filtering, owned-table rollback, and DO conversion.
+- **[House Rule]** Repository integration tests run against MySQL and cover insert version `1`, update comparison/increment, affected-row conflict mapping, active-row filtering, owned-table rollback, and persistence-record/Domain conversion.
 - **[House Rule]** QueryRepository integration tests cover real column selection, filters, stable ordering, pagination boundaries, and read-model mapping.
 - **[House Rule]** Applicable outbox, inbox, projection, or process-state tests cover atomic persistence, uniqueness/idempotency, duplicate delivery, out-of-order evidence, and pending-work index paths.
 - **[House Rule]** Schema review checks naming, five standard columns, types, comments, collation, index caps, redundant indexes, migration compatibility, and representative query plans.
@@ -394,6 +370,8 @@ MySQL requires every unique key on a partitioned table to include every column u
 - [`ddd-modeling.md`](ddd-modeling.md) for ownership, lifecycle, and Aggregate boundaries.
 - [`ddd-core.md`](ddd-core.md) for Repository, CQRS, and transaction semantics.
 - [`ddd-collaboration.md`](ddd-collaboration.md) for durable handoff, idempotency, and Process Manager semantics.
-- [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) for xorm DO conversion and Repository adapters.
+- [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) for Go persistence-record conversion and Repository adapters.
 - [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) for Application QueryRepository contracts.
 - [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) for conditional outbox and consumer flows.
+- [`ddd-python.md`](ddd-python.md) for Python persistence mapping, conversion, and Repository adapters.
+- [`ddd-typescript.md`](ddd-typescript.md) for TypeScript persistence mapping, conversion, and Repository adapters.

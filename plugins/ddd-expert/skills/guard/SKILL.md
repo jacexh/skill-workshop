@@ -85,4 +85,11 @@ Report only non-clear outcomes. Put findings first by architectural severity, wi
 
 ## References
 
-Start with the compact baselines in this skill. Do not load [../../references/ddd-core.md](../../references/ddd-core.md) wholesale before breadth. During depth, load only the rule owner and specialized section required by an investigating family: [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for missing model evidence; [../../references/ddd-core.md](../../references/ddd-core.md) for tactical ownership; [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for event, message, or cross-context evidence; the active language guide ([../../references/ddd-golang.md](../../references/ddd-golang.md), [../../references/ddd-python.md](../../references/ddd-python.md), or [../../references/ddd-typescript.md](../../references/ddd-typescript.md)) for triggered code; [../../references/database.md](../../references/database.md) for persistence evidence; and the active language sections for generated, event/message, taskqueue, or runtime evidence.
+- Start breadth with the compact baselines in this skill. Do not load a language guide or [../../references/ddd-core.md](../../references/ddd-core.md) wholesale.
+- During depth, load only the rule owner required by the investigating family.
+- Use [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for missing model evidence.
+- Use [../../references/ddd-core.md](../../references/ddd-core.md) for tactical ownership.
+- Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for event, message, or cross-context evidence.
+- For triggered Go code, start with [../../references/ddd-golang.md](../../references/ddd-golang.md), then follow only the layer, flow, or platform leaf that owns the hypothesis.
+- For triggered Python or TypeScript code, load only the relevant section of compact [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
+- Load [../../references/database.md](../../references/database.md) independently for persistence evidence.

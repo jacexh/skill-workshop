@@ -51,4 +51,6 @@ Keep the final response short. Do not paste the model unless asked.
 
 ## References
 
-After project evidence exposes a material hotspot, load only the relevant section of [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for language, authority, lifecycle, invariant, failure-tolerance, subdomain, bounded-context, Aggregate, or coordination analysis. Do not load implementation, language, runtime, database, or `ddd-core.md` references during `explore`.
+- Load references only after project evidence exposes a material hotspot.
+- Use only the relevant section of [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for language, authority, lifecycle, invariant, failure tolerance, subdomain, bounded-context, Aggregate, or coordination analysis.
+- Do not load implementation, language, runtime, database, or `ddd-core.md` references during `explore`.

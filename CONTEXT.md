@@ -79,7 +79,7 @@ A codebase that demonstrates the intended architectural direction and supplies r
 _Avoid_: canonical specification, incidental implementation
 
 **Published Fact Contract**:
-A versioned Integration Message contract owned by the bounded context authoritative for the fact. The producing Application may translate an internal Domain Event into its own generated Published Fact Contract and publish it through the provider-neutral `message.Publisher` port.
+A versioned Integration Message contract owned by the bounded context authoritative for the fact. The producing Application may translate an internal Domain Event into its own generated Published Fact Contract and submit it through the active language's provider-neutral publisher port.
 _Avoid_: shared Domain Event, broker event type
 
 **Asynchronous Intent Contract**:
@@ -95,11 +95,11 @@ A read-only Application use case that loads exactly one Aggregate through its Do
 _Avoid_: product read model, universal non-CQRS shortcut
 
 **Application Assembler**:
-The pure mapping code in a bounded context's `application/assembler.go` that converts existing Application DTO state to and from a Domain Entity. It does not create a new Aggregate in place of a Domain Factory or map protocol and persistence types.
+The pure mapping code in a bounded context's Application layer that converts existing Application DTO state to and from a Domain Entity. Its physical module follows the active language guide. It does not create a new Aggregate in place of a Domain Factory or map protocol and persistence types.
 _Avoid_: Domain Factory, protocol mapper, persistence converter
 
 **Infrastructure Converter**:
-The pure mapping code in `infrastructure/convert.go` that converts existing persistence Data Objects to and from Domain Entities. It performs no business decisions, I/O, logging, or transaction control.
+The pure mapping code in a bounded context's Infrastructure layer that converts existing persistence representations to and from Domain Entities. Its physical module follows the active language guide. It performs no business decisions, I/O, logging, or transaction control.
 _Avoid_: Application Assembler, ORM Entity
 
 **Stale Aggregate Instance**:
@@ -107,15 +107,15 @@ An Aggregate instance after successful Repository `Save`: its existing state may
 _Avoid_: unusable result, automatically refreshed Aggregate
 
 **Application Use-case Registry**:
-The protocol-neutral `application.Application` for one bounded context. It exposes every Command Handler through its `Commands` group and every Query Handler through its `Queries` group without implementing protocol adapters or duplicating their `Handle` methods.
+A protocol-neutral grouped use-case registry for one bounded context. The active language guide defines its physical module and API shape. It exposes Command Handlers through a Commands group and Query Handlers through a Queries group without implementing protocol adapters or duplicating handler methods.
 _Avoid_: service locator, generated RPC service
 
 **Internal Task Contract**:
-A versioned, provider-neutral task type and payload owned by one bounded context under `application/task`. It describes internal deferred Application work and is never a cross-context collaboration contract.
+A versioned, provider-neutral task type and payload owned by one bounded context's Application layer. Its physical module follows the active language guide. It describes internal deferred Application work and is never a cross-context collaboration contract.
 _Avoid_: Integration Message, Asynq job type
 
 **Task Processor**:
-The inbound adapter under `transport/taskprocessor` that decodes one Internal Task Contract, maps it to one Application Command, and maps its outcome to the go-jimu taskqueue completion, retry, or skip contract.
+The inbound Transport adapter that decodes one Internal Task Contract, maps it to one Application Command, and maps its outcome to the active language's task-provider completion, retry, or skip contract.
 _Avoid_: Application use case, scheduler callback
 
 **Execution Completion Log**:

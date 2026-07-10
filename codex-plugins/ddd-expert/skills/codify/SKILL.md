@@ -55,4 +55,10 @@ Keep the final response focused on changed files, verification, and residual ris
 
 ## References
 
-After surface classification, load the smallest relevant sections. Infer the active language from touched files; use Go house style when the backend language choice is open. For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md) and follow its router. Use [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md) only for an existing project in that language. Load the relevant section of [../../references/ddd-core.md](../../references/ddd-core.md) when tactical ownership must be checked, [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for event, message, or cross-context work, and [../../references/database.md](../../references/database.md) for schema, migration, index, SQL, or persistence work. Load only the active language sections for Domain, Application, Transport, CQRS, Infrastructure, events/messages, taskqueue, runtime, scaffold, or generated-code surfaces that are actually touched.
+- After surface classification, load the smallest relevant sections.
+- Infer the active language from the accepted choice and touched files. Use Go House Style only when the backend language remains open.
+- For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md) and follow only the router leaves for touched Domain, Application, Transport, CQRS, Infrastructure, events/messages, taskqueue, Runtime, scaffold, or generated-code surfaces.
+- For Python or TypeScript, load only the sections for touched surfaces from the compact [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md) guide.
+- Load the relevant section of [../../references/ddd-core.md](../../references/ddd-core.md) when tactical ownership must be checked.
+- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for event, message, or cross-context work.
+- Load [../../references/database.md](../../references/database.md) for schema, migration, index, SQL, or persistence work.
