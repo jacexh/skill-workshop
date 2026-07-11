@@ -13,7 +13,7 @@
     "verdicts": [
       {
         "kind": "violation",
-        "family": "aggregate_boundary",
+        "families_any": ["aggregate_boundary", "repository_shape"],
         "evidence_paths": ["internal/checkout/domain/repository.go"]
       }
     ],

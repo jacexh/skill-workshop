@@ -237,8 +237,15 @@ function validateCase(caseDir, config) {
     fail(`${config.id}.expect.verdicts must be an array`, 2);
   }
   for (const verdict of expect.verdicts) {
-    if (!hasOnlyKeys(verdict, ["kind", "family", "evidence_paths"]) || !["violation", "evidence_gap"].includes(verdict.kind) || !VERDICT_FAMILIES.includes(verdict.family)) {
+    const hasFamily = typeof verdict.family === "string";
+    const hasFamilyAlternatives = "families_any" in verdict;
+    if (!hasOnlyKeys(verdict, ["kind", "family", "families_any", "evidence_paths"]) || !["violation", "evidence_gap"].includes(verdict.kind) || hasFamily === hasFamilyAlternatives) {
       fail(`${config.id}: invalid expected verdict`, 2);
+    }
+    const families = hasFamily ? [verdict.family] : verdict.families_any;
+    stringArray(families, `${config.id}.expect.verdicts.families_any`, false);
+    if ((hasFamilyAlternatives && families.length < 2) || families.some((family) => !VERDICT_FAMILIES.includes(family)) || new Set(families).size !== families.length) {
+      fail(`${config.id}: invalid expected verdict family`, 2);
     }
     stringArray(verdict.evidence_paths, `${config.id}.expect.verdicts.evidence_paths`);
   }
@@ -613,12 +620,13 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
   }
 
   for (const expectedVerdict of expect.verdicts) {
-    const candidates = result.verdicts.filter((verdict) => verdict.kind === expectedVerdict.kind && verdict.family === expectedVerdict.family);
+    const expectedFamilies = expectedVerdict.family ? [expectedVerdict.family] : expectedVerdict.families_any;
+    const candidates = result.verdicts.filter((verdict) => verdict.kind === expectedVerdict.kind && expectedFamilies.includes(verdict.family));
     const matching = candidates.find((candidate) => expectedVerdict.evidence_paths.every((expectedPath) =>
       candidate.evidence.some((evidence) => pathMatches(evidence.path, expectedPath))
     ));
     assertions.push(assertion(
-      `verdict ${expectedVerdict.kind}/${expectedVerdict.family}`,
+      `verdict ${expectedVerdict.kind}/${expectedFamilies.join("|")}`,
       Boolean(matching),
       matching ? "matched" : `no matching verdict with evidence ${expectedVerdict.evidence_paths.join(",") || "(none required)"}`,
     ));
@@ -1129,6 +1137,26 @@ function selfTestCommand() {
     };
     if (scoreResult(loadedCase, wrongFamily, workspace, scoreOptions).passed) {
       fail("scorer accepted a verdict from the wrong reason family", 2);
+    }
+    const alternativeFamilyCase = {
+      ...loadedCase,
+      config: {
+        ...loadedCase.config,
+        expect: {
+          ...loadedCase.config.expect,
+          verdicts: [{ kind: "violation", families_any: ["aggregate_boundary", "repository_shape"], evidence_paths: ["internal/repository.go"] }],
+        },
+      },
+    };
+    const alternativeFamilyResult = {
+      ...good,
+      verdicts: [{ ...good.verdicts[0], family: "repository_shape" }],
+    };
+    if (!scoreResult(alternativeFamilyCase, alternativeFamilyResult, workspace, scoreOptions).passed) {
+      fail("scorer rejected a declared equivalent reason family", 2);
+    }
+    if (scoreResult(alternativeFamilyCase, wrongFamily, workspace, scoreOptions).passed) {
+      fail("scorer accepted a reason family outside the declared alternatives", 2);
     }
     const invalidLine = {
       ...good,

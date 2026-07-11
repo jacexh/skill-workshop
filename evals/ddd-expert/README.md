@@ -119,9 +119,11 @@ that requires the upstream-owned fact or intent, downstream local meaning, and
 contract authority before either context's local lifecycle is explored.
 
 Run `validate`, `self-test`, and `doctor`, then run the new case at least three
-times. Guard cases assert both a stable reason family and concrete evidence.
-The case expectation is the one-time maintainer judgment. Normal regression
-runs do not require manual scoring.
+times. Guard cases assert both a reason family and concrete evidence. Prefer one
+exact `family`; use `families_any` only when the fixture itself cannot distinguish
+equivalent root-cause and implementation-surface classifications. The case
+expectation is the one-time maintainer judgment. Normal regression runs do not
+require manual scoring.
 
 Do not copy fixture-specific issue names into the generic plugin instructions.
 Fix repeated misses at the highest reusable reasoning level, then rerun the
