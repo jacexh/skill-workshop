@@ -2,7 +2,10 @@ package domain
 
 import "errors"
 
-var ErrCannotCancel = errors.New("order cannot be cancelled")
+var (
+	ErrCannotCancel  = errors.New("order cannot be cancelled")
+	ErrCannotFulfill = errors.New("order cannot be fulfilled")
+)
 
 type Status string
 
@@ -33,6 +36,10 @@ func (o *Order) Cancel() error {
 	return nil
 }
 
-func (o *Order) Fulfill() {
+func (o *Order) Fulfill() error {
+	if o.status != StatusAccepted {
+		return ErrCannotFulfill
+	}
 	o.status = StatusFulfilled
+	return nil
 }

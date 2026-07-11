@@ -17,7 +17,7 @@
     },
     "review_conclusion": {
       "type": "string",
-      "enum": ["not_applicable", "clear", "violations", "evidence_gaps"]
+      "enum": ["not_applicable", "clear", "violations", "evidence_gaps", "incomplete"]
     },
     "questions": {
       "type": "array",

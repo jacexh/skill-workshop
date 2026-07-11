@@ -1,2 +1,5 @@
-Review the current Order implementation against the accepted DDD artifacts.
-Report only conclusions supported by current authority and do not edit files.
+Review only the supplied Order Domain lifecycle implementation against the
+accepted DDD artifacts. This snapshot makes no Application, persistence, or
+Runtime completion claim. Determine whether the current Tactical Design is
+valid authority for this lifecycle review, report only supported conclusions,
+and do not edit files.

@@ -13,6 +13,11 @@ approved expectations, and the runner scores:
 - required or forbidden file content;
 - real post-run verification commands.
 
+A Guard execution whose required axis workers cannot complete reports
+`completion: stopped` and `review_conclusion: incomplete`, with no DDD verdict
+or phase route. This keeps execution failures distinct from authority or
+verification evidence gaps.
+
 ## Commands
 
 Validate the fixtures and scorer without calling a model:
@@ -61,9 +66,14 @@ At startup the runner freezes the selected cases, response schema, minimal
 marketplace, and current `codex-plugins/ddd-expert` source. It verifies that the
 installed plugin hash matches that snapshot. Each trial receives a fresh
 workspace, Git baseline, and independent `CODEX_HOME`; the plugin cache and
-minimal marketplace are mounted read-only. Expected answers never enter the
-model container. Temporary homes, including the copied Codex login, are always
-removed.
+minimal marketplace are mounted read-only. The trial is intentionally
+non-ephemeral inside that disposable home because Codex collaboration requires
+a registered root thread. Expected answers never enter the model container.
+Temporary homes, including the copied Codex login, are always removed.
+
+Collaboration events in the retained trace are diagnostic only. The evaluated
+process can write its own output channels, so the runner does not treat those
+events as a tamper-proof topology attestation or use them as scoring evidence.
 
 The model call and post-run checks run in the checked-in Docker image. Codex's
 internal sandbox is disabled only inside a capability-dropped, read-only-root
