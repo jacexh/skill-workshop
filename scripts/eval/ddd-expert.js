@@ -172,15 +172,41 @@ function validateCase(caseDir, config) {
     }
   }
   stringArray(expect.completion, `${config.id}.expect.completion`, false);
-  if (expect.completion.some((item) => !["completed", "stopped", "needs_clarification"].includes(item))) {
+  if (expect.completion.some((item) => !["completed", "checkpointed", "stopped", "needs_clarification"].includes(item))) {
     fail(`${config.id}: invalid expected completion`, 2);
+  }
+  if (config.phase !== "explore" && expect.completion.includes("checkpointed")) {
+    fail(`${config.id}: checkpointed completion is valid only for Explore`, 2);
   }
   stringArray(expect.review_conclusion, `${config.id}.expect.review_conclusion`, false);
   if (expect.review_conclusion.some((item) => !["not_applicable", "clear", "violations", "evidence_gaps", "incomplete"].includes(item))) {
     fail(`${config.id}: invalid expected review conclusion`, 2);
   }
-  if (!hasOnlyKeys(expect.questions, ["min", "max"]) || !Number.isInteger(expect.questions.min) || !Number.isInteger(expect.questions.max) || expect.questions.min < 0 || expect.questions.max < expect.questions.min) {
+  const questionExpectationKeys = ["min", "max", "contains", "contains_any", "excludes"];
+  if (!hasOnlyKeys(expect.questions, questionExpectationKeys) || !Number.isInteger(expect.questions.min) || !Number.isInteger(expect.questions.max) || expect.questions.min < 0 || expect.questions.max < expect.questions.min) {
     fail(`${config.id}.expect.questions must define valid integer min/max`, 2);
+  }
+  for (const key of ["contains", "excludes"]) {
+    if (key in expect.questions) {
+      stringArray(expect.questions[key], `${config.id}.expect.questions.${key}`, false);
+      if (expect.questions[key].some((item) => normalizeSemanticText(item).length === 0)) {
+        fail(`${config.id}.expect.questions.${key} must contain semantic text`, 2);
+      }
+    }
+  }
+  if ("contains_any" in expect.questions) {
+    if (!Array.isArray(expect.questions.contains_any) || expect.questions.contains_any.length === 0) {
+      fail(`${config.id}.expect.questions.contains_any must be a non-empty array of groups`, 2);
+    }
+    for (const [index, group] of expect.questions.contains_any.entries()) {
+      stringArray(group, `${config.id}.expect.questions.contains_any[${index}]`, false);
+      if (group.some((item) => normalizeSemanticText(item).length === 0)) {
+        fail(`${config.id}.expect.questions.contains_any[${index}] must contain semantic text`, 2);
+      }
+    }
+  }
+  if (questionExpectationKeys.slice(2).some((key) => key in expect.questions) && expect.questions.min < 1) {
+    fail(`${config.id}.expect.questions semantic expectations require min >= 1`, 2);
   }
   if (!hasOnlyKeys(expect.routes, ["contains", "excludes"])) {
     fail(`${config.id}.expect.routes must be an object`, 2);
@@ -281,8 +307,10 @@ function validateResultShape(result) {
   if (!["explore", "shape", "codify", "guard"].includes(result.phase)) {
     errors.push("phase is invalid");
   }
-  if (!["completed", "stopped", "needs_clarification"].includes(result.completion)) {
+  if (!["completed", "checkpointed", "stopped", "needs_clarification"].includes(result.completion)) {
     errors.push("completion is invalid");
+  } else if (result.completion === "checkpointed" && result.phase !== "explore") {
+    errors.push("checkpointed completion is valid only for Explore");
   }
   if (!["not_applicable", "clear", "violations", "evidence_gaps", "incomplete"].includes(result.review_conclusion)) {
     errors.push("review_conclusion is invalid");
@@ -468,6 +496,10 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function normalizeSemanticText(value) {
+  return value.normalize("NFKC").toLowerCase().replace(/\s+/gu, " ").trim();
+}
+
 function scoreResult(loadedCase, result, workspace, options = {}) {
   const { config } = loadedCase;
   const expect = config.expect;
@@ -491,6 +523,29 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
     result.questions.length >= expect.questions.min && result.questions.length <= expect.questions.max,
     `got ${result.questions.length}, expected ${expect.questions.min}..${expect.questions.max}`,
   ));
+  const firstQuestion = result.questions[0] || "";
+  const normalizedFirstQuestion = normalizeSemanticText(firstQuestion);
+  for (const needle of expect.questions.contains || []) {
+    assertions.push(assertion(
+      `first question contains ${needle}`,
+      normalizedFirstQuestion.includes(normalizeSemanticText(needle)),
+      `got ${firstQuestion || "(none)"}`,
+    ));
+  }
+  for (const group of expect.questions.contains_any || []) {
+    assertions.push(assertion(
+      `first question contains any of ${group.join(" | ")}`,
+      group.some((needle) => normalizedFirstQuestion.includes(normalizeSemanticText(needle))),
+      `got ${firstQuestion || "(none)"}`,
+    ));
+  }
+  for (const needle of expect.questions.excludes || []) {
+    assertions.push(assertion(
+      `first question excludes ${needle}`,
+      !normalizedFirstQuestion.includes(normalizeSemanticText(needle)),
+      `got ${firstQuestion || "(none)"}`,
+    ));
+  }
 
   const routeTargets = result.routes.map((route) => route.target);
   for (const target of expect.routes.contains) {
@@ -960,6 +1015,10 @@ function validateCommand() {
 function selfTestCommand() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ddd-expert-scorer-"));
   try {
+    const completionEnum = readJson(RESULT_SCHEMA).properties?.completion?.enum;
+    if (!Array.isArray(completionEnum) || !completionEnum.includes("checkpointed")) {
+      fail("result schema rejected the checkpointed Explore completion", 2);
+    }
     const workspace = path.join(tempRoot, "workspace");
     fs.mkdirSync(path.join(workspace, "internal"), { recursive: true });
     fs.writeFileSync(path.join(workspace, "internal", "repository.go"), "package internal\n");
@@ -1005,6 +1064,29 @@ function selfTestCommand() {
     if (!goodGrade.passed) {
       fail(`scorer rejected passing result: ${JSON.stringify(goodGrade.assertions)}`, 2);
     }
+    const invalidCompletionCaseDir = path.join(tempRoot, "guard-checkpointed");
+    fs.mkdirSync(path.join(invalidCompletionCaseDir, "workspace"), { recursive: true });
+    fs.writeFileSync(path.join(invalidCompletionCaseDir, "prompt.md"), "Guard the implementation.\n");
+    let rejectedInvalidCompletionCase = false;
+    try {
+      validateCase(invalidCompletionCaseDir, {
+        id: "guard-checkpointed",
+        phase: "guard",
+        suites: ["smoke"],
+        sandbox: "read-only",
+        prompt: "prompt.md",
+        workspace: "workspace",
+        expect: { ...loadedCase.config.expect, completion: ["checkpointed"] },
+      });
+    } catch (error) {
+      rejectedInvalidCompletionCase = error.exitCode === 2 && error.message.includes("checkpointed completion is valid only for Explore");
+    }
+    if (!rejectedInvalidCompletionCase) {
+      fail("case validator accepted checkpointed outside Explore", 2);
+    }
+    if (validateResultShape({ ...good, completion: "checkpointed" }).length === 0) {
+      fail("result validator accepted checkpointed outside Explore", 2);
+    }
     const wrongFamily = {
       ...good,
       verdicts: [{ ...good.verdicts[0], family: "layer_boundary", summary: "tabs instead of spaces" }],
@@ -1023,6 +1105,80 @@ function selfTestCommand() {
     if (scoreResult(loadedCase, extraReportedFile, workspace, scoreOptions).passed) {
       fail("scorer accepted an unobserved reported file", 2);
     }
+    const exploreCase = {
+      ...loadedCase,
+      config: {
+        ...loadedCase.config,
+        phase: "explore",
+        expect: {
+          ...loadedCase.config.expect,
+          review_conclusion: ["not_applicable"],
+          questions: {
+            min: 1,
+            max: 1,
+            contains: ["authority"],
+            contains_any: [["payment", "支付"], ["captured", "settled"]],
+            excludes: ["order"],
+          },
+          routes: { contains: [], excludes: ["shape"] },
+          verdicts: [],
+          forbid_verdicts: ["violation", "evidence_gap"],
+        },
+      },
+    };
+    const goodExplore = {
+      ...good,
+      phase: "explore",
+      review_conclusion: "not_applicable",
+      questions: ["Which Ｐａｙｍｅｎｔ\nauthority distinguishes CAPTURED from authorized or settled states?"],
+      routes: [],
+      verdicts: [],
+    };
+    const requireExploreGrade = (caseToScore, resultToScore, expected, message) => {
+      const grade = scoreResult(caseToScore, resultToScore, workspace, scoreOptions);
+      if (grade.passed !== expected) {
+        fail(`${message}: ${JSON.stringify(grade.assertions)}`, 2);
+      }
+    };
+    requireExploreGrade(exploreCase, goodExplore, true, "scorer rejected a normalized semantic first question");
+    const checkpointedExplore = { ...goodExplore, completion: "checkpointed" };
+    if (validateResultShape(checkpointedExplore).length > 0) {
+      fail("result validator rejected a checkpointed Explore result", 2);
+    }
+    const checkpointedExploreCase = {
+      ...exploreCase,
+      config: {
+        ...exploreCase.config,
+        expect: { ...exploreCase.config.expect, completion: ["checkpointed"] },
+      },
+    };
+    requireExploreGrade(checkpointedExploreCase, checkpointedExplore, true, "scorer rejected a checkpointed Explore result");
+    for (const [message, question] of [
+      ["scorer accepted a first question from the wrong bounded context", "How should the Order react after payment succeeds?"],
+      ["scorer ignored a required semantic term", "Which Payment decision distinguishes captured from settled states?"],
+      ["scorer ignored an alternative group", "Which Payment authority defines an authorized state?"],
+      ["scorer ignored a forbidden semantic term", "Which Payment authority distinguishes captured states for Order?"],
+    ]) {
+      requireExploreGrade(exploreCase, { ...goodExplore, questions: [question] }, false, message);
+    }
+    const lateSemanticMatchCase = {
+      ...exploreCase,
+      config: {
+        ...exploreCase.config,
+        expect: {
+          ...exploreCase.config.expect,
+          questions: { ...exploreCase.config.expect.questions, max: 2 },
+        },
+      },
+    };
+    const lateSemanticMatch = {
+      ...goodExplore,
+      questions: [
+        "How should Order react after payment succeeds?",
+        "Which Payment authority distinguishes captured from settled states?",
+      ],
+    };
+    requireExploreGrade(lateSemanticMatchCase, lateSemanticMatch, false, "scorer accepted a semantic match after the first question");
     const incomplete = {
       ...good,
       completion: "stopped",

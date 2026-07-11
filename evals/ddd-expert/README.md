@@ -96,6 +96,15 @@ Keep a case focused on one risk. Add a directory under `cases/` containing:
 - `prompt.md`: the user request, without expected-answer hints;
 - `workspace/`: the smallest project evidence needed to decide the case.
 
+For discovery-order risks, `expect.questions.contains`, `contains_any`, and
+`excludes` score only the first question after Unicode and whitespace
+normalization. Each `contains_any` group requires one alternative, so a case can
+require both the owning context and one of several valid lifecycle terms without
+locking the model to one sentence.
+
+Explore may report `completion: checkpointed` when it writes an accepted local
+closure and continues discovery without routing to Shape.
+
 Run `validate`, `self-test`, and `doctor`, then run the new case at least three
 times. Guard cases assert both a stable reason family and concrete evidence.
 The case expectation is the one-time maintainer judgment. Normal regression

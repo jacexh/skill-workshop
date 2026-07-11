@@ -1,0 +1,59 @@
+{
+  "id": "explore-checkpoint-context",
+  "phase": "explore",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["checkpointed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 1,
+      "contains_any": [
+        ["Order", "订单"],
+        ["fulfill", "履约", "inventory", "库存", "fraud", "风控"]
+      ],
+      "excludes": [
+        "what does payment mean",
+        "which payment milestone",
+        "payment lifecycle"
+      ]
+    },
+    "routes": { "contains": [], "excludes": ["shape", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": [
+        "docs/ddd-expert/context/payment/model.md"
+      ],
+      "forbidden_paths": [
+        "docs/story.md",
+        "docs/payment-capture-decision.md",
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/order/model.md",
+        "docs/ddd-expert/context/payment/design.md",
+        "docs/ddd-expert/context/order/design.md"
+      ]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/payment/model.md",
+        "exists": true,
+        "contains": [
+          "model_revision: 2",
+          "Payment Capture",
+          "Payment Captured",
+          "Capture Rejected",
+          "Capture Expired"
+        ],
+        "excludes": ["CREATE TABLE", "<!--"],
+        "excludes_words": ["Repository", "handler"]
+      }
+    ],
+    "checks": []
+  }
+}
