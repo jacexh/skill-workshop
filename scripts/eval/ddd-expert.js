@@ -176,7 +176,7 @@ function validateCase(caseDir, config) {
     fail(`${config.id}: invalid expected completion`, 2);
   }
   stringArray(expect.review_conclusion, `${config.id}.expect.review_conclusion`, false);
-  if (expect.review_conclusion.some((item) => !["not_applicable", "clear", "violations", "evidence_gaps"].includes(item))) {
+  if (expect.review_conclusion.some((item) => !["not_applicable", "clear", "violations", "evidence_gaps", "incomplete"].includes(item))) {
     fail(`${config.id}: invalid expected review conclusion`, 2);
   }
   if (!hasOnlyKeys(expect.questions, ["min", "max"]) || !Number.isInteger(expect.questions.min) || !Number.isInteger(expect.questions.max) || expect.questions.min < 0 || expect.questions.max < expect.questions.min) {
@@ -284,7 +284,7 @@ function validateResultShape(result) {
   if (!["completed", "stopped", "needs_clarification"].includes(result.completion)) {
     errors.push("completion is invalid");
   }
-  if (!["not_applicable", "clear", "violations", "evidence_gaps"].includes(result.review_conclusion)) {
+  if (!["not_applicable", "clear", "violations", "evidence_gaps", "incomplete"].includes(result.review_conclusion)) {
     errors.push("review_conclusion is invalid");
   }
   for (const key of ["questions", "routes", "verdicts", "changed_files", "verification"]) {
@@ -327,13 +327,15 @@ function validateResultShape(result) {
   if (result.phase === "guard") {
     const kinds = Array.isArray(result.verdicts) ? result.verdicts.map((verdict) => verdict.kind) : [];
     if (result.review_conclusion === "not_applicable") {
-      errors.push("guard review_conclusion must be clear, violations, or evidence_gaps");
+      errors.push("guard review_conclusion must be clear, violations, evidence_gaps, or incomplete");
     } else if (result.review_conclusion === "clear" && kinds.length > 0) {
       errors.push("a clear guard review must not contain verdicts");
     } else if (result.review_conclusion === "violations" && !kinds.includes("violation")) {
       errors.push("violations conclusion requires a violation verdict");
     } else if (result.review_conclusion === "evidence_gaps" && (!kinds.includes("evidence_gap") || kinds.includes("violation"))) {
       errors.push("evidence_gaps conclusion requires evidence gaps and no violations");
+    } else if (result.review_conclusion === "incomplete" && (result.completion !== "stopped" || kinds.length > 0 || (Array.isArray(result.routes) && result.routes.length > 0))) {
+      errors.push("incomplete conclusion requires stopped completion with no verdicts or routes");
     }
   } else if (result.review_conclusion !== "not_applicable" || (Array.isArray(result.verdicts) && result.verdicts.length > 0)) {
     errors.push("non-guard results must use not_applicable with no verdicts");
@@ -622,7 +624,7 @@ function buildPrompt(loadedCase) {
     "Follow the skill normally, including edits or verification when the scenario calls for them.",
     "Your final response must conform to the supplied JSON schema.",
     `Set scenario_id to ${loadedCase.config.id} and phase to ${loadedCase.config.phase}.`,
-    `Set review_conclusion to ${loadedCase.config.phase === "guard" ? "clear, violations, or evidence_gaps" : "not_applicable"}.`,
+    `Set review_conclusion to ${loadedCase.config.phase === "guard" ? "clear, violations, evidence_gaps, or incomplete when required workers cannot complete" : "not_applicable"}.`,
     "Use questions only for questions that must be answered before work can continue.",
     "Use routes only for an explicit phase handoff required by the named skill.",
     "For guard, classify each violation or evidence gap with the closest schema-defined family.",
@@ -737,7 +739,7 @@ function runContainerCheck(check, workspace, context) {
   const gid = typeof process.getgid === "function" ? process.getgid() : 1000;
   return runCommand([
     "docker", "run", "--rm", "--network", "none", "--read-only",
-    "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m",
+    "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=256m",
     "--cap-drop=ALL", "--security-opt", "no-new-privileges",
     "--user", `${uid}:${gid}`,
     "-e", "HOME=/tmp/eval-home", "-e", "GOCACHE=/tmp/go-build",
@@ -762,9 +764,10 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
   const authFile = path.join(trialCodexHome, "auth.json");
 
   const resultFile = path.join(modelOutput, "result.json");
+  // Collaboration resolves child workers through the registered root thread.
+  // The disposable per-trial CODEX_HOME provides isolation without --ephemeral.
   const codexArgs = [
     "exec",
-    "--ephemeral",
     "--ignore-rules",
     "--output-schema",
     "/eval/result.schema.json",
@@ -789,7 +792,7 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
   const containerPluginCache = `/eval-home/${context.pluginCacheRelative.split(path.sep).join("/")}`;
   const executionArgs = [
     "docker", "run", "--rm", "-i", "--read-only",
-    "--tmpfs", "/tmp:rw,nosuid,nodev,size=256m",
+    "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=256m",
     "--cap-drop=ALL", "--security-opt", "no-new-privileges",
     "--user", `${uid}:${gid}`,
     "-e", "HOME=/eval-home", "-e", "CODEX_HOME=/eval-home",
@@ -997,7 +1000,8 @@ function selfTestCommand() {
       changed_files: [],
       verification: [],
     };
-    const goodGrade = scoreResult(loadedCase, good, workspace, { baseline });
+    const scoreOptions = { baseline };
+    const goodGrade = scoreResult(loadedCase, good, workspace, scoreOptions);
     if (!goodGrade.passed) {
       fail(`scorer rejected passing result: ${JSON.stringify(goodGrade.assertions)}`, 2);
     }
@@ -1005,23 +1009,44 @@ function selfTestCommand() {
       ...good,
       verdicts: [{ ...good.verdicts[0], family: "layer_boundary", summary: "tabs instead of spaces" }],
     };
-    if (scoreResult(loadedCase, wrongFamily, workspace, { baseline }).passed) {
+    if (scoreResult(loadedCase, wrongFamily, workspace, scoreOptions).passed) {
       fail("scorer accepted a verdict from the wrong reason family", 2);
     }
     const invalidLine = {
       ...good,
       verdicts: [{ ...good.verdicts[0], evidence: [{ ...good.verdicts[0].evidence[0], line: 9999 }] }],
     };
-    if (scoreResult(loadedCase, invalidLine, workspace, { baseline }).passed) {
+    if (scoreResult(loadedCase, invalidLine, workspace, scoreOptions).passed) {
       fail("scorer accepted evidence outside the source file", 2);
     }
     const extraReportedFile = { ...good, changed_files: ["not-created.go"] };
-    if (scoreResult(loadedCase, extraReportedFile, workspace, { baseline }).passed) {
+    if (scoreResult(loadedCase, extraReportedFile, workspace, scoreOptions).passed) {
       fail("scorer accepted an unobserved reported file", 2);
+    }
+    const incomplete = {
+      ...good,
+      completion: "stopped",
+      review_conclusion: "incomplete",
+      routes: [],
+      verdicts: [],
+    };
+    if (validateResultShape(incomplete).length > 0) {
+      fail("result validator rejected a stopped Guard execution", 2);
+    }
+    const routedIncomplete = {
+      ...incomplete,
+      routes: [{ target: "codify", reason: "worker failed" }],
+    };
+    if (validateResultShape(routedIncomplete).length === 0) {
+      fail("result validator accepted a phase route from an incomplete Guard execution", 2);
+    }
+    const malformedIncomplete = { ...incomplete, routes: null };
+    if (validateResultShape(malformedIncomplete).length === 0) {
+      fail("result validator accepted malformed routes on an incomplete Guard execution", 2);
     }
     fs.writeFileSync(path.join(workspace, "internal", "repository.go"), "package broken\n");
     fs.writeFileSync(path.join(workspace, "domain.md"), "A table was selected.\n");
-    const dirtyGrade = scoreResult(loadedCase, good, workspace, { baseline });
+    const dirtyGrade = scoreResult(loadedCase, good, workspace, scoreOptions);
     if (dirtyGrade.passed) {
       fail("scorer accepted an unexpected workspace edit", 2);
     }
@@ -1060,7 +1085,7 @@ function doctorCommand(options) {
     const gid = typeof process.getgid === "function" ? process.getgid() : 1000;
     const inContainer = runCommand([
       "docker", "run", "--rm", "--read-only",
-      "--tmpfs", "/tmp:rw,nosuid,nodev,size=64m",
+      "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=64m",
       "--cap-drop=ALL", "--security-opt", "no-new-privileges",
       "--user", `${uid}:${gid}`,
       "-e", "HOME=/eval-home", "-e", "CODEX_HOME=/eval-home",

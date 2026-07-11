@@ -20,7 +20,7 @@ The plugin exposes four compact phase skills, one internal artifact executor, an
 - `explore` — Domain clarification for accepted language, business facts, lifecycle, authority, policies, and context relationships
 - `shape` — Tactical Design for Aggregate boundaries, consistency, collaboration, ports, persistence boundaries, runtime containment, and verification seams
 - `codify` — House-Style Realization of accepted model and design decisions in working backend code
-- `guard` — Hypothesis-driven Model Integrity review of concrete implementation evidence
+- `guard` — Parallel Design Realization and House-Style Conformance review of concrete implementation evidence
 - `maintain-artifacts` — Internal validation and execution of authorized DDD artifact transactions; not a user entry point
 
 Phase skills own semantic decisions and load the `maintain-artifacts` protocol before artifact inspection or accepted writes. The same active agent executes it and loads only the templates required by that operation.
@@ -34,7 +34,7 @@ Choose the phase by timing:
 - `/ddd-expert:explore` when a backend product request needs business-language, lifecycle, authority, invariant, policy, failure-semantics, or bounded-context clarification.
 - `/ddd-expert:shape` when accepted domain facts need Tactical Design before coding, or that design must be reviewed or changed.
 - `/ddd-expert:codify` when accepted facts and tactical decisions must be realized as house-style backend code.
-- `/ddd-expert:guard` when a concrete backend diff or implementation must be reviewed before merge or release.
+- `/ddd-expert:guard` when a concrete backend diff or claimed implementation scope must be checked for both missing realization and incorrect implementation before merge or release.
 
 ## Scope
 
@@ -44,7 +44,7 @@ Use this plugin for:
 - high-fidelity Strategic Modeling interviews
 - product-semantic Tactical Modeling before codification
 - model-to-code realization and placement
-- evidence-based Model Integrity review
+- evidence-based Design Realization and House-Style Conformance review
 - Domain/Application/Transport/Infrastructure ownership
 - Domain and Application port eligibility
 - generated protocol DTO boundaries

@@ -63,9 +63,9 @@ Injects architectural design pattern standards as constraints into planning, exe
 
 ### ddd-expert
 
-Standalone hookless DDD/backend architecture expert skills for code agents. Provides `explore`, `shape`, `codify`, and `guard` skills for Strategic Modeling, Tactical Modeling, Model Realization, and Model Integrity, plus the shared DDD reference set. The skills use common development workflow descriptions for discovery instead of binding to another workflow plugin.
+Standalone hookless DDD/backend architecture expert skills for code agents. Provides `explore`, `shape`, `codify`, and `guard` skills for Strategic Modeling, Tactical Modeling, Model Realization, and parallel Design Realization/House-Style Conformance review, plus the shared DDD reference set. The skills use common development workflow descriptions for discovery instead of binding to another workflow plugin.
 
-Invoke `ddd-expert` directly for DDD/backend exploration, tactical model shaping, model-to-code codification, and model integrity guarding. This is especially important when turning specs into explicit domain objects, or when touching bounded contexts, Domain/Application/Transport/Infrastructure boundaries, generated RPC/protocol code, Go/Python/TypeScript runtime and lifecycle wiring, taskqueue/message behavior, database persistence, or backend logging.
+Invoke `ddd-expert` directly for DDD/backend exploration, tactical model shaping, model-to-code codification, and reviews that distinguish missing design realization from incorrect implementation. This is especially important when turning specs into explicit domain objects, or when touching bounded contexts, Domain/Application/Transport/Infrastructure boundaries, generated RPC/protocol code, Go/Python/TypeScript runtime and lifecycle wiring, taskqueue/message behavior, database persistence, or backend logging.
 
 - **License:** MIT
 - **Claude details:** [plugins/ddd-expert/README.md](plugins/ddd-expert/README.md)
