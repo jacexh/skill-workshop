@@ -44,6 +44,12 @@
         "path": "docs/ddd-expert/context-map.md",
         "exists": true,
         "contains": [
+          "## Global View",
+          "Arrow direction: `U -> D` (Upstream -> Downstream).",
+          "graph LR",
+          "payment[\"Payment\"]",
+          "order[\"Order\"]",
+          "payment --> order",
           "### Payment -> Order",
           "Published Language"
         ],

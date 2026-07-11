@@ -61,7 +61,7 @@ These artifacts contain only current DDD facts and tactical decisions. They do n
 
 - `templates/artifact-layout.md` defines the canonical project directory and artifact ownership.
 - `templates/README.md` defines the project artifact entry point and context index.
-- `templates/context-map.md` defines strategic context responsibilities and relationships.
+- `templates/context-map.md` defines the global upstream/downstream view, strategic context responsibilities, and relationships.
 - `templates/model.md` defines one context's terminal-state Domain Model structure.
 - `templates/design.md` defines one context's terminal-state Tactical Design structure.
 

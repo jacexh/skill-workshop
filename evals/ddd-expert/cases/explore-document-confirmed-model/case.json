@@ -41,14 +41,28 @@
       {
         "path": "docs/ddd-expert/README.md",
         "exists": true,
-        "contains": ["# DDD Expert Artifacts", "context/inventory/model.md"],
-        "excludes": ["<Bounded Context>", "<!--"],
+        "contains": [
+          "# DDD Expert Artifacts",
+          "## Bounded Contexts",
+          "context/inventory/model.md",
+          "`design.md` lives beside",
+          "may be absent until Shape",
+          "[context-map.md](context-map.md)"
+        ],
+        "excludes": ["<Bounded Context>", "<!--", "## Structure", "```text", "|--", "`--"],
         "excludes_words": []
       },
       {
         "path": "docs/ddd-expert/context-map.md",
         "exists": true,
-        "contains": ["# Context Map", "Inventory"],
+        "contains": [
+          "# Context Map",
+          "## Global View",
+          "Arrow direction: `U -> D` (Upstream -> Downstream).",
+          "```mermaid",
+          "graph LR",
+          "inventory[\"Inventory\"]"
+        ],
         "excludes": ["<Bounded Context>", "<!--"],
         "excludes_words": []
       }

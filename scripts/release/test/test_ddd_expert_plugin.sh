@@ -18,6 +18,15 @@ assert_contains() {
   rg -Fq -- "$text" "$file" || fail "$label"
 }
 
+assert_not_contains() {
+  local file="$1"
+  local text="$2"
+  local label="$3"
+  if rg -Fq -- "$text" "$file"; then
+    fail "$label"
+  fi
+}
+
 assert_matches() {
   local file="$1"
   local pattern="$2"
@@ -189,7 +198,20 @@ assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" '|-- context-map.md'
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'context/<context-slug>/model.md' "artifact layout should own per-context model placement"
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'context/<context-slug>/design.md' "artifact layout should own per-context design placement"
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'design.md` is intentionally absent' "artifact layout should allow the pre-Shape intermediate state"
+assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'one global Mermaid `graph LR`' "artifact layout should require one global Context Map view"
+assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'upstream (`U`) to downstream (`D`)' "artifact layout should define Context Map arrow direction"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" '## Global View' "Context Map template should expose one global view"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'Arrow direction: `U -> D` (Upstream -> Downstream).' "Context Map template should define arrow direction visibly"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" '```mermaid' "Context Map template should use an inline Mermaid diagram"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'graph LR' "Context Map template should use a graph layout"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'hyphens replaced by underscores' "Context Map template should derive stable node identifiers from context slugs"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'upstream_context --> downstream_context' "Context Map template should keep edges unlabeled"
 assert_contains "$CLAUDE_ROOT/templates/README.md" '[<Bounded Context>](context/<context-slug>/model.md)' "artifact README should use real context links"
+assert_contains "$CLAUDE_ROOT/templates/README.md" '[context-map.md](context-map.md)' "artifact README should link the Context Map"
+assert_contains "$CLAUDE_ROOT/templates/README.md" '`design.md` lives beside' "artifact README should locate each Tactical Design"
+assert_contains "$CLAUDE_ROOT/templates/README.md" 'may be absent until Shape' "artifact README should explain the pre-Shape Design state"
+assert_not_contains "$CLAUDE_ROOT/templates/README.md" '## Structure' "artifact README should not duplicate the canonical structure"
+assert_not_contains "$CLAUDE_ROOT/templates/README.md" '|--' "artifact README should not maintain a dynamic directory tree"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" "load this plugin's internal \`maintain-artifacts\` skill" "codify should load the artifact protocol"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'execute only its `inspect` operation' "codify should request read-only artifact inspection"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'never request or perform an apply operation' "codify should never authorize artifact writes"
@@ -258,6 +280,9 @@ assert_contains "$claude_maintainer" '../../templates/README.md' "artifact maint
 assert_contains "$claude_maintainer" '../../templates/context-map.md' "artifact maintainer should load the Context Map template"
 assert_contains "$claude_maintainer" '../../templates/model.md' "artifact maintainer should load the Model template"
 assert_contains "$claude_maintainer" '../../templates/design.md' "artifact maintainer should load the Design template"
+assert_contains "$claude_maintainer" 'Global View is a mechanical projection' "artifact maintainer should keep the diagram synchronized with accepted facts"
+assert_contains "$claude_maintainer" 'every accepted project Bounded Context exactly once' "artifact maintainer should keep isolated contexts in the global diagram"
+assert_contains "$claude_maintainer" 'unlabeled edge from upstream to downstream' "artifact maintainer should forbid ambiguous diagram edge labels"
 if rg -n '../../templates/' \
   "$CLAUDE_ROOT/skills/explore/SKILL.md" \
   "$CLAUDE_ROOT/skills/shape/SKILL.md" \

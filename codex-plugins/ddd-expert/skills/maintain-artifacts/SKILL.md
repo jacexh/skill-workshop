@@ -47,6 +47,18 @@ Codify and Guard can never run an apply operation. Treat an invalid operation in
 6. **Verify the result**: re-read the consistency set, confirm layout, links, no placeholders/comments, accepted language and distinctions, expected terminal content, authorized paths only, unchanged read dependencies, and revision invariants. Report any partial filesystem failure as `blocked` with exact observed state; do not conceal it as success.
 7. **Resume the phase**: expose the operation status, observed and written revisions, changed paths, validation evidence, and any required route to the active phase. Do not replace that phase's completion response.
 
+## Context Map projection
+
+The Context Map Global View is a mechanical projection of the accepted context inventory and relationship details; it owns no additional domain meaning. Validate that it:
+
+- contains exactly one Mermaid `graph LR` and the visible `U -> D` direction statement;
+- declares every accepted project Bounded Context exactly once, including contexts with no directed relationship, using its lower-kebab-case slug with hyphens replaced by underscores as the node identifier and its accepted name as the visible label;
+- contains no external context node;
+- represents every accepted directed relationship between project contexts exactly once as a plain, unlabeled edge from upstream to downstream, with no other edge; and
+- leaves relationships without an accepted upstream/downstream direction in the textual Relationships section only.
+
+When `apply-model` changes the accepted context inventory or a directed relationship between project contexts, update the Global View in the same Context Map write. A missing, extra, mislabeled, or reversed node or edge is `invalid_layout`; never repair it by inventing a direction or relationship.
+
 ## Model checkpoint scope
 
 For a context-local checkpoint whose accepted topology and relationships remain unchanged, the write set may contain one Model. Include the root README, Context Map, and every Model supplying a read dependency in the consistency set.

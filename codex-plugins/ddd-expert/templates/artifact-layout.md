@@ -24,12 +24,14 @@ The tree above is the settled state. `design.md` is intentionally absent after E
 
 | Artifact | Semantic authorizer | Content |
 |---|---|---|
-| `README.md` | Explore | Artifact layout and navigation to the accepted Bounded Contexts |
-| `context-map.md` | Explore | Context responsibilities, business authorities, relationships, and translation boundaries |
+| `README.md` | Explore | Project artifact entry point and navigation to the accepted Bounded Contexts |
+| `context-map.md` | Explore | Global upstream/downstream view, context responsibilities, business authorities, relationships, and translation boundaries |
 | `context/<context-slug>/model.md` | Explore | That context's business language, authority, lifecycle, invariants, policies, failure semantics, and view of its relationships |
 | `context/<context-slug>/design.md` | Shape | That context's Aggregate, Application, boundary-contract, persistence, consistency, runtime, collaboration, and verification decisions |
 
 ## Cross-context facts
+
+`context-map.md` starts with one global Mermaid `graph LR`. It declares every accepted project Bounded Context exactly once, including isolated contexts, using the context's lower-kebab-case slug with hyphens replaced by underscores as its node identifier and its accepted name as its visible label. Each plain, unlabeled arrow points from upstream (`U`) to downstream (`D`). The diagram contains only project Bounded Contexts and directed relationships between them; external contexts and relationships without an accepted upstream/downstream direction remain outside the diagram. Its nodes and edges are a projection of the accepted Bounded Context inventory and relationship details, not a second source of domain facts.
 
 `context-map.md` owns the relationship between contexts. Each affected context records only its own side:
 

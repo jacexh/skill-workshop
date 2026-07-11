@@ -1,5 +1,17 @@
 # Context Map
 
+## Global View
+
+Arrow direction: `U -> D` (Upstream -> Downstream).
+
+```mermaid
+graph LR
+    order["Order"]
+    payment["Payment"]
+
+    payment --> order
+```
+
 ## Bounded Contexts
 
 ### Order
