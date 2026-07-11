@@ -11,19 +11,23 @@ Build or runtime blockers limit executable verification only. Continue independe
 
 ## Review authority
 
+Guard is read-only. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation in the same run with authority `guard`; never request or perform an apply operation. Report artifact evidence and routing through the review response without persisting findings under `docs/ddd-expert`.
+
 Establish these inputs before judging code:
 
 1. the exact review target, comparison base, and requested scope;
-2. the relevant `docs/ddd/model.md` sections for accepted business meaning and context relationships;
-3. the relevant `docs/ddd/design.md` sections for accepted tactical choices;
+2. the relevant Explore-owned model sections for each touched context's accepted business meaning and relationships;
+3. the relevant Shape-owned design sections for each touched context's accepted tactical choices and collaboration responsibilities;
 4. the `ddd-expert` house-style sections applicable to touched surfaces;
 5. changed files and the necessary neighboring code, generated artifacts, migrations, configuration, runtime wiring, logs, and verification evidence.
 
 Code and tests are observed implementation evidence, not authority over the model or design. Missing DDD artifacts do not stop independently provable static findings; they block only verdicts that depend on the absent facts or decisions.
 
+A `stale_design` or `pending_design_reconciliation` result from artifact inspection is not accepted authority for implementation conformance. Report the material evidence gap and route it to `shape`; continue independent house-style review where possible. Other missing artifacts limit only verdicts that need their authority.
+
 ## Workflow
 
-1. **Establish scope**: confirm the target/base and locate the accepted authority for each touched responsibility. Scope narrows inspection; it does not make absent unrelated layers an evidence gap.
+1. **Establish scope**: confirm the target/base, run artifact inspection, and locate accepted authority for each touched responsibility. Scope narrows inspection; it does not make absent unrelated layers an evidence gap.
 2. **Breadth scan**: inventory touched layers, boundaries, and specialized surfaces. Apply the compact baselines below to seed an internal Review Ledger with `hypothesis` and `coverage_obligation` entries. A baseline signal is never a finding.
 3. **Merge families**: group related entries by semantic owner, lifecycle, boundary, state vocabulary, collaboration, Repository/CQRS shape, runtime reachability, or specialized reference surface.
 4. **Deep-check**: load only the relevant reference sections. Try to falsify each hypothesis with confirming and disconfirming evidence. Give it `clear`, `violation`, or `evidence_gap`; attach route `explore`, `shape`, or `codify` only when applicable. Clear a coverage obligation as conforming/not applicable, or promote a concrete miss to a hypothesis.

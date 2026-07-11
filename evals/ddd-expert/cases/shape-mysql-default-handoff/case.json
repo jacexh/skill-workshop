@@ -14,15 +14,31 @@
     "forbid_verdicts": [],
     "git": {
       "changed": "some",
-      "required_paths": ["docs/ddd/design.md"],
-      "forbidden_paths": ["docs/ddd/model.md"]
+      "required_paths": ["docs/ddd-expert/context/inventory/design.md"],
+      "forbidden_paths": [
+        "docs/ddd-expert/context/inventory/model.md",
+        "docs/ddd-expert/design.md",
+        "docs/ddd-expert/model.md",
+        "docs/ddd/design.md",
+        "docs/ddd/model.md"
+      ]
     },
     "files": [
       {
-        "path": "docs/ddd/design.md",
+        "path": "docs/ddd-expert/context/inventory/design.md",
         "exists": true,
-        "contains": ["Tactical Design", "MySQL", "Verification Seams"],
-        "excludes": ["PostgreSQL", "SQLite"]
+        "contains": [
+          "# Inventory Tactical Design",
+          "based_on_model_revision: 1",
+          "MySQL",
+          "## Verification Seams"
+        ],
+        "excludes": [
+          "PostgreSQL",
+          "SQLite",
+          "<Bounded Context>",
+          "<!--"
+        ]
       }
     ],
     "checks": []

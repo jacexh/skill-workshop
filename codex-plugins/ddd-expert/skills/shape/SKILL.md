@@ -9,7 +9,7 @@ Turn the accepted DDD model into the smallest `codify_ready` Tactical Design. Sh
 
 ## Tactical Design artifact
 
-The project-owned artifact is `docs/ddd/design.md`. Create it lazily for the touched responsibility. For multiple bounded contexts, keep their tactical designs in explicit context sections and resolve the relationships recorded in `model.md` before shaping cross-context collaboration.
+Shape is the exclusive semantic authorizer of Design changes. It never writes DDD artifacts directly and never authorizes a root README, Context Map, or Model change. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute its `inspect` or `apply-design` operation in the same run with authority `shape`.
 
 The design describes the current accepted target state, not a feature narrative, change log, ADR summary, task plan, or implementation report. Include only material DDD design:
 
@@ -17,19 +17,19 @@ The design describes the current accepted target state, not a feature narrative,
 - Application responsibilities, commands, and queries;
 - Domain Events, Integration Messages, and collaboration mechanisms;
 - Repository, CQRS, consistency, transaction, and idempotency boundaries;
-- semantic ports, adapters, protocol boundaries, and runtime ownership;
+- design-significant boundary contracts and runtime ownership;
 - verification seams that prove the accepted model and design.
 
 Do not prescribe schemas, DTO fields, file lists, package inventories, event payloads, or implementation steps unless that detail is itself a material design decision. A non-default choice is written as the chosen design in its normal section; do not maintain a separate exception ledger.
 
 ## Workflow
 
-1. **Read accepted inputs**: start from the exact model sections for this responsibility, the context-relationship sections when contexts collaborate, the existing Tactical Design, and the scoped request. Treat code and tests as current-state evidence, not as authority over accepted model facts. When bootstrapping the DDD design artifact, inspect existing accepted project design evidence to avoid contradiction, but do not copy its history or general project knowledge into `design.md`.
+1. **Read accepted inputs**: run the read-only artifact operation, then start from the root README, Context Map, exact model sections and revisions for every affected context, their existing Tactical Designs, and the scoped request. A missing Design is a valid input for its first Shape; stale or topology-pending Designs require revalidation. Treat code and tests as current-state evidence, not as authority over accepted model facts.
 2. **Check phase fit**: if a material scenario, authority, lifecycle, invariant, failure-tolerance, business language, or bounded-context fact is missing or contradictory, return to `explore` with the single highest-leverage missing fact. Aggregate and collaboration choices based on complete facts belong to `shape`; aggregate uncertainty alone is not a reason to return upstream.
 3. **Shape the target state**: resolve every applicable handoff obligation listed under Tactical Design artifact.
 4. **Review the design internally**: check story before objects, authority before ownership, lifecycle before type, invariant before Aggregate, failure tolerance before transaction, language before integration, and coordination before mechanism. Implementation transaction shape and storage convenience are evidence, not model proof.
 5. **Pass the write gate**: if a material tactical decision cannot be resolved from accepted facts and project evidence, follow the clarification gate below. Write nothing until that gate is complete.
-6. **Write once**: after acceptance, merge the design delta into the terminal-state Tactical Design. Update only affected sections and remove superseded design statements instead of appending history.
+6. **Apply once**: after acceptance, run `apply-design` through `maintain-artifacts` with context names/slugs, exact current Model revisions, each Design's observed pre-state, exact terminal content for every changed section, explicit removals, and write-gate evidence. Shape chooses the wording; artifact mechanics only validate and apply it. Correct an invalid operation input internally. On `revision_conflict`, re-inspect and rebuild the transaction once; if the pre-state changes again, return `blocked` with the concurrent-change evidence. Never bypass the protocol with a direct write.
 
 ## Clarification gate
 
@@ -43,12 +43,12 @@ Codify decides routine scaffold and file placement, adopted house-style librarie
 
 ## Completion
 
-The Tactical Design is the Implementation handoff. It is `codify_ready` only when every applicable handoff obligation above is resolved and Codify can implement without choosing business facts or semantic design.
+The Tactical Design is the Implementation handoff. It is `codify_ready` only when every applicable handoff obligation above is resolved, every affected design references its exact current model revision, and Codify can implement without choosing business facts or semantic design.
 
 Finish with one of:
 
 - `changed`: the design artifact was updated once; name the exact sections.
-- `no_change`: the existing design already makes the scoped work codify-ready.
+- `no_change`: the existing design already makes the scoped work codify-ready and its model revision link already matches.
 - `needs_clarification`: ask the single active tactical question and stop without writing.
 - `returned`: identify `explore`, the missing business fact, and the evidence exposing the gap.
 - `blocked`: an external constraint prevents reading or writing the artifact.

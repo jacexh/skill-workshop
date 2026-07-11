@@ -54,6 +54,9 @@ check_local_markdown_links() {
       case "$target" in
         ""|http://*|https://*|mailto:*) continue ;;
       esac
+      if [[ "$file" == "$root/templates/"* && "$target" == *"<"* && "$target" == *">"* ]]; then
+        continue
+      fi
       resolved="$(realpath -m "$(dirname "$file")/$target")"
       [ -f "$resolved" ] || fail "$label broken Markdown link in ${file#$root/}: $target"
     done < <(rg -o '\]\([^)]*\.md(#[^)]*)?\)' "$file" || true)
@@ -86,7 +89,7 @@ if rg -n '\$?superpowers(:|-memory|-architect|-ddd-architect)|docs/superpowers' 
   fail "ddd-expert should not bind to superpowers plugins, skills, or paths"
 fi
 
-# The four skills own workflow and load references progressively.
+# The four phase skills own judgment and load the shared artifact protocol.
 for skill in explore shape codify guard; do
   claude_skill="$CLAUDE_ROOT/skills/$skill/SKILL.md"
   codex_skill="$CODEX_ROOT/skills/$skill/SKILL.md"
@@ -97,20 +100,133 @@ for skill in explore shape codify guard; do
   assert_references_last "$claude_skill" "$skill"
 done
 
+claude_maintainer="$CLAUDE_ROOT/skills/maintain-artifacts/SKILL.md"
+codex_maintainer="$CODEX_ROOT/skills/maintain-artifacts/SKILL.md"
+[ -f "$claude_maintainer" ] || fail "Claude ddd-expert missing maintain-artifacts skill"
+[ -f "$codex_maintainer" ] || fail "Codex ddd-expert missing maintain-artifacts skill"
+diff -u \
+  <(sed '/^user-invocable: false$/d' "$claude_maintainer") \
+  "$codex_maintainer" >/dev/null || fail "Claude and Codex maintain-artifacts skill bodies should match"
+rg -q '^description: Use when ' "$claude_maintainer" || fail "maintain-artifacts description should start with Use when"
+assert_contains "$claude_maintainer" 'user-invocable: false' "maintain-artifacts should be hidden from Claude's user command menu"
+if rg -n '^user-invocable:' "$codex_maintainer" >/dev/null; then
+  fail "Codex maintain-artifacts should not contain Claude-only frontmatter"
+fi
+assert_references_last "$claude_maintainer" "maintain-artifacts"
+
+expected_skill_inventory="$(printf '%s\n' codify explore guard maintain-artifacts shape | sort)"
+for root in "$CLAUDE_ROOT" "$CODEX_ROOT"; do
+  actual_skill_inventory="$(find "$root/skills" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)"
+  [ "$actual_skill_inventory" = "$expected_skill_inventory" ] || {
+    diff -u <(printf '%s\n' "$expected_skill_inventory") <(printf '%s\n' "$actual_skill_inventory") >&2 || true
+    fail "ddd-expert skill inventory should contain exactly four phases and the internal artifact protocol"
+  }
+done
+
+for template in README artifact-layout context-map model design; do
+  claude_template="$CLAUDE_ROOT/templates/$template.md"
+  codex_template="$CODEX_ROOT/templates/$template.md"
+  [ -f "$claude_template" ] || fail "Claude ddd-expert missing $template artifact template"
+  [ -f "$codex_template" ] || fail "Codex ddd-expert missing $template artifact template"
+  cmp -s "$claude_template" "$codex_template" || fail "Claude and Codex $template artifact templates should match"
+done
+
 for retired_skill in domain-modeling design implement review; do
   [ ! -e "$CLAUDE_ROOT/skills/$retired_skill" ] || fail "Claude should not keep retired $retired_skill alias"
   [ ! -e "$CODEX_ROOT/skills/$retired_skill" ] || fail "Codex should not keep retired $retired_skill alias"
 done
 
-assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'docs/ddd/model.md' "explore should own the DDD model artifact"
+assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" "load this plugin's internal \`maintain-artifacts\` skill" "explore should load the artifact protocol"
+assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'authority `explore`' "explore should identify its artifact authority"
+assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'run `apply-model` through `maintain-artifacts`' "explore should authorize Model transactions"
+assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'never writes DDD artifacts directly' "explore should not bypass the artifact executor"
 assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'ask exactly one focused question, and end the turn' "explore should ask one focused question at a time"
 assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'present one integrated proposed model delta and wait for explicit user acceptance' "explore should keep its write gate"
 assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'Explore is `shape_ready`' "explore should define shape-ready completion"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'docs/ddd/design.md' "shape should own the Tactical Design artifact"
+assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" "load this plugin's internal \`maintain-artifacts\` skill" "shape should load the artifact protocol"
+assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'authority `shape`' "shape should identify its artifact authority"
+assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'run `apply-design` through `maintain-artifacts`' "shape should authorize Design transactions"
+assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'never writes DDD artifacts directly' "shape should not bypass the artifact executor"
 assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'Ask exactly one focused design question and end the turn' "shape should ask one focused question at a time"
 assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'present one integrated proposed design delta and wait for explicit user acceptance' "shape should keep its write gate"
 assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'The Tactical Design is the Implementation handoff' "shape design should be the implementation handoff"
 assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'It is `codify_ready`' "shape should define codify-ready completion"
+assert_contains "$CLAUDE_ROOT/templates/model.md" '# <Bounded Context> Domain Model' "model template should identify its bounded context"
+assert_contains "$CLAUDE_ROOT/templates/model.md" 'model_revision: 1' "model template should start revision tracking"
+assert_contains "$CLAUDE_ROOT/templates/model.md" '## Failure and Recovery Semantics' "model template should preserve failure semantics"
+assert_contains "$CLAUDE_ROOT/templates/design.md" '# <Bounded Context> Tactical Design' "design template should identify its bounded context"
+assert_contains "$CLAUDE_ROOT/templates/design.md" 'based_on_model_revision: 1' "design template should bind to a model revision"
+assert_contains "$CLAUDE_ROOT/templates/design.md" '## Boundary Contracts' "design template should record only design-significant boundaries"
+assert_contains "$CLAUDE_ROOT/templates/design.md" 'leave interface names, method signatures, adapters, and file locations to code' "design template should not duplicate code inventories"
+assert_contains "$CLAUDE_ROOT/templates/design.md" 'Use business language for responsibilities and behavior' "design template should define its language level"
+assert_contains "$CLAUDE_ROOT/templates/design.md" '## Verification Seams' "design template should preserve verification intent"
+assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'docs/ddd-expert/' "artifact layout should own the documentation root"
+assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" '|-- README.md' "artifact layout should require a root README"
+assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" '|-- context-map.md' "artifact layout should require a Context Map"
+assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'context/<context-slug>/model.md' "artifact layout should own per-context model placement"
+assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'context/<context-slug>/design.md' "artifact layout should own per-context design placement"
+assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'design.md` is intentionally absent' "artifact layout should allow the pre-Shape intermediate state"
+assert_contains "$CLAUDE_ROOT/templates/README.md" '[<Bounded Context>](context/<context-slug>/model.md)' "artifact README should use real context links"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" "load this plugin's internal \`maintain-artifacts\` skill" "codify should load the artifact protocol"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'execute only its `inspect` operation' "codify should request read-only artifact inspection"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'never request or perform an apply operation' "codify should never authorize artifact writes"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" '`stale_design`' "codify should reject stale designs"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'verdicts belong to Guard and are not Codify output' "codify should route artifact feedback without Guard verdicts"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" "load this plugin's internal \`maintain-artifacts\` skill" "guard should load the artifact protocol"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'execute only its `inspect` operation' "guard should request read-only artifact inspection"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'never request or perform an apply operation' "guard should never authorize artifact writes"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'A `stale_design` or `pending_design_reconciliation` result' "guard should report stale designs"
+assert_contains "$claude_maintainer" 'Codify and Guard can never run an apply operation' "artifact maintainer should reject downstream writes"
+assert_contains "$claude_maintainer" '`apply-model` | Explore' "artifact maintainer should authorize Model writes only from Explore"
+assert_contains "$claude_maintainer" '`apply-design` | Shape' "artifact maintainer should authorize Design writes only from Shape"
+assert_contains "$claude_maintainer" 'An `inspect` operation needs no expected revision' "artifact inspection should discover revisions"
+assert_contains "$claude_maintainer" 'A stale or missing Design is a valid pre-state for `apply-design`' "artifact maintainer should repair stale Designs"
+assert_contains "$claude_maintainer" 'Do not rename terms, infer replacements' "artifact maintainer should not make semantic edits"
+assert_contains "$claude_maintainer" 'Reject absolute slugs, path separators, `.` or `..` segments' "artifact maintainer should reject unsafe context paths"
+assert_contains "$claude_maintainer" 'returns `changed` with a `pending_design_reconciliation` observation' "artifact maintainer should support two-phase context topology changes"
+assert_contains "$claude_maintainer" 'increment an existing revision once only when accepted model facts change' "artifact maintainer should advance Model revisions"
+assert_contains "$claude_maintainer" 'set each retained Design' "artifact maintainer should bind Designs to Models"
+assert_contains "$claude_maintainer" 'This is a shared in-process workflow, not a separate agent' "artifact maintainer should not imply sub-agent delegation"
+assert_contains "$claude_maintainer" "Do not replace that phase's completion response" "artifact maintainer should resume its phase"
+assert_contains "$claude_maintainer" '../../templates/artifact-layout.md' "artifact maintainer should load the canonical layout"
+assert_contains "$claude_maintainer" '../../templates/README.md' "artifact maintainer should load the root README template"
+assert_contains "$claude_maintainer" '../../templates/context-map.md' "artifact maintainer should load the Context Map template"
+assert_contains "$claude_maintainer" '../../templates/model.md' "artifact maintainer should load the Model template"
+assert_contains "$claude_maintainer" '../../templates/design.md' "artifact maintainer should load the Design template"
+if rg -n '../../templates/' \
+  "$CLAUDE_ROOT/skills/explore/SKILL.md" \
+  "$CLAUDE_ROOT/skills/shape/SKILL.md" \
+  "$CLAUDE_ROOT/skills/codify/SKILL.md" \
+  "$CLAUDE_ROOT/skills/guard/SKILL.md" \
+  "$CODEX_ROOT/skills/explore/SKILL.md" \
+  "$CODEX_ROOT/skills/shape/SKILL.md" \
+  "$CODEX_ROOT/skills/codify/SKILL.md" \
+  "$CODEX_ROOT/skills/guard/SKILL.md" >/dev/null; then
+  fail "phase skills should load template mechanics through maintain-artifacts"
+fi
+if rg -n '(\$|/)ddd-expert:' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
+  rg -n '(\$|/)ddd-expert:' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >&2
+  fail "shared SKILL contracts should not contain platform-specific invocation syntax"
+fi
+assert_contains "$CLAUDE_ROOT/README.md" '/ddd-expert:explore' "Claude README should use slash skill invocation"
+assert_contains "$CODEX_ROOT/README.md" '$ddd-expert:explore' "Codex README should use dollar skill invocation"
+if rg -n -F '$ddd-expert:maintain-artifacts' "$CODEX_ROOT/README.md" >/dev/null; then
+  fail "Codex README should not expose the internal artifact protocol as a user command"
+fi
+if rg -n -F 'docs/ddd-expert/context/' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
+  rg -n -F 'docs/ddd-expert/context/' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >&2
+  fail "phase skills should resolve artifact paths through the central layout contract"
+fi
+if rg -n -F 'docs/ddd/' "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null; then
+  rg -n -F 'docs/ddd/' "$CLAUDE_ROOT" "$CODEX_ROOT" >&2
+  fail "ddd-expert should use docs/ddd-expert rather than the retired docs/ddd path"
+fi
+for retired_artifact in 'docs/ddd-expert/model.md' 'docs/ddd-expert/design.md'; do
+  if rg -n -F "$retired_artifact" "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null; then
+    rg -n -F "$retired_artifact" "$CLAUDE_ROOT" "$CODEX_ROOT" >&2
+    fail "ddd-expert should keep artifacts under per-context directories rather than shared root files"
+  fi
+done
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Use this order when inputs disagree' "codify should define authority order"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" '**Preflight before edits**' "codify should preflight before modifying code"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Design Realization and House-Style Conformance' "codify should verify design and house-style conformance"

@@ -1,0 +1,32 @@
+{
+  "id": "guard-stale-design-revision",
+  "phase": "guard",
+  "suites": ["full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed", "stopped"],
+    "review_conclusion": ["evidence_gaps"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": ["shape"], "excludes": ["explore", "codify"] },
+    "verdicts": [
+      {
+        "kind": "evidence_gap",
+        "family": "model_evidence",
+        "evidence_paths": [
+          "docs/ddd-expert/context/order/model.md",
+          "docs/ddd-expert/context/order/design.md"
+        ]
+      }
+    ],
+    "forbid_verdicts": ["violation"],
+    "git": {
+      "changed": "none",
+      "required_paths": [],
+      "forbidden_paths": []
+    },
+    "files": [],
+    "checks": []
+  }
+}
