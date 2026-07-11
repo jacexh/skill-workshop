@@ -96,10 +96,34 @@ Keep a case focused on one risk. Add a directory under `cases/` containing:
 - `prompt.md`: the user request, without expected-answer hints;
 - `workspace/`: the smallest project evidence needed to decide the case.
 
+For discovery-order risks, `expect.questions.contains`, `contains_any`, and
+`excludes` score only the first question after Unicode normalization. English
+matches use word boundaries; spaces in a phrase also accept a dash. A trailing
+`*` declares an explicit English word family (`own*` matches `own`, `owns`, and
+`ownership`) without reverting to arbitrary substring matching. Chinese
+alternatives use continuous normalized text. Each `contains_any` group requires
+one alternative, so a case can require several independent semantic signals
+without locking the model to one sentence.
+
+Explore may report `completion: checkpointed` when it writes an accepted local
+closure and continues discovery without routing to Shape.
+
+For topology-discovery risks, pair an answer-neutral read-only sentinel with a
+checkpoint case. The sentinel should verify that missing language or business
+authority is resolved before a context-local lifecycle; the checkpoint should
+prove that accepted context responsibilities and relationships bootstrap the
+Context Map and every affected Model atomically.
+
+When context nodes are known but an edge is not, use a relationship sentinel
+that requires the upstream-owned fact or intent, downstream local meaning, and
+contract authority before either context's local lifecycle is explored.
+
 Run `validate`, `self-test`, and `doctor`, then run the new case at least three
-times. Guard cases assert both a stable reason family and concrete evidence.
-The case expectation is the one-time maintainer judgment. Normal regression
-runs do not require manual scoring.
+times. Guard cases assert both a reason family and concrete evidence. Prefer one
+exact `family`; use `families_any` only when the fixture itself cannot distinguish
+equivalent root-cause and implementation-surface classifications. The case
+expectation is the one-time maintainer judgment. Normal regression runs do not
+require manual scoring.
 
 Do not copy fixture-specific issue names into the generic plugin instructions.
 Fix repeated misses at the highest reusable reasoning level, then rerun the
