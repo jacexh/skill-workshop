@@ -8,16 +8,4 @@
 
 - [<Bounded Context>](context/<context-slug>/model.md)
 
-## Structure
-
-```text
-docs/ddd-expert/
-|-- README.md
-|-- context-map.md
-`-- context/
-    `-- <context-slug>/
-        |-- model.md
-        `-- design.md
-```
-
-`model.md` contains accepted business facts for one Bounded Context. `design.md` contains its accepted Tactical Design. Context relationships are authoritative in `context-map.md`.
+`design.md` lives beside each context's `model.md` and may be absent until Shape creates or revalidates the Tactical Design. Context relationships are authoritative in [context-map.md](context-map.md).

@@ -45,14 +45,35 @@
       {
         "path": "docs/ddd-expert/README.md",
         "exists": true,
-        "contains": ["# DDD Expert Artifacts", "context/funds/model.md", "context/purchase/model.md"],
-        "excludes": ["<!--"],
+        "contains": [
+          "# DDD Expert Artifacts",
+          "## Bounded Contexts",
+          "context/funds/model.md",
+          "context/purchase/model.md",
+          "`design.md` lives beside",
+          "may be absent until Shape",
+          "[context-map.md](context-map.md)"
+        ],
+        "excludes": ["<!--", "## Structure", "```text", "|--", "`--"],
         "excludes_words": []
       },
       {
         "path": "docs/ddd-expert/context-map.md",
         "exists": true,
-        "contains": ["# Context Map", "### Funds", "### Purchase", "### Funds -> Purchase", "Published Language"],
+        "contains": [
+          "# Context Map",
+          "## Global View",
+          "Arrow direction: `U -> D` (Upstream -> Downstream).",
+          "```mermaid",
+          "graph LR",
+          "funds[\"Funds\"]",
+          "purchase[\"Purchase\"]",
+          "funds --> purchase",
+          "### Funds",
+          "### Purchase",
+          "### Funds -> Purchase",
+          "Published Language"
+        ],
         "contains_words": ["Funds", "Purchase", "Settled"],
         "excludes": ["<!--"],
         "excludes_words": ["Repository", "handler"]

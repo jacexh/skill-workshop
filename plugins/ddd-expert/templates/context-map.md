@@ -2,6 +2,20 @@
 
 <!-- Remove template comments and placeholders from the written artifact. Create this artifact with the first accepted Bounded Context and retain it even when no relationship exists yet. -->
 
+## Global View
+
+<!-- Declare every accepted project Bounded Context exactly once, including isolated contexts. Use its lower-kebab-case context slug with hyphens replaced by underscores as the Mermaid identifier, and its accepted context name as the visible label. Add only accepted directed relationships between project contexts, using plain unlabeled edges from upstream to downstream. Do not add external contexts or relationships without an accepted upstream/downstream direction. -->
+
+Arrow direction: `U -> D` (Upstream -> Downstream).
+
+```mermaid
+graph LR
+    upstream_context["<Upstream Context>"]
+    downstream_context["<Downstream Context>"]
+
+    upstream_context --> downstream_context
+```
+
 ## Bounded Contexts
 
 ### <Bounded Context>

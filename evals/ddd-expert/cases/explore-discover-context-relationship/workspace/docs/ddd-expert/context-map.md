@@ -1,5 +1,15 @@
 # Context Map
 
+## Global View
+
+Arrow direction: `U -> D` (Upstream -> Downstream).
+
+```mermaid
+graph LR
+    registration["Registration"]
+    delivery["Delivery"]
+```
+
 ## Bounded Contexts
 
 ### Registration

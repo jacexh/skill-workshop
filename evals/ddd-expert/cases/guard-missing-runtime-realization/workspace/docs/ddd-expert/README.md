@@ -2,14 +2,6 @@
 
 ## Bounded Contexts
 
-- [Order Model](context/order/model.md)
-- [Order Tactical Design](context/order/design.md)
+- [Order](context/order/model.md)
 
-## Context Map
-
-- [Context Map](context-map.md)
-
-## Structure
-
-Each Bounded Context owns `model.md` and `design.md` under its context directory.
-The Context Map owns relationships between contexts.
+`design.md` lives beside each context's `model.md` and may be absent until Shape creates or revalidates the Tactical Design. Context relationships are authoritative in [context-map.md](context-map.md).

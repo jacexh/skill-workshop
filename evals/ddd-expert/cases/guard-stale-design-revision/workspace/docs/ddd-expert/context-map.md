@@ -1,5 +1,14 @@
 # Context Map
 
+## Global View
+
+Arrow direction: `U -> D` (Upstream -> Downstream).
+
+```mermaid
+graph LR
+    order["Order"]
+```
+
 ## Bounded Contexts
 
 ### Order
