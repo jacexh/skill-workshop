@@ -5,7 +5,7 @@ based_on_model_revision: 1
 
 # <Bounded Context> Tactical Design
 
-<!-- This artifact describes one Bounded Context. Replace the title placeholder, remove template comments, and omit sections that have no material accepted decisions. Use business language for responsibilities and behavior, DDD language for boundaries and ownership, and technology language only for material design mechanisms. -->
+<!-- This artifact describes one Bounded Context. Replace the title placeholder, remove template comments, and omit sections that have no material accepted decisions. Use business language for responsibilities and behavior, DDD language for boundaries and ownership, and technology language only for material design mechanisms. For scheduled, asynchronous, or recovery responsibilities, state the semantic owner and execution owner separately. -->
 
 ## Aggregates and Invariant Ownership
 
@@ -13,7 +13,7 @@ based_on_model_revision: 1
 
 ## Application Responsibilities
 
-<!-- Define commands, queries, orchestration, transaction intent, and accepted reactions without code signatures. -->
+<!-- Define commands, queries, orchestration, transaction intent, accepted reactions, and the semantic owner of scheduled or recovery work without code signatures. -->
 
 ## Boundary Contracts
 
@@ -25,7 +25,7 @@ based_on_model_revision: 1
 
 ## Runtime Ownership
 
-<!-- Include only when process lifecycle, scheduling, delivery, recovery, or another runtime commitment is a material design decision. -->
+<!-- Name the execution owner for process lifecycle, scheduling, delivery, concurrency, retry, and shutdown when these are material design decisions. Keep business eligibility, fact interpretation, coordination decisions, and outcome selection with the named semantic owner. -->
 
 ## Verification Seams
 
@@ -33,4 +33,4 @@ based_on_model_revision: 1
 
 ## Cross-Context Collaboration
 
-<!-- Include only when multiple Bounded Contexts collaborate. Define contract ownership, fact or intent language, coordination, failure, and recovery semantics. -->
+<!-- Include only when multiple Bounded Contexts collaborate. Define contract ownership, fact or intent language, the semantic owner of translation and coordination, failure and recovery semantics, and the execution-ownership role when delivery is asynchronous. -->

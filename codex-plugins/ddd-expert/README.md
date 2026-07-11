@@ -25,7 +25,7 @@ Restart Codex after upgrade.
 
 - **`$ddd-expert:explore` skill** — Story-set topology discovery followed by Context Map projection, per-context and relationship trees, lifecycle closure, and accepted Model checkpoints
 - **`$ddd-expert:shape` skill** — Tactical Design for Aggregate boundaries, consistency, collaboration, ports, persistence boundaries, runtime containment, and verification seams
-- **`$ddd-expert:codify` skill** — House-Style Realization of accepted model and design decisions in working backend code
+- **`$ddd-expert:codify` skill** — House-Style Realization of accepted model and design decisions in working backend code; every material changed implementation completes through a clear independent Guard in the same task
 - **`$ddd-expert:guard` skill** — Parallel Design Realization and House-Style Conformance review of concrete implementation evidence
 - **References** — canonical files live under `references/`
 
@@ -43,6 +43,8 @@ Choose the phase by timing:
 - `$ddd-expert:shape` when accepted domain facts need Tactical Design before coding, or that design must be reviewed or changed.
 - `$ddd-expert:codify` when accepted facts and tactical decisions must be realized as house-style backend code.
 - `$ddd-expert:guard` when a concrete backend diff or claimed implementation scope must be checked for both missing realization and incorrect implementation before merge or release.
+
+Codify sends every material final code snapshot to a fresh read-only Guard coordinator before reporting completion. Only a clear review over that complete, unchanged snapshot permits `changed`; a future route to Guard does not satisfy the gate.
 
 ## Scope
 
