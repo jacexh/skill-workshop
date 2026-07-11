@@ -9,10 +9,12 @@ Realize an accepted Tactical Design as working, verified backend code in the `dd
 
 ## Authority
 
+Every DDD artifact is read-only in Codify. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation in the same run with authority `codify`; never request or perform an apply operation. Report artifact evidence and route it to its owning phase without persisting implementation status or feedback under `docs/ddd-expert`.
+
 Use this order when inputs disagree:
 
-1. `docs/ddd/model.md` owns business meaning and context relationships.
-2. `docs/ddd/design.md` owns tactical choices.
+1. Each affected context's Explore-owned model artifact owns its business meaning and view of its relationships.
+2. Each affected context's Shape-owned design artifact owns its tactical choices and collaboration responsibilities.
 3. The `ddd-expert` references own implementation defaults and house-style shape.
 4. The request or ticket owns the current change scope.
 5. Existing code, tests, and local conventions are compatibility evidence.
@@ -23,8 +25,8 @@ DDD artifacts may be absent for a purely mechanical change whose behavior, seman
 
 ## Workflow
 
-1. **Preflight before edits**: read the scoped request, relevant DDD model and design sections when present, touched code, generated artifacts, migrations, runtime entrypoints, and verification surface. Resolve every material authority conflict before changing files.
-2. **Check readiness**: return to `explore` for missing or contradictory business facts. Return to `shape` for missing or contradictory Aggregate, semantic-owner, consistency, collaboration, Repository/CQRS, port, layer, runtime-containment, or verification-intent decisions. Routine scaffold, package placement, adopted library, adapter, database, message, and runtime mechanics belong to Codify.
+1. **Preflight before edits**: run artifact inspection, then read the scoped request, accepted authority, touched code, generated artifacts, migrations, runtime entrypoints, and verification surface. Resolve every material authority conflict before changing files.
+2. **Check readiness**: treat `uninitialized`, `missing_model`, and `missing_design` as structural observations, not automatic blockers. Proceed without artifacts only for a purely mechanical change whose behavior, semantic owner, and layer are unambiguous. Route missing material business authority or Explore-owned layout to `explore`; route missing material Tactical Design, `stale_design`, `pending_design_reconciliation`, or Shape-owned layout to `shape`. Also return for unresolved Aggregate, semantic-owner, consistency, collaboration, Repository/CQRS, port, layer, runtime-containment, or verification-intent decisions. Routine scaffold, package placement, adopted library, adapter, database, message, and runtime mechanics belong to Codify.
 3. **Map obligations internally**: account for every accepted design obligation across its semantic owner, layer/package, abstraction or adapter, adopted library, MySQL/message/runtime mechanics, and verification evidence. Do not print this ledger by default.
 4. **Classify touched surfaces**: identify Domain, Application, Infrastructure, Interface, Runtime, database, generated protocol, events/messages, taskqueue, and verification surfaces. Then load only the corresponding reference sections.
 5. **Implement the house style**: preserve business decisions in the semantic owner, keep dependencies inward, use the adopted abstractions and libraries, isolate generated/storage/runtime types at adapters, and wire every production path required by the design. Do not broaden the change to unrelated legacy conformance.
@@ -32,7 +34,7 @@ DDD artifacts may be absent for a purely mechanical change whose behavior, seman
 
 ## Guard remediation
 
-A Guard finding is evidence, not implementation authority. Before fixing it, compare the current worktree with the accepted model, Tactical Design, and house style:
+A Guard finding is evidence, not implementation authority. Before fixing it, compare the current worktree with the accepted model, revision-matched Tactical Design, and house style:
 
 - if the finding is stale or already fixed, return `no_change` with evidence;
 - if accepted authority already defines the correct shape, fix the implementation and finish `changed` with route `guard`;
@@ -43,6 +45,8 @@ A Guard finding is evidence, not implementation authority. Before fixing it, com
 ## Completion
 
 Codify is complete only when every material handoff obligation is implemented or shown not applicable, touched code conforms to the house style or an explicit accepted design choice, required migrations/generated artifacts/runtime registrations are present, and verification evidence is recorded. `no_change` is valid only when the requested behavior already exists and the touched scope already conforms.
+
+Codify reports upstream artifact problems only through a `returned` route with concrete evidence. Review conclusions and `violation` / `evidence_gap` verdicts belong to Guard and are not Codify output.
 
 Finish with one of:
 

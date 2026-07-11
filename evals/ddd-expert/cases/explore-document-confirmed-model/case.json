@@ -14,16 +14,43 @@
     "forbid_verdicts": [],
     "git": {
       "changed": "some",
-      "required_paths": ["docs/ddd/model.md"],
-      "forbidden_paths": ["docs/spec.md"]
+      "required_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/inventory/model.md"
+      ],
+      "forbidden_paths": [
+        "docs/spec.md",
+        "docs/ddd/model.md",
+        "docs/ddd-expert/model.md"
+      ]
     },
     "files": [
       {
-        "path": "docs/ddd/model.md",
+        "path": "docs/ddd-expert/context/inventory/model.md",
         "exists": true,
-        "contains": ["InventoryReservation", "StockReserved"],
-        "excludes": ["CREATE TABLE"],
+        "contains": [
+          "# Inventory Domain Model",
+          "model_revision: 2",
+          "Inventory Reservation",
+          "Stock Reserved"
+        ],
+        "excludes": ["CREATE TABLE", "<Bounded Context>", "<!--"],
         "excludes_words": ["Repository", "table"]
+      },
+      {
+        "path": "docs/ddd-expert/README.md",
+        "exists": true,
+        "contains": ["# DDD Expert Artifacts", "context/inventory/model.md"],
+        "excludes": ["<Bounded Context>", "<!--"],
+        "excludes_words": []
+      },
+      {
+        "path": "docs/ddd-expert/context-map.md",
+        "exists": true,
+        "contains": ["# Context Map", "Inventory"],
+        "excludes": ["<Bounded Context>", "<!--"],
+        "excludes_words": []
       }
     ],
     "checks": []

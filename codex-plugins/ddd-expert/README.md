@@ -29,9 +29,9 @@ Restart Codex after upgrade.
 - **`$ddd-expert:guard` skill** — Hypothesis-driven Model Integrity review of concrete implementation evidence
 - **References** — canonical files live under `references/`
 
-The plugin does not auto-inject context. Skill discovery is driven by the four phase-skill descriptions; invoke a `ddd-expert` skill explicitly when you want to force a phase.
+The plugin does not auto-inject context. User work is driven by the four phase-skill descriptions. The plugin also ships `maintain-artifacts` as an internal protocol, not a user entry point.
 
-Each skill runs its compact phase workflow and then loads only the reference sections required by the touched responsibility.
+Phase skills own semantic decisions and load the `maintain-artifacts` protocol before artifact inspection or accepted writes. The same active agent executes it and loads only the templates required by that operation.
 
 ## Activation Guidance
 
@@ -61,9 +61,21 @@ Use this plugin for:
 - taskqueue/runtime boundaries in DDD services
 - database-backed backend persistence design when schema, query, migration, transaction, or storage concerns are explicit
 
-Explore lazily maintains the terminal-state domain model in `docs/ddd/model.md`; Shape maintains the terminal-state Tactical Design in `docs/ddd/design.md`. Multiple bounded contexts use explicit sections in these same artifacts.
+Explore lazily maintains one terminal-state domain model per Bounded Context; Shape maintains that context's Tactical Design beside it. Artifact locations and ownership follow [templates/artifact-layout.md](templates/artifact-layout.md).
 
 These artifacts contain only current DDD facts and tactical decisions. They do not copy feature descriptions, ADRs, tickets, project architecture, implementation progress, or review reports. Purely mechanical work with unambiguous ownership does not force document creation.
+
+## Artifact Templates
+
+- `templates/artifact-layout.md` defines the canonical project directory and artifact ownership.
+- `templates/README.md` defines the project artifact entry point and context index.
+- `templates/context-map.md` defines strategic context responsibilities and relationships.
+- `templates/model.md` defines one context's terminal-state Domain Model structure.
+- `templates/design.md` defines one context's terminal-state Tactical Design structure.
+
+The templates fix document and section names while allowing inapplicable sections to be omitted. Written artifacts contain accepted content only, with no template comments or placeholders.
+
+Explore exclusively authorizes root README, Context Map, and Domain Model transactions. Shape exclusively authorizes Tactical Design transactions. The internal `maintain-artifacts` skill validates and executes those writes; Codify and Guard may inspect only. Each design records the exact model revision it has shaped so stale designs cannot enter implementation as accepted authority.
 
 Do not use this plugin for frontend architecture, browser QA, product UI design, or general dynamic standards lookup.
 
