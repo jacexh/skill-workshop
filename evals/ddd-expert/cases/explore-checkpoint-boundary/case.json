@@ -13,7 +13,7 @@
       "max": 1,
       "contains_any": [
         ["Order", "订单"],
-        ["fulfill", "履约", "inventory", "库存", "fraud", "风控"]
+        ["fulfill*", "履约", "inventory", "库存", "fraud", "风控"]
       ],
       "excludes": [
         "what does payment mean",

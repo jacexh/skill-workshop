@@ -97,13 +97,26 @@ Keep a case focused on one risk. Add a directory under `cases/` containing:
 - `workspace/`: the smallest project evidence needed to decide the case.
 
 For discovery-order risks, `expect.questions.contains`, `contains_any`, and
-`excludes` score only the first question after Unicode and whitespace
-normalization. Each `contains_any` group requires one alternative, so a case can
-require both the owning context and one of several valid lifecycle terms without
-locking the model to one sentence.
+`excludes` score only the first question after Unicode normalization. English
+matches use word boundaries; spaces in a phrase also accept a dash. A trailing
+`*` declares an explicit English word family (`own*` matches `own`, `owns`, and
+`ownership`) without reverting to arbitrary substring matching. Chinese
+alternatives use continuous normalized text. Each `contains_any` group requires
+one alternative, so a case can require several independent semantic signals
+without locking the model to one sentence.
 
 Explore may report `completion: checkpointed` when it writes an accepted local
 closure and continues discovery without routing to Shape.
+
+For topology-discovery risks, pair an answer-neutral read-only sentinel with a
+checkpoint case. The sentinel should verify that missing language or business
+authority is resolved before a context-local lifecycle; the checkpoint should
+prove that accepted context responsibilities and relationships bootstrap the
+Context Map and every affected Model atomically.
+
+When context nodes are known but an edge is not, use a relationship sentinel
+that requires the upstream-owned fact or intent, downstream local meaning, and
+contract authority before either context's local lifecycle is explored.
 
 Run `validate`, `self-test`, and `doctor`, then run the new case at least three
 times. Guard cases assert both a stable reason family and concrete evidence.

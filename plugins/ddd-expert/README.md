@@ -17,7 +17,7 @@ This plugin is hookless. Automatic intervention relies on each skill's own front
 
 The plugin exposes four compact phase skills, one internal artifact executor, and shared references:
 
-- `explore` — User-story discovery projected through the Context Map into per-context and relationship trees, lifecycle closure, and accepted Model checkpoints
+- `explore` — Story-set topology discovery followed by Context Map projection, per-context and relationship trees, lifecycle closure, and accepted Model checkpoints
 - `shape` — Tactical Design for Aggregate boundaries, consistency, collaboration, ports, persistence boundaries, runtime containment, and verification seams
 - `codify` — House-Style Realization of accepted model and design decisions in working backend code
 - `guard` — Parallel Design Realization and House-Style Conformance review of concrete implementation evidence
@@ -53,7 +53,7 @@ Use this plugin for:
 - taskqueue/runtime boundaries in DDD services
 - database-backed backend persistence design when schema, query, migration, transaction, or storage concerns are explicit
 
-Explore walks the affected Context Map one context and relationship at a time. It checkpoints accepted local or boundary closures into each context's terminal-state Domain Model while keeping unresolved discovery active; only a complete story replay routes the current Model revisions to Shape. Shape maintains each context's Tactical Design beside it. Artifact locations and ownership follow [templates/artifact-layout.md](templates/artifact-layout.md).
+Explore first tests whether the current story set fits the accepted context topology; when it does not, it validates and checkpoints a context split, merge, or relationship before descending into one context. It then walks the affected Context Map one context and relationship at a time. It checkpoints accepted local or boundary closures into each context's terminal-state Domain Model while keeping unresolved discovery active; only a complete replay of every affected story routes the current Model revisions to Shape. Shape maintains each context's Tactical Design beside it. Artifact locations and ownership follow [templates/artifact-layout.md](templates/artifact-layout.md).
 
 These artifacts contain only current DDD facts and tactical decisions. They do not copy feature descriptions, ADRs, tickets, project architecture, implementation progress, or review reports. Purely mechanical work with unambiguous ownership does not force document creation.
 

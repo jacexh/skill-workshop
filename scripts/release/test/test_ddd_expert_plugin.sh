@@ -142,19 +142,24 @@ assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'execute its `inspect` or
 assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'never writes DDD artifacts directly' "explore should not bypass the artifact executor"
 assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'ask exactly one focused question, and end the turn' "explore should ask one focused question at a time"
 explore_skill="$CLAUDE_ROOT/skills/explore/SKILL.md"
-# These source sentinels protect the discovery process itself: the story chooses
-# the Context Map traversal, while each context and relationship closes locally.
-assert_contains "$explore_skill" 'user story or equivalent business scenario' "explore should accept a user story or equivalent scenario as its entry"
+# These source sentinels protect the discovery process itself: the story set
+# first tests the context topology, then each context and relationship closes locally.
+assert_contains "$explore_skill" 'user story or equivalent business scenario' "explore should accept user stories or equivalent scenarios as its entry"
+assert_contains "$explore_skill" 'shallow-scan every material story or scenario' "explore should scan the story set before descending into one context"
+assert_contains "$explore_skill" 'split-or-merge hypothesis' "explore should validate candidate context boundaries"
+assert_contains "$explore_skill" 'after topology triangulation or story projection exposes a material hotspot' "explore should load modeling guidance for topology discovery"
+assert_contains "$explore_skill" 'Story grouping and technical or organizational topology are evidence, never boundary proof' "explore should not infer contexts mechanically from story or system groupings"
+assert_contains "$explore_skill" '`docs/ddd-expert/context-map.md` and every semantically affected Model become the accepted traversal authority' "explore should checkpoint accepted topology before per-context discovery"
+assert_contains "$explore_skill" 'Do not enter a context-local discovery tree until that checkpoint succeeds' "explore should establish the affected context topology before per-context discovery"
 assert_contains "$explore_skill" 'traversal root' "explore should make the story or scenario its traversal root"
-assert_matches "$explore_skill" '[Pp]roject .* onto the accepted Context Map' "explore should project the story onto the accepted Context Map"
+assert_matches "$explore_skill" '[Pp]roject .* onto the accepted Context Map' "explore should project the stories onto the accepted Context Map"
 assert_contains "$explore_skill" 'discovery tree per affected context' "explore should build a separate discovery tree for every affected context"
 assert_contains "$explore_skill" 'relationship tree' "explore should build a separate question tree for each affected context relationship"
 assert_contains "$explore_skill" 'boundary reconciliation' "explore should reconcile boundaries after local discovery"
 assert_contains "$explore_skill" 'every material lifecycle branch' "explore should close lifecycles within their owning context"
 assert_contains "$explore_skill" 'a terminal condition when one exists, an explicit continuing or recoverable local state, or a named Context Map handoff' "explore lifecycle branches should end in a terminal, recoverable, or handed-off state"
 assert_contains "$explore_skill" 'accepted semantic checkpoint' "explore should checkpoint accepted semantic closures"
-assert_contains "$explore_skill" 'A checkpoint keeps Explore active; it does not make the story `shape_ready`' "an intermediate Explore checkpoint should remain inside Explore"
-assert_contains "$explore_skill" '`checkpointed` keeps Explore active and does not route to Shape' "an intermediate Explore checkpoint should not route to Shape"
+assert_contains "$explore_skill" '`checkpointed`:' "explore should expose an intermediate checkpoint completion"
 assert_contains "$explore_skill" 'Only a `shape_ready` result routes affected contexts to `shape`' "only final shape-ready completion should route to Shape"
 if rg -n 'Build one Model proposal|Apply once|one integrated proposed model delta|written once' "$explore_skill" >/dev/null; then
   rg -n 'Build one Model proposal|Apply once|one integrated proposed model delta|written once' "$explore_skill" >&2
