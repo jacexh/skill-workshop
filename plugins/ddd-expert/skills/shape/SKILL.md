@@ -17,8 +17,10 @@ The design describes the current accepted target state, not a feature narrative,
 - Application responsibilities, commands, and queries;
 - Domain Events, Integration Messages, and collaboration mechanisms;
 - Repository, CQRS, consistency, transaction, and idempotency boundaries;
-- design-significant boundary contracts and runtime ownership;
+- design-significant boundary contracts, semantic ownership, and execution ownership;
 - verification seams that prove the accepted model and design.
+
+Scheduled, asynchronous, and recovery work has two ownership roles. The semantic owner decides what work is due, interprets facts, and chooses business outcomes. The execution owner hosts delivery, concurrency, retry, and lifecycle. One component may hold both roles when accepted authority permits it, but the design states each role explicitly. Use worker, scheduler, consumer, and Runtime names for the execution role while keeping the delivered capability with its semantic owner.
 
 Do not prescribe schemas, DTO fields, file lists, package inventories, event payloads, or implementation steps unless that detail is itself a material design decision. A non-default choice is written as the chosen design in its normal section; do not maintain a separate exception ledger.
 
@@ -26,8 +28,8 @@ Do not prescribe schemas, DTO fields, file lists, package inventories, event pay
 
 1. **Read accepted inputs**: run the read-only artifact operation, then start from the root README, Context Map, exact model sections and revisions for every affected context, their existing Tactical Designs, and the scoped request. A missing Design is a valid input for its first Shape; stale or topology-pending Designs require revalidation. Treat code and tests as current-state evidence, not as authority over accepted model facts.
 2. **Check phase fit**: if a material scenario, authority, lifecycle, invariant, failure-tolerance, business language, or bounded-context fact is missing or contradictory, return to `explore` with the single highest-leverage missing fact. Aggregate and collaboration choices based on complete facts belong to `shape`; aggregate uncertainty alone is not a reason to return upstream.
-3. **Shape the target state**: resolve every applicable handoff obligation listed under Tactical Design artifact.
-4. **Review the design internally**: check story before objects, authority before ownership, lifecycle before type, invariant before Aggregate, failure tolerance before transaction, language before integration, and coordination before mechanism. Implementation transaction shape and storage convenience are evidence, not model proof.
+3. **Shape the target state**: resolve every applicable handoff obligation listed under Tactical Design artifact. For each scheduled, asynchronous, or recovery responsibility, name both ownership roles and make the Application, collaboration, persistence, and Runtime sections agree.
+4. **Review the design internally**: check story before objects, authority before ownership, semantic owner before execution owner, lifecycle before type, invariant before Aggregate, failure tolerance before transaction, language before integration, and coordination before mechanism. Implementation transaction shape and storage convenience are evidence, not model proof.
 5. **Pass the write gate**: if a material tactical decision cannot be resolved from accepted facts and project evidence, follow the clarification gate below. Write nothing until that gate is complete.
 6. **Apply once**: after acceptance, run `apply-design` through `maintain-artifacts` with context names/slugs, exact current Model revisions, each Design's observed pre-state, exact terminal content for every changed section, explicit removals, and write-gate evidence. Shape chooses the wording; artifact mechanics only validate and apply it. Correct an invalid operation input internally. On `revision_conflict`, re-inspect and rebuild the transaction once; if the pre-state changes again, return `blocked` with the concurrent-change evidence. Never bypass the protocol with a direct write.
 
@@ -43,7 +45,7 @@ Codify decides routine scaffold and file placement, adopted house-style librarie
 
 ## Completion
 
-The Tactical Design is the Implementation handoff. It is `codify_ready` only when every applicable handoff obligation above is resolved, every affected design references its exact current model revision, and Codify can implement without choosing business facts or semantic design.
+The Tactical Design is the Implementation handoff. It is `codify_ready` only when every applicable handoff obligation above is resolved, every scheduled, asynchronous, or recovery responsibility names both ownership roles, every affected design references its exact current model revision, and Codify can implement without choosing business facts or semantic design.
 
 Finish with one of:
 

@@ -5,7 +5,7 @@ description: Use when reviewing concrete backend implementation changes before m
 
 # Guard
 
-Review concrete implementation evidence through two independent axes: Design Realization and House-Style Conformance. Breadth produces falsifiable hypotheses; depth clears or proves them. A main coordinator owns the Review Envelope, dispatch, synthesis, verification, and routing; it does not perform either complete axis, redesign, or modify project files.
+Review concrete implementation evidence through two independent axes: Design Realization and House-Style Conformance. Breadth produces falsifiable hypotheses; depth clears or proves them. A main coordinator owns the Review Envelope, dispatch, synthesis, verification, and routing; it does not perform either complete axis, redesign, or modify project files. For a Codify handoff, the coordinator runs read-only in a fresh agent context distinct from the implementer.
 
 Build or runtime blockers limit executable verification only. Continue independent static review, and never treat compilation failure, passing tests, package names, or absence of suspicious words as model proof.
 
@@ -20,7 +20,8 @@ Establish before judging code:
 1. review mode, exact target, comparison base or explicit snapshot surface, and the behavior claimed complete;
 2. affected Bounded Contexts, Context Map relationships, and relevant Model and Design sections;
 3. relevant house-style references and any explicit Design choices that override their defaults;
-4. changed files and necessary neighboring code, generated artifacts, migrations, configuration, runtime wiring, logs, and verification evidence.
+4. changed files and necessary neighboring code, generated artifacts, migrations, configuration, runtime wiring, logs, and verification evidence;
+5. stable IDs for every scoped Design obligation, every changed file and required production path, and every additive layer, mechanism, and specialized-surface label attached to those paths.
 
 Code and tests never override accepted authority. Missing artifacts block only judgments that need them. A `stale_design` or `pending_design_reconciliation` result is not accepted implementation authority: report the material gap to `shape` while continuing independent conformance review. Route missing or contradictory business authority to `explore`.
 
@@ -30,13 +31,13 @@ Scope narrows applicable responsibilities: an absent layer or surface that the r
 
 ## Workflow
 
-1. **Frame the review**: choose `change_review` or `snapshot_review`. For a change, pin a resolvable base/target and reusable diff/commit commands; an empty diff does not disprove a claimed missing realization. For a snapshot, name the complete surface being asserted.
-2. **Freeze one Review Envelope**: record change intent, scope, affected contexts, artifact paths/revisions/fingerprints, evidence commands, changed-file inventory, and selected reference paths. Pass paths and commands rather than duplicating full files. Recheck the envelope before finalizing.
+1. **Frame the review**: choose `change_review` or `snapshot_review`. For a change, pin an immutable base and either an immutable target or a complete worktree snapshot. A mutable-worktree command set must enumerate staged, unstaged, and untracked paths and fingerprint their contents; a plain diff that omits new paths is incomplete. For a snapshot review, name and fingerprint the complete surface being asserted.
+2. **Freeze one Review Envelope**: record change intent, scope, affected contexts, artifact paths/revisions/fingerprints, source-snapshot identity and inspection commands, evidence commands, selected references, and the frozen specialized-surface inventory. Give every scoped Design obligation, changed file, required production path, layer, mechanism, and specialized surface a stable inventory ID; labels are additive. Pass paths and commands rather than duplicating full files. Recheck the envelope before finalizing.
 3. **Launch both axes**: use the host's native agent delegation to launch two independent read-only workers concurrently. Dispatch both initial workers before accepting or awaiting either completion. Label their exact roles `design-realization` and `house-style-conformance`; one worker or attempt cannot serve both roles. They receive the same frozen envelope, run in distinct agent contexts, cannot see each other's observations, and cannot delegate further. The coordinator performs neither complete axis.
-4. **Merge candidate families**: after both workers finish, merge related candidates by semantic owner, lifecycle, boundary, state vocabulary, collaboration, Repository/CQRS shape, runtime reachability, or specialized reference surface. One axis being clear never cancels the other's non-clear result.
+4. **Reconcile coverage, then merge**: require the Design Realization coverage union to equal the frozen Design-obligation IDs and the Conformance coverage union to equal every frozen changed-file, required-path, layer, mechanism, and specialized-surface ID, with no missing or unknown IDs. Treat a mismatch as an unusable worker result. Then merge related candidates by semantic owner, lifecycle, boundary, state vocabulary, collaboration, Repository/CQRS shape, runtime reachability, or specialized reference surface. One axis being clear never cancels the other's non-clear result.
 5. **Deep-check selectively**: axis workers close direct and adjacent evidence that shares the same reason and supplied surface. For every merged family still marked `needs_depth`, launch one bounded falsification worker; combine families only when they require the same evidence and reference surface. Each family is dispatched at most once. Launch independent families concurrently within capacity; never launch one worker per smell or allow recursive fan-out.
 6. **Synthesize and verify**: combine duplicate symptoms into the smallest evidence-backed root cause, preserve its `[Realization]`, `[Conformance]`, or `[Both]` provenance, verify reported high-impact evidence, run available executable checks, and route each non-clear result.
-7. **Enforce completion**: every scoped obligation and conformance coverage item is clear/not applicable or has a terminal candidate; every hypothesis and depth request is terminal; adjacent evidence is closed; both required axis workers completed; the frozen artifacts did not drift; every reported item cites concrete authority and implementation evidence.
+7. **Enforce completion**: the two coverage unions still reconcile exactly to their frozen inventory IDs; every frozen surface is clear/not applicable or has a terminal candidate; every hypothesis and depth request is terminal; adjacent evidence is closed; both required axis workers completed; the source snapshot did not drift; the frozen artifacts did not drift; every reported item cites concrete authority and implementation evidence. Snapshot drift makes the Guard execution incomplete rather than clear.
 
 If a required axis worker cannot be launched, fails, or returns unusable output, retry it once with a fresh worker and the same envelope. Each required role therefore has at most two attempts total. If it fails again, stop as an incomplete Guard execution. Do not substitute a main-thread axis, issue `No DDD findings`, infer an axis verdict, or emit an Explore/Shape/Codify route for this execution blocker.
 
@@ -64,17 +65,17 @@ Each required worker returns exactly one JSON object with no surrounding prose:
 {
   "axis": "design-realization",
   "status": "completed",
-  "coverage": [{"id": "obligation-id", "state": "realized"}],
+  "coverage": [{"id": "obligation-row", "inventory_ids": ["design:payment-capture"], "state": "realized"}],
   "candidates": [],
   "gaps": []
 }
 ```
 
-`axis` must equal the worker's assigned role exactly. Set `status` to `completed` only after every row is worker-terminal: closed directly or explicitly handed to depth. `coverage` must be nonempty, use unique identifiers, and contain only the Design states above or, for Conformance, `clear`, `violation`, `evidence_gap`, `needs_depth`, and `not_applicable`.
+`axis` must equal the worker's assigned role exactly. Set `status` to `completed` only after every row is worker-terminal: closed directly or explicitly handed to depth. `coverage` must be nonempty and use unique row identifiers. Every row includes a nonempty `inventory_ids` array and one Design state above or, for Conformance, `clear`, `violation`, `evidence_gap`, `needs_depth`, or `not_applicable`. One row may cover several inventory IDs that share one reason; the union must match that axis's frozen inventory exactly, with no missing or unknown IDs.
 
 Every `candidates` row is an object with `coverage_id`, `state` (`violation` or `needs_depth`), `reason_family`, `authority`, `confirming_evidence`, `disconfirming_evidence`, and `depth_scope`. Citation/evidence fields are arrays of concise path-and-location strings; only disconfirming evidence may be empty. `depth_scope` is a nonempty bounded question for `needs_depth` and `null` for a proven violation. Every `gaps` row is an object with `coverage_id`, `reason_family`, `missing`, `authority`, and nonempty `evidence`; `authority` may be empty only when its absence is the reported gap. Each `coverage_id` must name a row in `coverage`. Missing, partial, or incorrect Design realization maps to a violation candidate; `unverifiable` maps to a gap.
 
-A depth worker uses `depth:<reason-family>` as its axis, the same envelope, and one coverage row whose state is exactly `clear`, `violation`, or `evidence_gap`; it cannot return `needs_depth`. Keep citations, evidence, and detail for clear/not-applicable rows internal. Do not repeat the full envelope, paste clear code, spawn another worker, or recommend edits to DDD artifacts.
+A depth worker uses `depth:<reason-family>` as its axis, the same envelope, and one coverage row that retains the supplied `inventory_ids` and returns exactly `clear`, `violation`, or `evidence_gap`; it cannot return `needs_depth`. Keep citations, evidence, and detail for clear/not-applicable rows internal. Do not repeat the full envelope, paste clear code, spawn another worker, or recommend edits to DDD artifacts.
 
 ## Hypothesis and dispatch discipline
 
@@ -89,7 +90,7 @@ A depth worker uses `depth:<reason-family>` as its axis, the same envelope, and 
 
 ## Breadth baseline
 
-Seed one coverage obligation for every touched specialized surface without loading its full reference during breadth:
+Seed one coverage obligation for every touched specialized surface without loading its full reference during breadth. Layer, mechanism, and specialized-surface labels are additive, so one path may seed several inventory IDs:
 
 - **Language/framework**: layer and mechanism;
 - **Database**: schema, migration, SQL, mapping, index, constraint, and configuration;
