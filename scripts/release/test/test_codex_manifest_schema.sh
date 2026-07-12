@@ -71,7 +71,7 @@ for i in $(seq 0 $((count - 1))); do
     exit 1
   fi
   if [ -f "$readme" ] && grep -Fq "codex_hooks" "$readme"; then
-    echo "FAIL $name README must use canonical hooks/plugin_hooks feature flags"
+    echo "FAIL $name README must use the canonical hooks feature flag"
     exit 1
   fi
 

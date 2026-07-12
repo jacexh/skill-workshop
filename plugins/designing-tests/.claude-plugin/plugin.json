@@ -1,6 +1,6 @@
 {
   "name": "designing-tests",
-  "description": "Risk-driven test design guidance for choosing the right boundary, coverage, and regression-protective test cases",
+  "description": "Evidence-first design for regression-protective tests, integration boundaries, architecture verification, and hand-off evidence",
   "version": "1.14.8",
   "author": {
     "name": "xuhao"

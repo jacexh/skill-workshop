@@ -1,28 +1,16 @@
 # designing-tests (Codex)
 
-Evidence-first verification guidance, including architecture-aware evidence
-design, integration-test quality standards, and hand-off gates for tested
-evidence, checked evidence, skipped or unavailable verification, and residual
-risk.
+Hookless, on-demand guidance for choosing verification evidence and designing
+regression-protective tests at the right production boundary.
 
 ## Installation
-
-Codex hooks require this feature flag in `~/.codex/config.toml`:
-
-```toml
-[features]
-hooks = true
-plugin_hooks = true
-```
 
 ```bash
 codex plugin marketplace add jacexh/skill-workshop
 codex plugin add designing-tests@skill-workshop-codex
 ```
 
-Restart Codex. Current Codex versions load this plugin's lifecycle config from `hooks/hooks.json` via `.codex-plugin/plugin.json`.
-
-If hooks do not appear after restart, confirm both `hooks = true` and `plugin_hooks = true` are enabled, open `/hooks` to review and trust plugin hooks, and upgrade Codex. If old fallback hooks in `~/.codex/hooks.json` still point at deleted plugin cache paths, remove those stale entries manually or run the plugin's `scripts/install-codex-hooks.js remove` helper from the installed plugin directory.
+Restart Codex so the installed skill is discovered.
 
 ## Upgrade
 
@@ -30,21 +18,22 @@ If hooks do not appear after restart, confirm both `hooks = true` and `plugin_ho
 codex plugin marketplace upgrade jacexh/skill-workshop
 ```
 
-Restart Codex. Current Codex versions do not require any setup step after upgrade.
-
-Manual hook config is not recommended. Native lifecycle config lives in `hooks/hooks.json`. If stale fallback entries point at an old deleted cache version and cause hook failures, remove the stale fallback entries from `~/.codex/hooks.json` and restart Codex.
+Restart Codex after the marketplace upgrade.
 
 ## Capabilities
 
-- **UserPromptSubmit hook** — injects a compact evidence-choice primer when the user explicitly mentions relevant `$superpowers:*` workflow skills
-- **`designing-tests` skill** — full guidance on demand via `$designing-tests:designing-tests`
-- 3 references (read on demand): architecture-test-design, handoff-gate, integration-quality
+- **`designing-tests` skill** — Intent / Risk / Evidence selection followed by
+  Oracle / Seam / Control / Proof when a test is justified
+- **Architecture reference** — turns design goals and sequence phases into
+  traceable evidence or residual risk
+- **Integration reference** — protects database, transport, contract, and
+  production-wiring fidelity
+- **Hand-off reference** — distinguishes executed tests and checks from skipped,
+  unavailable, or residual risk
 
-## Known Codex protocol gap (vs Claude Code)
+The plugin installs no lifecycle hooks and does not inject guidance into other
+workflows. Invoke `$designing-tests:designing-tests` explicitly or let its skill
+description match test-design work.
 
-Claude Code's PreToolUse:Skill hook intercepts trigger skills with different compact tiers:
-- **planning tier** for `writing-plans` (lightweight reminder)
-- **execution tier** for `executing-plans` / `subagent-driven-development` (Intent / Risk / Evidence primer)
-- **full tier** for `test-driven-development` (slim SKILL.md + reference index)
-
-Codex does not expose native skill invocation as a hookable tool event, so the tiers collapse into one compact primer. The primer is injected only when the user explicitly mentions relevant `$superpowers:*` workflow skills through UserPromptSubmit. Agent-self-decided skill invocation is still not hookable; the full SKILL.md loads on demand when the agent invokes `$designing-tests:designing-tests`.
+If an older installation left a fallback command in `~/.codex/hooks.json` that
+points to a deleted designing-tests runtime, remove that entry manually once.

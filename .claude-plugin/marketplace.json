@@ -59,7 +59,7 @@
     {
       "name": "designing-tests",
       "source": "./plugins/designing-tests",
-      "description": "Evidence-first verification guidance from architecture docs, sequence diagrams, checks, tests, and hand-off evidence gates",
+      "description": "Evidence-first design for regression-protective tests, integration boundaries, architecture verification, and hand-off evidence",
       "version": "1.14.8",
       "author": {
         "name": "xuhao"

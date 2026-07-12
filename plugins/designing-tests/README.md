@@ -1,12 +1,13 @@
 # designing-tests
 
-Evidence-first verification guidance packaged as a Claude Code plugin.
+Hookless, on-demand guidance for choosing verification evidence and designing
+regression-protective tests at the right production boundary.
 
-## Included skills
+## Included skill
 
-- `designing-tests`: choose verification evidence from intent and observable
-  risk, then write tests only when tests are the narrowest reliable evidence.
+- `designing-tests`: choose evidence from intent and observable risk, then use
+  Oracle / Seam / Control / Proof when a test is the narrowest reliable evidence.
 
-The skill defines architecture-aware evidence design, integration-test quality,
-and hand-off gates so agents report tested evidence, checked evidence, skipped or
-unavailable verification, and residual risk before claiming behavior is complete.
+The skill includes architecture, integration-quality, and hand-off references.
+Its description handles discovery; the plugin does not intercept other workflow
+skills.

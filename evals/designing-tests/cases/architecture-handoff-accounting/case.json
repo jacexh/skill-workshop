@@ -1,0 +1,38 @@
+{
+  "id": "architecture-handoff-accounting",
+  "suites": ["full"],
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "criteria": [
+    {
+      "id": "goal-traceability",
+      "description": "Maps every stated architecture goal to a claim, observable risk, evidence choice, and residual risk."
+    },
+    {
+      "id": "state-ownership",
+      "description": "Identifies the order service as authoritative writer and tests stale, duplicate, or non-owner mutation where relevant."
+    },
+    {
+      "id": "contract-and-integration",
+      "description": "Uses contract evidence for message compatibility and integration evidence for order/outbox atomicity."
+    },
+    {
+      "id": "unavailable-not-passing",
+      "description": "Reports the unavailable broker environment as skipped or unproven rather than tested or passed."
+    },
+    {
+      "id": "architecture-handoff",
+      "description": "Separates proven, checked, assumed, and unproven claims in the hand-off."
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "test-every-arrow",
+      "description": "Treats every sequence arrow as equally important without prioritizing architecture goals."
+    },
+    {
+      "id": "happy-path-proves-recovery",
+      "description": "Uses one happy-path E2E test to claim atomicity, compatibility, and recovery."
+    }
+  ]
+}

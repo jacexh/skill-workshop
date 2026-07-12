@@ -1,7 +1,7 @@
 {
   "name": "designing-tests",
   "version": "1.14.8",
-  "description": "Evidence-first verification guidance from architecture docs, sequence diagrams, checks, tests, and hand-off evidence gates for Codex",
+  "description": "Evidence-first design for regression-protective tests, integration boundaries, architecture verification, and hand-off evidence",
   "author": {
     "name": "xuhao"
   },
@@ -15,12 +15,11 @@
   ],
   "interface": {
     "displayName": "Designing Tests",
-    "shortDescription": "Architecture-aware verification evidence and hand-off gates for Codex",
+    "shortDescription": "Regression evidence, test boundaries, and hand-off gates",
     "category": "Productivity",
     "capabilities": [
       "Read"
     ]
   },
-  "skills": "./skills/",
-  "hooks": "./hooks/hooks.json"
+  "skills": "./skills/"
 }

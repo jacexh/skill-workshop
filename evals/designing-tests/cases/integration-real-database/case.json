@@ -1,0 +1,38 @@
+{
+  "id": "integration-real-database",
+  "suites": ["full"],
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "criteria": [
+    {
+      "id": "real-postgres-boundary",
+      "description": "Chooses an integration boundary with the production PostgreSQL engine, migrations, repository, and transaction manager."
+    },
+    {
+      "id": "deterministic-concurrency",
+      "description": "Coordinates overlapping requests through an observable barrier or lock condition under a deadline rather than elapsed-time sleep."
+    },
+    {
+      "id": "durable-uniqueness-oracle",
+      "description": "Asserts from a fresh observer that exactly one active reservation and its matching outbox record commit."
+    },
+    {
+      "id": "rollback-fault-injection",
+      "description": "Injects a real database or adapter failure that proves reservation and outbox rollback together."
+    },
+    {
+      "id": "integration-residual",
+      "description": "Separates database atomicity proof from broker delivery, failover, or other unexecuted production risks."
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "mocked-risk-carrier",
+      "description": "Uses mocked repository or publisher call counts as proof of database uniqueness or atomicity."
+    },
+    {
+      "id": "sleep-concurrency",
+      "description": "Uses fixed sleeps as the primary evidence that concurrent requests overlapped."
+    }
+  ]
+}
