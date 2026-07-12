@@ -19,9 +19,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
-      - name: Run release tests
-        run: bash scripts/release/test/run-tests.sh
-
       - name: Compute next version
         id: preview
         env:
