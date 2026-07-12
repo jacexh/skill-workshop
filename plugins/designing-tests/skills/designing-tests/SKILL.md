@@ -1,184 +1,187 @@
 ---
 name: designing-tests
-description: Use when writing tests, adding coverage, fixing flaky tests, reviewing test quality, choosing verification evidence, deciding between unit/integration/E2E/check/dry-run/smoke/manual validation, planning regression cases from architecture docs or sequence diagrams, preparing hand-off evidence, or reporting skipped/unrun/flaky verification risk. Covers business rules, state machines, APIs, async flows, service boundaries, mocking strategy, and evidence hand-off gates.
+description: Design verification evidence and high-signal tests. Use when writing or adding tests, reviewing test quality or coverage, choosing between tests and checks, dry-runs, smokes, or manual validation, deriving regression cases from architecture or sequence documents, or preparing verification hand-off evidence.
 ---
 
 # Designing Tests
 
-Choose verification evidence for real regressions. Tests are one evidence type,
-not the default answer. Do not optimize for coverage percentage, ritual
-completeness, or tests around code that has no independently observable risk.
+Choose the cheapest reliable evidence for an observable regression. Use tests
+when they are the narrowest evidence that can fail for the same reason as
+production.
+
+## Route
+
+Choose the task path before doing the work:
+
+- **Design or write tests:** run the full workflow.
+- **Review existing tests:** map each material claim through the workflow,
+  classify its proof, and report false confidence or missing evidence.
+- **Choose verification evidence:** run Intent, Risk, and Evidence; run Test
+  Construction only when `test` is selected.
+- **Architecture or sequence input:** first read
+  [references/architecture-test-design.md](references/architecture-test-design.md),
+  then feed its claims into Intent, Risk, and Evidence.
+- **Hand-off only:** read
+  [references/handoff-gate.md](references/handoff-gate.md) and report observed
+  evidence rather than planned evidence.
+
+**Complete when:** the primary path is named and only its conditional references
+are loaded.
 
 ## Workflow
 
-### 1. Intent Gate
+### 1. Intent
 
-State the intent source before proposing verification:
+Identify the authority for each target behavior:
 
-- Product spec, API contract, acceptance criteria, issue/bug report, ADR,
-  architecture docs, message flow, or sequence diagram.
-- If formal docs are missing, infer intent from the public contract: name,
-  parameters, return type, module role, and callers. Mark this as an
-  `assumption`.
-- If intent is ambiguous and the risk is high, ask for the missing requirement
-  or state the unresolved assumption instead of inventing tests.
-- For architecture docs, ADRs, component diagrams, message flows, or sequence
-  diagrams, identify architecture design goals first. Use
-  [references/architecture-test-design.md](references/architecture-test-design.md).
+- Prefer a product spec, API contract, acceptance criterion, issue, bug report,
+  ADR, architecture document, message flow, or sequence diagram.
+- When formal authority is absent, infer intent from the public contract and
+  callers, and mark it as an `assumption`.
+- Surface unresolved high-risk ambiguity instead of silently choosing behavior.
 
-### 2. Risk Gate
+**Complete when:** every target behavior has an authority or explicit
+assumption, and every unresolved high-risk ambiguity is named.
 
-State the observable regression each evidence item protects:
+### 2. Risk
 
-`If <behavior breaks>, users/system observe <failure>.`
+State each observable regression:
 
-If you cannot name a meaningful observable failure, do not add a test for that
-surface. A thin entrypoint, simple glue script, generated artifact, static
-configuration, or deployment helper can be verified by cheaper evidence when it
-does not own independent behavior.
+`If <behavior breaks>, users or the system observe <failure>.`
 
-Use this short high-risk lens before choosing evidence:
+Treat security and tenancy, persistence and migrations, external contracts,
+async state, deployment translation, and production-incident regressions as
+high-risk surfaces.
 
-- security, auth, permission, tenancy, or secret handling
-- data persistence, migration, uniqueness, transactions, or irreversible state
-- external API, message, schema, generated client, route, or topic contracts
-- async retry, deduplication, idempotency, ordering, timeout, or recovery
-- environment/profile/config translation that can break deployment
-- user-visible critical journeys or production incident regressions
+A surface with no independently observable failure does not need its own test;
+record cheaper evidence when appropriate.
 
-High-risk surfaces need stronger evidence. If you choose a lightweight check
-instead of a test for one of these risks, explain why the check is sufficient and
-what residual risk remains.
+**Complete when:** every target behavior has an observable regression, or is
+excluded with a reason that it owns no independent risk.
 
-### 3. Evidence Gate
+### 3. Evidence
 
 Choose the lowest-cost reliable evidence:
 
-- `test`: automated unit, integration, seam, contract, component, or E2E test
-- `check`: build, typecheck, lint, static validation, syntax check, schema check
-- `dry-run`: deployment/config/script dry-run such as `kubectl --dry-run`
+- `test`: unit, integration, API, seam, contract, component, or E2E
+- `check`: build, typecheck, lint, syntax, static, or schema validation
+- `dry-run`: deployment, configuration, or script dry-run
 - `smoke`: narrow runtime exercise of a critical path
-- `manual`: explicit manual verification when automation is not practical
-- `residual`: risk intentionally left unverified or only partially verified
+- `manual`: explicit manual verification
+- `residual`: intentionally unverified or partially verified risk
 
-Select `test` only when it is the narrowest reliable evidence for the stated
-regression. If selecting a test, state why lighter evidence such as build, lint,
-typecheck, shell syntax, schema validation, dry-run, or smoke would miss the
-regression. If not selecting a test, record the chosen evidence and residual
-risk.
+When selecting `test`, state why lighter evidence would miss the regression.
+When selecting lighter evidence for a high-risk surface, state why it is
+sufficient and what remains unproven.
 
-### 4. Boundary Selection, Only For Tests
+**Complete when:** every risk has one evidence choice or explicit residual risk,
+and every selected test has a reason lighter evidence is insufficient.
 
-When a test is the selected evidence, choose the lowest boundary that can fail
-the same way production fails:
+### 4. Test Construction
 
-- pure function/reducer: branching, parsing, normalization, state transitions
-- handler/API/component: request mapping, rendered behavior, validation feedback
-- integration: production collaborators cooperate at one service boundary
-- seam/contract: serialization, message schema, generated client, route/topic
-  wiring, compatibility drift
-- E2E: only for critical full user/system journeys lower layers cannot prove
+Run this section only for selected or reviewed tests.
 
-Do not call a test `real` if it mocks the internal collaborator carrying the
-claimed risk. Mock third-party or expensive edges only. See
-[references/integration-quality.md](references/integration-quality.md) for
-integration and contract tests.
+#### Discover
 
-### 5. Hand-off Evidence
+Inspect the production call path, nearest relevant tests, test runner and
+configuration, and existing fixtures or helpers. Run the focused baseline when
+the environment permits.
 
-Before claiming behavior is complete, fixed, reviewed, or ready to hand off,
-report verification evidence:
+**Complete when:** the production path under risk and the existing evidence
+around it are known, and baseline status is recorded or its absence explained.
 
-- `tested`: test or command that protects a stated risk
-- `checked`: build, lint, typecheck, static validation, syntax check, dry-run, or
-  smoke result
-- `not covered/skipped`: unavailable service, skipped/flaky test, missing
-  credential, manual-only path, or unrun suite
-- `residual risk`: what can still break despite the evidence
+#### Oracle
 
-Skipped integration/E2E tests and unavailable services are not passing evidence.
-Use [references/handoff-gate.md](references/handoff-gate.md) for the full
-handoff rubric.
+Derive the expected outcome from an authority independent of the implementation:
+an exact contract example, business invariant, before/after relation,
+independent calculation, or metamorphic property.
 
-## Output Format
+**Complete when:** every expected outcome is traceable to intent and
+distinguishes correct behavior from the named regression without copying the
+production algorithm.
 
-Before writing tests, output an evidence plan:
+#### Seam
+
+Choose the lowest boundary that can fail the way production fails:
+
+- pure function or reducer for rules and transitions
+- handler, API, or component for mapping and visible behavior
+- integration for cooperating production components
+- seam or contract for serialization, schema, route, topic, or client drift
+- E2E for a critical journey that lower boundaries cannot prove
+
+Keep the collaborator carrying the claimed risk inside the tested boundary.
+For integration, API, contract, seam, or E2E work, read
+[references/integration-quality.md](references/integration-quality.md).
+
+**Complete when:** the boundary is justified by the production failure mode and
+no test double replaces the collaborator carrying the claim.
+
+#### Control
+
+Make the test repeatable while preserving the risky behavior:
+
+- Control clocks, randomness, identifiers, schedulers, and environment inputs.
+- Isolate data and resources from execution order, shared state, and developer
+  state.
+- Synchronize async completion on an observable condition under a bounded
+  timeout.
+- Seed or pin variable inputs and clean up owned state even after failure.
+
+**Complete when:** every material nondeterministic input is controlled or named
+as residual risk, and resource isolation is explicit.
+
+#### Proof
+
+Assert observable behavior, contract-visible state, durable state, messages, or
+meaningful side effects. Select the smallest cases that protect distinct risks;
+use boundary values, equivalence partitions, decision tables, state transitions,
+or pairwise sampling only when they expose a different failure.
+
+Classify reviewed or selected tests:
+
+- `real`: reaches the risk carrier and fails when the target regression returns
+- `shallow`: proves shape, status, smoke behavior, or a heavily mocked path
+- `fake`: proves a double, copied logic, type, fixture, or constant rather than
+  production behavior
+
+For each critical assertion, name the defect or perturbation that would make it
+fail. For a bug fix, observe red-before-fix when practical. Duplicate a case
+across layers only when each layer catches a different failure mode.
+
+**Complete when:** every critical risk has at least one `real` proof at the
+narrowest sufficient boundary, or an explicit evidence gap; implemented tests
+have an observed result.
+
+### 5. Hand-off
+
+Report:
+
+- `tested`: command and risk protected
+- `checked`: command and risk protected
+- `not covered/skipped`: unavailable or unrun evidence and its impact
+- `residual risk`: what can still break
+
+Use [references/handoff-gate.md](references/handoff-gate.md) for the complete
+record.
+
+**Complete when:** commands and outcomes reflect the final state, planned
+evidence is not presented as executed evidence, and every uncovered risk is
+visible.
+
+## Evidence Plan
+
+Use one compact entry per distinct risk:
 
 ```text
 Evidence Plan: <change or component>
-Intent source: <spec/contract/ADR/bug report/assumption>
+Intent: <authority or assumption>
+Risk: <breakage> -> <observable failure>
+Evidence: <test/check/dry-run/smoke/manual/residual> because <reason>
 
-Risk map:
-- <risk>: If <behavior breaks>, <observable failure>
+Test construction, if selected:
+- <scenario>: Oracle <expected authority>; Seam <boundary>; Control <inputs>;
+  Proof <observable assertion and target regression>
 
-Evidence choice:
-- test/check/dry-run/smoke/manual/residual: <evidence> -> protects <risk>
-
-Tests, if selected:
-- <boundary>: <scenario> -> <expected outcome>
-
-Not covered:
-- <risk> -> <why not covered and residual impact>
+Residual: <unproven risk and impact>
 ```
-
-## Test Quality Labels
-
-Use these labels only for tests:
-
-- `real`: reaches the risky implementation and would fail if the target
-  regression returns
-- `shallow`: touches the area but only proves shape, status, smoke behavior, or
-  a heavily mocked path
-- `fake`: proves mocks, copied logic, types, fixtures, or the test double rather
-  than production behavior
-
-For critical changed behavior, at least one selected test must be `real` at the
-narrowest boundary that catches the real failure. A `shallow` test can support
-smoke confidence but cannot prove the risky behavior. A `fake` test is evidence
-of a gap.
-
-## Case Design Heuristics
-
-After the Evidence Gate selects tests:
-
-- Start with the smallest set that proves the stated regression cannot happen.
-- Add success, failure, boundary, invalid transition, duplicate/retry, ordering,
-  permission, schema, or time-window cases only when they protect distinct
-  risks.
-- Use equivalence partitioning for large input spaces, boundary values for
-  limits, decision tables for multi-condition business rules, and pairwise
-  sampling when exhaustive combinations add little detection value.
-- Do not duplicate the same assertion across unit, integration, and E2E unless
-  each layer catches a different failure mode.
-
-## Intent Notes
-
-Every non-obvious test needs an intent note in the test name, comment, or
-enclosing context. Add an explicit comment when:
-
-- the protected regression is not obvious from the test name
-- the test scans config/source text
-- the boundary is architecture, deployment, contract, or migration evidence
-
-Self-explanatory behavior tests do not need ceremonial comments.
-
-## Failure Triage
-
-When a test fails:
-
-1. Confirm the test still matches the requirement or stated assumption.
-2. Confirm the test reaches the real implementation under risk.
-3. If both are true, treat the implementation as suspect before weakening the
-   test.
-
-Do not change a test just to make it pass.
-
-## When To Read References
-
-- Read [references/architecture-test-design.md](references/architecture-test-design.md)
-  for architecture docs, ADRs, component diagrams, message flows, or sequence
-  diagrams.
-- Read [references/integration-quality.md](references/integration-quality.md)
-  when selected evidence is integration, API, contract, seam, or E2E testing.
-- Read [references/handoff-gate.md](references/handoff-gate.md) before claiming
-  work is ready for user hand-off.

@@ -4,7 +4,7 @@ A dual-track [Claude Code](https://claude.ai/code) and Codex CLI plugin marketpl
 
 ## Overview
 
-Skill Workshop is a curated collection of plugins that enhance agentic software development workflows. Claude Code remains the primary supported track under `plugins/<name>/`; the experimental Codex CLI track lives under `codex-plugins/<name>/`. Each plugin is self-contained with its own hooks, skills, templates, and documentation.
+Skill Workshop is a curated collection of plugins that enhance agentic software development workflows. Claude Code remains the primary supported track under `plugins/<name>/`; the experimental Codex CLI track lives under `codex-plugins/<name>/`. Each plugin is self-contained and ships only the skills, optional hooks, references, and documentation it needs.
 
 ## Claude Code Usage
 
@@ -73,10 +73,10 @@ Invoke `ddd-expert` directly for DDD/backend exploration, tactical model shaping
 
 ### designing-tests
 
-Evidence-first verification guidance for choosing tests, checks, dry-runs,
-smoke validation, and residual-risk reporting from intent and observable risk.
-Includes architecture-aware evidence design, integration quality, and hand-off
-evidence gates.
+Hookless, evidence-first guidance for choosing tests, checks, dry-runs, smoke
+validation, and residual-risk reporting from intent and observable risk. When a
+test is justified, it drives construction through Oracle, Seam, Control, and
+Proof, with architecture, integration, and hand-off references on demand.
 
 - **License:** MIT
 - **Claude details:** [plugins/designing-tests/README.md](plugins/designing-tests/README.md)
@@ -162,13 +162,15 @@ This repository also publishes Codex-compatible variants of the plugins under `c
 codex plugin marketplace add jacexh/skill-workshop
 ```
 
-Enable plugin hooks in `~/.codex/config.toml`:
+Plugins that declare lifecycle hooks require this feature in
+`~/.codex/config.toml`:
 
 ```toml
 [features]
 hooks = true
-plugin_hooks = true
 ```
+
+`ddd-expert` and `designing-tests` are hookless and do not require this flag.
 
 Install the Codex plugins you need:
 
@@ -179,7 +181,10 @@ codex plugin add ddd-expert@skill-workshop-codex
 codex plugin add designing-tests@skill-workshop-codex
 ```
 
-Restart Codex. Current Codex versions load plugin lifecycle hooks from each plugin's `.codex-plugin/plugin.json` and `hooks/hooks.json`; users do not run setup skills after install or upgrade. If you previously used setup-era fallback hooks, remove stale entries from `~/.codex/hooks.json` using the relevant plugin README. If hooks do not appear after restart, open `/hooks` to review and trust plugin hooks, confirm both feature flags are enabled, and upgrade Codex if needed.
+Restart Codex after installing or upgrading plugins. Hook-bearing plugins load
+lifecycle configuration from `.codex-plugin/plugin.json` and `hooks/hooks.json`;
+users do not run setup skills. If you previously used setup-era fallback hooks,
+remove stale entries from `~/.codex/hooks.json` using the relevant plugin README.
 
 Upgrade the Codex marketplace with:
 
@@ -187,15 +192,18 @@ Upgrade the Codex marketplace with:
 codex plugin marketplace upgrade jacexh/skill-workshop
 ```
 
-Each plugin has its own README under `codex-plugins/<name>/README.md` with capabilities, upgrade flow, stale fallback-hook cleanup guidance, and known protocol gaps relative to the Claude Code variant.
+Each plugin has its own README under `codex-plugins/<name>/README.md` with its
+capabilities, upgrade flow, and any host-specific migration guidance.
 
-The Claude Code variants under `plugins/` and the marketplace at `.claude-plugin/marketplace.json` are unchanged and remain the primary supported track.
+The Claude Code variants under `plugins/` and the marketplace at
+`.claude-plugin/marketplace.json` remain the primary supported track.
 
 ## Releases
 
 This repo uses an automated release pipeline triggered when a pull request merges into `main`. The pipeline:
 
-1. Computes the next version (`vX.Y.Z`) by reading the latest `v*` tag and bumping based on the **PR source branch prefix**:
+1. Runs the complete release test harness before changing versions or tags.
+2. Computes the next version (`vX.Y.Z`) by reading the latest `v*` tag and bumping based on the **PR source branch prefix**:
 
    | Prefix (`/` or `-` separator) | Bump |
    |---|---|
@@ -203,9 +211,9 @@ This repo uses an automated release pipeline triggered when a pull request merge
    | `breaking/...`, `major/...` | major |
    | `fix/`, `hotfix/`, `bugfix/`, `feat/`, `feature/`, anything else | patch |
 
-2. Detects which plugins changed under `plugins/<name>/` and `codex-plugins/<name>/`. Same-named Claude Code and Codex plugin tracks are synchronized: changing either track bumps both manifests when both tracks exist.
-3. Bumps the matching `version` fields in `marketplace.json`, each affected `plugin.json`, and Codex hook snippets when present. The marketplace's `metadata.version` always advances.
-4. Commits the bump as `github-actions[bot]`, tags the new commit `vX.Y.Z`, and publishes a GitHub Release with auto-generated notes.
+3. Detects which plugins changed under `plugins/<name>/` and `codex-plugins/<name>/`. Same-named Claude Code and Codex plugin tracks are synchronized: changing either track bumps both manifests when both tracks exist.
+4. Bumps the matching `version` fields in `marketplace.json`, each affected `plugin.json`, and Codex hook snippets when present. The marketplace's `metadata.version` always advances.
+5. Commits the bump as `github-actions[bot]`, tags the new commit `vX.Y.Z`, and publishes a GitHub Release with auto-generated notes.
 
 > **Tag naming convention:** only `vX.Y.Z` semver tags should ever be created in this repo. Other tag patterns will confuse the auto-release pipeline's "latest tag" lookup.
 

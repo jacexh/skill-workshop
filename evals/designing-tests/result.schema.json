@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "designing-tests semantic assessment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["case_id", "criteria", "forbidden", "verdict"],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "met", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "met": { "type": "boolean" },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "forbidden": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "observed", "evidence"],
+        "properties": {
+          "id": { "type": "string" },
+          "observed": { "type": "boolean" },
+          "evidence": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "verdict": {
+      "enum": ["pass", "fail"]
+    }
+  }
+}

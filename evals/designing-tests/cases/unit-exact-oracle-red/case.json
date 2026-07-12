@@ -1,0 +1,38 @@
+{
+  "id": "unit-exact-oracle-red",
+  "suites": ["smoke", "full"],
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "criteria": [
+    {
+      "id": "unit-boundary",
+      "description": "Selects a pure unit boundary and explains why integration or mocks add no detection value."
+    },
+    {
+      "id": "exact-independent-oracle",
+      "description": "Derives the inclusive-threshold result of 9000 cents from the contract rather than copying the implementation calculation."
+    },
+    {
+      "id": "weak-existing-assertion",
+      "description": "Identifies the existing non-null assertion as shallow evidence."
+    },
+    {
+      "id": "red-sensitivity",
+      "description": "States or demonstrates that the inclusive-threshold regression test fails against the current implementation."
+    },
+    {
+      "id": "distinct-risk-cases",
+      "description": "Keeps additional membership, cap, or boundary cases only when they protect distinct pricing risks."
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "copied-oracle",
+      "description": "Computes expected values by reproducing the production algorithm inside the test."
+    },
+    {
+      "id": "unit-as-integration",
+      "description": "Escalates the pure pricing rule to an integration or E2E test."
+    }
+  ]
+}

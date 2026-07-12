@@ -1,0 +1,34 @@
+{
+  "id": "thin-glue-prefers-check",
+  "suites": ["smoke", "full"],
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "criteria": [
+    {
+      "id": "no-independent-test",
+      "description": "Recognizes that the entrypoint owns no independent branching or business behavior and does not select an automated behavior test."
+    },
+    {
+      "id": "syntax-and-build-evidence",
+      "description": "Selects shell syntax validation and image build or packaged-path evidence for the changed contract."
+    },
+    {
+      "id": "deployment-dry-run",
+      "description": "Uses the available deployment dry-run for platform acceptance rather than manufacturing an E2E journey."
+    },
+    {
+      "id": "runtime-residual",
+      "description": "Names application startup or configuration parsing as residual unless a narrow existing smoke is available."
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "glue-unit-test",
+      "description": "Adds or recommends a unit test that merely greps the script or mocks the app to assert argv."
+    },
+    {
+      "id": "unnecessary-e2e",
+      "description": "Requires an integration or E2E suite solely for the literal path edit."
+    }
+  ]
+}

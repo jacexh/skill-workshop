@@ -1,0 +1,38 @@
+{
+  "id": "review-mocked-risk-carrier",
+  "suites": ["full"],
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "criteria": [
+    {
+      "id": "claims-and-risks",
+      "description": "Maps each existing test claim to an observable regression before judging its quality."
+    },
+    {
+      "id": "fake-persistence-proof",
+      "description": "Classifies the repository-mocked persistence claim as fake or shallow and cites the real test location."
+    },
+    {
+      "id": "weak-status-proof",
+      "description": "Identifies the status-only assertion as insufficient for the durable order and audit behavior being claimed."
+    },
+    {
+      "id": "replacement-boundary",
+      "description": "Proposes the smallest real boundary that retains the persistence risk carrier while allowing unrelated third-party notification to remain doubled."
+    },
+    {
+      "id": "review-gap-handoff",
+      "description": "Reports false confidence and missing evidence without presenting unimplemented replacement tests as passing."
+    }
+  ],
+  "forbidden": [
+    {
+      "id": "all-mocks-bad",
+      "description": "Treats every test double as invalid without considering which collaborator carries the claim."
+    },
+    {
+      "id": "coverage-percentage",
+      "description": "Uses coverage percentage as the primary quality verdict."
+    }
+  ]
+}
