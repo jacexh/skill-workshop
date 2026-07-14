@@ -4,7 +4,7 @@
 
 ## Global View
 
-<!-- Declare every accepted project Bounded Context exactly once, including isolated contexts. Use its lower-kebab-case context slug with hyphens replaced by underscores as the Mermaid identifier, and its accepted context name as the visible label. Add each accepted dependency once as a plain edge from upstream to downstream. This view is a mechanical projection of the Local Views and named contract entries below. -->
+<!-- Declare every accepted project Bounded Context exactly once, including isolated contexts. Give each node a unique lower_snake_case Mermaid identifier and use the accepted context name as its visible label. The identifier is document syntax and need not duplicate the context directory slug. Add each accepted dependency once as a plain edge from upstream to downstream. This view is a mechanical projection of the Local Views and named contract entries below. -->
 
 Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
 
@@ -31,7 +31,7 @@ graph LR
 
 #### Downstream Contracts
 
-<!-- Repeat once per named contract published across a direct edge. A directional DDD collaboration pattern may be recorded as an optional annotation only after direction and ownership are established. -->
+<!-- Repeat once per named contract published across a direct edge. After direction and ownership are established, a material directional DDD pattern may be recorded as `- **Collaboration pattern:** <Pattern>`; Partnership and Shared Kernel are unsupported annotation values. Omit the annotation otherwise. -->
 
 ##### <Contract Name>
 

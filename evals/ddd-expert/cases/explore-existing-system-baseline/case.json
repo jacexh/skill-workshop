@@ -12,9 +12,17 @@
       "min": 1,
       "max": 1,
       "contains_any": [
-        ["Agent Execution", "Work", "Project Knowledge", "execution", "three-context", "three context", "执行", "三个上下文"],
-        ["baseline", "current", "boundary", "authority", "基线", "现状", "边界", "权责"]
-      ]
+        ["Agent Execution", "agent execution", "执行上下文"],
+        ["Work", "工作上下文"],
+        ["Project Knowledge", "project knowledge", "项目知识"],
+        ["run admission", "execution identity", "lease fencing", "terminal execution outcome", "Agent Run", "运行准入", "执行身份", "租约围栏", "执行结果"],
+        ["Work completion", "business completion", "whether Work is complete", "Work owns requested work and its completion", "Work owns requested business work and the decision that work is complete", "工作完成"],
+        ["Candidate acceptance", "knowledge acceptance", "whether knowledge becomes accepted", "knowledge candidates, reconciliation, and acceptance", "knowledge candidates and their acceptance", "候选接受", "知识接受"],
+        ["upstream", "fan-out", "both delegate", "two downstream", "Agent Execution -> Work", "Agent Execution -> Project Knowledge", "Agent Execution → Work", "Agent Execution → Project Knowledge", "上游", "扇出"],
+        ["README", "architecture.md", "run.go", "repository evidence", "code evidence", "仓库证据", "代码证据"],
+        ["candidate baseline", "candidate current baseline", "provisional baseline", "baseline proposal", "confirm this baseline", "confirm this candidate current baseline", "accept this baseline", "accept this three-context baseline", "候选基线", "暂定基线", "确认该基线"]
+      ],
+      "excludes": ["package names prove", "calls prove", "包名证明", "调用证明"]
     },
     "routes": { "contains": [], "excludes": ["shape", "codify", "guard"] },
     "verdicts": [],

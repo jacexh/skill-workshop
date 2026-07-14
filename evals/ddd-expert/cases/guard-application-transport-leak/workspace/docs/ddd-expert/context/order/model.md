@@ -13,7 +13,7 @@ Order owns order fulfillment.
 
 Recording a captured payment is idempotent.
 
-## Context Relationships
+## Context Dependencies
 
 Payment owns payment settlement and publishes the stable `PaymentCaptured`
 fact. Order consumes that fact, but the published payload is not part of the

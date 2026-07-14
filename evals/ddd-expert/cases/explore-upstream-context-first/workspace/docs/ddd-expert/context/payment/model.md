@@ -9,7 +9,7 @@ model_revision: 1
 
 Payment is the sole authority for payment processing and payment outcome facts.
 
-## Context Relationships
+## Context Dependencies
 
 Payment is upstream of Order. It publishes accepted payment facts without
 giving consumers authority over Payment's internal language or lifecycle.

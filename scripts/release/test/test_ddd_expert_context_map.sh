@@ -156,6 +156,39 @@ EOF
 node "$CLAUDE_VALIDATOR" "$valid" >/dev/null ||
   fail "validator rejected a valid fan-out, diamond, and isolated-context DAG"
 
+multiline_continuation="$tmp/multiline-continuation.md"
+cp "$valid" "$multiline_continuation"
+sed -i '/^- \*\*Core responsibility:\*\* Own A decisions\.$/a\  This continuation remains part of the same business description.' "$multiline_continuation"
+sed -i '0,/- \*\*Published meaning:\*\*/{/- \*\*Published meaning:\*\*/a\  This continuation clarifies the same published fact.
+}' "$multiline_continuation"
+sed -i '0,/^  This continuation clarifies/{/^  This continuation clarifies/a\    Four-space continuation remains ordinary prose inside the list item.
+}' "$multiline_continuation"
+node "$CLAUDE_VALIDATOR" "$multiline_continuation" >/dev/null ||
+  fail "validator rejected an ordinary Markdown bullet continuation"
+
+indented_code_continuation="$tmp/indented-code-continuation.md"
+cp "$valid" "$indented_code_continuation"
+sed -i '/^- \*\*Core responsibility:\*\* Own A decisions\.$/a\      This six-space line is an indented code block inside the list item.' "$indented_code_continuation"
+if node "$CLAUDE_VALIDATOR" "$indented_code_continuation" >/dev/null 2>&1; then
+  fail "validator accepted an indented code block as ordinary bullet continuation"
+fi
+
+domain_partnership="$tmp/domain-partnership.md"
+sed 's/\<A\>/Partnership/g' "$valid" >"$domain_partnership"
+node "$CLAUDE_VALIDATOR" "$domain_partnership" >/dev/null ||
+  fail "validator confused a Bounded Context named Partnership with a Context Map pattern"
+
+domain_shared_kernel="$tmp/domain-shared-kernel.md"
+sed 's/\<A\>/Shared Kernel/g' "$valid" >"$domain_shared_kernel"
+node "$CLAUDE_VALIDATOR" "$domain_shared_kernel" >/dev/null ||
+  fail "validator confused a Bounded Context named Shared Kernel with a Context Map pattern"
+
+document_node_id="$tmp/document-node-id.md"
+cp "$valid" "$document_node_id"
+sed -i 's/^    a\["A"\]$/    upstream_a["A"]/; s/^    a --> /    upstream_a --> /' "$document_node_id"
+node "$CLAUDE_VALIDATOR" "$document_node_id" >/dev/null ||
+  fail "validator should accept a unique lower_snake_case node identifier without inferring a directory slug"
+
 assert_invalid() {
   local fixture="$1"
   local expected="$2"
@@ -194,6 +227,18 @@ cp "$valid" "$text_bidirectional"
 sed -i '/\*\*Business authority:\*\* A facts\./a\- **Legacy relation:** Work <-> Project Knowledge' "$text_bidirectional"
 assert_invalid "$text_bidirectional" "bidirectional"
 
+for arrow in '↔' '⇄' '⇔' '⇌' '⟷' '⟺'; do
+  unicode_bidirectional="$tmp/unicode-bidirectional-$(printf '%s' "$arrow" | od -An -tx1 | tr -d ' \n').md"
+  cp "$valid" "$unicode_bidirectional"
+  sed -i "/\*\*Business authority:\*\* A facts\./a\\- **Legacy relation:** A $arrow B" "$unicode_bidirectional"
+  assert_invalid "$unicode_bidirectional" "bidirectional"
+done
+
+indented_unicode_bidirectional="$tmp/indented-unicode-bidirectional.md"
+cp "$valid" "$indented_unicode_bidirectional"
+sed -i '/\*\*Business authority:\*\* A facts\./a\  Work ⇌ Project Knowledge' "$indented_unicode_bidirectional"
+assert_invalid "$indented_unicode_bidirectional" "bidirectional"
+
 missing_direction="$tmp/missing-direction.md"
 sed '/^Arrow direction:/d' "$valid" >"$missing_direction"
 assert_invalid "$missing_direction" "Arrow direction"
@@ -215,6 +260,36 @@ graph LR\
 ```\
 ' "$duplicate_mermaid"
 assert_invalid "$duplicate_mermaid" "exactly one Mermaid"
+
+noncanonical_node_id="$tmp/noncanonical-node-id.md"
+cp "$valid" "$noncanonical_node_id"
+sed -i 's/^    a\["A"\]$/    a__["A"]/; s/^    a --> /    a__ --> /' "$noncanonical_node_id"
+assert_invalid "$noncanonical_node_id" "unsupported Global View graph line"
+
+appendix_swallow="$tmp/appendix-swallow.md"
+cp "$valid" "$appendix_swallow"
+sed -i '/^## Bounded Contexts$/a\
+\
+## Appendix' "$appendix_swallow"
+assert_invalid "$appendix_swallow" "exactly ## Global View followed by ## Bounded Contexts"
+
+trailing_appendix="$tmp/trailing-appendix.md"
+cp "$valid" "$trailing_appendix"
+sed -i '$a\
+\
+## Appendix\
+\
+Ignored relationship material.' "$trailing_appendix"
+assert_invalid "$trailing_appendix" "exactly ## Global View followed by ## Bounded Contexts"
+
+hash_prefixed_appendix="$tmp/hash-prefixed-appendix.md"
+cp "$valid" "$hash_prefixed_appendix"
+sed -i '$a\
+\
+## # Appendix\
+\
+Ignored relationship material.' "$hash_prefixed_appendix"
+assert_invalid "$hash_prefixed_appendix" "exactly ## Global View followed by ## Bounded Contexts"
 
 equivalent_global_heading="$tmp/equivalent-global-heading.md"
 cp "$valid" "$equivalent_global_heading"
@@ -263,6 +338,53 @@ shared_kernel="$tmp/shared-kernel.md"
 cp "$valid" "$shared_kernel"
 sed -i '/\*\*Business authority:\*\* A facts\./a\- **Relationship:** Shared Kernel' "$shared_kernel"
 assert_invalid "$shared_kernel" "Shared Kernel"
+
+collaboration_partnership="$tmp/collaboration-partnership.md"
+cp "$valid" "$collaboration_partnership"
+sed -i '/\*\*Business authority:\*\* A facts\./a\- **Collaboration pattern:** Directional Partnership arrangement' "$collaboration_partnership"
+assert_invalid "$collaboration_partnership" "Partnership"
+
+relationship_type_partnership="$tmp/relationship-type-partnership.md"
+cp "$valid" "$relationship_type_partnership"
+sed -i '/\*\*Business authority:\*\* A facts\./a\- **Relationship type:** Partnership' "$relationship_type_partnership"
+assert_invalid "$relationship_type_partnership" "Partnership"
+
+indented_relationship_partnership="$tmp/indented-relationship-partnership.md"
+cp "$valid" "$indented_relationship_partnership"
+sed -i '/\*\*Business authority:\*\* A facts\./a\  **Relationship:** Partnership' "$indented_relationship_partnership"
+assert_invalid "$indented_relationship_partnership" "indented structured field"
+
+indented_collaboration_shared_kernel="$tmp/indented-collaboration-shared-kernel.md"
+cp "$valid" "$indented_collaboration_shared_kernel"
+sed -i '/\*\*Business authority:\*\* A facts\./a\  **Collaboration pattern:** Shared Kernel' "$indented_collaboration_shared_kernel"
+assert_invalid "$indented_collaboration_shared_kernel" "indented structured field"
+
+unknown_context_section="$tmp/unknown-context-section.md"
+cp "$valid" "$unknown_context_section"
+sed -i '/^#### Local View$/i\
+#### Relationship Notes\
+' "$unknown_context_section"
+assert_invalid "$unknown_context_section" "unsupported context section"
+
+unknown_contract_field="$tmp/unknown-contract-field.md"
+cp "$valid" "$unknown_contract_field"
+sed -i '0,/- \*\*Guarantee:\*\*/{/- \*\*Guarantee:\*\*/a\- **Legacy relation:** A directs C
+}' "$unknown_contract_field"
+assert_invalid "$unknown_contract_field" "unsupported contract field"
+
+duplicate_core_responsibility="$tmp/duplicate-core-responsibility.md"
+cp "$valid" "$duplicate_core_responsibility"
+sed -i '/^- \*\*Core responsibility:\*\* Own A decisions\.$/p' "$duplicate_core_responsibility"
+assert_invalid "$duplicate_core_responsibility" "exactly one non-empty Core responsibility"
+
+duplicate_business_authority="$tmp/duplicate-business-authority.md"
+cp "$valid" "$duplicate_business_authority"
+sed -i '/^- \*\*Business authority:\*\* A facts\.$/p' "$duplicate_business_authority"
+assert_invalid "$duplicate_business_authority" "exactly one non-empty Business authority"
+
+empty_core_responsibility="$tmp/empty-core-responsibility.md"
+sed '0,/^- \*\*Core responsibility:\*\* Own A decisions\.$/{s//- **Core responsibility:** **/}' "$valid" >"$empty_core_responsibility"
+assert_invalid "$empty_core_responsibility" "exactly one non-empty Core responsibility"
 
 local_mismatch="$tmp/local-mismatch.md"
 sed '/`A -> C \[D\]`/d' "$valid" >"$local_mismatch"
@@ -378,7 +500,7 @@ sed -i '/^## Global View$/i\
 - wrapper\
     ## Global View\
 ' "$list_continuation_heading"
-assert_invalid "$list_continuation_heading" "indentation outside the Mermaid graph"
+assert_invalid "$list_continuation_heading" "only blank lines may appear between # Context Map and ## Global View"
 
 fenced_context_structure="$tmp/fenced-context-structure.md"
 cp "$valid" "$fenced_context_structure"
@@ -456,6 +578,14 @@ duplicate_semantics="$tmp/duplicate-semantics.md"
 cp "$valid" "$duplicate_semantics"
 sed -i '0,/- \*\*Guarantee:\*\*/{/- \*\*Guarantee:\*\*/p}' "$duplicate_semantics"
 assert_invalid "$duplicate_semantics" "contract semantics"
+
+for rendered_empty in '&nbsp;' '**' '<span></span>'; do
+  rendered_empty_semantics="$tmp/rendered-empty-semantics-$(printf '%s' "$rendered_empty" | od -An -tx1 | tr -d ' \n').md"
+  escaped_rendered_empty="${rendered_empty//&/\\&}"
+  sed "0,/- \*\*Published meaning:\*\*/{s#- \*\*Published meaning:\*\*.*#- **Published meaning:** $escaped_rendered_empty#}" \
+    "$valid" >"$rendered_empty_semantics"
+  assert_invalid "$rendered_empty_semantics" "contract semantics"
+done
 
 equivalent_contract_headings="$tmp/equivalent-contract-headings.md"
 cp "$valid" "$equivalent_contract_headings"

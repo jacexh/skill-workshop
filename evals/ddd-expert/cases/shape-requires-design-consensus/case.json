@@ -14,10 +14,31 @@
       "contains_any": [
         ["accept*", "agree*", "approve*", "choose", "prefer*", "接受", "同意", "确认", "选择", "倾向"],
         ["recommend*", "propos*", "建议", "推荐"],
-        ["Reservation Aggregate", "Reservation Root", "Reservation Item", "预订聚合", "预订项"],
-        ["capacity", "invariant", "concurren*", "terminal outcome", "容量", "不变量", "并发", "终态"],
-        ["because", "protect*", "evidence", "therefore", "因为", "基于", "保护", "因此"],
-        ["alternativ*", "split", "separate", "coordination", "备选", "拆分", "独立", "协调"]
+        ["Aggregate boundary", "Reservation Aggregate", "Reservation Root", "聚合边界", "预订聚合"],
+        ["Reservation Item", "预订项"],
+        ["positive held quantity", "held quantity is positive", "held quantity must be positive", "positive quantity", "quantity is positive", "quantity > 0", "quantity is greater than 0", "正数持有量", "正数量"],
+        ["may not exceed", "must not exceed", "accepted capacity", "capacity bound", "不得超过", "已接受容量", "容量上限"],
+        ["cannot establish two terminal outcomes", "one terminal outcome", "single-terminal-outcome invariant", "terminal exclusivity", "mutually exclusive terminal", "at most one of Confirmed", "one Reservation identity establishes at most one", "不能形成两个终态", "唯一终态", "终态互斥"],
+        ["concurrent terminal", "competing terminal", "terminal intents compete", "competing outcomes", "two terminal attempts", "concurrent confirmation", "concurrent release", "并发终态", "竞争终态"],
+        ["because", "protect*", "evidence", "therefore", "This follows", "follows the Model", "directly covers", "因为", "基于", "保护", "因此"],
+        ["credible alternative", "split", "splitting", "separate", "merge", "备选", "拆分", "独立", "合并"],
+        ["cross-root", "cross-Aggregate", "coordination", "would require", "would move", "would weaken", "requiring", "at the cost", "跨聚合", "协调", "将需要", "会削弱"]
+      ],
+      "excludes": [
+        "investigat*",
+        "defer*",
+        "still need",
+        "not yet",
+        "No Domain Event",
+        "No Integration Message",
+        "No Process Manager",
+        "Repository semantics",
+        "Verification obligations:",
+        "complete integrated Tactical Design",
+        "Acceptance authorizes writing",
+        "尚待调查",
+        "后续再研究",
+        "暂缓"
       ]
     },
     "routes": { "contains": [], "excludes": ["codify", "guard"] },

@@ -10,7 +10,7 @@ model_revision: 1
 Order owns its lifecycle and the decision that an order is ready for
 fulfillment.
 
-## Context Relationships
+## Context Dependencies
 
 Order consumes published Payment facts and translates them into its local
 language before making an Order decision.

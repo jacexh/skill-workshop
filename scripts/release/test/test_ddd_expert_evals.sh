@@ -16,6 +16,14 @@ node --check "$RUNNER"
 node "$RUNNER" validate
 node "$RUNNER" self-test
 
+for consensus_case in \
+  shape-continues-after-boundary-acceptance \
+  shape-requires-integrated-design-acceptance \
+  shape-defines-retained-entity; do
+  [ -f "$CASES_ROOT/$consensus_case/case.json" ] ||
+    fail "ddd-expert eval suite is missing staged Shape coverage: $consensus_case"
+done
+
 legacy_artifact_refs="$(rg -n \
   'docs/ddd/|docs/design\.md|docs/domain\.md|docs/ddd-expert/(model|design)\.md' \
   "$CASES_ROOT" --glob '**/prompt.md' --glob '**/workspace/**' || true)"
@@ -32,14 +40,28 @@ while IFS= read -r model; do
   }
 done < <(find "$CASES_ROOT" -path '*/workspace/docs/ddd-expert/context/*/model.md' -type f)
 
-shape_handoff_contexts="$CASES_ROOT/shape-mysql-default-handoff/workspace/docs/ddd-expert/context"
-if rg -q '^## Context Relationships$' "$shape_handoff_contexts" --glob '*/model.md'; then
-  fail "accepted Shape-write fixture should use the canonical Context Dependencies heading"
+legacy_model_headings="$(rg -n '^## Context Relationships$' "$CASES_ROOT" \
+  --glob '**/workspace/docs/ddd-expert/context/*/model.md' \
+  --glob '!**/explore-migrates-legacy-context-map/**' \
+  --glob '!**/explore-blocks-partial-legacy-migration/**' || true)"
+if [ -n "$legacy_model_headings" ]; then
+  printf '%s\n' "$legacy_model_headings" >&2
+  fail "canonical eval Models should use Context Dependencies rather than Context Relationships"
 fi
-while IFS= read -r shape_handoff_model; do
-  rg -q '^## Context Dependencies$' "$shape_handoff_model" ||
-    fail "accepted Shape-write fixture lacks Context Dependencies: $shape_handoff_model"
-done < <(find "$shape_handoff_contexts" -name model.md -type f)
+
+canonical_readme_wording='Context dependencies and named contracts are authoritative in [context-map.md](context-map.md).'
+while IFS= read -r readme; do
+  case "$readme" in
+    */explore-migrates-legacy-context-map/*|*/explore-blocks-partial-legacy-migration/*)
+      rg -Fq 'Context relationships are authoritative in [context-map.md](context-map.md).' "$readme" ||
+        fail "legacy migration eval README should retain the retired pre-state wording: $readme"
+      ;;
+    *)
+      rg -Fq "$canonical_readme_wording" "$readme" ||
+        fail "eval README should use the canonical Context dependencies and named contracts wording: $readme"
+      ;;
+  esac
+done < <(find "$CASES_ROOT" -path '*/workspace/docs/ddd-expert/README.md' -type f)
 
 while IFS= read -r design; do
   model="${design%/design.md}/model.md"
@@ -96,6 +118,24 @@ while IFS= read -r artifact_root; do
       if node "$CONTEXT_MAP_VALIDATOR" "$artifact_root/context-map.md" >/dev/null 2>&1; then
         fail "cyclic-map eval must retain its intentionally invalid input: $artifact_root"
       fi
+      ;;
+    */explore-migrates-legacy-context-map/*)
+      if node "$CONTEXT_MAP_VALIDATOR" "$artifact_root/context-map.md" >/dev/null 2>&1; then
+        fail "legacy-map migration eval must retain its intentionally invalid pre-state: $artifact_root"
+      fi
+      ;;
+    */explore-blocks-partial-legacy-migration/*)
+      if node "$CONTEXT_MAP_VALIDATOR" "$artifact_root/context-map.md" >/dev/null 2>&1; then
+        fail "partial legacy migration eval must retain its intentionally invalid pre-state: $artifact_root"
+      fi
+      audit_model="$artifact_root/context/audit/model.md"
+      [ -f "$audit_model" ] || fail "partial legacy migration eval must contain the omitted Audit Model"
+      rg -Fq '## Context Relationships' "$audit_model" ||
+        fail "partial legacy migration eval Audit Model must retain its retired heading"
+      if rg -Fq 'Audit' "$artifact_root/context-map.md" || rg -Fq 'Audit' "$artifact_root/README.md"; then
+        fail "partial legacy migration eval must keep Audit outside the accepted target and navigation"
+      fi
+      continue
       ;;
     *)
       node "$CONTEXT_MAP_VALIDATOR" "$artifact_root/context-map.md" >/dev/null ||

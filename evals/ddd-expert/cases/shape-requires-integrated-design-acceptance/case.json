@@ -1,0 +1,54 @@
+{
+  "id": "shape-requires-integrated-design-acceptance",
+  "phase": "shape",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 1,
+      "contains_any": [
+        ["accept*", "approve*", "authorize*", "接受", "批准", "授权"],
+        ["integrated Tactical Design", "integrated design", "complete design proposal", "完整战术设计", "集成设计方案"],
+        ["Reservation Aggregate", "Reservation Root", "预订聚合"],
+        ["Reservation Item", "预订项"],
+        ["Value Object", "值对象"],
+        ["positive", "正数", "正数量"],
+        ["accepted capacity", "capacity bound", "不得超过", "容量上限"],
+        ["Requested"],
+        ["Held"],
+        ["Confirmed"],
+        ["Released"],
+        ["Expired"],
+        ["Domain Event*", "领域事件"],
+        ["duplicate", "idempoten*", "重复", "幂等"],
+        ["concurrent terminal", "first admissible", "terminal exclusivity", "并发终态", "首个可接受", "终态互斥"],
+        ["split", "separate Aggregate", "cross-Aggregate", "拆分", "跨聚合"],
+        ["no context dependenc*", "no Integration Message", "isolated context", "无上下文依赖", "无需集成消息"],
+        ["write", "apply", "persist", "写入", "落盘", "应用"]
+      ]
+    },
+    "routes": { "contains": [], "excludes": ["explore", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "none",
+      "required_paths": [],
+      "allowed_paths": [],
+      "forbidden_paths": ["docs/ddd-expert/context/reservation/design.md"]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/reservation/design.md",
+        "exists": false,
+        "contains": [],
+        "excludes": []
+      }
+    ],
+    "checks": []
+  }
+}

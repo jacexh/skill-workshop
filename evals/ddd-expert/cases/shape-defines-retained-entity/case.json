@@ -1,0 +1,88 @@
+{
+  "id": "shape-defines-retained-entity",
+  "phase": "shape",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["explore"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": ["docs/ddd-expert/context/fulfillment/design.md"],
+      "allowed_paths": ["docs/ddd-expert/context/fulfillment/design.md"],
+      "forbidden_paths": [
+        "docs/ddd-expert/context/fulfillment/model.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/README.md"
+      ]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/fulfillment/design.md",
+        "exists": true,
+        "contains": [
+          "# Fulfillment Tactical Design",
+          "based_on_model_revision: 1",
+          "## Model Realization",
+          "## Aggregate Designs",
+          "### FulfillmentOrder",
+          "#### Boundary Thesis",
+          "#### Invariants",
+          "#### Entities",
+          "##### AllocationLine",
+          "LineId",
+          "#### Value Objects",
+          "Quantity",
+          "#### Behaviors and Lifecycle",
+          "Pending",
+          "Allocated",
+          "Rejected",
+          "#### Domain Events",
+          "AllocationLineAdded",
+          "AllocationAccepted",
+          "AllocationRejected"
+        ],
+        "contains_any": [
+          ["AllocationLine represents", "AllocationLine is one resource allocation", "resource allocation request", "allocation request for one resource"],
+          ["LineId is the Entity identity", "identified by LineId", "identity is LineId", "stable LineId", "LineId preserves continuity", "LineId preserves its identity", "LineId gives it identity", "LineId is the exact identity", "LineId identifies each owned AllocationLine"],
+          ["owned by FulfillmentOrder", "owned by exactly one FulfillmentOrder", "FulfillmentOrder owns", "owning FulfillmentOrder", "belongs to exactly one FulfillmentOrder"],
+          ["no lifecycle outside", "cannot exist outside", "does not exist independently", "only within its owning FulfillmentOrder", "lifecycle is scoped to the owning Aggregate"],
+          ["Pending to Allocated", "Pending -> Allocated", "Pending | Allocate", "Pending | AllocateLine", "from Pending to Allocated"],
+          ["Pending to Rejected", "Pending -> Rejected", "Pending | Reject", "Pending | RejectLine", "from Pending to Rejected"],
+          ["terminal", "no later transition", "admits no further transition"],
+          ["allocat*", "AllocateLine", "accept allocation"],
+          ["reject*", "RejectLine"],
+          ["unique LineId", "LineId is unique", "duplicate LineId", "one AllocationLine per LineId", "LineId identifies at most one", "each LineId identifies at most one"],
+          ["positive quantity", "Quantity is positive", "positive Quantity", "greater than zero"],
+          ["one terminal outcome", "cannot establish both", "terminal outcome is exclusive", "mutually exclusive"],
+          ["same LineId", "duplicate intent", "established result", "idempoten*"],
+          ["single Aggregate", "one consistency boundary", "single consistency boundary", "single consistency and mutation boundary", "single immediate-consistency boundary", "serialized by the Root", "Root protects"]
+        ],
+        "excludes": [
+          "<!--",
+          "<Entity>",
+          "## Application Responsibilities",
+          "## Persistence and Consistency",
+          "## Runtime Ownership",
+          "## Process Managers and Cross-Aggregate Coordination"
+        ],
+        "excludes_semantic": [
+          "FulfillmentOrder has no child Entity",
+          "AllocationLine is a Value Object",
+          "LineId is not stable",
+          "AllocationLine can exist outside FulfillmentOrder",
+          "Quantity need not be positive",
+          "An AllocationLine may establish both Allocated and Rejected",
+          "Runtime Event"
+        ]
+      }
+    ],
+    "checks": []
+  }
+}

@@ -9,7 +9,8 @@ approved expectations, and the runner scores:
 
 - structured phase completion, questions, routes, and review conclusions;
 - review reason families plus existing evidence paths and valid line numbers;
-- the actual Git change set from the immutable baseline, including commits;
+- the actual Git change set from the immutable baseline, including commits and
+  optional exact write-set limits;
 - required or forbidden file content;
 - real post-run verification commands.
 
@@ -107,14 +108,34 @@ without locking the model to one sentence.
 
 File assertions keep `contains` for exact structural or identifier checks.
 Use `contains_any` groups for accepted semantic decisions that may be expressed
-with equivalent capitalization, line wrapping, or wording; every group must
-match at least one normalized alternative.
+with equivalent capitalization, line wrapping, inline Markdown decoration, or wording; every group must
+match at least one normalized alternative. This matcher proves that a semantic
+signal is present, not that its polarity is positive. A completed-write case
+must therefore put concrete opposite propositions in `excludes_semantic`, whose
+matching is also case- and line-wrap-insensitive, and keep scorer self-tests for
+both an accepted paraphrase and a bug-shaped negation. Keep `excludes` for exact
+syntax or heading exclusions where normalized substring matching would be too
+broad.
+
+`expect.git.allowed_paths` is optional. When present, every observed change must
+match one of those paths. Combine it with `required_paths` containing the same
+members to declare an exact write set: all declared artifacts must change and no
+temporary trace, source document, or unrelated artifact may be added. The runner
+compares a full pre/post workspace file snapshot outside `.git`, so ignored files
+and files hidden by mutable Git exclude metadata remain part of this check.
 
 For topology-discovery risks, pair an answer-neutral read-only sentinel with a
 complete-scope write case. The sentinel should verify that missing language or
 business authority is resolved before a context-local lifecycle; the write case
 should prove that accepted context responsibilities, relationships, and Models
 are committed atomically only after the complete discovery scope is accepted.
+
+For staged Shape consensus, keep separate cases for the first tactical choice,
+the next focused choice after a local acceptance, the final integrated
+acceptance request, and the accepted atomic write. A write case that starts with
+every choice already accepted cannot by itself prove the intermediate
+read-only gates. Include retained-Entity and retained-Value-Object write cases
+when their definition contracts differ materially.
 
 When context nodes are known but an edge is not, use a relationship sentinel
 that requires the upstream-owned fact or intent, downstream local meaning, and

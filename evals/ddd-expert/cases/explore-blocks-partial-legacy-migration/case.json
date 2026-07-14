@@ -1,0 +1,55 @@
+{
+  "id": "explore-blocks-partial-legacy-migration",
+  "phase": "explore",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["needs_clarification", "stopped"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 1,
+      "contains_any": [
+        ["Audit", "审计"],
+        ["retired Context Relationships", "retired `## Context Relationships` marker", "retired relationship heading", "legacy Model", "legacy artifact", "旧版 Context Relationships", "旧关系标题", "遗留模型", "遗留制品"],
+        ["omitted from the accepted target", "accepted target omits", "accepted target does not cover", "missing from the integrated target", "no accepted terminal content", "supplies no terminal", "supplies no terminal content", "supplies no terminal dependency or contract semantics", "accepted target supplies no terminal Audit dependency", "supplies terminal content only for Agent Execution", "no terminal content for Audit", "target is incomplete", "omits Audit", "omits the Audit", "接受目标遗漏", "目标未覆盖", "缺少已接受的终态内容", "目标不完整"],
+        ["recommend* complet*", "recommend* extend*", "expand* the target", "complete* the target", "completing the accepted target", "files will remain unchanged", "write nothing", "do not migrate", "建议补全", "建议扩展", "保持零写入", "不要迁移"],
+        ["remov*", "retain*", "keep*", "delet*", "移除", "保留", "删除"]
+      ]
+    },
+    "routes": { "contains": [], "excludes": ["shape", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "none",
+      "required_paths": [],
+      "allowed_paths": [],
+      "forbidden_paths": [
+        "docs/accepted-context-map-migration.md",
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/agent-execution/model.md",
+        "docs/ddd-expert/context/work/model.md",
+        "docs/ddd-expert/context/project-knowledge/model.md",
+        "docs/ddd-expert/context/audit/model.md"
+      ]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context-map.md",
+        "exists": true,
+        "contains": ["## Relationships", "Work <-> Project Knowledge", "Partnership"],
+        "excludes": []
+      },
+      {
+        "path": "docs/ddd-expert/context/audit/model.md",
+        "exists": true,
+        "contains": ["model_revision: 1", "## Context Relationships"],
+        "excludes": ["model_revision: 2", "## Context Dependencies"]
+      }
+    ],
+    "checks": []
+  }
+}

@@ -19,6 +19,11 @@
         "docs/ddd-expert/context/payment/model.md",
         "docs/ddd-expert/context/order/model.md"
       ],
+      "allowed_paths": [
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/payment/model.md",
+        "docs/ddd-expert/context/order/model.md"
+      ],
       "forbidden_paths": [
         "docs/story.md",
         "docs/payment-order-boundary.md",
@@ -42,24 +47,71 @@
           "#### Downstream Contracts",
           "#### Upstream Dependencies"
         ],
+        "contains_any": [
+          ["Payment is authoritative", "Payment owns", "Payment retains authority", "Payment publishes the authoritative", "under Payment's authority"],
+          ["gives Order no authority", "does not give Order authority", "without giving Order authority", "Order cannot redefine", "no authority to redefine"],
+          ["Captured Payment Evidence"],
+          ["does not itself mean", "does not by itself mean", "does not mean the Order is ready for fulfillment", "not sufficient for fulfillment readiness", "Order remains the sole authority for its reaction and fulfillment readiness", "Order is the sole authority for fulfillment readiness"]
+        ],
         "contains_words": ["Payment", "Order", "Captured", "Evidence"],
-        "excludes": ["<!--", "## Relationships", "<->"],
+        "excludes": [
+          "<!--",
+          "## Relationships",
+          "<->"
+        ],
+        "excludes_semantic": [
+          "Order, not Payment, owns",
+          "Payment has no authority",
+          "Order may redefine Payment",
+          "Every cancelled Order becomes ready"
+        ],
         "excludes_words": []
       },
       {
         "path": "docs/ddd-expert/context/payment/model.md",
         "exists": true,
         "contains": ["model_revision: 2", "Order"],
+        "contains_any": [
+          ["Payment is the sole authority", "Payment alone owns", "Payment owns the Payment Capture lifecycle", "Payment retains authority"],
+          ["terminal Captured outcome", "authoritative terminal capture fact"],
+          ["gives Order no authority", "does not give Order authority", "without giving Order authority", "without transferring lifecycle or outcome authority to Order", "Order cannot redefine", "Order may not redefine", "cannot redefine its Payment meaning", "retains authority over its meaning"]
+        ],
         "contains_words": ["Payment", "Captured"],
-        "excludes": ["CREATE TABLE", "<!--"],
+        "excludes": [
+          "CREATE TABLE",
+          "<!--"
+        ],
+        "excludes_semantic": [
+          "Order, not Payment, owns",
+          "Order owns every Captured payment fact",
+          "Payment has no authority",
+          "Order may redefine Payment"
+        ],
         "excludes_words": ["Repository", "handler"]
       },
       {
         "path": "docs/ddd-expert/context/order/model.md",
         "exists": true,
         "contains": ["model_revision: 2"],
+        "contains_any": [
+          ["Captured Payment Evidence"],
+          ["Order owns", "Order alone decides", "Order retains sole authority"],
+          ["active Order", "only an active Order"],
+          ["does not by itself mean", "does not itself mean", "does not mean the Order is ready for fulfillment", "not sufficient for fulfillment readiness"],
+          ["duplicate delivery", "repeated delivery", "idempoten*"],
+          ["cancelled Order remains cancelled", "cancelled Order cannot become", "cannot become Ready for Fulfillment"]
+        ],
         "contains_words": ["Payment", "Captured", "Evidence"],
-        "excludes": ["CREATE TABLE", "<!--"],
+        "excludes": [
+          "CREATE TABLE",
+          "<!--"
+        ],
+        "excludes_semantic": [
+          "always makes a cancelled Order ready",
+          "Every cancelled Order becomes ready",
+          "Order may redefine Payment",
+          "Payment decides fulfillment readiness"
+        ],
         "excludes_words": ["Repository", "handler"]
       }
     ],

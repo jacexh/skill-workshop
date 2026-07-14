@@ -26,6 +26,19 @@ function sameSet(left, right) {
   return left.size === right.size && [...left].every((item) => right.has(item));
 }
 
+function renderedPlainText(value) {
+  return value
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&(?:#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);/g, " ")
+    .replace(/[*_`~[\](){}<>\\|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasRenderedText(value) {
+  return /[\p{L}\p{N}]/u.test(renderedPlainText(value));
+}
+
 function sectionLines(lines, heading, stopLevel) {
   const start = lines.findIndex((line) => line === heading);
   if (start < 0) return null;
@@ -40,20 +53,17 @@ function sectionLines(lines, heading, stopLevel) {
   return lines.slice(start + 1, end);
 }
 
-if (/<-+>/.test(source)) {
-  invalid("bidirectional arrows such as <-> or <--> are forbidden");
-}
-if (/\bPartnership\b/i.test(source)) {
-  invalid("Partnership is unsupported by the ddd-expert DAG House Rule");
-}
-if (/\bShared[ -]+Kernel\b/i.test(source)) {
-  invalid("Shared Kernel is unsupported by the ddd-expert DAG House Rule");
+if (/<(?:-+|=+)>|[↔⇄⇆⇋⇌⇔⟷⟺]/u.test(source)) {
+  invalid("bidirectional arrows such as <->, <-->, or ↔ are forbidden");
 }
 if (/^## Relationships\s*$/m.test(source)) {
   invalid("legacy ## Relationships is unsupported; project contracts into each context");
 }
 
 const allLines = source.split(/\r?\n/);
+if (allLines[0] !== "# Context Map" || allLines.filter((line) => line === "# Context Map").length !== 1) {
+  invalid("expected exactly one # Context Map title as the first line");
+}
 if (source.includes("<!--")) {
   invalid("HTML comments are unsupported in a materialized Context Map");
 }
@@ -70,6 +80,9 @@ function canonicalAtxHeading(line) {
 }
 
 for (const line of allLines) {
+  if (/^ {1,5}(?:(?:[-+*]|[0-9]{1,9}[.)])[ \t]+)?\*\*[^*]+:\*\*(?:[ \t]|$)/.test(line)) {
+    invalid("indented structured fields are unsupported; use canonical top-level fields");
+  }
   if (/^[ \t]{0,3}>/.test(line)) {
     invalid("blockquotes are unsupported in a materialized Context Map");
   }
@@ -96,16 +109,27 @@ for (const line of allLines) {
       invalid(`plain-text ATX headings cannot contain inline Markdown, HTML, or entities: ${line}`);
     }
   }
+
+  const structuredField = line.match(/^- \*\*([^*]+):\*\* (.*)$/);
+  if (structuredField && /\b(?:relationship|collaboration|context map|pattern)\b/i.test(structuredField[1])) {
+    const value = renderedPlainText(structuredField[2]);
+    const unsupported = value.match(/\b(?:Partnership|Shared[ -]+Kernel)\b/i);
+    if (unsupported) {
+      invalid(`${unsupported[0]} is unsupported by the ddd-expert DAG House Rule`);
+    }
+  }
 }
 
 const globalStart = allLines.findIndex((line) => line === "## Global View");
 const boundedStart = allLines.findIndex((line) => line === "## Bounded Contexts");
-if (globalStart < 0 || boundedStart < 0 || boundedStart <= globalStart) {
-  invalid("expected one ## Global View followed by one ## Bounded Contexts");
+const h2Headings = allLines.filter((line) => /^## /.test(line));
+if (h2Headings.length !== 2 ||
+    h2Headings[0] !== "## Global View" ||
+    h2Headings[1] !== "## Bounded Contexts") {
+  invalid("expected exactly ## Global View followed by ## Bounded Contexts");
 }
-if (allLines.filter((line) => line === "## Global View").length !== 1 ||
-    allLines.filter((line) => line === "## Bounded Contexts").length !== 1) {
-  invalid("Global View and Bounded Contexts headings must be unique");
+if (allLines.slice(1, globalStart).some((line) => line.trim() !== "")) {
+  invalid("only blank lines may appear between # Context Map and ## Global View");
 }
 
 const globalLines = allLines.slice(globalStart + 1, boundedStart);
@@ -130,14 +154,24 @@ if (mermaidEnd < 0) invalid("Global View Mermaid graph LR block is not closed");
 
 const absoluteMermaidStart = globalStart + 1 + mermaidStart;
 const absoluteMermaidEnd = globalStart + 1 + mermaidEnd;
+let continuationOpen = false;
 for (let index = 0; index < allLines.length; index += 1) {
-  if ((index < absoluteMermaidStart || index > absoluteMermaidEnd) &&
-      /^[ \t]+\S/.test(allLines[index])) {
-    invalid(`indentation outside the Mermaid graph is unsupported: ${allLines[index].trim()}`);
+  const line = allLines[index];
+  const outsideMermaid = index < absoluteMermaidStart || index > absoluteMermaidEnd;
+  if (outsideMermaid && /^[ \t]+\S/.test(line)) {
+    const trimmed = line.trimStart();
+    const hidesStructure = /^(?:#{1,6}(?:[ \t]|$)|>|(?:[-+*]|[0-9]{1,9}[.)])[ \t]+|`{3,}|~{3,}|<)/.test(trimmed);
+    const ordinaryContinuation = /^ {1,5}[^ \t]/.test(line) && continuationOpen && !hidesStructure;
+    if (!ordinaryContinuation) {
+      invalid(`indentation outside the Mermaid graph is unsupported: ${line.trim()}`);
+    }
+    continuationOpen = true;
+  } else if (outsideMermaid) {
+    continuationOpen = /^- \*\*[^*]+:\*\* \S/.test(line);
   }
-  if (!/^\s*(?:`{3,}|~{3,})/.test(allLines[index])) continue;
-  if (index === absoluteMermaidStart && allLines[index] === "```mermaid") continue;
-  if (index === absoluteMermaidEnd && allLines[index] === "```") continue;
+  if (!/^\s*(?:`{3,}|~{3,})/.test(line)) continue;
+  if (index === absoluteMermaidStart && line === "```mermaid") continue;
+  if (index === absoluteMermaidEnd && line === "```") continue;
   invalid("only the canonical Global View Mermaid code fence is supported");
 }
 
@@ -164,7 +198,7 @@ for (let index = graphDeclarations[0] + 1; index < graphLines.length; index += 1
   const line = graphLines[index];
   if (line.trim() === "") continue;
 
-  const node = line.match(/^\s*([a-z][a-z0-9_]*)\["([^"]+)"\]\s*$/);
+  const node = line.match(/^\s*([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\["([^"]+)"\]\s*$/);
   if (node) {
     const [, id, label] = node;
     if (nodes.has(id) || labelToId.has(label)) {
@@ -175,7 +209,7 @@ for (let index = graphDeclarations[0] + 1; index < graphLines.length; index += 1
     continue;
   }
 
-  const edge = line.match(/^\s*([a-z][a-z0-9_]*)\s*-->\s*([a-z][a-z0-9_]*)\s*$/);
+  const edge = line.match(/^\s*([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\s*-->\s*([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\s*$/);
   if (edge) {
     edges.push([edge[1], edge[2]]);
     continue;
@@ -225,6 +259,10 @@ for (const id of nodes.keys()) {
 }
 
 const contextLines = allLines.slice(boundedStart + 1);
+const firstContextHeading = contextLines.findIndex((line) => /^### /.test(line));
+if (firstContextHeading < 0 || contextLines.slice(0, firstContextHeading).some((line) => line.trim() !== "")) {
+  invalid("Bounded Contexts must begin with a canonical ### context section");
+}
 const contexts = new Map();
 for (let index = 0; index < contextLines.length; index += 1) {
   const match = contextLines[index].match(/^### ([^#].*)$/);
@@ -232,7 +270,7 @@ for (let index = 0; index < contextLines.length; index += 1) {
   const name = match[1].trim();
   let end = contextLines.length;
   for (let cursor = index + 1; cursor < contextLines.length; cursor += 1) {
-    if (/^### [^#]/.test(contextLines[cursor]) || /^## [^#]/.test(contextLines[cursor])) {
+    if (/^### [^#]/.test(contextLines[cursor])) {
       end = cursor;
       break;
     }
@@ -244,6 +282,9 @@ for (let index = 0; index < contextLines.length; index += 1) {
 
 if (!sameSet(new Set(nodes.values()), new Set(contexts.keys()))) {
   invalid("Global View nodes and Bounded Context sections must match exactly");
+}
+if (contextLines.filter((line) => /^### /.test(line)).length !== contexts.size) {
+  invalid("Bounded Contexts contains an unsupported or malformed ### section");
 }
 
 const expectedLocal = new Map([...contexts.keys()].map((name) => [name, new Set()]));
@@ -279,18 +320,33 @@ function parseContracts(context, lines, heading, endpointLabel, semanticLabels, 
       }
     }
     const contractLines = body.slice(index + 1, end);
+    const allowedFields = new Set([endpointLabel, ...semanticLabels, "Collaboration pattern"]);
+    for (const line of contractLines) {
+      if (line.trim() === "" || /^ {1,5}[^ \t]/.test(line)) continue;
+      const field = line.match(/^- \*\*([^*]+):\*\* (.*)$/);
+      if (!field || !allowedFields.has(field[1])) {
+        invalid(`contract projection ${context}/${name} contains unsupported contract field: ${line.trim()}`);
+      }
+    }
     const endpointLines = contractLines.filter((line) => /^- \*\*(?:Upstream|Downstream):\*\*/.test(line));
     const endpointPattern = new RegExp(`^- \\*\\*${endpointLabel}:\\*\\* (\\S.*)$`);
-    if (endpointLines.length !== 1 || !endpointPattern.test(endpointLines[0])) {
+    if (endpointLines.length !== 1 || !endpointPattern.test(endpointLines[0]) ||
+        !hasRenderedText(endpointLines[0].match(endpointPattern)?.[1] || "")) {
       invalid(`contract projection ${context}/${name} must declare exactly one non-empty ${endpointLabel}`);
     }
     const endpoint = endpointLines[0].match(endpointPattern)[1].trim();
     for (const label of semanticLabels) {
       const prefix = `- **${label}:**`;
       const semanticLines = contractLines.filter((line) => line.startsWith(prefix));
-      if (semanticLines.length !== 1 || semanticLines[0].slice(prefix.length).trim() === "") {
+      if (semanticLines.length !== 1 || !hasRenderedText(semanticLines[0].slice(prefix.length))) {
         invalid(`contract semantics ${context}/${name} must declare exactly one non-empty ${label}`);
       }
+    }
+    const collaborationPrefix = "- **Collaboration pattern:**";
+    const collaborationLines = contractLines.filter((line) => line.startsWith(collaborationPrefix));
+    if (collaborationLines.length > 1 ||
+        (collaborationLines.length === 1 && !hasRenderedText(collaborationLines[0].slice(collaborationPrefix.length)))) {
+      invalid(`contract projection ${context}/${name} must declare at most one non-empty Collaboration pattern`);
     }
     target.push({ context, endpoint, name });
     index = end - 1;
@@ -298,9 +354,42 @@ function parseContracts(context, lines, heading, endpointLabel, semanticLabels, 
 }
 
 for (const [context, lines] of contexts) {
-  if (!lines.some((line) => /^- \*\*Core responsibility:\*\* \S/.test(line)) ||
-      !lines.some((line) => /^- \*\*Business authority:\*\* \S/.test(line))) {
-    invalid(`${context} must declare Core responsibility and Business authority`);
+  const allowedSections = new Set([
+    "#### Local View",
+    "#### Upstream Dependencies",
+    "#### Downstream Contracts",
+  ]);
+  const sectionHeadings = lines.filter((line) => /^#### /.test(line));
+  for (const heading of sectionHeadings) {
+    if (!allowedSections.has(heading)) {
+      invalid(`${context} contains unsupported context section ${heading}`);
+    }
+  }
+  const sectionRank = new Map([
+    ["#### Local View", 0],
+    ["#### Upstream Dependencies", 1],
+    ["#### Downstream Contracts", 2],
+  ]);
+  for (let index = 1; index < sectionHeadings.length; index += 1) {
+    if (sectionRank.get(sectionHeadings[index]) < sectionRank.get(sectionHeadings[index - 1])) {
+      invalid(`${context} context sections must follow Local View, Upstream Dependencies, Downstream Contracts order`);
+    }
+  }
+  const firstSection = lines.findIndex((line) => /^#### /.test(line));
+  const preamble = lines.slice(0, firstSection < 0 ? lines.length : firstSection);
+  for (const line of preamble) {
+    if (line.trim() === "" || /^ {1,5}[^ \t]/.test(line) ||
+        /^- \*\*(?:Core responsibility|Business authority):\*\* \S/.test(line)) {
+      continue;
+    }
+    invalid(`${context} contains unsupported context content: ${line.trim()}`);
+  }
+  for (const label of ["Core responsibility", "Business authority"]) {
+    const prefix = `- **${label}:**`;
+    const fields = lines.filter((line) => line.startsWith(prefix));
+    if (fields.length !== 1 || !hasRenderedText(fields[0].slice(prefix.length))) {
+      invalid(`${context} must declare exactly one non-empty ${label}`);
+    }
   }
 
   const localHeadingCount = lines.filter((line) => line === "#### Local View").length;
