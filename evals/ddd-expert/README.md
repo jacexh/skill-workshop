@@ -9,8 +9,8 @@ approved expectations, and the runner scores:
 
 - structured phase completion, questions, routes, and review conclusions;
 - review reason families plus existing evidence paths and valid line numbers;
-- the actual Git change set from the immutable baseline, including commits and
-  optional exact write-set limits;
+- the actual workspace change set from the immutable baseline, including
+  ignored files, mode changes, and optional exact write-set limits;
 - required or forbidden file content;
 - real post-run verification commands.
 
@@ -82,6 +82,9 @@ container. The container sees one isolated home, one case workspace, its result
 directory, the response schema, and the minimal marketplace. It does not see
 the source repository, other cases, or expected answers. This also avoids
 nested user-namespace failures on hosts where bubblewrap cannot start.
+The writable trial workspace has a nested read-only `.git` mount, and post-run
+checks see the entire workspace read-only. Scoring uses bounded filesystem
+snapshots rather than invoking host Git on model-controlled files.
 
 Behavior runs require an explicit model. `summary.json` records the model, reasoning
 level, Codex version, plugin/eval/snapshot fingerprints, exact Docker image ID,
@@ -115,14 +118,19 @@ must therefore put concrete opposite propositions in `excludes_semantic`, whose
 matching is also case- and line-wrap-insensitive, and keep scorer self-tests for
 both an accepted paraphrase and a bug-shaped negation. Keep `excludes` for exact
 syntax or heading exclusions where normalized substring matching would be too
-broad.
+broad. Use `identifiers_without_format` when accepted Domain identity semantics
+must not acquire an implementation format; its relation-aware check distinguishes
+an invented rule from an explicit “no such format” statement. Completed Explore
+artifacts use `forbid_temporary_trace` so source-item ledgers cannot survive under
+alternate coverage or traceability labels.
 
 `expect.git.allowed_paths` is optional. When present, every observed change must
 match one of those paths. Combine it with `required_paths` containing the same
 members to declare an exact write set: all declared artifacts must change and no
 temporary trace, source document, or unrelated artifact may be added. The runner
 compares a full pre/post workspace file snapshot outside `.git`, so ignored files
-and files hidden by mutable Git exclude metadata remain part of this check.
+remain part of this check. Unsafe, unreadable, oversized, or special entries fail
+closed before artifact inspection.
 
 For topology-discovery risks, pair an answer-neutral read-only sentinel with a
 complete-scope write case. The sentinel should verify that missing language or

@@ -16,6 +16,75 @@ node --check "$RUNNER"
 node "$RUNNER" validate
 node "$RUNNER" self-test
 
+node - "$CASES_ROOT" <<'NODE'
+const fs = require("fs");
+const path = require("path");
+
+const casesRoot = process.argv[2];
+const readCase = (id) => JSON.parse(fs.readFileSync(path.join(casesRoot, id, "case.json"), "utf8"));
+const completedExploreCases = fs.readdirSync(casesRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => readCase(entry.name))
+  .filter((config) => config.phase === "explore" && config.expect.completion.includes("completed"));
+const exactCoverageHeadings = ["## Source Coverage", "## Story Coverage", "## Coverage Ledger"];
+const semanticCoverageTerms = ["Source Coverage", "Story Coverage", "Coverage Ledger"];
+for (const config of completedExploreCases) {
+  const id = config.id;
+  const dddArtifacts = config.expect.files.filter((item) => item.path.startsWith("docs/ddd-expert/"));
+  const assertedPaths = new Set(dddArtifacts.map((item) => item.path));
+  const allowedPaths = config.expect.git.allowed_paths;
+  if (!Array.isArray(allowedPaths)) {
+    throw new Error(`${id} must declare an exact artifact write set`);
+  }
+  if (allowedPaths.length !== assertedPaths.size || allowedPaths.some((item) => !assertedPaths.has(item))) {
+    throw new Error(`${id} allowed paths must equal its asserted DDD artifacts`);
+  }
+  for (const allowedPath of allowedPaths) {
+    if (!/^docs\/ddd-expert\/(?:README\.md|context-map\.md|context\/[a-z0-9-]+\/model\.md)$/u.test(allowedPath)) {
+      throw new Error(`${id} allows non-canonical Explore artifact ${allowedPath}`);
+    }
+  }
+  for (const artifact of dddArtifacts) {
+    if (artifact.forbid_temporary_trace !== true) {
+      throw new Error(`${id} does not forbid temporary discovery traces in ${artifact.path}`);
+    }
+    for (const heading of exactCoverageHeadings) {
+      if (!(artifact.excludes || []).includes(heading)) {
+        throw new Error(`${id} does not exclude ${heading} from ${artifact.path}`);
+      }
+    }
+    for (const term of semanticCoverageTerms) {
+      if (!(artifact.excludes_semantic || []).includes(term)) {
+        throw new Error(`${id} does not semantically exclude ${term} from ${artifact.path}`);
+      }
+    }
+  }
+}
+
+const firstShape = readCase("shape-requires-design-consensus");
+for (const wrongRoute of ["explore", "codify", "guard"]) {
+  if (!firstShape.expect.routes.excludes.includes(wrongRoute)) {
+    throw new Error(`first Shape consensus case permits ${wrongRoute}`);
+  }
+}
+
+const entityDesign = readCase("shape-defines-retained-entity").expect.files[0];
+if (!(entityDesign.identifiers_without_format || []).includes("LineId")) {
+  throw new Error("retained-Entity case does not reject invented identifier formats");
+}
+for (const requiredSignal of [
+  "Quantity represents the allocation amount",
+  "LineId is constructed from",
+  "no additional business-format rule",
+  "LineId values are equal when",
+  "Quantity values are equal when",
+]) {
+  if (!entityDesign.contains_any.some((group) => group.includes(requiredSignal))) {
+    throw new Error(`retained-Entity case does not require ${requiredSignal}`);
+  }
+}
+NODE
+
 for consensus_case in \
   shape-continues-after-boundary-acceptance \
   shape-requires-integrated-design-acceptance \

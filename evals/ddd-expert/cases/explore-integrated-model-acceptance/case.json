@@ -36,6 +36,7 @@
       {
         "path": "docs/ddd-expert/context-map.md",
         "exists": true,
+        "forbid_temporary_trace": true,
         "contains": [
           "## Global View",
           "Arrow direction: `U -> D`",
@@ -57,19 +58,26 @@
         "excludes": [
           "<!--",
           "## Relationships",
-          "<->"
+          "<->",
+          "## Source Coverage",
+          "## Story Coverage",
+          "## Coverage Ledger"
         ],
         "excludes_semantic": [
           "Order, not Payment, owns",
           "Payment has no authority",
           "Order may redefine Payment",
-          "Every cancelled Order becomes ready"
+          "Every cancelled Order becomes ready",
+          "Source Coverage",
+          "Story Coverage",
+          "Coverage Ledger"
         ],
         "excludes_words": []
       },
       {
         "path": "docs/ddd-expert/context/payment/model.md",
         "exists": true,
+        "forbid_temporary_trace": true,
         "contains": ["model_revision: 2", "Order"],
         "contains_any": [
           ["Payment is the sole authority", "Payment alone owns", "Payment owns the Payment Capture lifecycle", "Payment retains authority"],
@@ -79,19 +87,26 @@
         "contains_words": ["Payment", "Captured"],
         "excludes": [
           "CREATE TABLE",
-          "<!--"
+          "<!--",
+          "## Source Coverage",
+          "## Story Coverage",
+          "## Coverage Ledger"
         ],
         "excludes_semantic": [
           "Order, not Payment, owns",
           "Order owns every Captured payment fact",
           "Payment has no authority",
-          "Order may redefine Payment"
+          "Order may redefine Payment",
+          "Source Coverage",
+          "Story Coverage",
+          "Coverage Ledger"
         ],
         "excludes_words": ["Repository", "handler"]
       },
       {
         "path": "docs/ddd-expert/context/order/model.md",
         "exists": true,
+        "forbid_temporary_trace": true,
         "contains": ["model_revision: 2"],
         "contains_any": [
           ["Captured Payment Evidence"],
@@ -104,13 +119,19 @@
         "contains_words": ["Payment", "Captured", "Evidence"],
         "excludes": [
           "CREATE TABLE",
-          "<!--"
+          "<!--",
+          "## Source Coverage",
+          "## Story Coverage",
+          "## Coverage Ledger"
         ],
         "excludes_semantic": [
           "always makes a cancelled Order ready",
           "Every cancelled Order becomes ready",
           "Order may redefine Payment",
-          "Payment decides fulfillment readiness"
+          "Payment decides fulfillment readiness",
+          "Source Coverage",
+          "Story Coverage",
+          "Coverage Ledger"
         ],
         "excludes_words": ["Repository", "handler"]
       }

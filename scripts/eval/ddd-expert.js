@@ -18,6 +18,12 @@ const DEFAULT_TIMEOUT_SECONDS = 240;
 const DEFAULT_CONTAINER_IMAGE = "ddd-expert-eval:local";
 const DEFAULT_INFRA_RETRIES = 2;
 const BASELINE_WORKSPACE_SNAPSHOTS = new Map();
+const BASELINE_GIT_METADATA_SNAPSHOTS = new Map();
+const SNAPSHOT_MAX_ENTRIES = 20000;
+const SNAPSHOT_MAX_FILE_BYTES = 8 * 1024 * 1024;
+const SNAPSHOT_MAX_TOTAL_HASH_BYTES = 128 * 1024 * 1024;
+const RESULT_MAX_FILE_BYTES = 1024 * 1024;
+const SNAPSHOT_LIMIT_KEY = "//snapshot-limit//";
 const VERDICT_FAMILIES = [
   "aggregate_boundary",
   "repository_shape",
@@ -267,13 +273,17 @@ function validateCase(caseDir, config) {
     fail(`${config.id}.expect.files and checks must be arrays`, 2);
   }
   for (const assertion of expect.files) {
-    if (!hasOnlyKeys(assertion, ["path", "exists", "contains", "contains_any", "excludes", "excludes_semantic", "contains_words", "excludes_words"]) || typeof assertion.path !== "string" || typeof assertion.exists !== "boolean") {
+    if (!hasOnlyKeys(assertion, ["path", "exists", "contains", "contains_any", "excludes", "excludes_semantic", "identifiers_without_format", "forbid_temporary_trace", "contains_words", "excludes_words"]) || typeof assertion.path !== "string" || typeof assertion.exists !== "boolean") {
       fail(`${config.id}: invalid file assertion`, 2);
     }
     safeChildPath(workspacePath, assertion.path, `${config.id}.expect.files.path`);
     stringArray(assertion.contains, `${config.id}.expect.files.contains`);
     stringArray(assertion.excludes, `${config.id}.expect.files.excludes`);
     stringArray(assertion.excludes_semantic || [], `${config.id}.expect.files.excludes_semantic`);
+    stringArray(assertion.identifiers_without_format || [], `${config.id}.expect.files.identifiers_without_format`);
+    if ("forbid_temporary_trace" in assertion && typeof assertion.forbid_temporary_trace !== "boolean") {
+      fail(`${config.id}.expect.files.forbid_temporary_trace must be boolean`, 2);
+    }
     stringArray(assertion.contains_words || [], `${config.id}.expect.files.contains_words`);
     stringArray(assertion.excludes_words || [], `${config.id}.expect.files.excludes_words`);
     for (const [index, group] of (assertion.contains_any || []).entries()) {
@@ -423,8 +433,14 @@ function workspacePathInfo(workspace, relative, allowRoot = false) {
   if ((!allowRoot && normalized === ".") || normalized.split("/").includes("..")) {
     return null;
   }
-  const absolute = path.resolve(workspace, normalized);
-  const root = path.resolve(workspace);
+  let absolute;
+  let root;
+  try {
+    absolute = path.resolve(workspace, normalized);
+    root = path.resolve(workspace);
+  } catch {
+    return null;
+  }
   if (absolute !== root && !absolute.startsWith(`${root}${path.sep}`)) {
     return null;
   }
@@ -437,12 +453,21 @@ function inspectWorkspacePath(workspace, relative, allowRoot = false) {
     return { valid: false, exists: false, info: null, stat: null };
   }
   if (info.normalized === ".") {
-    return { valid: true, exists: true, info, stat: fs.lstatSync(workspace) };
+    try {
+      return { valid: true, exists: true, info, stat: fs.lstatSync(workspace) };
+    } catch {
+      return { valid: false, exists: false, info, stat: null };
+    }
   }
   let current = path.resolve(workspace);
+  let stat = null;
   for (const segment of info.normalized.split("/")) {
     current = path.join(current, segment);
-    const stat = fs.lstatSync(current, { throwIfNoEntry: false });
+    try {
+      stat = fs.lstatSync(current, { throwIfNoEntry: false });
+    } catch {
+      return { valid: false, exists: false, info, stat: null };
+    }
     if (!stat) {
       return { valid: true, exists: false, info, stat: null };
     }
@@ -450,51 +475,181 @@ function inspectWorkspacePath(workspace, relative, allowRoot = false) {
       return { valid: false, exists: true, info, stat };
     }
   }
-  return { valid: true, exists: true, info, stat: fs.lstatSync(info.absolute) };
+  return { valid: true, exists: true, info, stat };
 }
 
-function workspaceSymlinks(workspace) {
-  const found = [];
-  function visit(directory, relative) {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      if (relative === "" && entry.name === ".git") {
-        continue;
+function unsafeSnapshotEntries(snapshot) {
+  return [...snapshot.entries()]
+    .filter(([relative, token]) => {
+      if (relative === SNAPSHOT_LIMIT_KEY ||
+          /^(?:bounded-|link|unreadable-|unstable-|special:)/.test(token)) {
+        return true;
       }
-      const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
-      if (entry.isSymbolicLink()) {
-        found.push(childRelative);
-      } else if (entry.isDirectory()) {
-        visit(path.join(directory, entry.name), childRelative);
+      const modeMatch = /^(?:dir|file):([0-7]+)(?::|$)/.exec(token);
+      // This repository can legitimately be group-writable in a shared
+      // workspace. Special permission bits and world-writable entries are the
+      // unsafe cases; ordinary mode changes are still visible to the exact
+      // filesystem diff below.
+      return modeMatch ? (Number.parseInt(modeMatch[1], 8) & 0o7002) !== 0 : false;
+    })
+    .map(([relative]) => relative)
+    .sort();
+}
+
+function workspaceUnsafeEntries(workspace, snapshot = workspaceFileSnapshot(workspace)) {
+  return unsafeSnapshotEntries(snapshot);
+}
+
+function boundedTreeSnapshot(root, rootRelative, skipRootEntry = null) {
+  const snapshot = new Map();
+  const state = { entries: 0, hashedBytes: 0, limited: false };
+
+  function modeOf(stat) {
+    return (stat.mode & 0o7777).toString(8);
+  }
+
+  function fileToken(absolute, stat) {
+    const metadata = `${modeOf(stat)}:${stat.size}:${stat.ino}:${stat.ctimeMs}`;
+    if (stat.size > SNAPSHOT_MAX_FILE_BYTES ||
+        state.hashedBytes + stat.size > SNAPSHOT_MAX_TOTAL_HASH_BYTES) {
+      return `bounded-file:${metadata}`;
+    }
+    let descriptor;
+    try {
+      const flags = fs.constants.O_RDONLY |
+        (fs.constants.O_NOFOLLOW || 0) |
+        (fs.constants.O_NONBLOCK || 0);
+      descriptor = fs.openSync(absolute, flags);
+      const openedStat = fs.fstatSync(descriptor);
+      const openedMetadata = `${modeOf(openedStat)}:${openedStat.size}:${openedStat.ino}:${openedStat.ctimeMs}`;
+      if (!openedStat.isFile() || openedStat.dev !== stat.dev || openedStat.ino !== stat.ino) {
+        return `unreadable-file:${openedMetadata}:identity-changed`;
+      }
+      const remainingBudget = Math.min(
+        SNAPSHOT_MAX_FILE_BYTES,
+        SNAPSHOT_MAX_TOTAL_HASH_BYTES - state.hashedBytes,
+      );
+      if (openedStat.size > remainingBudget) {
+        return `bounded-file:${openedMetadata}`;
+      }
+      const hash = crypto.createHash("sha256");
+      const buffer = Buffer.allocUnsafe(64 * 1024);
+      let total = 0;
+      while (true) {
+        const bytesRead = fs.readSync(descriptor, buffer, 0, buffer.length, null);
+        if (bytesRead === 0) break;
+        total += bytesRead;
+        if (total > remainingBudget) {
+          return `bounded-file:${openedMetadata}:grew-while-reading`;
+        }
+        hash.update(buffer.subarray(0, bytesRead));
+      }
+      const finalStat = fs.fstatSync(descriptor);
+      if (finalStat.dev !== openedStat.dev || finalStat.ino !== openedStat.ino ||
+          finalStat.size !== openedStat.size || total !== openedStat.size ||
+          finalStat.ctimeMs !== openedStat.ctimeMs) {
+        return `unstable-file:${modeOf(finalStat)}:${finalStat.size}:${finalStat.ino}:${finalStat.ctimeMs}`;
+      }
+      state.hashedBytes += total;
+      return `file:${modeOf(finalStat)}:${total}:${hash.digest("hex")}`;
+    } catch (error) {
+      return `unreadable-file:${metadata}:${error.code || error.name}`;
+    } finally {
+      if (descriptor !== undefined) {
+        try {
+          fs.closeSync(descriptor);
+        } catch {
+          // The returned token already fails closed for unreadable or unstable files.
+        }
       }
     }
   }
-  visit(workspace, "");
-  return found.sort();
+
+  function markLimit(detail) {
+    state.limited = true;
+    snapshot.set(SNAPSHOT_LIMIT_KEY, `limit:${detail}`);
+  }
+
+  function visit(absolute, relative, isRoot = false) {
+    if (state.limited) return;
+    if (state.entries >= SNAPSHOT_MAX_ENTRIES) {
+      markLimit(`entries>${SNAPSHOT_MAX_ENTRIES}`);
+      return;
+    }
+    let stat;
+    try {
+      stat = fs.lstatSync(absolute);
+    } catch (error) {
+      snapshot.set(relative, `unreadable-entry:${error.code || error.name}`);
+      state.entries += 1;
+      return;
+    }
+    state.entries += 1;
+    if (stat.isSymbolicLink()) {
+      try {
+        snapshot.set(relative, `link:${modeOf(stat)}:${fs.readlinkSync(absolute)}`);
+      } catch (error) {
+        snapshot.set(relative, `unreadable-link:${modeOf(stat)}:${error.code || error.name}`);
+      }
+      return;
+    }
+    if (stat.isFile()) {
+      snapshot.set(relative, fileToken(absolute, stat));
+      return;
+    }
+    if (!stat.isDirectory()) {
+      snapshot.set(relative, `special:${modeOf(stat)}:${stat.mode & 0o170000}:${stat.rdev}`);
+      return;
+    }
+
+    snapshot.set(relative, `dir:${modeOf(stat)}`);
+    let directory;
+    const entries = [];
+    try {
+      directory = fs.opendirSync(absolute);
+      let entry;
+      while ((entry = directory.readSync()) !== null) {
+        if (isRoot && skipRootEntry && skipRootEntry(entry.name)) continue;
+        entries.push(entry.name);
+        if (state.entries + entries.length > SNAPSHOT_MAX_ENTRIES) {
+          markLimit(`entries>${SNAPSHOT_MAX_ENTRIES}`);
+          break;
+        }
+      }
+    } catch (error) {
+      snapshot.set(relative, `unreadable-dir:${modeOf(stat)}:${error.code || error.name}`);
+      return;
+    } finally {
+      if (directory) directory.closeSync();
+    }
+    entries.sort((left, right) => left.localeCompare(right));
+    for (const entry of entries) {
+      const childRelative = relative === "." ? entry : `${relative}/${entry}`;
+      visit(path.join(absolute, entry), childRelative, false);
+    }
+  }
+
+  visit(root, rootRelative, true);
+  return snapshot;
 }
 
 function workspaceFileSnapshot(workspace) {
-  const snapshot = new Map();
-  function visit(directory, relative) {
-    const entries = fs.readdirSync(directory, { withFileTypes: true })
-      .sort((left, right) => left.name.localeCompare(right.name));
-    for (const entry of entries) {
-      if (relative === "" && entry.name === ".git") continue;
-      const childRelative = relative ? `${relative}/${entry.name}` : entry.name;
-      const absolute = path.join(directory, entry.name);
-      if (entry.isDirectory()) {
-        visit(absolute, childRelative);
-      } else if (entry.isSymbolicLink()) {
-        snapshot.set(childRelative, `link:${fs.readlinkSync(absolute)}`);
-      } else {
-        snapshot.set(
-          childRelative,
-          `file:${crypto.createHash("sha256").update(fs.readFileSync(absolute)).digest("hex")}`,
-        );
-      }
+  return boundedTreeSnapshot(workspace, ".", (name) => name === ".git");
+}
+
+function gitMetadataSnapshot(workspace) {
+  return boundedTreeSnapshot(path.join(workspace, ".git"), ".git");
+}
+
+function snapshotChanges(baselineSnapshot, currentSnapshot) {
+  if (!baselineSnapshot) return [];
+  const changed = [];
+  for (const relative of new Set([...baselineSnapshot.keys(), ...currentSnapshot.keys()])) {
+    if (baselineSnapshot.get(relative) !== currentSnapshot.get(relative)) {
+      changed.push(relative);
     }
   }
-  visit(workspace, "");
-  return snapshot;
+  return changed.sort();
 }
 
 function baselineSnapshotKey(workspace, baseline) {
@@ -521,6 +676,113 @@ function runCommand(argv, options = {}) {
   };
 }
 
+function readBoundedTextFile(file, maxBytes = SNAPSHOT_MAX_FILE_BYTES) {
+  let initialStat;
+  try {
+    initialStat = fs.lstatSync(file);
+  } catch (error) {
+    return { ok: false, content: "", error: `cannot inspect file: ${error.code || error.message}` };
+  }
+  if (!initialStat.isFile()) {
+    return { ok: false, content: "", error: "path is not a regular file" };
+  }
+  if (initialStat.size > maxBytes) {
+    return { ok: false, content: "", error: `file exceeds ${maxBytes} bytes` };
+  }
+
+  let descriptor;
+  try {
+    const flags = fs.constants.O_RDONLY |
+      (fs.constants.O_NOFOLLOW || 0) |
+      (fs.constants.O_NONBLOCK || 0);
+    descriptor = fs.openSync(file, flags);
+    const openedStat = fs.fstatSync(descriptor);
+    if (!openedStat.isFile() || openedStat.dev !== initialStat.dev || openedStat.ino !== initialStat.ino) {
+      return { ok: false, content: "", error: "opened path is not the inspected regular file" };
+    }
+    if (openedStat.size > maxBytes) {
+      return { ok: false, content: "", error: `file exceeds ${maxBytes} bytes` };
+    }
+
+    const chunks = [];
+    const buffer = Buffer.allocUnsafe(64 * 1024);
+    let total = 0;
+    while (true) {
+      const bytesRead = fs.readSync(descriptor, buffer, 0, buffer.length, null);
+      if (bytesRead === 0) break;
+      total += bytesRead;
+      if (total > maxBytes) {
+        return { ok: false, content: "", error: `file grew beyond ${maxBytes} bytes while reading` };
+      }
+      chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
+    }
+    const finalStat = fs.fstatSync(descriptor);
+    if (finalStat.dev !== openedStat.dev || finalStat.ino !== openedStat.ino ||
+        finalStat.size !== openedStat.size || finalStat.ctimeMs !== openedStat.ctimeMs ||
+        total !== openedStat.size) {
+      return { ok: false, content: "", error: "file changed while reading" };
+    }
+    return { ok: true, content: Buffer.concat(chunks, total).toString("utf8"), error: null };
+  } catch (error) {
+    return { ok: false, content: "", error: `cannot read file: ${error.code || error.message}` };
+  } finally {
+    if (descriptor !== undefined) {
+      try {
+        fs.closeSync(descriptor);
+      } catch {
+        // A failed close does not make an unreadable artifact acceptable.
+      }
+    }
+  }
+}
+
+function countTextLines(content) {
+  let count = 1;
+  for (let index = 0; index < content.length; index += 1) {
+    if (content.charCodeAt(index) === 10) count += 1;
+  }
+  return count;
+}
+
+function restoreDirectoryChain(root, relative) {
+  if (typeof relative !== "string" || path.isAbsolute(relative) || relative.split(path.sep).includes("..")) {
+    fail(`unsafe directory chain: ${relative}`, 2);
+  }
+  let current = path.resolve(root);
+  for (const segment of ["", ...relative.split(path.sep).filter(Boolean)]) {
+    if (segment) current = path.join(current, segment);
+    const stat = fs.lstatSync(current, { throwIfNoEntry: false });
+    if (!stat?.isDirectory() || stat.isSymbolicLink()) {
+      fail(`untrusted home replaced or removed directory: ${current}`, 2);
+    }
+    fs.chmodSync(current, 0o700);
+  }
+}
+
+function removeUntrustedTree(root) {
+  function repair(current) {
+    const stat = fs.lstatSync(current, { throwIfNoEntry: false });
+    if (!stat?.isDirectory() || stat.isSymbolicLink()) return;
+    fs.chmodSync(current, 0o700);
+    const directory = fs.opendirSync(current);
+    try {
+      let entry;
+      while ((entry = directory.readSync()) !== null) {
+        repair(path.join(current, entry.name));
+      }
+    } finally {
+      directory.closeSync();
+    }
+  }
+
+  if (!fs.lstatSync(root, { throwIfNoEntry: false })) return;
+  repair(root);
+  fs.rmSync(root, { recursive: true, force: true });
+  if (fs.lstatSync(root, { throwIfNoEntry: false })) {
+    fail(`failed to remove untrusted runtime tree: ${root}`, 2);
+  }
+}
+
 function requireSuccess(result, label) {
   if (result.status !== 0) {
     const detail = [result.error, result.stderr, result.stdout].filter(Boolean).join("\n").trim();
@@ -541,35 +803,67 @@ function initializeGit(workspace) {
   const baseline = runCommand(["git", "rev-parse", "HEAD"], { cwd: workspace, timeoutSeconds: 30 });
   requireSuccess(baseline, "git rev-parse HEAD");
   const commit = baseline.stdout.trim();
+  const workspaceSnapshot = workspaceFileSnapshot(workspace);
+  const metadataSnapshot = gitMetadataSnapshot(workspace);
+  const baselineIssues = [
+    ...unsafeSnapshotEntries(workspaceSnapshot),
+    ...unsafeSnapshotEntries(metadataSnapshot),
+  ];
+  if (baselineIssues.length > 0) {
+    fail(`eval baseline contains entries that cannot be snapshotted safely: ${baselineIssues.join(",")}`, 2);
+  }
   BASELINE_WORKSPACE_SNAPSHOTS.set(
     baselineSnapshotKey(workspace, commit),
-    workspaceFileSnapshot(workspace),
+    workspaceSnapshot,
+  );
+  BASELINE_GIT_METADATA_SNAPSHOTS.set(
+    baselineSnapshotKey(workspace, commit),
+    metadataSnapshot,
   );
   return commit;
 }
 
-function changedPaths(workspace, baseline) {
-  const tracked = runCommand(["git", "diff", "--name-only", "-z", baseline, "--"], { cwd: workspace, timeoutSeconds: 30 });
-  const untracked = runCommand(["git", "ls-files", "--others", "--exclude-standard", "-z"], { cwd: workspace, timeoutSeconds: 30 });
-  requireSuccess(tracked, "git diff baseline");
-  requireSuccess(untracked, "git ls-files --others");
-  const filesystemChanged = [];
-  const baselineSnapshot = BASELINE_WORKSPACE_SNAPSHOTS.get(baselineSnapshotKey(workspace, baseline));
-  if (baselineSnapshot) {
-    const currentSnapshot = workspaceFileSnapshot(workspace);
-    for (const relative of new Set([...baselineSnapshot.keys(), ...currentSnapshot.keys()])) {
-      if (baselineSnapshot.get(relative) !== currentSnapshot.get(relative)) {
-        filesystemChanged.push(relative);
-      }
-    }
+function gitMetadataChanges(workspace, baseline) {
+  const baselineSnapshot = BASELINE_GIT_METADATA_SNAPSHOTS.get(baselineSnapshotKey(workspace, baseline));
+  if (!baselineSnapshot) {
+    fail("missing immutable Git metadata baseline", 2);
   }
-  return [...new Set([
-    ...tracked.stdout.split("\0"),
-    ...untracked.stdout.split("\0"),
-    ...filesystemChanged,
-  ]
-    .filter(Boolean)
-    .map(normalizeRelativePath))].sort();
+  return snapshotChanges(
+    baselineSnapshot,
+    gitMetadataSnapshot(workspace),
+  );
+}
+
+function workspaceFilesystemChanges(workspace, baseline, currentSnapshot = workspaceFileSnapshot(workspace)) {
+  const baselineSnapshot = BASELINE_WORKSPACE_SNAPSHOTS.get(baselineSnapshotKey(workspace, baseline));
+  if (!baselineSnapshot) {
+    fail("missing immutable workspace baseline", 2);
+  }
+  const changed = snapshotChanges(baselineSnapshot, currentSnapshot);
+  return changed.filter((relative) => {
+    const before = baselineSnapshot?.get(relative);
+    const after = currentSnapshot.get(relative);
+    const structuralDirectoryChange =
+      (before === undefined && after?.startsWith("dir:")) ||
+      (after === undefined && before?.startsWith("dir:"));
+    if (!structuralDirectoryChange) return true;
+    const prefix = `${relative}/`;
+    return !changed.some((other) => other.startsWith(prefix));
+  });
+}
+
+function changedPaths(workspace, baseline, currentSnapshot = workspaceFileSnapshot(workspace)) {
+  const metadataChanges = gitMetadataChanges(workspace, baseline);
+  if (metadataChanges.length > 0) {
+    fail(`Git metadata changed after the immutable baseline: ${metadataChanges.join(",")}`, 2);
+  }
+  const unsafeEntries = workspaceUnsafeEntries(workspace, currentSnapshot);
+  if (unsafeEntries.length > 0) {
+    fail(`workspace contains entries that cannot be inspected safely: ${unsafeEntries.join(",")}`, 2);
+  }
+  return workspaceFilesystemChanges(workspace, baseline, currentSnapshot)
+    .map(normalizeRelativePath)
+    .sort();
 }
 
 function assertion(name, passed, detail) {
@@ -613,24 +907,170 @@ function normalizedSemanticContains(normalizedText, value) {
   return new RegExp(`(?:^|[^\\p{L}\\p{N}_])${phrase}(?=$|[^\\p{L}\\p{N}_])`, "u").test(searchableText);
 }
 
+function normalizedProseClauses(content) {
+  return content
+    .normalize("NFKC")
+    .replace(/[’]/gu, "'")
+    .replace(/\b(does|is|are|was|were|has|have|can|must|should|would|need)n't\b/giu, "$1 not")
+    .split(/[\r\n.!?;]+/u)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+}
+
+function proseTokens(clause) {
+  const tokens = [];
+  const matcher = /[\p{L}\p{N}_]+/gu;
+  let match;
+  while ((match = matcher.exec(clause)) !== null) {
+    tokens.push({ value: match[0].toLowerCase(), start: match.index, end: matcher.lastIndex });
+  }
+  return tokens;
+}
+
+function identifierFormatFindings(content, expectedIdentifiers) {
+  const expected = expectedIdentifiers.map((value) => value.toLowerCase());
+  const relevantVerbs = new Set([
+    "is", "are", "be", "being", "has", "have", "use", "uses", "used",
+    "require", "requires", "required", "define", "defines", "defined",
+    "must", "shall", "should", "may", "can", "conform", "conforms",
+    "conformed", "consist", "consists", "match", "matches", "matched",
+    "normalize", "normalizes", "normalized", "encode", "encodes", "encoded",
+    "store", "stores", "stored", "generate", "generates", "generated",
+    "represent", "represents", "represented", "prescribe", "prescribes",
+    "prescribed", "mandate", "mandates", "mandated", "enforce", "enforces",
+    "enforced", "apply", "applies", "applied",
+  ]);
+  const formatSignal = /\b(?:UUID(?:[ -]?v?\d+)?|GUID|ULID|KSUID|CUID2?|NanoID|Snowflake(?:[ -]ID)?|ObjectID|RFC[ -]?\d{3,5}|regex|regular[ -]expression|pattern|fixed[ -]length|lowercase|uppercase|base(?:16|32|36|58|62|64)|hex(?:adecimal)?|format(?:ted|ting)?|normaliz(?:e[ds]?|ation|ing)|prefix(?:ed)?|suffix(?:ed)?|auto[ -]increment(?:ed|ing)?|sequential(?:ly)?|numeric|integer|alphanumeric|validity)\b|\[[^\]\r\n]{1,80}\]\s*\{\d+(?:,\d*)?\}|\b\d+\s*[- ]?(?:character|char|digit|symbol|byte|bit)s?\b/giu;
+  const findings = [];
+
+  function signalIsNegated(tokens, signalStart) {
+    const before = tokens.filter((token) => token.end <= signalStart);
+    return before.slice(-4).some((token) =>
+      ["no", "not", "never", "without", "neither", "nor"].includes(token.value));
+  }
+
+  function relationshipIsNegated(clause, verb, signal, direction) {
+    if (!verb) return false;
+    if (direction === "forward") {
+      const prefix = clause.slice(Math.max(0, verb.start - 24), verb.start);
+      const between = clause.slice(verb.end, signal.index);
+      return /\b(?:does?|is|are|was|were|need|needs|must|shall|should|may|can)\s+not\s*$/iu.test(prefix) ||
+        /\bnever\s*$/iu.test(prefix) ||
+        /\b(?:no|not|never|without|neither|nor)\b/iu.test(between);
+    }
+    const between = clause.slice(signal.index + signal.text.length, verb.start);
+    return /\b(?:does?|is|are|was|were|need|needs|must|shall|should|may|can)\s+not\b/iu.test(between) ||
+      /\bnever\b/iu.test(between);
+  }
+
+  for (const clause of normalizedProseClauses(content)) {
+    const tokens = proseTokens(clause);
+    const identifiers = tokens.filter((token) => expected.some((name) =>
+      token.value === name || (token.value.endsWith(name) && /^[a-z][a-z0-9]*id$/u.test(token.value))));
+    if (identifiers.length === 0) continue;
+
+    formatSignal.lastIndex = 0;
+    let match;
+    while ((match = formatSignal.exec(clause)) !== null) {
+      const signal = { text: match[0], index: match.index, end: formatSignal.lastIndex };
+      const identifier = identifiers.reduce((nearest, candidate) => {
+        const distance = candidate.end <= signal.index
+          ? signal.index - candidate.end
+          : candidate.start - signal.end;
+        return !nearest || distance < nearest.distance ? { ...candidate, distance } : nearest;
+      }, null);
+      if (!identifier || signalIsNegated(tokens, signal.index)) continue;
+
+      const forward = identifier.end <= signal.index;
+      const betweenTokens = tokens.filter((token) => forward
+        ? token.start >= identifier.end && token.end <= signal.index
+        : token.start >= signal.end && token.end <= identifier.start);
+      const verbs = betweenTokens.filter((token) => relevantVerbs.has(token.value));
+      const verb = verbs.length > 0 ? verbs[verbs.length - 1] : null;
+      const direction = forward ? "forward" : "reverse";
+      if (relationshipIsNegated(clause, verb, signal, direction)) continue;
+      if (!verb && identifier.distance > 60) continue;
+
+      findings.push(`${identifier.value} ${signal.text}: ${clause.slice(0, 240)}`);
+    }
+  }
+  return findings;
+}
+
+function temporaryTraceFindings(content) {
+  const findings = [];
+  const heading = /^#{1,6}\s+(.+)$/gmu;
+  let match;
+  while ((match = heading.exec(content)) !== null) {
+    const title = normalizeSemanticText(match[1]);
+    const subject = /\b(?:source(?:[\s\-‐‑‒–—―]+item)?|story|scenario|discovery)\b/u;
+    const traceKind = /\b(?:coverage|trace|traceability|ledger|mapping)\b/u;
+    if ((subject.test(title) && traceKind.test(title)) ||
+        /^(?:traceability|coverage ledger|discovery ledger)$/u.test(title)) {
+      findings.push(`heading: ${match[0]}`);
+    }
+  }
+  for (const line of content.split(/\r?\n/u)) {
+    const normalized = normalizeSemanticText(line);
+    if (/\b(?:story|source(?:[\s\-‐‑‒–—―]+item)|scenario)\s+(?:id\s+)?[#a-z0-9_-]+\s*(?:-|→|=>|maps? to|covered by)/u.test(normalized) ||
+        /\b(?:covered|uncovered|deferred)\s+(?:source(?:[\s\-‐‑‒–—―]+item)|story|scenario)\b/u.test(normalized)) {
+      findings.push(`trace row: ${line.slice(0, 240)}`);
+    }
+  }
+  return findings;
+}
+
 function scoreResult(loadedCase, result, workspace, options = {}) {
   const { config } = loadedCase;
   const expect = config.expect;
-  const baseline = options.baseline || runCommand(["git", "rev-parse", "HEAD"], { cwd: workspace, timeoutSeconds: 30 }).stdout.trim();
-  const executeCheck = options.executeCheck || ((check) => runCommand(check.argv, { cwd: workspace, timeoutSeconds: check.timeout_seconds }));
+  const baseline = options.baseline;
+  if (typeof baseline !== "string" || baseline.length === 0) {
+    fail("scoreResult requires an immutable baseline", 2);
+  }
+  const executeCheck = options.executeCheck;
+  if (expect.checks.length > 0 && typeof executeCheck !== "function") {
+    fail("scoreResult requires an isolated check executor when checks are configured", 2);
+  }
   const assertions = [];
+  const textReads = new Map();
+  const readWorkspaceText = (absolute) => {
+    if (!textReads.has(absolute)) {
+      textReads.set(absolute, readBoundedTextFile(absolute));
+    }
+    return textReads.get(absolute);
+  };
+  const currentWorkspaceSnapshot = workspaceFileSnapshot(workspace);
+  const metadataChanges = gitMetadataChanges(workspace, baseline);
+  assertions.push(assertion(
+    "git metadata unchanged",
+    metadataChanges.length === 0,
+    metadataChanges.join(",") || "unchanged",
+  ));
+  const unsafeEntries = workspaceUnsafeEntries(workspace, currentWorkspaceSnapshot);
+  assertions.push(assertion(
+    "workspace contains no unsafe entries",
+    unsafeEntries.length === 0,
+    unsafeEntries.join(",") || "none",
+  ));
+  if (metadataChanges.length > 0 || unsafeEntries.length > 0) {
+    return {
+      passed: false,
+      assertions,
+      changedPaths: workspaceFilesystemChanges(workspace, baseline, currentWorkspaceSnapshot),
+      checks: [],
+    };
+  }
+
   const shapeErrors = validateResultShape(result);
   assertions.push(assertion("result schema", shapeErrors.length === 0, shapeErrors.join("; ") || "valid"));
   if (shapeErrors.length > 0) {
-    return { passed: false, assertions, changedPaths: changedPaths(workspace, baseline), checks: [] };
+    return { passed: false, assertions, changedPaths: changedPaths(workspace, baseline, currentWorkspaceSnapshot), checks: [] };
   }
 
   assertions.push(assertion("scenario id", result.scenario_id === config.id, `got ${result.scenario_id}`));
   assertions.push(assertion("phase", result.phase === config.phase, `got ${result.phase}`));
   assertions.push(assertion("completion", expect.completion.includes(result.completion), `got ${result.completion}`));
   assertions.push(assertion("review conclusion", expect.review_conclusion.includes(result.review_conclusion), `got ${result.review_conclusion}`));
-  const symlinks = workspaceSymlinks(workspace);
-  assertions.push(assertion("workspace contains no symlinks", symlinks.length === 0, symlinks.join(",") || "none"));
   assertions.push(assertion(
     "question count",
     result.questions.length >= expect.questions.min && result.questions.length <= expect.questions.max,
@@ -678,11 +1118,12 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
       ));
       if (inspected.valid && inspected.exists && evidence.line !== null) {
         const isFile = inspected.stat.isFile();
-        const lineCount = isFile ? fs.readFileSync(inspected.info.absolute, "utf8").split(/\r?\n/).length : 0;
+        const read = isFile ? readWorkspaceText(inspected.info.absolute) : null;
+        const lineCount = read?.ok ? countTextLines(read.content) : 0;
         assertions.push(assertion(
           `evidence line ${evidence.path}:${evidence.line}`,
-          isFile && evidence.line <= lineCount,
-          isFile ? `file has ${lineCount} lines` : "evidence line requires a file",
+          isFile && read.ok && evidence.line <= lineCount,
+          !isFile ? "evidence line requires a file" : read.ok ? `file has ${lineCount} lines` : read.error,
         ));
       }
     }
@@ -708,7 +1149,7 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
     ));
   }
 
-  const actualChanged = changedPaths(workspace, baseline);
+  const actualChanged = changedPaths(workspace, baseline, currentWorkspaceSnapshot);
   assertions.push(assertion(
     "git change expectation",
     expect.git.changed === "none" ? actualChanged.length === 0 : actualChanged.length > 0,
@@ -758,7 +1199,16 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
     if (!exists) {
       continue;
     }
-    const content = fs.readFileSync(inspected.info.absolute, "utf8");
+    const read = readWorkspaceText(inspected.info.absolute);
+    assertions.push(assertion(
+      `file ${fileExpectation.path} is bounded readable text`,
+      read.ok,
+      read.ok ? `read at most ${SNAPSHOT_MAX_FILE_BYTES} bytes` : read.error,
+    ));
+    if (!read.ok) {
+      continue;
+    }
+    const content = read.content;
     const normalizedContent = normalizeSemanticText(content);
     for (const needle of fileExpectation.contains) {
       assertions.push(assertion(`file ${fileExpectation.path} contains ${needle}`, content.includes(needle), "content check"));
@@ -778,6 +1228,22 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
         `file ${fileExpectation.path} semantically excludes ${needle}`,
         !normalizedSemanticContains(normalizedContent, needle),
         "normalized semantic exclusion check",
+      ));
+    }
+    if ((fileExpectation.identifiers_without_format || []).length > 0) {
+      const findings = identifierFormatFindings(content, fileExpectation.identifiers_without_format);
+      assertions.push(assertion(
+        `file ${fileExpectation.path} invents no identifier format`,
+        findings.length === 0,
+        findings.join(" | ") || "no positive format rule",
+      ));
+    }
+    if (fileExpectation.forbid_temporary_trace) {
+      const findings = temporaryTraceFindings(content);
+      assertions.push(assertion(
+        `file ${fileExpectation.path} persists no temporary discovery trace`,
+        findings.length === 0,
+        findings.join(" | ") || "no source-item coverage trace",
       ));
     }
     for (const word of fileExpectation.contains_words || []) {
@@ -927,6 +1393,10 @@ function snapshotCases(cases, runtimeRoot) {
   return { loadedCases, resultSchema, hash: hashTree(snapshotRoot) };
 }
 
+function readOnlyGitMetadataMount(workspace) {
+  return `type=bind,src=${path.join(workspace, ".git")},dst=/workspace/.git,readonly`;
+}
+
 function buildContainerCheckArgs(check, workspace, context, trialPluginCache) {
   const uid = typeof process.getuid === "function" ? process.getuid() : 1000;
   const gid = typeof process.getgid === "function" ? process.getgid() : 1000;
@@ -939,7 +1409,8 @@ function buildContainerCheckArgs(check, workspace, context, trialPluginCache) {
     "--user", `${uid}:${gid}`,
     "-e", "HOME=/tmp/eval-home", "-e", "GOCACHE=/tmp/go-build",
     "--mount", validatorMount,
-    "-v", `${workspace}:/workspace:rw`, "-w", "/workspace",
+    "-v", `${workspace}:/workspace:ro`, "-w", "/workspace",
+    "--mount", readOnlyGitMetadataMount(workspace),
     context.containerImage, ...check.argv,
   ];
 }
@@ -1004,6 +1475,7 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
     "-v", `${trialPluginCache}:${containerPluginCache}:ro`,
     "-v", `${context.marketplaceRoot}:${context.marketplaceRoot}:ro`,
     "-v", `${workspace}:/workspace:${workspaceMode}`,
+    "--mount", readOnlyGitMetadataMount(workspace),
     "-v", `${modelOutput}:/artifacts:rw`,
     "-v", `${context.resultSchema}:/eval/result.schema.json:ro`,
     "-v", `${context.codexBinary}:/usr/local/bin/codex:ro`,
@@ -1024,25 +1496,63 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
 
   let parsed = null;
   let parseError = null;
-  if (fs.statSync(resultFile, { throwIfNoEntry: false })?.isFile()) {
-    try {
-      parsed = readJson(resultFile);
-    } catch (error) {
-      parseError = error.message;
-    }
+  const resultRead = readBoundedTextFile(resultFile, RESULT_MAX_FILE_BYTES);
+  if (!resultRead.ok) {
+    parseError = resultRead.error;
   } else {
-    parseError = "Codex did not write result.json";
+    try {
+      parsed = JSON.parse(resultRead.content);
+    } catch (error) {
+      parseError = `cannot parse model result JSON: ${error.message}`;
+    }
   }
 
   const pluginReadObserved = /\/ddd-expert\/[^/\s]+\/(?:skills|references)\//.test(execution.stdout);
-  const pluginUnchanged = hashTree(trialPluginCache) === context.pluginHash;
-  const infrastructureFailure = execution.status !== 0 || !parsed || !pluginUnchanged;
+  let pluginUnchanged = false;
+  let pluginIntegrityError = null;
+  try {
+    restoreDirectoryChain(trialCodexHome, context.pluginCacheRelative);
+    pluginUnchanged = hashTree(trialPluginCache) === context.pluginHash;
+  } catch (error) {
+    pluginIntegrityError = error.message;
+  }
+  const gitMetadataMutation = gitMetadataChanges(workspace, baseline);
+  const postTrialWorkspaceSnapshot = workspaceFileSnapshot(workspace);
+  const unsafeWorkspaceEntries = workspaceUnsafeEntries(workspace, postTrialWorkspaceSnapshot);
+  const executionInfrastructureFailure = execution.status !== 0 || !parsed || !pluginUnchanged;
+  const infrastructureFailure = executionInfrastructureFailure &&
+    gitMetadataMutation.length === 0 && unsafeWorkspaceEntries.length === 0;
   let grade;
-  if (infrastructureFailure) {
+  if (gitMetadataMutation.length > 0) {
+    grade = {
+      passed: false,
+      assertions: [assertion(
+        "git metadata unchanged",
+        false,
+        `changed ${gitMetadataMutation.join(",")}`,
+      )],
+      changedPaths: [...new Set([
+        ...workspaceFilesystemChanges(workspace, baseline),
+        ...gitMetadataMutation,
+      ])].sort(),
+      checks: [],
+    };
+  } else if (unsafeWorkspaceEntries.length > 0) {
+    grade = {
+      passed: false,
+      assertions: [assertion(
+        "workspace contains no unsafe entries",
+        false,
+        unsafeWorkspaceEntries.join(","),
+      )],
+      changedPaths: workspaceFilesystemChanges(workspace, baseline, postTrialWorkspaceSnapshot),
+      checks: [],
+    };
+  } else if (infrastructureFailure) {
     const reasons = [
       execution.status !== 0 ? `exit=${execution.status}; signal=${execution.signal}` : null,
       !parsed ? execution.error || parseError || "missing structured result" : null,
-      !pluginUnchanged ? "installed ddd-expert cache changed during the trial" : null,
+      !pluginUnchanged ? pluginIntegrityError || "installed ddd-expert cache changed during the trial" : null,
     ].filter(Boolean);
     grade = {
       passed: false,
@@ -1051,7 +1561,7 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
         false,
         `${reasons.join("; ")}; ${[execution.stderr, execution.stdout].filter(Boolean).join("\n").slice(-1200)}`,
       )],
-      changedPaths: changedPaths(workspace, baseline),
+      changedPaths: changedPaths(workspace, baseline, postTrialWorkspaceSnapshot),
       checks: [],
     };
   } else {
@@ -1075,6 +1585,8 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
       explicitSkill: `ddd-expert:${loadedCase.config.phase}`,
       pluginReadObserved,
       pluginUnchanged,
+      pluginIntegrityError,
+      gitMetadataUnchanged: gitMetadataMutation.length === 0,
     },
     result: parsed,
     grade,
@@ -1182,6 +1694,14 @@ function selfTestCommand() {
     if (validatorMountIndex < 1 || containerCheckArgs[validatorMountIndex - 1] !== "--mount") {
       fail(`container check omitted the trial validator mount: ${containerCheckArgs.join(" ")}`, 2);
     }
+    const expectedGitMetadataMount = readOnlyGitMetadataMount("/tmp/trial-workspace");
+    const gitMetadataMountIndex = containerCheckArgs.indexOf(expectedGitMetadataMount);
+    if (gitMetadataMountIndex < 1 || containerCheckArgs[gitMetadataMountIndex - 1] !== "--mount") {
+      fail(`container check omitted the read-only Git metadata mount: ${containerCheckArgs.join(" ")}`, 2);
+    }
+    if (!containerCheckArgs.includes("/tmp/trial-workspace:/workspace:ro")) {
+      fail(`container check did not mount the post-run workspace read-only: ${containerCheckArgs.join(" ")}`, 2);
+    }
     const workspace = path.join(tempRoot, "workspace");
     fs.mkdirSync(path.join(workspace, "internal"), { recursive: true });
     fs.writeFileSync(path.join(workspace, "internal", "repository.go"), "package internal\n");
@@ -1229,11 +1749,8 @@ function selfTestCommand() {
     }
     const exactWriteWorkspace = path.join(tempRoot, "exact-write-workspace");
     fs.mkdirSync(exactWriteWorkspace, { recursive: true });
+    fs.writeFileSync(path.join(exactWriteWorkspace, ".gitignore"), "source-coverage.md\n");
     const exactWriteBaseline = initializeGit(exactWriteWorkspace);
-    fs.appendFileSync(
-      path.join(exactWriteWorkspace, ".git", "info", "exclude"),
-      "\nsource-coverage.md\n",
-    );
     fs.writeFileSync(path.join(exactWriteWorkspace, "expected.md"), "accepted artifact\n");
     fs.writeFileSync(path.join(exactWriteWorkspace, "source-coverage.md"), "temporary trace\n");
     const exactWriteCase = {
@@ -1289,6 +1806,227 @@ function selfTestCommand() {
     );
     if (!allowedWriteGrade.passed) {
       fail(`scorer rejected the declared exact write set: ${JSON.stringify(allowedWriteGrade.assertions)}`, 2);
+    }
+    fs.chmodSync(path.join(exactWriteWorkspace, "expected.md"), 0o4644);
+    const specialModeGrade = scoreResult(
+      exactWriteCase,
+      { ...exactWriteResult, changed_files: ["expected.md"] },
+      exactWriteWorkspace,
+      { baseline: exactWriteBaseline },
+    );
+    if (specialModeGrade.passed || !specialModeGrade.assertions.some((item) =>
+      item.name === "workspace contains no unsafe entries" && !item.passed)) {
+      fail("scorer accepted a set-ID mode on a model-controlled artifact", 2);
+    }
+    fs.chmodSync(path.join(exactWriteWorkspace, "expected.md"), 0o644);
+    const unsafeParent = path.join(exactWriteWorkspace, "unsafe-parent");
+    fs.mkdirSync(unsafeParent, { mode: 0o777 });
+    fs.chmodSync(unsafeParent, 0o2777);
+    fs.writeFileSync(path.join(unsafeParent, "artifact.md"), "unsafe parent\n");
+    const unsafeParentGrade = scoreResult(
+      exactWriteCase,
+      {
+        ...exactWriteResult,
+        changed_files: ["expected.md", "unsafe-parent/artifact.md"],
+      },
+      exactWriteWorkspace,
+      { baseline: exactWriteBaseline },
+    );
+    if (unsafeParentGrade.passed || !unsafeParentGrade.assertions.some((item) =>
+      item.name === "workspace contains no unsafe entries" && !item.passed)) {
+      fail("scorer suppressed an unsafe mode on a new artifact directory", 2);
+    }
+    fs.rmSync(unsafeParent, { recursive: true, force: true });
+    const metadataWorkspace = path.join(tempRoot, "git-metadata-workspace");
+    fs.mkdirSync(metadataWorkspace, { recursive: true });
+    fs.writeFileSync(path.join(metadataWorkspace, "domain.md"), "accepted baseline\n");
+    const metadataBaseline = initializeGit(metadataWorkspace);
+    const fsmonitorProbe = path.join(tempRoot, "fsmonitor-probe.sh");
+    const fsmonitorMarker = path.join(tempRoot, "fsmonitor-executed");
+    fs.writeFileSync(fsmonitorProbe, `#!/bin/sh\ntouch "${fsmonitorMarker}"\nprintf '\\n'\n`);
+    fs.chmodSync(fsmonitorProbe, 0o755);
+    fs.appendFileSync(
+      path.join(metadataWorkspace, ".git", "config"),
+      `\n[core]\n\tfsmonitor = "${fsmonitorProbe}"\n`,
+    );
+    let refusedMutatedMetadata = false;
+    try {
+      changedPaths(metadataWorkspace, metadataBaseline);
+    } catch (error) {
+      refusedMutatedMetadata = error.exitCode === 2 &&
+        error.message.includes("Git metadata changed after the immutable baseline");
+    }
+    if (!refusedMutatedMetadata || fs.existsSync(fsmonitorMarker)) {
+      fail("scorer invoked Git after workspace-controlled metadata changed", 2);
+    }
+    const hostileHome = path.join(tempRoot, "hostile-codex-home");
+    const hostilePluginRelative = path.join("plugins", "cache", "ddd-expert", "1.0.0");
+    const hostilePlugin = path.join(hostileHome, hostilePluginRelative);
+    fs.mkdirSync(hostilePlugin, { recursive: true });
+    fs.writeFileSync(path.join(hostilePlugin, "SKILL.md"), "immutable plugin\n");
+    const hostilePluginHash = hashTree(hostilePlugin);
+    fs.chmodSync(path.join(hostileHome, "plugins"), 0o000);
+    fs.chmodSync(hostileHome, 0o000);
+    restoreDirectoryChain(hostileHome, hostilePluginRelative);
+    if (hashTree(hostilePlugin) !== hostilePluginHash) {
+      fail("permission repair changed the protected plugin cache", 2);
+    }
+    const cleanupSentinel = path.join(tempRoot, "cleanup-sentinel");
+    fs.writeFileSync(cleanupSentinel, "must survive\n");
+    fs.symlinkSync(cleanupSentinel, path.join(hostileHome, "external-link"));
+    fs.chmodSync(path.join(hostileHome, "plugins"), 0o000);
+    fs.chmodSync(hostileHome, 0o000);
+    removeUntrustedTree(hostileHome);
+    if (fs.existsSync(hostileHome) || !fs.statSync(cleanupSentinel).isFile()) {
+      fail("untrusted CODEX_HOME cleanup failed or followed an external symlink", 2);
+    }
+    const hostileEntryWorkspace = path.join(tempRoot, "hostile-entry-workspace");
+    fs.mkdirSync(hostileEntryWorkspace, { recursive: true });
+    if (process.platform !== "win32") {
+      const fifoPath = path.join(hostileEntryWorkspace, "model-created.fifo");
+      requireSuccess(runCommand(["mkfifo", fifoPath], { timeoutSeconds: 5 }), "mkfifo scorer self-test");
+      const hostileSnapshot = workspaceFileSnapshot(hostileEntryWorkspace);
+      if (!hostileSnapshot.get("model-created.fifo")?.startsWith("special:") ||
+          !workspaceUnsafeEntries(hostileEntryWorkspace).includes("model-created.fifo")) {
+        fail("bounded workspace traversal did not classify a model-created FIFO as unsafe", 2);
+      }
+      const fifoRead = readBoundedTextFile(fifoPath);
+      if (fifoRead.ok || !fifoRead.error.includes("not a regular file")) {
+        fail("bounded text reader attempted to accept a model-created FIFO", 2);
+      }
+      const resultSymlink = path.join(hostileEntryWorkspace, "result.json");
+      fs.symlinkSync("result.json", resultSymlink);
+      const symlinkRead = readBoundedTextFile(resultSymlink, RESULT_MAX_FILE_BYTES);
+      if (symlinkRead.ok || !symlinkRead.error.includes("not a regular file")) {
+        fail("bounded model-result reader followed a model-created symlink", 2);
+      }
+    }
+    const oversizedWorkspace = path.join(tempRoot, "oversized-artifact-workspace");
+    fs.mkdirSync(oversizedWorkspace, { recursive: true });
+    const oversizedPath = path.join(oversizedWorkspace, "oversized.md");
+    fs.writeFileSync(oversizedPath, "baseline\n");
+    const oversizedBaseline = initializeGit(oversizedWorkspace);
+    const oversizedDescriptor = fs.openSync(oversizedPath, "w");
+    try {
+      fs.ftruncateSync(oversizedDescriptor, SNAPSHOT_MAX_FILE_BYTES + 1);
+    } finally {
+      fs.closeSync(oversizedDescriptor);
+    }
+    const oversizedRead = readBoundedTextFile(oversizedPath);
+    if (oversizedRead.ok || !oversizedRead.error.includes("file exceeds")) {
+      fail("bounded text reader accepted an oversized model-controlled artifact", 2);
+    }
+    const oversizedCase = {
+      config: {
+        id: "oversized-artifact",
+        phase: "guard",
+        expect: {
+          completion: ["completed"],
+          review_conclusion: ["clear"],
+          questions: { min: 0, max: 0 },
+          routes: { contains: [], excludes: [] },
+          verdicts: [],
+          forbid_verdicts: ["violation", "evidence_gap"],
+          git: {
+            changed: "some",
+            required_paths: ["oversized.md"],
+            forbidden_paths: [],
+            allowed_paths: ["oversized.md"],
+          },
+          files: [{ path: "oversized.md", exists: true, contains: ["required marker"], excludes: [] }],
+          checks: [],
+        },
+      },
+    };
+    const oversizedResult = {
+      scenario_id: "oversized-artifact",
+      phase: "guard",
+      completion: "completed",
+      review_conclusion: "clear",
+      questions: [],
+      routes: [],
+      verdicts: [],
+      changed_files: ["oversized.md"],
+      verification: [],
+    };
+    const oversizedGrade = scoreResult(
+      oversizedCase,
+      oversizedResult,
+      oversizedWorkspace,
+      { baseline: oversizedBaseline },
+    );
+    const oversizedSafetyAssertion = oversizedGrade.assertions.find((item) =>
+      item.name === "workspace contains no unsafe entries");
+    if (oversizedGrade.passed || !oversizedSafetyAssertion || oversizedSafetyAssertion.passed) {
+      fail("scorer accepted an oversized model-controlled artifact", 2);
+    }
+    const nulEvidenceGrade = scoreResult(
+      loadedCase,
+      {
+        ...good,
+        verdicts: [{
+          ...good.verdicts[0],
+          evidence: [{ path: "internal/\0evidence.go", line: 1, detail: "invalid path" }],
+        }],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (nulEvidenceGrade.passed || !nulEvidenceGrade.assertions.some((item) =>
+      item.name.startsWith("evidence path internal/") && !item.passed)) {
+      fail("scorer accepted or crashed on a NUL-bearing evidence path", 2);
+    }
+    let rejectedMissingBaseline = false;
+    try {
+      scoreResult(loadedCase, good, workspace, { baseline: "missing-baseline" });
+    } catch (error) {
+      rejectedMissingBaseline = error.exitCode === 2 &&
+        error.message.includes("missing immutable Git metadata baseline");
+    }
+    if (!rejectedMissingBaseline) {
+      fail("scorer accepted a baseline without immutable snapshots", 2);
+    }
+    if (typeof process.getuid !== "function" || process.getuid() !== 0) {
+      const unreadableWorkspace = path.join(tempRoot, "unreadable-workspace");
+      const unreadableDirectory = path.join(unreadableWorkspace, "locked");
+      fs.mkdirSync(unreadableDirectory, { recursive: true });
+      fs.writeFileSync(path.join(unreadableDirectory, "evidence.md"), "evidence\n");
+      const unreadableBaseline = initializeGit(unreadableWorkspace);
+      fs.chmodSync(unreadableDirectory, 0o000);
+      try {
+        const unreadableCase = {
+          config: {
+            ...loadedCase.config,
+            id: "unreadable-workspace",
+            expect: {
+              ...loadedCase.config.expect,
+              git: { changed: "some", required_paths: [], forbidden_paths: [] },
+              files: [],
+            },
+          },
+        };
+        const unreadableResult = {
+          ...good,
+          scenario_id: "unreadable-workspace",
+          changed_files: ["locked"],
+          verdicts: [{
+            ...good.verdicts[0],
+            evidence: [{ path: "locked/evidence.md", line: 1, detail: "must fail safely" }],
+          }],
+        };
+        const unreadableGrade = scoreResult(
+          unreadableCase,
+          unreadableResult,
+          unreadableWorkspace,
+          { baseline: unreadableBaseline },
+        );
+        if (unreadableGrade.passed || !unreadableGrade.assertions.some((item) =>
+          item.name === "workspace contains no unsafe entries" && !item.passed)) {
+          fail("scorer did not fail closed on an unreadable artifact directory", 2);
+        }
+      } finally {
+        fs.chmodSync(unreadableDirectory, 0o700);
+      }
     }
     const invalidCompletionCaseDir = path.join(tempRoot, "guard-invalid-completion");
     fs.mkdirSync(path.join(invalidCompletionCaseDir, "workspace"), { recursive: true });
@@ -1726,6 +2464,66 @@ Order owns fulfillment readiness and translates Payment Captured into Captured P
       fail("integrated Explore scorer accepted a persisted source-coverage trace", 2);
     }
     fs.rmSync(path.join(integratedExploreWorkspace, sourceCoverageRelative));
+    fs.appendFileSync(
+      path.join(integratedExploreWorkspace, integratedPaymentRelative),
+      "\n## Source Coverage\n\n- Story S-1 covered.\n",
+    );
+    const embeddedTraceGrade = scoreResult(
+      integratedExploreCase,
+      integratedExploreResult,
+      integratedExploreWorkspace,
+      integratedExploreOptions,
+    );
+    const embeddedTraceAssertion = embeddedTraceGrade.assertions.find((item) =>
+      item.name === `file ${integratedPaymentRelative} excludes ## Source Coverage`);
+    if (embeddedTraceGrade.passed || !embeddedTraceAssertion || embeddedTraceAssertion.passed) {
+      fail("integrated Explore scorer accepted source coverage embedded in an allowed Model", 2);
+    }
+    fs.writeFileSync(
+      path.join(integratedExploreWorkspace, integratedPaymentRelative),
+      acceptedPaymentModel,
+    );
+    fs.appendFileSync(
+      path.join(integratedExploreWorkspace, integratedMapRelative),
+      "\n## Story Coverage\n\n- Story S-1 covered.\n",
+    );
+    const embeddedMapTraceGrade = scoreResult(
+      integratedExploreCase,
+      integratedExploreResult,
+      integratedExploreWorkspace,
+      integratedExploreOptions,
+    );
+    const embeddedMapTraceAssertion = embeddedMapTraceGrade.assertions.find((item) =>
+      item.name === `file ${integratedMapRelative} excludes ## Story Coverage`);
+    if (embeddedMapTraceGrade.passed || !embeddedMapTraceAssertion || embeddedMapTraceAssertion.passed) {
+      fail("integrated Explore scorer accepted story coverage embedded in the Context Map", 2);
+    }
+    fs.writeFileSync(
+      path.join(integratedExploreWorkspace, integratedMapRelative),
+      acceptedIntegratedMap,
+    );
+    for (const [relative, trace] of [
+      [integratedPaymentRelative, "\n## Source Item Traceability\n\n- Story S-1 -> Payment lifecycle\n"],
+      [integratedPaymentRelative, "\n## Source-item Ledger\n\n- Source-item SPEC-7 covered by Payment\n"],
+      [integratedMapRelative, "\n## Scenario Traceability\n\n- Scenario capture-1 maps to Payment\n"],
+      [integratedMapRelative, "\n## Discovery Ledger\n\n- Story checkout-2 -> Order\n"],
+      [integratedMapRelative, "\n## Traceability\n\n- Story checkout-3 -> Order\n"],
+    ]) {
+      const accepted = relative === integratedMapRelative ? acceptedIntegratedMap : acceptedPaymentModel;
+      fs.writeFileSync(path.join(integratedExploreWorkspace, relative), `${accepted}${trace}`);
+      const alternateTraceGrade = scoreResult(
+        integratedExploreCase,
+        integratedExploreResult,
+        integratedExploreWorkspace,
+        integratedExploreOptions,
+      );
+      const temporaryTraceAssertion = alternateTraceGrade.assertions.find((item) =>
+        item.name === `file ${relative} persists no temporary discovery trace`);
+      if (alternateTraceGrade.passed || !temporaryTraceAssertion || temporaryTraceAssertion.passed) {
+        fail(`integrated Explore scorer accepted an alternate temporary trace in ${relative}: ${trace.trim()}`, 2);
+      }
+      fs.writeFileSync(path.join(integratedExploreWorkspace, relative), accepted);
+    }
     const contradictoryIntegratedMap = acceptedIntegratedMap
       .replace(
         "Payment owns the Payment Capture lifecycle and Payment Captured.",
@@ -2325,7 +3123,7 @@ AllocationLine represents one resource allocation request. It is identified by L
 
 #### Value Objects
 
-Quantity is a positive Value Object equal by amount. LineId and resource identity have no additional business-format rule and are equal by exact identity.
+Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment, has no additional business-format rule, and is equal by exact identity.
 
 #### Behaviors and Lifecycle
 
@@ -2362,6 +3160,147 @@ AllocationLineAdded, AllocationAccepted, and AllocationRejected are local Domain
     if (!completeEntityGrade.passed) {
       fail(`scorer rejected a retained Entity with identity, owner, lifecycle, behavior, and rules: ${JSON.stringify(completeEntityGrade.assertions)}`, 2);
     }
+    const identifierFormatAssertionName = `file ${entityShapeRelative} invents no identifier format`;
+    for (const inventedRule of [
+      "LineId is a fixed-length 26-character string.",
+      "LineId is a canonical ULID and is not empty.",
+      "LineId is fixed-length and is not optional.",
+      "A canonical ULID with no prefix is required for LineId.",
+      "LineId conforms to RFC 4122.",
+      "LineId consists of 26 alphanumeric symbols.",
+      "AllocationLineId is a canonical UUID.",
+      "LineId shall conform to [A-Z0-9]{26}.",
+      "A fixed-length 26-character format is required for LineId.",
+      "Lowercase normalization is required for LineId.",
+      "A regular expression [A-Z0-9]{26} defines LineId.",
+    ]) {
+      fs.writeFileSync(
+        path.join(entityShapeWorkspace, entityShapeRelative),
+        `${completeEntityDesign}\n${inventedRule}\n`,
+      );
+      const inventedFormatGrade = scoreResult(
+        entityShapeCase,
+        entityShapeResult,
+        entityShapeWorkspace,
+        entityShapeOptions,
+      );
+      if (inventedFormatGrade.passed || !inventedFormatGrade.assertions.some((item) =>
+        item.name === identifierFormatAssertionName && !item.passed)) {
+        fail(`scorer accepted an invented LineId format rule: ${inventedRule}`, 2);
+      }
+    }
+    for (const deniedRule of [
+      "LineId does not use UUID.",
+      "LineId never requires ULID.",
+      "Neither a UUID nor ULID is required for LineId.",
+      "No UUID format is required for LineId.",
+      "LineId is not normalized to lowercase.",
+    ]) {
+      fs.writeFileSync(
+        path.join(entityShapeWorkspace, entityShapeRelative),
+        `${completeEntityDesign}\n${deniedRule}\n`,
+      );
+      const deniedFormatGrade = scoreResult(
+        entityShapeCase,
+        entityShapeResult,
+        entityShapeWorkspace,
+        entityShapeOptions,
+      );
+      if (!deniedFormatGrade.passed) {
+        fail(`scorer rejected an explicit denial of a LineId format: ${deniedRule}` , 2);
+      }
+    }
+    const entityValueObjectLine = "Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment, has no additional business-format rule, and is equal by exact identity.";
+    const missingLineIdConstruction = completeEntityDesign.replace(
+      entityValueObjectLine,
+      "Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId has no additional business-format rule and is equal by exact identity.",
+    );
+    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingLineIdConstruction);
+    const missingLineIdConstructionGrade = scoreResult(
+      entityShapeCase,
+      entityShapeResult,
+      entityShapeWorkspace,
+      entityShapeOptions,
+    );
+    if (missingLineIdConstructionGrade.passed || !missingLineIdConstructionGrade.assertions.some((item) =>
+      item.name.includes("LineId is constructed from") && !item.passed)) {
+      fail("scorer accepted LineId semantics without construction", 2);
+    }
+    const missingLineIdNoFormat = completeEntityDesign.replace(
+      entityValueObjectLine,
+      "Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment and is equal by exact identity.",
+    );
+    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingLineIdNoFormat);
+    const missingLineIdNoFormatGrade = scoreResult(
+      entityShapeCase,
+      entityShapeResult,
+      entityShapeWorkspace,
+      entityShapeOptions,
+    );
+    if (missingLineIdNoFormatGrade.passed || !missingLineIdNoFormatGrade.assertions.some((item) =>
+      item.name.includes("no additional business-format rule") && !item.passed)) {
+      fail("scorer accepted LineId semantics without an explicit no-format rule", 2);
+    }
+    const missingLineIdEquality = completeEntityDesign.replace(
+      entityValueObjectLine,
+      "Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment and has no additional business-format rule.",
+    );
+    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingLineIdEquality);
+    const missingLineIdEqualityGrade = scoreResult(
+      entityShapeCase,
+      entityShapeResult,
+      entityShapeWorkspace,
+      entityShapeOptions,
+    );
+    if (missingLineIdEqualityGrade.passed || !missingLineIdEqualityGrade.assertions.some((item) =>
+      item.name.includes("LineId values are equal when") && !item.passed)) {
+      fail("scorer accepted LineId construction without equality semantics", 2);
+    }
+    const missingQuantityMeaning = completeEntityDesign.replace(
+      entityValueObjectLine,
+      "Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment, has no additional business-format rule, and is equal by exact identity.",
+    );
+    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingQuantityMeaning);
+    const missingQuantityMeaningGrade = scoreResult(
+      entityShapeCase,
+      entityShapeResult,
+      entityShapeWorkspace,
+      entityShapeOptions,
+    );
+    if (missingQuantityMeaningGrade.passed || !missingQuantityMeaningGrade.assertions.some((item) =>
+      item.name.includes("Quantity represents the allocation amount") && !item.passed)) {
+      fail("scorer accepted Quantity without its Domain meaning", 2);
+    }
+    const missingQuantityEquality = completeEntityDesign.replace(
+      entityValueObjectLine,
+      "Quantity represents the allocation amount and is positive. LineId is constructed from the resource identity admitted by Fulfillment, has no additional business-format rule, and is equal by exact identity.",
+    );
+    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingQuantityEquality);
+    const missingQuantityEqualityGrade = scoreResult(
+      entityShapeCase,
+      entityShapeResult,
+      entityShapeWorkspace,
+      entityShapeOptions,
+    );
+    if (missingQuantityEqualityGrade.passed || !missingQuantityEqualityGrade.assertions.some((item) =>
+      item.name.includes("Quantity values are equal when") && !item.passed)) {
+      fail("scorer accepted Quantity construction without equality semantics", 2);
+    }
+    fs.writeFileSync(
+      path.join(entityShapeWorkspace, entityShapeRelative),
+      `${completeEntityDesign}\nLineId construction is unspecified. LineId equality is undefined. Quantity equality is unspecified.\n`,
+    );
+    const unspecifiedValueObjectsGrade = scoreResult(
+      entityShapeCase,
+      entityShapeResult,
+      entityShapeWorkspace,
+      entityShapeOptions,
+    );
+    if (unspecifiedValueObjectsGrade.passed || !unspecifiedValueObjectsGrade.assertions.some((item) =>
+      item.name.includes("semantically excludes") && !item.passed)) {
+      fail("scorer accepted unspecified Value Object semantics as definitions", 2);
+    }
+    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), completeEntityDesign);
     const paraphrasedEntityDesign = completeEntityDesign.replace(
       "AllocationLine represents one resource allocation request. It is identified by LineId, is owned by FulfillmentOrder, and cannot exist outside its owning Root. Its lifecycle is scoped to the owning Aggregate while stable LineId preserves continuity. AllocateLine and RejectLine are its intention-revealing behaviors.",
       "AllocationLine represents one resource allocation request. Its LineId preserves its identity and continuity. It is owned by exactly one FulfillmentOrder, cannot exist outside that Root, and changes only through Root behavior. AllocateLine and RejectLine are its intention-revealing behaviors.",
@@ -2466,7 +3405,7 @@ InventoryReservation remains separate from Order because Inventory is the upstre
 
 #### Value Objects
 
-ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory and is compared by its exact identity value.
+ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.
 
 Quantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.
 
@@ -2503,8 +3442,8 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
       fail(`scorer rejected a Shape write containing the accepted tactical decisions: ${JSON.stringify(completeShapeGrade.assertions)}`, 2);
     }
     const paraphrasedValueObjectsDesign = completeShapeDesign.replace(
-      "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory and is compared by its exact identity value.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
-      "ReservationId is the Domain identity value that denotes the same reservation throughout its lifecycle. The Model defines no format, normalization, or additional validity rule. Two values are equal when they denote the same reservation identity.\n\nQuantity is the accepted quantity owned by one reservation. Construction succeeds only for a positive quantity. Two values are equal when their represented quantities are equal.",
+      "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
+      "ReservationId is the Domain identity value that denotes the same reservation throughout its lifecycle. Construction accepts an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. Two values are equal when they denote the same reservation identity.\n\nQuantity is the accepted quantity owned by one reservation. Construction succeeds only for a positive quantity. Two values are equal when their represented quantities are equal.",
     );
     fs.writeFileSync(shapeWritePath, paraphrasedValueObjectsDesign);
     if (!scoreResult(
@@ -2515,12 +3454,26 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
     ).passed) {
       fail("scorer rejected equivalent Value Object construction and equality semantics", 2);
     }
+    const reverseNegatedIdentifierFormat = completeShapeDesign.replace(
+      "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.",
+      "ReservationId is the immutable identity of one reservation. ReservationId is constructed from an identity admitted by Inventory. No UUID format is required for ReservationId. The Model defines no additional business validity rule. ReservationId values are equal when they denote the same reservation identity.",
+    );
+    fs.writeFileSync(shapeWritePath, reverseNegatedIdentifierFormat);
+    const reverseNegatedIdentifierGrade = scoreResult(
+      shapeWriteCase,
+      shapeWriteResult,
+      shapeWriteWorkspace,
+      { baseline: shapeWriteBaseline },
+    );
+    if (!reverseNegatedIdentifierGrade.passed) {
+      fail(`scorer rejected a reverse-order statement that explicitly denies an identifier format: ${JSON.stringify(reverseNegatedIdentifierGrade.assertions.filter((item) => !item.passed))}`, 2);
+    }
     fs.writeFileSync(shapeWritePath, completeShapeDesign);
     fs.writeFileSync(
       shapeWritePath,
       completeShapeDesign.replace(
-        "It is constructed only from an identity admitted by Inventory and is compared by its exact identity value.",
-        "Construction requires a canonical UUIDv7 and equality is by that UUID.",
+        "It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.",
+        "Construction requires a canonical UUIDv7. ReservationId values are equal by that UUID.",
       ),
     );
     const inventedIdentifierGrade = scoreResult(
@@ -2529,14 +3482,57 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
       shapeWriteWorkspace,
       { baseline: shapeWriteBaseline },
     );
+    const inventoryIdentifierFormatAssertionName =
+      "file docs/ddd-expert/context/inventory/design.md invents no identifier format";
     const inventedIdentifierAssertion = inventedIdentifierGrade.assertions.find((item) =>
-      item.name === "file docs/ddd-expert/context/inventory/design.md semantically excludes UUIDv7");
+      item.name === inventoryIdentifierFormatAssertionName);
     if (inventedIdentifierGrade.passed || !inventedIdentifierAssertion || inventedIdentifierAssertion.passed) {
       fail("scorer accepted a House Style invented as a Domain identifier rule", 2);
     }
     fs.writeFileSync(shapeWritePath, completeShapeDesign);
+    for (const [label, inventedRule] of [
+      ["ULID", "ReservationId construction requires a canonical ULID."],
+      ["regular expression", "ReservationId must match regex [A-Z0-9]{26}."],
+      ["normalization", "ReservationId is normalized to lowercase."],
+      ["reverse ULID", "A canonical ULID with no prefix is required for ReservationId."],
+      ["RFC", "ReservationId conforms to RFC 4122."],
+      ["alphanumeric length", "ReservationId consists of 26 alphanumeric symbols."],
+      ["qualified UUID", "InventoryReservationId is a canonical UUID."],
+      ["reverse fixed length", "A fixed-length 26-character format is required for ReservationId."],
+    ]) {
+      fs.writeFileSync(shapeWritePath, `${completeShapeDesign}\n${inventedRule}\n`);
+      const inventedRuleGrade = scoreResult(
+        shapeWriteCase,
+        shapeWriteResult,
+        shapeWriteWorkspace,
+        { baseline: shapeWriteBaseline },
+      );
+      if (inventedRuleGrade.passed || !inventedRuleGrade.assertions.some((item) =>
+        item.name === inventoryIdentifierFormatAssertionName && !item.passed)) {
+        fail(`scorer accepted an invented ${label} Domain identifier rule`, 2);
+      }
+    }
+    for (const deniedRule of [
+      "ReservationId does not use UUID.",
+      "ReservationId never requires ULID.",
+      "Neither UUID nor ULID is required for ReservationId.",
+      "No UUID format is required for ReservationId.",
+      "ReservationId is not normalized to lowercase.",
+    ]) {
+      fs.writeFileSync(shapeWritePath, `${completeShapeDesign}\n${deniedRule}\n`);
+      const deniedFormatGrade = scoreResult(
+        shapeWriteCase,
+        shapeWriteResult,
+        shapeWriteWorkspace,
+        { baseline: shapeWriteBaseline },
+      );
+      if (!deniedFormatGrade.passed) {
+        fail(`scorer rejected an explicit denial of a ReservationId format: ${deniedRule}`, 2);
+      }
+    }
+    fs.writeFileSync(shapeWritePath, completeShapeDesign);
     const undefinedValueObjectsDesign = completeShapeDesign.replace(
-      "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory and is compared by its exact identity value.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
+      "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
       "ReservationId. Quantity is positive.",
     );
     fs.writeFileSync(shapeWritePath, undefinedValueObjectsDesign);
@@ -2549,6 +3545,60 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
     if (undefinedValueObjectsGrade.passed || !undefinedValueObjectsGrade.assertions.some((item) =>
       !item.passed && item.name.includes("design.md contains any of"))) {
       fail("scorer accepted Value Object names without Domain definitions", 2);
+    }
+    const inventoryValueObjects = "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.";
+    for (const [label, replacement, assertionFragment] of [
+      [
+        "ReservationId construction",
+        "ReservationId is the immutable identity of one reservation. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
+        "ReservationId is constructed from",
+      ],
+      [
+        "ReservationId no-format rule",
+        "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
+        "defines no format",
+      ],
+      [
+        "ReservationId equality",
+        "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
+        "ReservationId values are equal",
+      ],
+      [
+        "Quantity meaning",
+        "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity construction requires a positive amount, and Quantity equality is by that amount.",
+        "Quantity is the immutable amount",
+      ],
+      [
+        "Quantity equality",
+        "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount.",
+        "Quantity values are equal",
+      ],
+    ]) {
+      fs.writeFileSync(shapeWritePath, completeShapeDesign.replace(inventoryValueObjects, replacement));
+      const omissionGrade = scoreResult(
+        shapeWriteCase,
+        shapeWriteResult,
+        shapeWriteWorkspace,
+        { baseline: shapeWriteBaseline },
+      );
+      if (omissionGrade.passed || !omissionGrade.assertions.some((item) =>
+        item.name.includes(assertionFragment) && !item.passed)) {
+        fail(`scorer accepted Inventory Value Objects without ${label}`, 2);
+      }
+    }
+    fs.writeFileSync(
+      shapeWritePath,
+      `${completeShapeDesign}\nReservationId construction is unspecified. ReservationId equality is undefined. Quantity meaning is unspecified. Quantity equality is undefined.\n`,
+    );
+    const unspecifiedInventoryValueObjectsGrade = scoreResult(
+      shapeWriteCase,
+      shapeWriteResult,
+      shapeWriteWorkspace,
+      { baseline: shapeWriteBaseline },
+    );
+    if (unspecifiedInventoryValueObjectsGrade.passed || !unspecifiedInventoryValueObjectsGrade.assertions.some((item) =>
+      item.name.includes("semantically excludes") && !item.passed)) {
+      fail("scorer accepted unspecified Inventory Value Object semantics as definitions", 2);
     }
     fs.writeFileSync(shapeWritePath, completeShapeDesign);
     const negatedShapeDesign = completeShapeDesign
@@ -2637,6 +3687,27 @@ function doctorCommand(options) {
     const codexVersion = runCommand([codexBinary, "--version"], { timeoutSeconds: 30 });
     requireSuccess(codexVersion, "codex --version");
     const imageId = ensureContainerImage(options.containerImage);
+    const mountSmokeWorkspace = path.join(runtimeRoot, "mount-smoke-workspace");
+    fs.mkdirSync(mountSmokeWorkspace, { recursive: true });
+    fs.writeFileSync(path.join(mountSmokeWorkspace, "baseline.md"), "baseline\n");
+    const mountSmokeBaseline = initializeGit(mountSmokeWorkspace);
+    const uid = typeof process.getuid === "function" ? process.getuid() : 1000;
+    const gid = typeof process.getgid === "function" ? process.getgid() : 1000;
+    const mountSmoke = runCommand([
+      "docker", "run", "--rm", "--network", "none", "--read-only",
+      "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=16m",
+      "--cap-drop=ALL", "--security-opt", "no-new-privileges",
+      "--user", `${uid}:${gid}`,
+      "-v", `${mountSmokeWorkspace}:/workspace:rw`,
+      "--mount", readOnlyGitMetadataMount(mountSmokeWorkspace),
+      "-w", "/workspace", options.containerImage, "sh", "-c",
+      "touch /workspace/worktree-write-ok && if printf 'tamper\\n' >> /workspace/.git/config; then exit 41; fi",
+    ], { timeoutSeconds: 30 });
+    requireSuccess(mountSmoke, "container nested read-only Git metadata mount");
+    if (!fs.statSync(path.join(mountSmokeWorkspace, "worktree-write-ok"), { throwIfNoEntry: false })?.isFile() ||
+        gitMetadataChanges(mountSmokeWorkspace, mountSmokeBaseline).length > 0) {
+      fail("container mount smoke did not preserve writable worktree and read-only Git metadata", 2);
+    }
     for (const command of [["go", "version"], ["git", "--version"], ["rg", "--version"]]) {
       requireSuccess(
         runCommand(["docker", "run", "--rm", "--network", "none", options.containerImage, ...command], { timeoutSeconds: 30 }),
@@ -2650,8 +3721,6 @@ function doctorCommand(options) {
     fs.cpSync(installed.codexHome, doctorHome, { recursive: true });
     const doctorPluginCache = path.join(doctorHome, installed.pluginCacheRelative);
     const containerPluginCache = `/eval-home/${installed.pluginCacheRelative.split(path.sep).join("/")}`;
-    const uid = typeof process.getuid === "function" ? process.getuid() : 1000;
-    const gid = typeof process.getgid === "function" ? process.getgid() : 1000;
     const inContainer = runCommand([
       "docker", "run", "--rm", "--read-only",
       "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=64m",
@@ -2671,7 +3740,7 @@ function doctorCommand(options) {
     }
     console.log(`ddd-expert eval doctor passed: ${codexVersion.stdout.trim()}, image=${imageId}, plugin=${installed.pluginVersion}, sha256=${expectedHash}`);
   } finally {
-    fs.rmSync(runtimeRoot, { recursive: true, force: true });
+    removeUntrustedTree(runtimeRoot);
   }
 }
 
@@ -2816,7 +3885,7 @@ function runCommandMain(options) {
     console.log(`ARTIFACTS ${outputDir}`);
     process.exitCode = status === "pass" ? 0 : status === "fail" ? 1 : 2;
   } finally {
-    fs.rmSync(runtimeRoot, { recursive: true, force: true });
+    removeUntrustedTree(runtimeRoot);
   }
 }
 

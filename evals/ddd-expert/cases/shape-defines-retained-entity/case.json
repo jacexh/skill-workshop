@@ -60,6 +60,11 @@
           ["reject*", "RejectLine"],
           ["unique LineId", "LineId is unique", "duplicate LineId", "one AllocationLine per LineId", "LineId identifies at most one", "each LineId identifies at most one"],
           ["positive quantity", "Quantity is positive", "positive Quantity", "greater than zero"],
+          ["Quantity represents the allocation amount", "Quantity is the requested allocation amount", "Quantity is the resource amount", "Quantity is the allocated amount", "positive amount of the allocation request"],
+          ["LineId is constructed from", "constructing a LineId requires", "LineId accepts the identity", "identity admitted by Fulfillment"],
+          ["no additional business-format rule", "defines no format, normalization, or additional validity rule", "no additional structural validity", "no additional business validity rule"],
+          ["LineId values are equal when", "equal by exact identity", "compared by exact identity", "same LineId identity value"],
+          ["Quantity values are equal when", "equal by amount", "compared by amount", "represented quantities are equal"],
           ["one terminal outcome", "cannot establish both", "terminal outcome is exclusive", "mutually exclusive"],
           ["same LineId", "duplicate intent", "established result", "idempoten*"],
           ["single Aggregate", "one consistency boundary", "single consistency boundary", "single consistency and mutation boundary", "single immediate-consistency boundary", "serialized by the Root", "Root protects"]
@@ -79,8 +84,16 @@
           "AllocationLine can exist outside FulfillmentOrder",
           "Quantity need not be positive",
           "An AllocationLine may establish both Allocated and Rejected",
+          "LineId construction is unspecified",
+          "LineId construction is undefined",
+          "LineId equality is unspecified",
+          "LineId equality is undefined",
+          "Quantity meaning is unspecified",
+          "Quantity equality is unspecified",
+          "Quantity equality is undefined",
           "Runtime Event"
-        ]
+        ],
+        "identifiers_without_format": ["LineId"]
       }
     ],
     "checks": []

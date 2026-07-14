@@ -41,7 +41,7 @@
         "暂缓"
       ]
     },
-    "routes": { "contains": [], "excludes": ["codify", "guard"] },
+    "routes": { "contains": [], "excludes": ["explore", "codify", "guard"] },
     "verdicts": [],
     "forbid_verdicts": [],
     "git": {
