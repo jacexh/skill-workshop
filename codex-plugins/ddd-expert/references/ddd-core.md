@@ -84,6 +84,8 @@ Style names its physical Interface layer `transport`.
 
 - **[DDD Principle]** An Entity is distinguished by identity across change.
 - **[DDD Principle]** A Value Object is distinguished by its attributes, has no independent identity, and is replaced as a whole.
+- **[House Rule]** A Tactical Design definition for an Entity states its Domain meaning, identity and continuity, owning Aggregate Root, material lifecycle, behaviors, rules, and Domain references. A field list, table key, or storage row is not an Entity definition.
+- **[House Rule]** A Tactical Design definition for a Value Object states its Domain meaning, constituent Domain values, validity and construction rules, equality semantics, normalization or units when applicable, and meaningful Domain operations. DTO or persistence shape does not define equality or validity.
 - **[House Rule]** When a value has structural validity rules, establish them at Domain construction and prevent partially valid values from circulating.
 - **[Heuristic]** Importance, mutability, independent storage, or a table identifier does not by itself make an object an Entity or Aggregate Root.
 
@@ -91,6 +93,7 @@ Style names its physical Interface layer `transport`.
 
 - **[DDD Principle]** An Aggregate is a consistency and mutation boundary with one root.
 - **[DDD Principle]** External callers and Repositories address the root; the root protects invariants of owned Entities and Value Objects.
+- **[House Rule]** The Tactical Design names the Root, every material owned Entity and Value Object, identity-only references to other Roots, the invariant each behavior preserves, and the immediate consistency boundary those choices create.
 - **[House Rule]** Reference another Aggregate Root by identity rather than retaining a mutable object graph across Aggregate boundaries.
 - **[House Rule]** Unless the accepted model requires a stronger atomic boundary, one command transaction mutates one Aggregate Root.
 - **[Heuristic]** A shared ORM session, foreign key, or multi-table write is persistence evidence, not Aggregate-boundary evidence.

@@ -2,7 +2,7 @@
 
 ## Global View
 
-Arrow direction: `U -> D` (Upstream -> Downstream).
+Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
 
 ```mermaid
 graph LR
@@ -15,3 +15,7 @@ graph LR
 
 - **Core responsibility:** Own customer orders.
 - **Business authority:** Order lifecycle and order-line invariants.
+
+#### Local View
+
+- No context dependencies.

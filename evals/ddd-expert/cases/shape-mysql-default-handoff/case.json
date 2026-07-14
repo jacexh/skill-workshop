@@ -31,13 +31,25 @@
           "# Inventory Tactical Design",
           "based_on_model_revision: 1",
           "MySQL",
-          "## Verification Seams"
+          "## Model Realization",
+          "## Aggregate Designs",
+          "#### Boundary Thesis",
+          "#### Value Objects",
+          "#### Behaviors and Lifecycle",
+          "#### Domain Events",
+          "## Context Dependencies and Contracts"
         ],
         "excludes": [
           "PostgreSQL",
           "SQLite",
           "<Bounded Context>",
-          "<!--"
+          "<!--",
+          "## Application Responsibilities",
+          "## Persistence and Consistency",
+          "## Runtime Ownership",
+          "## Verification Seams",
+          "## Cross-Context Collaboration",
+          "Runtime Event"
         ]
       }
     ],

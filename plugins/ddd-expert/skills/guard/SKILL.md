@@ -114,6 +114,7 @@ Each applicable sentinel seeds a hypothesis, never a verdict:
 - durable facts govern later admission, terminal closure, and replay;
 - execution facts and parent terminal facts use distinct timing and language;
 - multi-step external collaboration has named coordination and recovery;
+- cross-context contracts and model imports preserve the Context Map's acyclic `U -> D` dependencies; request/response through one contract does not justify a reciprocal import;
 - Domain/Application APIs use domain-owned language;
 - production messages, tasks, schedules, reconciliation, and recovery have reachable Runtime ownership.
 

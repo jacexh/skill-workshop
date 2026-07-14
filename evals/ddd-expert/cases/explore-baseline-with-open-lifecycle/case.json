@@ -1,0 +1,26 @@
+{
+  "id": "explore-baseline-with-open-lifecycle",
+  "phase": "explore",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 1,
+      "contains_any": [
+        ["Funds", "fund", "settlement", "treasury", "资金", "结算"],
+        ["confirm*", "settle*", "revers*", "expir*", "expiry", "确认", "结算", "撤销", "过期"]
+      ]
+    },
+    "routes": { "contains": [], "excludes": ["shape", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": []
+  }
+}

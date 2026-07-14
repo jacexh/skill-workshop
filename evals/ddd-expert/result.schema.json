@@ -13,7 +13,7 @@
     },
     "completion": {
       "type": "string",
-      "enum": ["completed", "checkpointed", "stopped", "needs_clarification"]
+      "enum": ["completed", "stopped", "needs_clarification"]
     },
     "review_conclusion": {
       "type": "string",

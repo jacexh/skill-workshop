@@ -42,6 +42,10 @@ _Avoid_: implementation refactor, silent architecture upgrade
 A mechanism or tactical choice explicitly confirmed by the user or recorded as current/accepted in an authoritative Tactical Design, ADR, or equivalent project artifact. Silence, incidental existing code, and an LLM's unconfirmed recommendation are not acceptance.
 _Avoid_: inferred approval, existing implementation
 
+**Context Dependency Edge**:
+A one-way Context Map dependency from upstream (`U`) to downstream (`D`) that expresses model influence and contract direction rather than a runtime call. Runtime request/response may use that one owned contract, but never creates a second reverse dependency; every named edge must preserve the graph as a DAG.
+_Avoid_: bidirectional relationship arrow, mutual-call edge, `<->`
+
 **Persistence House Style**:
 The part of House Style governing storage representation and operations across aggregate persistence, read models, integration state, SQL, and schema evolution. It is an Infrastructure concern related to, but not owned by, the Domain Repository abstraction.
 _Avoid_: Repository table design, generic database guidance

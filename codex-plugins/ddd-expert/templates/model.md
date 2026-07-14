@@ -27,6 +27,6 @@ model_revision: 1
 
 <!-- State duplicate, cancellation, expiry, retry, compensation, and recovery meaning when material. -->
 
-## Context Relationships
+## Context Dependencies
 
-<!-- Include only when multiple Bounded Contexts collaborate. State the relationship, authority, and translation boundary. -->
+<!-- Include only when this context has a directional dependency in the Context Map. Record accepted external facts, authority, and local translation for this context's side of each named contract. Do not copy source-coverage traces or imply runtime call direction. -->

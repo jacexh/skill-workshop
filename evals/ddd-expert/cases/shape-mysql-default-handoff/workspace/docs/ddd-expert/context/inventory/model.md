@@ -12,7 +12,8 @@ confirmation.
 
 ## Authority and Ownership
 
-Inventory is the sole authority for sellable and reserved quantities.
+Inventory is the sole authority for reservation admission, accepted quantity,
+and reservation state.
 
 ## Scenarios and Lifecycle
 
@@ -21,7 +22,8 @@ Inventory is the sole authority for sellable and reserved quantities.
 
 ## Invariants and Policies
 
-Reserved quantity is positive and available quantity never becomes negative.
+Reserved quantity is positive. Confirmed and Expired are mutually exclusive
+terminal outcomes for one reservation identity.
 
 ## Failure and Recovery Semantics
 

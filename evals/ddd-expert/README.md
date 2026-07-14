@@ -105,14 +105,11 @@ alternatives use continuous normalized text. Each `contains_any` group requires
 one alternative, so a case can require several independent semantic signals
 without locking the model to one sentence.
 
-Explore may report `completion: checkpointed` when it writes an accepted local
-closure and continues discovery without routing to Shape.
-
 For topology-discovery risks, pair an answer-neutral read-only sentinel with a
-checkpoint case. The sentinel should verify that missing language or business
-authority is resolved before a context-local lifecycle; the checkpoint should
-prove that accepted context responsibilities and relationships bootstrap the
-Context Map and every affected Model atomically.
+complete-scope write case. The sentinel should verify that missing language or
+business authority is resolved before a context-local lifecycle; the write case
+should prove that accepted context responsibilities, relationships, and Models
+are committed atomically only after the complete discovery scope is accepted.
 
 When context nodes are known but an edge is not, use a relationship sentinel
 that requires the upstream-owned fact or intent, downstream local meaning, and

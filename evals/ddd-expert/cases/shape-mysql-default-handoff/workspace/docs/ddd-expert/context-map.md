@@ -2,7 +2,7 @@
 
 ## Global View
 
-Arrow direction: `U -> D` (Upstream -> Downstream).
+Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
 
 ```mermaid
 graph LR
@@ -17,17 +17,33 @@ graph LR
 ### Inventory
 
 - **Core responsibility:** Reserve and release sellable stock.
-- **Business authority:** Sellable quantity and inventory reservation state.
+- **Business authority:** Reservation admission, accepted quantity, and reservation state.
+
+#### Local View
+
+- `Inventory -> Order [D]`
+
+#### Downstream Contracts
+
+##### Inventory Reservation Outcome
+
+- **Downstream:** Order
+- **Published meaning:** Inventory publishes authoritative reservation outcomes.
+- **Guarantee:** Inventory owns reservation meaning and publication.
 
 ### Order
 
 - **Core responsibility:** Accept and track customer orders.
 - **Business authority:** Order acceptance and fulfillment intent.
 
-## Relationships
+#### Local View
 
-### Inventory -> Order
+- `Inventory [U] -> Order`
 
-- **Relationship:** Published Language
-- **Authority boundary:** Inventory owns reservation outcomes; Order owns the reaction to them.
-- **Translation boundary:** Order consumes the published result without importing Inventory's internal model.
+#### Upstream Dependencies
+
+##### Inventory Reservation Outcome
+
+- **Upstream:** Inventory
+- **Accepted meaning:** Order accepts authoritative reservation outcomes.
+- **Local translation:** Order translates the outcome into fulfillment intent.

@@ -1,0 +1,38 @@
+{
+  "id": "explore-no-partial-model-write",
+  "phase": "explore",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 1,
+      "contains_any": [
+        ["Order", "订单"],
+        ["fulfill*", "履约", "inventory", "库存", "fraud", "风控"]
+      ],
+      "excludes": [
+        "what does payment mean",
+        "which payment milestone",
+        "payment lifecycle"
+      ]
+    },
+    "routes": { "contains": [], "excludes": ["shape", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/payment/model.md",
+        "exists": true,
+        "contains": ["model_revision: 1"],
+        "excludes": ["Payment Capture", "Payment Capture Rejected", "Payment Capture Expired"]
+      }
+    ],
+    "checks": []
+  }
+}

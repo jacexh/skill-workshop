@@ -42,28 +42,30 @@ Codify and Guard can never run an apply operation. Treat an invalid operation in
 3. **Compare before apply**: require every expected path pre-state in the consistency set to match. For `apply-design`, also require the delegated Model revision to equal the current Model revision. A stale or missing Design is a valid pre-state for `apply-design`; the operation exists to create or repair it. On mismatch, write nothing and report `revision_conflict` with expected and observed state.
 4. **Prepare one transaction**: assemble the complete write set from the templates, exact accepted terminal content, explicit removals, and unaffected current content. Preserve accepted wording and distinctions. Do not rename terms, infer replacements, decide that a statement is superseded, omit a section on semantic grounds, or turn a summary delta into new domain or tactical prose. Return an invalid operation input to the active phase when exact content is missing.
 5. **Apply the authorized write set**:
-   - `apply-model`: bootstrap the root README and Context Map when needed; update navigation, relationships, and affected Models; start a new Model at revision `1` and increment each changed Model once per accepted semantic checkpoint; never touch a Design.
+   - `apply-model`: bootstrap the root README and Context Map when needed; update navigation, dependencies, and affected Models; start a new Model at revision `1` and increment each changed Model at most once for the accepted integrated model transaction; never touch a Design.
    - `apply-design`: create, update, move, or delete affected Designs as required by the accepted context topology and set each retained Design's `based_on_model_revision` to the exact current Model revision; a proven no-semantic-change revalidation may update only this field; never touch Explore-owned artifacts.
-6. **Verify the result**: re-read the consistency set, confirm layout, links, no placeholders/comments, accepted language and distinctions, expected terminal content, authorized paths only, unchanged read dependencies, and revision invariants. Report any partial filesystem failure as `blocked` with exact observed state; do not conceal it as success.
+6. **Verify the result**: re-read the consistency set, confirm layout, links, no placeholders/comments, accepted language and distinctions, expected terminal content, authorized paths only, unchanged read dependencies, and revision invariants. Whenever a Context Map exists, run `node ../../scripts/validate-context-map.mjs <context-map-path>` from this skill directory during inspection and before apply; validate prepared terminal Context Map content before any write; then run it again after apply. An inspection, current-pre-state, or prepared-target failure is `invalid_layout` and aborts every apply operation with no write or semantic repair. A post-write failure is a partial filesystem failure: report `blocked` with exact observed state; do not conceal it as success.
 7. **Resume the phase**: expose the operation status, observed and written revisions, changed paths, validation evidence, and any required route to the active phase. Do not replace that phase's completion response.
 
-## Context Map projection
+## Context Map dependency projection
 
-The Context Map Global View is a mechanical projection of the accepted context inventory and relationship details; it owns no additional domain meaning. Validate that it:
+The Context Map Global View is a mechanical projection of the accepted context inventory and local contract details; it owns no additional domain meaning. The entire graph follows the `ddd-expert` House Rule that model and contract dependencies form a directed acyclic graph. Validate that it:
 
 - contains exactly one Mermaid `graph LR` and the visible `U -> D` direction statement;
 - declares every accepted project Bounded Context exactly once, including contexts with no directed relationship, using its lower-kebab-case slug with hyphens replaced by underscores as the node identifier and its accepted name as the visible label;
 - contains no external context node;
-- represents every accepted directed relationship between project contexts exactly once as a plain, unlabeled edge from upstream to downstream, with no other edge; and
-- leaves relationships without an accepted upstream/downstream direction in the textual Relationships section only.
+- represents every accepted dependency between project contexts exactly once as a plain, unlabeled edge from upstream to downstream, with no other edge;
+- rejects self-loops, reciprocal edges, longer cycles, `<->`, `<-->`, Partnership, Shared Kernel, and the legacy `## Relationships` structure;
+- gives every context a Local View containing exactly its direct upstream and downstream neighbors; and
+- projects every named contract with the same identity and endpoints into the upstream context's Downstream Contracts and downstream context's Upstream Dependencies.
 
-When `apply-model` changes the accepted context inventory or a directed relationship between project contexts, update the Global View in the same Context Map write. A missing, extra, mislabeled, or reversed node or edge is `invalid_layout`; never repair it by inventing a direction or relationship.
+An arrow means upstream model or published-contract influence on a downstream model, never runtime call flow. A runtime request and response may use one owned contract without creating a reverse dependency. Directional collaboration patterns may annotate an established edge but cannot create, reverse, or duplicate it. When `apply-model` changes the accepted context inventory or a dependency, update both local projections and the Global View in the same Context Map write. A missing, extra, mislabeled, reversed, reciprocal, or cyclic projection is `invalid_layout`; never repair it by inventing direction, ownership, or contract meaning.
 
-## Model checkpoint scope
+## Integrated model transaction scope
 
-For a context-local checkpoint whose accepted topology and relationships remain unchanged, the write set may contain one Model. Include the root README, Context Map, and every Model supplying a read dependency in the consistency set.
+An accepted integrated proposal may affect only one context; in that case the write set may contain one Model when context inventory and dependencies remain unchanged. This is the final Explore transaction, not an intermediate discovery checkpoint. Include the root README, Context Map, and every Model supplying a read dependency in the consistency set.
 
-When a checkpoint changes context responsibility, business authority, a relationship, an authority boundary, or a translation boundary, put the Context Map and every semantically affected Model in one write set. Add the root README when the accepted context inventory or navigation changes. Apply that strategic checkpoint atomically so each context records only its accepted side of the relationship.
+When the accepted proposal changes context responsibility, business authority, a dependency, an authority boundary, or a translation boundary, put the Context Map and every semantically affected Model in one write set. Add the root README when the accepted context inventory or navigation changes. Apply the complete accepted proposal atomically so each context records only its accepted side of the dependency.
 
 ## Context topology changes
 

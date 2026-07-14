@@ -1,0 +1,37 @@
+{
+  "id": "shape-requires-design-consensus",
+  "phase": "shape",
+  "suites": ["smoke", "full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 1,
+      "contains_any": [
+        ["accept*", "agree*", "approve*", "接受", "同意", "确认"],
+        ["Aggregate", "boundary", "lifecycle", "design", "聚合", "边界", "生命周期", "设计"]
+      ]
+    },
+    "routes": { "contains": [], "excludes": ["codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "none",
+      "required_paths": [],
+      "forbidden_paths": ["docs/ddd-expert/context/reservation/design.md"]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/reservation/design.md",
+        "exists": false,
+        "contains": [],
+        "excludes": []
+      }
+    ],
+    "checks": []
+  }
+}

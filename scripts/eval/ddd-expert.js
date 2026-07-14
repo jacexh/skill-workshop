@@ -48,12 +48,9 @@ if (!Array.isArray(RESULT_COMPLETIONS) || RESULT_COMPLETIONS.length === 0) {
   fail("result schema must define completion values", 2);
 }
 
-function completionError(phase, completion) {
+function completionError(completion) {
   if (!RESULT_COMPLETIONS.includes(completion)) {
     return "completion is invalid";
-  }
-  if (completion === "checkpointed" && phase !== "explore") {
-    return "checkpointed completion is valid only for Explore";
   }
   return null;
 }
@@ -188,7 +185,7 @@ function validateCase(caseDir, config) {
   }
   stringArray(expect.completion, `${config.id}.expect.completion`, false);
   for (const completion of expect.completion) {
-    const error = completionError(config.phase, completion);
+    const error = completionError(completion);
     if (error) {
       fail(`${config.id}: ${error === "completion is invalid" ? "invalid expected completion" : error}`, 2);
     }
@@ -329,7 +326,7 @@ function validateResultShape(result) {
   if (!["explore", "shape", "codify", "guard"].includes(result.phase)) {
     errors.push("phase is invalid");
   }
-  const invalidCompletion = completionError(result.phase, result.completion);
+  const invalidCompletion = completionError(result.completion);
   if (invalidCompletion) {
     errors.push(invalidCompletion);
   }
@@ -1060,8 +1057,9 @@ function validateCommand() {
 function selfTestCommand() {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ddd-expert-scorer-"));
   try {
-    if (!RESULT_COMPLETIONS.includes("checkpointed")) {
-      fail("result schema rejected the checkpointed Explore completion", 2);
+    const expectedCompletions = ["completed", "stopped", "needs_clarification"];
+    if (JSON.stringify([...RESULT_COMPLETIONS].sort()) !== JSON.stringify(expectedCompletions.sort())) {
+      fail(`result schema completion values differ: ${RESULT_COMPLETIONS.join(", ")}`, 2);
     }
     const workspace = path.join(tempRoot, "workspace");
     fs.mkdirSync(path.join(workspace, "internal"), { recursive: true });
@@ -1108,28 +1106,28 @@ function selfTestCommand() {
     if (!goodGrade.passed) {
       fail(`scorer rejected passing result: ${JSON.stringify(goodGrade.assertions)}`, 2);
     }
-    const invalidCompletionCaseDir = path.join(tempRoot, "guard-checkpointed");
+    const invalidCompletionCaseDir = path.join(tempRoot, "guard-invalid-completion");
     fs.mkdirSync(path.join(invalidCompletionCaseDir, "workspace"), { recursive: true });
     fs.writeFileSync(path.join(invalidCompletionCaseDir, "prompt.md"), "Guard the implementation.\n");
     let rejectedInvalidCompletionCase = false;
     try {
       validateCase(invalidCompletionCaseDir, {
-        id: "guard-checkpointed",
+        id: "guard-invalid-completion",
         phase: "guard",
         suites: ["smoke"],
         sandbox: "read-only",
         prompt: "prompt.md",
         workspace: "workspace",
-        expect: { ...loadedCase.config.expect, completion: ["checkpointed"] },
+        expect: { ...loadedCase.config.expect, completion: ["invalid"] },
       });
     } catch (error) {
-      rejectedInvalidCompletionCase = error.exitCode === 2 && error.message.includes("checkpointed completion is valid only for Explore");
+      rejectedInvalidCompletionCase = error.exitCode === 2 && error.message.includes("invalid expected completion");
     }
     if (!rejectedInvalidCompletionCase) {
-      fail("case validator accepted checkpointed outside Explore", 2);
+      fail("case validator accepted an invalid completion", 2);
     }
-    if (validateResultShape({ ...good, completion: "checkpointed" }).length === 0) {
-      fail("result validator accepted checkpointed outside Explore", 2);
+    if (validateResultShape({ ...good, completion: "invalid" }).length === 0) {
+      fail("result validator accepted an invalid completion", 2);
     }
     const wrongFamily = {
       ...good,
@@ -1221,18 +1219,6 @@ function selfTestCommand() {
     if (normalizedSemanticContains(normalizeSemanticText("Are these confirmed facts in the same downstream system?"), "own*")) {
       fail("semantic question matcher treated own as a substring of downstream", 2);
     }
-    const checkpointedExplore = { ...goodExplore, completion: "checkpointed" };
-    if (validateResultShape(checkpointedExplore).length > 0) {
-      fail("result validator rejected a checkpointed Explore result", 2);
-    }
-    const checkpointedExploreCase = {
-      ...exploreCase,
-      config: {
-        ...exploreCase.config,
-        expect: { ...exploreCase.config.expect, completion: ["checkpointed"] },
-      },
-    };
-    requireExploreGrade(checkpointedExploreCase, checkpointedExplore, true, "scorer rejected a checkpointed Explore result");
     for (const [message, question] of [
       ["scorer accepted a first question from the wrong bounded context", "How should the Order react after payment succeeds?"],
       ["scorer accepted a downstream-first question with upstream terms", "After Payment authority reports Captured, what makes Order ready for fulfillment?"],

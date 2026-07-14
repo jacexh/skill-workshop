@@ -1,0 +1,30 @@
+{
+  "id": "shape-rejects-cyclic-context-map",
+  "phase": "shape",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["stopped", "needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 1 },
+    "routes": { "contains": ["explore"], "excludes": ["codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "none",
+      "required_paths": [],
+      "forbidden_paths": ["docs/ddd-expert/context/alpha/design.md"]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/alpha/design.md",
+        "exists": false,
+        "contains": [],
+        "excludes": []
+      }
+    ],
+    "checks": []
+  }
+}

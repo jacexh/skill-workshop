@@ -1,0 +1,28 @@
+{
+  "id": "guard-reciprocal-context-imports",
+  "phase": "guard",
+  "suites": ["smoke", "full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["violations"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": ["codify"], "excludes": ["explore", "shape"] },
+    "verdicts": [
+      {
+        "kind": "violation",
+        "family": "collaboration",
+        "evidence_paths": [
+          "internal/payment/application/notify_order.go",
+          "internal/order/application/confirm_payment.go"
+        ]
+      }
+    ],
+    "forbid_verdicts": ["evidence_gap"],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": []
+  }
+}
