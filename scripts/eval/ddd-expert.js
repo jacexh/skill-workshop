@@ -259,7 +259,7 @@ function validateCase(caseDir, config) {
     fail(`${config.id}.expect.files and checks must be arrays`, 2);
   }
   for (const assertion of expect.files) {
-    if (!hasOnlyKeys(assertion, ["path", "exists", "contains", "excludes", "contains_words", "excludes_words"]) || typeof assertion.path !== "string" || typeof assertion.exists !== "boolean") {
+    if (!hasOnlyKeys(assertion, ["path", "exists", "contains", "contains_any", "excludes", "contains_words", "excludes_words"]) || typeof assertion.path !== "string" || typeof assertion.exists !== "boolean") {
       fail(`${config.id}: invalid file assertion`, 2);
     }
     safeChildPath(workspacePath, assertion.path, `${config.id}.expect.files.path`);
@@ -267,6 +267,12 @@ function validateCase(caseDir, config) {
     stringArray(assertion.excludes, `${config.id}.expect.files.excludes`);
     stringArray(assertion.contains_words || [], `${config.id}.expect.files.contains_words`);
     stringArray(assertion.excludes_words || [], `${config.id}.expect.files.excludes_words`);
+    for (const [index, group] of (assertion.contains_any || []).entries()) {
+      stringArray(group, `${config.id}.expect.files.contains_any[${index}]`, false);
+      if (group.some((value) => !isValidSemanticExpectation(value))) {
+        fail(`${config.id}.expect.files.contains_any[${index}] contains an invalid semantic expectation`, 2);
+      }
+    }
   }
   for (const check of expect.checks) {
     if (!hasOnlyKeys(check, ["argv", "exit", "timeout_seconds"])) {
@@ -678,8 +684,16 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
       continue;
     }
     const content = fs.readFileSync(inspected.info.absolute, "utf8");
+    const normalizedContent = normalizeSemanticText(content);
     for (const needle of fileExpectation.contains) {
       assertions.push(assertion(`file ${fileExpectation.path} contains ${needle}`, content.includes(needle), "content check"));
+    }
+    for (const group of fileExpectation.contains_any || []) {
+      assertions.push(assertion(
+        `file ${fileExpectation.path} contains any of ${group.join(" | ")}`,
+        group.some((needle) => normalizedSemanticContains(normalizedContent, needle)),
+        "semantic content check",
+      ));
     }
     for (const needle of fileExpectation.excludes) {
       assertions.push(assertion(`file ${fileExpectation.path} excludes ${needle}`, !content.includes(needle), "content check"));
@@ -831,18 +845,28 @@ function snapshotCases(cases, runtimeRoot) {
   return { loadedCases, resultSchema, hash: hashTree(snapshotRoot) };
 }
 
-function runContainerCheck(check, workspace, context) {
+function buildContainerCheckArgs(check, workspace, context, trialPluginCache) {
   const uid = typeof process.getuid === "function" ? process.getuid() : 1000;
   const gid = typeof process.getgid === "function" ? process.getgid() : 1000;
-  return runCommand([
+  const validator = path.join(trialPluginCache, "scripts", "validate-context-map.mjs");
+  const validatorMount = `type=bind,src=${validator},dst=/eval/validate-context-map.mjs,readonly`;
+  return [
     "docker", "run", "--rm", "--network", "none", "--read-only",
     "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=256m",
     "--cap-drop=ALL", "--security-opt", "no-new-privileges",
     "--user", `${uid}:${gid}`,
     "-e", "HOME=/tmp/eval-home", "-e", "GOCACHE=/tmp/go-build",
+    "--mount", validatorMount,
     "-v", `${workspace}:/workspace:rw`, "-w", "/workspace",
     context.containerImage, ...check.argv,
-  ], { timeoutSeconds: check.timeout_seconds });
+  ];
+}
+
+function runContainerCheck(check, workspace, context, trialPluginCache) {
+  return runCommand(
+    buildContainerCheckArgs(check, workspace, context, trialPluginCache),
+    { timeoutSeconds: check.timeout_seconds },
+  );
 }
 
 function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
@@ -951,7 +975,7 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
   } else {
     grade = scoreResult(loadedCase, parsed, workspace, {
       baseline,
-      executeCheck: (check) => runContainerCheck(check, workspace, context),
+      executeCheck: (check) => runContainerCheck(check, workspace, context, trialPluginCache),
     });
   }
 
@@ -1060,6 +1084,21 @@ function selfTestCommand() {
     const expectedCompletions = ["completed", "stopped", "needs_clarification"];
     if (JSON.stringify([...RESULT_COMPLETIONS].sort()) !== JSON.stringify(expectedCompletions.sort())) {
       fail(`result schema completion values differ: ${RESULT_COMPLETIONS.join(", ")}`, 2);
+    }
+    const trialPluginCache = path.join(tempRoot, "trial-plugin-cache");
+    const containerCheckArgs = buildContainerCheckArgs(
+      {
+        argv: ["node", "/eval/validate-context-map.mjs", "docs/ddd-expert/context-map.md"],
+        timeout_seconds: 30,
+      },
+      "/tmp/trial-workspace",
+      { containerImage: "ddd-expert-eval:self-test" },
+      trialPluginCache,
+    );
+    const expectedValidatorMount = `type=bind,src=${path.join(trialPluginCache, "scripts", "validate-context-map.mjs")},dst=/eval/validate-context-map.mjs,readonly`;
+    const validatorMountIndex = containerCheckArgs.indexOf(expectedValidatorMount);
+    if (validatorMountIndex < 1 || containerCheckArgs[validatorMountIndex - 1] !== "--mount") {
+      fail(`container check omitted the trial validator mount: ${containerCheckArgs.join(" ")}`, 2);
     }
     const workspace = path.join(tempRoot, "workspace");
     fs.mkdirSync(path.join(workspace, "internal"), { recursive: true });
@@ -1294,6 +1333,136 @@ function selfTestCommand() {
       ],
     };
     requireExploreGrade(lateSemanticMatchCase, lateSemanticMatch, false, "scorer accepted a semantic match after the first question");
+    const shapeConsensusConfig = readJson(path.join(
+      CASES_ROOT,
+      "shape-requires-design-consensus",
+      "case.json",
+    ));
+    const shapeConsensusCase = { ...loadedCase, config: shapeConsensusConfig };
+    const shapeConsensusResult = {
+      ...goodExplore,
+      scenario_id: shapeConsensusConfig.id,
+      phase: "shape",
+      completion: "needs_clarification",
+      questions: [
+        "I recommend one Reservation Aggregate owning its Reservation Items because the capacity invariant and concurrent terminal outcome must be protected together; the credible alternative is separate item Aggregates with explicit coordination. Do you accept one Aggregate, or should we split the items?",
+      ],
+    };
+    if (!scoreResult(shapeConsensusCase, shapeConsensusResult, workspace, scoreOptions).passed) {
+      fail("scorer rejected a Shape question containing a conclusion, evidence, and credible alternative", 2);
+    }
+    if (scoreResult(
+      shapeConsensusCase,
+      { ...shapeConsensusResult, questions: ["Do you accept this design?"] },
+      workspace,
+      scoreOptions,
+    ).passed) {
+      fail("scorer accepted a Shape consensus question without a conclusion, evidence, or credible alternative", 2);
+    }
+    const shapeWriteConfig = readJson(path.join(
+      CASES_ROOT,
+      "shape-mysql-default-handoff",
+      "case.json",
+    ));
+    const shapeWriteWorkspace = path.join(tempRoot, "shape-write-workspace");
+    fs.mkdirSync(shapeWriteWorkspace, { recursive: true });
+    const shapeWriteBaseline = initializeGit(shapeWriteWorkspace);
+    const shapeWriteRelative = "docs/ddd-expert/context/inventory/design.md";
+    const shapeWritePath = path.join(shapeWriteWorkspace, shapeWriteRelative);
+    fs.mkdirSync(path.dirname(shapeWritePath), { recursive: true });
+    const minimalShapeDesign = `---
+context: Inventory
+based_on_model_revision: 1
+---
+
+# Inventory Tactical Design
+
+MySQL
+
+## Model Realization
+
+## Aggregate Designs
+
+#### Boundary Thesis
+
+#### Value Objects
+
+#### Behaviors and Lifecycle
+
+#### Domain Events
+
+## Context Dependencies and Contracts
+`;
+    fs.writeFileSync(shapeWritePath, minimalShapeDesign);
+    const shapeWriteCase = { ...loadedCase, config: shapeWriteConfig };
+    const shapeWriteResult = {
+      ...goodExplore,
+      scenario_id: shapeWriteConfig.id,
+      phase: "shape",
+      completion: "completed",
+      questions: [],
+      changed_files: [shapeWriteRelative],
+    };
+    if (scoreResult(
+      shapeWriteCase,
+      shapeWriteResult,
+      shapeWriteWorkspace,
+      { baseline: shapeWriteBaseline },
+    ).passed) {
+      fail("scorer accepted a Shape write that had headings but omitted accepted tactical decisions", 2);
+    }
+    const completeShapeDesign = `---
+context: Inventory
+based_on_model_revision: 1
+---
+
+# Inventory Tactical Design
+
+## Model Realization
+
+InventoryReservation realizes Inventory's accepted reservation obligations using the MySQL house-style default.
+
+## Aggregate Designs
+
+### InventoryReservation
+
+#### Boundary Thesis
+
+InventoryReservation owns the stock lifecycle; it remains separate from Order because Inventory alone owns stock authority.
+
+#### Value Objects
+
+ReservationId identifies one reservation. Quantity is positive and compares by value.
+
+#### Behaviors and Lifecycle
+
+| From | Intent | Authority | Guard | To | Established Fact |
+|---|---|---|---|---|---|
+| Reserved | Confirm | Inventory | not terminal | Confirmed | StockReservationConfirmed |
+| Reserved | Expire | Inventory | not terminal | Expired | StockReservationExpired |
+
+#### Domain Events
+
+StockReserved, StockReservationConfirmed, and StockReservationExpired are local Domain Events.
+
+#### Consistency, Concurrency, and Failure
+
+Identity uniqueness and optimistic concurrency protect idempotency and terminal outcomes.
+
+## Context Dependencies and Contracts
+
+Inventory publishes a distinct Reservation Outcome Integration Message to Order. A transactional outbox records the outcome in the local transaction; a relay publishes after commit and retries without changing it.
+`;
+    fs.writeFileSync(shapeWritePath, completeShapeDesign);
+    const completeShapeGrade = scoreResult(
+      shapeWriteCase,
+      shapeWriteResult,
+      shapeWriteWorkspace,
+      { baseline: shapeWriteBaseline },
+    );
+    if (!completeShapeGrade.passed) {
+      fail(`scorer rejected a Shape write containing the accepted tactical decisions: ${JSON.stringify(completeShapeGrade.assertions)}`, 2);
+    }
     const incomplete = {
       ...good,
       completion: "stopped",

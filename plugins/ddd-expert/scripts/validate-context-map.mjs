@@ -54,6 +54,50 @@ if (/^## Relationships\s*$/m.test(source)) {
 }
 
 const allLines = source.split(/\r?\n/);
+if (source.includes("<!--")) {
+  invalid("HTML comments are unsupported in a materialized Context Map");
+}
+if (source.split(/\r?\n/).some((line) => /^\s{0,3}<[/?A-Za-z!]/.test(line))) {
+  invalid("raw HTML blocks are unsupported in a materialized Context Map");
+}
+
+function canonicalAtxHeading(line) {
+  const match = line.match(/^[ \t]{0,3}(#{1,6})[ \t]+(.*)$/);
+  if (!match) return null;
+  let text = match[2].replace(/[ \t]+$/, "");
+  text = text.replace(/[ \t]+#+[ \t]*$/, "");
+  return `${match[1]} ${text}`;
+}
+
+for (const line of allLines) {
+  if (/^[ \t]{0,3}>/.test(line)) {
+    invalid("blockquotes are unsupported in a materialized Context Map");
+  }
+  if (/^[ \t]{0,3}(?:[-+*]|[0-9]{1,9}[.)])[ \t]+#{1,6}(?:[ \t]|$)/.test(line)) {
+    invalid("list-nested headings are unsupported; use canonical top-level ATX headings");
+  }
+  if (/^[ \t]{0,3}(?:[-+*]|[0-9]{1,9}[.)])[ \t]+(?:>|[-+*][ \t]|[0-9]{1,9}[.)][ \t]|`{3,}|~{3,}|<)/.test(line)) {
+    invalid("nested Markdown containers are unsupported in a materialized Context Map");
+  }
+  if (/^[ \t]{0,3}(?:=+|-+)[ \t]*$/.test(line)) {
+    invalid("Setext headings and thematic breaks are unsupported; use canonical ATX headings");
+  }
+  const canonical = canonicalAtxHeading(line);
+  if (canonical !== null && line !== canonical) {
+    invalid(`use canonical ATX heading syntax without extra spacing or closing hashes: ${line}`);
+  }
+  if (canonical !== null) {
+    const headingText = canonical.replace(/^#{1,6} /, "");
+    const entity = /&(?:#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);/;
+    if (/\t| {2,}/.test(headingText)) {
+      invalid(`use single-space ATX heading text without tabs: ${line}`);
+    }
+    if (/[*_`[\]<>\\~]/.test(headingText) || entity.test(headingText)) {
+      invalid(`plain-text ATX headings cannot contain inline Markdown, HTML, or entities: ${line}`);
+    }
+  }
+}
+
 const globalStart = allLines.findIndex((line) => line === "## Global View");
 const boundedStart = allLines.findIndex((line) => line === "## Bounded Contexts");
 if (globalStart < 0 || boundedStart < 0 || boundedStart <= globalStart) {
@@ -65,23 +109,60 @@ if (allLines.filter((line) => line === "## Global View").length !== 1 ||
 }
 
 const globalLines = allLines.slice(globalStart + 1, boundedStart);
-const graphStart = globalLines.findIndex((line) => /^\s*graph LR\s*$/.test(line));
-if (graphStart < 0) invalid("Global View must contain a Mermaid graph LR");
+const directionStatement = "Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.";
+const directionLines = globalLines.filter((line) => line.startsWith("Arrow direction:"));
+if (directionLines.length !== 1 || directionLines[0] !== directionStatement) {
+  invalid("Global View must contain exactly one canonical Arrow direction statement");
+}
+
+const mermaidStarts = [];
+for (let index = 0; index < globalLines.length; index += 1) {
+  if (/^```mermaid\s*$/.test(globalLines[index])) mermaidStarts.push(index);
+}
+if (mermaidStarts.length !== 1) {
+  invalid("Global View must contain exactly one Mermaid graph LR block");
+}
+const mermaidStart = mermaidStarts[0];
+const mermaidEnd = globalLines.findIndex(
+  (line, index) => index > mermaidStart && /^```\s*$/.test(line),
+);
+if (mermaidEnd < 0) invalid("Global View Mermaid graph LR block is not closed");
+
+const absoluteMermaidStart = globalStart + 1 + mermaidStart;
+const absoluteMermaidEnd = globalStart + 1 + mermaidEnd;
+for (let index = 0; index < allLines.length; index += 1) {
+  if ((index < absoluteMermaidStart || index > absoluteMermaidEnd) &&
+      /^[ \t]+\S/.test(allLines[index])) {
+    invalid(`indentation outside the Mermaid graph is unsupported: ${allLines[index].trim()}`);
+  }
+  if (!/^\s*(?:`{3,}|~{3,})/.test(allLines[index])) continue;
+  if (index === absoluteMermaidStart && allLines[index] === "```mermaid") continue;
+  if (index === absoluteMermaidEnd && allLines[index] === "```") continue;
+  invalid("only the canonical Global View Mermaid code fence is supported");
+}
+
+for (let index = 0; index < globalLines.length; index += 1) {
+  if (index >= mermaidStart && index <= mermaidEnd) continue;
+  const line = globalLines[index];
+  if (line.trim() === "" || line === directionStatement) continue;
+  invalid(`unsupported Global View content outside Mermaid graph: ${line.trim()}`);
+}
+
+const graphLines = globalLines.slice(mermaidStart + 1, mermaidEnd);
+const graphDeclarations = graphLines
+  .map((line, index) => (/^\s*graph LR\s*$/.test(line) ? index : -1))
+  .filter((index) => index >= 0);
+const firstGraphLine = graphLines.findIndex((line) => line.trim() !== "");
+if (graphDeclarations.length !== 1 || graphDeclarations[0] !== firstGraphLine) {
+  invalid("Global View must contain exactly one Mermaid graph LR as the first nonblank block line");
+}
 
 const nodes = new Map();
 const labelToId = new Map();
 const edges = [];
-let inGraph = false;
-for (const line of globalLines) {
-  if (/^```mermaid\s*$/.test(line)) {
-    inGraph = true;
-    continue;
-  }
-  if (inGraph && /^```\s*$/.test(line)) {
-    inGraph = false;
-    continue;
-  }
-  if (!inGraph || /^\s*(?:graph LR)?\s*$/.test(line)) continue;
+for (let index = graphDeclarations[0] + 1; index < graphLines.length; index += 1) {
+  const line = graphLines[index];
+  if (line.trim() === "") continue;
 
   const node = line.match(/^\s*([a-z][a-z0-9_]*)\["([^"]+)"\]\s*$/);
   if (node) {
@@ -176,12 +257,19 @@ for (const [upstreamId, downstreamId] of edges) {
 const upstreamContracts = [];
 const downstreamContracts = [];
 
-function parseContracts(context, lines, heading, endpointLabel, target) {
+function parseContracts(context, lines, heading, endpointLabel, semanticLabels, target) {
+  const headingCount = lines.filter((line) => line === heading).length;
+  if (headingCount > 1) invalid(`duplicate ${heading} section for ${context}`);
   const body = sectionLines(lines, heading, 4);
   if (body === null) return;
   for (let index = 0; index < body.length; index += 1) {
     const contract = body[index].match(/^##### ([^#].*)$/);
-    if (!contract) continue;
+    if (!contract) {
+      if (body[index].trim() !== "") {
+        invalid(`contract projection section ${context}/${heading} contains unsupported content: ${body[index].trim()}`);
+      }
+      continue;
+    }
     const name = contract[1].trim();
     let end = body.length;
     for (let cursor = index + 1; cursor < body.length; cursor += 1) {
@@ -190,10 +278,20 @@ function parseContracts(context, lines, heading, endpointLabel, target) {
         break;
       }
     }
-    const endpointPattern = new RegExp(`^- \\*\\*${endpointLabel}:\\*\\* (.+)$`);
-    const endpointLine = body.slice(index + 1, end).find((line) => endpointPattern.test(line));
-    if (!endpointLine) invalid(`contract projection ${context}/${name} is missing ${endpointLabel}`);
-    const endpoint = endpointLine.match(endpointPattern)[1].trim();
+    const contractLines = body.slice(index + 1, end);
+    const endpointLines = contractLines.filter((line) => /^- \*\*(?:Upstream|Downstream):\*\*/.test(line));
+    const endpointPattern = new RegExp(`^- \\*\\*${endpointLabel}:\\*\\* (\\S.*)$`);
+    if (endpointLines.length !== 1 || !endpointPattern.test(endpointLines[0])) {
+      invalid(`contract projection ${context}/${name} must declare exactly one non-empty ${endpointLabel}`);
+    }
+    const endpoint = endpointLines[0].match(endpointPattern)[1].trim();
+    for (const label of semanticLabels) {
+      const prefix = `- **${label}:**`;
+      const semanticLines = contractLines.filter((line) => line.startsWith(prefix));
+      if (semanticLines.length !== 1 || semanticLines[0].slice(prefix.length).trim() === "") {
+        invalid(`contract semantics ${context}/${name} must declare exactly one non-empty ${label}`);
+      }
+    }
     target.push({ context, endpoint, name });
     index = end - 1;
   }
@@ -205,35 +303,56 @@ for (const [context, lines] of contexts) {
     invalid(`${context} must declare Core responsibility and Business authority`);
   }
 
+  const localHeadingCount = lines.filter((line) => line === "#### Local View").length;
+  if (localHeadingCount !== 1) invalid(`Local View must appear exactly once for ${context}`);
   const localLines = sectionLines(lines, "#### Local View", 4);
-  if (localLines === null) invalid(`Local View is missing for ${context}`);
   const actualLocal = new Set();
   let noDependencies = false;
   for (const line of localLines) {
+    if (line.trim() === "") continue;
     if (line === "- No context dependencies.") {
+      if (noDependencies) invalid(`duplicate Local View no-dependencies marker for ${context}`);
       noDependencies = true;
       continue;
     }
     const item = line.match(/^- `(.+)`$/);
-    if (!item) continue;
+    if (!item) invalid(`Local View for ${context} contains unsupported content: ${line.trim()}`);
     const upstream = item[1].match(/^(.+) \[U\] -> (.+)$/);
     const downstream = item[1].match(/^(.+) -> (.+) \[D\]$/);
+    let key;
     if (upstream && upstream[2] === context) {
-      actualLocal.add(`${upstream[1]}->${context}:U`);
+      key = `${upstream[1]}->${context}:U`;
     } else if (downstream && downstream[1] === context) {
-      actualLocal.add(`${context}->${downstream[2]}:D`);
+      key = `${context}->${downstream[2]}:D`;
     } else {
       invalid(`Local View for ${context} contains a malformed or non-local edge ${item[1]}`);
     }
+    if (actualLocal.has(key)) invalid(`duplicate Local View edge ${item[1]} for ${context}`);
+    actualLocal.add(key);
   }
   const expected = expectedLocal.get(context);
-  if ((noDependencies && expected.size > 0) || (!noDependencies && expected.size === 0) ||
+  if ((noDependencies && actualLocal.size > 0) ||
+      (noDependencies && expected.size > 0) || (!noDependencies && expected.size === 0) ||
       !sameSet(actualLocal, expected)) {
     invalid(`Local View for ${context} must contain exactly its direct Global View neighbors`);
   }
 
-  parseContracts(context, lines, "#### Upstream Dependencies", "Upstream", upstreamContracts);
-  parseContracts(context, lines, "#### Downstream Contracts", "Downstream", downstreamContracts);
+  parseContracts(
+    context,
+    lines,
+    "#### Upstream Dependencies",
+    "Upstream",
+    ["Accepted meaning", "Local translation"],
+    upstreamContracts,
+  );
+  parseContracts(
+    context,
+    lines,
+    "#### Downstream Contracts",
+    "Downstream",
+    ["Published meaning", "Guarantee"],
+    downstreamContracts,
+  );
 }
 
 const contractKey = (upstream, downstream, name) => `${upstream}->${downstream}::${name}`;
@@ -245,7 +364,9 @@ for (const entry of upstreamContracts) {
   if (!upstreamId || !downstreamId || !edgeKeys.has(`${upstreamId}->${downstreamId}`)) {
     invalid(`contract projection ${key}/${entry.name} is absent from Global View`);
   }
-  upstreamKeys.add(contractKey(entry.endpoint, entry.context, entry.name));
+  const projectionKey = contractKey(entry.endpoint, entry.context, entry.name);
+  if (upstreamKeys.has(projectionKey)) invalid(`duplicate contract projection ${projectionKey}`);
+  upstreamKeys.add(projectionKey);
 }
 
 const downstreamKeys = new Set();
@@ -256,7 +377,9 @@ for (const entry of downstreamContracts) {
   if (!upstreamId || !downstreamId || !edgeKeys.has(`${upstreamId}->${downstreamId}`)) {
     invalid(`contract projection ${key}/${entry.name} is absent from Global View`);
   }
-  downstreamKeys.add(contractKey(entry.context, entry.endpoint, entry.name));
+  const projectionKey = contractKey(entry.context, entry.endpoint, entry.name);
+  if (downstreamKeys.has(projectionKey)) invalid(`duplicate contract projection ${projectionKey}`);
+  downstreamKeys.add(projectionKey);
 }
 
 if (!sameSet(upstreamKeys, downstreamKeys)) {

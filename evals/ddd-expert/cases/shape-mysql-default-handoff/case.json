@@ -33,11 +33,35 @@
           "MySQL",
           "## Model Realization",
           "## Aggregate Designs",
+          "### InventoryReservation",
           "#### Boundary Thesis",
           "#### Value Objects",
+          "ReservationId",
+          "Quantity",
           "#### Behaviors and Lifecycle",
+          "| From | Intent | Authority | Guard | To | Established Fact |",
+          "Reserved",
+          "Confirmed",
+          "Expired",
           "#### Domain Events",
-          "## Context Dependencies and Contracts"
+          "StockReserved",
+          "StockReservationConfirmed",
+          "StockReservationExpired",
+          "## Context Dependencies and Contracts",
+          "Order"
+        ],
+        "contains_any": [
+          ["positive quantity", "quantity is positive", "positive Quantity"],
+          ["reservation outcome"],
+          ["integration message"],
+          ["transactional outbox"],
+          ["local transaction"],
+          ["relay", "publisher"],
+          ["after commit", "post-commit", "before commit", "committed outbox"],
+          ["retr*"],
+          ["unique*"],
+          ["optimistic concurren*", "optimistic version*", "optimistic conflict*"],
+          ["idempoten*", "duplicate identity", "duplicate reservation"]
         ],
         "excludes": [
           "PostgreSQL",
@@ -49,6 +73,13 @@
           "## Runtime Ownership",
           "## Verification Seams",
           "## Cross-Context Collaboration",
+          "#### Entities",
+          "## Process Managers and Cross-Aggregate Coordination",
+          "available quantity",
+          "sellable quantity",
+          "never becomes negative",
+          "nonnegative",
+          "non-negative",
           "Runtime Event"
         ]
       }

@@ -9,7 +9,7 @@ model_revision: 1
 
 Order owns order acceptance and the decision to react to reservation outcomes.
 
-## Context Relationships
+## Context Dependencies
 
 Inventory owns reservation outcomes and publishes them in its language. Order
 consumes those outcomes without importing Inventory's internal stock model.

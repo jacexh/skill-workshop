@@ -32,6 +32,15 @@ while IFS= read -r model; do
   }
 done < <(find "$CASES_ROOT" -path '*/workspace/docs/ddd-expert/context/*/model.md' -type f)
 
+shape_handoff_contexts="$CASES_ROOT/shape-mysql-default-handoff/workspace/docs/ddd-expert/context"
+if rg -q '^## Context Relationships$' "$shape_handoff_contexts" --glob '*/model.md'; then
+  fail "accepted Shape-write fixture should use the canonical Context Dependencies heading"
+fi
+while IFS= read -r shape_handoff_model; do
+  rg -q '^## Context Dependencies$' "$shape_handoff_model" ||
+    fail "accepted Shape-write fixture lacks Context Dependencies: $shape_handoff_model"
+done < <(find "$shape_handoff_contexts" -name model.md -type f)
+
 while IFS= read -r design; do
   model="${design%/design.md}/model.md"
   [ -f "$model" ] || {

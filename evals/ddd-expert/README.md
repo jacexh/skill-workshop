@@ -105,6 +105,11 @@ alternatives use continuous normalized text. Each `contains_any` group requires
 one alternative, so a case can require several independent semantic signals
 without locking the model to one sentence.
 
+File assertions keep `contains` for exact structural or identifier checks.
+Use `contains_any` groups for accepted semantic decisions that may be expressed
+with equivalent capitalization, line wrapping, or wording; every group must
+match at least one normalized alternative.
+
 For topology-discovery risks, pair an answer-neutral read-only sentinel with a
 complete-scope write case. The sentinel should verify that missing language or
 business authority is resolved before a context-local lifecycle; the write case

@@ -12,8 +12,12 @@
       "min": 1,
       "max": 1,
       "contains_any": [
-        ["accept*", "agree*", "approve*", "接受", "同意", "确认"],
-        ["Aggregate", "boundary", "lifecycle", "design", "聚合", "边界", "生命周期", "设计"]
+        ["accept*", "agree*", "approve*", "choose", "prefer*", "接受", "同意", "确认", "选择", "倾向"],
+        ["recommend*", "propos*", "建议", "推荐"],
+        ["Reservation Aggregate", "Reservation Root", "Reservation Item", "预订聚合", "预订项"],
+        ["capacity", "invariant", "concurren*", "terminal outcome", "容量", "不变量", "并发", "终态"],
+        ["because", "protect*", "evidence", "therefore", "因为", "基于", "保护", "因此"],
+        ["alternativ*", "split", "separate", "coordination", "备选", "拆分", "独立", "协调"]
       ]
     },
     "routes": { "contains": [], "excludes": ["codify", "guard"] },

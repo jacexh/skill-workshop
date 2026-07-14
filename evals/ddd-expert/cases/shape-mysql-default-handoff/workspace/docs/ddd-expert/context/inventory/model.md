@@ -30,7 +30,7 @@ terminal outcomes for one reservation identity.
 Duplicate reservation IDs return the original result. Temporary inconsistency
 between Order and Inventory is acceptable and repaired by retry.
 
-## Context Relationships
+## Context Dependencies
 
 Order and Inventory are separate bounded contexts. Order consumes the published
 reservation result but does not own inventory language or stock rules.

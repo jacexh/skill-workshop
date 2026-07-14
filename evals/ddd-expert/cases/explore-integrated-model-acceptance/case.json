@@ -63,6 +63,16 @@
         "excludes_words": ["Repository", "handler"]
       }
     ],
-    "checks": []
+    "checks": [
+      {
+        "argv": [
+          "node",
+          "/eval/validate-context-map.mjs",
+          "docs/ddd-expert/context-map.md"
+        ],
+        "exit": 0,
+        "timeout_seconds": 30
+      }
+    ]
   }
 }
