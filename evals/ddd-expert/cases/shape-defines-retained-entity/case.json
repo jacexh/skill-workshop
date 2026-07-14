@@ -69,6 +69,23 @@
           ["same LineId", "duplicate intent", "established result", "idempoten*"],
           ["single Aggregate", "one consistency boundary", "single consistency boundary", "single consistency and mutation boundary", "single immediate-consistency boundary", "serialized by the Root", "Root protects"]
         ],
+        "propositions": [
+          {
+            "name": "Quantity has allocation meaning and amount equality",
+            "accepts": ["Quantity represents the allocation amount", "Quantity is the requested allocation amount", "Quantity is the resource amount"],
+            "rejects": ["Quantity meaning is unspecified", "Quantity has no Domain meaning", "Quantity values are equal when their amounts differ", "Quantity is not equal by amount", "different Quantity amounts are equal"]
+          },
+          {
+            "name": "LineId construction uses identity admitted by Fulfillment",
+            "accepts": ["LineId is constructed from the resource identity admitted by Fulfillment", "constructing a LineId requires the identity admitted by Fulfillment", "LineId accepts the identity admitted by Fulfillment"],
+            "rejects": ["LineId is constructed from arbitrary input", "LineId accepts any input", "LineId is not constructed from identity admitted by Fulfillment", "Fulfillment does not admit the LineId identity"]
+          },
+          {
+            "name": "LineId equality is exact identity equality",
+            "accepts": ["LineId values are equal when", "equal by exact identity", "compared by exact identity"],
+            "rejects": ["LineId equality is unspecified", "LineId values are equal when identities differ", "LineId is not equal by exact identity", "different LineId identities are equal"]
+          }
+        ],
         "excludes": [
           "<!--",
           "<Entity>",

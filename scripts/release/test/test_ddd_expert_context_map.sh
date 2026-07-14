@@ -174,12 +174,28 @@ if node "$CLAUDE_VALIDATOR" "$indented_code_continuation" >/dev/null 2>&1; then
 fi
 
 domain_partnership="$tmp/domain-partnership.md"
-sed 's/\<A\>/Partnership/g' "$valid" >"$domain_partnership"
+sed \
+  -e 's/^    a\["A"\]$/    a["Partnership"]/' \
+  -e 's/^### A$/### Partnership/' \
+  -e 's/`A -> B \[D\]`/`Partnership -> B [D]`/' \
+  -e 's/`A -> C \[D\]`/`Partnership -> C [D]`/' \
+  -e 's/`A \[U\] -> B`/`Partnership [U] -> B`/' \
+  -e 's/`A \[U\] -> C`/`Partnership [U] -> C`/' \
+  -e 's/^- \*\*Upstream:\*\* A$/- **Upstream:** Partnership/' \
+  "$valid" >"$domain_partnership"
 node "$CLAUDE_VALIDATOR" "$domain_partnership" >/dev/null ||
   fail "validator confused a Bounded Context named Partnership with a Context Map pattern"
 
 domain_shared_kernel="$tmp/domain-shared-kernel.md"
-sed 's/\<A\>/Shared Kernel/g' "$valid" >"$domain_shared_kernel"
+sed \
+  -e 's/^    a\["A"\]$/    a["Shared Kernel"]/' \
+  -e 's/^### A$/### Shared Kernel/' \
+  -e 's/`A -> B \[D\]`/`Shared Kernel -> B [D]`/' \
+  -e 's/`A -> C \[D\]`/`Shared Kernel -> C [D]`/' \
+  -e 's/`A \[U\] -> B`/`Shared Kernel [U] -> B`/' \
+  -e 's/`A \[U\] -> C`/`Shared Kernel [U] -> C`/' \
+  -e 's/^- \*\*Upstream:\*\* A$/- **Upstream:** Shared Kernel/' \
+  "$valid" >"$domain_shared_kernel"
 node "$CLAUDE_VALIDATOR" "$domain_shared_kernel" >/dev/null ||
   fail "validator confused a Bounded Context named Shared Kernel with a Context Map pattern"
 
@@ -227,11 +243,81 @@ cp "$valid" "$text_bidirectional"
 sed -i '/\*\*Business authority:\*\* A facts\./a\- **Legacy relation:** Work <-> Project Knowledge' "$text_bidirectional"
 assert_invalid "$text_bidirectional" "bidirectional"
 
-for arrow in '↔' '⇄' '⇔' '⇌' '⟷' '⟺'; do
+review_encoded_bidirectional="$tmp/review-encoded-bidirectional.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Payment \&lt;-\&gt; Order.#}' \
+  "$valid" >"$review_encoded_bidirectional"
+assert_invalid "$review_encoded_bidirectional" "bidirectional"
+
+review_emphasized_ascii_bidirectional="$tmp/review-emphasized-ascii-bidirectional.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Work \&lt;**-**\&gt; Project Knowledge.#}' \
+  "$valid" >"$review_emphasized_ascii_bidirectional"
+assert_invalid "$review_emphasized_ascii_bidirectional" "bidirectional"
+
+review_named_opposing_arrows="$tmp/review-named-opposing-arrows.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Work \&larr;\&rarr; Project Knowledge.#}' \
+  "$valid" >"$review_named_opposing_arrows"
+assert_invalid "$review_named_opposing_arrows" "bidirectional"
+
+review_numeric_opposing_arrows="$tmp/review-numeric-opposing-arrows.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s|A facts\.|Work \&#8592;\&#8594; Project Knowledge.|}' \
+  "$valid" >"$review_numeric_opposing_arrows"
+assert_invalid "$review_numeric_opposing_arrows" "bidirectional"
+
+markup_separated_opposing_arrows="$tmp/markup-separated-opposing-arrows.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Work \&rarr;** **\&larr; Project Knowledge.#}' \
+  "$valid" >"$markup_separated_opposing_arrows"
+assert_invalid "$markup_separated_opposing_arrows" "bidirectional"
+
+for arrow in \
+  '&lt;-&gt;' \
+  '&#60;-&#62;' \
+  '&#x3c;-&#x3e;' \
+  '&harr;' \
+  '&Longleftrightarrow;' \
+  '&longleftrightarrow;' \
+  '&xhArr;' \
+  '&xharr;' \
+  '&#8596;' \
+  '&#x2194;' \
+  '&#8621;' \
+  '&#x21ad;' \
+  '&#8703;' \
+  '&#x21ff;' \
+  '&#11012;' \
+  '&#x2b04;' \
+  '&#11020;' \
+  '&#x2b0c;'; do
+  encoded_bidirectional="$tmp/encoded-bidirectional-$(printf '%s' "$arrow" | od -An -tx1 | tr -d ' \n').md"
+  escaped_arrow="${arrow//&/\\&}"
+  sed "0,/- \*\*Business authority:\*\* A facts\./{s|A facts\.|A facts linked to B by $escaped_arrow.|}" \
+    "$valid" >"$encoded_bidirectional"
+  assert_invalid "$encoded_bidirectional" "bidirectional"
+done
+
+ordinary_ampersand="$tmp/ordinary-ampersand.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Research \&amp; Development facts.#}' \
+  "$valid" >"$ordinary_ampersand"
+node "$CLAUDE_VALIDATOR" "$ordinary_ampersand" >/dev/null ||
+  fail "validator confused an ordinary ampersand entity with a bidirectional arrow"
+
+for arrow in \
+  '↔' '↭' '⇄' '⇔' '⇌' '⇿' '⟷' '⟺' '⬄' '⬌' \
+  '↤' '↦' '⇤' '⇥' '⟻' '⟼' '⬅' '➡' '⭠' '⭢' \
+  '⥈' '⥃' '⥅' '⥮' '⥯' '⭤' '🡘'; do
   unicode_bidirectional="$tmp/unicode-bidirectional-$(printf '%s' "$arrow" | od -An -tx1 | tr -d ' \n').md"
   cp "$valid" "$unicode_bidirectional"
   sed -i "/\*\*Business authority:\*\* A facts\./a\\- **Legacy relation:** A $arrow B" "$unicode_bidirectional"
   assert_invalid "$unicode_bidirectional" "bidirectional"
+done
+
+for invisible in $'\u034f' $'\ufe0f'; do
+  invisible_hex="$(printf '%s' "$invisible" | od -An -tx1 | tr -d ' \n')"
+  for arrow in "<${invisible}->" "←${invisible}→"; do
+    hidden_bidirectional="$tmp/hidden-bidirectional-$invisible_hex-$(printf '%s' "$arrow" | od -An -tx1 | tr -d ' \n').md"
+    sed "0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Work $arrow Project Knowledge.#}" \
+      "$valid" >"$hidden_bidirectional"
+    assert_invalid "$hidden_bidirectional" "bidirectional"
+  done
 done
 
 indented_unicode_bidirectional="$tmp/indented-unicode-bidirectional.md"
@@ -339,9 +425,115 @@ cp "$valid" "$shared_kernel"
 sed -i '/\*\*Business authority:\*\* A facts\./a\- **Relationship:** Shared Kernel' "$shared_kernel"
 assert_invalid "$shared_kernel" "Shared Kernel"
 
+review_collaboration_semantics="$tmp/review-collaboration-semantics.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Payment and Order form a Partnership and share a Shared Kernel.#}' \
+  "$valid" >"$review_collaboration_semantics"
+assert_invalid "$review_collaboration_semantics" "Partnership"
+
+review_emphasized_collaboration_semantics="$tmp/review-emphasized-collaboration-semantics.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Payment and Order form a Part**ner**ship and share a Shared Ker**nel**.#}' \
+  "$valid" >"$review_emphasized_collaboration_semantics"
+assert_invalid "$review_emphasized_collaboration_semantics" "Partnership"
+
+for invisible in $'\u200b' $'\u00ad' $'\u034f' $'\ufe0f'; do
+  invisible_hex="$(printf '%s' "$invisible" | od -An -tx1 | tr -d ' \n')"
+
+  invisible_partnership="$tmp/invisible-partnership-$invisible_hex.md"
+  sed "0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Payment and Order form a Part${invisible}nership.#}" \
+    "$valid" >"$invisible_partnership"
+  assert_invalid "$invisible_partnership" "Partnership"
+
+  invisible_shared_kernel="$tmp/invisible-shared-kernel-$invisible_hex.md"
+  sed "0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Payment and Order share a Shared${invisible} Kernel.#}" \
+    "$valid" >"$invisible_shared_kernel"
+  assert_invalid "$invisible_shared_kernel" "Shared Kernel"
+done
+
+for dash in $'\u2010' $'\u2011' $'\u2012' $'\u2013' $'\u2014' $'\u2015'; do
+  dash_hex="$(printf '%s' "$dash" | od -An -tx1 | tr -d ' \n')"
+  unicode_dash_shared_kernel="$tmp/unicode-dash-shared-kernel-$dash_hex.md"
+  sed "/\*\*Business authority:\*\* A facts\./a\\- **Collaboration pattern:** Shared${dash}Kernel" \
+    "$valid" >"$unicode_dash_shared_kernel"
+  assert_invalid "$unicode_dash_shared_kernel" "Shared-Kernel"
+done
+
+for unsupported_plural in 'Partnerships' 'Shared Kernels'; do
+  plural_collaboration="$tmp/unsupported-plural-$(printf '%s' "$unsupported_plural" | tr '[:upper:] ' '[:lower:]-').md"
+  sed "/\*\*Business authority:\*\* A facts\./a\\- **Collaboration pattern:** $unsupported_plural" \
+    "$valid" >"$plural_collaboration"
+  assert_invalid "$plural_collaboration" "$unsupported_plural"
+done
+
+for shared_kernel_variant in 'SharedKernel' 'Shared/Kernel'; do
+  variant_collaboration="$tmp/unsupported-variant-$(printf '%s' "$shared_kernel_variant" | tr '[:upper:]/' '[:lower:]-').md"
+  sed "/\*\*Business authority:\*\* A facts\./a\\- **Collaboration pattern:** $shared_kernel_variant" \
+    "$valid" >"$variant_collaboration"
+  assert_invalid "$variant_collaboration" "$shared_kernel_variant"
+done
+
+ordinary_business_partnership="$tmp/ordinary-business-partnership.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Partnership application acceptance and lifecycle.#}' \
+  "$valid" >"$ordinary_business_partnership"
+node "$CLAUDE_VALIDATOR" "$ordinary_business_partnership" >/dev/null ||
+  fail "validator confused ordinary Partnership business language with a DDD collaboration pattern"
+
+for chinese_relation in \
+  'A 与 B 构成 Partnership。' \
+  'A 和 B 共同拥有 Shared Kernel。'; do
+  chinese_collaboration="$tmp/chinese-collaboration-$(printf '%s' "$chinese_relation" | od -An -tx1 | tr -d ' \n').md"
+  sed "0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#$chinese_relation#}" \
+    "$valid" >"$chinese_collaboration"
+  assert_invalid "$chinese_collaboration" "unsupported"
+done
+
+for unsupported_contract_name in 'A-B Partnership' 'A-B Shared Kernel'; do
+  unsupported_contract="$tmp/unsupported-contract-$(printf '%s' "$unsupported_contract_name" | tr '[:upper:] ' '[:lower:]-').md"
+  sed "s/^##### A-B Facts$/##### $unsupported_contract_name/" "$valid" >"$unsupported_contract"
+  assert_invalid "$unsupported_contract" "${unsupported_contract_name#A-B }"
+done
+
+ordinary_inline_emphasis="$tmp/ordinary-inline-emphasis.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Payment owns **captured funds** and Research \&amp; Development facts.#}' \
+  "$valid" >"$ordinary_inline_emphasis"
+node "$CLAUDE_VALIDATOR" "$ordinary_inline_emphasis" >/dev/null ||
+  fail "validator rejected ordinary inline emphasis or an ordinary ampersand entity"
+
+for semantic_field in \
+  'Core responsibility' \
+  'Business authority' \
+  'Accepted meaning' \
+  'Local translation' \
+  'Published meaning' \
+  'Guarantee'; do
+  semantic_partnership="$tmp/semantic-partnership-$(printf '%s' "$semantic_field" | tr '[:upper:] ' '[:lower:]-').md"
+  cp "$valid" "$semantic_partnership"
+  sed -i "0,/- \*\*$semantic_field:\*\*/{s#- \*\*$semantic_field:\*\*.*#- **$semantic_field:** A and B collaborate as a Partnership.#}" \
+    "$semantic_partnership"
+  assert_invalid "$semantic_partnership" "Partnership"
+done
+
+business_authority_shared_kernel="$tmp/business-authority-shared-kernel.md"
+sed '0,/- \*\*Business authority:\*\*/{s//- **Business authority:** A and B jointly own a Shared Kernel./}' \
+  "$valid" >"$business_authority_shared_kernel"
+assert_invalid "$business_authority_shared_kernel" "Shared Kernel"
+
+continued_semantic_shared_kernel="$tmp/continued-semantic-shared-kernel.md"
+cp "$valid" "$continued_semantic_shared_kernel"
+sed -i '/^- \*\*Business authority:\*\* A facts\.$/a\  A and B jointly own a Shared Kernel.' \
+  "$continued_semantic_shared_kernel"
+assert_invalid "$continued_semantic_shared_kernel" "Shared Kernel"
+
+wrapped_semantic_shared_kernel="$tmp/wrapped-semantic-shared-kernel.md"
+sed '0,/- \*\*Business authority:\*\* A facts\./{s//- **Business authority:** A and B jointly own a Shared/}' \
+  "$valid" >"$wrapped_semantic_shared_kernel"
+sed -i '/^- \*\*Business authority:\*\* A and B jointly own a Shared$/a\  Kernel.' \
+  "$wrapped_semantic_shared_kernel"
+assert_invalid "$wrapped_semantic_shared_kernel" "Shared Kernel"
+
 collaboration_partnership="$tmp/collaboration-partnership.md"
 cp "$valid" "$collaboration_partnership"
-sed -i '/\*\*Business authority:\*\* A facts\./a\- **Collaboration pattern:** Directional Partnership arrangement' "$collaboration_partnership"
+sed -i '0,/- \*\*Guarantee:\*\*/{/- \*\*Guarantee:\*\*/a\- **Collaboration pattern:** Directional Partnership arrangement
+}' "$collaboration_partnership"
 assert_invalid "$collaboration_partnership" "Partnership"
 
 relationship_type_partnership="$tmp/relationship-type-partnership.md"

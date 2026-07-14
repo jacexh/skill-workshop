@@ -4,6 +4,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 RUNNER="$ROOT/scripts/eval/ddd-expert.js"
+AUTH_BROKER="$ROOT/scripts/eval/support/codex-auth-fifo-broker.js"
+AUTH_BROKER_TEST="$ROOT/scripts/eval/support/codex-auth-fifo-broker.test.js"
 CASES_ROOT="$ROOT/evals/ddd-expert/cases"
 CONTEXT_MAP_VALIDATOR="$ROOT/plugins/ddd-expert/scripts/validate-context-map.mjs"
 
@@ -13,8 +15,37 @@ fail() {
 }
 
 node --check "$RUNNER"
+node --check "$AUTH_BROKER"
+node --check "$AUTH_BROKER_TEST"
+node "$AUTH_BROKER_TEST"
 node "$RUNNER" validate
 node "$RUNNER" self-test
+
+node - "$RUNNER" <<'NODE'
+const fs = require("fs");
+
+const runner = fs.readFileSync(process.argv[2], "utf8");
+for (const [pattern, label] of [
+  [/const RUNNER_FILES = \[__filename, AUTH_BROKER\];/u, "broker source fingerprint"],
+  [/filter:\s*\(source\)\s*=>\s*path\.resolve\(source\)\s*!==\s*installedAuth/u, "auth-excluding trial-home copy"],
+  [/trial home copied the retained auth source before broker startup/u, "absent trial-home auth assertion"],
+  [/\{ stdio: \["pipe", "pipe", "pipe"\] \}/u, "broker parent-liveness pipe"],
+  [/["'`]\$\{authFile\}:\/eval-home\/auth\.json:ro["'`]/u, "read-only nested FIFO bind"],
+  [/event\.type !== ["']thread\.started["']/u, "thread.started compatibility cutoff"],
+  [/verifyEmptyAuthFifo\(authFile, fifoIdentity\)/u, "post-run empty FIFO verification"],
+  [/startManagedDockerContainerAsync\(executionArgs/u, "asynchronous managed Docker execution"],
+  [/ACTIVE_ASYNC_DOCKER_CONTROLLERS\.add\(controller\)/u, "active async Docker controller registry"],
+  [/process\.on\("SIGINT"[\s\S]*process\.on\("SIGTERM"/u, "runner termination handlers"],
+  [/await cleanupActiveEvaluatorResources\(\)/u, "top-level container and runtime cleanup"],
+]) {
+  if (!pattern.test(runner)) {
+    throw new Error(`runner is missing the ${label} seam`);
+  }
+}
+if (/runManagedDockerContainer\(executionArgs/u.test(runner)) {
+  throw new Error("model trial still uses the synchronous Docker runner");
+}
+NODE
 
 node - "$CASES_ROOT" <<'NODE'
 const fs = require("fs");
@@ -67,10 +98,25 @@ for (const wrongRoute of ["explore", "codify", "guard"]) {
     throw new Error(`first Shape consensus case permits ${wrongRoute}`);
   }
 }
+for (const id of [
+  "explore-blocks-partial-legacy-migration",
+  "shape-requires-design-consensus",
+  "shape-continues-after-boundary-acceptance",
+  "shape-requires-integrated-design-acceptance",
+]) {
+  const propositions = readCase(id).expect.questions.propositions;
+  if (!Array.isArray(propositions) || propositions.length === 0 ||
+      propositions.some((item) => !item.accepts?.length || !item.rejects?.length)) {
+    throw new Error(`${id} must score accepted and rejected question propositions`);
+  }
+}
 
 const entityDesign = readCase("shape-defines-retained-entity").expect.files[0];
 if (!(entityDesign.identifiers_without_format || []).includes("LineId")) {
   throw new Error("retained-Entity case does not reject invented identifier formats");
+}
+if (!Array.isArray(entityDesign.propositions) || entityDesign.propositions.length === 0) {
+  throw new Error("retained-Entity case does not score polarity-aware Value Object propositions");
 }
 for (const requiredSignal of [
   "Quantity represents the allocation amount",

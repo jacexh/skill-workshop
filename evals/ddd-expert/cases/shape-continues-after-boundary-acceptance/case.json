@@ -25,15 +25,63 @@
         ["concurrent terminal", "competing terminal", "first admissible", "并发终态", "竞争终态", "首个可接受"],
         ["because", "protect*", "evidence", "therefore", "Model revision", "Model establishes", "establishes discrete transitions", "directly enforces", "unsupported by the Model", "Model does not require", "因为", "保护", "证据", "因此"]
       ],
+      "propositions": [
+        {
+          "name": "Requested transitions to Held",
+          "accepts": ["Requested moves to Held", "Requested -> Held", "Requested → Held", "Requested to Held"],
+          "rejects": ["Requested does not move to Held", "Requested may skip Held", "Requested moves directly to Confirmed", "Held precedes Requested"]
+        },
+        {
+          "name": "only Held establishes Confirmed",
+          "accepts": ["only Held may establish Confirmed", "only Held admits Confirmed", "from Held to Confirmed", "Held -> exactly one"],
+          "rejects": ["states other than Held may establish", "any state may establish Confirmed", "Held may not establish Confirmed", "Confirmed may return to Held"]
+        },
+        {
+          "name": "Held establishes Released",
+          "accepts": ["Held ... establish* ... Released", "Held ... admit* ... Released", "Held -> Released", "Held → Released", "from Held to Released"],
+          "rejects": ["Held may not establish Released", "Released is not reachable from Held", "Released may return to Held"]
+        },
+        {
+          "name": "Held establishes Expired",
+          "accepts": ["Held ... establish* ... Expired", "Held ... admit* ... Expired", "Held -> Expired", "Held → Expired", "from Held to Expired"],
+          "rejects": ["Held may not establish Expired", "Expired is not reachable from Held", "Expired may return to Held"]
+        },
+        {
+          "name": "terminal outcomes are exclusive",
+          "accepts": ["terminal and mutually exclusive", "terminal exclusivity", "single terminal outcome", "exactly one terminal outcome"],
+          "rejects": ["outcomes are not terminal", "terminal outcomes are not mutually exclusive", "multiple terminal outcomes are allowed", "terminal states may transition again"]
+        },
+        {
+          "name": "concurrent terminal intent preserves the first admissible outcome",
+          "accepts": ["concurrent terminal intents admit only the first admissible outcome", "concurrent terminal intents preserve the first outcome", "first admissible outcome"],
+          "rejects": ["last terminal intent wins", "concurrent terminal intents establish multiple outcomes", "first admissible outcome may be replaced"]
+        }
+      ],
       "excludes": [
-        "Domain Event classification",
+        "Domain Event",
         "Integration Message",
-        "Repository semantics",
+        "Process Manager",
+        "Published Fact Contract",
+        "Asynchronous Intent Contract",
+        "context contract",
+        "context dependency",
+        "Repository",
+        "MySQL",
+        "PostgreSQL",
+        "SQLite",
+        "MongoDB",
+        "database",
+        "persistence",
+        "outbox",
+        "Kafka",
+        "schema",
+        "database table",
+        "persistence table",
+        "SQL table",
         "Verification obligations:",
         "complete integrated Tactical Design",
         "Acceptance authorizes writing",
-        "write the Design now",
-        "Process Manager choice"
+        "write the Design now"
       ]
     },
     "routes": { "contains": [], "excludes": ["explore", "codify", "guard"] },

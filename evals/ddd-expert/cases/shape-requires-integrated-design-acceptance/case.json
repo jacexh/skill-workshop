@@ -17,6 +17,7 @@
         ["Reservation Aggregate", "Reservation Root", "预订聚合"],
         ["Reservation Item", "预订项"],
         ["Value Object", "值对象"],
+        ["equal* by", "equality", "相等", "等值"],
         ["positive", "正数", "正数量"],
         ["accepted capacity", "capacity bound", "不得超过", "容量上限"],
         ["Requested"],
@@ -29,7 +30,101 @@
         ["concurrent terminal", "first admissible", "terminal exclusivity", "并发终态", "首个可接受", "终态互斥"],
         ["split", "separate Aggregate", "cross-Aggregate", "拆分", "跨聚合"],
         ["no context dependenc*", "no Integration Message", "isolated context", "无上下文依赖", "无需集成消息"],
+        ["no Process Manager", "without a Process Manager", "does not require a Process Manager", "无需流程管理器"],
+        ["no design-significant persistence mechanism", "no persistence mechanism is design-significant", "persistence is not design-significant", "does not require a design-significant persistence mechanism", "持久化机制不影响设计"],
         ["write", "apply", "persist", "写入", "落盘", "应用"]
+      ],
+      "propositions": [
+        {
+          "name": "the integrated proposal uses one Reservation Aggregate",
+          "accepts": ["one Reservation Aggregate", "single Reservation Aggregate", "Reservation Root owns Reservation Item"],
+          "rejects": ["Reservation Item is a separate Aggregate", "recommend* separate Reservation Item Aggregate", "one Reservation Aggregate is rejected", "Reservation Root does not own Reservation Item"]
+        },
+        {
+          "name": "Reservation Item is a Value Object",
+          "accepts": ["Reservation Item as a Value Object", "Reservation Item is a Value Object", "Reservation Item remains a Value Object"],
+          "rejects": ["Reservation Item is not a Value Object", "Reservation Item is an Entity", "Reservation Item is a separate Root"]
+        },
+        {
+          "name": "Reservation Item equality uses resource identity and quantity",
+          "accepts": ["Reservation Item ... equal* by ... resource ... quantity", "equality is by ... resource ... quantity", "equality uses ... resource ... quantity", "equal when ... resource ... quantity"],
+          "rejects": ["Reservation Item ... equality ... ignores ... resource", "Reservation Item ... equality ... ignores ... quantity", "Reservation Item ... equal* ... identifier only"]
+        },
+        {
+          "name": "Reservation quantity is positive",
+          "accepts": ["quantity is positive", "positive quantity", "quantity must be positive"],
+          "rejects": ["quantity need not be positive", "quantity may be non-positive", "quantity is not required to be positive"]
+        },
+        {
+          "name": "Reservation quantity stays within accepted capacity",
+          "accepts": ["quantity ... may not exceed ... accepted capacity", "quantity ... does not exceed ... accepted capacity", "quantity ... remains within accepted capacity", "quantity ... stays within accepted capacity"],
+          "rejects": ["quantity may exceed ... accepted capacity", "quantity can exceed ... accepted capacity", "capacity bound is not required"]
+        },
+        {
+          "name": "Requested transitions to Held",
+          "accepts": ["Requested moves to Held", "Requested -> Held", "Requested → Held"],
+          "rejects": ["Requested does not move to Held", "Requested skips Held", "Requested moves directly to Confirmed"]
+        },
+        {
+          "name": "Held establishes Confirmed",
+          "accepts": ["Held ... establish* ... Confirmed", "Held -> Confirmed", "Held → Confirmed"],
+          "rejects": ["Held may not establish Confirmed", "Confirmed is not reachable from Held", "Confirmed may return to Held"]
+        },
+        {
+          "name": "Held establishes Released",
+          "accepts": ["Held ... establish* ... Released", "Held -> Released", "Held → Released"],
+          "rejects": ["Held may not establish Released", "Released is not reachable from Held", "Released may return to Held"]
+        },
+        {
+          "name": "Held establishes Expired",
+          "accepts": ["Held ... establish* ... Expired", "Held -> Expired", "Held → Expired"],
+          "rejects": ["Held may not establish Expired", "Expired is not reachable from Held", "Expired may return to Held"]
+        },
+        {
+          "name": "terminal outcomes are exclusive",
+          "accepts": ["terminal outcome* ... exclusive", "exclusive terminal outcome*", "terminal exclusivity", "at most one terminal outcome", "only one terminal outcome"],
+          "rejects": ["terminal outcomes are not exclusive", "multiple terminal outcomes are allowed", "terminal outcomes may be replaced"]
+        },
+        {
+          "name": "duplicate intent preserves the established result",
+          "accepts": ["duplicate intent is idempotent", "duplicate intent returns the established result", "repeated intent* ... return* ... established result"],
+          "rejects": ["duplicate intent is not idempotent", "duplicate intent creates another result", "repeated intent creates another result"]
+        },
+        {
+          "name": "concurrent terminal intents preserve the first outcome",
+          "accepts": ["concurrent terminal intent* ... admit* ... first", "concurrent terminal intent* ... only the first", "first admissible outcome"],
+          "rejects": ["concurrent terminal intents establish multiple outcomes", "last terminal intent replaces the first", "first admissible outcome may be replaced"]
+        },
+        {
+          "name": "established Reservation facts are local Domain Events",
+          "accepts": ["established ... fact* ... local Domain Event*", "Reservation fact* ... local Domain Event*"],
+          "rejects": ["established ... fact* ... not ... Domain Event*", "Reservation fact* ... not ... Domain Event*", "established facts are technical events"]
+        },
+        {
+          "name": "the split alternative moves semantic rules across Aggregates",
+          "accepts": ["split alternative ... move* ... rule* ... cross-Aggregate", "splitting ... move* ... rule* ... across root*", "separate Aggregate ... require* ... cross-Aggregate coordination"],
+          "rejects": ["split alternative has no coordination cost", "splitting keeps every rule within one root", "single Aggregate moves the rules cross-Aggregate"]
+        },
+        {
+          "name": "the isolated context has no integration dependency",
+          "accepts": ["no context dependenc*", "no Integration Message", "isolated context"],
+          "rejects": ["has a context dependency", "requires an Integration Message", "publishes an Integration Message", "is not an isolated context"]
+        },
+        {
+          "name": "the integrated proposal has no Process Manager",
+          "accepts": ["no Process Manager", "without a Process Manager", "does not require a Process Manager"],
+          "rejects": ["requires a Process Manager", "uses a Process Manager", "introduces a Process Manager"]
+        },
+        {
+          "name": "the integrated proposal has no design-significant persistence mechanism",
+          "accepts": ["no design-significant persistence mechanism", "no persistence mechanism is design-significant", "persistence is not design-significant", "does not require a design-significant persistence mechanism"],
+          "rejects": ["requires a design-significant persistence mechanism", "persistence mechanism is design-significant", "MySQL is design-significant", "requires MySQL"]
+        },
+        {
+          "name": "acceptance authorizes the Design write",
+          "accepts": ["authorize* its write", "accept* and write", "acceptance authorizes writing", "authorize* apply"],
+          "rejects": ["acceptance does not authorize writing", "write before acceptance", "apply without acceptance"]
+        }
       ]
     },
     "routes": { "contains": [], "excludes": ["explore", "codify", "guard"] },

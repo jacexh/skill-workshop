@@ -21,7 +21,7 @@ The design describes the current accepted target state, not a feature narrative,
 
 Omit an optional Design section when its tactical mechanism is not retained. Do not create an Entity, Domain Service, Process Manager, collaboration, technical-constraint, or verification section solely to say that none exists; record a material absence beside the Aggregate or contract decision it clarifies.
 
-Define every retained Entity and Value Object in Domain language. For each Entity, state its identity, owner, and independent lifecycle; for each Value Object, state its domain meaning, accepted construction or validity rule (or that the Model defines no additional rule), and equality semantics without inventing a business constraint. A database or language House Style never authorizes a Domain identifier format, normalization, or validity rule; when the accepted Model defines none, say so and leave the physical representation to Codify. Classify retained event semantics as local Domain Events or cross-context Integration Messages. Execution observations remain execution mechanics; record their correctness guarantees beside the Aggregate, Process Manager, or contract they protect rather than creating a Runtime Event category.
+Define every retained Entity and Value Object in Domain language. For each Entity, state its identity, owner, and lifecycle scope, explicitly whether any lifecycle exists independently of its Aggregate Root; for each Value Object, state its domain meaning, accepted construction or validity rule (or that the Model defines no additional rule), and equality semantics without inventing a business constraint. A database or language House Style never authorizes a Domain identifier format, normalization, or validity rule; when the accepted Model defines none, say so and leave the physical representation to Codify. Classify retained event semantics as local Domain Events or cross-context Integration Messages. Execution observations remain execution mechanics; record their correctness guarantees beside the Aggregate, Process Manager, or contract they protect rather than creating a Runtime Event category.
 
 Scheduled, asynchronous, and recovery work has two ownership roles. The semantic owner decides what work is due, interprets facts, and chooses business outcomes. When execution guarantees are design-significant, state the execution owner beside that responsibility for delivery, concurrency, retry, and lifecycle. One component may hold both roles when accepted authority permits it.
 
@@ -39,7 +39,16 @@ Record a technical mechanism only when replacing it would change an accepted des
 
 ## Consensus gate
 
-Keep project files unchanged while a tactical choice or integrated proposal awaits acceptance. A question presents the accepted evidence, the recommended design, the closest credible alternative, their consequences, and the one user-owned decision. Acceptance applies to the integrated design, not to a draft document.
+Keep project files unchanged while a tactical choice or integrated proposal awaits acceptance. Acceptance applies to the integrated design, not to a draft document.
+
+Make the single active question reviewable:
+
+- Lead with an explicit recommendation such as `I recommend ...`; a bare request to accept something does not expose the recommendation.
+- State every accepted Model invariant that this decision would settle as a complete business proposition, not as a label or shorthand.
+- When concurrency or failure is relevant, name the concrete competing intents or failure and the one permitted business outcome.
+- State the closest credible alternative and exactly which invariant would cross a root or which coordination cost it introduces.
+- Keep unrelated deferred topics out of the current question; focus by omission, not by announcing a checklist of what remains.
+- End with one user-owned decision in one interrogative sentence. Never append a contingent follow-up; defer a newly relevant who/how/when judgment to the next turn.
 
 ## Decision boundary
 

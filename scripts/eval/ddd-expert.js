@@ -7,6 +7,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { StringDecoder } = require("string_decoder");
 
 const ROOT = path.resolve(__dirname, "../..");
 const EVAL_ROOT = path.join(ROOT, "evals", "ddd-expert");
@@ -14,6 +15,12 @@ const CASES_ROOT = path.join(EVAL_ROOT, "cases");
 const RESULT_SCHEMA = path.join(EVAL_ROOT, "result.schema.json");
 const CONTAINER_FILE = path.join(EVAL_ROOT, "Dockerfile");
 const PLUGIN_ROOT = path.join(ROOT, "codex-plugins", "ddd-expert");
+const AUTH_BROKER = path.join(__dirname, "support", "codex-auth-fifo-broker.js");
+const AUTH_BROKER_READY_LINE = "codex-auth-fifo-ready\n";
+const RUNNER_FILES = [__filename, AUTH_BROKER];
+const ACTIVE_ASYNC_DOCKER_CONTROLLERS = new Set();
+const ACTIVE_RUNTIME_ROOTS = new Set();
+const TERMINATION_EXIT_CODES = { SIGINT: 130, SIGTERM: 143 };
 const DEFAULT_TIMEOUT_SECONDS = 240;
 const DEFAULT_CONTAINER_IMAGE = "ddd-expert-eval:local";
 const DEFAULT_INFRA_RETRIES = 2;
@@ -23,6 +30,8 @@ const SNAPSHOT_MAX_ENTRIES = 20000;
 const SNAPSHOT_MAX_FILE_BYTES = 8 * 1024 * 1024;
 const SNAPSHOT_MAX_TOTAL_HASH_BYTES = 128 * 1024 * 1024;
 const RESULT_MAX_FILE_BYTES = 1024 * 1024;
+const COMMAND_MAX_BUFFER_BYTES = 32 * 1024 * 1024;
+const BROKER_MAX_BUFFER_BYTES = 64 * 1024;
 const SNAPSHOT_LIMIT_KEY = "//snapshot-limit//";
 const VERDICT_FAMILIES = [
   "aggregate_boundary",
@@ -35,11 +44,92 @@ const VERDICT_FAMILIES = [
   "persistence_conformance",
   "layer_boundary",
 ];
+let requestedTerminationSignal = null;
+let terminationHandlersInstalled = false;
 
 function fail(message, exitCode = 1) {
   const error = new Error(message);
   error.exitCode = exitCode;
   throw error;
+}
+
+function terminationExitCode(signal = requestedTerminationSignal) {
+  return TERMINATION_EXIT_CODES[signal] || 1;
+}
+
+function throwIfRunnerTerminating() {
+  if (requestedTerminationSignal) {
+    fail(`evaluation runner received ${requestedTerminationSignal}`, terminationExitCode());
+  }
+}
+
+function trackAsyncDockerController(controller) {
+  ACTIVE_ASYNC_DOCKER_CONTROLLERS.add(controller);
+  controller.completion.then(
+    () => ACTIVE_ASYNC_DOCKER_CONTROLLERS.delete(controller),
+    () => ACTIVE_ASYNC_DOCKER_CONTROLLERS.delete(controller),
+  );
+  if (requestedTerminationSignal) {
+    controller.abort(`evaluation runner received ${requestedTerminationSignal}`);
+  }
+  return controller;
+}
+
+function registerRuntimeRoot(runtimeRoot) {
+  ACTIVE_RUNTIME_ROOTS.add(runtimeRoot);
+  return runtimeRoot;
+}
+
+function removeTrackedRuntimeRoot(runtimeRoot) {
+  try {
+    removeUntrustedTree(runtimeRoot);
+  } finally {
+    if (!fs.lstatSync(runtimeRoot, { throwIfNoEntry: false })) {
+      ACTIVE_RUNTIME_ROOTS.delete(runtimeRoot);
+    }
+  }
+}
+
+function requestRunnerTermination(signal) {
+  if (requestedTerminationSignal) {
+    for (const controller of ACTIVE_ASYNC_DOCKER_CONTROLLERS) {
+      controller.abort(`evaluation runner received a second termination signal (${signal})`);
+    }
+    process.exit(terminationExitCode(signal));
+  }
+  requestedTerminationSignal = signal;
+  process.exitCode = terminationExitCode(signal);
+  for (const controller of ACTIVE_ASYNC_DOCKER_CONTROLLERS) {
+    controller.abort(`evaluation runner received ${signal}`);
+  }
+}
+
+function installTerminationHandlers() {
+  if (terminationHandlersInstalled) return;
+  terminationHandlersInstalled = true;
+  process.on("SIGINT", () => requestRunnerTermination("SIGINT"));
+  process.on("SIGTERM", () => requestRunnerTermination("SIGTERM"));
+}
+
+async function cleanupActiveEvaluatorResources() {
+  while (ACTIVE_ASYNC_DOCKER_CONTROLLERS.size > 0) {
+    const controllers = [...ACTIVE_ASYNC_DOCKER_CONTROLLERS];
+    for (const controller of controllers) {
+      controller.abort("evaluation runner is shutting down");
+    }
+    await Promise.all(controllers.map((controller) => controller.completion));
+  }
+  const errors = [];
+  for (const runtimeRoot of [...ACTIVE_RUNTIME_ROOTS]) {
+    try {
+      removeTrackedRuntimeRoot(runtimeRoot);
+    } catch (error) {
+      errors.push(`${runtimeRoot}: ${error.message}`);
+    }
+  }
+  if (errors.length > 0) {
+    fail(`failed to remove evaluator runtime roots: ${errors.join("; ")}`, 2);
+  }
 }
 
 function readJson(file) {
@@ -145,6 +235,26 @@ function stringArray(value, label, allowEmpty = true) {
   }
 }
 
+function validatePropositions(value, label) {
+  if (!Array.isArray(value)) {
+    fail(`${label} must be an array`, 2);
+  }
+  for (const [index, proposition] of value.entries()) {
+    const itemLabel = `${label}[${index}]`;
+    if (!hasOnlyKeys(proposition, ["name", "accepts", "rejects"]) ||
+        typeof proposition.name !== "string" || proposition.name.length === 0) {
+      fail(`${itemLabel} must define only a non-empty name, accepts, and rejects`, 2);
+    }
+    stringArray(proposition.accepts, `${itemLabel}.accepts`, false);
+    stringArray(proposition.rejects, `${itemLabel}.rejects`, false);
+    for (const phrase of [...proposition.accepts, ...proposition.rejects]) {
+      if (normalizeSemanticText(phrase).length === 0 || !isValidSemanticExpectation(phrase)) {
+        fail(`${itemLabel} contains invalid semantic text`, 2);
+      }
+    }
+  }
+}
+
 function validateCase(caseDir, config) {
   const requiredKeys = ["id", "phase", "suites", "sandbox", "prompt", "workspace", "expect"];
   if (!hasOnlyKeys(config, requiredKeys)) {
@@ -201,7 +311,7 @@ function validateCase(caseDir, config) {
   if (expect.review_conclusion.some((item) => !["not_applicable", "clear", "violations", "evidence_gaps", "incomplete"].includes(item))) {
     fail(`${config.id}: invalid expected review conclusion`, 2);
   }
-  const questionExpectationKeys = ["min", "max", "contains", "contains_any", "excludes"];
+  const questionExpectationKeys = ["min", "max", "contains", "contains_any", "excludes", "propositions"];
   if (!hasOnlyKeys(expect.questions, questionExpectationKeys) || !Number.isInteger(expect.questions.min) || !Number.isInteger(expect.questions.max) || expect.questions.min < 0 || expect.questions.max < expect.questions.min) {
     fail(`${config.id}.expect.questions must define valid integer min/max`, 2);
   }
@@ -223,6 +333,9 @@ function validateCase(caseDir, config) {
         fail(`${config.id}.expect.questions.contains_any[${index}] must contain valid semantic text`, 2);
       }
     }
+  }
+  if ("propositions" in expect.questions) {
+    validatePropositions(expect.questions.propositions, `${config.id}.expect.questions.propositions`);
   }
   if (questionExpectationKeys.slice(2).some((key) => key in expect.questions) && expect.questions.min < 1) {
     fail(`${config.id}.expect.questions semantic expectations require min >= 1`, 2);
@@ -273,13 +386,14 @@ function validateCase(caseDir, config) {
     fail(`${config.id}.expect.files and checks must be arrays`, 2);
   }
   for (const assertion of expect.files) {
-    if (!hasOnlyKeys(assertion, ["path", "exists", "contains", "contains_any", "excludes", "excludes_semantic", "identifiers_without_format", "forbid_temporary_trace", "contains_words", "excludes_words"]) || typeof assertion.path !== "string" || typeof assertion.exists !== "boolean") {
+    if (!hasOnlyKeys(assertion, ["path", "exists", "contains", "contains_any", "excludes", "excludes_semantic", "propositions", "identifiers_without_format", "forbid_temporary_trace", "contains_words", "excludes_words"]) || typeof assertion.path !== "string" || typeof assertion.exists !== "boolean") {
       fail(`${config.id}: invalid file assertion`, 2);
     }
     safeChildPath(workspacePath, assertion.path, `${config.id}.expect.files.path`);
     stringArray(assertion.contains, `${config.id}.expect.files.contains`);
     stringArray(assertion.excludes, `${config.id}.expect.files.excludes`);
     stringArray(assertion.excludes_semantic || [], `${config.id}.expect.files.excludes_semantic`);
+    validatePropositions(assertion.propositions || [], `${config.id}.expect.files.propositions`);
     stringArray(assertion.identifiers_without_format || [], `${config.id}.expect.files.identifiers_without_format`);
     if ("forbid_temporary_trace" in assertion && typeof assertion.forbid_temporary_trace !== "boolean") {
       fail(`${config.id}.expect.files.forbid_temporary_trace must be boolean`, 2);
@@ -482,7 +596,7 @@ function unsafeSnapshotEntries(snapshot) {
   return [...snapshot.entries()]
     .filter(([relative, token]) => {
       if (relative === SNAPSHOT_LIMIT_KEY ||
-          /^(?:bounded-|link|unreadable-|unstable-|special:)/.test(token)) {
+          /^(?:bounded-|hardlinked-|link|unreadable-|unstable-|special:)/.test(token)) {
         return true;
       }
       const modeMatch = /^(?:dir|file):([0-7]+)(?::|$)/.exec(token);
@@ -509,7 +623,10 @@ function boundedTreeSnapshot(root, rootRelative, skipRootEntry = null) {
   }
 
   function fileToken(absolute, stat) {
-    const metadata = `${modeOf(stat)}:${stat.size}:${stat.ino}:${stat.ctimeMs}`;
+    const metadata = `${modeOf(stat)}:${stat.size}:${stat.dev}:${stat.ino}:${stat.nlink}:${stat.ctimeMs}`;
+    if (stat.nlink !== 1) {
+      return `hardlinked-file:${metadata}`;
+    }
     if (stat.size > SNAPSHOT_MAX_FILE_BYTES ||
         state.hashedBytes + stat.size > SNAPSHOT_MAX_TOTAL_HASH_BYTES) {
       return `bounded-file:${metadata}`;
@@ -521,8 +638,9 @@ function boundedTreeSnapshot(root, rootRelative, skipRootEntry = null) {
         (fs.constants.O_NONBLOCK || 0);
       descriptor = fs.openSync(absolute, flags);
       const openedStat = fs.fstatSync(descriptor);
-      const openedMetadata = `${modeOf(openedStat)}:${openedStat.size}:${openedStat.ino}:${openedStat.ctimeMs}`;
-      if (!openedStat.isFile() || openedStat.dev !== stat.dev || openedStat.ino !== stat.ino) {
+      const openedMetadata = `${modeOf(openedStat)}:${openedStat.size}:${openedStat.dev}:${openedStat.ino}:${openedStat.nlink}:${openedStat.ctimeMs}`;
+      if (!openedStat.isFile() || openedStat.dev !== stat.dev || openedStat.ino !== stat.ino ||
+          openedStat.nlink !== 1) {
         return `unreadable-file:${openedMetadata}:identity-changed`;
       }
       const remainingBudget = Math.min(
@@ -545,13 +663,16 @@ function boundedTreeSnapshot(root, rootRelative, skipRootEntry = null) {
         hash.update(buffer.subarray(0, bytesRead));
       }
       const finalStat = fs.fstatSync(descriptor);
+      if (finalStat.nlink !== 1) {
+        return `hardlinked-file:${modeOf(finalStat)}:${finalStat.size}:${finalStat.dev}:${finalStat.ino}:${finalStat.nlink}:${finalStat.ctimeMs}`;
+      }
       if (finalStat.dev !== openedStat.dev || finalStat.ino !== openedStat.ino ||
           finalStat.size !== openedStat.size || total !== openedStat.size ||
           finalStat.ctimeMs !== openedStat.ctimeMs) {
         return `unstable-file:${modeOf(finalStat)}:${finalStat.size}:${finalStat.ino}:${finalStat.ctimeMs}`;
       }
       state.hashedBytes += total;
-      return `file:${modeOf(finalStat)}:${total}:${hash.digest("hex")}`;
+      return `file:${modeOf(finalStat)}:${total}:${finalStat.dev}:${finalStat.ino}:${finalStat.nlink}:${finalStat.ctimeMs}:${hash.digest("hex")}`;
     } catch (error) {
       return `unreadable-file:${metadata}:${error.code || error.name}`;
     } finally {
@@ -664,7 +785,8 @@ function runCommand(argv, options = {}) {
     input: options.input,
     encoding: "utf8",
     timeout: (options.timeoutSeconds || DEFAULT_TIMEOUT_SECONDS) * 1000,
-    maxBuffer: 32 * 1024 * 1024,
+    killSignal: options.killSignal || "SIGTERM",
+    maxBuffer: COMMAND_MAX_BUFFER_BYTES,
   });
   return {
     argv,
@@ -674,6 +796,703 @@ function runCommand(argv, options = {}) {
     stderr: result.stderr || "",
     error: result.error ? result.error.message : null,
   };
+}
+
+function appendCommandError(result, message) {
+  return {
+    ...result,
+    status: result.status === 0 ? 125 : result.status,
+    error: [result.error, message].filter(Boolean).join("; "),
+  };
+}
+
+function dockerControlIdentity(runtimeRoot, prefix) {
+  const token = crypto.randomBytes(16).toString("hex");
+  const controlRoot = path.join(runtimeRoot, "container-control");
+  fs.mkdirSync(controlRoot, { recursive: true, mode: 0o700 });
+  fs.chmodSync(controlRoot, 0o700);
+  return {
+    name: `ddd-expert-${prefix}-${process.pid}-${token}`,
+    label: `ddd-expert.eval.control=${token}`,
+    cidFile: path.join(controlRoot, `${token}.cid`),
+  };
+}
+
+function dockerContainerIdsByLabel(label) {
+  const listed = runCommand([
+    "docker", "container", "ls", "--all", "--quiet", "--filter", `label=${label}`,
+  ], { timeoutSeconds: 30 });
+  if (listed.status !== 0) {
+    return { ids: [], error: `cannot list evaluator containers: ${listed.error || listed.stderr.trim() || `exit ${listed.status}`}` };
+  }
+  const ids = listed.stdout.split(/\s+/u).filter(Boolean);
+  const invalid = ids.find((id) => !/^[0-9a-f]{12,64}$/u.test(id));
+  return invalid
+    ? { ids: [], error: `docker returned an invalid container ID for ${label}` }
+    : { ids, error: null };
+}
+
+function readDockerCidFile(cidFile) {
+  const stat = fs.lstatSync(cidFile, { throwIfNoEntry: false });
+  if (!stat) return { id: null, error: null };
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 ||
+      (typeof process.getuid === "function" && stat.uid !== process.getuid()) || stat.size > 128) {
+    return { id: null, error: "Docker cidfile is not a trusted owner-only regular file" };
+  }
+  fs.chmodSync(cidFile, 0o600);
+  const secured = fs.lstatSync(cidFile);
+  if (secured.dev !== stat.dev || secured.ino !== stat.ino || secured.nlink !== 1 ||
+      (secured.mode & 0o7777) !== 0o600) {
+    return { id: null, error: "Docker cidfile changed while securing it" };
+  }
+  const read = readBoundedTextFile(cidFile, 128);
+  if (!read.ok) return { id: null, error: `cannot read Docker cidfile: ${read.error}` };
+  const id = read.content.trim();
+  return /^[0-9a-f]{12,64}$/u.test(id)
+    ? { id, error: null }
+    : { id: null, error: "Docker cidfile contains an invalid container ID" };
+}
+
+function forceRemoveManagedDockerContainer(control) {
+  const errors = [];
+  let cid;
+  try {
+    cid = readDockerCidFile(control.cidFile);
+  } catch (error) {
+    cid = { id: null, error: `cannot inspect Docker cidfile: ${error.message}` };
+  }
+  if (cid.error) errors.push(cid.error);
+  const before = dockerContainerIdsByLabel(control.label);
+  if (before.error) errors.push(before.error);
+  const identifiers = [...new Set([control.name, cid.id, ...before.ids].filter(Boolean))];
+  for (const identifier of identifiers) {
+    const removed = runCommand(["docker", "container", "rm", "--force", identifier], { timeoutSeconds: 30 });
+    const absentAlready = /no such container/u.test(`${removed.stderr}\n${removed.stdout}`.toLowerCase());
+    if (removed.status !== 0 && !absentAlready) {
+      errors.push(`cannot force-remove evaluator container: ${removed.error || removed.stderr.trim() || `exit ${removed.status}`}`);
+    }
+  }
+  const after = dockerContainerIdsByLabel(control.label);
+  if (after.error) {
+    errors.push(after.error);
+  } else if (after.ids.length > 0) {
+    errors.push(`evaluator containers remain after cleanup: ${after.ids.join(",")}`);
+  }
+  const named = runCommand(["docker", "container", "inspect", control.name], { timeoutSeconds: 30 });
+  if (named.status === 0) {
+    errors.push(`evaluator container remains after cleanup: ${control.name}`);
+  }
+  try {
+    const cidStat = fs.lstatSync(control.cidFile, { throwIfNoEntry: false });
+    if (cidStat && !cidStat.isSymbolicLink()) {
+      fs.rmSync(control.cidFile, { force: true });
+    } else if (cidStat) {
+      errors.push("refusing to remove an untrusted Docker cidfile symlink");
+    }
+  } catch (error) {
+    errors.push(`cannot remove Docker cidfile: ${error.message}`);
+  }
+  return { error: errors.length > 0 ? errors.join("; ") : null, label: control.label, name: control.name };
+}
+
+function runManagedDockerContainer(argv, options) {
+  if (argv[0] !== "docker" || argv[1] !== "run") {
+    fail("managed Docker command must start with docker run", 2);
+  }
+  const control = dockerControlIdentity(options.runtimeRoot, options.prefix || "trial");
+  const managedArgv = [
+    "docker", "run",
+    "--name", control.name,
+    "--cidfile", control.cidFile,
+    "--label", control.label,
+    ...argv.slice(2),
+  ];
+  const originalUmask = process.umask(0o077);
+  let result;
+  try {
+    result = runCommand(managedArgv, { ...options, killSignal: "SIGKILL" });
+  } catch (error) {
+    result = {
+      argv: managedArgv,
+      status: null,
+      signal: null,
+      stdout: "",
+      stderr: "",
+      error: error.message,
+    };
+  } finally {
+    process.umask(originalUmask);
+  }
+  const cleanup = forceRemoveManagedDockerContainer(control);
+  if (cleanup.error) {
+    result = appendCommandError(result, cleanup.error);
+  }
+  return { ...result, containerCleanup: cleanup };
+}
+
+function startManagedDockerContainerAsync(argv, options) {
+  if (argv[0] !== "docker" || argv[1] !== "run") {
+    fail("managed Docker command must start with docker run", 2);
+  }
+  const control = dockerControlIdentity(options.runtimeRoot, options.prefix || "trial");
+  const managedArgv = [
+    "docker", "run",
+    "--name", control.name,
+    "--cidfile", control.cidFile,
+    "--label", control.label,
+    ...argv.slice(2),
+  ];
+  const stdoutChunks = [];
+  const stderrChunks = [];
+  let stdoutBytes = 0;
+  let stderrBytes = 0;
+  let child;
+  let timeout;
+  let failureReason = null;
+  let abortNotified = false;
+  let finish;
+
+  const completion = new Promise((resolve) => {
+    finish = resolve;
+  });
+
+  const notifyAbort = (reason) => {
+    if (!failureReason) failureReason = reason;
+    if (!abortNotified) {
+      abortNotified = true;
+      try {
+        options.onAbort?.(failureReason);
+      } catch {
+        failureReason = `${failureReason}; Docker abort hook failed`;
+      }
+    }
+  };
+
+  const abort = (reason) => {
+    notifyAbort(reason);
+    if (child && child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGKILL");
+    }
+  };
+
+  const capture = (chunk, chunks, streamName) => {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    const current = streamName === "stdout" ? stdoutBytes : stderrBytes;
+    if (current + buffer.length > COMMAND_MAX_BUFFER_BYTES) {
+      abort(`Docker ${streamName} exceeded ${COMMAND_MAX_BUFFER_BYTES} bytes`);
+      return false;
+    }
+    chunks.push(buffer);
+    if (streamName === "stdout") stdoutBytes += buffer.length;
+    else stderrBytes += buffer.length;
+    return true;
+  };
+
+  const originalUmask = process.umask(0o077);
+  let spawnError = null;
+  try {
+    child = childProcess.spawn(managedArgv[0], managedArgv.slice(1), {
+      cwd: options.cwd,
+      env: options.env || process.env,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+  } catch (error) {
+    spawnError = error;
+  } finally {
+    process.umask(originalUmask);
+  }
+  if (spawnError) {
+    const cleanup = forceRemoveManagedDockerContainer(control);
+    finish({
+      argv: managedArgv,
+      status: null,
+      signal: null,
+      stdout: "",
+      stderr: "",
+      error: [spawnError.message, cleanup.error].filter(Boolean).join("; "),
+      containerCleanup: cleanup,
+    });
+    return trackAsyncDockerController({ completion, abort });
+  }
+
+  child.stdout.on("data", (chunk) => {
+    if (!capture(chunk, stdoutChunks, "stdout")) return;
+    try {
+      options.onStdoutChunk?.(chunk);
+    } catch {
+      abort("Codex JSONL stream handler failed");
+    }
+  });
+  child.stderr.on("data", (chunk) => {
+    capture(chunk, stderrChunks, "stderr");
+  });
+  child.stdin.on("error", (error) => {
+    if (child.exitCode === null && child.signalCode === null) {
+      abort(`cannot write Codex prompt (${error.code || "unknown error"})`);
+    }
+  });
+  child.once("error", (error) => {
+    abort(`cannot start Docker client (${error.code || "unknown error"})`);
+  });
+  child.once("close", (status, signal) => {
+    clearTimeout(timeout);
+    try {
+      options.onStdoutEnd?.();
+    } catch {
+      notifyAbort("Codex JSONL stream finalization failed");
+    }
+    const cleanup = forceRemoveManagedDockerContainer(control);
+    const stdout = Buffer.concat(stdoutChunks, stdoutBytes).toString("utf8");
+    const stderr = Buffer.concat(stderrChunks, stderrBytes).toString("utf8");
+    const result = {
+      argv: managedArgv,
+      status,
+      signal,
+      stdout,
+      stderr,
+      error: failureReason,
+      containerCleanup: cleanup,
+    };
+    finish(cleanup.error ? appendCommandError(result, cleanup.error) : result);
+  });
+
+  timeout = setTimeout(() => {
+    abort(`Docker client timed out after ${options.timeoutSeconds}s (ETIMEDOUT)`);
+  }, options.timeoutSeconds * 1000);
+  timeout.unref?.();
+  try {
+    child.stdin.end(options.input || "");
+  } catch (error) {
+    abort(`cannot write Codex prompt (${error.code || "unknown error"})`);
+  }
+  return trackAsyncDockerController({ completion, abort });
+}
+
+function authFifoIdentity(authFile, expected = null) {
+  const stat = fs.lstatSync(authFile, { throwIfNoEntry: false });
+  if (!stat || !stat.isFIFO() || stat.isSymbolicLink() || stat.nlink !== 1 ||
+      (stat.mode & 0o7777) !== 0o600 ||
+      (typeof process.getuid === "function" && stat.uid !== process.getuid()) ||
+      (expected && (stat.dev !== expected.dev || stat.ino !== expected.ino))) {
+    fail(`trial auth path is not the expected owner-only FIFO: ${authFile}`, 2);
+  }
+  return { dev: stat.dev, ino: stat.ino };
+}
+
+function verifyEmptyAuthFifo(authFile, expected) {
+  authFifoIdentity(authFile, expected);
+  let descriptor;
+  const probe = Buffer.alloc(1);
+  try {
+    descriptor = fs.openSync(
+      authFile,
+      fs.constants.O_RDONLY | fs.constants.O_NONBLOCK | (fs.constants.O_NOFOLLOW || 0),
+    );
+    const opened = fs.fstatSync(descriptor);
+    if (!opened.isFIFO() || opened.dev !== expected.dev || opened.ino !== expected.ino) {
+      fail(`trial auth FIFO changed while verifying it: ${authFile}`, 2);
+    }
+    if (fs.readSync(descriptor, probe, 0, probe.length, null) !== 0) {
+      fail(`trial auth FIFO retained credential bytes: ${authFile}`, 2);
+    }
+  } finally {
+    probe.fill(0);
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+  }
+  authFifoIdentity(authFile, expected);
+}
+
+function startAuthFifoBroker(sourceAuth, authFile) {
+  return new Promise((resolve, reject) => {
+    let child;
+    try {
+      child = childProcess.spawn(
+        process.execPath,
+        [AUTH_BROKER, "--source", sourceAuth, "--fifo", authFile],
+        { stdio: ["pipe", "pipe", "pipe"] },
+      );
+    } catch (error) {
+      reject(new Error(`cannot start auth FIFO broker (${error.code || "unknown error"})`));
+      return;
+    }
+
+    const stdoutChunks = [];
+    const stderrChunks = [];
+    let stdoutBytes = 0;
+    let stderrBytes = 0;
+    let ready = false;
+    let expectedStop = false;
+    let stopPromise = null;
+    let failureResolved = false;
+    let resolveFailure;
+    let resolveExit;
+    let readySettled = false;
+    let readyError = null;
+    const failure = new Promise((failureResolve) => {
+      resolveFailure = failureResolve;
+    });
+    const exit = new Promise((exitResolve) => {
+      resolveExit = exitResolve;
+    });
+
+    const stdoutText = () => Buffer.concat(stdoutChunks, stdoutBytes).toString("utf8");
+    const stderrText = () => Buffer.concat(stderrChunks, stderrBytes).toString("utf8");
+    const reportFailure = (message) => {
+      if (!failureResolved) {
+        failureResolved = true;
+        resolveFailure(message);
+      }
+    };
+    const rejectReady = (message) => {
+      if (ready || readySettled) return;
+      if (!readyError) readyError = message;
+      child.kill("SIGKILL");
+    };
+    const readyTimer = setTimeout(() => {
+      rejectReady("auth FIFO broker did not become ready");
+    }, 5000);
+
+    const append = (chunk, chunks, streamName) => {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      if ((streamName === "stdout" ? stdoutBytes : stderrBytes) + buffer.length > BROKER_MAX_BUFFER_BYTES) {
+        reportFailure(`auth FIFO broker ${streamName} exceeded its bound`);
+        rejectReady(`auth FIFO broker ${streamName} exceeded its bound`);
+        child.kill("SIGKILL");
+        return false;
+      }
+      chunks.push(buffer);
+      if (streamName === "stdout") stdoutBytes += buffer.length;
+      else stderrBytes += buffer.length;
+      return true;
+    };
+
+    child.stdout.on("data", (chunk) => {
+      if (!append(chunk, stdoutChunks, "stdout")) return;
+      const output = stdoutText();
+      if (!ready) {
+        if (!AUTH_BROKER_READY_LINE.startsWith(output)) {
+          rejectReady("auth FIFO broker emitted an invalid ready line");
+        } else if (output === AUTH_BROKER_READY_LINE && !readyError) {
+          ready = true;
+          readySettled = true;
+          clearTimeout(readyTimer);
+          resolve(handle);
+        }
+      } else if (output !== AUTH_BROKER_READY_LINE) {
+        reportFailure("auth FIFO broker emitted output after its ready line");
+      }
+    });
+    child.stderr.on("data", (chunk) => {
+      if (!append(chunk, stderrChunks, "stderr")) return;
+      const message = "auth FIFO broker emitted stderr";
+      reportFailure(message);
+      rejectReady(message);
+    });
+    child.stdin.on("error", (error) => {
+      if (expectedStop) return;
+      const message = `auth FIFO broker liveness pipe failed (${error.code || "unknown error"})`;
+      reportFailure(message);
+      rejectReady(message);
+    });
+    child.once("error", (error) => {
+      const message = `auth FIFO broker process error (${error.code || "unknown error"})`;
+      reportFailure(message);
+      rejectReady(message);
+    });
+    child.once("exit", (code, signal) => {
+      clearTimeout(readyTimer);
+      resolveExit({ code, signal });
+      if (!ready) {
+        const message = readyError ||
+          `auth FIFO broker exited before ready (exit=${code}; signal=${signal})`;
+        reportFailure(message);
+        if (!readySettled) {
+          readySettled = true;
+          reject(new Error(message));
+        }
+        return;
+      }
+      if (!expectedStop) {
+        const message = `auth FIFO broker exited before credential cutoff (exit=${code}; signal=${signal})`;
+        reportFailure(message);
+        rejectReady(message);
+      } else if (!failureResolved) {
+        failureResolved = true;
+        resolveFailure(null);
+      }
+    });
+
+    const handle = {
+      child,
+      exit,
+      failure,
+      stdoutText,
+      stderrText,
+      markExpectedStop() {
+        const exitedEarly = child.exitCode !== null || child.signalCode !== null;
+        expectedStop = true;
+        return exitedEarly;
+      },
+      get stopPromise() {
+        return stopPromise;
+      },
+      set stopPromise(value) {
+        stopPromise = value;
+      },
+    };
+  });
+}
+
+async function stopAuthFifoBroker(broker) {
+  if (broker.stopPromise) return broker.stopPromise;
+  const exitedBeforeStop = broker.markExpectedStop();
+  broker.stopPromise = (async () => {
+    if (!exitedBeforeStop) {
+      broker.child.stdin.end();
+      broker.child.kill("SIGTERM");
+    }
+    let timeout;
+    const timedOut = Symbol("broker-timeout");
+    let result = await Promise.race([
+      broker.exit,
+      new Promise((resolve) => {
+        timeout = setTimeout(() => resolve(timedOut), 2000);
+      }),
+    ]);
+    clearTimeout(timeout);
+    if (result === timedOut) {
+      broker.child.kill("SIGKILL");
+      result = await broker.exit;
+      return { ...result, error: "auth FIFO broker did not stop after credential cutoff" };
+    }
+    if (exitedBeforeStop) {
+      return { ...result, error: "auth FIFO broker exited before credential cutoff" };
+    }
+    if (result.code !== 0 || result.signal !== null ||
+        broker.stdoutText() !== AUTH_BROKER_READY_LINE || broker.stderrText() !== "") {
+      return { ...result, error: "auth FIFO broker shutdown failed its protocol checks" };
+    }
+    return { ...result, error: null };
+  })();
+  return broker.stopPromise;
+}
+
+async function runCodexWithAuthFifo(executionArgs, prompt, context, sourceAuth, authFile) {
+  throwIfRunnerTerminating();
+  const broker = await startAuthFifoBroker(sourceAuth, authFile);
+  let fifoIdentity;
+  try {
+    throwIfRunnerTerminating();
+    fifoIdentity = authFifoIdentity(authFile);
+  } catch (error) {
+    await stopAuthFifoBroker(broker);
+    throw error;
+  }
+  const decoder = new StringDecoder("utf8");
+  let pending = "";
+  let firstEventSeen = false;
+  let cutoffObserved = false;
+  let controller;
+
+  const stopBrokerAndCheck = async () => {
+    const stopped = await stopAuthFifoBroker(broker);
+    return stopped.error;
+  };
+  const stopBrokerNow = () => {
+    const stopped = stopBrokerAndCheck();
+    stopped.then((error) => {
+      if (error) controller?.abort(error);
+    }).catch(() => {
+      controller?.abort("auth FIFO broker shutdown threw unexpectedly");
+    });
+    return stopped;
+  };
+
+  const processFirstEvent = (line) => {
+    if (firstEventSeen) return;
+    firstEventSeen = true;
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch {
+      stopBrokerNow();
+      controller.abort("Codex JSONL compatibility gate received invalid JSON");
+      return;
+    }
+    if (!isPlainObject(event) || event.type !== "thread.started") {
+      stopBrokerNow();
+      controller.abort("Codex JSONL compatibility gate expected thread.started first");
+      return;
+    }
+    cutoffObserved = true;
+    stopBrokerNow();
+  };
+
+  const onStdoutChunk = (chunk) => {
+    pending += decoder.write(chunk);
+    while (!firstEventSeen) {
+      const newline = pending.indexOf("\n");
+      if (newline < 0) return;
+      const line = pending.slice(0, newline).replace(/\r$/u, "");
+      pending = pending.slice(newline + 1);
+      if (line.trim() === "") continue;
+      processFirstEvent(line.trim());
+    }
+  };
+  const onStdoutEnd = () => {
+    pending += decoder.end();
+    if (!firstEventSeen && pending.trim() !== "") {
+      controller.abort("Codex JSONL compatibility gate received an unterminated first event");
+    } else if (!cutoffObserved) {
+      controller.abort("Codex JSONL compatibility gate never observed thread.started");
+    }
+  };
+
+  try {
+    controller = startManagedDockerContainerAsync(executionArgs, {
+      env: process.env,
+      input: prompt,
+      timeoutSeconds: context.timeoutSeconds + 15,
+      runtimeRoot: context.runtimeRoot,
+      prefix: "trial",
+      onStdoutChunk,
+      onStdoutEnd,
+      onAbort: stopBrokerNow,
+    });
+  } catch (error) {
+    await stopAuthFifoBroker(broker);
+    throw error;
+  }
+  broker.failure.then((reason) => {
+    if (reason) controller.abort(reason);
+  }).catch(() => {
+    controller.abort("auth FIFO broker monitoring failed");
+  });
+
+  let execution = await controller.completion;
+  const brokerError = await stopBrokerAndCheck();
+  if (brokerError) execution = appendCommandError(execution, brokerError);
+  if (!cutoffObserved) {
+    execution = appendCommandError(execution, "credential cutoff was not established at thread.started");
+  }
+  try {
+    verifyEmptyAuthFifo(authFile, fifoIdentity);
+  } catch (error) {
+    execution = appendCommandError(execution, error.message);
+  }
+  return execution;
+}
+
+function preparePrivateOutputRoot(outputDir) {
+  const resolved = path.resolve(outputDir);
+  const parsed = path.parse(resolved);
+  const expectedUid = typeof process.getuid === "function" ? process.getuid() : null;
+  let current = parsed.root;
+  for (const segment of resolved.slice(parsed.root.length).split(path.sep).filter(Boolean)) {
+    const next = path.join(current, segment);
+    const existing = fs.lstatSync(next, { throwIfNoEntry: false });
+    if (existing) {
+      if (!existing.isDirectory() || existing.isSymbolicLink()) {
+        fail(`output path must contain only real directories, not symlinks or hard-linked files: ${next}`, 2);
+      }
+      const trustedOwner = expectedUid === null || existing.uid === expectedUid || existing.uid === 0;
+      const writableByOthers = (existing.mode & 0o022) !== 0;
+      const stickyDirectory = (existing.mode & 0o1000) !== 0;
+      if (!trustedOwner || (writableByOthers && !stickyDirectory)) {
+        fail(`output path traverses an untrusted writable directory: ${next}`, 2);
+      }
+    } else {
+      if (fs.realpathSync(current) !== current) {
+        fail(`output directory path must not traverse a symlink: ${current}`, 2);
+      }
+      fs.mkdirSync(next, { mode: 0o700 });
+      const created = fs.lstatSync(next);
+      if (!created.isDirectory() || created.isSymbolicLink() || fs.realpathSync(next) !== next) {
+        fail(`created output path is not a real directory: ${next}`, 2);
+      }
+    }
+    current = next;
+  }
+  const stat = fs.lstatSync(resolved);
+  if (!stat.isDirectory() || stat.isSymbolicLink() ||
+      (typeof process.getuid === "function" && stat.uid !== process.getuid())) {
+    fail(`output directory must be an owned real directory: ${resolved}`, 2);
+  }
+  if (fs.realpathSync(resolved) !== resolved) {
+    fail(`output directory path must not traverse a symlink: ${resolved}`, 2);
+  }
+  if (fs.readdirSync(resolved).length > 0) {
+    fail(`output directory is not empty: ${resolved}`, 2);
+  }
+  fs.chmodSync(resolved, 0o700);
+  const secured = fs.lstatSync(resolved);
+  if ((secured.mode & 0o7777) !== 0o700) {
+    fail(`cannot secure output directory to mode 0700: ${resolved}`, 2);
+  }
+  return resolved;
+}
+
+function createDefaultPrivateOutputRoot() {
+  const originalUmask = process.umask(0o077);
+  let created;
+  try {
+    created = fs.mkdtempSync(path.join(os.tmpdir(), "ddd-expert-evals-"));
+  } finally {
+    process.umask(originalUmask);
+  }
+  return preparePrivateOutputRoot(created);
+}
+
+function hardenArtifactTree(root) {
+  const expectedUid = typeof process.getuid === "function" ? process.getuid() : null;
+
+  function visit(current) {
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) {
+      fail(`retained artifact must not be a symlink: ${current}`, 2);
+    }
+    if (expectedUid !== null && stat.uid !== expectedUid) {
+      fail(`retained artifact is not owned by the evaluator user: ${current}`, 2);
+    }
+    if (stat.isDirectory()) {
+      fs.chmodSync(current, 0o700);
+      const directory = fs.opendirSync(current);
+      try {
+        let entry;
+        while ((entry = directory.readSync()) !== null) {
+          visit(path.join(current, entry.name));
+        }
+      } finally {
+        directory.closeSync();
+      }
+      return;
+    }
+    if (!stat.isFile() || stat.nlink !== 1) {
+      fail(`retained artifact must be a non-hard-linked regular file: ${current}`, 2);
+    }
+    let descriptor;
+    try {
+      descriptor = fs.openSync(current, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW || 0));
+      const opened = fs.fstatSync(descriptor);
+      if (!opened.isFile() || opened.dev !== stat.dev || opened.ino !== stat.ino || opened.nlink !== 1) {
+        fail(`retained artifact changed while securing it: ${current}`, 2);
+      }
+      fs.fchmodSync(descriptor, 0o600);
+      const secured = fs.fstatSync(descriptor);
+      if ((secured.mode & 0o7777) !== 0o600 || secured.nlink !== 1) {
+        fail(`cannot secure retained artifact to mode 0600: ${current}`, 2);
+      }
+    } finally {
+      if (descriptor !== undefined) fs.closeSync(descriptor);
+    }
+  }
+
+  visit(root);
+}
+
+function writePrivateFile(file, content) {
+  fs.writeFileSync(file, content, { mode: 0o600 });
+  fs.chmodSync(file, 0o600);
 }
 
 function readBoundedTextFile(file, maxBytes = SNAPSHOT_MAX_FILE_BYTES) {
@@ -870,6 +1689,26 @@ function assertion(name, passed, detail) {
   return { name, passed: Boolean(passed), detail };
 }
 
+function propositionAssertion(prefix, content, proposition) {
+  const acceptedEvidence = proposition.accepts.flatMap((phrase) =>
+    semanticPhraseEvidence(content, phrase).map((item) => ({ ...item, phrase })));
+  const rejectedEvidence = proposition.rejects.flatMap((phrase) =>
+    semanticPhraseEvidence(content, phrase).map((item) => ({ ...item, phrase })));
+  const accepted = [
+    ...acceptedEvidence.filter((item) => !item.negated).map((item) => item.phrase),
+    ...rejectedEvidence.filter((item) => item.negated).map((item) => `not (${item.phrase})`),
+  ];
+  const rejected = [
+    ...rejectedEvidence.filter((item) => !item.negated).map((item) => item.phrase),
+    ...acceptedEvidence.filter((item) => item.negated).map((item) => `not (${item.phrase})`),
+  ];
+  return assertion(
+    `${prefix} establishes ${proposition.name}`,
+    accepted.length > 0 && rejected.length === 0,
+    `accepted=${accepted.join(" | ") || "none"}; rejected=${rejected.join(" | ") || "none"}`,
+  );
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -877,6 +1716,7 @@ function escapeRegExp(value) {
 function normalizeSemanticText(value) {
   return value
     .normalize("NFKC")
+    .replace(/\p{Default_Ignorable_Code_Point}/gu, "")
     .toLowerCase()
     .replace(/[_`~[\](){}<>\\|]/gu, " ")
     .replace(/\s+/gu, " ")
@@ -884,37 +1724,196 @@ function normalizeSemanticText(value) {
 }
 
 function isValidSemanticExpectation(value) {
-  return normalizeSemanticText(value).split(" ").every((token) =>
-    !token.includes("*") || /^[a-z0-9][a-z0-9_-]*\*$/u.test(token)
-  );
+  const tokens = normalizeSemanticText(value).split(" ");
+  if (tokens[0] === "..." || tokens[tokens.length - 1] === "..." ||
+      tokens.some((token, index) => token === "..." && tokens[index - 1] === "...")) {
+    return false;
+  }
+  return tokens.every((token) => token === "..." ||
+    !token.includes("*") || /^[a-z0-9][a-z0-9_-]*\*$/u.test(token));
 }
 
-function normalizedSemanticContains(normalizedText, value) {
+function semanticMatchRanges(normalizedText, value) {
   const searchableText = normalizedText.replace(/\*/gu, " ");
   const normalizedValue = normalizeSemanticText(value);
   if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(normalizedValue)) {
-    return searchableText.includes(normalizedValue);
+    const ranges = [];
+    let start = 0;
+    while (start <= searchableText.length) {
+      const index = searchableText.indexOf(normalizedValue, start);
+      if (index < 0) break;
+      ranges.push({ start: index, end: index + normalizedValue.length });
+      start = index + Math.max(1, normalizedValue.length);
+    }
+    return ranges;
   }
-  const phrase = normalizedValue
-    .split(" ")
-    .map((part) => {
-      const wordFamily = part.endsWith("*");
-      const literal = wordFamily ? part.slice(0, -1) : part;
-      const escaped = escapeRegExp(literal);
-      return wordFamily ? `${escaped}[\\p{L}\\p{N}_]*` : escaped;
-    })
-    .join("(?:\\s|[-‐‑‒–—―])+");
-  return new RegExp(`(?:^|[^\\p{L}\\p{N}_])${phrase}(?=$|[^\\p{L}\\p{N}_])`, "u").test(searchableText);
+  const separator = "(?:\\s|[-‐‑‒–—―])+";
+  let phrase = "";
+  let boundedGap = false;
+  for (const part of normalizedValue.split(" ")) {
+    if (part === "...") {
+      boundedGap = true;
+      continue;
+    }
+    const wordFamily = part.endsWith("*");
+    const literal = wordFamily ? part.slice(0, -1) : part;
+    const escaped = escapeRegExp(literal);
+    const tokenPattern = wordFamily ? `${escaped}[\\p{L}\\p{N}_]*` : escaped;
+    if (phrase) {
+      phrase += boundedGap
+        ? `(?:[^.!?;]{0,200}?${separator})`
+        : separator;
+    }
+    phrase += tokenPattern;
+    boundedGap = false;
+  }
+  const matcher = new RegExp(`(^|[^\\p{L}\\p{N}_])(${phrase})(?=$|[^\\p{L}\\p{N}_])`, "gu");
+  const ranges = [];
+  let match;
+  while ((match = matcher.exec(searchableText)) !== null) {
+    const start = match.index + match[1].length;
+    ranges.push({ start, end: start + match[2].length });
+    if (matcher.lastIndex === match.index) matcher.lastIndex += 1;
+  }
+  return ranges;
+}
+
+function normalizedSemanticContains(normalizedText, value) {
+  return semanticMatchRanges(normalizedText, value).length > 0;
+}
+
+function semanticOccurrenceIsNegated(normalizedClause, occurrenceStart) {
+  const prefix = normalizedClause.slice(0, occurrenceStart).trimEnd();
+  const epistemicNegation = new RegExp(
+    "(?:\\b(?:there\\s+(?:is|was)|i\\s+have|we\\s+have)\\s+no\\s+(?:(?:credible|sufficient|reliable|accepted|clear|direct|convincing|available)\\s+)?(?:evidence|reason|basis|support)(?:\\s+(?:to\\s+(?:believe|conclude|infer|establish|say)|that))?|" +
+    "\\b(?:no|insufficient)\\s+(?:(?:credible|sufficient|reliable|accepted|clear|direct|convincing|available)\\s+)?(?:evidence|reason|basis|support)(?:\\s+(?:to\\s+(?:believe|conclude|infer|establish|say)(?:\\s+that)?|that))?|" +
+    "\\b(?:it\\s+is\\s+)?(?:doubtful|unclear|unproven|unsupported|unestablished)\\s+that|" +
+    "\\b(?:i|we|they|the\\s+model|the\\s+(?:(?:available|current|repository|code|documented)\\s+)?evidence)\\s+(?:cannot|can't|could\\s+not|do(?:es)?\\s+not)\\s+(?:conclude|establish|infer|say|show|demonstrate|verify|confirm)(?:\\s+with\\s+confidence)?\\s+that|" +
+    "\\b(?:has|have)\\s+not\\s+been\\s+(?:established|shown|demonstrated|verified|confirmed)\\s+that)$",
+    "u",
+  );
+  if (epistemicNegation.test(prefix)) return true;
+  const decisionVerb = "(?:recommend(?:s|ed|ing)?|propose(?:s|d|ing)?|support(?:s|ed|ing)?|endorse(?:s|d|ing)?|accept(?:s|ed|ing)?|approve(?:s|d|ing)?|authorize(?:s|d|ing)?|confirm(?:s|ed|ing)?|choose|chooses|chose|chosen|prefer(?:s|red|ring)?)";
+  const withheldDecision = new RegExp(
+    `(?:\\b(?:i|we|they|he|she|it|the\\s+model)\\s+)?(?:` +
+    `(?:don|doesn|didn|can|couldn|won|wouldn|shouldn|mustn|needn|isn|aren|wasn|weren|hasn|haven|hadn)['’]t(?:\\s+${decisionVerb})?|` +
+    `(?:refuse|refuses|refused|decline|declines|declined|hesitate|hesitates|hesitated)\\s+to(?:\\s+${decisionVerb})?|` +
+    `(?:am|is|are|was|were|remain|remains|remained)\\s+(?:unable|unwilling|reluctant|hesitant)\\s+to(?:\\s+${decisionVerb})?` +
+    ")$",
+    "u",
+  );
+  if (withheldDecision.test(prefix)) return true;
+  const decisionBridge = "(?:[\\p{L}\\p{N}_]+ly|recommend(?:s|ed|ing)?|accept(?:s|ed|ing)?|approve(?:s|d|ing)?|authorize(?:s|d|ing)?|propose(?:s|d|ing)?|support(?:s|ed|ing)?|confirm(?:s|ed|ing)?|endorse(?:s|d|ing)?|choose|chooses|chose|chosen|prefer(?:s|red|ring)?|that)";
+  return new RegExp(
+    `(?:\\b(?:cannot|can't|never)(?:\\s+${decisionBridge}){0,4}|` +
+    `\\b(?:do|does|did|is|are|was|were|has|have|had|can|could|should|would|will|must|may|might|need|needs)\\s+not(?:\\s+${decisionBridge}){0,4}|` +
+    "\\b(?:not|no)|" +
+    "\\b(?:reject|rejects|rejected|deny|denies|denied|dispute|disputes|disputed)(?:\\s+(?:the|this))?(?:\\s+(?:claim|proposal|idea|conclusion))?(?:\\s+that)?|" +
+    "\\b(?:false|incorrect|wrong)\\s+(?:that|to)|\\b(?:not|hardly)\\s+true\\s+that)$",
+    "u",
+  ).test(prefix);
+}
+
+function semanticPhraseEvidence(content, phrase) {
+  const normalizedContent = normalizeSemanticText(content);
+  const evidence = [];
+  for (const range of semanticMatchRanges(normalizedContent, phrase)) {
+    const prefix = normalizedContent.slice(0, range.start);
+    const boundaries = [...prefix.matchAll(/(?:[!?;]|\.(?=\s|$))\s*/gu)];
+    const clauseStart = boundaries.length > 0
+      ? boundaries[boundaries.length - 1].index + boundaries[boundaries.length - 1][0].length
+      : 0;
+    const clause = normalizedContent.slice(clauseStart);
+    const occurrence = normalizedContent.slice(range.start, range.end);
+    const internalNegation = /\b(?:lack|lacks|lacked|lacking)\b[^.!?;]{0,80}\b(?:authority|ownership|evidence|basis|support)\b/u.test(occurrence) ||
+      /\bwithout\b[^.!?;]{0,80}\b(?:authority|ownership|evidence|basis|support)\b/u.test(occurrence);
+    evidence.push({
+      clause,
+      negated: internalNegation || semanticOccurrenceIsNegated(clause, range.start - clauseStart),
+    });
+  }
+  return evidence;
+}
+
+function focusedQuestionFindings(question) {
+  const normalized = normalizeSemanticText(question).replace(/？/gu, "?");
+  const findings = [];
+  const explicitAdditionalDecision = normalized.match(
+    /\band\s+also\s+(?:(?:do|would|will|should)\s+you\s+|please\s+)?(?:accept|approve|authorize|confirm|choose|decide|select|determine|prefer)\b/u,
+  );
+  if (explicitAdditionalDecision) findings.push(explicitAdditionalDecision[0]);
+  const additionalChoice = normalized.match(
+    /\b(?:and|plus|as well as)\s+(?:(?:do|would|will|should)\s+you\s+|please\s+)?(?:choose|decide|select|determine|prefer)\s+(?:whether|between|among)\b/u,
+  );
+  if (additionalChoice && !findings.includes(additionalChoice[0])) {
+    findings.push(additionalChoice[0]);
+  }
+  const questionEnd = normalized.lastIndexOf("?");
+  const sentenceStart = Math.max(
+    normalized.lastIndexOf(".", questionEnd - 1),
+    normalized.lastIndexOf("!", questionEnd - 1),
+    normalized.lastIndexOf(";", questionEnd - 1),
+  );
+  const interrogative = normalized.slice(sentenceStart + 1, questionEnd >= 0 ? questionEnd : undefined);
+  const secondInterrogative = interrogative.match(
+    /(?:,\s*)?\b(?:and|plus|as\s+well\s+as)\s+(?:(?:whether|who|when|where|how|what|which)\b|(?:should|must|will|would|may|can|could)\s+(?:(?:the|a|an|this|that|these|those|any|each|every)\s+)?[\p{L}\p{N}_-]+\s+(?:be|use|adopt|remain|become|occur|happen|start|end|expire|renew|extend|allow|permit|require|own|decide|establish|publish|send|notify|retry|cancel|complete|accept|reject)\b|(?:do|does|did|is|are|was|were|has|have)\s+(?:you|we|they|it|this|that|these|those|the\s+[\p{L}\p{N}_-]+|an?\s+[\p{L}\p{N}_-]+)\b)/u,
+  );
+  if (secondInterrogative && !findings.includes(secondInterrogative[0])) {
+    findings.push(secondInterrogative[0]);
+  }
+  const secondChineseInterrogative = interrogative.match(
+    /(?:并且|而且|以及|同时)[^?。；;]{0,32}(?:是否|谁|何时|哪里|哪儿|如何|怎么|什么|哪(?:个|些|种|一))/u,
+  );
+  if (secondChineseInterrogative && !findings.includes(secondChineseInterrogative[0])) {
+    findings.push(secondChineseInterrogative[0]);
+  }
+  const coupledImplementation = interrogative.match(
+    /\band\s+(?:(?:the|a|an|our)\s+)?(?:mysql|postgres(?:ql)?|sqlite|mongodb|redis|kafka|rabbitmq|database|persistence(?:\s+engine)?|storage(?:\s+engine)?|repository\s+implementation|framework|transport|wire\s+format|schema)\b/u,
+  );
+  if (coupledImplementation && !findings.includes(coupledImplementation[0])) {
+    findings.push(coupledImplementation[0]);
+  }
+  const implementationAction = interrogative.match(
+    /\band\s+(?:use|using|adopt|choose|select|implement(?:\s+it)?\s+with|persist(?:\s+it)?\s+(?:with|in|using)|store(?:\s+it)?\s+(?:with|in|using))\s+(?:mysql|postgres(?:ql)?|sqlite|mongodb|redis|kafka|rabbitmq|go|golang|java|python|typescript|rust|dotnet|a\s+database|a\s+repository|a\s+framework)\b/u,
+  );
+  if (implementationAction && !findings.includes(implementationAction[0])) {
+    findings.push(implementationAction[0]);
+  }
+  const implementationPurpose = interrogative.match(
+    /\band\s+(?:use|using|adopt|choose|select|implement(?:\s+it)?\s+with|persist(?:\s+it)?\s+(?:with|in|using)|store(?:\s+it)?\s+(?:with|in|using))\s+[\p{L}\p{N}_.+-]+(?:\s+[\p{L}\p{N}_.+-]+){0,2}\s+(?:for|as)\s+(?:the\s+)?(?:persistence|storage|database|repository|messaging|transport|framework|implementation)\b/u,
+  );
+  if (implementationPurpose && !findings.includes(implementationPurpose[0])) {
+    findings.push(implementationPurpose[0]);
+  }
+  const implementationSubjectChoice = interrogative.match(
+    /\band\s+(?:should|must|will)\s+(?:persistence|storage|the\s+repository|messaging|transport|the\s+implementation)\s+(?:use|adopt|be)\b/u,
+  );
+  if (implementationSubjectChoice && !findings.includes(implementationSubjectChoice[0])) {
+    findings.push(implementationSubjectChoice[0]);
+  }
+  const mandatoryMechanism = interrogative.match(
+    /\band\s+(?:[\p{L}\p{N}_.+-]+\s+){0,5}(?:as\s+)?(?:the\s+)?(?:mandatory|required|default|chosen)\s+(?:persistence|storage|database|repository|messaging|transport|framework|implementation)\b/u,
+  );
+  if (mandatoryMechanism && !findings.includes(mandatoryMechanism[0])) {
+    findings.push(mandatoryMechanism[0]);
+  }
+  return findings;
 }
 
 function normalizedProseClauses(content) {
-  return content
+  const clauses = [];
+  for (const line of content
     .normalize("NFKC")
     .replace(/[’]/gu, "'")
     .replace(/\b(does|is|are|was|were|has|have|can|must|should|would|need)n't\b/giu, "$1 not")
-    .split(/[\r\n.!?;]+/u)
-    .map((clause) => clause.trim())
-    .filter(Boolean);
+    .split(/\r?\n/u)) {
+    if (line.trim() === "") {
+      clauses.push("");
+      continue;
+    }
+    clauses.push(...line.split(/[.!?;]+/u).map((clause) => clause.trim()).filter(Boolean));
+  }
+  return clauses;
 }
 
 function proseTokens(clause) {
@@ -938,15 +1937,26 @@ function identifierFormatFindings(content, expectedIdentifiers) {
     "store", "stores", "stored", "generate", "generates", "generated",
     "represent", "represents", "represented", "prescribe", "prescribes",
     "prescribed", "mandate", "mandates", "mandated", "enforce", "enforces",
-    "enforced", "apply", "applies", "applied",
+    "enforced", "apply", "applies", "applied", "accept", "accepts",
+    "accepted", "start", "starts", "started", "begin", "begins", "began",
+    "end", "ends", "ended",
   ]);
-  const formatSignal = /\b(?:UUID(?:[ -]?v?\d+)?|GUID|ULID|KSUID|CUID2?|NanoID|Snowflake(?:[ -]ID)?|ObjectID|RFC[ -]?\d{3,5}|regex|regular[ -]expression|pattern|fixed[ -]length|lowercase|uppercase|base(?:16|32|36|58|62|64)|hex(?:adecimal)?|format(?:ted|ting)?|normaliz(?:e[ds]?|ation|ing)|prefix(?:ed)?|suffix(?:ed)?|auto[ -]increment(?:ed|ing)?|sequential(?:ly)?|numeric|integer|alphanumeric|validity)\b|\[[^\]\r\n]{1,80}\]\s*\{\d+(?:,\d*)?\}|\b\d+\s*[- ]?(?:character|char|digit|symbol|byte|bit)s?\b/giu;
+  const denialVerbs = new Set([
+    "reject", "rejects", "rejected", "forbid", "forbids", "forbidden",
+    "prohibit", "prohibits", "prohibited", "exclude", "excludes", "excluded",
+    "avoid", "avoids", "avoided", "disallow", "disallows", "disallowed",
+  ]);
+  const formatSignal = /\b(?:UUID(?:[ -]?v?\d+)?|GUID|ULID|KSUID|CUID2?|NanoID|Snowflake(?:[ -]ID)?|ObjectID|RFC[ -]?\d{3,5}|regex|regular[ -]expression|pattern|fixed[ -]length|lowercase|uppercase|base(?:16|32|36|58|62|64)|hex(?:adecimal)?|format(?:ted|ting)?|normaliz(?:e[ds]?|ation|ing)|prefix(?:ed)?|suffix(?:ed)?|auto[ -]increment(?:ed|ing)?|sequential(?:ly)?|numeric|integer|alphanumeric|validity)\b|\b(?:length|size)(?:\s+(?:is|of|equals?))?\s*[:=]?\s*\d+\b|\b(?:starts?|begins?|ends?)\s+with\s+[`'"]?[\p{L}\p{N}_-]+|\[[^\]\r\n]{1,80}\]\s*(?:[+*?]|\{\d+(?:,\d*)?\})|\b\d+\s*[- ]?(?:character|char|digit|symbol|byte|bit)s?\b|\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|(?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[\s\-‐‑‒–—―]+(?:one|two|three|four|five|six|seven|eight|nine))?|hundred)\s+(?:character|char|digit|symbol|byte|bit)s?\b|\b(?:ASCII[\s\-‐‑‒–—―]+)?(?:capital|small|upper[\s\-‐‑‒–—―]*case|lower[\s\-‐‑‒–—―]*case)\s+letters?\b|\bdecimal\s+(?:digits?|numerals?)\b/giu;
   const findings = [];
 
-  function signalIsNegated(tokens, signalStart) {
+  function signalIsNegated(clause, tokens, signalStart) {
+    const prefix = clause.slice(Math.max(0, signalStart - 80), signalStart);
     const before = tokens.filter((token) => token.end <= signalStart);
-    return before.slice(-4).some((token) =>
-      ["no", "not", "never", "without", "neither", "nor"].includes(token.value));
+    const leadingNegativeNominal = ["no", "neither"].includes(before[0]?.value) &&
+      !before.some((token) => relevantVerbs.has(token.value) || denialVerbs.has(token.value));
+    return leadingNegativeNominal ||
+      /\b(?:no|not|never|without|neither|nor)\s+(?:an?\s+)?$/iu.test(prefix) ||
+      /\b(?:rather than|instead of|as opposed to)\s+(?:an?\s+)?$/iu.test(prefix);
   }
 
   function relationshipIsNegated(clause, verb, signal, direction) {
@@ -963,11 +1973,28 @@ function identifierFormatFindings(content, expectedIdentifiers) {
       /\bnever\b/iu.test(between);
   }
 
+  let activeIdentifiers = [];
+  let identifierCarryBudget = 0;
   for (const clause of normalizedProseClauses(content)) {
+    if (clause === "") {
+      activeIdentifiers = [];
+      identifierCarryBudget = 0;
+      continue;
+    }
     const tokens = proseTokens(clause);
-    const identifiers = tokens.filter((token) => expected.some((name) =>
+    const explicitIdentifiers = tokens.filter((token) => expected.some((name) =>
       token.value === name || (token.value.endsWith(name) && /^[a-z][a-z0-9]*id$/u.test(token.value))));
-    if (identifiers.length === 0) continue;
+    const carriesIdentifier = /^(?:it|its|this\s+(?:identity|identifier|value)|the\s+(?:identity|identifier|value))\b/iu.test(clause);
+    const identifiers = explicitIdentifiers.length > 0
+      ? explicitIdentifiers
+      : carriesIdentifier && identifierCarryBudget > 0
+        ? activeIdentifiers.map((value) => ({ value, start: 0, end: 0 }))
+        : [];
+    if (identifiers.length === 0) {
+      activeIdentifiers = [];
+      identifierCarryBudget = 0;
+      continue;
+    }
 
     formatSignal.lastIndex = 0;
     let match;
@@ -979,19 +2006,30 @@ function identifierFormatFindings(content, expectedIdentifiers) {
           : candidate.start - signal.end;
         return !nearest || distance < nearest.distance ? { ...candidate, distance } : nearest;
       }, null);
-      if (!identifier || signalIsNegated(tokens, signal.index)) continue;
+      if (!identifier || signalIsNegated(clause, tokens, signal.index)) continue;
 
       const forward = identifier.end <= signal.index;
       const betweenTokens = tokens.filter((token) => forward
         ? token.start >= identifier.end && token.end <= signal.index
         : token.start >= signal.end && token.end <= identifier.start);
-      const verbs = betweenTokens.filter((token) => relevantVerbs.has(token.value));
-      const verb = verbs.length > 0 ? verbs[verbs.length - 1] : null;
+      const relationshipTokens = betweenTokens.filter((token) =>
+        relevantVerbs.has(token.value) || denialVerbs.has(token.value));
+      const relationship = relationshipTokens.length > 0
+        ? relationshipTokens[relationshipTokens.length - 1]
+        : null;
+      const verb = relationship && relevantVerbs.has(relationship.value) ? relationship : null;
       const direction = forward ? "forward" : "reverse";
+      if (relationship && denialVerbs.has(relationship.value)) continue;
       if (relationshipIsNegated(clause, verb, signal, direction)) continue;
       if (!verb && identifier.distance > 60) continue;
 
       findings.push(`${identifier.value} ${signal.text}: ${clause.slice(0, 240)}`);
+    }
+    if (explicitIdentifiers.length > 0) {
+      activeIdentifiers = [...new Set(explicitIdentifiers.map((identifier) => identifier.value))];
+      identifierCarryBudget = 3;
+    } else if (carriesIdentifier) {
+      identifierCarryBudget -= 1;
     }
   }
   return findings;
@@ -1003,18 +2041,83 @@ function temporaryTraceFindings(content) {
   let match;
   while ((match = heading.exec(content)) !== null) {
     const title = normalizeSemanticText(match[1]);
-    const subject = /\b(?:source(?:[\s\-‐‑‒–—―]+item)?|story|scenario|discovery)\b/u;
-    const traceKind = /\b(?:coverage|trace|traceability|ledger|mapping)\b/u;
+    const subject = /\b(?:source(?:[\s\-‐‑‒–—―]+(?:item|locator))?|story|scenario|discovery|requirements?|acceptance[\s\-‐‑‒–—―]+criteria|use[\s\-‐‑‒–—―]+case|provenance|input)\b/u;
+    const traceKind = /\b(?:coverage|trace|traceability|ledger|mapping|matrix|index|status|crosswalk|reconciliation|accounting|disposition|register)\b/u;
     if ((subject.test(title) && traceKind.test(title)) ||
-        /^(?:traceability|coverage ledger|discovery ledger)$/u.test(title)) {
+        /^(?:traceability|coverage ledger|discovery ledger|requirements matrix|traceability matrix|story crosswalk|source reconciliation)$/u.test(title)) {
       findings.push(`heading: ${match[0]}`);
     }
   }
+  let sourceContainerDepth = null;
+  let traceTableActive = false;
   for (const line of content.split(/\r?\n/u)) {
     const normalized = normalizeSemanticText(line);
-    if (/\b(?:story|source(?:[\s\-‐‑‒–—―]+item)|scenario)\s+(?:id\s+)?[#a-z0-9_-]+\s*(?:-|→|=>|maps? to|covered by)/u.test(normalized) ||
+    const atxHeading = line.match(/^(#{1,6})\s+(.+)$/u);
+    if (atxHeading) {
+      traceTableActive = false;
+      const depth = atxHeading[1].length;
+      const title = normalizeSemanticText(atxHeading[2]);
+      if (sourceContainerDepth !== null && depth <= sourceContainerDepth) {
+        sourceContainerDepth = null;
+      }
+      if (/^(?:inputs?|source(?: items?| locators?)?|stories|scenarios|requirements?|acceptance criteria|use cases?)$/u.test(title)) {
+        sourceContainerDepth = depth;
+      }
+      continue;
+    }
+    if (!/^\s*\|.*\|\s*$/u.test(line) && line.trim() !== "") {
+      traceTableActive = false;
+    }
+    const projectSourceMapping = line.match(
+      /^\s*(?:(?:[-+*]|\d+[.)])\s+)?(?:#\d+|[A-Z][A-Z0-9]{1,15}[-_]\d+[A-Z0-9_-]*)\s*(?:->|→|=>|maps?\s+to|mapped\s+to|traces?\s+to|corresponds?\s+to|(?:is\s+)?(?:covered|represented|realized|satisfied)\s+by|(?:is\s+)?accounted\s+for)\s+(.+)$/u,
+    );
+    if (projectSourceMapping &&
+        /\b(?:aggregate|lifecycle|model|context\s+map|design|section|invariant|policy|domain\s+event|integration\s+message|value\s+object|entity|bounded\s+context)\b/iu.test(projectSourceMapping[1])) {
+      findings.push(`trace project-id mapping: ${line.slice(0, 240)}`);
+    }
+    const sourceLocatorMapping = line.match(
+      /^\s*(?:(?:[-+*]|\d+[.)])\s+)?(?:[\p{L}\p{N}_.-]+\/)*[\p{L}\p{N}_.-]+\.(?:md|txt|feature)(?::\d+(?:-\d+)?)?\s*(?:->|→|=>|maps?\s+to|mapped\s+to|traces?\s+to|corresponds?\s+to|(?:is\s+)?(?:covered|represented|realized|satisfied)\s+by|(?:is\s+)?accounted\s+for)\s+(.+)$/iu,
+    );
+    if (sourceLocatorMapping &&
+        /\b(?:aggregate|lifecycle|model|context\s+map|design|section|invariant|policy|domain\s+event|integration\s+message|value\s+object|entity|bounded\s+context)\b/iu.test(sourceLocatorMapping[1])) {
+      findings.push(`trace source-locator mapping: ${line.slice(0, 240)}`);
+    }
+    if (sourceContainerDepth !== null) {
+      const sourceDescriptionMapping = line.match(
+        /^\s*(?:(?:[-+*]|\d+[.)])\s+)?(.{2,160}?)\s*(?:->|→|=>|maps?\s+to|mapped\s+to|traces?\s+to|corresponds?\s+to|(?:is\s+)?(?:covered|represented|realized|satisfied)\s+by|(?:is\s+)?accounted\s+for)\s+(.+)$/iu,
+      );
+      if (sourceDescriptionMapping &&
+          /\b(?:aggregate|lifecycle|model|context\s+map|design|section|invariant|policy|domain\s+event|integration\s+message|value\s+object|entity|bounded\s+context)\b/iu.test(sourceDescriptionMapping[2])) {
+        findings.push(`trace source-description mapping: ${line.slice(0, 240)}`);
+      }
+    }
+    if (/^\s*(?:(?:[-+*]|\d+[.)])\s+)?#?(?:us|ac|req|fr|nfr|story|scenario|uc|br)[- ]?\d+[a-z0-9-]*\s*(?:-(?=\s)|→(?=\s)|=>(?=\s)|(?:maps? to|mapped to|traces? to|corresponds? to|(?:is )?(?:covered|represented|realized|satisfied) by|(?:is )?accounted for)\b)/u.test(normalized)) {
+      findings.push(`trace source-id mapping: ${line.slice(0, 240)}`);
+    }
+    if (/\b(?:story|source(?:[\s\-‐‑‒–—―]+item)|scenario)\s+(?:id\s+)?[#a-z0-9_-]+\s*(?:-|→|=>|maps? to|traces? to|corresponds? to|(?:is )?(?:covered|represented|realized|satisfied) by|(?:is )?accounted for)/u.test(normalized) ||
         /\b(?:covered|uncovered|deferred)\s+(?:source(?:[\s\-‐‑‒–—―]+item)|story|scenario)\b/u.test(normalized)) {
       findings.push(`trace row: ${line.slice(0, 240)}`);
+    }
+    if (/^\s*(?:[-+*]|\d+[.)])\s+(?:source(?:[\s\-‐‑‒–—―]+item)?|story|scenario|requirements?|acceptance[\s\-‐‑‒–—―]+criteria|use[\s\-‐‑‒–—―]+case|input)\s+(?:id\s+)?[#a-z0-9_-]+\s+(?:is\s+)?(?:represented|included|incorporated|addressed|accounted(?:[\s\-‐‑‒–—―]+for)?|mapped)\s+(?:in|into|by)\s+(?:the\s+)?(?:domain\s+)?(?:model|aggregate(?:[\s\-‐‑‒–—―]+design)?|context[\s\-‐‑‒–—―]+map|design|section)\b/u.test(normalized)) {
+      findings.push(`trace mapping row: ${line.slice(0, 240)}`);
+    }
+    if (/^\s*\|.*\|\s*$/u.test(line)) {
+      const cells = line.split("|").slice(1, -1).map((cell) => normalizeSemanticText(cell));
+      const declaresSourceColumn = cells.some((cell) =>
+        /^(?:item|input|source(?: item| locator)?|story|scenario|requirement|acceptance criteria|use case)$/u.test(cell));
+      const declaresTraceColumn = cells.some((cell) =>
+        /^(?:coverage|status|disposition|mapped to|represented by|realized in|satisfied by|model target|design target|trace)$/u.test(cell));
+      if (declaresSourceColumn && declaresTraceColumn) traceTableActive = true;
+      const hasCoverageStatus = cells.some((cell) =>
+        /^(?:covered|uncovered|deferred|mapped|accounted(?: for)?|not covered|pending coverage|included|excluded|represented|incorporated|addressed|omitted)$/u.test(cell));
+      const hasSourceLocator = cells.some((cell) =>
+        /^(?:[#a-z]{0,12}-?\d+[a-z0-9_-]*|[^|]+\.(?:md|txt|feature)(?::\d+(?:-\d+)?)?)$/u.test(cell));
+      const hasTacticalTarget = cells.some((cell) =>
+        /\b(?:aggregate|lifecycle|model|context map|design|section|invariant|policy|domain event|integration message|value object|entity|bounded context)\b/u.test(cell));
+      if (cells.length >= 3 && hasCoverageStatus &&
+          (hasSourceLocator || ((sourceContainerDepth !== null || traceTableActive) && hasTacticalTarget))) {
+        findings.push(`trace matrix row: ${line.slice(0, 240)}`);
+      }
     }
   }
   return findings;
@@ -1097,6 +2200,23 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
       `first question excludes ${needle}`,
       !normalizedSemanticContains(normalizedFirstQuestion, needle),
       `got ${firstQuestion || "(none)"}`,
+    ));
+  }
+  for (const proposition of expect.questions.propositions || []) {
+    assertions.push(propositionAssertion("first question", firstQuestion, proposition));
+  }
+  if (result.questions.length > 0) {
+    const questionMarks = (firstQuestion.match(/[?？]/gu) || []).length;
+    assertions.push(assertion(
+      "first question is a single question",
+      questionMarks === 1,
+      `found ${questionMarks} question marks`,
+    ));
+    const focusFindings = focusedQuestionFindings(firstQuestion);
+    assertions.push(assertion(
+      "first question requests one focused decision",
+      focusFindings.length === 0,
+      focusFindings.join(" | ") || "one decision focus",
     ));
   }
 
@@ -1230,6 +2350,13 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
         "normalized semantic exclusion check",
       ));
     }
+    for (const proposition of fileExpectation.propositions || []) {
+      assertions.push(propositionAssertion(
+        `file ${fileExpectation.path}`,
+        content,
+        proposition,
+      ));
+    }
     if ((fileExpectation.identifiers_without_format || []).length > 0) {
       const findings = identifierFormatFindings(content, fileExpectation.identifiers_without_format);
       assertions.push(assertion(
@@ -1331,8 +2458,9 @@ function installCodexPlugin(tempRoot, codexBin, marketplaceRoot, expectedPluginH
   if (!fs.statSync(sourceAuth, { throwIfNoEntry: false })?.isFile()) {
     fail(`Codex auth not found at ${sourceAuth}; run codex login first`, 2);
   }
-  fs.copyFileSync(sourceAuth, path.join(codexHome, "auth.json"));
-  fs.chmodSync(path.join(codexHome, "auth.json"), 0o600);
+  const installedAuth = path.join(codexHome, "auth.json");
+  fs.copyFileSync(sourceAuth, installedAuth);
+  fs.chmodSync(installedAuth, 0o600);
   const env = { ...process.env, CODEX_HOME: codexHome };
   requireSuccess(
     runCommand([codexBin, "plugin", "marketplace", "add", marketplaceRoot, "--json"], { env, timeoutSeconds: 60 }),
@@ -1362,6 +2490,7 @@ function installCodexPlugin(tempRoot, codexBin, marketplaceRoot, expectedPluginH
     pluginCacheRelative: path.relative(codexHome, pluginCache),
     pluginHash: installedHash,
     marketplaceRoot,
+    authSource: installedAuth,
   };
 }
 
@@ -1376,7 +2505,11 @@ function ensureContainerImage(image) {
   }
   const id = runCommand(["docker", "image", "inspect", image, "--format", "{{.Id}}"], { timeoutSeconds: 30 });
   requireSuccess(id, `docker image inspect ${image}`);
-  return id.stdout.trim();
+  const imageId = id.stdout.trim();
+  if (!/^sha256:[0-9a-f]{64}$/u.test(imageId)) {
+    fail(`docker image inspect returned a non-immutable image ID for ${image}`, 2);
+  }
+  return imageId;
 }
 
 function snapshotCases(cases, runtimeRoot) {
@@ -1411,31 +2544,52 @@ function buildContainerCheckArgs(check, workspace, context, trialPluginCache) {
     "--mount", validatorMount,
     "-v", `${workspace}:/workspace:ro`, "-w", "/workspace",
     "--mount", readOnlyGitMetadataMount(workspace),
-    context.containerImage, ...check.argv,
+    context.containerImage,
+    "/usr/bin/timeout", "--signal=TERM", "--kill-after=5s", `${check.timeout_seconds}s`,
+    ...check.argv,
   ];
 }
 
 function runContainerCheck(check, workspace, context, trialPluginCache) {
-  return runCommand(
+  return runManagedDockerContainer(
     buildContainerCheckArgs(check, workspace, context, trialPluginCache),
-    { timeoutSeconds: check.timeout_seconds },
+    {
+      timeoutSeconds: check.timeout_seconds + 10,
+      runtimeRoot: context.runtimeRoot,
+      prefix: "check",
+    },
   );
 }
 
-function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
+async function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
+  throwIfRunnerTerminating();
   const retrySuffix = infrastructureAttempt === 1 ? "" : `-infra-${infrastructureAttempt}`;
   const trialName = `${loadedCase.config.id}-run-${trialNumber}${retrySuffix}`;
   const trialRoot = path.join(context.outputDir, "trials", trialName);
   const workspace = path.join(trialRoot, "workspace");
   const modelOutput = path.join(trialRoot, "model-output");
   const trialCodexHome = path.join(context.runtimeRoot, "trial-homes", trialName);
-  fs.mkdirSync(trialRoot, { recursive: true });
-  fs.mkdirSync(modelOutput, { recursive: true });
-  fs.cpSync(context.codexHome, trialCodexHome, { recursive: true });
+  const authFile = path.join(trialCodexHome, "auth.json");
+  const installedAuth = path.resolve(context.authSource);
+  if (installedAuth !== path.join(path.resolve(context.codexHome), "auth.json")) {
+    fail("installed auth source must be the root auth.json in the isolated Codex home", 2);
+  }
+  fs.mkdirSync(trialRoot, { recursive: true, mode: 0o700 });
+  fs.mkdirSync(modelOutput, { recursive: true, mode: 0o700 });
+  fs.chmodSync(path.join(context.outputDir, "trials"), 0o700);
+  fs.chmodSync(trialRoot, 0o700);
+  fs.chmodSync(modelOutput, 0o700);
+  fs.cpSync(context.codexHome, trialCodexHome, {
+    recursive: true,
+    filter: (source) => path.resolve(source) !== installedAuth,
+  });
+  fs.chmodSync(trialCodexHome, 0o700);
   fs.cpSync(loadedCase.workspacePath, workspace, { recursive: true });
   const baseline = initializeGit(workspace);
   const trialPluginCache = path.join(trialCodexHome, context.pluginCacheRelative);
-  const authFile = path.join(trialCodexHome, "auth.json");
+  if (fs.lstatSync(authFile, { throwIfNoEntry: false })) {
+    fail("trial home copied the retained auth source before broker startup", 2);
+  }
 
   const resultFile = path.join(modelOutput, "result.json");
   // Collaboration resolves child workers through the registered root thread.
@@ -1479,20 +2633,39 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
     "-v", `${modelOutput}:/artifacts:rw`,
     "-v", `${context.resultSchema}:/eval/result.schema.json:ro`,
     "-v", `${context.codexBinary}:/usr/local/bin/codex:ro`,
-    "-w", "/workspace", context.containerImage, "/usr/local/bin/codex",
+    "-w", "/workspace", context.containerImage,
+    "/usr/bin/timeout", "--signal=TERM", "--kill-after=10s", `${context.timeoutSeconds}s`,
+    "/usr/local/bin/codex",
     ...codexArgs.slice(0, 1), "--dangerously-bypass-approvals-and-sandbox", ...codexArgs.slice(1),
   ];
 
   const startedAt = Date.now();
   const prompt = buildPrompt(loadedCase);
-  fs.writeFileSync(path.join(trialRoot, "prompt.txt"), `${prompt}\n`);
-  const execution = runCommand(executionArgs, {
-    env: process.env,
-    input: prompt,
-    timeoutSeconds: context.timeoutSeconds,
-  });
-  fs.writeFileSync(path.join(trialRoot, "trace.jsonl"), execution.stdout);
-  fs.writeFileSync(path.join(trialRoot, "stderr.log"), execution.stderr);
+  writePrivateFile(path.join(trialRoot, "prompt.txt"), `${prompt}\n`);
+  let execution;
+  try {
+    execution = await runCodexWithAuthFifo(
+      executionArgs,
+      prompt,
+      context,
+      context.authSource,
+      authFile,
+    );
+  } catch (error) {
+    if (requestedTerminationSignal) throw error;
+    execution = {
+      argv: executionArgs,
+      status: null,
+      signal: null,
+      stdout: "",
+      stderr: "",
+      error: `auth FIFO trial setup failed: ${error.message}`,
+      containerCleanup: { error: null, label: null, name: null },
+    };
+  }
+  throwIfRunnerTerminating();
+  writePrivateFile(path.join(trialRoot, "trace.jsonl"), execution.stdout);
+  writePrivateFile(path.join(trialRoot, "stderr.log"), execution.stderr);
 
   let parsed = null;
   let parseError = null;
@@ -1519,7 +2692,7 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
   const gitMetadataMutation = gitMetadataChanges(workspace, baseline);
   const postTrialWorkspaceSnapshot = workspaceFileSnapshot(workspace);
   const unsafeWorkspaceEntries = workspaceUnsafeEntries(workspace, postTrialWorkspaceSnapshot);
-  const executionInfrastructureFailure = execution.status !== 0 || !parsed || !pluginUnchanged;
+  const executionInfrastructureFailure = execution.status !== 0 || Boolean(execution.error) || !parsed || !pluginUnchanged;
   const infrastructureFailure = executionInfrastructureFailure &&
     gitMetadataMutation.length === 0 && unsafeWorkspaceEntries.length === 0;
   let grade;
@@ -1550,7 +2723,7 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
     };
   } else if (infrastructureFailure) {
     const reasons = [
-      execution.status !== 0 ? `exit=${execution.status}; signal=${execution.signal}` : null,
+      execution.status !== 0 || execution.error ? `exit=${execution.status}; signal=${execution.signal}; error=${execution.error || "none"}` : null,
       !parsed ? execution.error || parseError || "missing structured result" : null,
       !pluginUnchanged ? pluginIntegrityError || "installed ddd-expert cache changed during the trial" : null,
     ].filter(Boolean);
@@ -1571,7 +2744,7 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
     });
   }
 
-  return {
+  const trialResult = {
     scenarioId: loadedCase.config.id,
     trial: trialNumber,
     infrastructureAttempt,
@@ -1587,11 +2760,14 @@ function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
       pluginUnchanged,
       pluginIntegrityError,
       gitMetadataUnchanged: gitMetadataMutation.length === 0,
+      containerCleanup: execution.containerCleanup,
     },
     result: parsed,
     grade,
     artifactPath: trialRoot,
   };
+  hardenArtifactTree(trialRoot);
+  return trialResult;
 }
 
 function parseArgs(argv) {
@@ -1679,16 +2855,109 @@ function selfTestCommand() {
     if (JSON.stringify([...RESULT_COMPLETIONS].sort()) !== JSON.stringify(expectedCompletions.sort())) {
       fail(`result schema completion values differ: ${RESULT_COMPLETIONS.join(", ")}`, 2);
     }
+    const expectFailure = (operation, pattern, label) => {
+      try {
+        operation();
+      } catch (error) {
+        if (pattern.test(error.message)) return;
+        fail(`${label} failed for the wrong reason: ${error.message}`, 2);
+      }
+      fail(`${label} unexpectedly succeeded`, 2);
+    };
+    const originalUmask = process.umask(0o002);
+    try {
+      const privateOutput = preparePrivateOutputRoot(path.join(tempRoot, "private-output"));
+      const nestedOutput = path.join(privateOutput, "trials", "one");
+      fs.mkdirSync(nestedOutput, { recursive: true, mode: 0o777 });
+      fs.writeFileSync(path.join(nestedOutput, "copied.txt"), "private\n", { mode: 0o666 });
+      writePrivateFile(path.join(privateOutput, "summary.json"), "{}\n");
+      hardenArtifactTree(privateOutput);
+      for (const directory of [privateOutput, path.join(privateOutput, "trials"), nestedOutput]) {
+        if ((fs.lstatSync(directory).mode & 0o7777) !== 0o700) {
+          fail(`private artifact directory does not have mode 0700: ${directory}`, 2);
+        }
+      }
+      for (const file of [path.join(nestedOutput, "copied.txt"), path.join(privateOutput, "summary.json")]) {
+        if ((fs.lstatSync(file).mode & 0o7777) !== 0o600) {
+          fail(`private artifact file does not have mode 0600: ${file}`, 2);
+        }
+      }
+
+      const linkTarget = path.join(tempRoot, "output-link-target");
+      fs.mkdirSync(linkTarget, { mode: 0o700 });
+      const linkedOutput = path.join(tempRoot, "linked-output");
+      fs.symlinkSync(linkTarget, linkedOutput);
+      expectFailure(
+        () => preparePrivateOutputRoot(linkedOutput),
+        /symlink|real directory/u,
+        "private output symlink check",
+      );
+
+      const traversalTarget = path.join(tempRoot, "output-traversal-target");
+      fs.mkdirSync(traversalTarget, { mode: 0o700 });
+      const traversalLink = path.join(tempRoot, "output-traversal-link");
+      fs.symlinkSync(traversalTarget, traversalLink);
+      expectFailure(
+        () => preparePrivateOutputRoot(path.join(traversalLink, "created")),
+        /symlink|real director/u,
+        "private output ancestor symlink check",
+      );
+      if (fs.existsSync(path.join(traversalTarget, "created"))) {
+        fail("private output ancestor symlink check wrote through the symlink before rejecting it", 2);
+      }
+
+      const writableParent = path.join(tempRoot, "untrusted-writable-output-parent");
+      fs.mkdirSync(writableParent, { mode: 0o777 });
+      fs.chmodSync(writableParent, 0o777);
+      expectFailure(
+        () => preparePrivateOutputRoot(path.join(writableParent, "created")),
+        /untrusted writable directory/u,
+        "private output writable ancestor check",
+      );
+      if (fs.existsSync(path.join(writableParent, "created"))) {
+        fail("private output writable ancestor check created a directory before rejecting its parent", 2);
+      }
+
+      const hardlinkSource = path.join(tempRoot, "output-hardlink-source");
+      fs.writeFileSync(hardlinkSource, "source\n", { mode: 0o644 });
+      const hardlinkedOutput = path.join(tempRoot, "hardlinked-output");
+      fs.linkSync(hardlinkSource, hardlinkedOutput);
+      expectFailure(
+        () => preparePrivateOutputRoot(hardlinkedOutput),
+        /hard-linked|real directory/u,
+        "private output hardlink check",
+      );
+
+      const hardlinkTree = preparePrivateOutputRoot(path.join(tempRoot, "hardlink-tree"));
+      const outsideArtifact = path.join(tempRoot, "outside-artifact");
+      fs.writeFileSync(outsideArtifact, "outside\n", { mode: 0o644 });
+      fs.linkSync(outsideArtifact, path.join(hardlinkTree, "linked-artifact"));
+      expectFailure(
+        () => hardenArtifactTree(hardlinkTree),
+        /non-hard-linked/u,
+        "retained artifact hardlink check",
+      );
+      if ((fs.lstatSync(outsideArtifact).mode & 0o7777) !== 0o644) {
+        fail("retained artifact hardlink check changed the outside inode mode", 2);
+      }
+    } finally {
+      process.umask(originalUmask);
+    }
     const trialPluginCache = path.join(tempRoot, "trial-plugin-cache");
+    const selfTestImageId = `sha256:${"a".repeat(64)}`;
     const containerCheckArgs = buildContainerCheckArgs(
       {
         argv: ["node", "/eval/validate-context-map.mjs", "docs/ddd-expert/context-map.md"],
         timeout_seconds: 30,
       },
       "/tmp/trial-workspace",
-      { containerImage: "ddd-expert-eval:self-test" },
+      { containerImage: selfTestImageId },
       trialPluginCache,
     );
+    const imageIndex = containerCheckArgs.indexOf(selfTestImageId);
+    if (imageIndex < 0 || containerCheckArgs[imageIndex + 1] !== "/usr/bin/timeout") {
+      fail(`container check did not execute the immutable image with an in-container timeout: ${containerCheckArgs.join(" ")}`, 2);
+    }
     const expectedValidatorMount = `type=bind,src=${path.join(trialPluginCache, "scripts", "validate-context-map.mjs")},dst=/eval/validate-context-map.mjs,readonly`;
     const validatorMountIndex = containerCheckArgs.indexOf(expectedValidatorMount);
     if (validatorMountIndex < 1 || containerCheckArgs[validatorMountIndex - 1] !== "--mount") {
@@ -1837,6 +3106,28 @@ function selfTestCommand() {
       fail("scorer suppressed an unsafe mode on a new artifact directory", 2);
     }
     fs.rmSync(unsafeParent, { recursive: true, force: true });
+    const hardlinkWorkspace = path.join(tempRoot, "hardlink-workspace");
+    fs.mkdirSync(hardlinkWorkspace, { recursive: true });
+    fs.writeFileSync(path.join(hardlinkWorkspace, "left.md"), "same bytes\n");
+    fs.writeFileSync(path.join(hardlinkWorkspace, "right.md"), "same bytes\n");
+    const hardlinkBaseline = initializeGit(hardlinkWorkspace);
+    fs.rmSync(path.join(hardlinkWorkspace, "right.md"));
+    fs.linkSync(
+      path.join(hardlinkWorkspace, "left.md"),
+      path.join(hardlinkWorkspace, "right.md"),
+    );
+    let refusedHardlinkTopology = false;
+    try {
+      changedPaths(hardlinkWorkspace, hardlinkBaseline);
+    } catch (error) {
+      refusedHardlinkTopology = error.exitCode === 2 &&
+        error.message.includes("cannot be inspected safely");
+    }
+    if (!refusedHardlinkTopology ||
+        !workspaceUnsafeEntries(hardlinkWorkspace).includes("left.md") ||
+        !workspaceUnsafeEntries(hardlinkWorkspace).includes("right.md")) {
+      fail("bounded workspace traversal accepted a hard-link topology substitution", 2);
+    }
     const metadataWorkspace = path.join(tempRoot, "git-metadata-workspace");
     fs.mkdirSync(metadataWorkspace, { recursive: true });
     fs.writeFileSync(path.join(metadataWorkspace, "domain.md"), "accepted baseline\n");
@@ -2288,11 +3579,47 @@ function selfTestCommand() {
       scenario_id: existingBaselineConfig.id,
       completion: "needs_clarification",
       questions: [
-        "Repository evidence in README and docs/architecture.md suggests this provisional candidate baseline: Agent Execution owns run admission, execution identity, lease fencing, and terminal execution outcomes; it is upstream and fans out to Work, which owns business completion, and Project Knowledge, which owns Candidate acceptance. Package names and calls are evidence rather than authority. Do you confirm this baseline?",
+        "Repository evidence in README and docs/architecture.md suggests this provisional candidate baseline: Agent Execution owns run admission, execution identity, lease fencing, and terminal execution outcomes; Agent Execution is upstream and fans out to Work, which owns business completion, and Project Knowledge, which owns Candidate acceptance. Package names and calls are evidence rather than authority. Do you confirm this baseline?",
       ],
     };
     if (!scoreResult(existingBaselineCase, existingBaselineResult, workspace, scoreOptions).passed) {
       fail("scorer rejected a complete evidence-qualified three-context baseline", 2);
+    }
+    const incompleteExecutionAuthorityGrade = scoreResult(
+      existingBaselineCase,
+      {
+        ...existingBaselineResult,
+        questions: [existingBaselineResult.questions[0].replace(
+          ", execution identity",
+          "",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (incompleteExecutionAuthorityGrade.passed ||
+        !incompleteExecutionAuthorityGrade.assertions.some((item) =>
+          item.name === "first question establishes Agent Execution owns execution identity" &&
+          !item.passed)) {
+      fail("scorer accepted a reconstructed baseline with incomplete Agent Execution authority", 2);
+    }
+    const projectedRecoveryChangeGrade = scoreResult(
+      existingBaselineCase,
+      {
+        ...existingBaselineResult,
+        questions: [existingBaselineResult.questions[0].replace(
+          "Do you confirm this baseline?",
+          "I recommend publishing LeaseRecovered as a recovery event. Do you confirm this baseline and accept external recovery visibility?",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (projectedRecoveryChangeGrade.passed ||
+        !projectedRecoveryChangeGrade.assertions.some((item) =>
+          (item.name === "first question excludes publish* ... recovery" ||
+           item.name === "first question excludes recovery event") && !item.passed)) {
+      fail("scorer accepted a requested recovery change inside baseline confirmation", 2);
     }
     if (scoreResult(
       existingBaselineCase,
@@ -2301,6 +3628,55 @@ function selfTestCommand() {
       scoreOptions,
     ).passed) {
       fail("scorer accepted a trivial existing-system boundary question", 2);
+    }
+    const reversedExistingBaselineGrade = scoreResult(
+      existingBaselineCase,
+      {
+        ...existingBaselineResult,
+        questions: [
+          "Repository evidence suggests this candidate baseline: Agent Execution does not own run admission; Work does not own business completion; Project Knowledge does not own Candidate acceptance; Agent Execution is upstream and fans out to both contexts. Package names and calls are evidence rather than authority. Do you confirm this baseline?",
+        ],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (reversedExistingBaselineGrade.passed ||
+        !reversedExistingBaselineGrade.assertions.some((item) =>
+          item.name.startsWith("first question establishes") && !item.passed)) {
+      fail("scorer accepted a candidate baseline that reversed every context authority", 2);
+    }
+    const ambiguousUpstreamBaselineGrade = scoreResult(
+      existingBaselineCase,
+      {
+        ...existingBaselineResult,
+        questions: [
+          "Repository evidence suggests this candidate baseline: Agent Execution owns run admission; Work owns business completion; Project Knowledge owns Candidate acceptance; it is upstream and fans out to Work and Agent Execution. Package names and calls are evidence rather than authority. Do you confirm this baseline?",
+        ],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (ambiguousUpstreamBaselineGrade.passed ||
+        !ambiguousUpstreamBaselineGrade.assertions.some((item) =>
+          item.name === "first question establishes Agent Execution is upstream of Project Knowledge" && !item.passed)) {
+      fail("scorer accepted a pronoun that assigned upstream fan-out to Project Knowledge", 2);
+    }
+    const reversedProjectKnowledgeEdgeGrade = scoreResult(
+      existingBaselineCase,
+      {
+        ...existingBaselineResult,
+        questions: [
+          "Repository evidence suggests this candidate baseline: Agent Execution owns run admission; Work owns business completion; Project Knowledge owns Candidate acceptance; Agent Execution -> Work; Project Knowledge -> Agent Execution. Package names and calls are evidence rather than authority. Do you confirm this baseline?",
+        ],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (reversedProjectKnowledgeEdgeGrade.passed ||
+        !reversedProjectKnowledgeEdgeGrade.assertions.some((item) =>
+          item.name === "first question establishes Agent Execution is upstream of Project Knowledge" &&
+          !item.passed)) {
+      fail("scorer accepted a reversed Project Knowledge -> Agent Execution edge", 2);
     }
     const integratedExploreConfig = readJson(path.join(
       CASES_ROOT,
@@ -2508,6 +3884,26 @@ Order owns fulfillment readiness and translates Payment Captured into Captured P
       [integratedMapRelative, "\n## Scenario Traceability\n\n- Scenario capture-1 maps to Payment\n"],
       [integratedMapRelative, "\n## Discovery Ledger\n\n- Story checkout-2 -> Order\n"],
       [integratedMapRelative, "\n## Traceability\n\n- Story checkout-3 -> Order\n"],
+      [integratedPaymentRelative, "\n## Requirements Matrix\n\n| Requirement | Model fact | Status |\n|---|---|---|\n| S-1 | Payment lifecycle | covered |\n"],
+      [integratedPaymentRelative, "\n## Story Crosswalk\n\n| Requirement | Model section | Disposition |\n|---|---|---|\n| REQ-1 | Aggregate | Included |\n"],
+      [integratedPaymentRelative, "\n## Source Reconciliation\n\n- Input A is represented in Aggregate Design.\n"],
+      [integratedPaymentRelative, "\n## Accepted Facts\n\n| Requirement | Model section | Disposition |\n|---|---|---|\n| REQ-2 | Lifecycle | Included |\n"],
+      [integratedPaymentRelative, "\n## Accepted Facts\n\n- Input B is represented in the Model.\n"],
+      [integratedPaymentRelative, "\n## Evidence\n\n- US-1 -> Reservation Aggregate\n"],
+      [integratedPaymentRelative, "\n## Decisions\n\n- AC-7 maps to terminal exclusivity\n"],
+      [integratedPaymentRelative, "\n## Evidence\n\n- PAY-42 -> Payment Aggregate\n"],
+      [integratedPaymentRelative, "\n## Evidence\n\n- PAY-42 corresponds to Reservation Aggregate\n"],
+      [integratedPaymentRelative, "\n## Evidence\n\n- PAY-42 is realized by the Reservation Aggregate\n"],
+      [integratedPaymentRelative, "\n## Evidence\n\n- PAY-42 is satisfied by the Reservation lifecycle\n"],
+      [integratedPaymentRelative, "\n## Evidence\n\n- PAY-42 traces to Reservation Aggregate\n"],
+      [integratedPaymentRelative, "\n## Decisions\n\n- JIRA-265 maps to Work lifecycle\n"],
+      [integratedPaymentRelative, "\n## Evidence\n\n- #265 represented by the Payment Model\n"],
+      [integratedPaymentRelative, "\n## Evidence\n\n- docs/spec.md:12 -> Payment Aggregate\n"],
+      [integratedPaymentRelative, "\n## Evidence\n\n- docs/spec.md:12 corresponds to the Reservation Aggregate\n"],
+      [integratedPaymentRelative, "\n## Decisions\n\n- stories.feature:27 maps to Work lifecycle\n"],
+      [integratedPaymentRelative, "\n## Inputs\n\n- Checkout cancellation => Order lifecycle\n"],
+      [integratedPaymentRelative, "\n## Inputs\n\n| Input | Status | Model target |\n|---|---|---|\n| Checkout cancellation | covered | Order lifecycle |\n"],
+      [integratedPaymentRelative, "\n## Reviewed Material\n\n| Item | Disposition | Realized In |\n|---|---|---|\n| Checkout cancellation | covered | Order lifecycle |\n"],
     ]) {
       const accepted = relative === integratedMapRelative ? acceptedIntegratedMap : acceptedPaymentModel;
       fs.writeFileSync(path.join(integratedExploreWorkspace, relative), `${accepted}${trace}`);
@@ -2523,6 +3919,11 @@ Order owns fulfillment readiness and translates Payment Captured into Captured P
         fail(`integrated Explore scorer accepted an alternate temporary trace in ${relative}: ${trace.trim()}`, 2);
       }
       fs.writeFileSync(path.join(integratedExploreWorkspace, relative), accepted);
+    }
+    if (temporaryTraceFindings(
+      "Payment input is represented as a captured-payment fact in normal Domain Model prose.",
+    ).length > 0) {
+      fail("temporary trace scanner confused ordinary Model prose with source accounting", 2);
     }
     const contradictoryIntegratedMap = acceptedIntegratedMap
       .replace(
@@ -2894,6 +4295,35 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
     ).passed) {
       fail("scorer accepted a generic Audit scope question without the migration blocker", 2);
     }
+    const reversedPartialMigrationResult = {
+      ...partialMigrationResult,
+      questions: [
+        "Complete-root inspection found Audit and the retired Context Relationships marker, but Audit is not a legacy Model and is not omitted from the accepted target because the target already covers Audit. Rather than completing the target while writing nothing, I recommend migrating now. Should Audit be removed or retained?",
+      ],
+    };
+    const reversedPartialMigrationGrade = scoreResult(
+      partialMigrationCase,
+      reversedPartialMigrationResult,
+      partialMigrationWorkspace,
+      partialMigrationOptions,
+    );
+    if (reversedPartialMigrationGrade.passed || !reversedPartialMigrationGrade.assertions.some((item) =>
+      item.name.startsWith("first question establishes") && !item.passed)) {
+      fail("scorer accepted a migration question that denied its own legacy omission evidence", 2);
+    }
+    const packedPartialMigrationGrade = scoreResult(
+      partialMigrationCase,
+      {
+        ...partialMigrationResult,
+        questions: [`${partialMigrationResult.questions[0]} Is the target complete? Should migration proceed now?`],
+      },
+      partialMigrationWorkspace,
+      partialMigrationOptions,
+    );
+    if (packedPartialMigrationGrade.passed || !packedPartialMigrationGrade.assertions.some((item) =>
+      item.name === "first question is a single question" && !item.passed)) {
+      fail("scorer accepted several user decisions packed into one question entry", 2);
+    }
     const shapeConsensusConfig = readJson(path.join(
       CASES_ROOT,
       "shape-requires-design-consensus",
@@ -2906,25 +4336,303 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
       phase: "shape",
       completion: "needs_clarification",
       questions: [
-        "I recommend one Reservation Aggregate boundary owning its Reservation Item because the held quantity is positive, may not exceed accepted capacity, and one Reservation identity cannot establish two terminal outcomes under competing terminal intents. The credible alternative is a separate Item Aggregate, but splitting would move those invariants across roots and require recoverable coordination. Do you accept this Aggregate boundary?",
+        "I recommend one Reservation Aggregate boundary owning Reservation Item as a Value Object because it has no independent identity or lifecycle, the held quantity is positive and may not exceed accepted capacity, and one Reservation identity cannot establish two terminal outcomes under competing terminal intents. The credible alternative is a separate Item Aggregate, but splitting would move those invariants across roots and require recoverable coordination. Do you accept this Aggregate boundary?",
       ],
     };
     if (!scoreResult(shapeConsensusCase, shapeConsensusResult, workspace, scoreOptions).passed) {
       fail("scorer rejected a Shape question containing a conclusion, evidence, and credible alternative", 2);
     }
+    const unclassifiedReservationItemGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(
+          "owning Reservation Item as a Value Object because it has no independent identity or lifecycle",
+          "owning its Reservation Item because the item is inside the root",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (unclassifiedReservationItemGrade.passed ||
+        !unclassifiedReservationItemGrade.assertions.some((item) =>
+          item.name === "first question establishes Reservation Item is an owned Value Object" &&
+          !item.passed)) {
+      fail("scorer accepted an Aggregate question that only named its owned Domain object", 2);
+    }
+    const overbroadBoundaryQuestionGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(
+          "Do you accept this Aggregate boundary?",
+          "Requested moves to Held in a transition table, and ReservationHeld is a Domain Event. Do you accept this Aggregate boundary?",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (overbroadBoundaryQuestionGrade.passed ||
+        !overbroadBoundaryQuestionGrade.assertions.some((item) =>
+          (item.name === "first question excludes transition table" ||
+           item.name === "first question excludes Domain Event") && !item.passed)) {
+      fail("scorer accepted lifecycle and event conclusions in the first Aggregate question", 2);
+    }
+    const intrinsicNegativeProposition = shapeConsensusConfig.expect.questions.propositions.find((item) =>
+      item.name === "one terminal outcome under competition");
+    if (!intrinsicNegativeProposition || !propositionAssertion(
+      "self-test",
+      "One Reservation identity cannot establish two terminal outcomes under competition.",
+      intrinsicNegativeProposition,
+    ).passed) {
+      fail("proposition polarity treated intrinsic accepted cannot wording as external negation", 2);
+    }
+    const positiveQuantityProposition = shapeConsensusConfig.expect.questions.propositions.find((item) =>
+      item.name === "positive held quantity");
+    for (const unsupportedClaim of [
+      "There is no evidence that quantity is positive.",
+      "I have no reason to believe that quantity is positive.",
+      "It is doubtful that quantity is positive.",
+      "We cannot conclude that quantity is positive.",
+      "The evidence does not establish that quantity is positive.",
+      "There is no credible evidence that quantity is positive.",
+    ]) {
+      if (!positiveQuantityProposition || propositionAssertion(
+        "self-test",
+        unsupportedClaim,
+        positiveQuantityProposition,
+      ).passed) {
+        fail(`proposition polarity accepted an epistemically denied fact: ${unsupportedClaim}`, 2);
+      }
+    }
+    const epistemicallyDeniedShapeGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(
+          "the held quantity is positive",
+          "there is no evidence that quantity is positive",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (epistemicallyDeniedShapeGrade.passed ||
+        !epistemicallyDeniedShapeGrade.assertions.some((item) =>
+          item.name === "first question establishes positive held quantity" &&
+          !item.passed)) {
+      fail("scorer accepted a complete Shape question whose quantity fact lacked evidence", 2);
+    }
+    const unboundedQuantityShapeGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(
+          "may not exceed accepted capacity",
+          "has accepted capacity as a relevant concept",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (unboundedQuantityShapeGrade.passed ||
+        !unboundedQuantityShapeGrade.assertions.some((item) =>
+          item.name === "first question establishes held quantity stays within accepted capacity" &&
+          !item.passed)) {
+      fail("scorer accepted a quantity proposition without its accepted-capacity bound", 2);
+    }
+    if (propositionAssertion(
+      "self-test",
+      "I cannot recommend one Reservation Aggregate.",
+      {
+        name: "bare Aggregate phrase",
+        accepts: ["one Reservation Aggregate"],
+        rejects: ["Reservation Item is a separate Aggregate"],
+      },
+    ).passed) {
+      fail("proposition polarity accepted a bare phrase behind a negated decision verb", 2);
+    }
+    if (propositionAssertion(
+      "self-test",
+      "I reject one Reservation Aggregate.",
+      {
+        name: "bare Aggregate phrase",
+        accepts: ["one Reservation Aggregate"],
+        rejects: ["Reservation Item is a separate Aggregate"],
+      },
+    ).passed) {
+      fail("proposition polarity accepted a bare phrase behind a rejection verb", 2);
+    }
+    for (const withheldRecommendation of [
+      "I cannot recommend",
+      "I don't recommend",
+      "I won't recommend",
+      "I refuse to recommend",
+      "I hesitate to recommend",
+      "I am reluctant to recommend",
+      "I am unable to recommend",
+      "I am unwilling to recommend",
+    ]) {
+      const externallyNegatedShapeConsensusGrade = scoreResult(
+        shapeConsensusCase,
+        {
+          ...shapeConsensusResult,
+          questions: [shapeConsensusResult.questions[0].replace(
+            "I recommend one Reservation Aggregate",
+            `${withheldRecommendation} one Reservation Aggregate`,
+          )],
+        },
+        workspace,
+        scoreOptions,
+      );
+      if (externallyNegatedShapeConsensusGrade.passed ||
+          !externallyNegatedShapeConsensusGrade.assertions.some((item) =>
+            item.name === "first question establishes the recommended single Reservation Aggregate boundary" &&
+            !item.passed)) {
+        fail(`scorer accepted a withheld recommendation phrase: ${withheldRecommendation}`, 2);
+      }
+    }
+    const packedFocusedDecisionGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(
+          "Do you accept this Aggregate boundary?",
+          "Do you accept this Aggregate boundary and also decide whether notifications should be synchronous or asynchronous?",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (packedFocusedDecisionGrade.passed ||
+        !packedFocusedDecisionGrade.assertions.some((item) =>
+          item.name === "first question requests one focused decision" && !item.passed)) {
+      fail("scorer accepted an independent notification decision packed into one interrogative", 2);
+    }
+    const coupledImplementationGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(
+          "Do you accept this Aggregate boundary?",
+          "Do you accept this Aggregate boundary and MySQL as the mandatory persistence engine?",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (coupledImplementationGrade.passed ||
+        !coupledImplementationGrade.assertions.some((item) =>
+          item.name === "first question requests one focused decision" && !item.passed)) {
+      fail("scorer accepted an Aggregate choice coupled to an independent persistence decision", 2);
+    }
+    const implementationInRecommendationGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(
+          "I recommend one Reservation Aggregate boundary",
+          "I recommend one Reservation Aggregate boundary implemented with MySQL",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (implementationInRecommendationGrade.passed ||
+        !implementationInRecommendationGrade.assertions.some((item) =>
+          item.name === "first question excludes MySQL" && !item.passed)) {
+      fail("scorer accepted an unreviewed persistence mechanism in an Aggregate recommendation", 2);
+    }
+    const hiddenImplementationGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(
+          "I recommend one Reservation Aggregate boundary",
+          "I recommend one Reservation Aggregate boundary implemented with My\u200bSQL",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (hiddenImplementationGrade.passed ||
+        !hiddenImplementationGrade.assertions.some((item) =>
+          item.name === "first question excludes MySQL" && !item.passed)) {
+      fail("scorer accepted a persistence mechanism hidden with a default-ignorable code point", 2);
+    }
+    for (const coupledQuestion of [
+      "Do you accept this Aggregate boundary and use MySQL for persistence?",
+      "Do you accept this Aggregate boundary and implement it with MySQL?",
+      "Do you accept this Aggregate boundary and should persistence use MySQL?",
+    ]) {
+      if (focusedQuestionFindings(coupledQuestion).length === 0) {
+        fail(`focused-question scorer accepted an implementation decision: ${coupledQuestion}`, 2);
+      }
+    }
+    if (focusedQuestionFindings(
+      "Do you accept the recommended Aggregate boundary and Domain-object classification?",
+    ).length > 0) {
+      fail("focused-question scorer split one Aggregate-boundary classification decision", 2);
+    }
+    for (const packedInterrogative of [
+      "Do you accept this Aggregate boundary, and should cancellation be automatic?",
+      "Do you accept this Aggregate boundary and whether notifications are synchronous or asynchronous?",
+      "Do you accept this Aggregate boundary, plus should a hold be renewable?",
+      "Do you accept this Aggregate boundary, and who may extend a hold?",
+      "Do you accept this Aggregate boundary，并且取消是否自动发生？",
+    ]) {
+      if (focusedQuestionFindings(packedInterrogative).length === 0) {
+        fail(`focused-question scorer accepted a second independent decision: ${packedInterrogative}`, 2);
+      }
+    }
+    const noInterrogativeGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(/\?$/u, ".")],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (noInterrogativeGrade.passed || !noInterrogativeGrade.assertions.some((item) =>
+      item.name === "first question is a single question" && !item.passed)) {
+      fail("scorer accepted a clarification entry with no interrogative sentence", 2);
+    }
+    const reversedShapeConsensusGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [`${shapeConsensusResult.questions[0]} I do not recommend one Reservation Aggregate; quantity may exceed accepted capacity, multiple terminal outcomes are allowed, and the split alternative has no coordination cost.`],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (reversedShapeConsensusGrade.passed || !reversedShapeConsensusGrade.assertions.some((item) =>
+      item.name.startsWith("first question establishes") && !item.passed)) {
+      fail("scorer accepted a Shape boundary question that reversed its required propositions", 2);
+    }
     const valueObjectShapeQuestion = {
       ...shapeConsensusResult,
       questions: [
-        "I propose one Reservation Root containing a Reservation Item value object with no independent identity. This boundary protects the positive held quantity, its accepted capacity bound, and terminal exclusivity when terminal intents compete. The closest split alternative would move the same decisions cross-Aggregate, requiring recoverable coordination. Do you agree with this Aggregate boundary?",
+        "I propose one Reservation Root containing a Reservation Item value object with no independent identity or lifecycle. This boundary protects the positive held quantity that remains within accepted capacity, and terminal exclusivity when terminal intents compete. The closest split alternative would move the same decisions cross-Aggregate, requiring recoverable coordination. Do you agree with this Aggregate boundary?",
       ],
     };
     if (!scoreResult(shapeConsensusCase, valueObjectShapeQuestion, workspace, scoreOptions).passed) {
       fail("scorer rejected a valid Value Object classification and cross-root consequence", 2);
     }
+    const naturalModelShapeQuestion = {
+      ...shapeConsensusResult,
+      questions: [
+        "I recommend one Reservation Aggregate Root, identified by Reservation identity, owning Reservation Item as a Value Object comprising resource identity and claimed quantity, with equality by both values, no independent identity or lifecycle, and no construction rule beyond the Model; this assigns the Root both accepted invariants: a held quantity must be positive and no greater than the capacity accepted for its resource, and one Reservation identity cannot establish two terminal outcomes. Repeated intent for that identity returns its established fact, while concurrent confirmation, release, or expiry permits only the first admissible terminal outcome. The closest credible alternative is a separate Reservation Item Root, but that would force the hold invariant across Roots despite the Model giving the item no independent identity or lifecycle. Do you accept the recommended Aggregate boundary and Domain-object classification?",
+      ],
+    };
+    if (!scoreResult(shapeConsensusCase, naturalModelShapeQuestion, workspace, scoreOptions).passed) {
+      fail("scorer rejected a natural Model-grounded Aggregate recommendation", 2);
+    }
     const mathematicalInvariantShapeQuestion = {
       ...shapeConsensusResult,
       questions: [
-        "I recommend one Reservation Aggregate Root owning Reservation Item as a Value Object. This boundary assigns both accepted invariants to the Root: the held quantity must be positive and does not exceed accepted capacity, while one Reservation identity establishes at most one terminal outcome under concurrent terminal intents. This directly covers every accepted invariant. The separate-root alternative would move those rules cross-Aggregate and require coordination. Do you accept the single boundary?",
+        "I recommend one Reservation Aggregate Root owning Reservation Item as a Value Object with no independent identity or lifecycle. This boundary assigns both accepted invariants to the Root: the held quantity must be positive and does not exceed accepted capacity, while one Reservation identity establishes at most one terminal outcome under concurrent terminal intents. This directly covers every accepted invariant. The separate-root alternative would move those rules cross-Aggregate and require coordination. Do you accept the single boundary?",
       ],
     };
     const mathematicalInvariantShapeGrade = scoreResult(
@@ -2935,6 +4643,60 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
     );
     if (!mathematicalInvariantShapeGrade.passed) {
       fail(`scorer rejected explicit equivalent invariant propositions in an Aggregate-boundary question: ${JSON.stringify(mathematicalInvariantShapeGrade.assertions)}`, 2);
+    }
+    const concreteCompetitionShapeQuestion = {
+      ...shapeConsensusResult,
+      questions: [
+        "I recommend one Reservation Aggregate Root owning Reservation Item as a Value Object because the item has no independent identity or lifecycle. This boundary makes the root enforce every accepted invariant: a held quantity is positive; it does not exceed the capacity accepted for its resource; and one Reservation identity cannot establish two terminal outcomes. Among concurrent admissible terminal intents, only the first may establish an outcome. The closest alternative is a separate Reservation Item Aggregate, but that would force the held-quantity rule across roots. Do you accept this boundary?",
+      ],
+    };
+    const concreteCompetitionShapeGrade = scoreResult(
+      shapeConsensusCase,
+      concreteCompetitionShapeQuestion,
+      workspace,
+      scoreOptions,
+    );
+    if (!concreteCompetitionShapeGrade.passed) {
+      fail(`scorer rejected a concrete competing-intents paraphrase: ${JSON.stringify(concreteCompetitionShapeGrade.assertions)}`, 2);
+    }
+    const distributedBoundaryShapeQuestion = {
+      ...shapeConsensusResult,
+      questions: [shapeConsensusResult.questions[0].replace(
+        "The credible alternative is a separate Item Aggregate, but splitting would move those invariants across roots and require recoverable coordination.",
+        "The credible alternative is a separate Item Aggregate that would distribute those invariant decisions between two consistency boundaries, leaving the application to coordinate their updates.",
+      )],
+    };
+    const distributedBoundaryShapeGrade = scoreResult(
+      shapeConsensusCase,
+      distributedBoundaryShapeQuestion,
+      workspace,
+      scoreOptions,
+    );
+    if (!distributedBoundaryShapeGrade.passed) {
+      fail(`scorer rejected a distributed-consistency-boundary consequence: ${JSON.stringify(distributedBoundaryShapeGrade.assertions)}`, 2);
+    }
+    if (!isValidSemanticExpectation("move* ... across root*") ||
+        isValidSemanticExpectation("... move*") ||
+        isValidSemanticExpectation("move* ... ... across root*")) {
+      fail("semantic same-clause gap syntax validation is inconsistent", 2);
+    }
+    const unrelatedMovementShapeGrade = scoreResult(
+      shapeConsensusCase,
+      {
+        ...shapeConsensusResult,
+        questions: [shapeConsensusResult.questions[0].replace(
+          "splitting would move those invariants across roots",
+          "the credible split alternative would move discussion of the invariant across roots and require coordination",
+        )],
+      },
+      workspace,
+      scoreOptions,
+    );
+    if (unrelatedMovementShapeGrade.passed ||
+        !unrelatedMovementShapeGrade.assertions.some((item) =>
+          item.name === "first question establishes the split alternative moves rules across roots" &&
+          !item.passed)) {
+      fail("semantic same-clause gap joined an unrelated movement sentence to an across-roots phrase", 2);
     }
     if (scoreResult(
       shapeConsensusCase,
@@ -2947,7 +4709,7 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
     const consequenceFreeShapeQuestion = {
       ...shapeConsensusResult,
       questions: [
-        "I recommend one Reservation Aggregate boundary owning its Reservation Item because the held quantity is positive, may not exceed accepted capacity, and one Reservation identity cannot establish two terminal outcomes under competing terminal intents. The credible alternative is a separate Item Aggregate. Do you accept this Aggregate boundary?",
+        "I recommend one Reservation Aggregate boundary owning Reservation Item as a Value Object because it has no independent identity or lifecycle, the held quantity is positive and may not exceed accepted capacity, and one Reservation identity cannot establish two terminal outcomes under competing terminal intents. The credible alternative is a separate Item Aggregate. Do you accept this Aggregate boundary?",
       ],
     };
     if (scoreResult(shapeConsensusCase, consequenceFreeShapeQuestion, workspace, scoreOptions).passed) {
@@ -2995,10 +4757,63 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
     ).passed) {
       fail("scorer rejected a focused lifecycle question after Aggregate-boundary acceptance", 2);
     }
+    const overbroadLifecycleQuestionGrade = scoreResult(
+      shapeProgressCase,
+      {
+        ...shapeProgressResult,
+        questions: [shapeProgressResult.questions[0].replace(
+          "Do you accept this lifecycle representation?",
+          "ReservationHeld is a Domain Event, no Process Manager is needed, and MySQL persists the state. Do you accept this lifecycle representation?",
+        )],
+      },
+      shapeProgressWorkspace,
+      shapeProgressOptions,
+    );
+    if (overbroadLifecycleQuestionGrade.passed ||
+        !overbroadLifecycleQuestionGrade.assertions.some((item) =>
+          ["first question excludes Domain Event", "first question excludes Process Manager", "first question excludes MySQL"].includes(item.name) &&
+          !item.passed)) {
+      fail("scorer accepted event, coordination, and persistence conclusions in the lifecycle question", 2);
+    }
+    for (const [terminal, incompleteTerminalSet] of [
+      ["Released", "Confirmed or Expired; Released is merely named"],
+      ["Expired", "Confirmed or Released; Expired is merely named"],
+    ]) {
+      const incompleteLifecycleGrade = scoreResult(
+        shapeProgressCase,
+        {
+          ...shapeProgressResult,
+          questions: [shapeProgressResult.questions[0].replace(
+            "Confirmed, Released, or Expired",
+            incompleteTerminalSet,
+          )],
+        },
+        shapeProgressWorkspace,
+        shapeProgressOptions,
+      );
+      if (incompleteLifecycleGrade.passed ||
+          !incompleteLifecycleGrade.assertions.some((item) =>
+            item.name === `first question establishes Held establishes ${terminal}` && !item.passed)) {
+        fail(`scorer accepted a lifecycle proposal without Held -> ${terminal}`, 2);
+      }
+    }
+    const reversedShapeProgressGrade = scoreResult(
+      shapeProgressCase,
+      {
+        ...shapeProgressResult,
+        questions: [`${shapeProgressResult.questions[0]} Requested does not move to Held, terminal outcomes are not mutually exclusive, and the last terminal intent wins.`],
+      },
+      shapeProgressWorkspace,
+      shapeProgressOptions,
+    );
+    if (reversedShapeProgressGrade.passed || !reversedShapeProgressGrade.assertions.some((item) =>
+      item.name.startsWith("first question establishes") && !item.passed)) {
+      fail("scorer accepted a lifecycle question that reversed its required propositions", 2);
+    }
     const transitionModelShapeProgress = {
       ...shapeProgressResult,
       questions: [
-        "Do you accept the recommended Reservation lifecycle transition model? Requested moves to Held, only Held admits Confirmed, Released, or Expired, retries return the established fact, and concurrent terminal intents preserve the first outcome. The fact-timeline alternative adds ordering guarantees unsupported by the Model.",
+        "Do you accept the recommended Reservation lifecycle transition model? Requested moves to Held, only Held admits Confirmed, Released, or Expired, those outcomes are terminal and mutually exclusive, retries return the established fact, and concurrent terminal intents preserve the first outcome. The fact-timeline alternative adds ordering guarantees unsupported by the Model.",
       ],
     };
     if (!scoreResult(
@@ -3053,7 +4868,7 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
       phase: "shape",
       completion: "needs_clarification",
       questions: [
-        "Do you accept this complete integrated Tactical Design and authorize its write: one Reservation Aggregate owns Reservation Item as a Value Object; positive quantity remains within accepted capacity; Requested moves to Held, and only Held may establish Confirmed, Released, or Expired; those established facts are local Domain Events; duplicate intent is idempotent and concurrent terminal intent admits the first outcome; the split alternative is rejected because it would move these rules cross-Aggregate; and this isolated context has no context dependencies or Integration Message?",
+        "Do you accept this complete integrated Tactical Design and authorize its write: one Reservation Aggregate owns Reservation Item as a Value Object whose equality uses resource identity and quantity; positive quantity remains within accepted capacity; Requested moves to Held, and only Held may establish Confirmed, Released, or Expired as exclusive terminal outcomes; those established facts are local Domain Events; duplicate intent is idempotent and concurrent terminal intent admits only the first admissible outcome; the split alternative is rejected because it would move the capacity and terminal rules cross-Aggregate; and this isolated context has no context dependencies or Integration Message, has no Process Manager, and has no design-significant persistence mechanism?",
       ],
       routes: [],
       changed_files: [],
@@ -3067,6 +4882,113 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
     );
     if (!completeIntegratedAcceptanceGrade.passed) {
       fail(`scorer rejected a complete integrated Shape acceptance request: ${JSON.stringify(completeIntegratedAcceptanceGrade.assertions)}`, 2);
+    }
+    for (const [canonicalAbsence, naturalAbsence] of [
+      ["has no Process Manager", "does not require a Process Manager"],
+      ["has no design-significant persistence mechanism", "does not require a design-significant persistence mechanism"],
+    ]) {
+      const naturalAbsenceGrade = scoreResult(
+        shapeIntegratedCase,
+        {
+          ...shapeIntegratedResult,
+          questions: [shapeIntegratedResult.questions[0].replace(canonicalAbsence, naturalAbsence)],
+        },
+        shapeIntegratedWorkspace,
+        shapeIntegratedOptions,
+      );
+      if (!naturalAbsenceGrade.passed) {
+        fail(`integrated Shape scorer rejected a natural absence statement: ${naturalAbsence}`, 2);
+      }
+    }
+    for (const [terminal, incompleteTerminalSet] of [
+      ["Released", "Confirmed or Expired; Released is merely named"],
+      ["Expired", "Confirmed or Released; Expired is merely named"],
+    ]) {
+      const incompleteIntegratedLifecycleGrade = scoreResult(
+        shapeIntegratedCase,
+        {
+          ...shapeIntegratedResult,
+          questions: [shapeIntegratedResult.questions[0].replace(
+            "Confirmed, Released, or Expired",
+            incompleteTerminalSet,
+          )],
+        },
+        shapeIntegratedWorkspace,
+        shapeIntegratedOptions,
+      );
+      if (incompleteIntegratedLifecycleGrade.passed ||
+          !incompleteIntegratedLifecycleGrade.assertions.some((item) =>
+            item.name === `first question establishes Held establishes ${terminal}` && !item.passed)) {
+        fail(`integrated Shape scorer accepted no Held -> ${terminal} transition`, 2);
+      }
+    }
+    const mislabeledDomainEventGrade = scoreResult(
+      shapeIntegratedCase,
+      {
+        ...shapeIntegratedResult,
+        questions: [shapeIntegratedResult.questions[0].replace(
+          "those established facts are local Domain Events",
+          "those established facts are not Domain Events",
+        )],
+      },
+      shapeIntegratedWorkspace,
+      shapeIntegratedOptions,
+    );
+    if (mislabeledDomainEventGrade.passed ||
+        !mislabeledDomainEventGrade.assertions.some((item) =>
+          item.name === "first question establishes established Reservation facts are local Domain Events" &&
+          !item.passed)) {
+      fail("integrated Shape scorer accepted established facts denied as Domain Events", 2);
+    }
+    const shallowEqualityGrade = scoreResult(
+      shapeIntegratedCase,
+      {
+        ...shapeIntegratedResult,
+        questions: [shapeIntegratedResult.questions[0].replace(
+          "whose equality uses resource identity and quantity",
+          "whose equality merely mentions resource identity and quantity",
+        )],
+      },
+      shapeIntegratedWorkspace,
+      shapeIntegratedOptions,
+    );
+    if (shallowEqualityGrade.passed ||
+        !shallowEqualityGrade.assertions.some((item) =>
+          item.name === "first question establishes Reservation Item equality uses resource identity and quantity" &&
+          !item.passed)) {
+      fail("integrated Shape scorer accepted a Value Object equality label without semantics", 2);
+    }
+    for (const [acceptedText, reversedText, propositionName] of [
+      ["has no Process Manager", "requires a Process Manager", "the integrated proposal has no Process Manager"],
+      ["has no design-significant persistence mechanism", "requires a design-significant persistence mechanism", "the integrated proposal has no design-significant persistence mechanism"],
+    ]) {
+      const reversedOptionalMechanismGrade = scoreResult(
+        shapeIntegratedCase,
+        {
+          ...shapeIntegratedResult,
+          questions: [shapeIntegratedResult.questions[0].replace(acceptedText, reversedText)],
+        },
+        shapeIntegratedWorkspace,
+        shapeIntegratedOptions,
+      );
+      if (reversedOptionalMechanismGrade.passed ||
+          !reversedOptionalMechanismGrade.assertions.some((item) =>
+            item.name === `first question establishes ${propositionName}` && !item.passed)) {
+        fail(`integrated Shape scorer accepted a reversed conclusion: ${propositionName}`, 2);
+      }
+    }
+    const reversedIntegratedAcceptanceGrade = scoreResult(
+      shapeIntegratedCase,
+      {
+        ...shapeIntegratedResult,
+        questions: [`${shapeIntegratedResult.questions[0]} Reservation Item is not a Value Object, duplicate intent is not idempotent, and the context requires an Integration Message.`],
+      },
+      shapeIntegratedWorkspace,
+      shapeIntegratedOptions,
+    );
+    if (reversedIntegratedAcceptanceGrade.passed || !reversedIntegratedAcceptanceGrade.assertions.some((item) =>
+      item.name.startsWith("first question establishes") && !item.passed)) {
+      fail("scorer accepted an integrated proposal that reversed its tactical conclusions", 2);
     }
     if (scoreResult(
       shapeIntegratedCase,
@@ -3173,6 +5095,16 @@ AllocationLineAdded, AllocationAccepted, and AllocationRejected are local Domain
       "A fixed-length 26-character format is required for LineId.",
       "Lowercase normalization is required for LineId.",
       "A regular expression [A-Z0-9]{26} defines LineId.",
+      "LineId has length 26.",
+      "LineId must start with line_.",
+      "LineId conforms to [A-Z0-9]+.",
+      "LineId is not a UUID; it is a ULID.",
+      "LineId is opaque. Its value is a UUID.",
+      "LineId rejects blank input and uses UUID.",
+      "LineId does not use UUID but uses ULID.",
+      "LineId is opaque. It remains unchanged. It has length 26.",
+      "LineId is twenty-six characters long.",
+      "LineId consists solely of ASCII capital letters and decimal numerals.",
     ]) {
       fs.writeFileSync(
         path.join(entityShapeWorkspace, entityShapeRelative),
@@ -3195,6 +5127,9 @@ AllocationLineAdded, AllocationAccepted, and AllocationRejected are local Domain
       "Neither a UUID nor ULID is required for LineId.",
       "No UUID format is required for LineId.",
       "LineId is not normalized to lowercase.",
+      "LineId rejects UUID-formatted input.",
+      "LineId is opaque rather than a UUID.",
+      "LineId defines no format, normalization, or additional validity rule.",
     ]) {
       fs.writeFileSync(
         path.join(entityShapeWorkspace, entityShapeRelative),
@@ -3299,6 +5234,20 @@ AllocationLineAdded, AllocationAccepted, and AllocationRejected are local Domain
     if (unspecifiedValueObjectsGrade.passed || !unspecifiedValueObjectsGrade.assertions.some((item) =>
       item.name.includes("semantically excludes") && !item.passed)) {
       fail("scorer accepted unspecified Value Object semantics as definitions", 2);
+    }
+    fs.writeFileSync(
+      path.join(entityShapeWorkspace, entityShapeRelative),
+      `${completeEntityDesign}\nQuantity values are equal when their amounts differ. LineId is constructed from arbitrary input.\n`,
+    );
+    const reversedValueObjectGrade = scoreResult(
+      entityShapeCase,
+      entityShapeResult,
+      entityShapeWorkspace,
+      entityShapeOptions,
+    );
+    if (reversedValueObjectGrade.passed || !reversedValueObjectGrade.assertions.some((item) =>
+      item.name.startsWith(`file ${entityShapeRelative} establishes`) && !item.passed)) {
+      fail("scorer accepted contradictory Value Object construction and equality propositions", 2);
     }
     fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), completeEntityDesign);
     const paraphrasedEntityDesign = completeEntityDesign.replace(
@@ -3681,7 +5630,9 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
 
 function doctorCommand(options) {
   loadCases();
-  const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ddd-expert-doctor-"));
+  const runtimeRoot = registerRuntimeRoot(
+    fs.mkdtempSync(path.join(os.tmpdir(), "ddd-expert-doctor-")),
+  );
   try {
     const codexBinary = resolveExecutable(process.env.CODEX_BIN || "codex");
     const codexVersion = runCommand([codexBinary, "--version"], { timeoutSeconds: 30 });
@@ -3693,26 +5644,43 @@ function doctorCommand(options) {
     const mountSmokeBaseline = initializeGit(mountSmokeWorkspace);
     const uid = typeof process.getuid === "function" ? process.getuid() : 1000;
     const gid = typeof process.getgid === "function" ? process.getgid() : 1000;
-    const mountSmoke = runCommand([
+    const mountSmoke = runManagedDockerContainer([
       "docker", "run", "--rm", "--network", "none", "--read-only",
       "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=16m",
       "--cap-drop=ALL", "--security-opt", "no-new-privileges",
       "--user", `${uid}:${gid}`,
       "-v", `${mountSmokeWorkspace}:/workspace:rw`,
       "--mount", readOnlyGitMetadataMount(mountSmokeWorkspace),
-      "-w", "/workspace", options.containerImage, "sh", "-c",
+      "-w", "/workspace", imageId, "sh", "-c",
       "touch /workspace/worktree-write-ok && if printf 'tamper\\n' >> /workspace/.git/config; then exit 41; fi",
-    ], { timeoutSeconds: 30 });
+    ], { timeoutSeconds: 30, runtimeRoot, prefix: "doctor-mount" });
     requireSuccess(mountSmoke, "container nested read-only Git metadata mount");
     if (!fs.statSync(path.join(mountSmokeWorkspace, "worktree-write-ok"), { throwIfNoEntry: false })?.isFile() ||
         gitMetadataChanges(mountSmokeWorkspace, mountSmokeBaseline).length > 0) {
       fail("container mount smoke did not preserve writable worktree and read-only Git metadata", 2);
     }
-    for (const command of [["go", "version"], ["git", "--version"], ["rg", "--version"]]) {
+    for (const command of [["go", "version"], ["git", "--version"], ["rg", "--version"], ["timeout", "--version"]]) {
       requireSuccess(
-        runCommand(["docker", "run", "--rm", "--network", "none", options.containerImage, ...command], { timeoutSeconds: 30 }),
+        runManagedDockerContainer(
+          ["docker", "run", "--rm", "--network", "none", imageId, ...command],
+          { timeoutSeconds: 30, runtimeRoot, prefix: "doctor-tool" },
+        ),
         `container ${command.join(" ")}`,
       );
+    }
+    const timeoutProbeStartedAt = Date.now();
+    const timeoutCleanupProbe = runManagedDockerContainer([
+      "docker", "run", "--rm", "--network", "none", imageId,
+      "sh", "-c", "trap '' TERM; sleep 30",
+    ], {
+      runtimeRoot,
+      prefix: "doctor-timeout",
+      timeoutSeconds: 1,
+    });
+    const timeoutProbeDurationMs = Date.now() - timeoutProbeStartedAt;
+    if (!/ETIMEDOUT/u.test(timeoutCleanupProbe.error || "") ||
+        timeoutCleanupProbe.containerCleanup.error || timeoutProbeDurationMs >= 10000) {
+      fail(`container timeout cleanup probe failed: duration=${timeoutProbeDurationMs}ms; status=${timeoutCleanupProbe.status}; cleanup=${timeoutCleanupProbe.containerCleanup.error || "ok"}; command=${timeoutCleanupProbe.error || "no timeout"}`, 2);
     }
     const expectedHash = hashTree(PLUGIN_ROOT);
     const marketplaceRoot = snapshotMarketplace(runtimeRoot);
@@ -3721,7 +5689,7 @@ function doctorCommand(options) {
     fs.cpSync(installed.codexHome, doctorHome, { recursive: true });
     const doctorPluginCache = path.join(doctorHome, installed.pluginCacheRelative);
     const containerPluginCache = `/eval-home/${installed.pluginCacheRelative.split(path.sep).join("/")}`;
-    const inContainer = runCommand([
+    const inContainer = runManagedDockerContainer([
       "docker", "run", "--rm", "--read-only",
       "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=64m",
       "--cap-drop=ALL", "--security-opt", "no-new-privileges",
@@ -3732,19 +5700,19 @@ function doctorCommand(options) {
       "-v", `${doctorPluginCache}:${containerPluginCache}:ro`,
       "-v", `${marketplaceRoot}:${marketplaceRoot}:ro`,
       "-v", `${codexBinary}:/usr/local/bin/codex:ro`,
-      options.containerImage, "/usr/local/bin/codex", "plugin", "list", "--json",
-    ], { timeoutSeconds: 60 });
+      imageId, "/usr/local/bin/codex", "plugin", "list", "--json",
+    ], { timeoutSeconds: 60, runtimeRoot, prefix: "doctor-codex" });
     parsePluginList(inContainer, "container codex plugin list");
     if (hashTree(doctorPluginCache) !== expectedHash) {
       fail("container doctor observed a changed ddd-expert cache", 2);
     }
     console.log(`ddd-expert eval doctor passed: ${codexVersion.stdout.trim()}, image=${imageId}, plugin=${installed.pluginVersion}, sha256=${expectedHash}`);
   } finally {
-    removeUntrustedTree(runtimeRoot);
+    removeTrackedRuntimeRoot(runtimeRoot);
   }
 }
 
-function runCommandMain(options) {
+async function runCommandMain(options) {
   const allCases = loadCases();
   let selected = allCases.filter((loadedCase) => loadedCase.config.suites.includes(options.suite));
   if (options.caseIds.length > 0) {
@@ -3764,16 +5732,17 @@ function runCommandMain(options) {
     fail("runs require --model or DDD_EVAL_MODEL so results remain comparable", 2);
   }
   const timestamp = new Date().toISOString().replaceAll(":", "-");
-  const outputDir = path.resolve(options.output || path.join(os.tmpdir(), "ddd-expert-evals", timestamp));
-  if (fs.statSync(outputDir, { throwIfNoEntry: false }) && fs.readdirSync(outputDir).length > 0) {
-    fail(`output directory is not empty: ${outputDir}`, 2);
-  }
-  fs.mkdirSync(outputDir, { recursive: true });
-  const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ddd-expert-runtime-"));
+  const outputDir = options.output
+    ? preparePrivateOutputRoot(options.output)
+    : createDefaultPrivateOutputRoot();
+  const runtimeRoot = registerRuntimeRoot(
+    fs.mkdtempSync(path.join(os.tmpdir(), "ddd-expert-runtime-")),
+  );
   const pluginFingerprint = hashTree(PLUGIN_ROOT);
   const evalSourceFingerprint = hashTree(EVAL_ROOT);
-  const runnerFingerprint = hashFiles([__filename]);
+  const runnerFingerprint = hashFiles(RUNNER_FILES);
   try {
+    throwIfRunnerTerminating();
     const codexBin = process.env.CODEX_BIN || "codex";
     const codexBinary = resolveExecutable(codexBin);
     const codexVersion = runCommand([codexBinary, "--version"], { timeoutSeconds: 30 });
@@ -3790,22 +5759,26 @@ function runCommandMain(options) {
       codexHome: installed.codexHome,
       pluginCacheRelative: installed.pluginCacheRelative,
       pluginHash: installed.pluginHash,
+      authSource: installed.authSource,
       marketplaceRoot,
       resultSchema: snapshot.resultSchema,
       model: options.model,
       reasoning: options.reasoning,
       timeoutSeconds: options.timeoutSeconds,
-      containerImage: options.containerImage,
+      containerImage: containerImageId,
     };
 
     const trials = [];
     const infrastructureAttempts = [];
     for (const loadedCase of selected) {
       for (let trial = 1; trial <= runs; trial += 1) {
+        throwIfRunnerTerminating();
         process.stdout.write(`RUN ${loadedCase.config.id} ${trial}/${runs} ... `);
         let result;
         for (let attempt = 1; attempt <= options.infrastructureRetries + 1; attempt += 1) {
-          result = runTrial(loadedCase, trial, attempt, context);
+          throwIfRunnerTerminating();
+          result = await runTrial(loadedCase, trial, attempt, context);
+          throwIfRunnerTerminating();
           if (!result.infrastructureFailure) {
             break;
           }
@@ -3813,6 +5786,7 @@ function runCommandMain(options) {
           if (attempt <= options.infrastructureRetries) {
             console.log(`INFRA_RETRY ${attempt}/${options.infrastructureRetries}`);
             sleep(1000 * (2 ** (attempt - 1)));
+            throwIfRunnerTerminating();
             process.stdout.write(`RETRY ${loadedCase.config.id} ${trial}/${runs} ... `);
           }
         }
@@ -3825,6 +5799,8 @@ function runCommandMain(options) {
         }
       }
     }
+
+    throwIfRunnerTerminating();
 
     const requiredPasses = Math.ceil((runs * 2) / 3);
     const caseResults = selected.map((loadedCase) => {
@@ -3869,7 +5845,7 @@ function runCommandMain(options) {
       evalSourceFingerprint,
       runnerFingerprint,
       snapshotFingerprint: snapshot.hash,
-      sourceChangedDuringRun: pluginFingerprint !== hashTree(PLUGIN_ROOT) || evalSourceFingerprint !== hashTree(EVAL_ROOT) || runnerFingerprint !== hashFiles([__filename]),
+      sourceChangedDuringRun: pluginFingerprint !== hashTree(PLUGIN_ROOT) || evalSourceFingerprint !== hashTree(EVAL_ROOT) || runnerFingerprint !== hashFiles(RUNNER_FILES),
       suite: options.suite,
       runs,
       infrastructureRetries: options.infrastructureRetries,
@@ -3880,12 +5856,17 @@ function runCommandMain(options) {
       trials,
       infrastructureAttempts,
     };
-    fs.writeFileSync(path.join(outputDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
+    writePrivateFile(path.join(outputDir, "summary.json"), `${JSON.stringify(summary, null, 2)}\n`);
+    hardenArtifactTree(outputDir);
     console.log(`SUMMARY ${status.toUpperCase()}: ${caseResults.filter((item) => item.status === "pass").length}/${caseResults.length} cases passed`);
     console.log(`ARTIFACTS ${outputDir}`);
     process.exitCode = status === "pass" ? 0 : status === "fail" ? 1 : 2;
   } finally {
-    removeUntrustedTree(runtimeRoot);
+    try {
+      hardenArtifactTree(outputDir);
+    } finally {
+      removeTrackedRuntimeRoot(runtimeRoot);
+    }
   }
 }
 
@@ -3909,7 +5890,7 @@ Run options:
 `);
 }
 
-function main() {
+async function main() {
   const options = parseArgs(process.argv.slice(2));
   if (options.command === "validate") {
     validateCommand();
@@ -3918,7 +5899,7 @@ function main() {
   } else if (options.command === "doctor") {
     doctorCommand(options);
   } else if (options.command === "run") {
-    runCommandMain(options);
+    await runCommandMain(options);
   } else if (["help", "--help", "-h"].includes(options.command)) {
     printHelp();
   } else {
@@ -3926,13 +5907,38 @@ function main() {
   }
 }
 
-if (require.main === module) {
+async function runCli() {
+  installTerminationHandlers();
+  let failure = null;
   try {
-    main();
+    await main();
   } catch (error) {
-    console.error(`ERROR ${error.message}`);
-    process.exit(error.exitCode || 1);
+    failure = error;
   }
+  try {
+    await cleanupActiveEvaluatorResources();
+  } catch (error) {
+    if (failure) {
+      failure.message = `${failure.message}; cleanup failed: ${error.message}`;
+    } else {
+      failure = error;
+    }
+  }
+  if (!failure && requestedTerminationSignal) {
+    try {
+      throwIfRunnerTerminating();
+    } catch (error) {
+      failure = error;
+    }
+  }
+  if (failure) throw failure;
+}
+
+if (require.main === module) {
+  runCli().catch((error) => {
+    console.error(`ERROR ${error.message}`);
+    process.exitCode = error.exitCode || terminationExitCode() || 1;
+  });
 }
 
 module.exports = {

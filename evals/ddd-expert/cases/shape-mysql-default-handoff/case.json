@@ -80,6 +80,23 @@
           ["cannot roll back", "cannot change the Inventory result", "leaves the established Inventory outcome intact", "committed Inventory outcome is not rolled back by later notification failure", "cannot compensate, reverse, or roll back Inventory state"],
           ["no Process Manager", "requires no Process Manager", "without a Process Manager", "not a Process Manager", "does not create a Process Manager"]
         ],
+        "propositions": [
+          {
+            "name": "ReservationId construction uses identity admitted by Inventory",
+            "accepts": ["ReservationId is constructed from", "constructing a ReservationId requires", "identity admitted by Inventory"],
+            "rejects": ["ReservationId is constructed from arbitrary input", "ReservationId accepts any input", "ReservationId is not constructed from identity admitted by Inventory"]
+          },
+          {
+            "name": "ReservationId equality denotes the same reservation identity",
+            "accepts": ["ReservationId values are equal when", "values are equal when they denote the same reservation identity", "compared by its exact identity value"],
+            "rejects": ["ReservationId values are equal when identities differ", "ReservationId is not equal by exact identity", "different reservation identities are equal"]
+          },
+          {
+            "name": "Quantity equality follows the represented amount",
+            "accepts": ["Quantity values are equal when", "values are equal when their represented quantities are equal", "Quantity equality is by that amount"],
+            "rejects": ["Quantity values are equal when their amounts differ", "Quantity is not equal by amount", "different Quantity amounts are equal"]
+          }
+        ],
         "excludes": [
           "PostgreSQL",
           "SQLite",

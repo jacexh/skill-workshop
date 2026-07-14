@@ -16,24 +16,90 @@
         ["recommend*", "propos*", "建议", "推荐"],
         ["Aggregate boundary", "Reservation Aggregate", "Reservation Root", "聚合边界", "预订聚合"],
         ["Reservation Item", "预订项"],
+        ["Value Object", "值对象"],
+        ["no independent identity", "no independent lifecycle", "no accepted independent identity", "no accepted independent lifecycle", "no lifecycle outside", "无独立身份", "无独立生命周期"],
         ["positive held quantity", "held quantity is positive", "held quantity must be positive", "positive quantity", "quantity is positive", "quantity > 0", "quantity is greater than 0", "正数持有量", "正数量"],
-        ["may not exceed", "must not exceed", "accepted capacity", "capacity bound", "不得超过", "已接受容量", "容量上限"],
+        ["may not exceed", "must not exceed", "accepted capacity", "capacity accepted", "capacity bound", "不得超过", "已接受容量", "容量上限"],
         ["cannot establish two terminal outcomes", "one terminal outcome", "single-terminal-outcome invariant", "terminal exclusivity", "mutually exclusive terminal", "at most one of Confirmed", "one Reservation identity establishes at most one", "不能形成两个终态", "唯一终态", "终态互斥"],
-        ["concurrent terminal", "competing terminal", "terminal intents compete", "competing outcomes", "two terminal attempts", "concurrent confirmation", "concurrent release", "并发终态", "竞争终态"],
-        ["because", "protect*", "evidence", "therefore", "This follows", "follows the Model", "directly covers", "因为", "基于", "保护", "因此"],
+        ["concurrent terminal", "competing terminal", "terminal intents compete", "competing outcomes", "two terminal attempts", "concurrent confirmation", "concurrent release", "concurrent Confirm", "compete concurrently", "concurrent admissible terminal intents", "并发终态", "竞争终态"],
+        ["because", "protect*", "preserv*", "enforc*", "evidence", "therefore", "This follows", "This boundary makes", "assign* ... accepted invariant*", "follows the Model", "directly covers", "因为", "基于", "保护", "因此"],
         ["credible alternative", "split", "splitting", "separate", "merge", "备选", "拆分", "独立", "合并"],
-        ["cross-root", "cross-Aggregate", "coordination", "would require", "would move", "would weaken", "requiring", "at the cost", "跨聚合", "协调", "将需要", "会削弱"]
+        ["cross-root", "cross-Aggregate", "across roots", "coordinat*", "would require", "would move", "would force", "would weaken", "requiring", "at the cost", "跨聚合", "协调", "将需要", "会削弱"]
+      ],
+      "propositions": [
+        {
+          "name": "the recommended single Reservation Aggregate boundary",
+          "accepts": ["recommend* one Reservation Aggregate", "propos* one Reservation Aggregate", "recommend* one Reservation Root", "propos* one Reservation Root"],
+          "rejects": ["do not recommend* one Reservation Aggregate", "do not propos* one Reservation Aggregate", "one Reservation Aggregate is not recommend*", "recommend* separate Reservation Item Aggregate", "propos* separate Reservation Item Aggregate"]
+        },
+        {
+          "name": "Reservation Item is an owned Value Object",
+          "accepts": ["Reservation Item ... Value Object", "Reservation Item as ... Value Object"],
+          "rejects": ["Reservation Item is not a Value Object", "Reservation Item is an Entity", "Reservation Item is a separate Aggregate", "Reservation Item is a separate Root"]
+        },
+        {
+          "name": "Reservation Item has no independent identity",
+          "accepts": ["Reservation Item ... no independent identity", "Reservation Item ... no accepted independent identity", "Reservation Item ... without an independent identity"],
+          "rejects": ["Reservation Item has an independent identity", "Reservation Item owns an independent identity"]
+        },
+        {
+          "name": "Reservation Item has no independent lifecycle",
+          "accepts": ["Reservation Item ... no independent lifecycle", "Reservation Item ... no independent identity or lifecycle", "Reservation Item ... no accepted independent lifecycle", "Reservation Item ... no accepted independent identity or lifecycle", "Reservation Item ... without an independent lifecycle", "Reservation Item ... no lifecycle outside ... root"],
+          "rejects": ["Reservation Item has an independent lifecycle", "Reservation Item lifecycle is independent"]
+        },
+        {
+          "name": "positive held quantity",
+          "accepts": ["quantity is positive", "positive held quantity", "held quantity must be positive", "quantity > 0"],
+          "rejects": ["quantity need not be positive", "quantity is not required to be positive", "quantity may be non-positive"]
+        },
+        {
+          "name": "held quantity stays within accepted capacity",
+          "accepts": ["quantity ... may not exceed ... accepted capacity", "quantity ... must not exceed ... accepted capacity", "held quantity ... does not exceed ... accepted capacity", "held quantity ... does not exceed ... capacity accepted", "does not exceed ... accepted capacity", "does not exceed ... capacity accepted", "quantity ... no greater than ... accepted capacity", "quantity ... no greater than ... capacity accepted", "quantity ... within accepted capacity", "held quantity ... within accepted capacity"],
+          "rejects": ["quantity may exceed ... accepted capacity", "quantity can exceed ... accepted capacity", "quantity need not remain within ... accepted capacity", "capacity bound is not required"]
+        },
+        {
+          "name": "one terminal outcome under competition",
+          "accepts": ["cannot establish two terminal outcomes", "one terminal outcome", "terminal exclusivity", "at most one terminal outcome"],
+          "rejects": ["may establish two terminal outcomes", "can establish two terminal outcomes", "terminal outcomes are not exclusive", "multiple terminal outcomes are allowed"]
+        },
+        {
+          "name": "the split alternative moves rules across roots",
+          "accepts": ["move* ... invariant* ... across root*", "move* ... rule* ... across root*", "move* ... decision* ... across root*", "move* ... terminal-outcome* ... across root*", "move* ... invariant* ... cross-Aggregate", "move* ... rule* ... cross-Aggregate", "move* ... decision* ... cross-Aggregate", "forc* ... invariant* ... across root*", "forc* ... rule* ... across root*", "forc* ... decision* ... across root*", "place* ... invariant* ... across root*", "place* ... rule* ... across root*", "place* ... decision* ... across root*", "put* ... invariant* ... across root*", "put* ... rule* ... across root*", "put* ... decision* ... across root*", "split* ... invariant* ... require* ... coordination", "split* ... rule* ... require* ... coordination", "split* ... decision* ... require* ... coordination", "separate* ... root* ... split* ... decision* ... require* ... coordination", "separate* ... Aggregate ... require* ... cross-root coordination", "separate* ... Aggregate ... require* ... cross-Aggregate coordination", "separate* ... Aggregate ... coordinat* ... lifecycle ... claim", "separate* ... root* ... add* ... cross-root coordination", "distribut* ... invariant* ... between ... consistency boundar*", "distribut* ... rule* ... between ... consistency boundar*", "distribut* ... decision* ... between ... consistency boundar*"],
+          "rejects": ["single Aggregate ... move* ... across root*", "one Aggregate ... move* ... across root*", "one Reservation Aggregate ... move* ... across root*", "single boundary ... move* ... across root*", "single Aggregate ... forc* ... across root*", "one Aggregate ... forc* ... across root*", "one Reservation Aggregate ... forc* ... across root*", "single boundary ... forc* ... across root*", "single Aggregate ... require* ... cross-root coordination", "one Aggregate ... require* ... cross-root coordination", "one Reservation Aggregate ... require* ... cross-root coordination", "single boundary ... require* ... cross-root coordination", "move* ... discussion ... across root*", "move* ... review* ... across root*", "move* ... documentation ... across root*", "move* ... analysis ... across root*", "move* ... meeting ... across root*", "each root ... retain* ... rule* locally", "root* ... retain* ... every rule locally", "coordination is unnecessary", "no coordination is required", "does not require coordination", "merely discussed across roots", "splitting keeps every invariant within one root", "split alternative has no coordination cost"]
+        }
       ],
       "excludes": [
         "investigat*",
         "defer*",
         "still need",
         "not yet",
-        "No Domain Event",
-        "No Integration Message",
-        "No Process Manager",
+        "Domain Event",
+        "Integration Message",
+        "Process Manager",
+        "transition table",
+        "state machine",
+        "state transition",
+        "lifecycle representation",
+        "fact timeline",
+        "Requested moves to Held",
+        "Requested -> Held",
+        "Requested → Held",
+        "Published Fact Contract",
+        "Asynchronous Intent Contract",
+        "context contract",
+        "context dependency",
         "Repository semantics",
         "Verification obligations:",
+        "MySQL",
+        "PostgreSQL",
+        "SQLite",
+        "MongoDB",
+        "database",
+        "persistence engine",
+        "Repository implementation",
+        "Kafka",
+        "schema",
+        "table",
         "complete integrated Tactical Design",
         "Acceptance authorizes writing",
         "尚待调查",

@@ -26,9 +26,73 @@ function sameSet(left, right) {
   return left.size === right.size && [...left].every((item) => right.has(item));
 }
 
+const namedCharacterReferences = new Map([
+  ["amp", "&"],
+  ["gt", ">"],
+  ["lt", "<"],
+  ["nbsp", " "],
+  ["hyphen", "-"],
+  ["minus", "-"],
+]);
+
+function isBidirectionalNamedArrowReference(name) {
+  const normalized = name.toLowerCase();
+  return normalized.includes("leftright") ||
+    normalized.includes("rightleft") ||
+    normalized === "leftarrowrightarrow" ||
+    normalized === "rightarrowleftarrow" ||
+    /^(?:x?harr|iff|(?:lr|rl)(?:arr|har)|(?:reverse)?equilibrium)$/.test(normalized);
+}
+
+function decodeOneWayNamedArrowReference(name) {
+  const normalized = name.toLowerCase();
+  if (/^(?:x?larr|(?:long|short)?leftarrow)$/.test(normalized)) return "←";
+  if (/^(?:x?rarr|(?:long|short)?rightarrow)$/.test(normalized)) return "→";
+  return null;
+}
+
+function decodeCharacterReferences(value) {
+  return value.replace(
+    /&(#(?:[xX][0-9A-Fa-f]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g,
+    (reference, name) => {
+      if (!name.startsWith("#")) {
+        if (isBidirectionalNamedArrowReference(name)) return "↔";
+        const oneWayArrow = decodeOneWayNamedArrowReference(name);
+        if (oneWayArrow !== null) return oneWayArrow;
+        return namedCharacterReferences.get(name.toLowerCase()) ?? reference;
+      }
+      const hexadecimal = name[1] === "x" || name[1] === "X";
+      const codePoint = Number.parseInt(name.slice(hexadecimal ? 2 : 1), hexadecimal ? 16 : 10);
+      if (!Number.isSafeInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff ||
+          (codePoint >= 0xd800 && codePoint <= 0xdfff)) {
+        return reference;
+      }
+      return String.fromCodePoint(codePoint);
+    },
+  );
+}
+
+function canonicalInlineMarkdown(value) {
+  let canonical = decodeCharacterReferences(value)
+    .normalize("NFKC")
+    .replace(/\p{Default_Ignorable_Code_Point}/gu, "")
+    .replace(/[\u2010-\u2015\u2212]/gu, "-")
+    .replace(/!?\[([^\]\r\n]*)\]\((?:\\.|[^)\r\n])*\)/g, "$1")
+    .replace(/!?\[([^\]\r\n]*)\]\[[^\]\r\n]*\]/g, "$1")
+    .replace(/<\/?[A-Za-z][^>\r\n]*>/g, "");
+  for (let depth = 0; depth < 8; depth += 1) {
+    const stripped = canonical.replace(
+      /(?<!\\)(\*{1,3}|_{1,3}|~{2}|`+)([^\r\n]*?)(?<!\\)\1/g,
+      "$2",
+    );
+    if (stripped === canonical) break;
+    canonical = stripped;
+  }
+  return canonical;
+}
+
 function renderedPlainText(value) {
-  return value
-    .replace(/<[^>]*>/g, " ")
+  return canonicalInlineMarkdown(value)
     .replace(/&(?:#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);/g, " ")
     .replace(/[*_`~[\](){}<>\\|]/g, " ")
     .replace(/\s+/g, " ")
@@ -53,7 +117,11 @@ function sectionLines(lines, heading, stopLevel) {
   return lines.slice(start + 1, end);
 }
 
-if (/<(?:-+|=+)>|[↔⇄⇆⇋⇌⇔⟷⟺]/u.test(source)) {
+const canonicalSource = canonicalInlineMarkdown(source);
+if (/[\u2190-\u21ff\u2794-\u27bf\u27f0-\u27ff\u2900-\u297f\u2b00-\u2b11\u2b30-\u2b4c\u2b60-\u2b73\u2b76-\u2b95\u2ba0-\u2bb8\u{1f800}-\u{1f8ff}]/u.test(canonicalSource)) {
+  invalid("bidirectional or non-canonical Unicode arrows are forbidden; use canonical ASCII -> syntax");
+}
+if (/<(?:-+|=+)>|[↔↭↮↹⇄⇆⇋⇌⇎⇔⇿⟷⟺⤄⥂⥄⥊⥋⥎⥐⥦⬄⬌]|(?:[←⇐⟵⟸]\s*[→⇒⟶⟹]|[→⇒⟶⟹]\s*[←⇐⟵⟸])/u.test(canonicalSource)) {
   invalid("bidirectional arrows such as <->, <-->, or ↔ are forbidden");
 }
 if (/^## Relationships\s*$/m.test(source)) {
@@ -67,8 +135,35 @@ if (allLines[0] !== "# Context Map" || allLines.filter((line) => line === "# Con
 if (source.includes("<!--")) {
   invalid("HTML comments are unsupported in a materialized Context Map");
 }
-if (source.split(/\r?\n/).some((line) => /^\s{0,3}<[/?A-Za-z!]/.test(line))) {
+if (allLines.some((line) => /^\s{0,3}<[/?A-Za-z!]/.test(line))) {
   invalid("raw HTML blocks are unsupported in a materialized Context Map");
+}
+
+const semanticFieldLabels = new Set([
+  "Core responsibility",
+  "Business authority",
+  "Accepted meaning",
+  "Local translation",
+  "Published meaning",
+  "Guarantee",
+  "Collaboration pattern",
+]);
+
+function collaborationSemanticMode(label) {
+  if (/\b(?:relationship|collaboration|context map|pattern)\b/i.test(label)) return "strict";
+  return semanticFieldLabels.has(label) ? "business-prose" : null;
+}
+
+function assertSupportedCollaborationSemantics(value, mode = "strict") {
+  const plain = renderedPlainText(value);
+  const unsupported = plain.match(/\b(?:Partnerships?|Shared(?:[\s/_.-]*)Kernels?)\b/i);
+  const explicitPattern = /\b(?:form(?:s|ed|ing)?|collaborat(?:e|es|ed|ing)\s+as|operat(?:e|es|ed|ing)\s+as|work(?:s|ed|ing)?\s+as|share(?:s|d|ing)?|jointly\s+own(?:s|ed|ing)?)\s+(?:an?\s+)?(?:Partnerships?|Shared(?:[\s/_.-]*)Kernels?)\b/i.test(plain) ||
+    /\b(?:is|are|was|were)\s+(?:in\s+)?an?\s+Partnership\b/i.test(plain) ||
+    /(?:构成|形成|结成|属于|是)(?:一个|一种)?\s*Partnerships?/iu.test(plain) ||
+    /(?:共同拥有|共享|共用)\s*Shared(?:[\s/_.-]*)Kernels?/iu.test(plain);
+  if (unsupported && (mode === "strict" || explicitPattern)) {
+    invalid(`${unsupported[0]} is unsupported by the ddd-expert DAG House Rule`);
+  }
 }
 
 function canonicalAtxHeading(line) {
@@ -79,6 +174,8 @@ function canonicalAtxHeading(line) {
   return `${match[1]} ${text}`;
 }
 
+let continuedSemanticValue = null;
+let continuedSemanticMode = null;
 for (const line of allLines) {
   if (/^ {1,5}(?:(?:[-+*]|[0-9]{1,9}[.)])[ \t]+)?\*\*[^*]+:\*\*(?:[ \t]|$)/.test(line)) {
     invalid("indented structured fields are unsupported; use canonical top-level fields");
@@ -111,13 +208,24 @@ for (const line of allLines) {
   }
 
   const structuredField = line.match(/^- \*\*([^*]+):\*\* (.*)$/);
-  if (structuredField && /\b(?:relationship|collaboration|context map|pattern)\b/i.test(structuredField[1])) {
-    const value = renderedPlainText(structuredField[2]);
-    const unsupported = value.match(/\b(?:Partnership|Shared[ -]+Kernel)\b/i);
-    if (unsupported) {
-      invalid(`${unsupported[0]} is unsupported by the ddd-expert DAG House Rule`);
+  if (structuredField) {
+    continuedSemanticMode = collaborationSemanticMode(structuredField[1]);
+    continuedSemanticValue = continuedSemanticMode !== null
+      ? structuredField[2]
+      : null;
+    if (continuedSemanticValue !== null) {
+      assertSupportedCollaborationSemantics(continuedSemanticValue, continuedSemanticMode);
     }
+    continue;
   }
+  if (line.trim() === "") continue;
+  if (continuedSemanticValue !== null && /^ {1,5}[^ \t]/.test(line)) {
+    continuedSemanticValue += ` ${line.trim()}`;
+    assertSupportedCollaborationSemantics(continuedSemanticValue, continuedSemanticMode);
+    continue;
+  }
+  continuedSemanticValue = null;
+  continuedSemanticMode = null;
 }
 
 const globalStart = allLines.findIndex((line) => line === "## Global View");
@@ -312,6 +420,7 @@ function parseContracts(context, lines, heading, endpointLabel, semanticLabels, 
       continue;
     }
     const name = contract[1].trim();
+    assertSupportedCollaborationSemantics(name);
     let end = body.length;
     for (let cursor = index + 1; cursor < body.length; cursor += 1) {
       if (/^##### [^#]/.test(body[cursor])) {
