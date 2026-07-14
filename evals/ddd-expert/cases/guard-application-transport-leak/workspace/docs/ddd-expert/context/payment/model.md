@@ -9,7 +9,7 @@ model_revision: 1
 
 Payment owns payment settlement and capture facts.
 
-## Context Relationships
+## Context Dependencies
 
 Payment publishes Payment Captured for consumers. Order owns how that external
 fact affects order fulfillment.

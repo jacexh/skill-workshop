@@ -1,0 +1,80 @@
+{
+  "id": "explore-existing-system-baseline",
+  "phase": "explore",
+  "suites": ["smoke", "full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 1,
+      "contains_any": [
+        ["Agent Execution", "agent execution", "执行上下文"],
+        ["Work", "工作上下文"],
+        ["Project Knowledge", "project knowledge", "项目知识"],
+        ["run admission", "execution identity", "lease fencing", "terminal execution outcome", "Agent Run", "运行准入", "执行身份", "租约围栏", "执行结果"],
+        ["Work completion", "business completion", "whether Work is complete", "Work owns requested work and its completion", "Work owns requested business work and the decision that work is complete", "工作完成"],
+        ["Candidate acceptance", "knowledge acceptance", "whether knowledge becomes accepted", "knowledge candidates, reconciliation, and acceptance", "knowledge candidates and their acceptance", "candidate reconciliation, and acceptance", "Project Knowledge own* ... reconciliation ... acceptance", "候选接受", "知识接受"],
+        ["upstream", "fan-out", "both delegate", "two downstream", "Agent Execution -> Work", "Agent Execution -> Project Knowledge", "Agent Execution → Work", "Agent Execution → Project Knowledge", "上游", "扇出"],
+        ["README", "architecture.md", "run.go", "repository evidence", "code evidence", "仓库证据", "代码证据"],
+        ["candidate baseline", "candidate current baseline", "provisional baseline", "baseline proposal", "confirm this baseline", "confirm this candidate current baseline", "accept this baseline", "accept this three-context baseline", "候选基线", "暂定基线", "确认该基线"]
+      ],
+      "propositions": [
+        {
+          "name": "Agent Execution owns run admission",
+          "accepts": ["Agent Execution own* ... run admission", "Agent Execution independently own* ... run admission"],
+          "rejects": ["Agent Execution does not own* ... run admission", "Agent Execution is not ... run admission authority"]
+        },
+        {
+          "name": "Agent Execution owns execution identity",
+          "accepts": ["Agent Execution own* ... execution identity", "Agent Execution independently own* ... execution identity"],
+          "rejects": ["Agent Execution does not own* ... execution identity", "Agent Execution is not ... execution identity authority"]
+        },
+        {
+          "name": "Agent Execution owns lease fencing",
+          "accepts": ["Agent Execution own* ... lease fencing", "Agent Execution independently own* ... lease fencing"],
+          "rejects": ["Agent Execution does not own* ... lease fencing", "Agent Execution is not ... lease fencing authority"]
+        },
+        {
+          "name": "Agent Execution owns terminal execution outcomes",
+          "accepts": ["Agent Execution own* ... terminal execution outcome*", "Agent Execution independently own* ... terminal execution outcome*"],
+          "rejects": ["Agent Execution does not own* ... terminal execution outcome*", "Agent Execution is not ... terminal execution outcome authority"]
+        },
+        {
+          "name": "Work owns business completion",
+          "accepts": ["Work ... own* ... completion", "Work ... decide* ... complete"],
+          "rejects": ["Work does not own* ... completion", "Work ... does not decide* ... complete", "Work is not ... completion authority"]
+        },
+        {
+          "name": "Project Knowledge owns knowledge acceptance",
+          "accepts": ["Project Knowledge ... own* ... acceptance", "Project Knowledge ... own* ... accepted project view", "Project Knowledge ... own* ... candidate reconciliation"],
+          "rejects": ["Project Knowledge does not own* ... acceptance", "Project Knowledge does not own* ... accepted project view", "Project Knowledge does not own* ... candidate reconciliation", "Project Knowledge is not ... acceptance authority"]
+        },
+        {
+          "name": "Agent Execution is upstream of Work",
+          "accepts": ["Agent Execution ... upstream ... Work", "Agent Execution ... fan* out ... Work", "Agent Execution -> Work", "Agent Execution → Work"],
+          "rejects": ["Agent Execution is not upstream ... Work", "Work ... upstream ... Agent Execution", "Work -> Agent Execution", "Work → Agent Execution", "Agent Execution <- Work", "Agent Execution ← Work"]
+        },
+        {
+          "name": "Agent Execution is upstream of Project Knowledge",
+          "accepts": ["Agent Execution ... upstream ... Project Knowledge", "Agent Execution ... fan* out ... Project Knowledge", "Agent Execution -> Project Knowledge", "Agent Execution → Project Knowledge"],
+          "rejects": ["Agent Execution is not upstream ... Project Knowledge", "Project Knowledge ... upstream ... Agent Execution", "Project Knowledge -> Agent Execution", "Project Knowledge → Agent Execution", "Agent Execution <- Project Knowledge", "Agent Execution ← Project Knowledge"]
+        }
+      ],
+      "excludes": ["package names prove", "calls prove", "publish* ... recovery", "expos* ... recovery", "make* ... recovery ... visible", "recovery fact* ... should be visible", "accept* ... recovery visibility", "recovery event", "包名证明", "调用证明"]
+    },
+    "routes": { "contains": [], "excludes": ["shape", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "none",
+      "required_paths": [],
+      "forbidden_paths": ["docs/ddd-expert/README.md", "docs/ddd-expert/context-map.md"]
+    },
+    "files": [],
+    "checks": []
+  }
+}

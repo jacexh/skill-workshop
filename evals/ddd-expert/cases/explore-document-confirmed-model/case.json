@@ -9,12 +9,17 @@
     "completion": ["completed"],
     "review_conclusion": ["not_applicable"],
     "questions": { "min": 0, "max": 0 },
-    "routes": { "contains": [], "excludes": [] },
+    "routes": { "contains": ["shape"], "excludes": ["codify", "guard"] },
     "verdicts": [],
     "forbid_verdicts": [],
     "git": {
       "changed": "some",
       "required_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/inventory/model.md"
+      ],
+      "allowed_paths": [
         "docs/ddd-expert/README.md",
         "docs/ddd-expert/context-map.md",
         "docs/ddd-expert/context/inventory/model.md"
@@ -29,18 +34,21 @@
       {
         "path": "docs/ddd-expert/context/inventory/model.md",
         "exists": true,
+        "forbid_temporary_trace": true,
         "contains": [
           "# Inventory Domain Model",
           "model_revision: 2",
           "Inventory Reservation",
           "Stock Reserved"
         ],
-        "excludes": ["CREATE TABLE", "<Bounded Context>", "<!--"],
+        "excludes": ["CREATE TABLE", "<Bounded Context>", "<!--", "## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": ["Source Coverage", "Story Coverage", "Coverage Ledger"],
         "excludes_words": ["Repository", "table"]
       },
       {
         "path": "docs/ddd-expert/README.md",
         "exists": true,
+        "forbid_temporary_trace": true,
         "contains": [
           "# DDD Expert Artifacts",
           "## Bounded Contexts",
@@ -49,24 +57,42 @@
           "may be absent until Shape",
           "[context-map.md](context-map.md)"
         ],
-        "excludes": ["<Bounded Context>", "<!--", "## Structure", "```text", "|--", "`--"],
+        "excludes": ["<Bounded Context>", "<!--", "## Structure", "```text", "|--", "`--", "## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": ["Source Coverage", "Story Coverage", "Coverage Ledger"],
         "excludes_words": []
       },
       {
         "path": "docs/ddd-expert/context-map.md",
         "exists": true,
+        "forbid_temporary_trace": true,
         "contains": [
           "# Context Map",
           "## Global View",
-          "Arrow direction: `U -> D` (Upstream -> Downstream).",
+          "Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.",
           "```mermaid",
           "graph LR",
-          "inventory[\"Inventory\"]"
+          "inventory[\"Inventory\"]",
+          "### Inventory",
+          "- **Core responsibility:**",
+          "- **Business authority:**",
+          "#### Local View",
+          "- No context dependencies."
         ],
-        "excludes": ["<Bounded Context>", "<!--"],
+        "excludes": ["<Bounded Context>", "<!--", "## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": ["Source Coverage", "Story Coverage", "Coverage Ledger"],
         "excludes_words": []
       }
     ],
-    "checks": []
+    "checks": [
+      {
+        "argv": [
+          "node",
+          "/eval/validate-context-map.mjs",
+          "docs/ddd-expert/context-map.md"
+        ],
+        "exit": 0,
+        "timeout_seconds": 30
+      }
+    ]
   }
 }

@@ -17,8 +17,8 @@ This plugin is hookless. Automatic intervention relies on each skill's own front
 
 The plugin exposes four compact phase skills, one internal artifact executor, and shared references:
 
-- `explore` — Story-set topology discovery followed by Context Map projection, per-context and relationship trees, lifecycle closure, and accepted Model checkpoints
-- `shape` — Tactical Design for Aggregate boundaries, consistency, collaboration, ports, persistence boundaries, runtime containment, and verification seams
+- `explore` — Temporary source-item coverage without requiring Story IDs, existing-system baseline reconstruction, end-to-end Scenario Threads, boundary-alternative challenges, and one integrated Model acceptance before one atomic artifact transaction
+- `shape` — Pre-write Software Design EventStorming and design consensus for Model realization, Aggregate boundary proof, Domain objects and lifecycles, coordination and context contracts, plus only design-significant technical and verification obligations
 - `codify` — House-Style Realization of accepted model and design decisions in working backend code; every material changed implementation completes through a clear independent Guard in the same task
 - `guard` — Parallel Design Realization and House-Style Conformance review of concrete implementation evidence
 - `maintain-artifacts` — Internal validation and execution of authorized DDD artifact transactions; not a user entry point
@@ -55,7 +55,7 @@ Use this plugin for:
 - taskqueue/runtime boundaries in DDD services
 - database-backed backend persistence design when schema, query, migration, transaction, or storage concerns are explicit
 
-Explore first tests whether the current story set fits the accepted context topology; when it does not, it validates and checkpoints a context split, merge, or relationship before descending into one context. It then walks the affected Context Map one context and relationship at a time. It checkpoints accepted local or boundary closures into each context's terminal-state Domain Model while keeping unresolved discovery active; only a complete replay of every affected story routes the current Model revisions to Shape. Shape maintains each context's Tactical Design beside it. Artifact locations and ownership follow [templates/artifact-layout.md](templates/artifact-layout.md).
+Explore keeps temporary coverage for every material source item without requiring Story IDs. In an existing system with no accepted DDD artifacts, it first reconstructs and confirms the current Bounded Context baseline from project evidence before projecting the requested change. It then follows end-to-end Scenario Threads through normal, failure, and concurrency paths, challenges each new or reopened boundary against its closest credible split or merge alternative, and replays every material source item against the integrated target model. Only after one integrated acceptance does Explore apply the Context Map and all affected Models once as one atomic transaction. The Context Map is an acyclic graph of one-way model dependencies: its Global View is the mechanical projection of each context's one-hop dependencies and named contracts, never a runtime call graph. Shape uses Software Design EventStorming as temporary working material, exposes material Tactical Design decisions and credible alternatives, and obtains integrated design acceptance before writing the affected `design.md` files. Artifact locations and ownership follow [templates/artifact-layout.md](templates/artifact-layout.md).
 
 These artifacts contain only current DDD facts and tactical decisions. They do not copy feature descriptions, ADRs, tickets, project architecture, implementation progress, or review reports. Purely mechanical work with unambiguous ownership does not force document creation.
 
@@ -63,7 +63,7 @@ These artifacts contain only current DDD facts and tactical decisions. They do n
 
 - `templates/artifact-layout.md` defines the canonical project directory and artifact ownership.
 - `templates/README.md` defines the project artifact entry point and context index.
-- `templates/context-map.md` defines the global upstream/downstream view, strategic context responsibilities, and relationships.
+- `templates/context-map.md` defines the global dependency DAG and each context's one-hop dependency and named-contract projection.
 - `templates/model.md` defines one context's terminal-state Domain Model structure.
 - `templates/design.md` defines one context's terminal-state Tactical Design structure.
 

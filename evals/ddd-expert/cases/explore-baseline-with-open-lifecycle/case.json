@@ -1,0 +1,31 @@
+{
+  "id": "explore-baseline-with-open-lifecycle",
+  "phase": "explore",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 1,
+      "contains_any": [
+        ["docs/stories.md", "stories.md", "source stories", "故事文档"],
+        ["Purchase", "purchase acceptance", "commerce", "采购", "购买"],
+        ["stock and fraud", "stock", "fraud", "库存", "风控"],
+        ["when either check fails", "check fails", "failed check", "failed stock", "failed fraud", "检查失败", "校验失败"],
+        ["pending", "terminal", "review", "retry", "outcome", "待定", "终态", "复核", "重试", "结果"],
+        ["recommend*", "propos*", "建议", "推荐"]
+      ],
+      "excludes": ["need to review", "will review", "before reviewing", "have not reviewed", "still need to review", "尚未扫描", "需要扫描", "待走查"]
+    },
+    "routes": { "contains": [], "excludes": ["shape", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": []
+  }
+}

@@ -2,7 +2,7 @@
 
 ## Global View
 
-Arrow direction: `U -> D` (Upstream -> Downstream).
+Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
 
 ```mermaid
 graph LR
@@ -16,9 +16,6 @@ graph LR
 - **Core responsibility:** Own customer orders and their fulfillment state.
 - **Business authority:** Order lifecycle, payment status, and fulfillment eligibility.
 
-## Relationships
+#### Local View
 
-Payment is an upstream external context. It publishes the stable Payment
-Captured fact after settlement. Order consumes that fact through an
-anti-corruption boundary and remains authoritative for the resulting order
-state transition.
+- No context dependencies.

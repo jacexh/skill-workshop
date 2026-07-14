@@ -5,53 +5,56 @@ description: Use when domain discovery must turn backend user stories or equival
 
 # Explore
 
-Turn product evidence into accepted business facts that `shape` can design from.
+Turn product evidence into one accepted, replayable business model that `shape` can design from.
 
 ## DDD model artifact
 
 Explore is the exclusive semantic authorizer of root README, Context Map, and Model changes. It never writes DDD artifacts directly and never authorizes a Design change. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute its `inspect` or `apply-model` operation in the same run with authority `explore`.
 
-The model describes the current accepted state, not a change log. It contains only material DDD facts:
+The model describes the current accepted state, not a change log or discovery transcript. It contains only material DDD facts:
 
 - ubiquitous language;
-- bounded contexts, business authority, and context relationships;
+- bounded contexts, business authority, and directional context dependencies;
 - scenarios, past-tense business facts, and lifecycle;
 - invariants, policies, and decision ownership;
 - business semantics for duplication, failure, cancellation, compensation, and recovery.
 
-Read feature descriptions, ADRs, tickets, acceptance criteria, project architecture, implementation status, and code as evidence. Keep their narrative and inventories outside the model. Tactical classifications and implementation decisions belong to `shape` and `codify`.
+Read feature descriptions, prose, Gherkin, ADRs, tickets, acceptance criteria, incident narratives, architecture documents, implementation status, conversation, and code as evidence. An explicit authoritative business decision in the source may be accepted as a fact. A mechanism embedded in a specification or implementation -- such as a singleton, mailbox, storage choice, handler, or scheduler -- is a hypothesis unless the source explicitly makes it authoritative business meaning. Code is evidence of the current system, never business authority by itself. Tactical classifications and implementation decisions belong to `shape` and `codify`.
+
+## Discovery units
+
+- A **source item** is the coverage unit: one material scenario, decision, rule, or direct terminology or authority question. Preserve a source ID when one exists; otherwise use a short source locator. Never require or invent a Story ID.
+- A **Scenario Thread** is the traversal unit: an end-to-end business path across the affected contexts from intent or accepted fact to decisions, established facts, changed rights or obligations, reactions, and accounted outcome.
+- An unresolved business judgment is the question unit. Ask one such question at a time only when evidence leaves a real choice.
+
+Maintain a temporary source-coverage ledger during a long discovery so no material source item is silently omitted. It may live in untracked scratch space while the run is active, but it is not a DDD artifact, receives no revision, and must be removed when the run ends. Report uncovered or deferred source items in the final response.
 
 ## Workflow
 
-1. **Inspect evidence**: run the read-only artifact operation, then read the request, root README, accepted Context Map, and the smallest relevant Model sections. Treat `uninitialized` as a valid bootstrap state. Look up recorded facts before asking the user to restate them.
-2. **Triangulate the topology**: shallow-scan every material story or scenario in the current discovery scope before descending into one branch. Extract its intent, business decisions, past-tense facts, changed rights or obligations, and reactions. Ask whether the accepted Context Map can assign each material decision or fact to one coherent language and business authority and can name every cross-context reaction. If not, build a candidate topology tree and resolve one split-or-merge hypothesis at a time. A merged candidate must sustain one coherent language and authority; a split candidate must give each context a meaningful local responsibility and name the business intent or fact crossing the boundary and its contract authority. Story grouping and technical or organizational topology are evidence, never boundary proof. Once the affected topology slice is explicitly accepted, run the checkpoint step immediately so `docs/ddd-expert/context-map.md` and every semantically affected Model become the accepted traversal authority. Do not enter a context-local discovery tree until that checkpoint succeeds.
-3. **Project the stories**: use each user story or equivalent business scenario as a traversal root, not as business authority or a context boundary. Project each material intent, decision, past-tense fact, and reaction onto the accepted Context Map and combine the affected context subgraphs. One story may cross contexts and many stories may remain inside one. When a direct language, authority, or boundary question has no story, enter the relevant context or relationship without inventing one.
-4. **Walk the Context Map**: use each accepted relationship's direction and power. For a directed relationship, walk the upstream context, the relationship, and then each affected downstream context. For a non-directional relationship, follow the unresolved business authority and reconcile both sides. Calls, storage, and event timing remain evidence rather than relationship direction.
-5. **Close one context at a time**: build one depth-first discovery tree per affected context, rooted in that context's local business responsibility for the story set. Resolve question dependencies one at a time across local language, authority, lifecycle subjects, invariants or policies, accepted external facts, and outbound facts. Model each lifecycle as `inbound intent or accepted fact -> local decision -> past-tense fact -> rights or obligations changed -> local or outbound reaction`. A context branch is closed only when every material lifecycle branch reaches an accounted business condition: a terminal condition when one exists, an explicit continuing or recoverable local state, or a named Context Map handoff.
-6. **Reconcile each boundary**: after the upstream branch closes, build the relationship tree from the authoritative fact or intent, contract owner, downstream accepted fact, local translation, and material failure meaning. Complete boundary reconciliation before entering the downstream discovery tree. Reopen the topology tree when language, authority, lifecycle, or policy evidence no longer fits the accepted boundary.
-7. **Checkpoint accepted closures**: when a topology, context-local, or relationship slice is internally consistent and independent of unresolved branches, present one integrated delta for that checkpoint and wait for explicit acceptance. After acceptance, run `apply-model` through `maintain-artifacts` as one accepted semantic checkpoint and return `checkpointed`. Keep unresolved branches in the discovery frontier and write only current accepted facts.
-8. **Replay the stories**: after every affected context and relationship tree closes, replay every story's normal path and material alternate paths through the accepted local facts and handoffs. Explore is `shape_ready` only when the replay needs no invented business fact, the Context Map agrees with every affected Model, and every affected Model has an exact current revision.
+1. **Inspect accepted artifacts and evidence**: run the read-only artifact operation, read the request and the smallest relevant accepted artifacts, and shallow-scan every material source item before descending into one thread. Look up recorded facts before asking the user to restate them. An `invalid_layout` remains inspection evidence rather than migration authority. Before considering a retired legacy Context Map migration, override the usual narrow read and inspect the complete DDD artifact root: the legacy set is the Map, every Model in that root that still uses the retired `## Context Relationships` heading, and the root README when it still says `Context relationships are authoritative`. Use their readable content as defeasible evidence while deriving one complete replacement; every omitted legacy artifact or unrelated current artifact invalidity blocks apply.
+2. **Reconstruct the current baseline when needed**: treat an existing Context Map as the defeasible baseline and reopen only boundaries affected by new evidence. When an existing system has no DDD artifacts, reconstruct a candidate current Bounded Context map from code, README, ADRs, architecture, APIs, and data ownership; explain the evidence and uncertainty, then obtain baseline confirmation before projecting a requested change. Make the confirmation question self-contained: summarize each candidate context's distinct business authority, the proposed directional dependencies, and the repository evidence and uncertainty that support them; never ask the user to accept an unseen "three-context baseline" or topology. Baseline confirmation establishes the working premise and never authorizes an intermediate artifact write or revision. If the task only documents the current model, present that baseline as the final integrated target and its acceptance may create revision 1. If a change is also requested, keep the confirmed baseline as working state and write only the final integrated target.
+3. **Build and traverse Scenario Threads**: project every material source item through local language, authority, lifecycle, invariants or policies, accepted external facts, handoffs, and outcomes. Replay normal, failure, duplicate, cancellation, recovery, and concurrency paths only where they create a different model path. A direct language, authority, or boundary question needs no invented scenario.
+4. **Derive or challenge boundaries from the threads**: assign every material decision and fact to one coherent language and business authority. Treat story grouping, packages, services, teams, storage, calls, and event timing as evidence rather than boundary proof or dependency direction. For each new or reopened boundary, test the closest credible merge or split alternative and explain which accepted language, authority, lifecycle, policy, or failure evidence rejects it. Multiple contexts using one execution capability do not create a Shared Kernel; when that capability owns distinct language or authority, model it as an independent upstream supporting or generic context with fan-out dependencies.
+5. **Reconcile directional dependencies**: for every affected `U -> D` edge, name the upstream-owned contract, published meaning and guarantee, downstream accepted meaning and local translation, and material failure or recovery meaning. Runtime request/response does not create a reverse model dependency. If evidence implies a self-loop, reciprocal edge, or longer dependency cycle, do not normalize it into two arrows; reopen ownership and boundary reasoning.
+6. **Ask only evidence-bearing questions**: state the evidence, the unresolved business judgment, and a recommendation briefly; ask exactly one focused question and end the turn. Use one interrogative sentence for that decision. Never append a contingent follow-up such as "if so, who/how/when?"; if the answer makes that judgment relevant, ask it in the next turn. When an accepted artifact target omits observed legacy content, name the exact retired marker and omission, recommend completing the target while keeping files unchanged, then ask the one removal-or-retention decision needed to proceed. The recorded question itself must include that recommendation and zero-write consequence; a bare removal-or-retention question is incomplete. Do not ask the user to select a DDD label. When all material facts are already explicit and consistent, clarification may be unnecessary.
+7. **Replay and expose one integrated proposal**: after all Scenario Threads close, replay their material paths against the proposed Context Map and Models. Present one integrated model proposal including affected contexts, language and authority, lifecycles and rules, dependency contracts, boundary alternatives considered, and any residual source-coverage gaps. Acceptance of this final target is the only artifact write-authorization gate; earlier baseline confirmation cannot authorize a write. Intermediate topology, context, relationship, or "checkpoint" writes are forbidden.
+8. **Apply once after acceptance**: after explicit acceptance of the integrated proposal, run one atomic `apply-model` transaction through `maintain-artifacts` for the Context Map, root navigation when affected, and every semantically affected Model. To replace a retired invalid Context Map, declare `context_map_migration: true` only after explicit acceptance of the final integrated target and provide the complete accepted replacement plus every affected Model; omit the flag for ordinary applies. Each changed Model revision advances at most once. The written artifacts must not introduce a decision that was absent from the accepted proposal.
 
-## Clarification discipline
-
-Ask for a business decision, not a tactical label. State the evidence and recommendation briefly, ask exactly one focused question, and end the turn. Resolve the deepest unanswered dependency in the active discovery tree before moving sideways.
-
-When a branch reaches lifecycle closure, present its integrated checkpoint delta; acceptance of that delta is the one active question. Apply only accepted terminal content and explicit removals.
+Explore is `shape_ready` only when replay needs no invented business fact, the Context Map is a valid directed acyclic dependency graph, every affected Model agrees with it at an exact current revision, and every material source item is covered or explicitly reported as deferred.
 
 ## Completion
 
 Finish with one of:
 
-- `checkpointed`: an accepted semantic checkpoint was written while discovery remains; name every changed path and resulting Model revision, then ask the next focused question.
-- `changed`: all accepted changes are represented at exact revisions and story replay passed; name every affected context and revision, then route them to `shape`.
-- `no_change`: existing sections already make the full story `shape_ready`; cite those sections and route the affected contexts to `shape`.
-- `needs_clarification`: ask the single active question and stop without writing unaccepted facts.
-- `blocked`: an external constraint prevents reading or writing the artifact; state the constraint and intended path.
+- `changed`: the accepted integrated model was written once; name every affected context, path, and revision, report coverage gaps, then route to `shape`.
+- `no_change`: existing sections already satisfy the complete replay; cite them, report coverage gaps, and route affected contexts to `shape`.
+- `needs_clarification`: ask the single active business question and stop without writing unaccepted facts.
+- `blocked`: an external constraint prevents reading or applying the artifact transaction; state the constraint and intended path.
 
-Only a `shape_ready` result routes affected contexts to `shape`. Keep the final response short. Do not paste the model unless asked.
+There is no partial-model completion state. Only a `shape_ready` result routes affected contexts to `shape`. Keep the final response short. Do not paste the model unless asked.
 
 ## References
 
-- Load references after topology triangulation or story projection exposes a material hotspot.
+- Load references when Scenario Thread traversal exposes a material hotspot.
 - Use only the relevant section of [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for language, authority, lifecycle, invariant, failure tolerance, subdomain, bounded-context, Aggregate, or coordination analysis.
 - Do not load implementation, language, runtime, database, or `ddd-core.md` references during `explore`.

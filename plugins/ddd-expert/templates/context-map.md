@@ -1,12 +1,12 @@
 # Context Map
 
-<!-- Remove template comments and placeholders from the written artifact. Create this artifact with the first accepted Bounded Context and retain it even when no relationship exists yet. -->
+<!-- Remove template comments and placeholders from the written artifact. Create this artifact with the first accepted Bounded Context and retain it when no dependency exists yet. This project uses the ddd-expert House Rule: Context Map dependencies are directional and the complete graph is a DAG. Partnership, Shared Kernel, bidirectional arrows, and dependency cycles are unsupported. -->
 
 ## Global View
 
-<!-- Declare every accepted project Bounded Context exactly once, including isolated contexts. Use its lower-kebab-case context slug with hyphens replaced by underscores as the Mermaid identifier, and its accepted context name as the visible label. Add only accepted directed relationships between project contexts, using plain unlabeled edges from upstream to downstream. Do not add external contexts or relationships without an accepted upstream/downstream direction. -->
+<!-- Declare every accepted project Bounded Context exactly once, including isolated contexts. Give each node a unique lower_snake_case Mermaid identifier and use the accepted context name as its visible label. The identifier is document syntax and need not duplicate the context directory slug. Add each accepted dependency once as a plain edge from upstream to downstream. This view is a mechanical projection of the Local Views and named contract entries below. -->
 
-Arrow direction: `U -> D` (Upstream -> Downstream).
+Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
 
 ```mermaid
 graph LR
@@ -18,17 +18,40 @@ graph LR
 
 ## Bounded Contexts
 
-### <Bounded Context>
+### <Upstream Context>
 
 - **Core responsibility:** <Business capability owned by this context>
 - **Business authority:** <Facts and decisions for which this context is authoritative>
 
-## Relationships
+#### Local View
 
-<!-- Omit this section until at least one relationship exists. Repeat one subsection per accepted relationship. -->
+<!-- List direct neighbors only. Use `- No context dependencies.` for an isolated context. -->
 
-### <Upstream Context> -> <Downstream Context>
+- `<Upstream Context> -> <Downstream Context> [D]`
 
-- **Relationship:** <Context Map relationship>
-- **Authority boundary:** <Which context owns which facts or decisions>
-- **Translation boundary:** <How downstream protects or adopts its local language>
+#### Downstream Contracts
+
+<!-- Repeat once per named contract published across a direct edge. After direction and ownership are established, a material directional DDD pattern may be recorded as `- **Collaboration pattern:** <Pattern>`; Partnership and Shared Kernel are unsupported annotation values. Omit the annotation otherwise. -->
+
+##### <Contract Name>
+
+- **Downstream:** <Downstream Context>
+- **Published meaning:** <Upstream facts, decisions, or guarantees exposed in upstream language>
+- **Guarantee:** <Authority, ordering, durability, or failure guarantee the upstream owns>
+
+### <Downstream Context>
+
+- **Core responsibility:** <Business capability owned by this context>
+- **Business authority:** <Facts and decisions for which this context is authoritative>
+
+#### Local View
+
+- `<Upstream Context> [U] -> <Downstream Context>`
+
+#### Upstream Dependencies
+
+##### <Contract Name>
+
+- **Upstream:** <Upstream Context>
+- **Accepted meaning:** <Published meaning this context is allowed to rely on>
+- **Local translation:** <How the downstream protects and expresses its local language>

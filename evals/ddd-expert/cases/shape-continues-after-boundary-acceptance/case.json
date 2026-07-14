@@ -1,0 +1,106 @@
+{
+  "id": "shape-continues-after-boundary-acceptance",
+  "phase": "shape",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 1,
+      "contains_any": [
+        ["accept*", "agree*", "approve*", "接受", "同意", "确认"],
+        ["recommend*", "propos*", "建议", "推荐"],
+        ["transition table", "state machine", "lifecycle representation", "lifecycle transition model", "state transition", "状态机", "状态流转", "生命周期表示"],
+        ["Requested", "Reservation Requested"],
+        ["Held", "Reservation Held"],
+        ["Confirmed"],
+        ["Released"],
+        ["Expired"],
+        ["only* Held", "Held may", "from Held", "Held -> Confirmed", "Held → Confirmed", "Held to Confirmed", "Held -> exactly one", "Held → exactly one", "Requested → Held → exactly one", "仅 Held", "只有 Held", "从 Held"],
+        ["terminal", "mutually exclusive", "single outcome", "终态", "互斥"],
+        ["concurrent terminal", "competing terminal", "first admissible", "并发终态", "竞争终态", "首个可接受"],
+        ["because", "protect*", "evidence", "therefore", "Model revision", "Model establishes", "establishes discrete transitions", "directly enforces", "unsupported by the Model", "Model does not require", "因为", "保护", "证据", "因此"]
+      ],
+      "propositions": [
+        {
+          "name": "Requested transitions to Held",
+          "accepts": ["Requested moves to Held", "Requested -> Held", "Requested → Held", "Requested to Held"],
+          "rejects": ["Requested does not move to Held", "Requested may skip Held", "Requested moves directly to Confirmed", "Held precedes Requested"]
+        },
+        {
+          "name": "only Held establishes Confirmed",
+          "accepts": ["only Held may establish Confirmed", "only Held admits Confirmed", "from Held to Confirmed", "Held -> exactly one"],
+          "rejects": ["states other than Held may establish", "any state may establish Confirmed", "Held may not establish Confirmed", "Confirmed may return to Held"]
+        },
+        {
+          "name": "Held establishes Released",
+          "accepts": ["Held ... establish* ... Released", "Held ... admit* ... Released", "Held -> Released", "Held → Released", "from Held to Released"],
+          "rejects": ["Held may not establish Released", "Released is not reachable from Held", "Released may return to Held"]
+        },
+        {
+          "name": "Held establishes Expired",
+          "accepts": ["Held ... establish* ... Expired", "Held ... admit* ... Expired", "Held -> Expired", "Held → Expired", "from Held to Expired"],
+          "rejects": ["Held may not establish Expired", "Expired is not reachable from Held", "Expired may return to Held"]
+        },
+        {
+          "name": "terminal outcomes are exclusive",
+          "accepts": ["terminal and mutually exclusive", "terminal exclusivity", "single terminal outcome", "exactly one terminal outcome"],
+          "rejects": ["outcomes are not terminal", "terminal outcomes are not mutually exclusive", "multiple terminal outcomes are allowed", "terminal states may transition again"]
+        },
+        {
+          "name": "concurrent terminal intent preserves the first admissible outcome",
+          "accepts": ["concurrent terminal intents admit only the first admissible outcome", "concurrent terminal intents preserve the first outcome", "first admissible outcome"],
+          "rejects": ["last terminal intent wins", "concurrent terminal intents establish multiple outcomes", "first admissible outcome may be replaced"]
+        }
+      ],
+      "excludes": [
+        "Domain Event",
+        "Integration Message",
+        "Process Manager",
+        "Published Fact Contract",
+        "Asynchronous Intent Contract",
+        "context contract",
+        "context dependency",
+        "Repository",
+        "MySQL",
+        "PostgreSQL",
+        "SQLite",
+        "MongoDB",
+        "database",
+        "persistence",
+        "outbox",
+        "Kafka",
+        "schema",
+        "database table",
+        "persistence table",
+        "SQL table",
+        "Verification obligations:",
+        "complete integrated Tactical Design",
+        "Acceptance authorizes writing",
+        "write the Design now"
+      ]
+    },
+    "routes": { "contains": [], "excludes": ["explore", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "none",
+      "required_paths": [],
+      "allowed_paths": [],
+      "forbidden_paths": ["docs/ddd-expert/context/reservation/design.md"]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/reservation/design.md",
+        "exists": false,
+        "contains": [],
+        "excludes": []
+      }
+    ],
+    "checks": []
+  }
+}

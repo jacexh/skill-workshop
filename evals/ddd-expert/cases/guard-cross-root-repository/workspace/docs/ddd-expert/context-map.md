@@ -2,7 +2,7 @@
 
 ## Global View
 
-Arrow direction: `U -> D` (Upstream -> Downstream).
+Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
 
 ```mermaid
 graph LR
@@ -19,15 +19,31 @@ graph LR
 - **Core responsibility:** Own the order lifecycle.
 - **Business authority:** Order state and fulfillment decisions.
 
+#### Local View
+
+- `Payment [U] -> Order`
+
+#### Upstream Dependencies
+
+##### Payment Succeeded Fact
+
+- **Upstream:** Payment
+- **Accepted meaning:** Order accepts the authoritative settlement outcome.
+- **Local translation:** Order translates it into its own fulfillment decision.
+
 ### Payment
 
 - **Core responsibility:** Own payment settlement.
 - **Business authority:** Payment attempt and settlement state.
 
-## Relationships
+#### Local View
 
-### Payment -> Order
+- `Payment -> Order [D]`
 
-- **Relationship:** Published Language
-- **Authority boundary:** Payment owns settlement facts; Order owns its reaction.
-- **Translation boundary:** Order consumes `PaymentSucceeded` without importing Payment's internal model.
+#### Downstream Contracts
+
+##### Payment Succeeded Fact
+
+- **Downstream:** Order
+- **Published meaning:** Payment publishes its authoritative settlement outcome.
+- **Guarantee:** Payment owns settlement meaning and publication.
