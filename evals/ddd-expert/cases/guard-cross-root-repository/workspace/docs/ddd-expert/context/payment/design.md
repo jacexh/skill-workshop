@@ -1,6 +1,7 @@
 ---
 context: Payment
 based_on_model_revision: 1
+design_status: codify_ready
 ---
 
 # Payment Tactical Design

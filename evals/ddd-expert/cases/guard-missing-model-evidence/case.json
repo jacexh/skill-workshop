@@ -9,7 +9,7 @@
     "completion": ["completed", "stopped"],
     "review_conclusion": ["evidence_gaps"],
     "questions": { "min": 0, "max": 0 },
-    "routes": { "contains": ["explore"], "excludes": ["shape"] },
+    "routes": { "contains": ["event-storming"], "excludes": [] },
     "verdicts": [
       {
         "kind": "evidence_gap",

@@ -50,8 +50,15 @@ graph LR
 
 #### Local View
 
-- `A -> B [D]`
-- `A -> C [D]`
+```text
++---+         +---+
+| A |--+----->| B |
++---+  |      +---+
+       |
+       |      +---+
+       +----->| C |
+              +---+
+```
 
 #### Downstream Contracts
 
@@ -74,8 +81,11 @@ graph LR
 
 #### Local View
 
-- `A [U] -> B`
-- `B -> D [D]`
+```text
++---+   +---+   +---+
+| A |-->| B |-->| D |
++---+   +---+   +---+
+```
 
 #### Upstream Dependencies
 
@@ -100,8 +110,11 @@ graph LR
 
 #### Local View
 
-- `A [U] -> C`
-- `C -> D [D]`
+```text
++---+   +---+   +---+
+| A |-->| C |-->| D |
++---+   +---+   +---+
+```
 
 #### Upstream Dependencies
 
@@ -126,8 +139,15 @@ graph LR
 
 #### Local View
 
-- `B [U] -> D`
-- `C [U] -> D`
+```text
++---+
+| B |--+
++---+  |
+       |
++---+  |      +---+
+| C |--+----->| D |
++---+         +---+
+```
 
 #### Upstream Dependencies
 
@@ -150,11 +170,26 @@ graph LR
 
 #### Local View
 
-- No context dependencies.
+```text
++---+
+| E |
++---+
+```
 EOF
 
 node "$CLAUDE_VALIDATOR" "$valid" >/dev/null ||
   fail "validator rejected a valid fan-out, diamond, and isolated-context DAG"
+
+context_named_u="$tmp/context-named-u.md"
+sed \
+  -e 's/^    e\["E"\]$/    u["U"]/' \
+  -e 's/^### E$/### U/' \
+  -e 's/isolated E decisions/isolated U decisions/' \
+  -e 's/^- \*\*Business authority:\*\* E facts\.$/- **Business authority:** U facts./' \
+  -e 's/^| E |$/| U |/' \
+  "$valid" >"$context_named_u"
+node "$CLAUDE_VALIDATOR" "$context_named_u" >/dev/null ||
+  fail "validator confused a Bounded Context named U with a Local View direction label"
 
 multiline_continuation="$tmp/multiline-continuation.md"
 cp "$valid" "$multiline_continuation"
@@ -174,28 +209,44 @@ if node "$CLAUDE_VALIDATOR" "$indented_code_continuation" >/dev/null 2>&1; then
 fi
 
 domain_partnership="$tmp/domain-partnership.md"
-sed \
-  -e 's/^    a\["A"\]$/    a["Partnership"]/' \
-  -e 's/^### A$/### Partnership/' \
-  -e 's/`A -> B \[D\]`/`Partnership -> B [D]`/' \
-  -e 's/`A -> C \[D\]`/`Partnership -> C [D]`/' \
-  -e 's/`A \[U\] -> B`/`Partnership [U] -> B`/' \
-  -e 's/`A \[U\] -> C`/`Partnership [U] -> C`/' \
-  -e 's/^- \*\*Upstream:\*\* A$/- **Upstream:** Partnership/' \
-  "$valid" >"$domain_partnership"
+cp "$valid" "$domain_partnership"
+sed -i '/^    e\["E"\]$/a\    partnership["Partnership"]' "$domain_partnership"
+cat >>"$domain_partnership" <<'EOF'
+
+### Partnership
+
+- **Core responsibility:** Own Partnership decisions.
+- **Business authority:** Partnership facts.
+
+#### Local View
+
+```text
++-------------+
+| Partnership |
++-------------+
+```
+EOF
 node "$CLAUDE_VALIDATOR" "$domain_partnership" >/dev/null ||
   fail "validator confused a Bounded Context named Partnership with a Context Map pattern"
 
 domain_shared_kernel="$tmp/domain-shared-kernel.md"
-sed \
-  -e 's/^    a\["A"\]$/    a["Shared Kernel"]/' \
-  -e 's/^### A$/### Shared Kernel/' \
-  -e 's/`A -> B \[D\]`/`Shared Kernel -> B [D]`/' \
-  -e 's/`A -> C \[D\]`/`Shared Kernel -> C [D]`/' \
-  -e 's/`A \[U\] -> B`/`Shared Kernel [U] -> B`/' \
-  -e 's/`A \[U\] -> C`/`Shared Kernel [U] -> C`/' \
-  -e 's/^- \*\*Upstream:\*\* A$/- **Upstream:** Shared Kernel/' \
-  "$valid" >"$domain_shared_kernel"
+cp "$valid" "$domain_shared_kernel"
+sed -i '/^    e\["E"\]$/a\    shared_kernel["Shared Kernel"]' "$domain_shared_kernel"
+cat >>"$domain_shared_kernel" <<'EOF'
+
+### Shared Kernel
+
+- **Core responsibility:** Own Shared Kernel decisions.
+- **Business authority:** Shared Kernel facts.
+
+#### Local View
+
+```text
++---------------+
+| Shared Kernel |
++---------------+
+```
+EOF
 node "$CLAUDE_VALIDATOR" "$domain_shared_kernel" >/dev/null ||
   fail "validator confused a Bounded Context named Shared Kernel with a Context Map pattern"
 
@@ -579,29 +630,82 @@ sed '0,/^- \*\*Core responsibility:\*\* Own A decisions\.$/{s//- **Core responsi
 assert_invalid "$empty_core_responsibility" "exactly one non-empty Core responsibility"
 
 local_mismatch="$tmp/local-mismatch.md"
-sed '/`A -> C \[D\]`/d' "$valid" >"$local_mismatch"
+cp "$valid" "$local_mismatch"
+sed -i '/^### A$/,/^### B$/ {
+  s/^+---+         +---+$/+---+   +---+/
+  s/^| A |--+----->| B |$/| A |-->| B |/
+  s/^+---+  |      +---+$/+---+   +---+/
+  /^       |$/d
+  /^       |      +---+$/d
+  /^       +----->| C |$/d
+  /^              +---+$/d
+}' "$local_mismatch"
 assert_invalid "$local_mismatch" "Local View"
 
 non_neighbor="$tmp/non-neighbor.md"
 cp "$valid" "$non_neighbor"
-sed -i '/`A -> C \[D\]`/a\- `A -> D [D]`' "$non_neighbor"
-assert_invalid "$non_neighbor" "Local View"
+sed -i '/^### A$/,/^### B$/ s/| C |$/| D |/' "$non_neighbor"
+assert_invalid "$non_neighbor" "non-neighbor"
 
 duplicate_local="$tmp/duplicate-local.md"
 cp "$valid" "$duplicate_local"
-sed -i '0,/`A -> B \[D\]`/{/`A -> B \[D\]`/p}' "$duplicate_local"
-assert_invalid "$duplicate_local" "duplicate Local View"
+sed -i '/^### A$/,/^### B$/ s/| B |$/| C |/' "$duplicate_local"
+assert_invalid "$duplicate_local" "duplicate Local View context box"
 
-unbackticked_local="$tmp/unbackticked-local.md"
-cp "$valid" "$unbackticked_local"
-sed -i '0,/`A -> B \[D\]`/{/`A -> B \[D\]`/a\- A -> B [D]
-}' "$unbackticked_local"
-assert_invalid "$unbackticked_local" "Local View"
+wrong_center="$tmp/wrong-center.md"
+cp "$valid" "$wrong_center"
+sed -i '/^### A$/,/^### B$/ s/^| A |--+----->| B |$/| E |--+----->| B |/' "$wrong_center"
+assert_invalid "$wrong_center" "must center the current context box A"
 
-duplicate_isolated_marker="$tmp/duplicate-isolated-marker.md"
-cp "$valid" "$duplicate_isolated_marker"
-sed -i '/^- No context dependencies\.$/p' "$duplicate_isolated_marker"
-assert_invalid "$duplicate_isolated_marker" "duplicate Local View"
+wrong_direction="$tmp/wrong-direction.md"
+cp "$valid" "$wrong_direction"
+sed -i '/^### B$/,/^### C$/ s/^| A |-->| B |-->| D |$/| B |-->| A |-->| D |/' "$wrong_direction"
+assert_invalid "$wrong_direction" "Local View"
+
+wrong_local_fence="$tmp/wrong-local-fence.md"
+sed '0,/^```text$/{s/^```text$/```ascii/}' "$valid" >"$wrong_local_fence"
+assert_invalid "$wrong_local_fence" "code fence"
+
+local_mermaid="$tmp/local-mermaid.md"
+sed '0,/^```text$/{s/^```text$/```mermaid/}' "$valid" >"$local_mermaid"
+assert_invalid "$local_mermaid" "code fence"
+
+legacy_local_list="$tmp/legacy-local-list.md"
+awk '
+  $0 == "### A" { in_context_a = 1 }
+  $0 == "### B" { in_context_a = 0 }
+  in_context_a && $0 == "```text" {
+    print "- `A -> B [D]`"
+    in_wireframe = 1
+    next
+  }
+  in_wireframe && $0 == "```" {
+    in_wireframe = 0
+    next
+  }
+  !in_wireframe { print }
+' "$valid" >"$legacy_local_list"
+assert_invalid "$legacy_local_list" 'canonical ```text wireframe'
+
+local_direction_label="$tmp/local-direction-label.md"
+cp "$valid" "$local_direction_label"
+sed -i '/^### A$/,/^### B$/ { /^```$/i\[D]
+}' "$local_direction_label"
+assert_invalid "$local_direction_label" "unsupported character ["
+
+duplicate_isolated_box="$tmp/duplicate-isolated-box.md"
+cp "$valid" "$duplicate_isolated_box"
+sed -i '/^### E$/,$ {
+  s/^+---+$/+---+   +---+/
+  s/^| E |$/| E |   | E |/
+}' "$duplicate_isolated_box"
+assert_invalid "$duplicate_isolated_box" "duplicate Local View context box E"
+
+isolated_marker="$tmp/isolated-marker.md"
+cp "$valid" "$isolated_marker"
+sed -i '/^### E$/,$ { /^```$/i\(no direct dependencies)
+}' "$isolated_marker"
+assert_invalid "$isolated_marker" "unsupported character ("
 
 equivalent_local_heading="$tmp/equivalent-local-heading.md"
 cp "$valid" "$equivalent_local_heading"

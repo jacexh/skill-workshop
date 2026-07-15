@@ -1,0 +1,138 @@
+{
+  "id": "event-storming-existing-system-baseline",
+  "phase": "event-storming",
+  "suites": ["smoke", "full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "dialogue": {
+    "answer": "answer.md",
+    "first_turn": {
+      "completion": ["needs_clarification"],
+      "questions": {
+        "min": 1,
+        "max": 3,
+        "contains_any": [
+          ["candidate current-state", "candidate baseline", "current baseline", "provisional baseline", "候选现状", "候选基线", "当前基线"],
+          ["Agent Execution", "agent execution", "执行"],
+          ["Work", "工作"],
+          ["Project Knowledge", "project knowledge", "项目知识"],
+          ["terminal outcome", "Agent Run outcome", "execution outcome", "终态结果", "执行结果"],
+          ["authoritative", "authority", "owns", "decides", "权威", "负责", "决定"],
+          ["both", "Work and Project Knowledge", "two consumers", "fan-out", "两者", "两个下游", "扇出"]
+        ],
+        "excludes": [
+          "recovery event should",
+          "which recovery event",
+          "make recovery visible",
+          "package names prove",
+          "calls prove",
+          "Aggregate",
+          "Repository",
+          "database"
+        ]
+      },
+      "git": {
+        "changed": "none",
+        "required_paths": [],
+        "forbidden_paths": [
+          "docs/ddd-expert/README.md",
+          "docs/ddd-expert/context-map.md",
+          "docs/ddd-expert/context/agent-execution/model.md",
+          "docs/ddd-expert/context/work/model.md",
+          "docs/ddd-expert/context/project-knowledge/model.md"
+        ]
+      }
+    }
+  },
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 3,
+      "contains_any": [
+        ["recovery", "recovered", "lost lease", "恢复", "租约丢失"],
+        ["which fact", "what fact", "visible", "publish", "consume", "react", "哪个事实", "什么事实", "可见", "发布", "消费", "响应"],
+        ["Work", "Project Knowledge", "operator", "工作", "项目知识", "操作员"]
+      ],
+      "excludes": ["Aggregate", "Repository", "database", "table", "outbox", "Kafka"]
+    },
+    "routes": { "contains": [], "excludes": ["event-storming", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/agent-execution/model.md",
+        "docs/ddd-expert/context/work/model.md",
+        "docs/ddd-expert/context/project-knowledge/model.md"
+      ],
+      "allowed_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/agent-execution/model.md",
+        "docs/ddd-expert/context/work/model.md",
+        "docs/ddd-expert/context/project-knowledge/model.md"
+      ],
+      "forbidden_paths": ["README.md", "docs/architecture.md", "docs/request.md", "internal/agentexecution/run.go", "internal/work/work.go", "internal/projectknowledge/candidate.go"]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/README.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": ["# DDD Expert Artifacts", "Agent Execution", "Work", "Project Knowledge", "[context-map.md](context-map.md)"],
+        "excludes": ["<!--"]
+      },
+      {
+        "path": "docs/ddd-expert/context-map.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": ["# Context Map", "## Global View", "graph LR", "Agent Execution", "Work", "Project Knowledge", "Work Agent Run Outcome", "Knowledge Agent Run Outcome", "#### Local View", "```text"],
+        "contains_any": [["agent_execution --> work", "agentExecution --> work"], ["agent_execution --> project_knowledge", "agentExecution --> projectKnowledge", "agent_execution --> projectKnowledge"]],
+        "excludes": ["<!--", "[U]", "[D]", "Work --> Project Knowledge", "Project Knowledge --> Work", "Recovered"]
+      },
+      {
+        "path": "docs/ddd-expert/context/agent-execution/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": ["model_revision: 1", "model_status: shape_ready", "# Agent Execution Domain Model", "Work Agent Run Outcome", "Knowledge Agent Run Outcome"],
+        "contains_any": [
+          ["run admission", "Run admission", "Agent Run admission"],
+          ["execution identity", "Execution identity"],
+          ["lease fencing", "Lease fencing"],
+          ["terminal execution outcome", "terminal Agent Run outcome", "Terminal execution outcome"],
+          ["Agent Run", "agent run"],
+          ["publishes", "published"]
+        ],
+        "excludes": ["<!--", "Recovered", "Aggregate Root", "Repository"]
+      },
+      {
+        "path": "docs/ddd-expert/context/work/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": ["model_revision: 1", "model_status: shape_ready", "# Work Domain Model", "Work Agent Run Outcome"],
+        "contains_any": [["owns requested", "Work owns"], ["business completion", "whether Work is complete"], ["never completes", "does not complete", "cannot complete"]],
+        "excludes": ["<!--", "Recovered", "Aggregate Root", "Repository"]
+      },
+      {
+        "path": "docs/ddd-expert/context/project-knowledge/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": ["model_revision: 1", "model_status: shape_ready", "# Project Knowledge Domain Model", "Knowledge Agent Run Outcome"],
+        "contains_any": [["candidate", "Candidate"], ["reconciliation", "accepted project view"], ["never accepts", "does not accept", "cannot accept"]],
+        "excludes": ["<!--", "Recovered", "Aggregate Root", "Repository"]
+      }
+    ],
+    "checks": [
+      {
+        "argv": ["node", "/eval/validate-context-map.mjs", "docs/ddd-expert/context-map.md"],
+        "exit": 0,
+        "timeout_seconds": 30
+      }
+    ]
+  }
+}

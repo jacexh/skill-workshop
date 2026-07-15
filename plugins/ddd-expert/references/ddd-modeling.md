@@ -79,7 +79,7 @@ Mainstream DDD includes symmetric collaboration patterns such as Partnership and
 - **[Heuristic]** Separate the lifecycle of a business obligation from execution facts of external work when either can advance independently.
 - **[Heuristic]** Check whether a candidate is an Entity, immutable snapshot, attribute, read model, external representation, or durable process state before choosing a tactical type.
 - **[Heuristic]** Do not infer precedence between conflicting state words. Identify the authoritative fact and the rights it grants or removes.
-- **[House Rule]** When accepted facts establish material discrete transitions, the authoritative Shape representation records `From`, `Intent`, `Authority`, `Guard`, `To`, and `Established Fact`. A diagram may aid reading but does not replace those semantics.
+- **[House Rule]** When accepted facts establish material discrete transitions, the authoritative Design representation records `From`, `Intent`, `Authority`, `Guard`, `To`, and `Established Fact`. A diagram may aid reading but does not replace those semantics.
 - **[House Rule]** Use a fact timeline, lineage, derivation rule, or another fitting representation when an immutable object, append-only history, derived state, or orthogonal state dimensions would make one finite-state machine artificial.
 - **[House Rule]** Keep an Aggregate's business lifecycle and a Process Manager's coordination lifecycle distinct. Execution mechanics remain attached correctness constraints unless their state changes business eligibility, rights, or outcomes.
 
@@ -87,7 +87,7 @@ Mainstream DDD includes symmetric collaboration patterns such as Partnership and
 
 Software Design EventStorming is a collaborative tactical analysis of accepted scenarios. Commands expose intent, Aggregate decisions expose invariant ownership, past-tense facts expose outcomes, policies expose reactions, and Process Managers expose durable coordination. Read models and external systems reveal information and boundary needs without becoming Domain objects by default.
 
-- **[House Rule]** Shape uses the board to discover and challenge tactical candidates before proposing a design; it does not treat the first arrangement of notes as a design conclusion.
+- **[House Rule]** EventStorming uses the board to discover and challenge tactical candidates before proposing a Design; it does not treat the first arrangement of notes as a design conclusion.
 - **[House Rule]** Boards, sticky-note inventories, hot-spot notes, and alternative drafts are temporary working material. Persist only the accepted stable design and the evidence needed to review it.
 - **[DDD Principle]** An event used during analysis is evidence that something happened. It does not by itself require a Domain Event type, an Integration Message, asynchronous delivery, Event Sourcing, or an event-driven implementation architecture.
 - **[Heuristic]** Mark a hot spot where authority, invariant ownership, lifecycle, consistency, or failure semantics admit more than one credible tactical answer. A hot spot is a prompt for one design decision, not a document checkpoint.

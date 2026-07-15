@@ -1,15 +1,16 @@
 ---
 context: "<Bounded Context>"
 based_on_model_revision: 1
+design_status: evolving
 ---
 
 # <Bounded Context> Tactical Design
 
-<!-- This artifact records the integrated Tactical Design already accepted for one Bounded Context. Replace placeholders, remove template comments, and omit every optional section that has no material accepted decision. Use business language for meaning and behavior, DDD language for boundaries and ownership, and technology language only for design-significant mechanisms. -->
+<!-- This artifact records accepted Tactical Design decisions for one Bounded Context. Keep design_status evolving while material scoped obligations remain; promote it to codify_ready only after complete Model realization and readiness replay. Replace placeholders, remove template comments, and omit every optional section that has no material accepted decision. Use business language for meaning and behavior, DDD language for boundaries and ownership, and technology language only for design-significant mechanisms. -->
 
 ## Model Realization
 
-<!-- Trial format: map each material accepted Model obligation to its tactical owner or mechanism and the section that defines it. Keep this compact; do not copy stories, scenario inventories, or routine implementation tasks. -->
+<!-- Trial format: while this Design is evolving, map only Model obligations whose tactical realization is accepted and omit unresolved rows rather than adding placeholders. Before codify_ready, map every material Model obligation to its tactical owner or mechanism and the section that defines it. Keep this compact; do not copy stories, scenario inventories, or routine implementation tasks. -->
 
 | Accepted Model Obligation | Tactical Owner or Mechanism | Defined In |
 |---|---|---|

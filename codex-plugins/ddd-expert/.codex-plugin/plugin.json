@@ -1,7 +1,7 @@
 {
   "name": "ddd-expert",
-  "version": "1.15.10",
-  "description": "Standalone DDD/backend architecture expert skills for code agents (Codex port)",
+  "version": "1.15.10+codex.20260715084228",
+  "description": "EventStorming-led DDD workflow for strategic modeling, tactical design, implementation, and review",
   "author": {
     "name": "xuhao"
   },
@@ -14,10 +14,16 @@
   ],
   "interface": {
     "displayName": "DDD Expert",
-    "shortDescription": "Standalone DDD/backend architecture skills",
+    "shortDescription": "EventStorming-led DDD/backend design workflow",
+    "longDescription": "EventStorming-led DDD workflow from backend product evidence through accepted Strategic Modeling and Tactical Design to a codify-ready handoff, with independent implementation review.",
+    "developerName": "xuhao",
     "category": "Productivity",
     "capabilities": [
-      "Read"
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use $ddd-expert:event-storming to take this backend story through proportionate EventStorming to accepted Strategic Modeling and a codify-ready Tactical Design."
     ]
   },
   "skills": "./skills/"

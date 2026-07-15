@@ -1,11 +1,12 @@
 ---
 context: "<Bounded Context>"
 model_revision: 1
+model_status: evolving
 ---
 
 # <Bounded Context> Domain Model
 
-<!-- This artifact describes one Bounded Context. Replace the title placeholder, remove template comments, and omit sections that have no material accepted facts. -->
+<!-- This artifact describes one Bounded Context. Every statement is accepted authority. Keep model_status evolving while material scoped business questions remain; promote it to shape_ready only after complete scoped replay. Replace the title placeholder, remove template comments, and omit sections that have no material accepted facts. -->
 
 ## Ubiquitous Language
 

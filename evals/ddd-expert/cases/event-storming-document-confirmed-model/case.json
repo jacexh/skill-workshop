@@ -1,0 +1,120 @@
+{
+  "id": "event-storming-document-confirmed-model",
+  "phase": "event-storming",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["event-storming", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/inventory/model.md"
+      ],
+      "allowed_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/inventory/model.md"
+      ],
+      "forbidden_paths": [
+        "docs/spec.md",
+        "docs/ddd/model.md",
+        "docs/ddd-expert/model.md"
+      ]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/inventory/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "# Inventory Domain Model",
+          "model_revision: 2",
+          "model_status: shape_ready",
+          "Inventory Reservation",
+          "Stock Reserved"
+        ],
+        "excludes": ["CREATE TABLE", "<Bounded Context>", "<!--", "## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": [
+          "Source Coverage",
+          "Story Coverage",
+          "Coverage Ledger",
+          "Priority Badge",
+          "Operator Bundle"
+        ],
+        "excludes_words": ["Repository", "table"]
+      },
+      {
+        "path": "docs/ddd-expert/README.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "# DDD Expert Artifacts",
+          "## Bounded Contexts",
+          "context/inventory/model.md",
+          "`design.md` lives beside",
+          "may be absent before EventStorming applies the first accepted tactical slice",
+          "remains `evolving`",
+          "[context-map.md](context-map.md)"
+        ],
+        "excludes": ["<Bounded Context>", "<!--", "## Structure", "```text", "|--", "`--", "## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": [
+          "Source Coverage",
+          "Story Coverage",
+          "Coverage Ledger",
+          "Priority Badge",
+          "Operator Bundle"
+        ],
+        "excludes_words": []
+      },
+      {
+        "path": "docs/ddd-expert/context-map.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "# Context Map",
+          "## Global View",
+          "Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.",
+          "```mermaid",
+          "graph LR",
+          "inventory[\"Inventory\"]",
+          "### Inventory",
+          "- **Core responsibility:**",
+          "- **Business authority:**",
+          "#### Local View",
+          "```text",
+          "+-----------+",
+          "| Inventory |"
+        ],
+        "excludes": ["<Bounded Context>", "<!--", "[U]", "[D]", "- No context dependencies.", "## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": [
+          "Source Coverage",
+          "Story Coverage",
+          "Coverage Ledger",
+          "Priority Badge",
+          "Operator Bundle"
+        ],
+        "excludes_words": []
+      }
+    ],
+    "checks": [
+      {
+        "argv": [
+          "node",
+          "/eval/validate-context-map.mjs",
+          "docs/ddd-expert/context-map.md"
+        ],
+        "exit": 0,
+        "timeout_seconds": 30
+      }
+    ]
+  }
+}

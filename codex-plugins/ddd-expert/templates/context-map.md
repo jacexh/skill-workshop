@@ -25,9 +25,13 @@ graph LR
 
 #### Local View
 
-<!-- List direct neighbors only. Use `- No context dependencies.` for an isolated context. -->
+<!-- Draw one fenced `text` wireframe containing this context and its direct neighbors only. Dependency arrows point from upstream to downstream, so do not add U/D labels. Use one connected fan-in/fan-out drawing rather than one relationship per Markdown line. An isolated context is represented by its box alone. Local Views never use Mermaid. -->
 
-- `<Upstream Context> -> <Downstream Context> [D]`
+```text
++--------------------+       +----------------------+
+| <Upstream Context> | ----> | <Downstream Context> |
++--------------------+       +----------------------+
+```
 
 #### Downstream Contracts
 
@@ -46,7 +50,11 @@ graph LR
 
 #### Local View
 
-- `<Upstream Context> [U] -> <Downstream Context>`
+```text
++--------------------+       +----------------------+
+| <Upstream Context> | ----> | <Downstream Context> |
++--------------------+       +----------------------+
+```
 
 #### Upstream Dependencies
 

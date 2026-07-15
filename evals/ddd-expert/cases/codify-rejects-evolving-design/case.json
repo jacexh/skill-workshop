@@ -1,0 +1,19 @@
+{
+  "id": "codify-rejects-evolving-design",
+  "phase": "codify",
+  "suites": ["full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["stopped", "needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": ["event-storming"], "excludes": ["codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": []
+  }
+}
