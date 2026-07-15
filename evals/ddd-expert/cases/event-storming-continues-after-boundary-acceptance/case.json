@@ -1,0 +1,237 @@
+{
+  "id": "event-storming-continues-after-boundary-acceptance",
+  "phase": "event-storming",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "dialogue": {
+    "answer": "answer.md",
+    "first_turn": {
+      "completion": ["needs_clarification"],
+      "questions": {
+        "min": 1,
+        "max": 3,
+        "contains_any": [
+          ["Held", "held Reservation", "held claim", "保留中的预订"],
+          ["deadline", "hold expires", "expiration", "expiry", "到期"],
+          ["who", "what triggers", "what reacts", "automatic*", "clock", "谁", "触发"],
+          ["fact", "Reservation Expired", "Expired", "outcome", "事实", "结果"],
+          ["capacity", "available", "availability", "容量"],
+          ["customer", "confirm", "confirmation right", "right to confirm", "客户", "确认权"]
+        ],
+        "propositions": [
+          {
+            "name": "question investigates the hold-deadline trigger",
+            "accepts": [
+              "what happens when the hold deadline",
+              "when the hold deadline passes",
+              "who or what reacts when the hold deadline",
+              "what triggers expiry",
+              "does the clock trigger",
+              "is expiration automatic",
+              "hold expires"
+            ],
+            "rejects": [
+              "the deadline does not matter",
+              "there is no expiration",
+              "confirmation triggers expiration"
+            ]
+          },
+          {
+            "name": "question investigates the fact established at expiry",
+            "accepts": [
+              "what fact is established",
+              "which fact is established",
+              "does it establish Reservation Expired",
+              "is Reservation Expired established",
+              "resulting business fact",
+              "what outcome is established"
+            ],
+            "rejects": [
+              "no fact is established",
+              "Reservation Confirmed is established at the deadline"
+            ]
+          },
+          {
+            "name": "question investigates expiry effects on capacity and confirmation",
+            "accepts": [
+              "what happens to capacity and the customer's right to confirm",
+              "what happens to accepted capacity and the customer's right to confirm",
+              "whether capacity becomes available and the customer can no longer confirm",
+              "capacity ... confirmation right",
+              "return* capacity ... no longer confirm",
+              "capacity ... customer ... confirm"
+            ],
+            "rejects": [
+              "capacity and confirmation rights are unaffected",
+              "the customer may still confirm and capacity remains unavailable"
+            ]
+          }
+        ],
+        "excludes": [
+          "transition table",
+          "state machine",
+          "lifecycle representation",
+          "state transition model",
+          "fact timeline",
+          "Repository",
+          "MySQL",
+          "PostgreSQL",
+          "database",
+          "outbox",
+          "Kafka",
+          "schema"
+        ]
+      },
+      "git": {
+        "changed": "some",
+        "required_paths": ["docs/ddd-expert/context/reservation/design.md"],
+        "allowed_paths": ["docs/ddd-expert/context/reservation/design.md"],
+        "forbidden_paths": [
+          "docs/ddd-expert/context/reservation/model.md",
+          "docs/ddd-expert/context-map.md",
+          "docs/ddd-expert/README.md"
+        ]
+      },
+      "files": [
+        {
+          "path": "docs/ddd-expert/context/reservation/design.md",
+          "exists": true,
+          "contains": ["based_on_model_revision: 1", "design_status: evolving", "### Reservation", "Reservation Item", "Value Object"],
+          "contains_any": [
+            ["no independent identity", "without an independent identity"],
+            ["positive quantity", "quantity is positive"],
+            ["accepted capacity", "capacity bound", "capacity accepted"],
+            ["equality uses resource identity and positive quantity", "equality is by resource identity and positive quantity", "equal when their resource identity and positive quantity match"]
+          ],
+          "excludes": ["design_status: codify_ready", "Reservation Expired", "Expire Reservation", "Clock", "returns its quantity to availability", "capacity becomes available", "ends the right to confirm"]
+        }
+      ],
+      "checks": []
+    }
+  },
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["event-storming", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": [
+        "docs/ddd-expert/context/reservation/model.md",
+        "docs/ddd-expert/context/reservation/design.md"
+      ],
+      "allowed_paths": [
+        "docs/ddd-expert/context/reservation/model.md",
+        "docs/ddd-expert/context/reservation/design.md"
+      ],
+      "forbidden_paths": [
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/README.md"
+      ]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/reservation/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "model_revision: 2",
+          "model_status: shape_ready",
+          "Reservation Agent",
+          "Reservation Held",
+          "Reservation Confirmed",
+          "Reservation Released",
+          "Reservation Expired"
+        ],
+        "contains_any": [
+          ["Clock", "clock", "time source"],
+          ["hold deadline", "deadline is reached", "deadline passes"],
+          ["Expire Reservation", "expiry intent", "triggers expiry"],
+          ["only a held Reservation", "only Held", "Held Reservation may expire"],
+          ["terminal", "no later transition", "admits no further transition"],
+          ["ends the right to confirm", "confirmation right ends", "may no longer confirm", "cannot confirm"],
+          ["returns its quantity to availability", "capacity becomes available", "returns capacity", "restores capacity"],
+          ["mutually exclusive", "one terminal outcome", "cannot establish two terminal outcomes"],
+          ["first admissible outcome", "only the first", "first admissible transition"],
+          ["repeating", "same Reservation identity", "established fact", "idempoten*"]
+        ],
+        "excludes": ["<!--", "Aggregate Root", "Value Object", "Repository"],
+        "excludes_semantic": [
+          "the customer may confirm after Reservation Expired",
+          "Reservation Expired keeps capacity unavailable",
+          "Reservation Expired may transition to Confirmed",
+          "multiple terminal outcomes are allowed"
+        ]
+      },
+      {
+        "path": "docs/ddd-expert/context/reservation/design.md",
+        "exists": true,
+        "contains": [
+          "# Reservation Tactical Design",
+          "based_on_model_revision: 2",
+          "design_status: codify_ready",
+          "## Model Realization",
+          "## Aggregate Designs",
+          "### Reservation",
+          "Reservation Item",
+          "Value Object",
+          "Reservation Agent",
+          "Requested",
+          "Held",
+          "Confirmed",
+          "Released",
+          "Expired",
+          "Expire Reservation",
+          "#### Invariants",
+          "#### Behaviors and Lifecycle",
+          "#### Domain Events",
+          "#### Consistency, Concurrency, and Failure",
+          "#### Boundary Challenge"
+        ],
+        "contains_any": [
+          ["one Reservation Aggregate", "single Reservation Aggregate", "Reservation is the Aggregate Root", "Reservation Root"],
+          ["no independent identity", "without an independent identity"],
+          ["positive quantity", "quantity is positive"],
+          ["accepted capacity", "capacity bound", "capacity accepted"],
+          ["equality uses resource identity and positive quantity", "equality is by resource identity and positive quantity", "equal when their resource identity and positive quantity match"],
+          ["Requested to Held", "Requested -> Held", "Requested → Held", "Requested | Accept Capacity"],
+          ["Held to Confirmed", "Held -> Confirmed", "Held → Confirmed", "Held | Confirm"],
+          ["Held to Released", "Held -> Released", "Held → Released", "Held | Release"],
+          ["Held to Expired", "Held -> Expired", "Held → Expired", "Held | Expire"],
+          ["Clock", "clock", "time source"],
+          ["hold deadline", "deadline is reached", "deadline passes"],
+          ["ends the right to confirm", "confirmation right ends", "may no longer confirm", "cannot confirm"],
+          ["returns its quantity to availability", "capacity becomes available", "returns capacity", "restores capacity"],
+          ["terminal and mutually exclusive", "mutually exclusive terminal", "one terminal outcome", "cannot establish two terminal outcomes"],
+          ["first admissible outcome", "only the first", "first admissible transition"],
+          ["repeated intent", "same Reservation identity", "established fact", "idempoten*"],
+          ["local Domain Event", "local Domain Events", "not Integration Messages", "no Integration Message"],
+          ["no context dependenc*", "isolated context", "no cross-context contract", "no Process Manager or cross-Aggregate coordination"]
+        ],
+        "excludes": [
+          "<!--",
+          "<Aggregate Root>",
+          "design_status: evolving",
+          "#### Verification Obligations",
+          "MySQL",
+          "PostgreSQL",
+          "Kafka"
+        ],
+        "excludes_semantic": [
+          "Reservation Item is an Entity",
+          "Reservation Item is a separate Aggregate",
+          "the customer may confirm after Expired",
+          "Expired keeps capacity unavailable",
+          "multiple terminal outcomes are allowed",
+          "requires an Integration Message",
+          "requires a Process Manager"
+        ]
+      }
+    ],
+    "checks": []
+  }
+}

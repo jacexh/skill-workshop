@@ -32,7 +32,7 @@ node scripts/eval/ddd-expert.js doctor
 `doctor` does not call a model. It verifies Docker tools, the isolated local
 marketplace, the uniquely enabled plugin, and the installed source hash.
 
-Run the four fast phase sentinels once:
+Run the fast workflow sentinels once:
 
 ```bash
 node scripts/eval/ddd-expert.js run \
@@ -62,7 +62,9 @@ Provider, transport, timeout, and CLI failures are invalid trials rather than
 behavior failures. The runner retries them twice by default. If it still cannot
 collect the requested number of valid trials, the suite is `INCONCLUSIVE` and
 exits with status 2; a behavior failure exits with status 1. Override the retry
-limit with `--infra-retries`.
+limit with `--infra-retries`. If Codex exits successfully but omits or corrupts
+the schema-constrained result, that is a behavior failure and is not retried as
+infrastructure.
 
 ## Execution model
 
@@ -72,7 +74,12 @@ installed plugin hash matches that snapshot. Each trial receives a fresh
 workspace, Git baseline, and independent `CODEX_HOME`; the plugin cache and
 minimal marketplace are mounted read-only. The trial is intentionally
 non-ephemeral inside that disposable home because Codex collaboration requires
-a registered root thread. Expected answers never enter the model container.
+a registered root thread. Scoring expectations never enter the model container.
+For a two-turn case, the checked-in domain answer is withheld from turn 1 and
+enters only the explicit turn-2 continuation prompt. The case prompt, workspace,
+and answer must use distinct real paths: fixture validation rejects symlinks,
+symlinked ancestors, hard links, inode aliases, and an answer or prompt inside
+the model-visible workspace.
 The retained host-side login copy is excluded while that home is copied. A
 short-lived broker creates `auth.json` there as an owner-only FIFO and serves
 the login only while Codex starts; the FIFO keeps its nested read-only bind
@@ -108,10 +115,23 @@ random trusted name, cidfile, and label so a timed-out Docker client cannot
 leave its container running. The same controller registry is drained during a
 handled runner shutdown before its private runtime roots are removed.
 
+Two-turn cases reuse the same isolated workspace, original Git baseline, and
+disposable `CODEX_HOME`. The runner currently starts a fresh `codex exec` for
+turn 2; it does not claim native thread resumption. Instead, the continuation
+prompt includes the turn-1 structured response and the domain participant's
+answer, and tells the model to continue from the unchanged workspace without
+reopening accepted facts. Retained artifacts label this mode
+`explicit-prompt-same-workspace`. Turn-1 scoring checks the purpose of the
+HotSpot question, its workspace delta, and any declared `files` and `checks` for
+an accepted slice already written; final scoring compares the cumulative
+workspace delta against the original baseline.
+
 Behavior runs require an explicit model. `summary.json` records the model,
 reasoning level, Codex version, plugin/eval/snapshot fingerprints, exact Docker
 image ID, run count, discarded infrastructure attempts, and individual
-assertions. The runner fingerprint includes both the orchestrator and the auth
+assertions. Dialogue-aware summaries use `schemaVersion: 3`; each dialogue
+trial retains both turn results and grades plus its continuation mode. The
+runner fingerprint includes both the orchestrator and the auth
 FIFO broker. Use those identities rather than a mutable image tag or Git
 `dirty` flag when comparing releases.
 
@@ -123,20 +143,63 @@ Keep a case focused on one risk. Add a directory under `cases/` containing:
 - `prompt.md`: the user request, without expected-answer hints;
 - `workspace/`: the smallest project evidence needed to decide the case.
 
+To evaluate discovery followed by a domain answer, add `answer.md` beside the
+prompt and declare a `dialogue` block:
+
+```json
+{
+  "dialogue": {
+    "answer": "answer.md",
+    "first_turn": {
+      "completion": ["needs_clarification"],
+      "questions": {
+        "min": 1,
+        "max": 1,
+        "contains_any": [["authority", "who decides"]]
+      },
+      "git": {
+        "changed": "some",
+        "required_paths": ["docs/ddd-expert/context/example/design.md"],
+        "allowed_paths": ["docs/ddd-expert/context/example/design.md"],
+        "forbidden_paths": []
+      },
+      "files": [{
+        "path": "docs/ddd-expert/context/example/design.md",
+        "exists": true,
+        "contains": ["design_status: evolving", "Accepted invariant"],
+        "excludes": []
+      }],
+      "checks": []
+    }
+  }
+}
+```
+
+`dialogue.first_turn.questions`, `files`, and `checks` use the same scorers as
+their final expectations, but neither turn is scored by question-mark count or
+a fixed sentence shape. `first_turn.git` proves when a slice was written;
+declare `first_turn.files` whenever the case must also prove what accepted
+meaning was already present before the domain answer. The ordinary top-level
+`expect` remains the turn-2 oracle for the full cumulative artifact state.
+
 For discovery-order risks, `expect.questions.contains`, `contains_any`, and
-`excludes` score only the first question after Unicode normalization. English
+`excludes` score the coherent set of question entries in the turn after Unicode
+normalization. Each phrase is matched within one entry and never assembled
+across an array boundary; different required groups may still be satisfied by
+different entries in the same coherent HotSpot. English
 matches use word boundaries; spaces in a phrase also accept a dash. A trailing
 `*` declares an explicit English word family (`own*` matches `own`, `owns`, and
 `ownership`) without reverting to arbitrary substring matching. Chinese
 alternatives use continuous normalized text. Each `contains_any` group requires
-one alternative, so a case can require several independent semantic signals
-without locking the model to one sentence. Use `propositions` when a conclusion's
+one alternative somewhere in that question set, so a case can require several
+independent semantic signals without locking the model to one sentence or one
+array entry. Use `propositions` when a conclusion's
 polarity matters: each proposition declares accepted and rejected paraphrases,
 and the scorer evaluates every occurrence in its prose clause. An external
 negation reverses the occurrence, while intrinsic accepted wording such as
-“cannot establish two terminal outcomes” remains accepted. The scorer also
-rejects an explicit second choice packed into the same interrogative; one
-question mark is not evidence that the question has one decision focus.
+“cannot establish two terminal outcomes” remains accepted. Question scoring is
+semantic: punctuation, the number of interrogative clauses, and a fixed
+recommendation/alternative shape are not scoring signals.
 
 A standalone `...` in a semantic phrase permits a bounded gap within the same
 prose clause. Use it to bind a relation to both operands, such as
@@ -156,8 +219,8 @@ matching would be too broad. Use `identifiers_without_format` when accepted
 Domain identity semantics must not acquire an implementation format; its
 relation-aware check follows bounded pronoun chains, scopes denial to the
 nearest relationship, and recognizes numeric and natural-language character
-rules while preserving explicit “no such format” statements. Completed Explore
-artifacts use `forbid_temporary_trace` so source-item accounting cannot survive
+rules while preserving explicit “no such format” statements. Completed strategic
+EventStorming artifacts use `forbid_temporary_trace` so source-item accounting cannot survive
 under coverage, traceability, crosswalk, reconciliation, or disposition labels.
 
 `expect.git.allowed_paths` is optional. When present, every observed change must
@@ -168,18 +231,22 @@ compares a full pre/post workspace file snapshot outside `.git`, so ignored file
 remain part of this check. Unsafe, unreadable, oversized, or special entries fail
 closed before artifact inspection.
 
-For topology-discovery risks, pair an answer-neutral read-only sentinel with a
-complete-scope write case. The sentinel should verify that missing language or
+For topology-discovery risks, pair an answer-neutral sentinel with an accepted
+decision-slice write case. The sentinel should verify that missing language or
 business authority is resolved before a context-local lifecycle; the write case
-should prove that accepted context responsibilities, relationships, and Models
-are committed atomically only after the complete discovery scope is accepted.
+should prove that one accepted semantic closure is applied without waiting for
+unrelated discovery or mutating an unaccepted artifact. Keep a separate legacy
+Context Map migration case because that migration is intentionally a
+coordinated whole-set replacement.
 
-For staged Shape consensus, keep separate cases for the first tactical choice,
-the next focused choice after a local acceptance, the final integrated
-acceptance request, and the accepted atomic write. A write case that starts with
-every choice already accepted cannot by itself prove the intermediate
-read-only gates. Include retained-Entity and retained-Value-Object write cases
-when their definition contracts differ materially.
+For staged EventStorming tactical consensus, keep separate cases for the first tactical choice,
+the next focused choice after an accepted slice has been written as `evolving`,
+same-run continuation after embedded semantic clarification, and final
+`codify_ready` promotion without a duplicate integrated acceptance. A case that
+starts with every choice already accepted cannot by itself prove the
+intermediate write-and-continue behavior. Include retained-Entity and
+retained-Value-Object write cases when their definition contracts differ
+materially.
 
 When context nodes are known but an edge is not, use a relationship sentinel
 that requires the upstream-owned fact or intent, downstream local meaning, and

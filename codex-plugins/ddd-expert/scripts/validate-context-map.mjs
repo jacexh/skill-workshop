@@ -117,6 +117,215 @@ function sectionLines(lines, heading, stopLevel) {
   return lines.slice(start + 1, end);
 }
 
+function parseLocalWireframe(context, localLines, expected, contextNames) {
+  let first = 0;
+  while (first < localLines.length && localLines[first].trim() === "") first += 1;
+  let last = localLines.length - 1;
+  while (last >= first && localLines[last].trim() === "") last -= 1;
+  if (first > last || localLines[first] !== "```text" || localLines[last] !== "```") {
+    invalid(`Local View for ${context} must contain exactly one canonical \`\`\`text wireframe`);
+  }
+  if (localLines.slice(0, first).some((line) => line.trim() !== "") ||
+      localLines.slice(last + 1).some((line) => line.trim() !== "") ||
+      localLines.slice(first + 1, last).some((line) => /^\s*(?:`{3,}|~{3,})/.test(line))) {
+    invalid(`Local View for ${context} must contain exactly one canonical \`\`\`text wireframe`);
+  }
+
+  const diagram = localLines.slice(first + 1, last);
+  if (diagram.length === 0 || diagram.some((line) => line.trim() === "" || /\t|\s$/.test(line))) {
+    invalid(`Local View wireframe for ${context} cannot contain blank lines, tabs, or trailing whitespace`);
+  }
+
+  const width = Math.max(...diagram.map((line) => line.length));
+  const grid = diagram.map((line) => [...line.padEnd(width, " ")]);
+  const boxCells = new Map();
+  const boxes = [];
+
+  for (let row = 0; row + 2 < diagram.length; row += 1) {
+    const topPattern = /\+(-{3,})\+/g;
+    let match;
+    while ((match = topPattern.exec(diagram[row])) !== null) {
+      const start = match.index;
+      const end = start + match[0].length - 1;
+      const middle = diagram[row + 1].padEnd(width, " ");
+      const bottom = diagram[row + 2].padEnd(width, " ");
+      if (middle[start] !== "|" || middle[end] !== "|" ||
+          bottom.slice(start, end + 1) !== match[0]) {
+        continue;
+      }
+      const interior = middle.slice(start + 1, end);
+      const name = interior.trim();
+      if (!name || !interior.startsWith(" ") || !interior.endsWith(" ") || name.includes("|")) {
+        invalid(`Local View for ${context} contains a malformed context box`);
+      }
+      const box = { name, top: row, middle: row + 1, bottom: row + 2, start, end };
+      for (let boxRow = row; boxRow <= row + 2; boxRow += 1) {
+        for (let column = start; column <= end; column += 1) {
+          const key = `${boxRow},${column}`;
+          if (boxCells.has(key)) invalid(`Local View for ${context} contains overlapping context boxes`);
+          boxCells.set(key, box);
+        }
+      }
+      boxes.push(box);
+    }
+  }
+
+  if (boxes.length === 0) invalid(`Local View for ${context} must contain its current context box`);
+  const boxNames = new Set();
+  for (const box of boxes) {
+    if (boxNames.has(box.name)) invalid(`duplicate Local View context box ${box.name} for ${context}`);
+    if (!contextNames.has(box.name)) {
+      invalid(`Local View for ${context} contains non-Global-View context box ${box.name}`);
+    }
+    boxNames.add(box.name);
+  }
+  if (!boxNames.has(context)) invalid(`Local View for ${context} must center the current context box ${context}`);
+  const expectedNeighborNames = new Set([...expected].map((relationship) => {
+    const [edge] = relationship.split(":");
+    const [source, target] = edge.split("->");
+    return source === context ? target : source;
+  }));
+  for (const box of boxes) {
+    if (box.name !== context && !expectedNeighborNames.has(box.name)) {
+      invalid(`Local View for ${context} contains non-neighbor context box ${box.name}`);
+    }
+  }
+
+  const connectorDirections = new Map([
+    ["-", [[0, -1], [0, 1]]],
+    ["|", [[-1, 0], [1, 0]]],
+    ["+", [[-1, 0], [1, 0], [0, -1], [0, 1]]],
+    [">", [[0, -1], [0, 1]]],
+  ]);
+  const oppositeDirection = new Map([
+    ["-1,0", "1,0"],
+    ["1,0", "-1,0"],
+    ["0,-1", "0,1"],
+    ["0,1", "0,-1"],
+  ]);
+  const connectorCells = new Map();
+  for (let row = 0; row < grid.length; row += 1) {
+    for (let column = 0; column < width; column += 1) {
+      const key = `${row},${column}`;
+      if (boxCells.has(key) || grid[row][column] === " ") continue;
+      if (!connectorDirections.has(grid[row][column])) {
+        invalid(`Local View wireframe for ${context} contains unsupported character ${grid[row][column]}`);
+      }
+      connectorCells.set(key, { row, column, character: grid[row][column] });
+    }
+  }
+
+  const attachments = new Map();
+  for (const cell of connectorCells.values()) {
+    for (const [rowDelta, columnDelta] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+      const neighborBox = boxCells.get(`${cell.row + rowDelta},${cell.column + columnDelta}`);
+      if (!neighborBox) continue;
+      let side = null;
+      if (cell.row === neighborBox.middle && cell.column === neighborBox.start - 1 &&
+          rowDelta === 0 && columnDelta === 1) {
+        side = "target";
+        if (cell.character !== ">") {
+          invalid(`Local View arrow into ${neighborBox.name} must end with canonical --> syntax`);
+        }
+      } else if (cell.row === neighborBox.middle && cell.column === neighborBox.end + 1 &&
+          rowDelta === 0 && columnDelta === -1) {
+        side = "source";
+        if (cell.character !== "-") {
+          invalid(`Local View arrow out of ${neighborBox.name} must start with canonical --> syntax`);
+        }
+      } else {
+        invalid(`Local View connector touches ${neighborBox.name} outside the box centerline`);
+      }
+      const key = `${cell.row},${cell.column}`;
+      if (attachments.has(key)) invalid(`Local View connector ambiguously touches multiple context boxes`);
+      attachments.set(key, { box: neighborBox, side });
+    }
+  }
+
+  function connectorNeighbors(cell) {
+    const neighbors = [];
+    for (const [rowDelta, columnDelta] of connectorDirections.get(cell.character)) {
+      const neighbor = connectorCells.get(`${cell.row + rowDelta},${cell.column + columnDelta}`);
+      if (!neighbor) continue;
+      const reverse = oppositeDirection.get(`${rowDelta},${columnDelta}`);
+      if (connectorDirections.get(neighbor.character).some(
+        ([candidateRow, candidateColumn]) => `${candidateRow},${candidateColumn}` === reverse,
+      )) {
+        neighbors.push(neighbor);
+      }
+    }
+    return neighbors;
+  }
+
+  const actual = new Set();
+  const attachmentCounts = new Map(boxes.map((box) => [box.name, 0]));
+  const remaining = new Set(connectorCells.keys());
+  while (remaining.size > 0) {
+    const startKey = remaining.values().next().value;
+    const stack = [connectorCells.get(startKey)];
+    const component = [];
+    remaining.delete(startKey);
+    while (stack.length > 0) {
+      const cell = stack.pop();
+      component.push(cell);
+      for (const neighbor of connectorNeighbors(cell)) {
+        const key = `${neighbor.row},${neighbor.column}`;
+        if (!remaining.delete(key)) continue;
+        stack.push(neighbor);
+      }
+    }
+
+    const componentAttachments = [];
+    const seenAttachments = new Set();
+    const arrowKeys = new Set();
+    for (const cell of component) {
+      const key = `${cell.row},${cell.column}`;
+      if (cell.character === ">") arrowKeys.add(key);
+      const attachment = attachments.get(key);
+      if (!attachment) continue;
+      const attachmentKey = `${attachment.box.name}:${attachment.side}`;
+      if (seenAttachments.has(attachmentKey)) continue;
+      seenAttachments.add(attachmentKey);
+      componentAttachments.push(attachment);
+      attachmentCounts.set(attachment.box.name, attachmentCounts.get(attachment.box.name) + 1);
+    }
+    if (componentAttachments.length === 0) {
+      invalid(`Local View for ${context} contains a dangling connector`);
+    }
+    const sources = componentAttachments.filter(({ side }) => side === "source").map(({ box }) => box.name);
+    const targets = componentAttachments.filter(({ side }) => side === "target").map(({ box }) => box.name);
+    const targetArrowKeys = new Set(componentAttachments
+      .filter(({ side }) => side === "target")
+      .map(({ box }) => `${box.middle},${box.start - 1}`));
+    if (sources.length === 0 || targets.length === 0 || !sameSet(arrowKeys, targetArrowKeys)) {
+      invalid(`Local View for ${context} contains a malformed directed connector component`);
+    }
+    if (targets.length === 1 && targets[0] === context && !sources.includes(context)) {
+      for (const source of sources) actual.add(`${source}->${context}:U`);
+    } else if (sources.length === 1 && sources[0] === context && !targets.includes(context)) {
+      for (const target of targets) actual.add(`${context}->${target}:D`);
+    } else {
+      invalid(`Local View for ${context} must use the current context as the merge or fork center`);
+    }
+  }
+
+  for (const box of boxes) {
+    const count = attachmentCounts.get(box.name);
+    if (box.name !== context && count !== 1) {
+      invalid(`Local View neighbor ${box.name} must connect directly to ${context} exactly once`);
+    }
+    if (box.name === context && expected.size > 0 && count === 0) {
+      invalid(`Local View for ${context} must connect its current context box`);
+    }
+  }
+  if (expected.size === 0 && (boxes.length !== 1 || connectorCells.size !== 0)) {
+    invalid(`isolated Local View for ${context} must contain only its current context box`);
+  }
+  if (!sameSet(actual, expected)) {
+    invalid(`Local View for ${context} must contain exactly its direct Global View neighbors`);
+  }
+}
+
 const canonicalSource = canonicalInlineMarkdown(source);
 if (/[\u2190-\u21ff\u2794-\u27bf\u27f0-\u27ff\u2900-\u297f\u2b00-\u2b11\u2b30-\u2b4c\u2b60-\u2b73\u2b76-\u2b95\u2ba0-\u2bb8\u{1f800}-\u{1f8ff}]/u.test(canonicalSource)) {
   invalid("bidirectional or non-canonical Unicode arrows are forbidden; use canonical ASCII -> syntax");
@@ -263,9 +472,26 @@ if (mermaidEnd < 0) invalid("Global View Mermaid graph LR block is not closed");
 const absoluteMermaidStart = globalStart + 1 + mermaidStart;
 const absoluteMermaidEnd = globalStart + 1 + mermaidEnd;
 let continuationOpen = false;
+let localTextFenceOpen = false;
 for (let index = 0; index < allLines.length; index += 1) {
   const line = allLines[index];
   const outsideMermaid = index < absoluteMermaidStart || index > absoluteMermaidEnd;
+  if (outsideMermaid && line === "```text") {
+    if (localTextFenceOpen) invalid("nested Local View text code fences are unsupported");
+    localTextFenceOpen = true;
+    continuationOpen = false;
+    continue;
+  }
+  if (outsideMermaid && line === "```" && localTextFenceOpen) {
+    localTextFenceOpen = false;
+    continue;
+  }
+  if (localTextFenceOpen) {
+    if (/^\s*(?:`{3,}|~{3,})/.test(line)) {
+      invalid("only one canonical text fence is supported in each Local View");
+    }
+    continue;
+  }
   if (outsideMermaid && /^[ \t]+\S/.test(line)) {
     const trimmed = line.trimStart();
     const hidesStructure = /^(?:#{1,6}(?:[ \t]|$)|>|(?:[-+*]|[0-9]{1,9}[.)])[ \t]+|`{3,}|~{3,}|<)/.test(trimmed);
@@ -282,6 +508,7 @@ for (let index = 0; index < allLines.length; index += 1) {
   if (index === absoluteMermaidEnd && line === "```") continue;
   invalid("only the canonical Global View Mermaid code fence is supported");
 }
+if (localTextFenceOpen) invalid("Local View text code fence is not closed");
 
 for (let index = 0; index < globalLines.length; index += 1) {
   if (index >= mermaidStart && index <= mermaidEnd) continue;
@@ -503,37 +730,8 @@ for (const [context, lines] of contexts) {
 
   const localHeadingCount = lines.filter((line) => line === "#### Local View").length;
   if (localHeadingCount !== 1) invalid(`Local View must appear exactly once for ${context}`);
-  const localLines = sectionLines(lines, "#### Local View", 4);
-  const actualLocal = new Set();
-  let noDependencies = false;
-  for (const line of localLines) {
-    if (line.trim() === "") continue;
-    if (line === "- No context dependencies.") {
-      if (noDependencies) invalid(`duplicate Local View no-dependencies marker for ${context}`);
-      noDependencies = true;
-      continue;
-    }
-    const item = line.match(/^- `(.+)`$/);
-    if (!item) invalid(`Local View for ${context} contains unsupported content: ${line.trim()}`);
-    const upstream = item[1].match(/^(.+) \[U\] -> (.+)$/);
-    const downstream = item[1].match(/^(.+) -> (.+) \[D\]$/);
-    let key;
-    if (upstream && upstream[2] === context) {
-      key = `${upstream[1]}->${context}:U`;
-    } else if (downstream && downstream[1] === context) {
-      key = `${context}->${downstream[2]}:D`;
-    } else {
-      invalid(`Local View for ${context} contains a malformed or non-local edge ${item[1]}`);
-    }
-    if (actualLocal.has(key)) invalid(`duplicate Local View edge ${item[1]} for ${context}`);
-    actualLocal.add(key);
-  }
   const expected = expectedLocal.get(context);
-  if ((noDependencies && actualLocal.size > 0) ||
-      (noDependencies && expected.size > 0) || (!noDependencies && expected.size === 0) ||
-      !sameSet(actualLocal, expected)) {
-    invalid(`Local View for ${context} must contain exactly its direct Global View neighbors`);
-  }
+  parseLocalWireframe(context, sectionLines(lines, "#### Local View", 4), expected, new Set(contexts.keys()));
 
   parseContracts(
     context,

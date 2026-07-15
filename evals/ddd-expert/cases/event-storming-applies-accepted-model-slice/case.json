@@ -1,0 +1,260 @@
+{
+  "id": "event-storming-applies-accepted-model-slice",
+  "phase": "event-storming",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "dialogue": {
+    "answer": "answer.md",
+    "first_turn": {
+      "completion": ["needs_clarification"],
+      "questions": {
+        "min": 1,
+        "max": 3,
+        "contains_any": [
+          ["Order", "订单"],
+          ["Payment Captured", "captured payment", "支付已捕获"],
+          ["fulfillment readiness", "ready for fulfillment", "begin fulfillment", "履约准备"],
+          ["sufficient", "what else", "which local condition", "which local facts", "Inventory Reserved", "Fraud Approved", "还需要"],
+          ["reversal", "reversed", "refund", "chargeback", "later Payment outcome", "冲正", "撤销"]
+        ],
+        "propositions": [
+          {
+            "name": "question investigates the complete Order readiness rule",
+            "accepts": [
+              "is Payment Captured sufficient for Order readiness",
+              "what additional local facts must Order require before fulfillment",
+              "which local conditions must accompany Payment Captured",
+              "what else must Order observe before becoming ready for fulfillment"
+            ],
+            "rejects": [
+              "Payment Captured is already sufficient",
+              "Order readiness requires no local decision",
+              "Payment decides when Order is ready"
+            ]
+          },
+          {
+            "name": "question investigates how a later reversal affects readiness",
+            "accepts": [
+              "what happens to readiness if Payment is later reversed",
+              "how a later reversal affects fulfillment readiness",
+              "whether a refund or chargeback revokes readiness",
+              "what Order does after a later Payment reversal"
+            ],
+            "rejects": [
+              "a later reversal cannot affect Order",
+              "Payment Captured is rewritten by reversal",
+              "Order must ignore every later Payment outcome"
+            ]
+          }
+        ],
+        "excludes": [
+          "what does payment mean",
+          "which payment milestone",
+          "payment lifecycle",
+          "transition table",
+          "state machine",
+          "Repository",
+          "database"
+        ]
+      },
+      "git": {
+        "changed": "some",
+        "required_paths": [
+          "docs/ddd-expert/context/payment/model.md",
+          "docs/ddd-expert/context/order/model.md"
+        ],
+        "allowed_paths": [
+          "docs/ddd-expert/context/payment/model.md",
+          "docs/ddd-expert/context/order/model.md"
+        ],
+        "forbidden_paths": [
+          "docs/payment-capture-decision.md",
+          "docs/story.md",
+          "docs/ddd-expert/context-map.md",
+          "docs/ddd-expert/README.md",
+          "docs/ddd-expert/context/payment/design.md",
+          "docs/ddd-expert/context/order/design.md"
+        ]
+      },
+      "files": [
+        {
+          "path": "docs/ddd-expert/context/payment/model.md",
+          "exists": true,
+          "forbid_temporary_trace": true,
+          "contains": ["model_revision: 2", "model_status: shape_ready", "Payment Capture", "Payment Captured", "Payment Capture Rejected"],
+          "contains_any": [
+            ["Payment Capture Expired", "Payment Expired", "Expired outcome"],
+            ["valid authorization", "authorization is valid"],
+            ["same capture identity", "one capture identity"],
+            ["refund", "chargeback", "reversal"],
+            ["separate lifecycle", "does not revise", "does not change the recorded capture outcome"],
+            ["Payment is authoritative", "Payment owns", "Payment is the sole authority"]
+          ],
+          "excludes": ["Inventory Reserved", "Fraud Approved", "Order Ready for Fulfillment", "Aggregate Root", "Repository"]
+        },
+        {
+          "path": "docs/ddd-expert/context/order/model.md",
+          "exists": true,
+          "forbid_temporary_trace": true,
+          "contains": ["model_revision: 1", "model_status: evolving", "Order owns its lifecycle", "Order consumes published Payment facts"],
+          "excludes": ["model_status: shape_ready", "Inventory Reserved", "Fraud Approved", "Order Ready for Fulfillment", "Fulfillment Readiness Revoked", "Payment Captured is sufficient", "Payment Captured makes the Order ready"]
+        }
+      ],
+      "checks": []
+    }
+  },
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["event-storming", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": [
+        "docs/ddd-expert/context/payment/model.md",
+        "docs/ddd-expert/context/order/model.md",
+        "docs/ddd-expert/context/payment/design.md",
+        "docs/ddd-expert/context/order/design.md"
+      ],
+      "allowed_paths": [
+        "docs/ddd-expert/context/payment/model.md",
+        "docs/ddd-expert/context/order/model.md",
+        "docs/ddd-expert/context/payment/design.md",
+        "docs/ddd-expert/context/order/design.md"
+      ],
+      "forbidden_paths": [
+        "docs/payment-capture-decision.md",
+        "docs/story.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/README.md"
+      ]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/context/payment/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "model_revision: 2",
+          "model_status: shape_ready",
+          "Payment Capture",
+          "Payment Captured",
+          "Payment Capture Rejected"
+        ],
+        "contains_any": [
+          ["Payment Capture Expired", "Expired are terminal", "Expired outcome"],
+          ["one capture identity", "same capture identity"],
+          ["terminal outcome", "terminal outcomes"],
+          ["Payment is authoritative", "Payment owns", "Payment is the sole authority"],
+          ["duplicate", "repeating", "same capture identity"],
+          ["refund", "chargeback", "reversal"],
+          ["separate lifecycle", "does not revise", "does not change the recorded capture outcome"]
+        ],
+        "excludes": ["reserved inventory", "fraud review", "Inventory Reserved", "Fraud Approved"]
+      },
+      {
+        "path": "docs/ddd-expert/context/order/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "model_revision: 2",
+          "model_status: shape_ready",
+          "Order owns its lifecycle",
+          "Order consumes published Payment facts",
+          "Payment Captured",
+          "Inventory Reserved",
+          "Fraud Approved"
+        ],
+        "contains_any": [
+          ["all three", "each of", "requires Payment Captured, Inventory Reserved, and Fraud Approved", "Payment Captured ... Inventory Reserved ... Fraud Approved"],
+          ["ready for fulfillment", "Fulfillment Ready", "Order Ready for Fulfillment"],
+          ["Order decides", "Order owns", "Order is authoritative"],
+          ["Payment reversal", "Payment Reversed", "reversal outcome", "refund or chargeback"],
+          ["revokes readiness", "readiness is withdrawn", "Fulfillment Readiness Revoked", "may no longer begin fulfillment"],
+          ["does not rewrite Payment Captured", "does not revise Payment Captured", "Payment Captured remains a historical fact"],
+          ["does not roll back", "does not rewind", "separate recovery"]
+        ],
+        "excludes_semantic": [
+          "Payment alone decides fulfillment readiness",
+          "Payment Captured is sufficient by itself",
+          "Inventory Reserved is optional",
+          "Fraud Approved is optional",
+          "a reversal erases Payment Captured"
+        ],
+        "excludes": ["<!--", "Aggregate Root", "Repository"]
+      },
+      {
+        "path": "docs/ddd-expert/context/payment/design.md",
+        "exists": true,
+        "contains": [
+          "# Payment Tactical Design",
+          "based_on_model_revision: 2",
+          "design_status: codify_ready",
+          "## Model Realization",
+          "## Aggregate Designs",
+          "Payment Capture",
+          "Payment Captured",
+          "Payment Capture Rejected",
+          "Payment Capture Expired",
+          "#### Invariants",
+          "#### Behaviors and Lifecycle",
+          "#### Consistency, Concurrency, and Failure"
+        ],
+        "contains_any": [
+          ["Payment Capture Aggregate", "Payment Capture is the Aggregate Root", "Payment Capture Root"],
+          ["same capture identity", "one capture identity"],
+          ["terminal and mutually exclusive", "mutually exclusive terminal", "one terminal outcome"],
+          ["duplicate", "repeated", "same established outcome", "idempoten*"],
+          ["refund", "chargeback", "reversal"],
+          ["separate lifecycle", "does not revise the capture outcome", "does not change the recorded capture outcome"]
+        ],
+        "excludes": ["<!--", "design_status: evolving", "#### Verification Obligations"],
+        "excludes_semantic": [
+          "Payment Capture owns Inventory Reserved",
+          "Payment Capture owns Fraud Approved",
+          "a refund changes Payment Captured to Rejected"
+        ]
+      },
+      {
+        "path": "docs/ddd-expert/context/order/design.md",
+        "exists": true,
+        "contains": [
+          "# Order Tactical Design",
+          "based_on_model_revision: 2",
+          "design_status: codify_ready",
+          "## Model Realization",
+          "## Aggregate Designs",
+          "### Order",
+          "Payment Captured",
+          "Inventory Reserved",
+          "Fraud Approved",
+          "#### Invariants",
+          "#### Behaviors and Lifecycle",
+          "#### Consistency, Concurrency, and Failure"
+        ],
+        "contains_any": [
+          ["Order Aggregate Root", "Order is the Aggregate Root", "Order Root", "single Order Aggregate"],
+          ["all three", "each of", "Payment Captured ... Inventory Reserved ... Fraud Approved"],
+          ["ready for fulfillment", "Fulfillment Ready", "Order Ready for Fulfillment"],
+          ["Order decides", "Order owns", "Order is authoritative"],
+          ["Payment reversal", "Payment Reversed", "reversal outcome", "refund or chargeback"],
+          ["revokes readiness", "readiness is withdrawn", "Fulfillment Readiness Revoked", "may no longer begin fulfillment"],
+          ["does not rewrite Payment Captured", "does not revise Payment Captured", "historical Payment Captured"],
+          ["does not roll back", "does not rewind", "separate recovery"],
+          ["upstream", "published Payment", "translat* ... Payment"]
+        ],
+        "excludes": ["<!--", "design_status: evolving", "#### Verification Obligations"],
+        "excludes_semantic": [
+          "Payment owns Order readiness",
+          "Payment Captured is sufficient by itself",
+          "a reversal erases Payment Captured"
+        ]
+      }
+    ],
+    "checks": []
+  }
+}

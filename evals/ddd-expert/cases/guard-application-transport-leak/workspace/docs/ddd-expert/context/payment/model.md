@@ -1,6 +1,7 @@
 ---
 context: Payment
 model_revision: 1
+model_status: shape_ready
 ---
 
 # Payment Domain Model

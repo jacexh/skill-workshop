@@ -1,6 +1,7 @@
 ---
 context: Order
 model_revision: 3
+model_status: shape_ready
 ---
 
 # Order Domain Model

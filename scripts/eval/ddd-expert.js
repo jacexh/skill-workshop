@@ -140,9 +140,14 @@ function readJson(file) {
   }
 }
 
-const RESULT_COMPLETIONS = readJson(RESULT_SCHEMA).properties?.completion?.enum;
+const RESULT_SCHEMA_DOCUMENT = readJson(RESULT_SCHEMA);
+const RESULT_COMPLETIONS = RESULT_SCHEMA_DOCUMENT.properties?.completion?.enum;
 if (!Array.isArray(RESULT_COMPLETIONS) || RESULT_COMPLETIONS.length === 0) {
   fail("result schema must define completion values", 2);
+}
+const RESULT_QUESTION_MAX = RESULT_SCHEMA_DOCUMENT.properties?.questions?.maxItems;
+if (!Number.isInteger(RESULT_QUESTION_MAX) || RESULT_QUESTION_MAX < 1) {
+  fail("result schema must define a positive questions.maxItems", 2);
 }
 
 function completionError(completion) {
@@ -226,6 +231,48 @@ function safeChildPath(parent, relative, label) {
   return resolved;
 }
 
+function inspectCaseInputPath(caseDir, relative, label, expectedType) {
+  const resolved = safeChildPath(caseDir, relative, label);
+  const caseRoot = path.resolve(caseDir);
+  const caseRootReal = fs.realpathSync(caseRoot);
+  const segments = path.relative(caseRoot, resolved).split(path.sep).filter(Boolean);
+  let current = caseRoot;
+  let stat = fs.lstatSync(current, { throwIfNoEntry: false });
+  if (!stat?.isDirectory() || stat.isSymbolicLink()) {
+    fail(`${label} case root must be a real directory`, 2);
+  }
+  for (const [index, segment] of segments.entries()) {
+    current = path.join(current, segment);
+    stat = fs.lstatSync(current, { throwIfNoEntry: false });
+    if (!stat) {
+      fail(`${label} does not exist`, 2);
+    }
+    if (stat.isSymbolicLink()) {
+      fail(`${label} must not traverse or name a symlink`, 2);
+    }
+    if (index < segments.length - 1 && !stat.isDirectory()) {
+      fail(`${label} has a non-directory ancestor`, 2);
+    }
+  }
+  const validType = expectedType === "file" ? stat?.isFile() : stat?.isDirectory();
+  if (!validType || (expectedType === "file" && stat.nlink !== 1)) {
+    fail(`${label} must be a ${expectedType === "file" ? "non-hard-linked regular file" : "real directory"}`, 2);
+  }
+  const realPath = fs.realpathSync(resolved);
+  if (realPath !== caseRootReal && !realPath.startsWith(`${caseRootReal}${path.sep}`)) {
+    fail(`${label} resolves outside its case directory`, 2);
+  }
+  return { path: resolved, realPath, stat };
+}
+
+function sameFilesystemObject(left, right) {
+  return left.stat.dev === right.stat.dev && left.stat.ino === right.stat.ino;
+}
+
+function pathIsInside(candidate, directory) {
+  return candidate === directory || candidate.startsWith(`${directory}${path.sep}`);
+}
+
 function stringArray(value, label, allowEmpty = true) {
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || item.length === 0)) {
     fail(`${label} must be an array of non-empty strings`, 2);
@@ -255,9 +302,112 @@ function validatePropositions(value, label) {
   }
 }
 
+function validateQuestionExpectation(value, label, options = {}) {
+  const allowedKeys = ["min", "max", "contains", "contains_any", "excludes", "propositions"];
+  if (!hasOnlyKeys(value, allowedKeys) || !Number.isInteger(value.min) ||
+      !Number.isInteger(value.max) || value.min < 0 || value.max < value.min ||
+      value.min > RESULT_QUESTION_MAX || value.max > RESULT_QUESTION_MAX) {
+    fail(`${label} must define integer min/max within result-schema maxItems ${RESULT_QUESTION_MAX}`, 2);
+  }
+  if (options.requireQuestion && value.min < 1) {
+    fail(`${label}.min must be at least 1 for a dialogue turn`, 2);
+  }
+  for (const key of ["contains", "excludes"]) {
+    if (key in value) {
+      stringArray(value[key], `${label}.${key}`, false);
+      if (value[key].some((item) => normalizeSemanticText(item).length === 0 || !isValidSemanticExpectation(item))) {
+        fail(`${label}.${key} must contain valid semantic text`, 2);
+      }
+    }
+  }
+  if ("contains_any" in value) {
+    if (!Array.isArray(value.contains_any) || value.contains_any.length === 0) {
+      fail(`${label}.contains_any must be a non-empty array of groups`, 2);
+    }
+    for (const [index, group] of value.contains_any.entries()) {
+      stringArray(group, `${label}.contains_any[${index}]`, false);
+      if (group.some((item) => normalizeSemanticText(item).length === 0 || !isValidSemanticExpectation(item))) {
+        fail(`${label}.contains_any[${index}] must contain valid semantic text`, 2);
+      }
+    }
+  }
+  if ("propositions" in value) {
+    validatePropositions(value.propositions, `${label}.propositions`);
+  }
+  if (allowedKeys.slice(2).some((key) => key in value) && value.min < 1) {
+    fail(`${label} semantic expectations require min >= 1`, 2);
+  }
+}
+
+function validateGitExpectation(value, label) {
+  if (!hasOnlyKeys(value, ["changed", "required_paths", "forbidden_paths", "allowed_paths"]) ||
+      !["none", "some"].includes(value.changed)) {
+    fail(`${label} must define changed as none or some`, 2);
+  }
+  stringArray(value.required_paths, `${label}.required_paths`);
+  stringArray(value.forbidden_paths, `${label}.forbidden_paths`);
+  if ("allowed_paths" in value) {
+    stringArray(value.allowed_paths, `${label}.allowed_paths`);
+    if (value.required_paths.some((required) =>
+      !value.allowed_paths.some((allowed) => pathMatches(required, allowed)))) {
+      fail(`${label}.required_paths must be included in allowed_paths`, 2);
+    }
+  }
+}
+
+function validateFileExpectations(value, label, workspacePath) {
+  if (!Array.isArray(value)) {
+    fail(`${label} must be an array`, 2);
+  }
+  for (const [fileIndex, assertion] of value.entries()) {
+    const fileLabel = `${label}[${fileIndex}]`;
+    if (!hasOnlyKeys(assertion, ["path", "exists", "contains", "contains_any", "excludes", "excludes_semantic", "propositions", "identifiers_without_format", "forbid_temporary_trace", "contains_words", "excludes_words"]) ||
+        typeof assertion.path !== "string" || typeof assertion.exists !== "boolean") {
+      fail(`${fileLabel} is invalid`, 2);
+    }
+    safeChildPath(workspacePath, assertion.path, `${fileLabel}.path`);
+    stringArray(assertion.contains, `${fileLabel}.contains`);
+    stringArray(assertion.excludes, `${fileLabel}.excludes`);
+    stringArray(assertion.excludes_semantic || [], `${fileLabel}.excludes_semantic`);
+    validatePropositions(assertion.propositions || [], `${fileLabel}.propositions`);
+    stringArray(assertion.identifiers_without_format || [], `${fileLabel}.identifiers_without_format`);
+    if ("forbid_temporary_trace" in assertion && typeof assertion.forbid_temporary_trace !== "boolean") {
+      fail(`${fileLabel}.forbid_temporary_trace must be boolean`, 2);
+    }
+    stringArray(assertion.contains_words || [], `${fileLabel}.contains_words`);
+    stringArray(assertion.excludes_words || [], `${fileLabel}.excludes_words`);
+    for (const [index, group] of (assertion.contains_any || []).entries()) {
+      stringArray(group, `${fileLabel}.contains_any[${index}]`, false);
+      if (group.some((item) => !isValidSemanticExpectation(item))) {
+        fail(`${fileLabel}.contains_any[${index}] contains an invalid semantic expectation`, 2);
+      }
+    }
+    if ((assertion.excludes_semantic || []).some((item) => !isValidSemanticExpectation(item))) {
+      fail(`${fileLabel}.excludes_semantic contains an invalid semantic expectation`, 2);
+    }
+  }
+}
+
+function validateCheckExpectations(value, label) {
+  if (!Array.isArray(value)) {
+    fail(`${label} must be an array`, 2);
+  }
+  for (const [index, check] of value.entries()) {
+    const checkLabel = `${label}[${index}]`;
+    if (!hasOnlyKeys(check, ["argv", "exit", "timeout_seconds"])) {
+      fail(`${checkLabel} is invalid`, 2);
+    }
+    stringArray(check.argv, `${checkLabel}.argv`, false);
+    if (!Number.isInteger(check.exit) || !Number.isInteger(check.timeout_seconds) || check.timeout_seconds < 1) {
+      fail(`${checkLabel}.exit and timeout_seconds must be integers`, 2);
+    }
+  }
+}
+
 function validateCase(caseDir, config) {
   const requiredKeys = ["id", "phase", "suites", "sandbox", "prompt", "workspace", "expect"];
-  if (!hasOnlyKeys(config, requiredKeys)) {
+  const allowedKeys = [...requiredKeys, "dialogue"];
+  if (!hasOnlyKeys(config, allowedKeys)) {
     fail(`${caseDir}/case.json contains unknown keys`, 2);
   }
   for (const key of requiredKeys) {
@@ -270,8 +420,11 @@ function validateCase(caseDir, config) {
   if (config.id !== dirName || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(config.id)) {
     fail(`${caseDir}/case.json id must match its kebab-case directory`, 2);
   }
-  if (!["explore", "shape", "codify", "guard"].includes(config.phase)) {
+  if (!["event-storming", "codify", "guard"].includes(config.phase)) {
     fail(`${config.id}: invalid phase ${config.phase}`, 2);
+  }
+  if (!config.id.startsWith(`${config.phase}-`)) {
+    fail(`${config.id}: case id must use its ${config.phase} phase prefix`, 2);
   }
   stringArray(config.suites, `${config.id}.suites`, false);
   if (config.suites.some((suite) => !["smoke", "full"].includes(suite))) {
@@ -281,13 +434,70 @@ function validateCase(caseDir, config) {
     fail(`${config.id}: invalid sandbox ${config.sandbox}`, 2);
   }
 
-  const promptPath = safeChildPath(caseDir, config.prompt, `${config.id}.prompt`);
-  const workspacePath = safeChildPath(caseDir, config.workspace, `${config.id}.workspace`);
-  if (!fs.statSync(promptPath, { throwIfNoEntry: false })?.isFile()) {
-    fail(`${config.id}: prompt file does not exist`, 2);
+  const promptInput = inspectCaseInputPath(caseDir, config.prompt, `${config.id}.prompt`, "file");
+  const workspaceInput = inspectCaseInputPath(caseDir, config.workspace, `${config.id}.workspace`, "directory");
+  const promptPath = promptInput.path;
+  const workspacePath = workspaceInput.path;
+  if (pathIsInside(promptInput.realPath, workspaceInput.realPath)) {
+    fail(`${config.id}: prompt must be separate from the model-visible workspace`, 2);
   }
-  if (!fs.statSync(workspacePath, { throwIfNoEntry: false })?.isDirectory()) {
-    fail(`${config.id}: workspace directory does not exist`, 2);
+
+  let dialogue = null;
+  let answerPath = null;
+  if ("dialogue" in config) {
+    if (config.phase !== "event-storming") {
+      fail(`${config.id}: dialogue is supported only for EventStorming cases`, 2);
+    }
+    dialogue = config.dialogue;
+    if (!hasOnlyKeys(dialogue, ["answer", "first_turn"]) ||
+        typeof dialogue.answer !== "string" || dialogue.answer.length === 0 ||
+        !isPlainObject(dialogue.first_turn)) {
+      fail(`${config.id}.dialogue must define only answer and first_turn`, 2);
+    }
+    const answerInput = inspectCaseInputPath(
+      caseDir,
+      dialogue.answer,
+      `${config.id}.dialogue.answer`,
+      "file",
+    );
+    answerPath = answerInput.path;
+    if (sameFilesystemObject(answerInput, promptInput) ||
+        answerInput.realPath === promptInput.realPath ||
+        pathIsInside(answerInput.realPath, workspaceInput.realPath)) {
+      fail(`${config.id}: dialogue answer must have a distinct real path and inode outside the turn-1 prompt and workspace`, 2);
+    }
+    if (!hasOnlyKeys(dialogue.first_turn, ["completion", "questions", "git", "files", "checks"])) {
+      fail(`${config.id}.dialogue.first_turn may define only completion, questions, git, files, and checks`, 2);
+    }
+    for (const key of ["completion", "questions", "git"]) {
+      if (!(key in dialogue.first_turn)) {
+        fail(`${config.id}.dialogue.first_turn is missing ${key}`, 2);
+      }
+    }
+    stringArray(dialogue.first_turn.completion, `${config.id}.dialogue.first_turn.completion`, false);
+    for (const completion of dialogue.first_turn.completion) {
+      const error = completionError(completion);
+      if (error) fail(`${config.id}: invalid first-turn completion`, 2);
+    }
+    if (dialogue.first_turn.completion.length !== 1 ||
+        dialogue.first_turn.completion[0] !== "needs_clarification") {
+      fail(`${config.id}: dialogue first turn completion must be exactly needs_clarification`, 2);
+    }
+    validateQuestionExpectation(
+      dialogue.first_turn.questions,
+      `${config.id}.dialogue.first_turn.questions`,
+      { requireQuestion: true },
+    );
+    validateGitExpectation(dialogue.first_turn.git, `${config.id}.dialogue.first_turn.git`);
+    validateFileExpectations(
+      dialogue.first_turn.files || [],
+      `${config.id}.dialogue.first_turn.files`,
+      workspacePath,
+    );
+    validateCheckExpectations(
+      dialogue.first_turn.checks || [],
+      `${config.id}.dialogue.first_turn.checks`,
+    );
   }
 
   const expect = config.expect;
@@ -311,44 +521,20 @@ function validateCase(caseDir, config) {
   if (expect.review_conclusion.some((item) => !["not_applicable", "clear", "violations", "evidence_gaps", "incomplete"].includes(item))) {
     fail(`${config.id}: invalid expected review conclusion`, 2);
   }
-  const questionExpectationKeys = ["min", "max", "contains", "contains_any", "excludes", "propositions"];
-  if (!hasOnlyKeys(expect.questions, questionExpectationKeys) || !Number.isInteger(expect.questions.min) || !Number.isInteger(expect.questions.max) || expect.questions.min < 0 || expect.questions.max < expect.questions.min) {
-    fail(`${config.id}.expect.questions must define valid integer min/max`, 2);
-  }
-  for (const key of ["contains", "excludes"]) {
-    if (key in expect.questions) {
-      stringArray(expect.questions[key], `${config.id}.expect.questions.${key}`, false);
-      if (expect.questions[key].some((item) => normalizeSemanticText(item).length === 0 || !isValidSemanticExpectation(item))) {
-        fail(`${config.id}.expect.questions.${key} must contain valid semantic text`, 2);
-      }
-    }
-  }
-  if ("contains_any" in expect.questions) {
-    if (!Array.isArray(expect.questions.contains_any) || expect.questions.contains_any.length === 0) {
-      fail(`${config.id}.expect.questions.contains_any must be a non-empty array of groups`, 2);
-    }
-    for (const [index, group] of expect.questions.contains_any.entries()) {
-      stringArray(group, `${config.id}.expect.questions.contains_any[${index}]`, false);
-      if (group.some((item) => normalizeSemanticText(item).length === 0 || !isValidSemanticExpectation(item))) {
-        fail(`${config.id}.expect.questions.contains_any[${index}] must contain valid semantic text`, 2);
-      }
-    }
-  }
-  if ("propositions" in expect.questions) {
-    validatePropositions(expect.questions.propositions, `${config.id}.expect.questions.propositions`);
-  }
-  if (questionExpectationKeys.slice(2).some((key) => key in expect.questions) && expect.questions.min < 1) {
-    fail(`${config.id}.expect.questions semantic expectations require min >= 1`, 2);
-  }
+  validateQuestionExpectation(expect.questions, `${config.id}.expect.questions`);
   if (!hasOnlyKeys(expect.routes, ["contains", "excludes"])) {
     fail(`${config.id}.expect.routes must be an object`, 2);
   }
   stringArray(expect.routes.contains, `${config.id}.expect.routes.contains`);
   stringArray(expect.routes.excludes, `${config.id}.expect.routes.excludes`);
   for (const target of [...expect.routes.contains, ...expect.routes.excludes]) {
-    if (!["explore", "shape", "codify", "guard"].includes(target)) {
+    if (!["event-storming", "codify", "guard"].includes(target)) {
       fail(`${config.id}: invalid expected route ${target}`, 2);
     }
+  }
+  const contradictoryRoutes = expect.routes.contains.filter((target) => expect.routes.excludes.includes(target));
+  if (contradictoryRoutes.length > 0) {
+    fail(`${config.id}: expected routes both contain and exclude ${contradictoryRoutes.join(", ")}`, 2);
   }
   if (!Array.isArray(expect.verdicts)) {
     fail(`${config.id}.expect.verdicts must be an array`, 2);
@@ -370,57 +556,11 @@ function validateCase(caseDir, config) {
   if (expect.forbid_verdicts.some((item) => !["violation", "evidence_gap"].includes(item))) {
     fail(`${config.id}: invalid forbidden verdict`, 2);
   }
-  if (!hasOnlyKeys(expect.git, ["changed", "required_paths", "forbidden_paths", "allowed_paths"]) || !["none", "some"].includes(expect.git.changed)) {
-    fail(`${config.id}.expect.git must define changed as none or some`, 2);
-  }
-  stringArray(expect.git.required_paths, `${config.id}.expect.git.required_paths`);
-  stringArray(expect.git.forbidden_paths, `${config.id}.expect.git.forbidden_paths`);
-  if ("allowed_paths" in expect.git) {
-    stringArray(expect.git.allowed_paths, `${config.id}.expect.git.allowed_paths`);
-    if (expect.git.required_paths.some((required) =>
-      !expect.git.allowed_paths.some((allowed) => pathMatches(required, allowed)))) {
-      fail(`${config.id}.expect.git.required_paths must be included in allowed_paths`, 2);
-    }
-  }
-  if (!Array.isArray(expect.files) || !Array.isArray(expect.checks)) {
-    fail(`${config.id}.expect.files and checks must be arrays`, 2);
-  }
-  for (const assertion of expect.files) {
-    if (!hasOnlyKeys(assertion, ["path", "exists", "contains", "contains_any", "excludes", "excludes_semantic", "propositions", "identifiers_without_format", "forbid_temporary_trace", "contains_words", "excludes_words"]) || typeof assertion.path !== "string" || typeof assertion.exists !== "boolean") {
-      fail(`${config.id}: invalid file assertion`, 2);
-    }
-    safeChildPath(workspacePath, assertion.path, `${config.id}.expect.files.path`);
-    stringArray(assertion.contains, `${config.id}.expect.files.contains`);
-    stringArray(assertion.excludes, `${config.id}.expect.files.excludes`);
-    stringArray(assertion.excludes_semantic || [], `${config.id}.expect.files.excludes_semantic`);
-    validatePropositions(assertion.propositions || [], `${config.id}.expect.files.propositions`);
-    stringArray(assertion.identifiers_without_format || [], `${config.id}.expect.files.identifiers_without_format`);
-    if ("forbid_temporary_trace" in assertion && typeof assertion.forbid_temporary_trace !== "boolean") {
-      fail(`${config.id}.expect.files.forbid_temporary_trace must be boolean`, 2);
-    }
-    stringArray(assertion.contains_words || [], `${config.id}.expect.files.contains_words`);
-    stringArray(assertion.excludes_words || [], `${config.id}.expect.files.excludes_words`);
-    for (const [index, group] of (assertion.contains_any || []).entries()) {
-      stringArray(group, `${config.id}.expect.files.contains_any[${index}]`, false);
-      if (group.some((value) => !isValidSemanticExpectation(value))) {
-        fail(`${config.id}.expect.files.contains_any[${index}] contains an invalid semantic expectation`, 2);
-      }
-    }
-    if ((assertion.excludes_semantic || []).some((value) => !isValidSemanticExpectation(value))) {
-      fail(`${config.id}.expect.files.excludes_semantic contains an invalid semantic expectation`, 2);
-    }
-  }
-  for (const check of expect.checks) {
-    if (!hasOnlyKeys(check, ["argv", "exit", "timeout_seconds"])) {
-      fail(`${config.id}: invalid check`, 2);
-    }
-    stringArray(check.argv, `${config.id}.expect.checks.argv`, false);
-    if (!Number.isInteger(check.exit) || !Number.isInteger(check.timeout_seconds) || check.timeout_seconds < 1) {
-      fail(`${config.id}: check exit and timeout_seconds must be integers`, 2);
-    }
-  }
+  validateGitExpectation(expect.git, `${config.id}.expect.git`);
+  validateFileExpectations(expect.files, `${config.id}.expect.files`, workspacePath);
+  validateCheckExpectations(expect.checks, `${config.id}.expect.checks`);
 
-  return { config, caseDir, promptPath, workspacePath };
+  return { config, caseDir, promptPath, workspacePath, answerPath };
 }
 
 function loadCases() {
@@ -465,7 +605,7 @@ function validateResultShape(result) {
   if (typeof result.scenario_id !== "string" || result.scenario_id.length === 0) {
     errors.push("scenario_id must be a non-empty string");
   }
-  if (!["explore", "shape", "codify", "guard"].includes(result.phase)) {
+  if (!["event-storming", "codify", "guard"].includes(result.phase)) {
     errors.push("phase is invalid");
   }
   const invalidCompletion = completionError(result.completion);
@@ -481,12 +621,12 @@ function validateResultShape(result) {
     }
   }
   if (Array.isArray(result.questions)) {
-    if (result.questions.length > 3 || result.questions.some((question) => typeof question !== "string" || question.length === 0)) {
-      errors.push("questions must contain at most three non-empty strings");
+    if (result.questions.length > RESULT_QUESTION_MAX || result.questions.some((question) => typeof question !== "string" || question.length === 0)) {
+      errors.push(`questions must contain at most ${RESULT_QUESTION_MAX} non-empty strings`);
     }
   }
   for (const route of Array.isArray(result.routes) ? result.routes : []) {
-    if (!hasOnlyKeys(route, ["target", "reason"]) || !["explore", "shape", "codify", "guard"].includes(route.target) || typeof route.reason !== "string" || route.reason.length === 0) {
+    if (!hasOnlyKeys(route, ["target", "reason"]) || !["event-storming", "codify", "guard"].includes(route.target) || typeof route.reason !== "string" || route.reason.length === 0) {
       errors.push("route is invalid");
     }
   }
@@ -1689,11 +1829,13 @@ function assertion(name, passed, detail) {
   return { name, passed: Boolean(passed), detail };
 }
 
-function propositionAssertion(prefix, content, proposition) {
+function propositionAssertionAcrossEntries(prefix, contents, proposition) {
   const acceptedEvidence = proposition.accepts.flatMap((phrase) =>
-    semanticPhraseEvidence(content, phrase).map((item) => ({ ...item, phrase })));
+    contents.flatMap((content) => semanticPhraseEvidence(content, phrase)
+      .map((item) => ({ ...item, phrase }))));
   const rejectedEvidence = proposition.rejects.flatMap((phrase) =>
-    semanticPhraseEvidence(content, phrase).map((item) => ({ ...item, phrase })));
+    contents.flatMap((content) => semanticPhraseEvidence(content, phrase)
+      .map((item) => ({ ...item, phrase }))));
   const accepted = [
     ...acceptedEvidence.filter((item) => !item.negated).map((item) => item.phrase),
     ...rejectedEvidence.filter((item) => item.negated).map((item) => `not (${item.phrase})`),
@@ -1709,6 +1851,10 @@ function propositionAssertion(prefix, content, proposition) {
   );
 }
 
+function propositionAssertion(prefix, content, proposition) {
+  return propositionAssertionAcrossEntries(prefix, [content], proposition);
+}
+
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -1718,6 +1864,9 @@ function normalizeSemanticText(value) {
     .normalize("NFKC")
     .replace(/\p{Default_Ignorable_Code_Point}/gu, "")
     .toLowerCase()
+    .replace(/(?:<-+>|↔|⟷)/gu, " arrow_both ")
+    .replace(/(?:-+>|→|⟶)/gu, " arrow_right ")
+    .replace(/(?:<-+|←|⟵)/gu, " arrow_left ")
     .replace(/[_`~[\](){}<>\\|]/gu, " ")
     .replace(/\s+/gu, " ")
     .trim();
@@ -1833,71 +1982,6 @@ function semanticPhraseEvidence(content, phrase) {
     });
   }
   return evidence;
-}
-
-function focusedQuestionFindings(question) {
-  const normalized = normalizeSemanticText(question).replace(/？/gu, "?");
-  const findings = [];
-  const explicitAdditionalDecision = normalized.match(
-    /\band\s+also\s+(?:(?:do|would|will|should)\s+you\s+|please\s+)?(?:accept|approve|authorize|confirm|choose|decide|select|determine|prefer)\b/u,
-  );
-  if (explicitAdditionalDecision) findings.push(explicitAdditionalDecision[0]);
-  const additionalChoice = normalized.match(
-    /\b(?:and|plus|as well as)\s+(?:(?:do|would|will|should)\s+you\s+|please\s+)?(?:choose|decide|select|determine|prefer)\s+(?:whether|between|among)\b/u,
-  );
-  if (additionalChoice && !findings.includes(additionalChoice[0])) {
-    findings.push(additionalChoice[0]);
-  }
-  const questionEnd = normalized.lastIndexOf("?");
-  const sentenceStart = Math.max(
-    normalized.lastIndexOf(".", questionEnd - 1),
-    normalized.lastIndexOf("!", questionEnd - 1),
-    normalized.lastIndexOf(";", questionEnd - 1),
-  );
-  const interrogative = normalized.slice(sentenceStart + 1, questionEnd >= 0 ? questionEnd : undefined);
-  const secondInterrogative = interrogative.match(
-    /(?:,\s*)?\b(?:and|plus|as\s+well\s+as)\s+(?:(?:whether|who|when|where|how|what|which)\b|(?:should|must|will|would|may|can|could)\s+(?:(?:the|a|an|this|that|these|those|any|each|every)\s+)?[\p{L}\p{N}_-]+\s+(?:be|use|adopt|remain|become|occur|happen|start|end|expire|renew|extend|allow|permit|require|own|decide|establish|publish|send|notify|retry|cancel|complete|accept|reject)\b|(?:do|does|did|is|are|was|were|has|have)\s+(?:you|we|they|it|this|that|these|those|the\s+[\p{L}\p{N}_-]+|an?\s+[\p{L}\p{N}_-]+)\b)/u,
-  );
-  if (secondInterrogative && !findings.includes(secondInterrogative[0])) {
-    findings.push(secondInterrogative[0]);
-  }
-  const secondChineseInterrogative = interrogative.match(
-    /(?:并且|而且|以及|同时)[^?。；;]{0,32}(?:是否|谁|何时|哪里|哪儿|如何|怎么|什么|哪(?:个|些|种|一))/u,
-  );
-  if (secondChineseInterrogative && !findings.includes(secondChineseInterrogative[0])) {
-    findings.push(secondChineseInterrogative[0]);
-  }
-  const coupledImplementation = interrogative.match(
-    /\band\s+(?:(?:the|a|an|our)\s+)?(?:mysql|postgres(?:ql)?|sqlite|mongodb|redis|kafka|rabbitmq|database|persistence(?:\s+engine)?|storage(?:\s+engine)?|repository\s+implementation|framework|transport|wire\s+format|schema)\b/u,
-  );
-  if (coupledImplementation && !findings.includes(coupledImplementation[0])) {
-    findings.push(coupledImplementation[0]);
-  }
-  const implementationAction = interrogative.match(
-    /\band\s+(?:use|using|adopt|choose|select|implement(?:\s+it)?\s+with|persist(?:\s+it)?\s+(?:with|in|using)|store(?:\s+it)?\s+(?:with|in|using))\s+(?:mysql|postgres(?:ql)?|sqlite|mongodb|redis|kafka|rabbitmq|go|golang|java|python|typescript|rust|dotnet|a\s+database|a\s+repository|a\s+framework)\b/u,
-  );
-  if (implementationAction && !findings.includes(implementationAction[0])) {
-    findings.push(implementationAction[0]);
-  }
-  const implementationPurpose = interrogative.match(
-    /\band\s+(?:use|using|adopt|choose|select|implement(?:\s+it)?\s+with|persist(?:\s+it)?\s+(?:with|in|using)|store(?:\s+it)?\s+(?:with|in|using))\s+[\p{L}\p{N}_.+-]+(?:\s+[\p{L}\p{N}_.+-]+){0,2}\s+(?:for|as)\s+(?:the\s+)?(?:persistence|storage|database|repository|messaging|transport|framework|implementation)\b/u,
-  );
-  if (implementationPurpose && !findings.includes(implementationPurpose[0])) {
-    findings.push(implementationPurpose[0]);
-  }
-  const implementationSubjectChoice = interrogative.match(
-    /\band\s+(?:should|must|will)\s+(?:persistence|storage|the\s+repository|messaging|transport|the\s+implementation)\s+(?:use|adopt|be)\b/u,
-  );
-  if (implementationSubjectChoice && !findings.includes(implementationSubjectChoice[0])) {
-    findings.push(implementationSubjectChoice[0]);
-  }
-  const mandatoryMechanism = interrogative.match(
-    /\band\s+(?:[\p{L}\p{N}_.+-]+\s+){0,5}(?:as\s+)?(?:the\s+)?(?:mandatory|required|default|chosen)\s+(?:persistence|storage|database|repository|messaging|transport|framework|implementation)\b/u,
-  );
-  if (mandatoryMechanism && !findings.includes(mandatoryMechanism[0])) {
-    findings.push(mandatoryMechanism[0]);
-  }
-  return findings;
 }
 
 function normalizedProseClauses(content) {
@@ -2179,47 +2263,33 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
     result.questions.length >= expect.questions.min && result.questions.length <= expect.questions.max,
     `got ${result.questions.length}, expected ${expect.questions.min}..${expect.questions.max}`,
   ));
-  const firstQuestion = result.questions[0] || "";
-  const normalizedFirstQuestion = normalizeSemanticText(firstQuestion);
+  const questionSet = result.questions.join("\n");
+  const normalizedQuestionEntries = result.questions.map((question) => normalizeSemanticText(question));
   for (const needle of expect.questions.contains || []) {
     assertions.push(assertion(
-      `first question contains ${needle}`,
-      normalizedSemanticContains(normalizedFirstQuestion, needle),
-      `got ${firstQuestion || "(none)"}`,
+      `question set contains ${needle}`,
+      normalizedQuestionEntries.some((entry) => normalizedSemanticContains(entry, needle)),
+      `got ${questionSet || "(none)"}`,
     ));
   }
   for (const group of expect.questions.contains_any || []) {
     assertions.push(assertion(
-      `first question contains any of ${group.join(" | ")}`,
-      group.some((needle) => normalizedSemanticContains(normalizedFirstQuestion, needle)),
-      `got ${firstQuestion || "(none)"}`,
+      `question set contains any of ${group.join(" | ")}`,
+      group.some((needle) => normalizedQuestionEntries.some((entry) =>
+        normalizedSemanticContains(entry, needle))),
+      `got ${questionSet || "(none)"}`,
     ));
   }
   for (const needle of expect.questions.excludes || []) {
     assertions.push(assertion(
-      `first question excludes ${needle}`,
-      !normalizedSemanticContains(normalizedFirstQuestion, needle),
-      `got ${firstQuestion || "(none)"}`,
+      `question set excludes ${needle}`,
+      normalizedQuestionEntries.every((entry) => !normalizedSemanticContains(entry, needle)),
+      `got ${questionSet || "(none)"}`,
     ));
   }
   for (const proposition of expect.questions.propositions || []) {
-    assertions.push(propositionAssertion("first question", firstQuestion, proposition));
+    assertions.push(propositionAssertionAcrossEntries("question set", result.questions, proposition));
   }
-  if (result.questions.length > 0) {
-    const questionMarks = (firstQuestion.match(/[?？]/gu) || []).length;
-    assertions.push(assertion(
-      "first question is a single question",
-      questionMarks === 1,
-      `found ${questionMarks} question marks`,
-    ));
-    const focusFindings = focusedQuestionFindings(firstQuestion);
-    assertions.push(assertion(
-      "first question requests one focused decision",
-      focusFindings.length === 0,
-      focusFindings.join(" | ") || "one decision focus",
-    ));
-  }
-
   const routeTargets = result.routes.map((route) => route.target);
   for (const target of expect.routes.contains) {
     assertions.push(assertion(`route contains ${target}`, routeTargets.includes(target), `got ${routeTargets.join(",") || "none"}`));
@@ -2421,6 +2491,51 @@ function buildPrompt(loadedCase) {
   ].join("\n");
 }
 
+function buildContinuationPrompt(loadedCase, firstResult) {
+  const answer = readBoundedTextFile(loadedCase.answerPath);
+  if (!answer.ok) {
+    fail(`${loadedCase.config.id}: cannot read dialogue answer: ${answer.error}`, 2);
+  }
+  return [
+    buildPrompt(loadedCase),
+    "",
+    "Continuation:",
+    "This is the second turn of the same EventStorming conversation.",
+    "The current workspace is unchanged between turns except for any accepted slice you applied in turn 1.",
+    "The domain participant's answer below is authoritative only for the active HotSpot raised in turn 1.",
+    "Continue the scenario from that answer. Do not reopen already accepted facts or restart discovery.",
+    "Apply the newly accepted business facts and continue until another material business HotSpot remains or the scoped scenario is ready.",
+    "In changed_files, report every path changed since the original scenario baseline, including files changed in turn 1.",
+    "",
+    "Turn 1 structured response (conversation context, not new domain authority):",
+    JSON.stringify(firstResult, null, 2),
+    "",
+    "Domain participant answer to the active HotSpot:",
+    answer.content.trim(),
+  ].join("\n");
+}
+
+function dialogueFirstTurnCase(loadedCase) {
+  const firstTurn = loadedCase.config.dialogue.first_turn;
+  return {
+    ...loadedCase,
+    config: {
+      ...loadedCase.config,
+      expect: {
+        completion: firstTurn.completion,
+        review_conclusion: ["not_applicable"],
+        questions: firstTurn.questions,
+        routes: { contains: [], excludes: ["event-storming", "codify", "guard"] },
+        verdicts: [],
+        forbid_verdicts: ["violation", "evidence_gap"],
+        git: firstTurn.git,
+        files: firstTurn.files || [],
+        checks: firstTurn.checks || [],
+      },
+    },
+  };
+}
+
 function parsePluginList(result, label) {
   requireSuccess(result, label);
   let parsed;
@@ -2561,39 +2676,15 @@ function runContainerCheck(check, workspace, context, trialPluginCache) {
   );
 }
 
-async function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
-  throwIfRunnerTerminating();
-  const retrySuffix = infrastructureAttempt === 1 ? "" : `-infra-${infrastructureAttempt}`;
-  const trialName = `${loadedCase.config.id}-run-${trialNumber}${retrySuffix}`;
-  const trialRoot = path.join(context.outputDir, "trials", trialName);
-  const workspace = path.join(trialRoot, "workspace");
-  const modelOutput = path.join(trialRoot, "model-output");
-  const trialCodexHome = path.join(context.runtimeRoot, "trial-homes", trialName);
-  const authFile = path.join(trialCodexHome, "auth.json");
-  const installedAuth = path.resolve(context.authSource);
-  if (installedAuth !== path.join(path.resolve(context.codexHome), "auth.json")) {
-    fail("installed auth source must be the root auth.json in the isolated Codex home", 2);
-  }
-  fs.mkdirSync(trialRoot, { recursive: true, mode: 0o700 });
-  fs.mkdirSync(modelOutput, { recursive: true, mode: 0o700 });
-  fs.chmodSync(path.join(context.outputDir, "trials"), 0o700);
-  fs.chmodSync(trialRoot, 0o700);
-  fs.chmodSync(modelOutput, 0o700);
-  fs.cpSync(context.codexHome, trialCodexHome, {
-    recursive: true,
-    filter: (source) => path.resolve(source) !== installedAuth,
-  });
-  fs.chmodSync(trialCodexHome, 0o700);
-  fs.cpSync(loadedCase.workspacePath, workspace, { recursive: true });
-  const baseline = initializeGit(workspace);
-  const trialPluginCache = path.join(trialCodexHome, context.pluginCacheRelative);
-  if (fs.lstatSync(authFile, { throwIfNoEntry: false })) {
-    fail("trial home copied the retained auth source before broker startup", 2);
-  }
-
-  const resultFile = path.join(modelOutput, "result.json");
-  // Collaboration resolves child workers through the registered root thread.
-  // The disposable per-trial CODEX_HOME provides isolation without --ephemeral.
+function buildTrialExecutionArgs(
+  loadedCase,
+  context,
+  trialCodexHome,
+  trialPluginCache,
+  authFile,
+  workspace,
+  modelOutput,
+) {
   const codexArgs = [
     "exec",
     "--ignore-rules",
@@ -2606,9 +2697,7 @@ async function runTrial(loadedCase, trialNumber, infrastructureAttempt, context)
     "-C",
     "/workspace",
   ];
-  if (context.model) {
-    codexArgs.push("-m", context.model);
-  }
+  if (context.model) codexArgs.push("-m", context.model);
   if (context.reasoning) {
     codexArgs.push("-c", `model_reasoning_effort=\"${context.reasoning}\"`);
   }
@@ -2618,7 +2707,7 @@ async function runTrial(loadedCase, trialNumber, infrastructureAttempt, context)
   const gid = typeof process.getgid === "function" ? process.getgid() : 1000;
   const workspaceMode = loadedCase.config.sandbox === "read-only" ? "ro" : "rw";
   const containerPluginCache = `/eval-home/${context.pluginCacheRelative.split(path.sep).join("/")}`;
-  const executionArgs = [
+  return [
     "docker", "run", "--rm", "-i", "--read-only",
     "--tmpfs", "/tmp:rw,exec,nosuid,nodev,size=256m",
     "--cap-drop=ALL", "--security-opt", "no-new-privileges",
@@ -2638,10 +2727,36 @@ async function runTrial(loadedCase, trialNumber, infrastructureAttempt, context)
     "/usr/local/bin/codex",
     ...codexArgs.slice(0, 1), "--dangerously-bypass-approvals-and-sandbox", ...codexArgs.slice(1),
   ];
+}
 
-  const startedAt = Date.now();
-  const prompt = buildPrompt(loadedCase);
-  writePrivateFile(path.join(trialRoot, "prompt.txt"), `${prompt}\n`);
+async function executeTrialTurn({
+  loadedCase,
+  context,
+  trialCodexHome,
+  trialPluginCache,
+  authFile,
+  workspace,
+  modelOutput,
+  prompt,
+  promptFile,
+  traceFile,
+  stderrFile,
+}) {
+  if (fs.lstatSync(authFile, { throwIfNoEntry: false })) {
+    fail("trial home contains a turn auth path before broker startup", 2);
+  }
+  fs.mkdirSync(modelOutput, { recursive: true, mode: 0o700 });
+  fs.chmodSync(modelOutput, 0o700);
+  const executionArgs = buildTrialExecutionArgs(
+    loadedCase,
+    context,
+    trialCodexHome,
+    trialPluginCache,
+    authFile,
+    workspace,
+    modelOutput,
+  );
+  writePrivateFile(promptFile, `${prompt}\n`);
   let execution;
   try {
     execution = await runCodexWithAuthFifo(
@@ -2664,12 +2779,12 @@ async function runTrial(loadedCase, trialNumber, infrastructureAttempt, context)
     };
   }
   throwIfRunnerTerminating();
-  writePrivateFile(path.join(trialRoot, "trace.jsonl"), execution.stdout);
-  writePrivateFile(path.join(trialRoot, "stderr.log"), execution.stderr);
+  writePrivateFile(traceFile, execution.stdout);
+  writePrivateFile(stderrFile, execution.stderr);
 
   let parsed = null;
   let parseError = null;
-  const resultRead = readBoundedTextFile(resultFile, RESULT_MAX_FILE_BYTES);
+  const resultRead = readBoundedTextFile(path.join(modelOutput, "result.json"), RESULT_MAX_FILE_BYTES);
   if (!resultRead.ok) {
     parseError = resultRead.error;
   } else {
@@ -2679,70 +2794,235 @@ async function runTrial(loadedCase, trialNumber, infrastructureAttempt, context)
       parseError = `cannot parse model result JSON: ${error.message}`;
     }
   }
+  return { execution, parsed, parseError };
+}
 
-  const pluginReadObserved = /\/ddd-expert\/[^/\s]+\/(?:skills|references)\//.test(execution.stdout);
+function inspectTurnState(turn, workspace, baseline, trialCodexHome, trialPluginCache, expectedPluginHash) {
   let pluginUnchanged = false;
   let pluginIntegrityError = null;
   try {
-    restoreDirectoryChain(trialCodexHome, context.pluginCacheRelative);
-    pluginUnchanged = hashTree(trialPluginCache) === context.pluginHash;
+    restoreDirectoryChain(trialCodexHome, path.relative(trialCodexHome, trialPluginCache));
+    pluginUnchanged = hashTree(trialPluginCache) === expectedPluginHash;
   } catch (error) {
     pluginIntegrityError = error.message;
   }
   const gitMetadataMutation = gitMetadataChanges(workspace, baseline);
-  const postTrialWorkspaceSnapshot = workspaceFileSnapshot(workspace);
-  const unsafeWorkspaceEntries = workspaceUnsafeEntries(workspace, postTrialWorkspaceSnapshot);
-  const executionInfrastructureFailure = execution.status !== 0 || Boolean(execution.error) || !parsed || !pluginUnchanged;
-  const infrastructureFailure = executionInfrastructureFailure &&
-    gitMetadataMutation.length === 0 && unsafeWorkspaceEntries.length === 0;
-  let grade;
-  if (gitMetadataMutation.length > 0) {
-    grade = {
+  const workspaceSnapshot = workspaceFileSnapshot(workspace);
+  const unsafeWorkspaceEntries = workspaceUnsafeEntries(workspace, workspaceSnapshot);
+  const executionInfrastructureFailure = turn.execution.status !== 0 ||
+    Boolean(turn.execution.error) || !pluginUnchanged;
+  return {
+    pluginReadObserved: /\/ddd-expert\/[^/\s]+\/(?:skills|references)\//.test(turn.execution.stdout),
+    pluginUnchanged,
+    pluginIntegrityError,
+    gitMetadataMutation,
+    workspaceSnapshot,
+    unsafeWorkspaceEntries,
+    infrastructureFailure: executionInfrastructureFailure &&
+      gitMetadataMutation.length === 0 && unsafeWorkspaceEntries.length === 0,
+  };
+}
+
+function gradeTurn(loadedCase, turn, state, workspace, baseline, context, trialPluginCache) {
+  if (state.gitMetadataMutation.length > 0) {
+    return {
       passed: false,
       assertions: [assertion(
         "git metadata unchanged",
         false,
-        `changed ${gitMetadataMutation.join(",")}`,
+        `changed ${state.gitMetadataMutation.join(",")}`,
       )],
       changedPaths: [...new Set([
         ...workspaceFilesystemChanges(workspace, baseline),
-        ...gitMetadataMutation,
+        ...state.gitMetadataMutation,
       ])].sort(),
       checks: [],
     };
-  } else if (unsafeWorkspaceEntries.length > 0) {
-    grade = {
+  }
+  if (state.unsafeWorkspaceEntries.length > 0) {
+    return {
       passed: false,
       assertions: [assertion(
         "workspace contains no unsafe entries",
         false,
-        unsafeWorkspaceEntries.join(","),
+        state.unsafeWorkspaceEntries.join(","),
       )],
-      changedPaths: workspaceFilesystemChanges(workspace, baseline, postTrialWorkspaceSnapshot),
+      changedPaths: workspaceFilesystemChanges(workspace, baseline, state.workspaceSnapshot),
       checks: [],
     };
-  } else if (infrastructureFailure) {
+  }
+  if (state.infrastructureFailure) {
     const reasons = [
-      execution.status !== 0 || execution.error ? `exit=${execution.status}; signal=${execution.signal}; error=${execution.error || "none"}` : null,
-      !parsed ? execution.error || parseError || "missing structured result" : null,
-      !pluginUnchanged ? pluginIntegrityError || "installed ddd-expert cache changed during the trial" : null,
+      turn.execution.status !== 0 || turn.execution.error
+        ? `exit=${turn.execution.status}; signal=${turn.execution.signal}; error=${turn.execution.error || "none"}`
+        : null,
+      !turn.parsed ? turn.execution.error || turn.parseError || "missing structured result" : null,
+      !state.pluginUnchanged
+        ? state.pluginIntegrityError || "installed ddd-expert cache changed during the trial"
+        : null,
     ].filter(Boolean);
-    grade = {
+    return {
       passed: false,
       assertions: [assertion(
         "valid model trial",
         false,
-        `${reasons.join("; ")}; ${[execution.stderr, execution.stdout].filter(Boolean).join("\n").slice(-1200)}`,
+        `${reasons.join("; ")}; ${[turn.execution.stderr, turn.execution.stdout].filter(Boolean).join("\n").slice(-1200)}`,
       )],
-      changedPaths: changedPaths(workspace, baseline, postTrialWorkspaceSnapshot),
+      changedPaths: changedPaths(workspace, baseline, state.workspaceSnapshot),
       checks: [],
     };
-  } else {
-    grade = scoreResult(loadedCase, parsed, workspace, {
-      baseline,
-      executeCheck: (check) => runContainerCheck(check, workspace, context, trialPluginCache),
-    });
   }
+  return scoreResult(loadedCase, turn.parsed, workspace, {
+    baseline,
+    executeCheck: (check) => runContainerCheck(check, workspace, context, trialPluginCache),
+  });
+}
+
+async function runTrial(loadedCase, trialNumber, infrastructureAttempt, context) {
+  throwIfRunnerTerminating();
+  const retrySuffix = infrastructureAttempt === 1 ? "" : `-infra-${infrastructureAttempt}`;
+  const trialName = `${loadedCase.config.id}-run-${trialNumber}${retrySuffix}`;
+  const trialRoot = path.join(context.outputDir, "trials", trialName);
+  const workspace = path.join(trialRoot, "workspace");
+  const modelOutput = path.join(trialRoot, "model-output");
+  const trialCodexHome = path.join(context.runtimeRoot, "trial-homes", trialName);
+  const installedAuth = path.resolve(context.authSource);
+  if (installedAuth !== path.join(path.resolve(context.codexHome), "auth.json")) {
+    fail("installed auth source must be the root auth.json in the isolated Codex home", 2);
+  }
+  fs.mkdirSync(trialRoot, { recursive: true, mode: 0o700 });
+  fs.mkdirSync(modelOutput, { recursive: true, mode: 0o700 });
+  fs.chmodSync(path.join(context.outputDir, "trials"), 0o700);
+  fs.chmodSync(trialRoot, 0o700);
+  fs.chmodSync(modelOutput, 0o700);
+  fs.cpSync(context.codexHome, trialCodexHome, {
+    recursive: true,
+    filter: (source) => path.resolve(source) !== installedAuth,
+  });
+  fs.chmodSync(trialCodexHome, 0o700);
+  if (fs.lstatSync(path.join(trialCodexHome, "auth.json"), { throwIfNoEntry: false })) {
+    fail("trial home copied the retained auth source before broker startup", 2);
+  }
+  fs.cpSync(loadedCase.workspacePath, workspace, { recursive: true });
+  const baseline = initializeGit(workspace);
+  const trialPluginCache = path.join(trialCodexHome, context.pluginCacheRelative);
+  const startedAt = Date.now();
+  const isDialogue = Boolean(loadedCase.config.dialogue);
+  const firstOutput = isDialogue ? path.join(modelOutput, "turn-1") : modelOutput;
+  const nextAuthFile = () => path.join(
+    trialCodexHome,
+    `auth-${crypto.randomBytes(16).toString("hex")}.fifo`,
+  );
+  const firstTurn = await executeTrialTurn({
+    loadedCase,
+    context,
+    trialCodexHome,
+    trialPluginCache,
+    authFile: nextAuthFile(),
+    workspace,
+    modelOutput: firstOutput,
+    prompt: buildPrompt(loadedCase),
+    promptFile: path.join(trialRoot, isDialogue ? "turn-1-prompt.txt" : "prompt.txt"),
+    traceFile: path.join(trialRoot, isDialogue ? "turn-1-trace.jsonl" : "trace.jsonl"),
+    stderrFile: path.join(trialRoot, isDialogue ? "turn-1-stderr.log" : "stderr.log"),
+  });
+  throwIfRunnerTerminating();
+
+  const firstState = inspectTurnState(
+    firstTurn,
+    workspace,
+    baseline,
+    trialCodexHome,
+    trialPluginCache,
+    context.pluginHash,
+  );
+  const firstCase = isDialogue ? dialogueFirstTurnCase(loadedCase) : loadedCase;
+  const firstGrade = gradeTurn(
+    firstCase,
+    firstTurn,
+    firstState,
+    workspace,
+    baseline,
+    context,
+    trialPluginCache,
+  );
+
+  let finalTurn = firstTurn;
+  let finalState = firstState;
+  let grade = firstGrade;
+  let dialogue = null;
+  if (isDialogue) {
+    dialogue = {
+      continuationMode: "explicit-prompt-same-workspace",
+      firstTurn: {
+        result: firstTurn.parsed,
+        grade: firstGrade,
+        execution: {
+          exit: firstTurn.execution.status,
+          signal: firstTurn.execution.signal,
+          error: firstTurn.execution.error,
+          pluginReadObserved: firstState.pluginReadObserved,
+          pluginUnchanged: firstState.pluginUnchanged,
+          gitMetadataUnchanged: firstState.gitMetadataMutation.length === 0,
+          containerCleanup: firstTurn.execution.containerCleanup,
+        },
+      },
+      secondTurn: null,
+    };
+    if (!firstState.infrastructureFailure && firstGrade.passed) {
+      const secondTurn = await executeTrialTurn({
+        loadedCase,
+        context,
+        trialCodexHome,
+        trialPluginCache,
+        authFile: nextAuthFile(),
+        workspace,
+        modelOutput: path.join(modelOutput, "turn-2"),
+        prompt: buildContinuationPrompt(loadedCase, firstTurn.parsed),
+        promptFile: path.join(trialRoot, "turn-2-prompt.txt"),
+        traceFile: path.join(trialRoot, "turn-2-trace.jsonl"),
+        stderrFile: path.join(trialRoot, "turn-2-stderr.log"),
+      });
+      throwIfRunnerTerminating();
+      const secondState = inspectTurnState(
+        secondTurn,
+        workspace,
+        baseline,
+        trialCodexHome,
+        trialPluginCache,
+        context.pluginHash,
+      );
+      const secondGrade = gradeTurn(
+        loadedCase,
+        secondTurn,
+        secondState,
+        workspace,
+        baseline,
+        context,
+        trialPluginCache,
+      );
+      finalTurn = secondTurn;
+      finalState = secondState;
+      grade = secondGrade;
+      dialogue.secondTurn = {
+        result: secondTurn.parsed,
+        grade: secondGrade,
+        execution: {
+          exit: secondTurn.execution.status,
+          signal: secondTurn.execution.signal,
+          error: secondTurn.execution.error,
+          pluginReadObserved: secondState.pluginReadObserved,
+          pluginUnchanged: secondState.pluginUnchanged,
+          gitMetadataUnchanged: secondState.gitMetadataMutation.length === 0,
+          containerCleanup: secondTurn.execution.containerCleanup,
+        },
+      };
+    }
+  }
+
+  const infrastructureFailure = finalState.infrastructureFailure;
+  const pluginReadObserved = firstState.pluginReadObserved ||
+    Boolean(dialogue?.secondTurn?.execution.pluginReadObserved);
 
   const trialResult = {
     scenarioId: loadedCase.config.id,
@@ -2752,17 +3032,18 @@ async function runTrial(loadedCase, trialNumber, infrastructureAttempt, context)
     passed: grade.passed,
     durationMs: Date.now() - startedAt,
     execution: {
-      exit: execution.status,
-      signal: execution.signal,
-      error: execution.error,
+      exit: finalTurn.execution.status,
+      signal: finalTurn.execution.signal,
+      error: finalTurn.execution.error,
       explicitSkill: `ddd-expert:${loadedCase.config.phase}`,
       pluginReadObserved,
-      pluginUnchanged,
-      pluginIntegrityError,
-      gitMetadataUnchanged: gitMetadataMutation.length === 0,
-      containerCleanup: execution.containerCleanup,
+      pluginUnchanged: finalState.pluginUnchanged,
+      pluginIntegrityError: finalState.pluginIntegrityError,
+      gitMetadataUnchanged: finalState.gitMetadataMutation.length === 0,
+      containerCleanup: finalTurn.execution.containerCleanup,
     },
-    result: parsed,
+    dialogue,
+    result: finalTurn.parsed,
     grade,
     artifactPath: trialRoot,
   };
@@ -2836,7 +3117,7 @@ function parseArgs(argv) {
 function validateCommand() {
   readJson(RESULT_SCHEMA);
   const cases = loadCases();
-  const phaseCounts = Object.fromEntries(["explore", "shape", "codify", "guard"].map((phase) => [phase, 0]));
+  const phaseCounts = Object.fromEntries(["event-storming", "codify", "guard"].map((phase) => [phase, 0]));
   for (const loadedCase of cases) {
     phaseCounts[loadedCase.config.phase] += 1;
   }
@@ -2986,7 +3267,7 @@ function selfTestCommand() {
           completion: ["completed"],
           review_conclusion: ["violations"],
           questions: { min: 0, max: 0 },
-          routes: { contains: ["codify"], excludes: ["shape"] },
+          routes: { contains: ["codify"], excludes: ["event-storming"] },
           verdicts: [{ kind: "violation", family: "aggregate_boundary", evidence_paths: ["internal/repository.go"] }],
           forbid_verdicts: ["evidence_gap"],
           git: { changed: "none", required_paths: [], forbidden_paths: [] },
@@ -3016,6 +3297,321 @@ function selfTestCommand() {
     if (!goodGrade.passed) {
       fail(`scorer rejected passing result: ${JSON.stringify(goodGrade.assertions)}`, 2);
     }
+
+    const dialogueCaseDir = path.join(tempRoot, "event-storming-dialogue-self-test");
+    const dialogueWorkspace = path.join(dialogueCaseDir, "workspace");
+    fs.mkdirSync(dialogueWorkspace, { recursive: true });
+    fs.writeFileSync(path.join(dialogueCaseDir, "prompt.md"), "Complete the expiry scenario.\n");
+    fs.writeFileSync(
+      path.join(dialogueCaseDir, "answer.md"),
+      "The clock triggers expiry at the deadline, establishing Reservation Expired and ending confirmation rights.\n",
+    );
+    const dialogueConfig = {
+      id: "event-storming-dialogue-self-test",
+      phase: "event-storming",
+      suites: ["full"],
+      sandbox: "workspace-write",
+      prompt: "prompt.md",
+      workspace: "workspace",
+      dialogue: {
+        answer: "answer.md",
+        first_turn: {
+          completion: ["needs_clarification"],
+          questions: {
+            min: 1,
+            max: 1,
+            contains_any: [
+              ["who", "clock"],
+              ["what fact", "outcome"],
+              ["confirmation right", "right ends"],
+            ],
+            propositions: [{
+              name: "question seeks the expiry effect",
+              accepts: ["whose confirmation right ends", "what happens to the confirmation right"],
+              rejects: ["the confirmation right remains unchanged"],
+            }],
+          },
+          git: {
+            changed: "some",
+            required_paths: ["accepted-slice.md"],
+            forbidden_paths: ["completed-model.md"],
+            allowed_paths: ["accepted-slice.md"],
+          },
+          files: [{
+            path: "accepted-slice.md",
+            exists: true,
+            contains: ["accepted Aggregate boundary"],
+            excludes: [],
+          }],
+          checks: [{
+            argv: ["node", "--version"],
+            exit: 0,
+            timeout_seconds: 30,
+          }],
+        },
+      },
+      expect: {
+        completion: ["completed"],
+        review_conclusion: ["not_applicable"],
+        questions: { min: 0, max: 0 },
+        routes: { contains: [], excludes: ["event-storming", "codify", "guard"] },
+        verdicts: [],
+        forbid_verdicts: ["violation", "evidence_gap"],
+        git: {
+          changed: "some",
+          required_paths: ["accepted-slice.md", "completed-model.md"],
+          forbidden_paths: [],
+          allowed_paths: ["accepted-slice.md", "completed-model.md"],
+        },
+        files: [{
+          path: "completed-model.md",
+          exists: true,
+          contains: ["Reservation Expired"],
+          excludes: [],
+        }],
+        checks: [],
+      },
+    };
+    fs.writeFileSync(path.join(dialogueWorkspace, "leaked-answer.md"), "must stay hidden\n");
+    expectFailure(
+      () => validateCase(dialogueCaseDir, {
+        ...dialogueConfig,
+        dialogue: { ...dialogueConfig.dialogue, answer: "workspace/leaked-answer.md" },
+      }),
+      /distinct real path and inode outside the turn-1 prompt and workspace/u,
+      "dialogue answer isolation check",
+    );
+    fs.rmSync(path.join(dialogueWorkspace, "leaked-answer.md"));
+    const symlinkedPrompt = path.join(dialogueCaseDir, "prompt-answer-alias.md");
+    fs.symlinkSync("answer.md", symlinkedPrompt);
+    expectFailure(
+      () => validateCase(dialogueCaseDir, { ...dialogueConfig, prompt: "prompt-answer-alias.md" }),
+      /must not traverse or name a symlink/u,
+      "dialogue prompt symlink isolation check",
+    );
+    fs.rmSync(symlinkedPrompt);
+    fs.writeFileSync(path.join(dialogueWorkspace, "ancestor-answer.md"), "must stay hidden\n");
+    const workspaceAlias = path.join(dialogueCaseDir, "workspace-alias");
+    fs.symlinkSync("workspace", workspaceAlias);
+    expectFailure(
+      () => validateCase(dialogueCaseDir, {
+        ...dialogueConfig,
+        dialogue: { ...dialogueConfig.dialogue, answer: "workspace-alias/ancestor-answer.md" },
+      }),
+      /must not traverse or name a symlink/u,
+      "dialogue answer symlink-ancestor isolation check",
+    );
+    fs.unlinkSync(workspaceAlias);
+    fs.rmSync(path.join(dialogueWorkspace, "ancestor-answer.md"));
+    expectFailure(
+      () => validateCase(dialogueCaseDir, {
+        ...dialogueConfig,
+        prompt: "./answer.md",
+      }),
+      /distinct real path and inode outside the turn-1 prompt and workspace/u,
+      "dialogue answer inode isolation check",
+    );
+    expectFailure(
+      () => validateCase(dialogueCaseDir, {
+        ...dialogueConfig,
+        dialogue: {
+          ...dialogueConfig.dialogue,
+          first_turn: {
+            ...dialogueConfig.dialogue.first_turn,
+            completion: ["needs_clarification", "completed"],
+          },
+        },
+      }),
+      /completion must be exactly needs_clarification/u,
+      "dialogue first-turn completion check",
+    );
+    expectFailure(
+      () => validateQuestionExpectation(
+        { min: RESULT_QUESTION_MAX + 1, max: RESULT_QUESTION_MAX + 1 },
+        "self-test.questions",
+      ),
+      /result-schema maxItems/u,
+      "question expectation schema-bound check",
+    );
+    const dialogueLoaded = validateCase(dialogueCaseDir, dialogueConfig);
+    const dialogueBaseline = initializeGit(dialogueWorkspace);
+    fs.writeFileSync(path.join(dialogueWorkspace, "accepted-slice.md"), "accepted Aggregate boundary\n");
+    const dialogueFirstResult = {
+      scenario_id: dialogueConfig.id,
+      phase: "event-storming",
+      completion: "needs_clarification",
+      review_conclusion: "not_applicable",
+      questions: ["Who triggers expiry, what fact does it establish, and whose confirmation right ends"],
+      routes: [],
+      verdicts: [],
+      changed_files: ["accepted-slice.md"],
+      verification: [],
+    };
+    const dialogueFirstScoreOptions = {
+      baseline: dialogueBaseline,
+      executeCheck: () => ({ status: 0, stdout: "v1", stderr: "" }),
+    };
+    const dialogueFirstGrade = scoreResult(
+      dialogueFirstTurnCase(dialogueLoaded),
+      dialogueFirstResult,
+      dialogueWorkspace,
+      dialogueFirstScoreOptions,
+    );
+    if (!dialogueFirstGrade.passed || dialogueFirstGrade.checks.length !== 1) {
+      fail(`scorer rejected a purpose-oriented first dialogue turn: ${JSON.stringify(dialogueFirstGrade.assertions)}`, 2);
+    }
+    const wrongHotSpotGrade = scoreResult(
+      dialogueFirstTurnCase(dialogueLoaded),
+      { ...dialogueFirstResult, questions: ["Which database should store Reservation"] },
+      dialogueWorkspace,
+      dialogueFirstScoreOptions,
+    );
+    if (wrongHotSpotGrade.passed) {
+      fail("dialogue scorer accepted a first-turn question that missed the declared business HotSpot", 2);
+    }
+    fs.writeFileSync(path.join(dialogueWorkspace, "accepted-slice.md"), "placeholder only\n");
+    const wrongFirstSliceGrade = scoreResult(
+      dialogueFirstTurnCase(dialogueLoaded),
+      dialogueFirstResult,
+      dialogueWorkspace,
+      dialogueFirstScoreOptions,
+    );
+    if (wrongFirstSliceGrade.passed || !wrongFirstSliceGrade.assertions.some((item) =>
+      item.name.includes("accepted-slice.md contains accepted Aggregate boundary") && !item.passed)) {
+      fail("dialogue scorer accepted a first-turn artifact without its declared accepted slice", 2);
+    }
+    fs.writeFileSync(path.join(dialogueWorkspace, "accepted-slice.md"), "accepted Aggregate boundary\n");
+    const failedFirstCheckGrade = scoreResult(
+      dialogueFirstTurnCase(dialogueLoaded),
+      dialogueFirstResult,
+      dialogueWorkspace,
+      {
+        baseline: dialogueBaseline,
+        executeCheck: () => ({ status: 1, stdout: "", stderr: "failed" }),
+      },
+    );
+    if (failedFirstCheckGrade.passed || !failedFirstCheckGrade.assertions.some((item) =>
+      item.name === "check node --version" && !item.passed)) {
+      fail("dialogue scorer accepted a failing first-turn check", 2);
+    }
+    const entrySafeQuestionCase = dialogueFirstTurnCase(dialogueLoaded);
+    entrySafeQuestionCase.config = {
+      ...entrySafeQuestionCase.config,
+      expect: {
+        ...entrySafeQuestionCase.config.expect,
+        questions: { min: 2, max: 2, contains: ["Payment Captured"] },
+      },
+    };
+    const splitQuestionResult = {
+      ...dialogueFirstResult,
+      questions: ["Which fact is Payment", "Captured by the provider"],
+    };
+    const splitQuestionGrade = scoreResult(
+      entrySafeQuestionCase,
+      splitQuestionResult,
+      dialogueWorkspace,
+      dialogueFirstScoreOptions,
+    );
+    const splitContainsAssertion = splitQuestionGrade.assertions.find((item) =>
+      item.name === "question set contains Payment Captured");
+    if (splitQuestionGrade.passed || !splitContainsAssertion || splitContainsAssertion.passed) {
+      fail("dialogue scorer matched a semantic phrase across question entries", 2);
+    }
+    entrySafeQuestionCase.config.expect.questions = {
+      min: 2,
+      max: 2,
+      excludes: ["Payment Captured"],
+    };
+    const splitExclusionGrade = scoreResult(
+      entrySafeQuestionCase,
+      splitQuestionResult,
+      dialogueWorkspace,
+      dialogueFirstScoreOptions,
+    );
+    if (!splitExclusionGrade.passed) {
+      fail(`dialogue scorer falsely excluded a phrase split across question entries: ${JSON.stringify(splitExclusionGrade.assertions)}`, 2);
+    }
+    const firstPrompt = buildPrompt(dialogueLoaded);
+    const continuationPrompt = buildContinuationPrompt(dialogueLoaded, dialogueFirstResult);
+    if (firstPrompt.includes("The clock triggers expiry") ||
+        !continuationPrompt.includes("The clock triggers expiry") ||
+        !continuationPrompt.includes("same EventStorming conversation") ||
+        !continuationPrompt.includes(JSON.stringify(dialogueFirstResult, null, 2))) {
+      fail("dialogue prompt did not withhold the answer from turn 1 or preserve explicit continuation context", 2);
+    }
+    const resultlessHome = path.join(tempRoot, "resultless-home");
+    const resultlessPluginCache = path.join(resultlessHome, "plugins", "cache", "ddd-expert");
+    fs.mkdirSync(resultlessPluginCache, { recursive: true });
+    fs.writeFileSync(path.join(resultlessPluginCache, "marker"), "unchanged\n");
+    const resultlessTurn = {
+      execution: { status: 0, signal: null, error: null, stdout: "" },
+      parsed: null,
+      parseError: "cannot parse model result JSON",
+    };
+    const resultlessState = inspectTurnState(
+      resultlessTurn,
+      dialogueWorkspace,
+      dialogueBaseline,
+      resultlessHome,
+      resultlessPluginCache,
+      hashTree(resultlessPluginCache),
+    );
+    if (resultlessState.infrastructureFailure) {
+      fail("an exit-zero missing or malformed result was classified as an infrastructure failure", 2);
+    }
+    const resultlessGrade = gradeTurn(
+      dialogueFirstTurnCase(dialogueLoaded),
+      resultlessTurn,
+      resultlessState,
+      dialogueWorkspace,
+      dialogueBaseline,
+      {},
+      resultlessPluginCache,
+    );
+    if (resultlessGrade.passed || !resultlessGrade.assertions.some((item) =>
+      item.name === "result schema" && !item.passed)) {
+      fail("an exit-zero missing or malformed result was not scored as a behavior failure", 2);
+    }
+    const failedExecutionState = inspectTurnState(
+      {
+        ...resultlessTurn,
+        execution: { ...resultlessTurn.execution, status: 1 },
+      },
+      dialogueWorkspace,
+      dialogueBaseline,
+      resultlessHome,
+      resultlessPluginCache,
+      hashTree(resultlessPluginCache),
+    );
+    if (!failedExecutionState.infrastructureFailure) {
+      fail("a nonzero Codex execution was not classified as an infrastructure failure", 2);
+    }
+    fs.writeFileSync(path.join(dialogueWorkspace, "completed-model.md"), "Reservation Expired is terminal.\n");
+    const dialogueFinalResult = {
+      ...dialogueFirstResult,
+      completion: "completed",
+      questions: [],
+      changed_files: ["accepted-slice.md", "completed-model.md"],
+    };
+    const dialogueFinalGrade = scoreResult(
+      dialogueLoaded,
+      dialogueFinalResult,
+      dialogueWorkspace,
+      { baseline: dialogueBaseline },
+    );
+    if (!dialogueFinalGrade.passed) {
+      fail(`scorer rejected the cumulative two-turn artifact delta: ${JSON.stringify(dialogueFinalGrade.assertions)}`, 2);
+    }
+    const secondTurnOnlyGrade = scoreResult(
+      dialogueLoaded,
+      { ...dialogueFinalResult, changed_files: ["completed-model.md"] },
+      dialogueWorkspace,
+      { baseline: dialogueBaseline },
+    );
+    if (secondTurnOnlyGrade.passed) {
+      fail("dialogue scorer accepted changed_files that omitted the turn-1 artifact", 2);
+    }
+
     const exactWriteWorkspace = path.join(tempRoot, "exact-write-workspace");
     fs.mkdirSync(exactWriteWorkspace, { recursive: true });
     fs.writeFileSync(path.join(exactWriteWorkspace, ".gitignore"), "source-coverage.md\n");
@@ -3025,7 +3621,7 @@ function selfTestCommand() {
     const exactWriteCase = {
       config: {
         id: "exact-write-set",
-        phase: "shape",
+        phase: "event-storming",
         expect: {
           completion: ["completed"],
           review_conclusion: ["not_applicable"],
@@ -3046,7 +3642,7 @@ function selfTestCommand() {
     };
     const exactWriteResult = {
       scenario_id: "exact-write-set",
-      phase: "shape",
+      phase: "event-storming",
       completion: "completed",
       review_conclusion: "not_applicable",
       questions: [],
@@ -3406,11 +4002,11 @@ function selfTestCommand() {
     if (scoreResult(loadedCase, extraReportedFile, workspace, scoreOptions).passed) {
       fail("scorer accepted an unobserved reported file", 2);
     }
-    const exploreCase = {
+    const eventStormingCase = {
       ...loadedCase,
       config: {
         ...loadedCase.config,
-        phase: "explore",
+        phase: "event-storming",
         expect: {
           ...loadedCase.config.expect,
           review_conclusion: ["not_applicable"],
@@ -3421,27 +4017,27 @@ function selfTestCommand() {
             contains_any: [["payment", "支付"], ["captured", "settled"]],
             excludes: ["order"],
           },
-          routes: { contains: [], excludes: ["shape"] },
+          routes: { contains: [], excludes: ["event-storming"] },
           verdicts: [],
           forbid_verdicts: ["violation", "evidence_gap"],
         },
       },
     };
-    const goodExplore = {
+    const goodEventStorming = {
       ...good,
-      phase: "explore",
+      phase: "event-storming",
       review_conclusion: "not_applicable",
       questions: ["Which Ｐａｙｍｅｎｔ\nauthority distinguishes CAPTURED from authorized or settled states?"],
       routes: [],
       verdicts: [],
     };
-    const requireExploreGrade = (caseToScore, resultToScore, expected, message) => {
+    const requireEventStormingGrade = (caseToScore, resultToScore, expected, message) => {
       const grade = scoreResult(caseToScore, resultToScore, workspace, scoreOptions);
       if (grade.passed !== expected) {
         fail(`${message}: ${JSON.stringify(grade.assertions)}`, 2);
       }
     };
-    requireExploreGrade(exploreCase, goodExplore, true, "scorer rejected a normalized semantic first question");
+    requireEventStormingGrade(eventStormingCase, goodEventStorming, true, "scorer rejected a normalized semantic question set");
     for (const [text, pattern] of [
       ["Who owns each confirmation fact?", "own*"],
       ["Which authority accepts the published fact?", "accept*"],
@@ -3461,20 +4057,20 @@ function selfTestCommand() {
       fail("semantic question matcher treated own as a substring of downstream", 2);
     }
     for (const [message, question] of [
-      ["scorer accepted a first question from the wrong bounded context", "How should the Order react after payment succeeds?"],
-      ["scorer accepted a downstream-first question with upstream terms", "After Payment authority reports Captured, what makes Order ready for fulfillment?"],
+      ["scorer accepted a question set from the wrong bounded context", "How should the Order react after payment succeeds?"],
+      ["scorer accepted a downstream-question set with upstream terms", "After Payment authority reports Captured, what makes Order ready for fulfillment?"],
       ["scorer ignored a required semantic term", "Which Payment decision distinguishes captured from settled states?"],
       ["scorer ignored an alternative group", "Which Payment authority defines an authorized state?"],
       ["scorer ignored a forbidden semantic term", "Which Payment authority distinguishes captured states for Order?"],
     ]) {
-      requireExploreGrade(exploreCase, { ...goodExplore, questions: [question] }, false, message);
+      requireEventStormingGrade(eventStormingCase, { ...goodEventStorming, questions: [question] }, false, message);
     }
     const relationshipQuestionCase = {
-      ...exploreCase,
+      ...eventStormingCase,
       config: {
-        ...exploreCase.config,
+        ...eventStormingCase.config,
         expect: {
-          ...exploreCase.config.expect,
+          ...eventStormingCase.config.expect,
           questions: {
             min: 1,
             max: 1,
@@ -3484,24 +4080,24 @@ function selfTestCommand() {
         },
       },
     };
-    requireExploreGrade(
+    requireEventStormingGrade(
       relationshipQuestionCase,
-      { ...goodExplore, questions: ["When does Delivery record attendance after Registration evidence arrives?"] },
+      { ...goodEventStorming, questions: ["When does Delivery record attendance after Registration evidence arrives?"] },
       false,
       "scorer accepted a local lifecycle question that skipped relationship authority",
     );
-    requireExploreGrade(
+    requireEventStormingGrade(
       relationshipQuestionCase,
-      { ...goodExplore, questions: ["Should Delivery accept attendance for a Registration seat?"] },
+      { ...goodEventStorming, questions: ["Should Delivery accept attendance for a Registration seat?"] },
       false,
       "scorer accepted a local attendance question as relationship discovery",
     );
     const boundaryQuestionCase = {
-      ...exploreCase,
+      ...eventStormingCase,
       config: {
-        ...exploreCase.config,
+        ...eventStormingCase.config,
         expect: {
-          ...exploreCase.config.expect,
+          ...eventStormingCase.config.expect,
           questions: {
             min: 1,
             max: 1,
@@ -3511,53 +4107,74 @@ function selfTestCommand() {
         },
       },
     };
-    requireExploreGrade(
+    requireEventStormingGrade(
       boundaryQuestionCase,
-      { ...goodExplore, questions: ["Should each confirmed seat use a different allocation decision?"] },
+      { ...goodEventStorming, questions: ["Should each confirmed seat use a different allocation decision?"] },
       false,
       "scorer accepted one local responsibility as topology discovery",
     );
     const lateSemanticMatchCase = {
-      ...exploreCase,
+      ...eventStormingCase,
       config: {
-        ...exploreCase.config,
+        ...eventStormingCase.config,
         expect: {
-          ...exploreCase.config.expect,
-          questions: { ...exploreCase.config.expect.questions, max: 2 },
+          ...eventStormingCase.config.expect,
+          questions: { ...eventStormingCase.config.expect.questions, max: 2 },
         },
       },
     };
     const lateSemanticMatch = {
-      ...goodExplore,
+      ...goodEventStorming,
       questions: [
-        "How should Order react after payment succeeds?",
+        "Which business outcome is still unclear?",
         "Which Payment authority distinguishes captured from settled states?",
       ],
     };
-    requireExploreGrade(lateSemanticMatchCase, lateSemanticMatch, false, "scorer accepted a semantic match after the first question");
+    requireEventStormingGrade(lateSemanticMatchCase, lateSemanticMatch, true, "scorer rejected a semantic HotSpot expressed across the question set");
     const baselineLifecycleConfig = readJson(path.join(
       CASES_ROOT,
-      "explore-baseline-with-open-lifecycle",
+      "event-storming-baseline-with-open-lifecycle",
       "case.json",
     ));
-    const baselineLifecycleCase = { ...loadedCase, config: baselineLifecycleConfig };
+    const baselineFirstTurnCase = dialogueFirstTurnCase({
+      ...loadedCase,
+      config: baselineLifecycleConfig,
+    });
+    const baselineLifecycleCase = {
+      ...baselineFirstTurnCase,
+      config: {
+        ...baselineFirstTurnCase.config,
+        expect: {
+          ...baselineFirstTurnCase.config.expect,
+          git: { changed: "none", required_paths: [], forbidden_paths: [] },
+          files: [],
+          checks: [],
+        },
+      },
+    };
     const baselineLifecycleResult = {
-      ...goodExplore,
+      ...goodEventStorming,
       scenario_id: baselineLifecycleConfig.id,
       completion: "needs_clarification",
       questions: [
-        "docs/stories.md says Purchase acceptance follows stock and fraud checks but leaves the failed-check outcome unresolved. I recommend deciding this before retries: when either check fails, does Purchase remain pending for review and retry, or reach a terminal outcome?",
+        "Who decides the Purchase outcome when stock or fraud checks fail, including either a stock check or fraud check failure; what fact is established and whether fulfillment preparation stops; and what outcome is recorded and whether retry requires new evidence?",
       ],
     };
-    if (!scoreResult(baselineLifecycleCase, baselineLifecycleResult, workspace, scoreOptions).passed) {
-      fail("scorer rejected an evidence-bearing Purchase failure-lifecycle question", 2);
+    const baselineLifecycleGrade = scoreResult(
+      baselineLifecycleCase,
+      baselineLifecycleResult,
+      workspace,
+      scoreOptions,
+    );
+    if (!baselineLifecycleGrade.passed) {
+      fail(`scorer rejected a purpose-oriented Purchase failure HotSpot question: ${JSON.stringify(baselineLifecycleGrade.assertions)}`, 2);
     }
     const fundsOnlyLifecycleResult = {
       ...baselineLifecycleResult,
       questions: ["When may treasury confirm, reverse, or expire Funds Settled?"],
     };
     if (scoreResult(baselineLifecycleCase, fundsOnlyLifecycleResult, workspace, scoreOptions).passed) {
-      fail("scorer accepted a Funds-only question that skipped the first unresolved Purchase path", 2);
+      fail("scorer accepted an incomplete Funds-only lifecycle question", 2);
     }
     const deferredCoverageResult = {
       ...baselineLifecycleResult,
@@ -3568,129 +4185,581 @@ function selfTestCommand() {
     if (scoreResult(baselineLifecycleCase, deferredCoverageResult, workspace, scoreOptions).passed) {
       fail("scorer accepted planned Purchase coverage as already completed coverage", 2);
     }
+
     const existingBaselineConfig = readJson(path.join(
       CASES_ROOT,
-      "explore-existing-system-baseline",
+      "event-storming-existing-system-baseline",
       "case.json",
     ));
-    const existingBaselineCase = { ...loadedCase, config: existingBaselineConfig };
+    const existingBaselineFirstCase = dialogueFirstTurnCase({
+      ...loadedCase,
+      config: existingBaselineConfig,
+    });
     const existingBaselineResult = {
-      ...goodExplore,
+      ...goodEventStorming,
       scenario_id: existingBaselineConfig.id,
       completion: "needs_clarification",
       questions: [
-        "Repository evidence in README and docs/architecture.md suggests this provisional candidate baseline: Agent Execution owns run admission, execution identity, lease fencing, and terminal execution outcomes; Agent Execution is upstream and fans out to Work, which owns business completion, and Project Knowledge, which owns Candidate acceptance. Package names and calls are evidence rather than authority. Do you confirm this baseline?",
+        "Candidate current-state: Agent Execution is authoritative for the terminal Agent Run outcome and fans it out to both Work and Project Knowledge as two consumers. Is this current baseline correct?",
       ],
+      changed_files: [],
     };
-    if (!scoreResult(existingBaselineCase, existingBaselineResult, workspace, scoreOptions).passed) {
-      fail("scorer rejected a complete evidence-qualified three-context baseline", 2);
-    }
-    const incompleteExecutionAuthorityGrade = scoreResult(
-      existingBaselineCase,
-      {
-        ...existingBaselineResult,
-        questions: [existingBaselineResult.questions[0].replace(
-          ", execution identity",
-          "",
-        )],
-      },
+    if (!scoreResult(
+      existingBaselineFirstCase,
+      existingBaselineResult,
       workspace,
       scoreOptions,
-    );
-    if (incompleteExecutionAuthorityGrade.passed ||
-        !incompleteExecutionAuthorityGrade.assertions.some((item) =>
-          item.name === "first question establishes Agent Execution owns execution identity" &&
-          !item.passed)) {
-      fail("scorer accepted a reconstructed baseline with incomplete Agent Execution authority", 2);
+    ).passed) {
+      fail("scorer rejected a purpose-oriented existing-system candidate baseline", 2);
     }
     const projectedRecoveryChangeGrade = scoreResult(
-      existingBaselineCase,
+      existingBaselineFirstCase,
       {
         ...existingBaselineResult,
-        questions: [existingBaselineResult.questions[0].replace(
-          "Do you confirm this baseline?",
-          "I recommend publishing LeaseRecovered as a recovery event. Do you confirm this baseline and accept external recovery visibility?",
-        )],
+        questions: [
+          `${existingBaselineResult.questions[0]} Which recovery event should Agent Execution publish?`,
+        ],
       },
       workspace,
       scoreOptions,
     );
-    if (projectedRecoveryChangeGrade.passed ||
-        !projectedRecoveryChangeGrade.assertions.some((item) =>
-          (item.name === "first question excludes publish* ... recovery" ||
-           item.name === "first question excludes recovery event") && !item.passed)) {
-      fail("scorer accepted a requested recovery change inside baseline confirmation", 2);
+    if (projectedRecoveryChangeGrade.passed || !projectedRecoveryChangeGrade.assertions.some((item) =>
+      item.name.startsWith("question set excludes") && !item.passed)) {
+      fail("scorer accepted an unconfirmed recovery projection inside baseline discovery", 2);
     }
     if (scoreResult(
-      existingBaselineCase,
+      existingBaselineFirstCase,
       { ...existingBaselineResult, questions: ["Is the current Work boundary accepted?"] },
       workspace,
       scoreOptions,
     ).passed) {
       fail("scorer accepted a trivial existing-system boundary question", 2);
     }
-    const reversedExistingBaselineGrade = scoreResult(
-      existingBaselineCase,
-      {
-        ...existingBaselineResult,
-        questions: [
-          "Repository evidence suggests this candidate baseline: Agent Execution does not own run admission; Work does not own business completion; Project Knowledge does not own Candidate acceptance; Agent Execution is upstream and fans out to both contexts. Package names and calls are evidence rather than authority. Do you confirm this baseline?",
-        ],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (reversedExistingBaselineGrade.passed ||
-        !reversedExistingBaselineGrade.assertions.some((item) =>
-          item.name.startsWith("first question establishes") && !item.passed)) {
-      fail("scorer accepted a candidate baseline that reversed every context authority", 2);
-    }
-    const ambiguousUpstreamBaselineGrade = scoreResult(
-      existingBaselineCase,
-      {
-        ...existingBaselineResult,
-        questions: [
-          "Repository evidence suggests this candidate baseline: Agent Execution owns run admission; Work owns business completion; Project Knowledge owns Candidate acceptance; it is upstream and fans out to Work and Agent Execution. Package names and calls are evidence rather than authority. Do you confirm this baseline?",
-        ],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (ambiguousUpstreamBaselineGrade.passed ||
-        !ambiguousUpstreamBaselineGrade.assertions.some((item) =>
-          item.name === "first question establishes Agent Execution is upstream of Project Knowledge" && !item.passed)) {
-      fail("scorer accepted a pronoun that assigned upstream fan-out to Project Knowledge", 2);
-    }
-    const reversedProjectKnowledgeEdgeGrade = scoreResult(
-      existingBaselineCase,
-      {
-        ...existingBaselineResult,
-        questions: [
-          "Repository evidence suggests this candidate baseline: Agent Execution owns run admission; Work owns business completion; Project Knowledge owns Candidate acceptance; Agent Execution -> Work; Project Knowledge -> Agent Execution. Package names and calls are evidence rather than authority. Do you confirm this baseline?",
-        ],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (reversedProjectKnowledgeEdgeGrade.passed ||
-        !reversedProjectKnowledgeEdgeGrade.assertions.some((item) =>
-          item.name === "first question establishes Agent Execution is upstream of Project Knowledge" &&
-          !item.passed)) {
-      fail("scorer accepted a reversed Project Knowledge -> Agent Execution edge", 2);
-    }
-    const integratedExploreConfig = readJson(path.join(
+
+    const restrainedEventStormingConfig = readJson(path.join(
       CASES_ROOT,
-      "explore-integrated-model-acceptance",
+      "event-storming-document-confirmed-model",
       "case.json",
     ));
-    const integratedExploreCase = { ...loadedCase, config: integratedExploreConfig };
-    const integratedExploreWorkspace = path.join(tempRoot, "integrated-explore-workspace");
+    const restrainedEventStormingCase = { ...loadedCase, config: restrainedEventStormingConfig };
+    const restrainedEventStormingWorkspace = path.join(tempRoot, "restrained-event-storming-workspace");
     fs.cpSync(
-      path.join(CASES_ROOT, "explore-integrated-model-acceptance", "workspace"),
-      integratedExploreWorkspace,
+      path.join(CASES_ROOT, "event-storming-document-confirmed-model", "workspace"),
+      restrainedEventStormingWorkspace,
       { recursive: true },
     );
-    const integratedExploreBaseline = initializeGit(integratedExploreWorkspace);
+    const restrainedEventStormingBaseline = initializeGit(restrainedEventStormingWorkspace);
+    const restrainedReadme = "docs/ddd-expert/README.md";
+    const restrainedMap = "docs/ddd-expert/context-map.md";
+    const restrainedModel = "docs/ddd-expert/context/inventory/model.md";
+    fs.mkdirSync(path.dirname(path.join(restrainedEventStormingWorkspace, restrainedModel)), { recursive: true });
+    fs.writeFileSync(path.join(restrainedEventStormingWorkspace, restrainedReadme), `# DDD Expert Artifacts
+
+## Bounded Contexts
+
+- [Inventory](context/inventory/model.md)
+
+\`design.md\` lives beside each context's \`model.md\`. It may be absent before EventStorming applies the first accepted tactical slice, then remains \`evolving\` until its revision-matched Design becomes \`codify_ready\`. Context dependencies and named contracts are authoritative in [context-map.md](context-map.md).
+`);
+    fs.writeFileSync(path.join(restrainedEventStormingWorkspace, restrainedMap), `# Context Map
+
+## Global View
+
+Arrow direction: \`U -> D\` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
+
+\`\`\`mermaid
+graph LR
+    inventory["Inventory"]
+\`\`\`
+
+## Bounded Contexts
+
+### Inventory
+
+- **Core responsibility:** Own sellable and reserved stock decisions.
+- **Business authority:** Inventory is authoritative for quantities and reservation outcomes.
+
+#### Local View
+
+\`\`\`text
++-----------+
+| Inventory |
++-----------+
+\`\`\`
+`);
+    const acceptedRestrainedModel = `---
+context: Inventory
+model_revision: 2
+model_status: shape_ready
+---
+
+# Inventory Domain Model
+
+## Ubiquitous Language
+
+An Inventory Reservation has identity across retry and release. A successful
+reservation establishes Stock Reserved.
+
+## Authority and Ownership
+
+Inventory is the sole authority for sellable and reserved quantities.
+
+## Scenarios and Lifecycle
+
+An Inventory Reservation expires after 15 minutes unless the order confirms it.
+
+## Invariants and Policies
+
+Available quantity never becomes negative.
+
+## Failure and Recovery Semantics
+
+A duplicate command with the same reservation identity returns the original
+result. Temporary caller inconsistency is repaired by retry.
+`;
+    fs.writeFileSync(
+      path.join(restrainedEventStormingWorkspace, restrainedModel),
+      acceptedRestrainedModel,
+    );
+    const restrainedChangedFiles = [restrainedReadme, restrainedMap, restrainedModel];
+    const restrainedEventStormingResult = {
+      ...goodEventStorming,
+      scenario_id: restrainedEventStormingConfig.id,
+      completion: "completed",
+      questions: [],
+      routes: [],
+      changed_files: restrainedChangedFiles,
+    };
+    const executeRestrainedCheck = (check) => {
+      const argv = [...check.argv];
+      if (argv[0] === "node" && argv[1] === "/eval/validate-context-map.mjs") {
+        argv[1] = path.join(PLUGIN_ROOT, "scripts", "validate-context-map.mjs");
+      }
+      return runCommand(argv, {
+        cwd: restrainedEventStormingWorkspace,
+        timeoutSeconds: check.timeout_seconds,
+      });
+    };
+    const restrainedEventStormingOptions = {
+      baseline: restrainedEventStormingBaseline,
+      executeCheck: executeRestrainedCheck,
+    };
+    const restrainedEventStormingGrade = scoreResult(
+      restrainedEventStormingCase,
+      restrainedEventStormingResult,
+      restrainedEventStormingWorkspace,
+      restrainedEventStormingOptions,
+    );
+    if (!restrainedEventStormingGrade.passed) {
+      fail(`scorer rejected a restrained Inventory Model: ${JSON.stringify(restrainedEventStormingGrade.assertions)}`, 2);
+    }
+    fs.writeFileSync(
+      path.join(restrainedEventStormingWorkspace, restrainedModel),
+      `${acceptedRestrainedModel}\n## Priority Badge\n\nPriority Badge is an independent Domain concept.\n`,
+    );
+    const promotedWeakNounGrade = scoreResult(
+      restrainedEventStormingCase,
+      restrainedEventStormingResult,
+      restrainedEventStormingWorkspace,
+      restrainedEventStormingOptions,
+    );
+    if (promotedWeakNounGrade.passed || !promotedWeakNounGrade.assertions.some((item) =>
+      item.name === `file ${restrainedModel} semantically excludes Priority Badge` && !item.passed)) {
+      fail("scorer accepted promotion of a semantically weak source noun", 2);
+    }
+
+    const evolvingCodifyConfig = readJson(path.join(
+      CASES_ROOT,
+      "codify-rejects-evolving-design",
+      "case.json",
+    ));
+    const evolvingCodifyCase = { ...loadedCase, config: evolvingCodifyConfig };
+    const evolvingCodifyWorkspace = path.join(tempRoot, "evolving-codify-workspace");
+    fs.cpSync(
+      path.join(CASES_ROOT, "codify-rejects-evolving-design", "workspace"),
+      evolvingCodifyWorkspace,
+      { recursive: true },
+    );
+    const evolvingCodifyBaseline = initializeGit(evolvingCodifyWorkspace);
+    const evolvingCodifyResult = {
+      ...goodEventStorming,
+      scenario_id: evolvingCodifyConfig.id,
+      phase: "codify",
+      completion: "stopped",
+      review_conclusion: "not_applicable",
+      questions: [],
+      routes: [{ target: "event-storming", reason: "the evolving Design is not ready implementation authority" }],
+      verdicts: [],
+      changed_files: [],
+    };
+    const evolvingCodifyOptions = { baseline: evolvingCodifyBaseline };
+    const evolvingCodifyGrade = scoreResult(
+      evolvingCodifyCase,
+      evolvingCodifyResult,
+      evolvingCodifyWorkspace,
+      evolvingCodifyOptions,
+    );
+    if (!evolvingCodifyGrade.passed) {
+      fail(`scorer rejected the Codify evolving-Design gate: ${JSON.stringify(evolvingCodifyGrade.assertions)}`, 2);
+    }
+    const skippedCodifyGateGrade = scoreResult(
+      evolvingCodifyCase,
+      { ...evolvingCodifyResult, completion: "completed", routes: [] },
+      evolvingCodifyWorkspace,
+      evolvingCodifyOptions,
+    );
+    if (skippedCodifyGateGrade.passed || !skippedCodifyGateGrade.assertions.some((item) =>
+      item.name === "route contains event-storming" && !item.passed)) {
+      fail("scorer accepted Codify completion without routing an evolving Design to EventStorming", 2);
+    }
+
+    const statuslessGuardConfig = readJson(path.join(
+      CASES_ROOT,
+      "guard-statusless-design-readiness",
+      "case.json",
+    ));
+    const statuslessGuardCase = { ...loadedCase, config: statuslessGuardConfig };
+    const statuslessGuardWorkspace = path.join(tempRoot, "statusless-guard-workspace");
+    fs.cpSync(
+      path.join(CASES_ROOT, "guard-statusless-design-readiness", "workspace"),
+      statuslessGuardWorkspace,
+      { recursive: true },
+    );
+    const statuslessGuardBaseline = initializeGit(statuslessGuardWorkspace);
+    const statuslessDesign = "docs/ddd-expert/context/order/design.md";
+    const statuslessGuardResult = {
+      ...good,
+      scenario_id: statuslessGuardConfig.id,
+      completion: "completed",
+      review_conclusion: "evidence_gaps",
+      questions: [],
+      routes: [{ target: "event-storming", reason: "replay and explicitly promote Design readiness" }],
+      verdicts: [{
+        kind: "evidence_gap",
+        family: "model_evidence",
+        summary: "The statusless legacy Design contains accepted content but has no codify-ready proof.",
+        evidence: [{ path: statuslessDesign, line: 1, detail: "frontmatter has no design_status" }],
+      }],
+      changed_files: [],
+    };
+    const executeStatuslessGuardCheck = (check) => runCommand(check.argv, {
+      cwd: statuslessGuardWorkspace,
+      timeoutSeconds: check.timeout_seconds,
+    });
+    const statuslessGuardOptions = {
+      baseline: statuslessGuardBaseline,
+      executeCheck: executeStatuslessGuardCheck,
+    };
+    const statuslessGuardGrade = scoreResult(
+      statuslessGuardCase,
+      statuslessGuardResult,
+      statuslessGuardWorkspace,
+      statuslessGuardOptions,
+    );
+    if (!statuslessGuardGrade.passed) {
+      fail(`scorer rejected the Guard statusless-readiness evidence gap: ${JSON.stringify(statuslessGuardGrade.assertions)}`, 2);
+    }
+    const falseReadyGuardGrade = scoreResult(
+      statuslessGuardCase,
+      {
+        ...statuslessGuardResult,
+        review_conclusion: "clear",
+        routes: [],
+        verdicts: [],
+      },
+      statuslessGuardWorkspace,
+      statuslessGuardOptions,
+    );
+    if (falseReadyGuardGrade.passed || !falseReadyGuardGrade.assertions.some((item) =>
+      item.name === "verdict evidence_gap/model_evidence" && !item.passed)) {
+      fail("scorer accepted a statusless Design as ready Guard authority", 2);
+    }
+    const stoppedAtStatuslessGapGrade = scoreResult(
+      statuslessGuardCase,
+      { ...statuslessGuardResult, completion: "stopped" },
+      statuslessGuardWorkspace,
+      statuslessGuardOptions,
+    );
+    if (stoppedAtStatuslessGapGrade.passed || !stoppedAtStatuslessGapGrade.assertions.some((item) =>
+      item.name === "completion" && !item.passed)) {
+      fail("scorer accepted Guard stopping instead of completing independent conformance review", 2);
+    }
+
+    const bootstrapTacticalConfig = readJson(path.join(
+      CASES_ROOT,
+      "event-storming-bootstraps-accepted-story",
+      "case.json",
+    ));
+    const bootstrapTacticalCase = { ...loadedCase, config: bootstrapTacticalConfig };
+    const bootstrapTacticalWorkspace = path.join(tempRoot, "bootstrap-event-storming-workspace");
+    fs.cpSync(
+      path.join(CASES_ROOT, "event-storming-bootstraps-accepted-story", "workspace"),
+      bootstrapTacticalWorkspace,
+      { recursive: true },
+    );
+    const bootstrapTacticalBaseline = initializeGit(bootstrapTacticalWorkspace);
+    const bootstrapReadme = "docs/ddd-expert/README.md";
+    const bootstrapMap = "docs/ddd-expert/context-map.md";
+    const bootstrapModel = "docs/ddd-expert/context/pass/model.md";
+    const bootstrapDesign = "docs/ddd-expert/context/pass/design.md";
+    fs.mkdirSync(path.dirname(path.join(bootstrapTacticalWorkspace, bootstrapModel)), { recursive: true });
+    fs.writeFileSync(path.join(bootstrapTacticalWorkspace, bootstrapReadme), `# DDD Expert Artifacts
+
+## Bounded Contexts
+
+- [Pass](context/pass/model.md)
+
+\`design.md\` lives beside each context's \`model.md\`. It may be absent before EventStorming applies the first accepted tactical slice, then remains \`evolving\` until its revision-matched Design becomes \`codify_ready\`. Context dependencies and named contracts are authoritative in [context-map.md](context-map.md).
+`);
+    fs.writeFileSync(path.join(bootstrapTacticalWorkspace, bootstrapMap), `# Context Map
+
+## Global View
+
+Arrow direction: \`U -> D\` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
+
+\`\`\`mermaid
+graph LR
+    pass["Pass"]
+\`\`\`
+
+## Bounded Contexts
+
+### Pass
+
+- **Core responsibility:** Own activation, expiry, and remaining-use decisions.
+- **Business authority:** Pass is authoritative for use acceptance and outcomes.
+
+#### Local View
+
+\`\`\`text
++------+
+| Pass |
++------+
+\`\`\`
+`);
+    const acceptedBootstrapModel = `---
+context: "Pass"
+model_revision: 1
+model_status: shape_ready
+---
+
+# Pass Domain Model
+
+## Ubiquitous Language
+
+Record Pass Use is the command an Access Gate issues when a Pass Holder
+presents a Pass for an access attempt. Use Recorded is the accepted outcome of
+consuming one remaining use and grants the Pass Holder access. Pass Use
+Rejected is the outcome when access is denied. A trusted Clock issues Expire
+Pass at the expiry deadline, establishing Pass Expired.
+
+## Authority and Ownership
+
+Pass owns its activation, expiry, remaining uses, and use outcomes.
+
+## Scenarios and Lifecycle
+
+An Active Pass with at least one remaining use accepts a previously unseen Use
+Key, reduces its remaining uses by exactly one, and establishes Use Recorded.
+An Expired Pass or a Pass with no remaining uses establishes Pass Use Rejected
+for a new Use Key without changing the count. The Access Gate grants the Pass
+Holder access for Use Recorded and denies access for Pass Use Rejected. When
+the trusted Clock reaches the expiry deadline, Expire Pass establishes Pass
+Expired and prevents later new Use Keys.
+
+## Invariants and Policies
+
+Remaining uses never become negative.
+
+## Failure and Recovery Semantics
+
+When a Use Key is repeated, Pass returns the same original outcome and does not
+consume another use.
+`;
+    fs.writeFileSync(
+      path.join(bootstrapTacticalWorkspace, bootstrapModel),
+      acceptedBootstrapModel,
+    );
+    const acceptedBootstrapDesign = `---
+context: "Pass"
+based_on_model_revision: 1
+design_status: codify_ready
+---
+
+# Pass Tactical Design
+
+## Model Realization
+
+Pass is the Aggregate Root and sole authority for activation, expiry,
+remaining uses, Use-Key admission, and established outcomes.
+
+## Aggregate Designs
+
+### Pass
+
+#### Boundary Thesis
+
+A single Pass Aggregate owns the decisions that must change together. The Pass
+owns its remaining-use count and recorded Use Keys.
+
+#### Invariants
+
+An Active Pass accepts a new Use Key only when its remaining-use count is
+positive. Remaining uses never become negative.
+
+#### Behaviors and Lifecycle
+
+The Access Gate issues Record Pass Use when a Pass Holder presents a Pass. For
+a previously unseen Use Key, an Active Pass with at least one remaining use
+decrements the remaining-use count by one and establishes Use Recorded, which
+grants the Pass Holder access. A duplicate Use Key returns the same established
+outcome without consuming another use, so the remaining-use count does not
+change. An Expired Pass or a Pass with zero remaining uses establishes Pass Use
+Rejected and access is denied. A trusted Clock issues Expire Pass at the expiry
+deadline, establishing Pass Expired and preventing later new Use Keys.
+
+#### Domain Events
+
+Use Recorded, Pass Use Rejected, and Pass Expired are Domain Events established
+by the Pass Aggregate.
+
+#### Consistency, Concurrency, and Failure
+
+The admission, decrement, and Use-Key record are one atomic Aggregate change.
+The isolated context has no context dependencies, no Integration Message, no
+cross-context contract, and no Process Manager.
+`;
+    fs.writeFileSync(
+      path.join(bootstrapTacticalWorkspace, bootstrapDesign),
+      acceptedBootstrapDesign,
+    );
+    const bootstrapChangedFiles = [bootstrapReadme, bootstrapMap, bootstrapModel, bootstrapDesign];
+    const bootstrapTacticalResult = {
+      ...goodEventStorming,
+      scenario_id: bootstrapTacticalConfig.id,
+      phase: "event-storming",
+      completion: "completed",
+      questions: [],
+      routes: [],
+      changed_files: bootstrapChangedFiles,
+    };
+    const executeBootstrapCheck = (check, workspacePath = bootstrapTacticalWorkspace) => {
+      const argv = [...check.argv];
+      if (argv[0] === "node" && argv[1] === "/eval/validate-context-map.mjs") {
+        argv[1] = path.join(PLUGIN_ROOT, "scripts", "validate-context-map.mjs");
+      }
+      return runCommand(argv, {
+        cwd: workspacePath,
+        timeoutSeconds: check.timeout_seconds,
+      });
+    };
+    const bootstrapTacticalOptions = {
+      baseline: bootstrapTacticalBaseline,
+      executeCheck: executeBootstrapCheck,
+    };
+    const bootstrapTacticalGrade = scoreResult(
+      bootstrapTacticalCase,
+      bootstrapTacticalResult,
+      bootstrapTacticalWorkspace,
+      bootstrapTacticalOptions,
+    );
+    if (!bootstrapTacticalGrade.passed) {
+      fail(`scorer rejected same-run EventStorming bootstrap and Tactical continuation: ${JSON.stringify(bootstrapTacticalGrade.assertions)}`, 2);
+    }
+    fs.writeFileSync(
+      path.join(bootstrapTacticalWorkspace, bootstrapModel),
+      acceptedBootstrapModel.replace('context: "Pass"\n', ""),
+    );
+    const missingBootstrapContextGrade = scoreResult(
+      bootstrapTacticalCase,
+      bootstrapTacticalResult,
+      bootstrapTacticalWorkspace,
+      bootstrapTacticalOptions,
+    );
+    if (missingBootstrapContextGrade.passed || !missingBootstrapContextGrade.assertions.some((item) =>
+      item.name.startsWith(`file ${bootstrapModel} contains any of context: Pass`) && !item.passed)) {
+      fail("scorer accepted a bootstrapped Model without context frontmatter", 2);
+    }
+    fs.writeFileSync(
+      path.join(bootstrapTacticalWorkspace, bootstrapModel),
+      acceptedBootstrapModel.replace("Use Key is repeated", "Use Key is presented"),
+    );
+    const missingRepetitionSemanticsGrade = scoreResult(
+      bootstrapTacticalCase,
+      bootstrapTacticalResult,
+      bootstrapTacticalWorkspace,
+      bootstrapTacticalOptions,
+    );
+    if (missingRepetitionSemanticsGrade.passed || !missingRepetitionSemanticsGrade.assertions.some((item) =>
+      item.name.startsWith(`file ${bootstrapModel} contains any of same Use Key`) && !item.passed)) {
+      fail("scorer accepted a Pass Model without repeated-Use-Key semantics", 2);
+    }
+    fs.writeFileSync(
+      path.join(bootstrapTacticalWorkspace, bootstrapModel),
+      acceptedBootstrapModel,
+    );
+    const exposedBootstrapRouteGrade = scoreResult(
+      bootstrapTacticalCase,
+      {
+        ...bootstrapTacticalResult,
+        routes: [{ target: "event-storming", reason: "bootstrap the semantic artifacts" }],
+      },
+      bootstrapTacticalWorkspace,
+      bootstrapTacticalOptions,
+    );
+    if (exposedBootstrapRouteGrade.passed || !exposedBootstrapRouteGrade.assertions.some((item) =>
+      item.name === "route excludes event-storming" && !item.passed)) {
+      fail("scorer accepted a user-visible EventStorming self-handoff during bootstrap", 2);
+    }
+    const semanticResetBootstrapGrade = scoreResult(
+      bootstrapTacticalCase,
+      {
+        ...bootstrapTacticalResult,
+        questions: [
+          "Who owns remaining uses and what happens for a repeated Use Key?",
+        ],
+      },
+      bootstrapTacticalWorkspace,
+      bootstrapTacticalOptions,
+    );
+    if (semanticResetBootstrapGrade.passed || !semanticResetBootstrapGrade.assertions.some((item) =>
+      item.name === "question count" && !item.passed)) {
+      fail("scorer accepted reopening accepted story facts instead of continuing into Tactical Design", 2);
+    }
+    const unappliedBootstrapWorkspace = path.join(tempRoot, "unapplied-bootstrap-event-storming-workspace");
+    fs.cpSync(
+      path.join(CASES_ROOT, "event-storming-bootstraps-accepted-story", "workspace"),
+      unappliedBootstrapWorkspace,
+      { recursive: true },
+    );
+    const unappliedBootstrapBaseline = initializeGit(unappliedBootstrapWorkspace);
+    const unappliedBootstrapGrade = scoreResult(
+      bootstrapTacticalCase,
+      { ...bootstrapTacticalResult, changed_files: [] },
+      unappliedBootstrapWorkspace,
+      {
+        baseline: unappliedBootstrapBaseline,
+        executeCheck: (check) => executeBootstrapCheck(check, unappliedBootstrapWorkspace),
+      },
+    );
+    if (unappliedBootstrapGrade.passed || !unappliedBootstrapGrade.assertions.some((item) =>
+      item.name === "git change expectation" && !item.passed)) {
+      fail("scorer accepted Tactical continuation without applying the accepted semantic bootstrap", 2);
+    }
+
+    const integratedEventStormingConfig = readJson(path.join(
+      CASES_ROOT,
+      "event-storming-applies-coupled-model-closure",
+      "case.json",
+    ));
+    const integratedEventStormingCase = { ...loadedCase, config: integratedEventStormingConfig };
+    const integratedEventStormingWorkspace = path.join(tempRoot, "integrated-event-storming-workspace");
+    fs.cpSync(
+      path.join(CASES_ROOT, "event-storming-applies-coupled-model-closure", "workspace"),
+      integratedEventStormingWorkspace,
+      { recursive: true },
+    );
+    const integratedEventStormingBaseline = initializeGit(integratedEventStormingWorkspace);
     const integratedMapRelative = "docs/ddd-expert/context-map.md";
     const integratedPaymentRelative = "docs/ddd-expert/context/payment/model.md";
     const integratedOrderRelative = "docs/ddd-expert/context/order/model.md";
@@ -3716,7 +4785,11 @@ graph LR
 
 #### Local View
 
-- \`Payment -> Order [D]\`
+\`\`\`text
++---------+   +-------+
+| Payment |-->| Order |
++---------+   +-------+
+\`\`\`
 
 #### Downstream Contracts
 
@@ -3733,7 +4806,11 @@ graph LR
 
 #### Local View
 
-- \`Payment [U] -> Order\`
+\`\`\`text
++---------+   +-------+
+| Payment |-->| Order |
++---------+   +-------+
+\`\`\`
 
 #### Upstream Dependencies
 
@@ -3743,38 +4820,40 @@ graph LR
 - **Accepted meaning:** Payment authoritatively established its terminal Captured outcome.
 - **Local translation:** Order records Captured Payment Evidence; it does not itself mean fulfillment readiness.
 `;
-    const acceptedPaymentModel = `---
+const acceptedPaymentModel = `---
 context: Payment
 model_revision: 2
+model_status: shape_ready
 ---
 
 # Payment Domain Model
 
 Payment is the sole authority for the Payment Capture lifecycle and its terminal Captured outcome. Payment establishes and publishes Payment Captured, while publication gives Order no authority to redefine its meaning.
 `;
-    const acceptedOrderModel = `---
+const acceptedOrderModel = `---
 context: Order
 model_revision: 2
+model_status: shape_ready
 ---
 
 # Order Domain Model
 
 Order owns fulfillment readiness and translates Payment Captured into Captured Payment Evidence. That evidence does not by itself mean readiness: only an active Order may become Ready for Fulfillment. Duplicate delivery is idempotent, and a cancelled Order remains cancelled and cannot become Ready for Fulfillment.
 `;
-    fs.writeFileSync(path.join(integratedExploreWorkspace, integratedMapRelative), acceptedIntegratedMap);
-    fs.writeFileSync(path.join(integratedExploreWorkspace, integratedPaymentRelative), acceptedPaymentModel);
-    fs.writeFileSync(path.join(integratedExploreWorkspace, integratedOrderRelative), acceptedOrderModel);
+    fs.writeFileSync(path.join(integratedEventStormingWorkspace, integratedMapRelative), acceptedIntegratedMap);
+    fs.writeFileSync(path.join(integratedEventStormingWorkspace, integratedPaymentRelative), acceptedPaymentModel);
+    fs.writeFileSync(path.join(integratedEventStormingWorkspace, integratedOrderRelative), acceptedOrderModel);
     const integratedChangedFiles = [
       integratedMapRelative,
       integratedOrderRelative,
       integratedPaymentRelative,
     ];
-    const integratedExploreResult = {
-      ...goodExplore,
-      scenario_id: integratedExploreConfig.id,
+    const integratedEventStormingResult = {
+      ...goodEventStorming,
+      scenario_id: integratedEventStormingConfig.id,
       completion: "completed",
       questions: [],
-      routes: [{ target: "shape", reason: "the accepted integrated Model is ready" }],
+      routes: [],
       changed_files: integratedChangedFiles,
     };
     const executeIntegratedCheck = (check) => {
@@ -3783,32 +4862,32 @@ Order owns fulfillment readiness and translates Payment Captured into Captured P
         argv[1] = path.join(PLUGIN_ROOT, "scripts", "validate-context-map.mjs");
       }
       return runCommand(argv, {
-        cwd: integratedExploreWorkspace,
+        cwd: integratedEventStormingWorkspace,
         timeoutSeconds: check.timeout_seconds,
       });
     };
-    const integratedExploreOptions = {
-      baseline: integratedExploreBaseline,
+    const integratedEventStormingOptions = {
+      baseline: integratedEventStormingBaseline,
       executeCheck: executeIntegratedCheck,
     };
     const acceptedIntegratedGrade = scoreResult(
-      integratedExploreCase,
-      integratedExploreResult,
-      integratedExploreWorkspace,
-      integratedExploreOptions,
+      integratedEventStormingCase,
+      integratedEventStormingResult,
+      integratedEventStormingWorkspace,
+      integratedEventStormingOptions,
     );
     if (!acceptedIntegratedGrade.passed) {
       fail(`scorer rejected accepted integrated Model facts: ${JSON.stringify(acceptedIntegratedGrade.assertions)}`, 2);
     }
     fs.appendFileSync(
-      path.join(integratedExploreWorkspace, integratedPaymentRelative),
+      path.join(integratedEventStormingWorkspace, integratedPaymentRelative),
       "\npayment has no\nauthority over captured outcomes.\n",
     );
     const lowercaseContradictionGrade = scoreResult(
-      integratedExploreCase,
-      integratedExploreResult,
-      integratedExploreWorkspace,
-      integratedExploreOptions,
+      integratedEventStormingCase,
+      integratedEventStormingResult,
+      integratedEventStormingWorkspace,
+      integratedEventStormingOptions,
     );
     const lowercaseContradictionAssertion = lowercaseContradictionGrade.assertions.find((item) =>
       item.name === `file ${integratedPaymentRelative} semantically excludes Payment has no authority`);
@@ -3817,65 +4896,65 @@ Order owns fulfillment readiness and translates Payment Captured into Captured P
       fail("scorer accepted a lowercase line-wrapped contradiction", 2);
     }
     fs.writeFileSync(
-      path.join(integratedExploreWorkspace, integratedPaymentRelative),
+      path.join(integratedEventStormingWorkspace, integratedPaymentRelative),
       acceptedPaymentModel,
     );
     const sourceCoverageRelative = "docs/ddd-expert/source-coverage.md";
     fs.writeFileSync(
-      path.join(integratedExploreWorkspace, sourceCoverageRelative),
+      path.join(integratedEventStormingWorkspace, sourceCoverageRelative),
       "temporary source coverage must not be persisted\n",
     );
     const extraTraceGrade = scoreResult(
-      integratedExploreCase,
+      integratedEventStormingCase,
       {
-        ...integratedExploreResult,
+        ...integratedEventStormingResult,
         changed_files: [...integratedChangedFiles, sourceCoverageRelative].sort(),
       },
-      integratedExploreWorkspace,
-      integratedExploreOptions,
+      integratedEventStormingWorkspace,
+      integratedEventStormingOptions,
     );
     const exactSetAssertion = extraTraceGrade.assertions.find((item) =>
       item.name === "git changed only allowed paths");
     if (extraTraceGrade.passed || !exactSetAssertion || exactSetAssertion.passed) {
-      fail("integrated Explore scorer accepted a persisted source-coverage trace", 2);
+      fail("integrated EventStorming scorer accepted a persisted source-coverage trace", 2);
     }
-    fs.rmSync(path.join(integratedExploreWorkspace, sourceCoverageRelative));
+    fs.rmSync(path.join(integratedEventStormingWorkspace, sourceCoverageRelative));
     fs.appendFileSync(
-      path.join(integratedExploreWorkspace, integratedPaymentRelative),
+      path.join(integratedEventStormingWorkspace, integratedPaymentRelative),
       "\n## Source Coverage\n\n- Story S-1 covered.\n",
     );
     const embeddedTraceGrade = scoreResult(
-      integratedExploreCase,
-      integratedExploreResult,
-      integratedExploreWorkspace,
-      integratedExploreOptions,
+      integratedEventStormingCase,
+      integratedEventStormingResult,
+      integratedEventStormingWorkspace,
+      integratedEventStormingOptions,
     );
     const embeddedTraceAssertion = embeddedTraceGrade.assertions.find((item) =>
       item.name === `file ${integratedPaymentRelative} excludes ## Source Coverage`);
     if (embeddedTraceGrade.passed || !embeddedTraceAssertion || embeddedTraceAssertion.passed) {
-      fail("integrated Explore scorer accepted source coverage embedded in an allowed Model", 2);
+      fail("integrated EventStorming scorer accepted source coverage embedded in an allowed Model", 2);
     }
     fs.writeFileSync(
-      path.join(integratedExploreWorkspace, integratedPaymentRelative),
+      path.join(integratedEventStormingWorkspace, integratedPaymentRelative),
       acceptedPaymentModel,
     );
     fs.appendFileSync(
-      path.join(integratedExploreWorkspace, integratedMapRelative),
+      path.join(integratedEventStormingWorkspace, integratedMapRelative),
       "\n## Story Coverage\n\n- Story S-1 covered.\n",
     );
     const embeddedMapTraceGrade = scoreResult(
-      integratedExploreCase,
-      integratedExploreResult,
-      integratedExploreWorkspace,
-      integratedExploreOptions,
+      integratedEventStormingCase,
+      integratedEventStormingResult,
+      integratedEventStormingWorkspace,
+      integratedEventStormingOptions,
     );
     const embeddedMapTraceAssertion = embeddedMapTraceGrade.assertions.find((item) =>
       item.name === `file ${integratedMapRelative} excludes ## Story Coverage`);
     if (embeddedMapTraceGrade.passed || !embeddedMapTraceAssertion || embeddedMapTraceAssertion.passed) {
-      fail("integrated Explore scorer accepted story coverage embedded in the Context Map", 2);
+      fail("integrated EventStorming scorer accepted story coverage embedded in the Context Map", 2);
     }
     fs.writeFileSync(
-      path.join(integratedExploreWorkspace, integratedMapRelative),
+      path.join(integratedEventStormingWorkspace, integratedMapRelative),
       acceptedIntegratedMap,
     );
     for (const [relative, trace] of [
@@ -3906,19 +4985,19 @@ Order owns fulfillment readiness and translates Payment Captured into Captured P
       [integratedPaymentRelative, "\n## Reviewed Material\n\n| Item | Disposition | Realized In |\n|---|---|---|\n| Checkout cancellation | covered | Order lifecycle |\n"],
     ]) {
       const accepted = relative === integratedMapRelative ? acceptedIntegratedMap : acceptedPaymentModel;
-      fs.writeFileSync(path.join(integratedExploreWorkspace, relative), `${accepted}${trace}`);
+      fs.writeFileSync(path.join(integratedEventStormingWorkspace, relative), `${accepted}${trace}`);
       const alternateTraceGrade = scoreResult(
-        integratedExploreCase,
-        integratedExploreResult,
-        integratedExploreWorkspace,
-        integratedExploreOptions,
+        integratedEventStormingCase,
+        integratedEventStormingResult,
+        integratedEventStormingWorkspace,
+        integratedEventStormingOptions,
       );
       const temporaryTraceAssertion = alternateTraceGrade.assertions.find((item) =>
         item.name === `file ${relative} persists no temporary discovery trace`);
       if (alternateTraceGrade.passed || !temporaryTraceAssertion || temporaryTraceAssertion.passed) {
-        fail(`integrated Explore scorer accepted an alternate temporary trace in ${relative}: ${trace.trim()}`, 2);
+        fail(`integrated EventStorming scorer accepted an alternate temporary trace in ${relative}: ${trace.trim()}`, 2);
       }
-      fs.writeFileSync(path.join(integratedExploreWorkspace, relative), accepted);
+      fs.writeFileSync(path.join(integratedEventStormingWorkspace, relative), accepted);
     }
     if (temporaryTraceFindings(
       "Payment input is represented as a captured-payment fact in normal Domain Model prose.",
@@ -3938,9 +5017,9 @@ Order owns fulfillment readiness and translates Payment Captured into Captured P
         "Order records Captured Payment Evidence; it does not itself mean fulfillment readiness.",
         "Order records Captured Payment Evidence and every cancelled Order becomes ready.",
       );
-    fs.writeFileSync(path.join(integratedExploreWorkspace, integratedMapRelative), contradictoryIntegratedMap);
+    fs.writeFileSync(path.join(integratedEventStormingWorkspace, integratedMapRelative), contradictoryIntegratedMap);
     fs.writeFileSync(
-      path.join(integratedExploreWorkspace, integratedPaymentRelative),
+      path.join(integratedEventStormingWorkspace, integratedPaymentRelative),
       `---
 context: Payment
 model_revision: 2
@@ -3950,7 +5029,7 @@ Order, not Payment, owns every Captured payment fact. Payment has no authority, 
 `,
     );
     fs.writeFileSync(
-      path.join(integratedExploreWorkspace, integratedOrderRelative),
+      path.join(integratedEventStormingWorkspace, integratedOrderRelative),
       `---
 context: Order
 model_revision: 2
@@ -3960,10 +5039,10 @@ Payment Captured Evidence always makes a cancelled Order ready. Payment decides 
 `,
     );
     const contradictoryIntegratedGrade = scoreResult(
-      integratedExploreCase,
-      integratedExploreResult,
-      integratedExploreWorkspace,
-      integratedExploreOptions,
+      integratedEventStormingCase,
+      integratedEventStormingResult,
+      integratedEventStormingWorkspace,
+      integratedEventStormingOptions,
     );
     if (contradictoryIntegratedGrade.passed ||
         contradictoryIntegratedGrade.checks.some((check) => check.status !== 0) ||
@@ -3971,26 +5050,110 @@ Payment Captured Evidence always makes a cancelled Order ready. Payment decides 
           !item.passed && item.name.startsWith("file docs/ddd-expert/"))) {
       fail("scorer did not reject contradictory integrated Model facts at the file-assertion seam", 2);
     }
-    const migrationExploreConfig = readJson(path.join(
+    const acceptedSliceConfig = readJson(path.join(
       CASES_ROOT,
-      "explore-migrates-legacy-context-map",
+      "event-storming-applies-accepted-model-slice",
       "case.json",
     ));
-    const migrationExploreCase = { ...loadedCase, config: migrationExploreConfig };
-    const migrationExploreWorkspace = path.join(tempRoot, "migration-explore-workspace");
+    const acceptedSliceCase = { ...loadedCase, config: acceptedSliceConfig };
+    const acceptedSliceWorkspace = path.join(tempRoot, "accepted-model-slice-workspace");
     fs.cpSync(
-      path.join(CASES_ROOT, "explore-migrates-legacy-context-map", "workspace"),
-      migrationExploreWorkspace,
+      path.join(CASES_ROOT, "event-storming-applies-accepted-model-slice", "workspace"),
+      acceptedSliceWorkspace,
       { recursive: true },
     );
-    const migrationExploreBaseline = initializeGit(migrationExploreWorkspace);
+    const acceptedSliceBaseline = initializeGit(acceptedSliceWorkspace);
+    const acceptedSlicePayment = "docs/ddd-expert/context/payment/model.md";
+    const acceptedSliceOrder = "docs/ddd-expert/context/order/model.md";
+    const acceptedPaymentSliceModel = `---
+context: Payment
+model_revision: 2
+model_status: shape_ready
+---
+
+# Payment Domain Model
+
+## Authority and Ownership
+
+Payment is the sole authority for the Payment Capture lifecycle and outcomes.
+
+## Scenarios and Lifecycle
+
+A valid authorization lets one Payment Capture identity establish exactly one
+terminal outcome: Payment Captured, Payment Capture Rejected, or Payment Capture Expired.
+Repeating a request for the same capture identity returns its
+established terminal outcome. A later refund, chargeback, or reversal belongs
+to a separate lifecycle and does not revise the recorded capture outcome.
+`;
+    fs.writeFileSync(
+      path.join(acceptedSliceWorkspace, acceptedSlicePayment),
+      acceptedPaymentSliceModel,
+    );
+    const acceptedOrderStatusOnly = fs.readFileSync(
+      path.join(acceptedSliceWorkspace, acceptedSliceOrder),
+      "utf8",
+    ).replace("model_status: shape_ready", "model_status: evolving");
+    fs.writeFileSync(
+      path.join(acceptedSliceWorkspace, acceptedSliceOrder),
+      acceptedOrderStatusOnly,
+    );
+    const acceptedSliceResult = {
+      ...goodEventStorming,
+      scenario_id: acceptedSliceConfig.id,
+      completion: "needs_clarification",
+      questions: [
+        "Is Payment Captured sufficient for Order fulfillment readiness, what additional local facts must Order require before fulfillment, and what happens to readiness if Payment is later reversed by refund or chargeback?",
+      ],
+      routes: [],
+      changed_files: [acceptedSliceOrder, acceptedSlicePayment].sort(),
+    };
+    const acceptedSliceOptions = { baseline: acceptedSliceBaseline };
+    const acceptedSliceGrade = scoreResult(
+      dialogueFirstTurnCase(acceptedSliceCase),
+      acceptedSliceResult,
+      acceptedSliceWorkspace,
+      acceptedSliceOptions,
+    );
+    if (!acceptedSliceGrade.passed) {
+      fail(`scorer rejected an accepted context-local Model slice: ${JSON.stringify(acceptedSliceGrade.assertions)}`, 2);
+    }
+    const unappliedSliceWorkspace = path.join(tempRoot, "unapplied-model-slice-workspace");
+    fs.cpSync(
+      path.join(CASES_ROOT, "event-storming-applies-accepted-model-slice", "workspace"),
+      unappliedSliceWorkspace,
+      { recursive: true },
+    );
+    const unappliedSliceBaseline = initializeGit(unappliedSliceWorkspace);
+    const unappliedSliceGrade = scoreResult(
+      dialogueFirstTurnCase(acceptedSliceCase),
+      { ...acceptedSliceResult, changed_files: [] },
+      unappliedSliceWorkspace,
+      { baseline: unappliedSliceBaseline },
+    );
+    if (unappliedSliceGrade.passed || !unappliedSliceGrade.assertions.some((item) =>
+      !item.passed && item.name === "git change expectation")) {
+      fail("scorer accepted EventStorming continuation without applying the accepted Model slice", 2);
+    }
+    const migrationEventStormingConfig = readJson(path.join(
+      CASES_ROOT,
+      "event-storming-migrates-legacy-context-map",
+      "case.json",
+    ));
+    const migrationEventStormingCase = { ...loadedCase, config: migrationEventStormingConfig };
+    const migrationEventStormingWorkspace = path.join(tempRoot, "migration-event-storming-workspace");
+    fs.cpSync(
+      path.join(CASES_ROOT, "event-storming-migrates-legacy-context-map", "workspace"),
+      migrationEventStormingWorkspace,
+      { recursive: true },
+    );
+    const migrationEventStormingBaseline = initializeGit(migrationEventStormingWorkspace);
     const migrationReadmeRelative = "docs/ddd-expert/README.md";
     const migrationMapRelative = "docs/ddd-expert/context-map.md";
     const migrationAgentRelative = "docs/ddd-expert/context/agent-execution/model.md";
     const migrationWorkRelative = "docs/ddd-expert/context/work/model.md";
     const migrationKnowledgeRelative = "docs/ddd-expert/context/project-knowledge/model.md";
     const acceptedMigrationReadme = fs.readFileSync(
-      path.join(migrationExploreWorkspace, migrationReadmeRelative),
+      path.join(migrationEventStormingWorkspace, migrationReadmeRelative),
       "utf8",
     ).replace(
       "Context relationships are authoritative",
@@ -4020,8 +5183,15 @@ graph LR
 
 #### Local View
 
-- \`Agent Execution -> Work [D]\`
-- \`Agent Execution -> Project Knowledge [D]\`
+\`\`\`text
++-----------------+         +------+
+| Agent Execution |--+----->| Work |
++-----------------+  |      +------+
+                     |
+                     |      +-------------------+
+                     +----->| Project Knowledge |
+                            +-------------------+
+\`\`\`
 
 #### Downstream Contracts
 
@@ -4044,7 +5214,11 @@ graph LR
 
 #### Local View
 
-- \`Agent Execution [U] -> Work\`
+\`\`\`text
++-----------------+   +------+
+| Agent Execution |-->| Work |
++-----------------+   +------+
+\`\`\`
 
 #### Upstream Dependencies
 
@@ -4061,7 +5235,11 @@ graph LR
 
 #### Local View
 
-- \`Agent Execution [U] -> Project Knowledge\`
+\`\`\`text
++-----------------+   +-------------------+
+| Agent Execution |-->| Project Knowledge |
++-----------------+   +-------------------+
+\`\`\`
 
 #### Upstream Dependencies
 
@@ -4071,9 +5249,10 @@ graph LR
 - **Accepted meaning:** Project Knowledge accepts an authoritative Agent Run outcome only as execution evidence.
 - **Local translation:** Project Knowledge translates the evidence into Candidate evaluation language; it does not by itself accept a Candidate.
 `;
-    const acceptedMigrationAgentModel = `---
+const acceptedMigrationAgentModel = `---
 context: Agent Execution
 model_revision: 2
+model_status: shape_ready
 ---
 
 # Agent Execution Domain Model
@@ -4086,9 +5265,10 @@ Agent Execution owns Agent Run admission, identity, lifecycle, and terminal outc
 
 Agent Execution publishes an authoritative Agent Run Outcome with a stable Agent Run identity. Work accepts it only as execution evidence, and it does not by itself complete Work. Project Knowledge accepts it only as execution evidence, and it does not by itself accept a Candidate.
 `;
-    const acceptedMigrationWorkModel = `---
+const acceptedMigrationWorkModel = `---
 context: Work
 model_revision: 2
+model_status: shape_ready
 ---
 
 # Work Domain Model
@@ -4101,9 +5281,10 @@ Work owns Work lifecycle and completion.
 
 Work accepts Agent Execution's authoritative Agent Run outcome only as execution evidence. It does not by itself complete Work.
 `;
-    const acceptedMigrationKnowledgeModel = `---
+const acceptedMigrationKnowledgeModel = `---
 context: Project Knowledge
 model_revision: 2
+model_status: shape_ready
 ---
 
 # Project Knowledge Domain Model
@@ -4116,11 +5297,11 @@ Project Knowledge owns Knowledge Candidate evaluation and acceptance.
 
 Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only as execution evidence. It does not by itself accept a Candidate.
 `;
-    fs.writeFileSync(path.join(migrationExploreWorkspace, migrationReadmeRelative), acceptedMigrationReadme);
-    fs.writeFileSync(path.join(migrationExploreWorkspace, migrationMapRelative), acceptedMigrationMap);
-    fs.writeFileSync(path.join(migrationExploreWorkspace, migrationAgentRelative), acceptedMigrationAgentModel);
-    fs.writeFileSync(path.join(migrationExploreWorkspace, migrationWorkRelative), acceptedMigrationWorkModel);
-    fs.writeFileSync(path.join(migrationExploreWorkspace, migrationKnowledgeRelative), acceptedMigrationKnowledgeModel);
+    fs.writeFileSync(path.join(migrationEventStormingWorkspace, migrationReadmeRelative), acceptedMigrationReadme);
+    fs.writeFileSync(path.join(migrationEventStormingWorkspace, migrationMapRelative), acceptedMigrationMap);
+    fs.writeFileSync(path.join(migrationEventStormingWorkspace, migrationAgentRelative), acceptedMigrationAgentModel);
+    fs.writeFileSync(path.join(migrationEventStormingWorkspace, migrationWorkRelative), acceptedMigrationWorkModel);
+    fs.writeFileSync(path.join(migrationEventStormingWorkspace, migrationKnowledgeRelative), acceptedMigrationKnowledgeModel);
     const migrationChangedFiles = [
       migrationReadmeRelative,
       migrationMapRelative,
@@ -4128,12 +5309,12 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
       migrationWorkRelative,
       migrationKnowledgeRelative,
     ];
-    const migrationExploreResult = {
-      ...goodExplore,
-      scenario_id: migrationExploreConfig.id,
+    const migrationEventStormingResult = {
+      ...goodEventStorming,
+      scenario_id: migrationEventStormingConfig.id,
       completion: "completed",
       questions: [],
-      routes: [{ target: "shape", reason: "the accepted migrated Model is ready" }],
+      routes: [],
       changed_files: migrationChangedFiles,
     };
     const executeMigrationCheck = (check) => {
@@ -4142,57 +5323,57 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
         argv[1] = path.join(PLUGIN_ROOT, "scripts", "validate-context-map.mjs");
       }
       return runCommand(argv, {
-        cwd: migrationExploreWorkspace,
+        cwd: migrationEventStormingWorkspace,
         timeoutSeconds: check.timeout_seconds,
       });
     };
-    const migrationExploreOptions = {
-      baseline: migrationExploreBaseline,
+    const migrationEventStormingOptions = {
+      baseline: migrationEventStormingBaseline,
       executeCheck: executeMigrationCheck,
     };
     const acceptedMigrationGrade = scoreResult(
-      migrationExploreCase,
-      migrationExploreResult,
-      migrationExploreWorkspace,
-      migrationExploreOptions,
+      migrationEventStormingCase,
+      migrationEventStormingResult,
+      migrationEventStormingWorkspace,
+      migrationEventStormingOptions,
     );
     if (!acceptedMigrationGrade.passed) {
       fail(`scorer rejected accepted legacy migration semantics: ${JSON.stringify(acceptedMigrationGrade.assertions)}`, 2);
     }
     fs.writeFileSync(
-      path.join(migrationExploreWorkspace, migrationReadmeRelative),
+      path.join(migrationEventStormingWorkspace, migrationReadmeRelative),
       `${acceptedMigrationReadme}\ncontext\nrelationships are authoritative\n`,
     );
     const lowercaseLegacyReadmeGrade = scoreResult(
-      migrationExploreCase,
-      migrationExploreResult,
-      migrationExploreWorkspace,
-      migrationExploreOptions,
+      migrationEventStormingCase,
+      migrationEventStormingResult,
+      migrationEventStormingWorkspace,
+      migrationEventStormingOptions,
     );
     const lowercaseLegacyReadmeAssertion = lowercaseLegacyReadmeGrade.assertions.find((item) =>
       item.name === `file ${migrationReadmeRelative} semantically excludes Context relationships are authoritative`);
     if (lowercaseLegacyReadmeGrade.passed || !lowercaseLegacyReadmeAssertion || lowercaseLegacyReadmeAssertion.passed) {
       fail("scorer accepted a lowercase line-wrapped legacy README authority claim", 2);
     }
-    fs.writeFileSync(path.join(migrationExploreWorkspace, migrationReadmeRelative), acceptedMigrationReadme);
+    fs.writeFileSync(path.join(migrationEventStormingWorkspace, migrationReadmeRelative), acceptedMigrationReadme);
     fs.writeFileSync(
-      path.join(migrationExploreWorkspace, migrationAgentRelative),
+      path.join(migrationEventStormingWorkspace, migrationAgentRelative),
       `${acceptedMigrationAgentModel}\nlowercase partnership remains the collaboration pattern.\n`,
     );
     const lowercaseLegacyPatternGrade = scoreResult(
-      migrationExploreCase,
-      migrationExploreResult,
-      migrationExploreWorkspace,
-      migrationExploreOptions,
+      migrationEventStormingCase,
+      migrationEventStormingResult,
+      migrationEventStormingWorkspace,
+      migrationEventStormingOptions,
     );
     const lowercaseLegacyPatternAssertion = lowercaseLegacyPatternGrade.assertions.find((item) =>
       item.name === `file ${migrationAgentRelative} semantically excludes Partnership`);
     if (lowercaseLegacyPatternGrade.passed || !lowercaseLegacyPatternAssertion || lowercaseLegacyPatternAssertion.passed) {
       fail("scorer accepted a lowercase retired collaboration pattern", 2);
     }
-    fs.writeFileSync(path.join(migrationExploreWorkspace, migrationAgentRelative), acceptedMigrationAgentModel);
+    fs.writeFileSync(path.join(migrationEventStormingWorkspace, migrationAgentRelative), acceptedMigrationAgentModel);
     fs.writeFileSync(
-      path.join(migrationExploreWorkspace, migrationMapRelative),
+      path.join(migrationEventStormingWorkspace, migrationMapRelative),
       acceptedMigrationMap
         .replace(
           "Agent Execution owns Agent Run meaning; no dependency between Work and Project Knowledge exists.",
@@ -4208,20 +5389,20 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
         ),
     );
     fs.writeFileSync(
-      path.join(migrationExploreWorkspace, migrationAgentRelative),
+      path.join(migrationEventStormingWorkspace, migrationAgentRelative),
       acceptedMigrationAgentModel.replace(
         "Agent Execution owns Agent Run admission, identity, lifecycle, and terminal outcomes.",
         "Work owns Agent Run, Project Knowledge owns Agent Run, Agent Execution completes Work, and Agent Execution accepts a Knowledge Candidate.",
       ),
     );
     fs.writeFileSync(
-      path.join(migrationExploreWorkspace, migrationWorkRelative),
+      path.join(migrationEventStormingWorkspace, migrationWorkRelative),
       acceptedMigrationWorkModel
         .replace("Work owns Work lifecycle and completion.", "Agent Execution owns Work completion.")
         .replace("It does not by itself complete Work.", "Agent Run outcome completes a Work."),
     );
     fs.writeFileSync(
-      path.join(migrationExploreWorkspace, migrationKnowledgeRelative),
+      path.join(migrationEventStormingWorkspace, migrationKnowledgeRelative),
       acceptedMigrationKnowledgeModel
         .replace(
           "Project Knowledge owns Knowledge Candidate evaluation and acceptance.",
@@ -4230,10 +5411,10 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
         .replace("It does not by itself accept a Candidate.", "Agent Run outcome accepts a Knowledge Candidate."),
     );
     const contradictoryMigrationGrade = scoreResult(
-      migrationExploreCase,
-      migrationExploreResult,
-      migrationExploreWorkspace,
-      migrationExploreOptions,
+      migrationEventStormingCase,
+      migrationEventStormingResult,
+      migrationEventStormingWorkspace,
+      migrationEventStormingOptions,
     );
     if (contradictoryMigrationGrade.passed ||
         contradictoryMigrationGrade.checks.some((check) => check.status !== 0) ||
@@ -4243,40 +5424,41 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
     }
     const partialMigrationConfig = readJson(path.join(
       CASES_ROOT,
-      "explore-blocks-partial-legacy-migration",
+      "event-storming-blocks-partial-legacy-migration",
       "case.json",
     ));
     const partialMigrationCase = { ...loadedCase, config: partialMigrationConfig };
     const partialMigrationWorkspace = path.join(tempRoot, "partial-migration-workspace");
     fs.cpSync(
-      path.join(CASES_ROOT, "explore-blocks-partial-legacy-migration", "workspace"),
+      path.join(CASES_ROOT, "event-storming-blocks-partial-legacy-migration", "workspace"),
       partialMigrationWorkspace,
       { recursive: true },
     );
     const partialMigrationBaseline = initializeGit(partialMigrationWorkspace);
     const partialMigrationResult = {
-      ...goodExplore,
+      ...goodEventStorming,
       scenario_id: partialMigrationConfig.id,
       completion: "needs_clarification",
       questions: [
-        "Complete-root inspection found Audit/model.md is a legacy Model with the retired Context Relationships heading, but Audit is omitted from the accepted target and has no accepted terminal content. I recommend completing the target while writing nothing: should Audit be removed or retained with exact dependencies and contracts?",
+        "Audit/model.md is a legacy Model with the retired Context Relationships heading, but Audit is omitted from the accepted target and has no terminal content. Which facts does Audit continue to observe from Work or Project Knowledge, which context is authoritative for those facts, or is that observation retired?",
       ],
       routes: [],
       changed_files: [],
     };
     const partialMigrationOptions = { baseline: partialMigrationBaseline };
-    if (!scoreResult(
+    const partialMigrationGrade = scoreResult(
       partialMigrationCase,
       partialMigrationResult,
       partialMigrationWorkspace,
       partialMigrationOptions,
-    ).passed) {
-      fail("scorer rejected an evidence-bearing omitted-legacy-Model question", 2);
+    );
+    if (!partialMigrationGrade.passed) {
+      fail(`scorer rejected an evidence-bearing omitted-legacy-Model question: ${JSON.stringify(partialMigrationGrade.assertions)}`, 2);
     }
     const paraphrasedPartialMigrationResult = {
       ...partialMigrationResult,
       questions: [
-        "Complete-root inspection found Audit with the retired Context Relationships marker, but the accepted target supplies terminal content only for Agent Execution, Work, and Project Knowledge. I recommend completing the integrated target while keeping every file unchanged. Should Audit be retained with terminal semantics or removed from the accepted inventory?",
+        "Audit still has the retired Context Relationships marker, while the accepted target supplies terminal content only for Agent Execution, Work, and Project Knowledge. What evidence must Audit still observe from Work or Project Knowledge, who is authoritative for it, or is that observation retired?",
       ],
     };
     if (!scoreResult(
@@ -4295,1006 +5477,23 @@ Project Knowledge accepts Agent Execution's authoritative Agent Run outcome only
     ).passed) {
       fail("scorer accepted a generic Audit scope question without the migration blocker", 2);
     }
-    const reversedPartialMigrationResult = {
-      ...partialMigrationResult,
-      questions: [
-        "Complete-root inspection found Audit and the retired Context Relationships marker, but Audit is not a legacy Model and is not omitted from the accepted target because the target already covers Audit. Rather than completing the target while writing nothing, I recommend migrating now. Should Audit be removed or retained?",
-      ],
-    };
-    const reversedPartialMigrationGrade = scoreResult(
-      partialMigrationCase,
-      reversedPartialMigrationResult,
-      partialMigrationWorkspace,
-      partialMigrationOptions,
-    );
-    if (reversedPartialMigrationGrade.passed || !reversedPartialMigrationGrade.assertions.some((item) =>
-      item.name.startsWith("first question establishes") && !item.passed)) {
-      fail("scorer accepted a migration question that denied its own legacy omission evidence", 2);
-    }
-    const packedPartialMigrationGrade = scoreResult(
-      partialMigrationCase,
-      {
-        ...partialMigrationResult,
-        questions: [`${partialMigrationResult.questions[0]} Is the target complete? Should migration proceed now?`],
-      },
-      partialMigrationWorkspace,
-      partialMigrationOptions,
-    );
-    if (packedPartialMigrationGrade.passed || !packedPartialMigrationGrade.assertions.some((item) =>
-      item.name === "first question is a single question" && !item.passed)) {
-      fail("scorer accepted several user decisions packed into one question entry", 2);
-    }
-    const shapeConsensusConfig = readJson(path.join(
+
+
+    const tacticalWriteConfig = readJson(path.join(
       CASES_ROOT,
-      "shape-requires-design-consensus",
+      "event-storming-mysql-default-handoff",
       "case.json",
     ));
-    const shapeConsensusCase = { ...loadedCase, config: shapeConsensusConfig };
-    const shapeConsensusResult = {
-      ...goodExplore,
-      scenario_id: shapeConsensusConfig.id,
-      phase: "shape",
-      completion: "needs_clarification",
-      questions: [
-        "I recommend one Reservation Aggregate boundary owning Reservation Item as a Value Object because it has no independent identity or lifecycle, the held quantity is positive and may not exceed accepted capacity, and one Reservation identity cannot establish two terminal outcomes under competing terminal intents. The credible alternative is a separate Item Aggregate, but splitting would move those invariants across roots and require recoverable coordination. Do you accept this Aggregate boundary?",
-      ],
-    };
-    if (!scoreResult(shapeConsensusCase, shapeConsensusResult, workspace, scoreOptions).passed) {
-      fail("scorer rejected a Shape question containing a conclusion, evidence, and credible alternative", 2);
-    }
-    const unclassifiedReservationItemGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(
-          "owning Reservation Item as a Value Object because it has no independent identity or lifecycle",
-          "owning its Reservation Item because the item is inside the root",
-        )],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (unclassifiedReservationItemGrade.passed ||
-        !unclassifiedReservationItemGrade.assertions.some((item) =>
-          item.name === "first question establishes Reservation Item is an owned Value Object" &&
-          !item.passed)) {
-      fail("scorer accepted an Aggregate question that only named its owned Domain object", 2);
-    }
-    const overbroadBoundaryQuestionGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(
-          "Do you accept this Aggregate boundary?",
-          "Requested moves to Held in a transition table, and ReservationHeld is a Domain Event. Do you accept this Aggregate boundary?",
-        )],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (overbroadBoundaryQuestionGrade.passed ||
-        !overbroadBoundaryQuestionGrade.assertions.some((item) =>
-          (item.name === "first question excludes transition table" ||
-           item.name === "first question excludes Domain Event") && !item.passed)) {
-      fail("scorer accepted lifecycle and event conclusions in the first Aggregate question", 2);
-    }
-    const intrinsicNegativeProposition = shapeConsensusConfig.expect.questions.propositions.find((item) =>
-      item.name === "one terminal outcome under competition");
-    if (!intrinsicNegativeProposition || !propositionAssertion(
-      "self-test",
-      "One Reservation identity cannot establish two terminal outcomes under competition.",
-      intrinsicNegativeProposition,
-    ).passed) {
-      fail("proposition polarity treated intrinsic accepted cannot wording as external negation", 2);
-    }
-    const positiveQuantityProposition = shapeConsensusConfig.expect.questions.propositions.find((item) =>
-      item.name === "positive held quantity");
-    for (const unsupportedClaim of [
-      "There is no evidence that quantity is positive.",
-      "I have no reason to believe that quantity is positive.",
-      "It is doubtful that quantity is positive.",
-      "We cannot conclude that quantity is positive.",
-      "The evidence does not establish that quantity is positive.",
-      "There is no credible evidence that quantity is positive.",
-    ]) {
-      if (!positiveQuantityProposition || propositionAssertion(
-        "self-test",
-        unsupportedClaim,
-        positiveQuantityProposition,
-      ).passed) {
-        fail(`proposition polarity accepted an epistemically denied fact: ${unsupportedClaim}`, 2);
-      }
-    }
-    const epistemicallyDeniedShapeGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(
-          "the held quantity is positive",
-          "there is no evidence that quantity is positive",
-        )],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (epistemicallyDeniedShapeGrade.passed ||
-        !epistemicallyDeniedShapeGrade.assertions.some((item) =>
-          item.name === "first question establishes positive held quantity" &&
-          !item.passed)) {
-      fail("scorer accepted a complete Shape question whose quantity fact lacked evidence", 2);
-    }
-    const unboundedQuantityShapeGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(
-          "may not exceed accepted capacity",
-          "has accepted capacity as a relevant concept",
-        )],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (unboundedQuantityShapeGrade.passed ||
-        !unboundedQuantityShapeGrade.assertions.some((item) =>
-          item.name === "first question establishes held quantity stays within accepted capacity" &&
-          !item.passed)) {
-      fail("scorer accepted a quantity proposition without its accepted-capacity bound", 2);
-    }
-    if (propositionAssertion(
-      "self-test",
-      "I cannot recommend one Reservation Aggregate.",
-      {
-        name: "bare Aggregate phrase",
-        accepts: ["one Reservation Aggregate"],
-        rejects: ["Reservation Item is a separate Aggregate"],
-      },
-    ).passed) {
-      fail("proposition polarity accepted a bare phrase behind a negated decision verb", 2);
-    }
-    if (propositionAssertion(
-      "self-test",
-      "I reject one Reservation Aggregate.",
-      {
-        name: "bare Aggregate phrase",
-        accepts: ["one Reservation Aggregate"],
-        rejects: ["Reservation Item is a separate Aggregate"],
-      },
-    ).passed) {
-      fail("proposition polarity accepted a bare phrase behind a rejection verb", 2);
-    }
-    for (const withheldRecommendation of [
-      "I cannot recommend",
-      "I don't recommend",
-      "I won't recommend",
-      "I refuse to recommend",
-      "I hesitate to recommend",
-      "I am reluctant to recommend",
-      "I am unable to recommend",
-      "I am unwilling to recommend",
-    ]) {
-      const externallyNegatedShapeConsensusGrade = scoreResult(
-        shapeConsensusCase,
-        {
-          ...shapeConsensusResult,
-          questions: [shapeConsensusResult.questions[0].replace(
-            "I recommend one Reservation Aggregate",
-            `${withheldRecommendation} one Reservation Aggregate`,
-          )],
-        },
-        workspace,
-        scoreOptions,
-      );
-      if (externallyNegatedShapeConsensusGrade.passed ||
-          !externallyNegatedShapeConsensusGrade.assertions.some((item) =>
-            item.name === "first question establishes the recommended single Reservation Aggregate boundary" &&
-            !item.passed)) {
-        fail(`scorer accepted a withheld recommendation phrase: ${withheldRecommendation}`, 2);
-      }
-    }
-    const packedFocusedDecisionGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(
-          "Do you accept this Aggregate boundary?",
-          "Do you accept this Aggregate boundary and also decide whether notifications should be synchronous or asynchronous?",
-        )],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (packedFocusedDecisionGrade.passed ||
-        !packedFocusedDecisionGrade.assertions.some((item) =>
-          item.name === "first question requests one focused decision" && !item.passed)) {
-      fail("scorer accepted an independent notification decision packed into one interrogative", 2);
-    }
-    const coupledImplementationGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(
-          "Do you accept this Aggregate boundary?",
-          "Do you accept this Aggregate boundary and MySQL as the mandatory persistence engine?",
-        )],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (coupledImplementationGrade.passed ||
-        !coupledImplementationGrade.assertions.some((item) =>
-          item.name === "first question requests one focused decision" && !item.passed)) {
-      fail("scorer accepted an Aggregate choice coupled to an independent persistence decision", 2);
-    }
-    const implementationInRecommendationGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(
-          "I recommend one Reservation Aggregate boundary",
-          "I recommend one Reservation Aggregate boundary implemented with MySQL",
-        )],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (implementationInRecommendationGrade.passed ||
-        !implementationInRecommendationGrade.assertions.some((item) =>
-          item.name === "first question excludes MySQL" && !item.passed)) {
-      fail("scorer accepted an unreviewed persistence mechanism in an Aggregate recommendation", 2);
-    }
-    const hiddenImplementationGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(
-          "I recommend one Reservation Aggregate boundary",
-          "I recommend one Reservation Aggregate boundary implemented with My\u200bSQL",
-        )],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (hiddenImplementationGrade.passed ||
-        !hiddenImplementationGrade.assertions.some((item) =>
-          item.name === "first question excludes MySQL" && !item.passed)) {
-      fail("scorer accepted a persistence mechanism hidden with a default-ignorable code point", 2);
-    }
-    for (const coupledQuestion of [
-      "Do you accept this Aggregate boundary and use MySQL for persistence?",
-      "Do you accept this Aggregate boundary and implement it with MySQL?",
-      "Do you accept this Aggregate boundary and should persistence use MySQL?",
-    ]) {
-      if (focusedQuestionFindings(coupledQuestion).length === 0) {
-        fail(`focused-question scorer accepted an implementation decision: ${coupledQuestion}`, 2);
-      }
-    }
-    if (focusedQuestionFindings(
-      "Do you accept the recommended Aggregate boundary and Domain-object classification?",
-    ).length > 0) {
-      fail("focused-question scorer split one Aggregate-boundary classification decision", 2);
-    }
-    for (const packedInterrogative of [
-      "Do you accept this Aggregate boundary, and should cancellation be automatic?",
-      "Do you accept this Aggregate boundary and whether notifications are synchronous or asynchronous?",
-      "Do you accept this Aggregate boundary, plus should a hold be renewable?",
-      "Do you accept this Aggregate boundary, and who may extend a hold?",
-      "Do you accept this Aggregate boundary，并且取消是否自动发生？",
-    ]) {
-      if (focusedQuestionFindings(packedInterrogative).length === 0) {
-        fail(`focused-question scorer accepted a second independent decision: ${packedInterrogative}`, 2);
-      }
-    }
-    const noInterrogativeGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(/\?$/u, ".")],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (noInterrogativeGrade.passed || !noInterrogativeGrade.assertions.some((item) =>
-      item.name === "first question is a single question" && !item.passed)) {
-      fail("scorer accepted a clarification entry with no interrogative sentence", 2);
-    }
-    const reversedShapeConsensusGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [`${shapeConsensusResult.questions[0]} I do not recommend one Reservation Aggregate; quantity may exceed accepted capacity, multiple terminal outcomes are allowed, and the split alternative has no coordination cost.`],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (reversedShapeConsensusGrade.passed || !reversedShapeConsensusGrade.assertions.some((item) =>
-      item.name.startsWith("first question establishes") && !item.passed)) {
-      fail("scorer accepted a Shape boundary question that reversed its required propositions", 2);
-    }
-    const valueObjectShapeQuestion = {
-      ...shapeConsensusResult,
-      questions: [
-        "I propose one Reservation Root containing a Reservation Item value object with no independent identity or lifecycle. This boundary protects the positive held quantity that remains within accepted capacity, and terminal exclusivity when terminal intents compete. The closest split alternative would move the same decisions cross-Aggregate, requiring recoverable coordination. Do you agree with this Aggregate boundary?",
-      ],
-    };
-    if (!scoreResult(shapeConsensusCase, valueObjectShapeQuestion, workspace, scoreOptions).passed) {
-      fail("scorer rejected a valid Value Object classification and cross-root consequence", 2);
-    }
-    const naturalModelShapeQuestion = {
-      ...shapeConsensusResult,
-      questions: [
-        "I recommend one Reservation Aggregate Root, identified by Reservation identity, owning Reservation Item as a Value Object comprising resource identity and claimed quantity, with equality by both values, no independent identity or lifecycle, and no construction rule beyond the Model; this assigns the Root both accepted invariants: a held quantity must be positive and no greater than the capacity accepted for its resource, and one Reservation identity cannot establish two terminal outcomes. Repeated intent for that identity returns its established fact, while concurrent confirmation, release, or expiry permits only the first admissible terminal outcome. The closest credible alternative is a separate Reservation Item Root, but that would force the hold invariant across Roots despite the Model giving the item no independent identity or lifecycle. Do you accept the recommended Aggregate boundary and Domain-object classification?",
-      ],
-    };
-    if (!scoreResult(shapeConsensusCase, naturalModelShapeQuestion, workspace, scoreOptions).passed) {
-      fail("scorer rejected a natural Model-grounded Aggregate recommendation", 2);
-    }
-    const mathematicalInvariantShapeQuestion = {
-      ...shapeConsensusResult,
-      questions: [
-        "I recommend one Reservation Aggregate Root owning Reservation Item as a Value Object with no independent identity or lifecycle. This boundary assigns both accepted invariants to the Root: the held quantity must be positive and does not exceed accepted capacity, while one Reservation identity establishes at most one terminal outcome under concurrent terminal intents. This directly covers every accepted invariant. The separate-root alternative would move those rules cross-Aggregate and require coordination. Do you accept the single boundary?",
-      ],
-    };
-    const mathematicalInvariantShapeGrade = scoreResult(
-      shapeConsensusCase,
-      mathematicalInvariantShapeQuestion,
-      workspace,
-      scoreOptions,
-    );
-    if (!mathematicalInvariantShapeGrade.passed) {
-      fail(`scorer rejected explicit equivalent invariant propositions in an Aggregate-boundary question: ${JSON.stringify(mathematicalInvariantShapeGrade.assertions)}`, 2);
-    }
-    const concreteCompetitionShapeQuestion = {
-      ...shapeConsensusResult,
-      questions: [
-        "I recommend one Reservation Aggregate Root owning Reservation Item as a Value Object because the item has no independent identity or lifecycle. This boundary makes the root enforce every accepted invariant: a held quantity is positive; it does not exceed the capacity accepted for its resource; and one Reservation identity cannot establish two terminal outcomes. Among concurrent admissible terminal intents, only the first may establish an outcome. The closest alternative is a separate Reservation Item Aggregate, but that would force the held-quantity rule across roots. Do you accept this boundary?",
-      ],
-    };
-    const concreteCompetitionShapeGrade = scoreResult(
-      shapeConsensusCase,
-      concreteCompetitionShapeQuestion,
-      workspace,
-      scoreOptions,
-    );
-    if (!concreteCompetitionShapeGrade.passed) {
-      fail(`scorer rejected a concrete competing-intents paraphrase: ${JSON.stringify(concreteCompetitionShapeGrade.assertions)}`, 2);
-    }
-    const distributedBoundaryShapeQuestion = {
-      ...shapeConsensusResult,
-      questions: [shapeConsensusResult.questions[0].replace(
-        "The credible alternative is a separate Item Aggregate, but splitting would move those invariants across roots and require recoverable coordination.",
-        "The credible alternative is a separate Item Aggregate that would distribute those invariant decisions between two consistency boundaries, leaving the application to coordinate their updates.",
-      )],
-    };
-    const distributedBoundaryShapeGrade = scoreResult(
-      shapeConsensusCase,
-      distributedBoundaryShapeQuestion,
-      workspace,
-      scoreOptions,
-    );
-    if (!distributedBoundaryShapeGrade.passed) {
-      fail(`scorer rejected a distributed-consistency-boundary consequence: ${JSON.stringify(distributedBoundaryShapeGrade.assertions)}`, 2);
-    }
-    if (!isValidSemanticExpectation("move* ... across root*") ||
-        isValidSemanticExpectation("... move*") ||
-        isValidSemanticExpectation("move* ... ... across root*")) {
-      fail("semantic same-clause gap syntax validation is inconsistent", 2);
-    }
-    const unrelatedMovementShapeGrade = scoreResult(
-      shapeConsensusCase,
-      {
-        ...shapeConsensusResult,
-        questions: [shapeConsensusResult.questions[0].replace(
-          "splitting would move those invariants across roots",
-          "the credible split alternative would move discussion of the invariant across roots and require coordination",
-        )],
-      },
-      workspace,
-      scoreOptions,
-    );
-    if (unrelatedMovementShapeGrade.passed ||
-        !unrelatedMovementShapeGrade.assertions.some((item) =>
-          item.name === "first question establishes the split alternative moves rules across roots" &&
-          !item.passed)) {
-      fail("semantic same-clause gap joined an unrelated movement sentence to an across-roots phrase", 2);
-    }
-    if (scoreResult(
-      shapeConsensusCase,
-      { ...shapeConsensusResult, questions: ["Do you accept this design?"] },
-      workspace,
-      scoreOptions,
-    ).passed) {
-      fail("scorer accepted a Shape consensus question without a conclusion, evidence, or credible alternative", 2);
-    }
-    const consequenceFreeShapeQuestion = {
-      ...shapeConsensusResult,
-      questions: [
-        "I recommend one Reservation Aggregate boundary owning Reservation Item as a Value Object because it has no independent identity or lifecycle, the held quantity is positive and may not exceed accepted capacity, and one Reservation identity cannot establish two terminal outcomes under competing terminal intents. The credible alternative is a separate Item Aggregate. Do you accept this Aggregate boundary?",
-      ],
-    };
-    if (scoreResult(shapeConsensusCase, consequenceFreeShapeQuestion, workspace, scoreOptions).passed) {
-      fail("scorer accepted a credible alternative without its consequence", 2);
-    }
-    const deferredShapeQuestion = {
-      ...shapeConsensusResult,
-      questions: [
-        "I recommend investigating one Reservation Aggregate boundary with its Reservation Item. We still need evidence that the held quantity is positive, remains within accepted capacity, and cannot establish two terminal outcomes under competing terminal intents. The split alternative would require cross-root coordination. Do you accept this investigation?",
-      ],
-    };
-    if (scoreResult(shapeConsensusCase, deferredShapeQuestion, workspace, scoreOptions).passed) {
-      fail("scorer accepted deferred Shape investigation wording as a design conclusion", 2);
-    }
-    const shapeProgressConfig = readJson(path.join(
-      CASES_ROOT,
-      "shape-continues-after-boundary-acceptance",
-      "case.json",
-    ));
-    const shapeProgressCase = { ...loadedCase, config: shapeProgressConfig };
-    const shapeProgressWorkspace = path.join(tempRoot, "shape-progress-workspace");
-    fs.cpSync(
-      path.join(CASES_ROOT, "shape-continues-after-boundary-acceptance", "workspace"),
-      shapeProgressWorkspace,
-      { recursive: true },
-    );
-    const shapeProgressBaseline = initializeGit(shapeProgressWorkspace);
-    const shapeProgressResult = {
-      ...goodExplore,
-      scenario_id: shapeProgressConfig.id,
-      phase: "shape",
-      completion: "needs_clarification",
-      questions: [
-        "Because the accepted Model establishes discrete outcomes, I recommend a transition table as the lifecycle representation: Requested moves to Held only after capacity acceptance; only Held may establish Confirmed, Released, or Expired; those outcomes are terminal and mutually exclusive; and concurrent terminal intents admit only the first admissible outcome. This protects the accepted capacity and single-outcome rules. Do you accept this lifecycle representation?",
-      ],
-      routes: [],
-      changed_files: [],
-    };
-    const shapeProgressOptions = { baseline: shapeProgressBaseline };
-    if (!scoreResult(
-      shapeProgressCase,
-      shapeProgressResult,
-      shapeProgressWorkspace,
-      shapeProgressOptions,
-    ).passed) {
-      fail("scorer rejected a focused lifecycle question after Aggregate-boundary acceptance", 2);
-    }
-    const overbroadLifecycleQuestionGrade = scoreResult(
-      shapeProgressCase,
-      {
-        ...shapeProgressResult,
-        questions: [shapeProgressResult.questions[0].replace(
-          "Do you accept this lifecycle representation?",
-          "ReservationHeld is a Domain Event, no Process Manager is needed, and MySQL persists the state. Do you accept this lifecycle representation?",
-        )],
-      },
-      shapeProgressWorkspace,
-      shapeProgressOptions,
-    );
-    if (overbroadLifecycleQuestionGrade.passed ||
-        !overbroadLifecycleQuestionGrade.assertions.some((item) =>
-          ["first question excludes Domain Event", "first question excludes Process Manager", "first question excludes MySQL"].includes(item.name) &&
-          !item.passed)) {
-      fail("scorer accepted event, coordination, and persistence conclusions in the lifecycle question", 2);
-    }
-    for (const [terminal, incompleteTerminalSet] of [
-      ["Released", "Confirmed or Expired; Released is merely named"],
-      ["Expired", "Confirmed or Released; Expired is merely named"],
-    ]) {
-      const incompleteLifecycleGrade = scoreResult(
-        shapeProgressCase,
-        {
-          ...shapeProgressResult,
-          questions: [shapeProgressResult.questions[0].replace(
-            "Confirmed, Released, or Expired",
-            incompleteTerminalSet,
-          )],
-        },
-        shapeProgressWorkspace,
-        shapeProgressOptions,
-      );
-      if (incompleteLifecycleGrade.passed ||
-          !incompleteLifecycleGrade.assertions.some((item) =>
-            item.name === `first question establishes Held establishes ${terminal}` && !item.passed)) {
-        fail(`scorer accepted a lifecycle proposal without Held -> ${terminal}`, 2);
-      }
-    }
-    const reversedShapeProgressGrade = scoreResult(
-      shapeProgressCase,
-      {
-        ...shapeProgressResult,
-        questions: [`${shapeProgressResult.questions[0]} Requested does not move to Held, terminal outcomes are not mutually exclusive, and the last terminal intent wins.`],
-      },
-      shapeProgressWorkspace,
-      shapeProgressOptions,
-    );
-    if (reversedShapeProgressGrade.passed || !reversedShapeProgressGrade.assertions.some((item) =>
-      item.name.startsWith("first question establishes") && !item.passed)) {
-      fail("scorer accepted a lifecycle question that reversed its required propositions", 2);
-    }
-    const transitionModelShapeProgress = {
-      ...shapeProgressResult,
-      questions: [
-        "Do you accept the recommended Reservation lifecycle transition model? Requested moves to Held, only Held admits Confirmed, Released, or Expired, those outcomes are terminal and mutually exclusive, retries return the established fact, and concurrent terminal intents preserve the first outcome. The fact-timeline alternative adds ordering guarantees unsupported by the Model.",
-      ],
-    };
-    if (!scoreResult(
-      shapeProgressCase,
-      transitionModelShapeProgress,
-      shapeProgressWorkspace,
-      shapeProgressOptions,
-    ).passed) {
-      fail("scorer rejected an explicit lifecycle-transition-model paraphrase", 2);
-    }
-    const genericShapeProgressGrade = scoreResult(
-      shapeProgressCase,
-      { ...shapeProgressResult, questions: ["Do you accept the next design choice?"] },
-      shapeProgressWorkspace,
-      shapeProgressOptions,
-    );
-    if (genericShapeProgressGrade.passed || !genericShapeProgressGrade.assertions.some((item) =>
-      !item.passed && item.name.startsWith("first question contains any of"))) {
-      fail("scorer accepted a generic post-boundary question without lifecycle evidence", 2);
-    }
-    const prematureProgressDesign = "docs/ddd-expert/context/reservation/design.md";
-    fs.writeFileSync(
-      path.join(shapeProgressWorkspace, prematureProgressDesign),
-      "# Premature Reservation Tactical Design\n",
-    );
-    const prematureShapeProgressGrade = scoreResult(
-      shapeProgressCase,
-      { ...shapeProgressResult, changed_files: [prematureProgressDesign] },
-      shapeProgressWorkspace,
-      shapeProgressOptions,
-    );
-    if (prematureShapeProgressGrade.passed || !prematureShapeProgressGrade.assertions.some((item) =>
-      !item.passed && item.name === "git change expectation")) {
-      fail("scorer accepted a Design write after only Aggregate-boundary acceptance", 2);
-    }
-    const shapeIntegratedConfig = readJson(path.join(
-      CASES_ROOT,
-      "shape-requires-integrated-design-acceptance",
-      "case.json",
-    ));
-    const shapeIntegratedCase = { ...loadedCase, config: shapeIntegratedConfig };
-    const shapeIntegratedWorkspace = path.join(tempRoot, "shape-integrated-workspace");
-    fs.cpSync(
-      path.join(CASES_ROOT, "shape-requires-integrated-design-acceptance", "workspace"),
-      shapeIntegratedWorkspace,
-      { recursive: true },
-    );
-    const shapeIntegratedBaseline = initializeGit(shapeIntegratedWorkspace);
-    const shapeIntegratedResult = {
-      ...goodExplore,
-      scenario_id: shapeIntegratedConfig.id,
-      phase: "shape",
-      completion: "needs_clarification",
-      questions: [
-        "Do you accept this complete integrated Tactical Design and authorize its write: one Reservation Aggregate owns Reservation Item as a Value Object whose equality uses resource identity and quantity; positive quantity remains within accepted capacity; Requested moves to Held, and only Held may establish Confirmed, Released, or Expired as exclusive terminal outcomes; those established facts are local Domain Events; duplicate intent is idempotent and concurrent terminal intent admits only the first admissible outcome; the split alternative is rejected because it would move the capacity and terminal rules cross-Aggregate; and this isolated context has no context dependencies or Integration Message, has no Process Manager, and has no design-significant persistence mechanism?",
-      ],
-      routes: [],
-      changed_files: [],
-    };
-    const shapeIntegratedOptions = { baseline: shapeIntegratedBaseline };
-    const completeIntegratedAcceptanceGrade = scoreResult(
-      shapeIntegratedCase,
-      shapeIntegratedResult,
-      shapeIntegratedWorkspace,
-      shapeIntegratedOptions,
-    );
-    if (!completeIntegratedAcceptanceGrade.passed) {
-      fail(`scorer rejected a complete integrated Shape acceptance request: ${JSON.stringify(completeIntegratedAcceptanceGrade.assertions)}`, 2);
-    }
-    for (const [canonicalAbsence, naturalAbsence] of [
-      ["has no Process Manager", "does not require a Process Manager"],
-      ["has no design-significant persistence mechanism", "does not require a design-significant persistence mechanism"],
-    ]) {
-      const naturalAbsenceGrade = scoreResult(
-        shapeIntegratedCase,
-        {
-          ...shapeIntegratedResult,
-          questions: [shapeIntegratedResult.questions[0].replace(canonicalAbsence, naturalAbsence)],
-        },
-        shapeIntegratedWorkspace,
-        shapeIntegratedOptions,
-      );
-      if (!naturalAbsenceGrade.passed) {
-        fail(`integrated Shape scorer rejected a natural absence statement: ${naturalAbsence}`, 2);
-      }
-    }
-    for (const [terminal, incompleteTerminalSet] of [
-      ["Released", "Confirmed or Expired; Released is merely named"],
-      ["Expired", "Confirmed or Released; Expired is merely named"],
-    ]) {
-      const incompleteIntegratedLifecycleGrade = scoreResult(
-        shapeIntegratedCase,
-        {
-          ...shapeIntegratedResult,
-          questions: [shapeIntegratedResult.questions[0].replace(
-            "Confirmed, Released, or Expired",
-            incompleteTerminalSet,
-          )],
-        },
-        shapeIntegratedWorkspace,
-        shapeIntegratedOptions,
-      );
-      if (incompleteIntegratedLifecycleGrade.passed ||
-          !incompleteIntegratedLifecycleGrade.assertions.some((item) =>
-            item.name === `first question establishes Held establishes ${terminal}` && !item.passed)) {
-        fail(`integrated Shape scorer accepted no Held -> ${terminal} transition`, 2);
-      }
-    }
-    const mislabeledDomainEventGrade = scoreResult(
-      shapeIntegratedCase,
-      {
-        ...shapeIntegratedResult,
-        questions: [shapeIntegratedResult.questions[0].replace(
-          "those established facts are local Domain Events",
-          "those established facts are not Domain Events",
-        )],
-      },
-      shapeIntegratedWorkspace,
-      shapeIntegratedOptions,
-    );
-    if (mislabeledDomainEventGrade.passed ||
-        !mislabeledDomainEventGrade.assertions.some((item) =>
-          item.name === "first question establishes established Reservation facts are local Domain Events" &&
-          !item.passed)) {
-      fail("integrated Shape scorer accepted established facts denied as Domain Events", 2);
-    }
-    const shallowEqualityGrade = scoreResult(
-      shapeIntegratedCase,
-      {
-        ...shapeIntegratedResult,
-        questions: [shapeIntegratedResult.questions[0].replace(
-          "whose equality uses resource identity and quantity",
-          "whose equality merely mentions resource identity and quantity",
-        )],
-      },
-      shapeIntegratedWorkspace,
-      shapeIntegratedOptions,
-    );
-    if (shallowEqualityGrade.passed ||
-        !shallowEqualityGrade.assertions.some((item) =>
-          item.name === "first question establishes Reservation Item equality uses resource identity and quantity" &&
-          !item.passed)) {
-      fail("integrated Shape scorer accepted a Value Object equality label without semantics", 2);
-    }
-    for (const [acceptedText, reversedText, propositionName] of [
-      ["has no Process Manager", "requires a Process Manager", "the integrated proposal has no Process Manager"],
-      ["has no design-significant persistence mechanism", "requires a design-significant persistence mechanism", "the integrated proposal has no design-significant persistence mechanism"],
-    ]) {
-      const reversedOptionalMechanismGrade = scoreResult(
-        shapeIntegratedCase,
-        {
-          ...shapeIntegratedResult,
-          questions: [shapeIntegratedResult.questions[0].replace(acceptedText, reversedText)],
-        },
-        shapeIntegratedWorkspace,
-        shapeIntegratedOptions,
-      );
-      if (reversedOptionalMechanismGrade.passed ||
-          !reversedOptionalMechanismGrade.assertions.some((item) =>
-            item.name === `first question establishes ${propositionName}` && !item.passed)) {
-        fail(`integrated Shape scorer accepted a reversed conclusion: ${propositionName}`, 2);
-      }
-    }
-    const reversedIntegratedAcceptanceGrade = scoreResult(
-      shapeIntegratedCase,
-      {
-        ...shapeIntegratedResult,
-        questions: [`${shapeIntegratedResult.questions[0]} Reservation Item is not a Value Object, duplicate intent is not idempotent, and the context requires an Integration Message.`],
-      },
-      shapeIntegratedWorkspace,
-      shapeIntegratedOptions,
-    );
-    if (reversedIntegratedAcceptanceGrade.passed || !reversedIntegratedAcceptanceGrade.assertions.some((item) =>
-      item.name.startsWith("first question establishes") && !item.passed)) {
-      fail("scorer accepted an integrated proposal that reversed its tactical conclusions", 2);
-    }
-    if (scoreResult(
-      shapeIntegratedCase,
-      { ...shapeIntegratedResult, questions: ["Do you accept the Reservation Aggregate boundary?"] },
-      shapeIntegratedWorkspace,
-      shapeIntegratedOptions,
-    ).passed) {
-      fail("scorer accepted a boundary-only question as final integrated Design acceptance", 2);
-    }
-    const entityShapeConfig = readJson(path.join(
-      CASES_ROOT,
-      "shape-defines-retained-entity",
-      "case.json",
-    ));
-    const entityShapeCase = { ...loadedCase, config: entityShapeConfig };
-    const entityShapeWorkspace = path.join(tempRoot, "entity-shape-workspace");
-    fs.cpSync(
-      path.join(CASES_ROOT, "shape-defines-retained-entity", "workspace"),
-      entityShapeWorkspace,
-      { recursive: true },
-    );
-    const entityShapeBaseline = initializeGit(entityShapeWorkspace);
-    const entityShapeRelative = "docs/ddd-expert/context/fulfillment/design.md";
-    const completeEntityDesign = `---
-context: Fulfillment
-based_on_model_revision: 1
----
-
-# Fulfillment Tactical Design
-
-## Model Realization
-
-| Accepted Model Obligation | Tactical Owner or Mechanism | Defined In |
-|---|---|---|
-| One outcome per LineId | FulfillmentOrder | Invariants and lifecycle |
-
-## Aggregate Designs
-
-### FulfillmentOrder
-
-#### Boundary Thesis
-
-FulfillmentOrder is the single Aggregate and one consistency boundary. Splitting the line would move uniqueness and outcome rules cross-Aggregate.
-
-#### Invariants
-
-LineId is unique within the Root, Quantity is positive, and one LineId cannot establish both terminal outcomes. The Root protects these rules.
-
-#### Entities
-
-##### AllocationLine
-
-AllocationLine represents one resource allocation request. It is identified by LineId, is owned by FulfillmentOrder, and cannot exist outside its owning Root. Its lifecycle is scoped to the owning Aggregate while stable LineId preserves continuity. AllocateLine and RejectLine are its intention-revealing behaviors.
-
-#### Value Objects
-
-Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment, has no additional business-format rule, and is equal by exact identity.
-
-#### Behaviors and Lifecycle
-
-| From | Intent | Authority | Guard | To | Established Fact |
-|---|---|---|---|---|---|
-| Creation | AddLine | FulfillmentOrder | unique LineId and positive Quantity | Pending | AllocationLineAdded |
-| Pending | AllocateLine | FulfillmentOrder | no terminal outcome | Allocated | AllocationAccepted |
-| Pending | RejectLine | FulfillmentOrder | no terminal outcome | Rejected | AllocationRejected |
-
-Allocated and Rejected are terminal and admit no later transition. Duplicate intent for the same LineId returns the established result; concurrent terminal intents establish one terminal outcome.
-
-#### Domain Events
-
-AllocationLineAdded, AllocationAccepted, and AllocationRejected are local Domain Events naming the established line facts.
-`;
-    fs.mkdirSync(path.dirname(path.join(entityShapeWorkspace, entityShapeRelative)), { recursive: true });
-    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), completeEntityDesign);
-    const entityShapeResult = {
-      ...goodExplore,
-      scenario_id: entityShapeConfig.id,
-      phase: "shape",
-      completion: "completed",
-      questions: [],
-      routes: [],
-      changed_files: [entityShapeRelative],
-    };
-    const entityShapeOptions = { baseline: entityShapeBaseline };
-    const completeEntityGrade = scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    );
-    if (!completeEntityGrade.passed) {
-      fail(`scorer rejected a retained Entity with identity, owner, lifecycle, behavior, and rules: ${JSON.stringify(completeEntityGrade.assertions)}`, 2);
-    }
-    const identifierFormatAssertionName = `file ${entityShapeRelative} invents no identifier format`;
-    for (const inventedRule of [
-      "LineId is a fixed-length 26-character string.",
-      "LineId is a canonical ULID and is not empty.",
-      "LineId is fixed-length and is not optional.",
-      "A canonical ULID with no prefix is required for LineId.",
-      "LineId conforms to RFC 4122.",
-      "LineId consists of 26 alphanumeric symbols.",
-      "AllocationLineId is a canonical UUID.",
-      "LineId shall conform to [A-Z0-9]{26}.",
-      "A fixed-length 26-character format is required for LineId.",
-      "Lowercase normalization is required for LineId.",
-      "A regular expression [A-Z0-9]{26} defines LineId.",
-      "LineId has length 26.",
-      "LineId must start with line_.",
-      "LineId conforms to [A-Z0-9]+.",
-      "LineId is not a UUID; it is a ULID.",
-      "LineId is opaque. Its value is a UUID.",
-      "LineId rejects blank input and uses UUID.",
-      "LineId does not use UUID but uses ULID.",
-      "LineId is opaque. It remains unchanged. It has length 26.",
-      "LineId is twenty-six characters long.",
-      "LineId consists solely of ASCII capital letters and decimal numerals.",
-    ]) {
-      fs.writeFileSync(
-        path.join(entityShapeWorkspace, entityShapeRelative),
-        `${completeEntityDesign}\n${inventedRule}\n`,
-      );
-      const inventedFormatGrade = scoreResult(
-        entityShapeCase,
-        entityShapeResult,
-        entityShapeWorkspace,
-        entityShapeOptions,
-      );
-      if (inventedFormatGrade.passed || !inventedFormatGrade.assertions.some((item) =>
-        item.name === identifierFormatAssertionName && !item.passed)) {
-        fail(`scorer accepted an invented LineId format rule: ${inventedRule}`, 2);
-      }
-    }
-    for (const deniedRule of [
-      "LineId does not use UUID.",
-      "LineId never requires ULID.",
-      "Neither a UUID nor ULID is required for LineId.",
-      "No UUID format is required for LineId.",
-      "LineId is not normalized to lowercase.",
-      "LineId rejects UUID-formatted input.",
-      "LineId is opaque rather than a UUID.",
-      "LineId defines no format, normalization, or additional validity rule.",
-    ]) {
-      fs.writeFileSync(
-        path.join(entityShapeWorkspace, entityShapeRelative),
-        `${completeEntityDesign}\n${deniedRule}\n`,
-      );
-      const deniedFormatGrade = scoreResult(
-        entityShapeCase,
-        entityShapeResult,
-        entityShapeWorkspace,
-        entityShapeOptions,
-      );
-      if (!deniedFormatGrade.passed) {
-        fail(`scorer rejected an explicit denial of a LineId format: ${deniedRule}` , 2);
-      }
-    }
-    const entityValueObjectLine = "Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment, has no additional business-format rule, and is equal by exact identity.";
-    const missingLineIdConstruction = completeEntityDesign.replace(
-      entityValueObjectLine,
-      "Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId has no additional business-format rule and is equal by exact identity.",
-    );
-    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingLineIdConstruction);
-    const missingLineIdConstructionGrade = scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    );
-    if (missingLineIdConstructionGrade.passed || !missingLineIdConstructionGrade.assertions.some((item) =>
-      item.name.includes("LineId is constructed from") && !item.passed)) {
-      fail("scorer accepted LineId semantics without construction", 2);
-    }
-    const missingLineIdNoFormat = completeEntityDesign.replace(
-      entityValueObjectLine,
-      "Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment and is equal by exact identity.",
-    );
-    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingLineIdNoFormat);
-    const missingLineIdNoFormatGrade = scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    );
-    if (missingLineIdNoFormatGrade.passed || !missingLineIdNoFormatGrade.assertions.some((item) =>
-      item.name.includes("no additional business-format rule") && !item.passed)) {
-      fail("scorer accepted LineId semantics without an explicit no-format rule", 2);
-    }
-    const missingLineIdEquality = completeEntityDesign.replace(
-      entityValueObjectLine,
-      "Quantity represents the allocation amount. Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment and has no additional business-format rule.",
-    );
-    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingLineIdEquality);
-    const missingLineIdEqualityGrade = scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    );
-    if (missingLineIdEqualityGrade.passed || !missingLineIdEqualityGrade.assertions.some((item) =>
-      item.name.includes("LineId values are equal when") && !item.passed)) {
-      fail("scorer accepted LineId construction without equality semantics", 2);
-    }
-    const missingQuantityMeaning = completeEntityDesign.replace(
-      entityValueObjectLine,
-      "Quantity is positive and equal by amount. LineId is constructed from the resource identity admitted by Fulfillment, has no additional business-format rule, and is equal by exact identity.",
-    );
-    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingQuantityMeaning);
-    const missingQuantityMeaningGrade = scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    );
-    if (missingQuantityMeaningGrade.passed || !missingQuantityMeaningGrade.assertions.some((item) =>
-      item.name.includes("Quantity represents the allocation amount") && !item.passed)) {
-      fail("scorer accepted Quantity without its Domain meaning", 2);
-    }
-    const missingQuantityEquality = completeEntityDesign.replace(
-      entityValueObjectLine,
-      "Quantity represents the allocation amount and is positive. LineId is constructed from the resource identity admitted by Fulfillment, has no additional business-format rule, and is equal by exact identity.",
-    );
-    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), missingQuantityEquality);
-    const missingQuantityEqualityGrade = scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    );
-    if (missingQuantityEqualityGrade.passed || !missingQuantityEqualityGrade.assertions.some((item) =>
-      item.name.includes("Quantity values are equal when") && !item.passed)) {
-      fail("scorer accepted Quantity construction without equality semantics", 2);
-    }
-    fs.writeFileSync(
-      path.join(entityShapeWorkspace, entityShapeRelative),
-      `${completeEntityDesign}\nLineId construction is unspecified. LineId equality is undefined. Quantity equality is unspecified.\n`,
-    );
-    const unspecifiedValueObjectsGrade = scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    );
-    if (unspecifiedValueObjectsGrade.passed || !unspecifiedValueObjectsGrade.assertions.some((item) =>
-      item.name.includes("semantically excludes") && !item.passed)) {
-      fail("scorer accepted unspecified Value Object semantics as definitions", 2);
-    }
-    fs.writeFileSync(
-      path.join(entityShapeWorkspace, entityShapeRelative),
-      `${completeEntityDesign}\nQuantity values are equal when their amounts differ. LineId is constructed from arbitrary input.\n`,
-    );
-    const reversedValueObjectGrade = scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    );
-    if (reversedValueObjectGrade.passed || !reversedValueObjectGrade.assertions.some((item) =>
-      item.name.startsWith(`file ${entityShapeRelative} establishes`) && !item.passed)) {
-      fail("scorer accepted contradictory Value Object construction and equality propositions", 2);
-    }
-    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), completeEntityDesign);
-    const paraphrasedEntityDesign = completeEntityDesign.replace(
-      "AllocationLine represents one resource allocation request. It is identified by LineId, is owned by FulfillmentOrder, and cannot exist outside its owning Root. Its lifecycle is scoped to the owning Aggregate while stable LineId preserves continuity. AllocateLine and RejectLine are its intention-revealing behaviors.",
-      "AllocationLine represents one resource allocation request. Its LineId preserves its identity and continuity. It is owned by exactly one FulfillmentOrder, cannot exist outside that Root, and changes only through Root behavior. AllocateLine and RejectLine are its intention-revealing behaviors.",
-    );
-    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), paraphrasedEntityDesign);
-    if (!scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    ).passed) {
-      fail("scorer rejected an equivalent retained Entity definition", 2);
-    }
-    fs.writeFileSync(path.join(entityShapeWorkspace, entityShapeRelative), completeEntityDesign);
-    fs.writeFileSync(
-      path.join(entityShapeWorkspace, entityShapeRelative),
-      completeEntityDesign.replace(
-        "AllocationLine represents one resource allocation request. It is identified by LineId, is owned by FulfillmentOrder, and cannot exist outside its owning Root. Its lifecycle is scoped to the owning Aggregate while stable LineId preserves continuity. AllocateLine and RejectLine are its intention-revealing behaviors.",
-        "AllocationLine.",
-      ),
-    );
-    const undefinedEntityGrade = scoreResult(
-      entityShapeCase,
-      entityShapeResult,
-      entityShapeWorkspace,
-      entityShapeOptions,
-    );
-    if (undefinedEntityGrade.passed || !undefinedEntityGrade.assertions.some((item) =>
-      !item.passed && item.name.includes("design.md contains any of"))) {
-      fail("scorer accepted a retained Entity heading without its Domain definition", 2);
-    }
-    const shapeWriteConfig = readJson(path.join(
-      CASES_ROOT,
-      "shape-mysql-default-handoff",
-      "case.json",
-    ));
-    const shapeWriteWorkspace = path.join(tempRoot, "shape-write-workspace");
-    fs.mkdirSync(shapeWriteWorkspace, { recursive: true });
-    const shapeWriteBaseline = initializeGit(shapeWriteWorkspace);
-    const shapeWriteRelative = "docs/ddd-expert/context/inventory/design.md";
-    const shapeWritePath = path.join(shapeWriteWorkspace, shapeWriteRelative);
-    fs.mkdirSync(path.dirname(shapeWritePath), { recursive: true });
-    const minimalShapeDesign = `---
+    const tacticalWriteWorkspace = path.join(tempRoot, "event-storming-write-workspace");
+    fs.mkdirSync(tacticalWriteWorkspace, { recursive: true });
+    const tacticalWriteBaseline = initializeGit(tacticalWriteWorkspace);
+    const tacticalWriteRelative = "docs/ddd-expert/context/inventory/design.md";
+    const tacticalWritePath = path.join(tacticalWriteWorkspace, tacticalWriteRelative);
+    fs.mkdirSync(path.dirname(tacticalWritePath), { recursive: true });
+const minimalTacticalDesign = `---
 context: Inventory
 based_on_model_revision: 1
+design_status: codify_ready
 ---
 
 # Inventory Tactical Design
@@ -5315,27 +5514,28 @@ MySQL
 
 ## Context Dependencies and Contracts
 `;
-    fs.writeFileSync(shapeWritePath, minimalShapeDesign);
-    const shapeWriteCase = { ...loadedCase, config: shapeWriteConfig };
-    const shapeWriteResult = {
-      ...goodExplore,
-      scenario_id: shapeWriteConfig.id,
-      phase: "shape",
+    fs.writeFileSync(tacticalWritePath, minimalTacticalDesign);
+    const tacticalWriteCase = { ...loadedCase, config: tacticalWriteConfig };
+    const tacticalWriteResult = {
+      ...goodEventStorming,
+      scenario_id: tacticalWriteConfig.id,
+      phase: "event-storming",
       completion: "completed",
       questions: [],
-      changed_files: [shapeWriteRelative],
+      changed_files: [tacticalWriteRelative],
     };
     if (scoreResult(
-      shapeWriteCase,
-      shapeWriteResult,
-      shapeWriteWorkspace,
-      { baseline: shapeWriteBaseline },
+      tacticalWriteCase,
+      tacticalWriteResult,
+      tacticalWriteWorkspace,
+      { baseline: tacticalWriteBaseline },
     ).passed) {
-      fail("scorer accepted a Shape write that had headings but omitted accepted tactical decisions", 2);
+      fail("scorer accepted an EventStorming write that had headings but omitted accepted tactical decisions", 2);
     }
-    const completeShapeDesign = `---
+const completeTacticalDesign = `---
 context: Inventory
 based_on_model_revision: 1
+design_status: codify_ready
 ---
 
 # Inventory Tactical Design
@@ -5380,56 +5580,56 @@ Identity uniqueness and an optimistic version make duplicate work idempotent and
 
 Inventory publishes a distinct reservation outcome Integration Message to Order. A transactional outbox records the outcome in the local transaction; a relay publishes once the transaction commits and retries without changing it. Notification failure leaves the established Inventory outcome intact, and the direct handoff works without a Process Manager.
 `;
-    fs.writeFileSync(shapeWritePath, completeShapeDesign);
-    const completeShapeGrade = scoreResult(
-      shapeWriteCase,
-      shapeWriteResult,
-      shapeWriteWorkspace,
-      { baseline: shapeWriteBaseline },
+    fs.writeFileSync(tacticalWritePath, completeTacticalDesign);
+    const completeTacticalGrade = scoreResult(
+      tacticalWriteCase,
+      tacticalWriteResult,
+      tacticalWriteWorkspace,
+      { baseline: tacticalWriteBaseline },
     );
-    if (!completeShapeGrade.passed) {
-      fail(`scorer rejected a Shape write containing the accepted tactical decisions: ${JSON.stringify(completeShapeGrade.assertions)}`, 2);
+    if (!completeTacticalGrade.passed) {
+      fail(`scorer rejected an EventStorming write containing the accepted tactical decisions: ${JSON.stringify(completeTacticalGrade.assertions)}`, 2);
     }
-    const paraphrasedValueObjectsDesign = completeShapeDesign.replace(
+    const paraphrasedValueObjectsDesign = completeTacticalDesign.replace(
       "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
       "ReservationId is the Domain identity value that denotes the same reservation throughout its lifecycle. Construction accepts an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. Two values are equal when they denote the same reservation identity.\n\nQuantity is the accepted quantity owned by one reservation. Construction succeeds only for a positive quantity. Two values are equal when their represented quantities are equal.",
     );
-    fs.writeFileSync(shapeWritePath, paraphrasedValueObjectsDesign);
+    fs.writeFileSync(tacticalWritePath, paraphrasedValueObjectsDesign);
     if (!scoreResult(
-      shapeWriteCase,
-      shapeWriteResult,
-      shapeWriteWorkspace,
-      { baseline: shapeWriteBaseline },
+      tacticalWriteCase,
+      tacticalWriteResult,
+      tacticalWriteWorkspace,
+      { baseline: tacticalWriteBaseline },
     ).passed) {
       fail("scorer rejected equivalent Value Object construction and equality semantics", 2);
     }
-    const reverseNegatedIdentifierFormat = completeShapeDesign.replace(
+    const reverseNegatedIdentifierFormat = completeTacticalDesign.replace(
       "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.",
       "ReservationId is the immutable identity of one reservation. ReservationId is constructed from an identity admitted by Inventory. No UUID format is required for ReservationId. The Model defines no additional business validity rule. ReservationId values are equal when they denote the same reservation identity.",
     );
-    fs.writeFileSync(shapeWritePath, reverseNegatedIdentifierFormat);
+    fs.writeFileSync(tacticalWritePath, reverseNegatedIdentifierFormat);
     const reverseNegatedIdentifierGrade = scoreResult(
-      shapeWriteCase,
-      shapeWriteResult,
-      shapeWriteWorkspace,
-      { baseline: shapeWriteBaseline },
+      tacticalWriteCase,
+      tacticalWriteResult,
+      tacticalWriteWorkspace,
+      { baseline: tacticalWriteBaseline },
     );
     if (!reverseNegatedIdentifierGrade.passed) {
       fail(`scorer rejected a reverse-order statement that explicitly denies an identifier format: ${JSON.stringify(reverseNegatedIdentifierGrade.assertions.filter((item) => !item.passed))}`, 2);
     }
-    fs.writeFileSync(shapeWritePath, completeShapeDesign);
+    fs.writeFileSync(tacticalWritePath, completeTacticalDesign);
     fs.writeFileSync(
-      shapeWritePath,
-      completeShapeDesign.replace(
+      tacticalWritePath,
+      completeTacticalDesign.replace(
         "It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.",
         "Construction requires a canonical UUIDv7. ReservationId values are equal by that UUID.",
       ),
     );
     const inventedIdentifierGrade = scoreResult(
-      shapeWriteCase,
-      shapeWriteResult,
-      shapeWriteWorkspace,
-      { baseline: shapeWriteBaseline },
+      tacticalWriteCase,
+      tacticalWriteResult,
+      tacticalWriteWorkspace,
+      { baseline: tacticalWriteBaseline },
     );
     const inventoryIdentifierFormatAssertionName =
       "file docs/ddd-expert/context/inventory/design.md invents no identifier format";
@@ -5438,7 +5638,7 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
     if (inventedIdentifierGrade.passed || !inventedIdentifierAssertion || inventedIdentifierAssertion.passed) {
       fail("scorer accepted a House Style invented as a Domain identifier rule", 2);
     }
-    fs.writeFileSync(shapeWritePath, completeShapeDesign);
+    fs.writeFileSync(tacticalWritePath, completeTacticalDesign);
     for (const [label, inventedRule] of [
       ["ULID", "ReservationId construction requires a canonical ULID."],
       ["regular expression", "ReservationId must match regex [A-Z0-9]{26}."],
@@ -5449,12 +5649,12 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
       ["qualified UUID", "InventoryReservationId is a canonical UUID."],
       ["reverse fixed length", "A fixed-length 26-character format is required for ReservationId."],
     ]) {
-      fs.writeFileSync(shapeWritePath, `${completeShapeDesign}\n${inventedRule}\n`);
+      fs.writeFileSync(tacticalWritePath, `${completeTacticalDesign}\n${inventedRule}\n`);
       const inventedRuleGrade = scoreResult(
-        shapeWriteCase,
-        shapeWriteResult,
-        shapeWriteWorkspace,
-        { baseline: shapeWriteBaseline },
+        tacticalWriteCase,
+        tacticalWriteResult,
+        tacticalWriteWorkspace,
+        { baseline: tacticalWriteBaseline },
       );
       if (inventedRuleGrade.passed || !inventedRuleGrade.assertions.some((item) =>
         item.name === inventoryIdentifierFormatAssertionName && !item.passed)) {
@@ -5468,28 +5668,28 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
       "No UUID format is required for ReservationId.",
       "ReservationId is not normalized to lowercase.",
     ]) {
-      fs.writeFileSync(shapeWritePath, `${completeShapeDesign}\n${deniedRule}\n`);
+      fs.writeFileSync(tacticalWritePath, `${completeTacticalDesign}\n${deniedRule}\n`);
       const deniedFormatGrade = scoreResult(
-        shapeWriteCase,
-        shapeWriteResult,
-        shapeWriteWorkspace,
-        { baseline: shapeWriteBaseline },
+        tacticalWriteCase,
+        tacticalWriteResult,
+        tacticalWriteWorkspace,
+        { baseline: tacticalWriteBaseline },
       );
       if (!deniedFormatGrade.passed) {
         fail(`scorer rejected an explicit denial of a ReservationId format: ${deniedRule}`, 2);
       }
     }
-    fs.writeFileSync(shapeWritePath, completeShapeDesign);
-    const undefinedValueObjectsDesign = completeShapeDesign.replace(
+    fs.writeFileSync(tacticalWritePath, completeTacticalDesign);
+    const undefinedValueObjectsDesign = completeTacticalDesign.replace(
       "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
       "ReservationId. Quantity is positive.",
     );
-    fs.writeFileSync(shapeWritePath, undefinedValueObjectsDesign);
+    fs.writeFileSync(tacticalWritePath, undefinedValueObjectsDesign);
     const undefinedValueObjectsGrade = scoreResult(
-      shapeWriteCase,
-      shapeWriteResult,
-      shapeWriteWorkspace,
-      { baseline: shapeWriteBaseline },
+      tacticalWriteCase,
+      tacticalWriteResult,
+      tacticalWriteWorkspace,
+      { baseline: tacticalWriteBaseline },
     );
     if (undefinedValueObjectsGrade.passed || !undefinedValueObjectsGrade.assertions.some((item) =>
       !item.passed && item.name.includes("design.md contains any of"))) {
@@ -5497,11 +5697,6 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
     }
     const inventoryValueObjects = "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.";
     for (const [label, replacement, assertionFragment] of [
-      [
-        "ReservationId construction",
-        "ReservationId is the immutable identity of one reservation. The Model defines no format, normalization, or additional validity rule. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
-        "ReservationId is constructed from",
-      ],
       [
         "ReservationId no-format rule",
         "ReservationId is the immutable identity of one reservation. It is constructed only from an identity admitted by Inventory. ReservationId values are equal when they denote the same reservation identity.\n\nQuantity is the immutable amount of stock accepted for the reservation. Quantity construction requires a positive amount, and Quantity equality is by that amount.",
@@ -5523,12 +5718,12 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
         "Quantity values are equal",
       ],
     ]) {
-      fs.writeFileSync(shapeWritePath, completeShapeDesign.replace(inventoryValueObjects, replacement));
+      fs.writeFileSync(tacticalWritePath, completeTacticalDesign.replace(inventoryValueObjects, replacement));
       const omissionGrade = scoreResult(
-        shapeWriteCase,
-        shapeWriteResult,
-        shapeWriteWorkspace,
-        { baseline: shapeWriteBaseline },
+        tacticalWriteCase,
+        tacticalWriteResult,
+        tacticalWriteWorkspace,
+        { baseline: tacticalWriteBaseline },
       );
       if (omissionGrade.passed || !omissionGrade.assertions.some((item) =>
         item.name.includes(assertionFragment) && !item.passed)) {
@@ -5536,21 +5731,21 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
       }
     }
     fs.writeFileSync(
-      shapeWritePath,
-      `${completeShapeDesign}\nReservationId construction is unspecified. ReservationId equality is undefined. Quantity meaning is unspecified. Quantity equality is undefined.\n`,
+      tacticalWritePath,
+      `${completeTacticalDesign}\nReservationId construction is unspecified. ReservationId equality is undefined. Quantity meaning is unspecified. Quantity equality is undefined.\n`,
     );
     const unspecifiedInventoryValueObjectsGrade = scoreResult(
-      shapeWriteCase,
-      shapeWriteResult,
-      shapeWriteWorkspace,
-      { baseline: shapeWriteBaseline },
+      tacticalWriteCase,
+      tacticalWriteResult,
+      tacticalWriteWorkspace,
+      { baseline: tacticalWriteBaseline },
     );
     if (unspecifiedInventoryValueObjectsGrade.passed || !unspecifiedInventoryValueObjectsGrade.assertions.some((item) =>
       item.name.includes("semantically excludes") && !item.passed)) {
       fail("scorer accepted unspecified Inventory Value Object semantics as definitions", 2);
     }
-    fs.writeFileSync(shapeWritePath, completeShapeDesign);
-    const negatedShapeDesign = completeShapeDesign
+    fs.writeFileSync(tacticalWritePath, completeTacticalDesign);
+    const negatedTacticalDesign = completeTacticalDesign
       .replace("Quantity is positive", "positive Quantity is not required")
       .replace("The Aggregate retains no Entity.", "InventoryReservation has a child Entity.")
       .replace(
@@ -5565,30 +5760,30 @@ Inventory publishes a distinct reservation outcome Integration Message to Order.
         "Identity uniqueness and an optimistic version make duplicate work idempotent",
         "Uniqueness is not required, optimistic concurrency is forbidden, and idempotency is not required",
       );
-    fs.writeFileSync(shapeWritePath, negatedShapeDesign);
-    const negatedShapeGrade = scoreResult(
-      shapeWriteCase,
-      shapeWriteResult,
-      shapeWriteWorkspace,
-      { baseline: shapeWriteBaseline },
+    fs.writeFileSync(tacticalWritePath, negatedTacticalDesign);
+    const negatedTacticalGrade = scoreResult(
+      tacticalWriteCase,
+      tacticalWriteResult,
+      tacticalWriteWorkspace,
+      { baseline: tacticalWriteBaseline },
     );
-    if (negatedShapeGrade.passed || !negatedShapeGrade.assertions.some((item) =>
+    if (negatedTacticalGrade.passed || !negatedTacticalGrade.assertions.some((item) =>
       !item.passed && item.name.includes("design.md semantically excludes"))) {
-      fail("scorer accepted a Shape design that negated accepted tactical decisions", 2);
+      fail("scorer accepted an EventStorming design that negated accepted tactical decisions", 2);
     }
     fs.writeFileSync(
-      shapeWritePath,
-      `${completeShapeDesign}\n#### Entities\n\nReservation Item is a child Entity.\n`,
+      tacticalWritePath,
+      `${completeTacticalDesign}\n#### Entities\n\nReservation Item is a child Entity.\n`,
     );
-    const headingBypassShapeGrade = scoreResult(
-      shapeWriteCase,
-      shapeWriteResult,
-      shapeWriteWorkspace,
-      { baseline: shapeWriteBaseline },
+    const headingBypassTacticalGrade = scoreResult(
+      tacticalWriteCase,
+      tacticalWriteResult,
+      tacticalWriteWorkspace,
+      { baseline: tacticalWriteBaseline },
     );
-    const headingBypassAssertion = headingBypassShapeGrade.assertions.find((item) =>
+    const headingBypassAssertion = headingBypassTacticalGrade.assertions.find((item) =>
       item.name === "file docs/ddd-expert/context/inventory/design.md semantically excludes Reservation Item is a child Entity");
-    if (headingBypassShapeGrade.passed || !headingBypassAssertion || headingBypassAssertion.passed) {
+    if (headingBypassTacticalGrade.passed || !headingBypassAssertion || headingBypassAssertion.passed) {
       fail("scorer accepted a child Entity hidden behind a shallower heading", 2);
     }
     const incomplete = {
@@ -5823,7 +6018,7 @@ async function runCommandMain(options) {
     const gitHead = runCommand(["git", "rev-parse", "HEAD"], { cwd: ROOT, timeoutSeconds: 30 });
     const gitStatus = runCommand(["git", "status", "--short"], { cwd: ROOT, timeoutSeconds: 30 });
     const summary = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       startedAt: timestamp,
       completedAt: new Date().toISOString(),
       repository: {

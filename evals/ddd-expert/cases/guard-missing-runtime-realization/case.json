@@ -9,7 +9,7 @@
     "completion": ["completed"],
     "review_conclusion": ["violations"],
     "questions": { "min": 0, "max": 0 },
-    "routes": { "contains": ["codify"], "excludes": ["explore", "shape"] },
+    "routes": { "contains": ["codify"], "excludes": ["event-storming"] },
     "verdicts": [
       {
         "kind": "violation",

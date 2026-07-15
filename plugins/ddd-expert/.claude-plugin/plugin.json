@@ -1,6 +1,6 @@
 {
   "name": "ddd-expert",
-  "description": "Standalone DDD/backend architecture expert skills for code agents",
+  "description": "EventStorming-led DDD workflow for strategic modeling, tactical design, implementation, and review",
   "version": "1.15.10",
   "author": {
     "name": "xuhao"

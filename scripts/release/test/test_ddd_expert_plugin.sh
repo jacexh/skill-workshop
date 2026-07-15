@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate the standalone ddd-expert plugin, phase contracts, and reference architecture.
+# Validate the standalone ddd-expert plugin, workflow contracts, and reference architecture.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -89,6 +89,10 @@ jq -e '.plugins[] | select(.name == "superpowers-ddd-architect")' \
 [ "$(jq -r .name "$CLAUDE_ROOT/.claude-plugin/plugin.json")" = "ddd-expert" ] || fail "Claude manifest name should be ddd-expert"
 [ "$(jq -r .name "$CODEX_ROOT/.codex-plugin/plugin.json")" = "ddd-expert" ] || fail "Codex manifest name should be ddd-expert"
 [ -z "$(jq -r '.hooks // empty' "$CODEX_ROOT/.codex-plugin/plugin.json")" ] || fail "Codex ddd-expert manifest should not declare hooks"
+jq -e '.interface.longDescription | length > 0' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should describe the complete workflow"
+jq -e '.interface.developerName | length > 0' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should name its developer"
+jq -e '.interface.defaultPrompt | length == 1 and all(.[]; contains("$ddd-expert:event-storming"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should use the single EventStorming modeling entry"
+jq -e '.interface.capabilities | index("Write")' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should declare artifact writes"
 [ ! -e "$CLAUDE_ROOT/hooks" ] || fail "Claude ddd-expert should not ship hooks"
 [ ! -e "$CODEX_ROOT/hooks" ] || fail "Codex ddd-expert should not ship hooks"
 [ ! -e "$CODEX_ROOT/codex-hooks-snippet.json" ] || fail "Codex ddd-expert should not ship hook snippet"
@@ -98,8 +102,9 @@ if rg -n '\$?superpowers(:|-memory|-architect|-ddd-architect)|docs/superpowers' 
   fail "ddd-expert should not bind to superpowers plugins, skills, or paths"
 fi
 
-# The four phase skills own judgment and load the shared artifact protocol.
-for skill in explore shape codify guard; do
+# The modeling, implementation, and review skills own judgment and load the
+# shared artifact protocol where needed.
+for skill in event-storming codify guard; do
   claude_skill="$CLAUDE_ROOT/skills/$skill/SKILL.md"
   codex_skill="$CODEX_ROOT/skills/$skill/SKILL.md"
   [ -f "$claude_skill" ] || fail "Claude ddd-expert missing $skill skill"
@@ -123,12 +128,12 @@ if rg -n '^user-invocable:' "$codex_maintainer" >/dev/null; then
 fi
 assert_references_last "$claude_maintainer" "maintain-artifacts"
 
-expected_skill_inventory="$(printf '%s\n' codify explore guard maintain-artifacts shape | sort)"
+expected_skill_inventory="$(printf '%s\n' codify event-storming guard maintain-artifacts | sort)"
 for root in "$CLAUDE_ROOT" "$CODEX_ROOT"; do
   actual_skill_inventory="$(find "$root/skills" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)"
   [ "$actual_skill_inventory" = "$expected_skill_inventory" ] || {
     diff -u <(printf '%s\n' "$expected_skill_inventory") <(printf '%s\n' "$actual_skill_inventory") >&2 || true
-    fail "ddd-expert skill inventory should contain exactly four phases and the internal artifact protocol"
+    fail "ddd-expert skill inventory should contain one modeling skill, codify, guard, and the internal artifact protocol"
   }
 done
 
@@ -152,81 +157,91 @@ for retired_skill in domain-modeling design implement review; do
   [ ! -e "$CODEX_ROOT/skills/$retired_skill" ] || fail "Codex should not keep retired $retired_skill alias"
 done
 
-assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" "load this plugin's internal \`maintain-artifacts\` skill" "explore should load the artifact protocol"
-assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'authority `explore`' "explore should identify its artifact authority"
-assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'execute its `inspect` or `apply-model` operation' "explore should authorize Model transactions"
-assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'never writes DDD artifacts directly' "explore should not bypass the artifact executor"
-assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'ask exactly one focused question and end the turn' "explore should ask one focused question at a time"
-assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'Never append a contingent follow-up' "explore should defer contingent follow-up judgments"
-explore_skill="$CLAUDE_ROOT/skills/explore/SKILL.md"
-# These source sentinels protect scenario-led discovery and its single write gate.
-assert_contains "$explore_skill" 'user stories or equivalent business scenarios' "explore should accept user stories or equivalent scenarios as evidence"
-assert_contains "$explore_skill" 'shallow-scan every material source item' "explore should scan the complete source scope before descending"
-assert_contains "$explore_skill" 'A **source item** is the coverage unit' "explore should define a format-neutral coverage unit"
-assert_contains "$explore_skill" 'Never require or invent a Story ID' "explore should not require source Story IDs"
-assert_contains "$explore_skill" 'temporary source-coverage ledger' "explore should keep long-run coverage explicit"
-assert_contains "$explore_skill" 'it is not a DDD artifact' "explore should not persist Story Coverage as domain authority"
-assert_contains "$explore_skill" 'reconstruct a candidate current Bounded Context map' "explore should reconstruct an existing-system baseline"
-assert_contains "$explore_skill" 'Make the confirmation question self-contained' "explore should expose reconstructed baseline evidence before confirmation"
-assert_contains "$explore_skill" 'The recorded question itself must include that recommendation and zero-write consequence' "explore should make incomplete legacy migration questions self-contained"
-assert_contains "$explore_skill" 'Code is evidence of the current system, never business authority by itself' "explore should not promote code into business authority"
-assert_contains "$explore_skill" 'A **Scenario Thread** is the traversal unit' "explore should use end-to-end scenario traversal"
-assert_contains "$explore_skill" 'normal, failure, duplicate, cancellation, recovery, and concurrency paths' "explore should replay materially distinct alternate paths"
-assert_contains "$explore_skill" 'closest credible merge or split alternative' "explore should challenge changed boundaries"
-assert_contains "$explore_skill" 'Multiple contexts using one execution capability do not create a Shared Kernel' "explore should model shared execution capability as fan-out when warranted"
-assert_contains "$explore_skill" 'Runtime request/response does not create a reverse model dependency' "explore should distinguish calls from model dependency direction"
-assert_contains "$explore_skill" 'one integrated model proposal' "explore should expose the complete model before writing"
-assert_contains "$explore_skill" 'only artifact write-authorization gate' "explore should have one integrated artifact write gate"
-assert_contains "$explore_skill" 'Baseline confirmation establishes the working premise and never authorizes an intermediate artifact write' "explore should distinguish baseline confirmation from write authorization"
-assert_contains "$explore_skill" 'Intermediate topology, context, relationship, or "checkpoint" writes are forbidden' "explore should forbid partial model checkpoints"
-assert_contains "$explore_skill" '`invalid_layout` remains inspection evidence rather than migration authority' "explore should not treat an invalid legacy map as write authorization"
-assert_contains "$explore_skill" 'declare `context_map_migration: true` only after explicit acceptance of the final integrated target' "explore should authorize legacy map migration only through final acceptance"
-assert_contains "$explore_skill" 'inspect the complete DDD artifact root' "explore should inspect the complete artifact root before legacy migration"
-assert_contains "$explore_skill" 'every Model in that root that still uses the retired `## Context Relationships` heading' "explore should objectively discover every coordinated legacy Model"
-assert_contains "$explore_skill" 'root README when it still says `Context relationships are authoritative`' "explore should coordinate retired root README wording"
-assert_contains "$explore_skill" '**Apply once after acceptance**' "explore should apply the accepted model once"
-assert_contains "$explore_skill" 'Each changed Model revision advances at most once' "explore should advance each revision once per integrated proposal"
-assert_not_contains "$explore_skill" '`checkpointed`:' "explore should not expose the retired partial completion"
-assert_contains "$explore_skill" 'Only a `shape_ready` result routes affected contexts to `shape`' "only final shape-ready completion should route to Shape"
-assert_contains "$CLAUDE_ROOT/skills/explore/SKILL.md" 'Explore is `shape_ready`' "explore should define shape-ready completion"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" "load this plugin's internal \`maintain-artifacts\` skill" "shape should load the artifact protocol"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'authority `shape`' "shape should identify its artifact authority"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'run `apply-design` through `maintain-artifacts`' "shape should authorize Design transactions"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'never writes DDD artifacts directly' "shape should not bypass the artifact executor"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'ask exactly one focused design question and end the turn' "shape should ask one focused question at a time"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'Never append a contingent follow-up' "shape should defer contingent follow-up judgments"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'Lead with an explicit recommendation' "shape should expose its recommendation before asking for acceptance"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'name the concrete competing intents or failure' "shape should make concurrency and failure evidence reviewable"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'focus by omission' "shape should not announce a checklist of deferred topics"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" '**Replay with Software Design EventStorming**' "shape should replay accepted scenarios tactically"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'Keep the board, sticky-note inventory, and hot-spot working notes temporary' "shape should not persist its analysis board"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'expose every material tactical conclusion and its evidence before artifact writing' "shape should expose decisions before writing"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'Do not collapse multiple unaccepted tactical choices into a first-turn integrated proposal' "shape should keep the first tactical question focused"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'Spell out the accepted invariant propositions and the relevant concurrent or failure path' "shape should expose concrete invariant evidence"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'include every accepted Model invariant whose owner or consistency boundary that decision would settle' "shape should not silently omit an invariant assigned by the active boundary decision"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'A request to generate the whole Design does not accept those choices' "shape should not treat a write request as design consensus"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'Do not create an Entity, Domain Service, Process Manager, collaboration, technical-constraint, or verification section solely to say that none exists' "shape should omit empty optional sections"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'accepted construction or validity rule' "shape should define Value Object validity without inventing facts"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'lifecycle scope, explicitly whether any lifecycle exists independently of its Aggregate Root' "shape should not manufacture an independent lifecycle for an owned Entity"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'A database or language House Style never authorizes a Domain identifier format' "shape should not promote implementation defaults into Domain identifier rules"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'present one integrated proposal, and wait for explicit user acceptance' "shape should keep its integrated write gate"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'A high-level direction is not integrated acceptance' "shape should not mistake direction for complete design acceptance"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'Calling a proposal "complete" does not fill an omitted Aggregate, lifecycle, coordination, contract, or design-significant correctness choice' "shape should verify accepted proposal coverage instead of trusting its label"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'may contain no tactical decision first introduced during writing' "shape documents should not introduce unseen decisions"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'trial implementation trace, not a story inventory' "shape Model Realization should not become Story Coverage"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'closest credible split or merge alternative' "shape should challenge aggregate boundaries"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'rather than creating a Runtime Event category' "shape should not invent a Runtime Event taxonomy"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'Shape may proceed only from a structurally valid acyclic Context Map' "shape should fail closed on cyclic Context Maps"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'returns to `explore` and forbids `apply-design`' "shape should route invalid Explore-owned layouts without writing"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'The Tactical Design is the Implementation handoff' "shape design should be the implementation handoff"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'It is `codify_ready`' "shape should define codify-ready completion"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'semantic owner' "shape should name the semantic owner of scheduled and recovery work"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'execution owner' "shape should separate execution ownership from business semantics"
+event_storming_skill="$CLAUDE_ROOT/skills/event-storming/SKILL.md"
+assert_contains "$event_storming_skill" '# Event Storming' "EventStorming should be the single modeling skill"
+assert_contains "$event_storming_skill" 'Big Picture and Process Modelling feed one convergence loop; Software Design EventStorming is its tactical zoom' "EventStorming should keep standard EventStorming formats in one workflow"
+assert_contains "$event_storming_skill" 'The default outcome is a codify-ready design' "EventStorming should default to the complete modeling outcome"
+assert_contains "$event_storming_skill" 'Stop after Strategic Modeling only when the original request explicitly asks' "EventStorming should stop early only for an explicit Strategic-only outcome"
+assert_contains "$event_storming_skill" "load this plugin's internal \`maintain-artifacts\` skill" "EventStorming should load the artifact protocol"
+assert_contains "$event_storming_skill" 'authority `event-storming`' "EventStorming should identify its artifact authority"
+assert_contains "$event_storming_skill" 'execute its `inspect`, `apply-model`, or `apply-design` operation' "EventStorming should authorize Model and Design transactions"
+assert_contains "$event_storming_skill" 'never writes DDD artifacts directly' "EventStorming should not bypass the artifact executor"
+assert_contains "$event_storming_skill" '`apply-model` may contain only accepted business language' "EventStorming should keep Model operations semantic"
+assert_contains "$event_storming_skill" '`apply-design` may contain only accepted tactical realizations' "EventStorming should keep Design operations tactical"
+assert_contains "$event_storming_skill" '`model_status: evolving` and `design_status: evolving`' "EventStorming should distinguish accepted evolving artifacts"
+assert_contains "$event_storming_skill" '`model_status: shape_ready` and `design_status: codify_ready`' "EventStorming should expose both readiness levels"
+
+# These sentinels protect the single EventStorming convergence loop.
+assert_contains "$event_storming_skill" '## EventStorming workflow' "EventStorming should own one explicit modeling workflow"
+workflow_step_count="$(awk '/^## EventStorming workflow$/ { in_workflow = 1; next } /^## Convergence protocol$/ { in_workflow = 0 } in_workflow && /^[0-9]+\. \*\*/ { count++ } END { print count + 0 }' "$event_storming_skill")"
+[ "$workflow_step_count" -eq 7 ] || fail "EventStorming should keep exactly seven modeling actions, found $workflow_step_count"
+assert_contains "$event_storming_skill" '**Build the event timeline**' "EventStorming should order business events before design"
+assert_contains "$event_storming_skill" '**Add commands, roles, systems, rules, and hotspots**' "EventStorming should enrich the timeline with decision evidence"
+assert_contains "$event_storming_skill" '**Discover model boundaries**' "EventStorming should co-evolve provisional objects, Aggregates, and contexts"
+assert_contains "$event_storming_skill" 'temporary object, responsibility, and Aggregate candidates' "EventStorming should keep early tactical candidates provisional"
+assert_contains "$event_storming_skill" 'feed the result back into object ownership and context boundaries until both cohere' "EventStorming should iterate Aggregate and context boundaries together"
+assert_contains "$event_storming_skill" '**Establish context collaboration**' "EventStorming should establish directional context contracts"
+assert_contains "$event_storming_skill" '**Run Software Design EventStorming**' "EventStorming should zoom into tactical design"
+assert_contains "$event_storming_skill" '**Challenge the Tactical Design**' "EventStorming should test tactical candidates against concrete pressure"
+assert_contains "$event_storming_skill" 'return to the relevant earlier step inside this skill' "tactical pressure should reopen discovery inside the same workflow"
+assert_contains "$event_storming_skill" 'Events placed during discovery are evidence that something happened' "discovery events should remain evidence before classification"
+assert_contains "$event_storming_skill" 'They are not automatically Domain Event types' "EventStorming should not prematurely classify discovery events"
+assert_contains "$event_storming_skill" 'For a long evidence set only, keep temporary coverage notes' "EventStorming should add bookkeeping only when scope needs it"
+assert_contains "$event_storming_skill" 'Never require or invent Story IDs' "EventStorming should not require source Story IDs"
+assert_contains "$event_storming_skill" 'Given <triggering facts and available information>' "EventStorming should define causal Scenario Thread completeness"
+assert_contains "$event_storming_skill" 'changed rights, obligations, or value' "EventStorming should trace material stakeholder effects"
+assert_contains "$event_storming_skill" 'not every imaginable detail' "EventStorming should keep scenario completeness proportionate"
+assert_contains "$event_storming_skill" 'shallow-scan the scoped evidence' "EventStorming should scan the complete source scope before descending"
+assert_contains "$event_storming_skill" 'code shows current behavior but is never business authority by itself' "EventStorming should not promote code into business authority"
+assert_contains "$event_storming_skill" 'Use a deletion test as a restraint heuristic' "EventStorming should remove names with no independent meaning without making a new gate"
+assert_contains "$event_storming_skill" 'runtime request/response does not create a reverse dependency' "EventStorming should distinguish calls from model dependency direction"
+assert_contains "$event_storming_skill" "Each context's Local View is one fenced \`text\` ASCII wireframe" "EventStorming should require one Local View wireframe"
+assert_contains "$event_storming_skill" 'do not add U/D labels, use Mermaid, or render one relationship per Markdown line' "EventStorming should encode dependency only through Local View arrows"
+
+# Authoritative Model facts and justified Design decisions are incremental, while readiness remains exhaustive.
+assert_contains "$event_storming_skill" '**accepted** means authoritative enough to persist' "EventStorming should define acceptance by authority rather than ceremony"
+assert_contains "$event_storming_skill" 'not necessarily approved by the user in a separate ceremony' "EventStorming should not require duplicate user approval"
+assert_contains "$event_storming_skill" '## Convergence protocol' "EventStorming should separate modeling actions from cross-cutting convergence rules"
+convergence_rule_count="$(awk '/^## Convergence protocol$/ { in_protocol = 1; next } /^## Tactical Design artifact$/ { in_protocol = 0 } in_protocol && /^[0-9]+\. \*\*/ { count++ } END { print count + 0 }' "$event_storming_skill")"
+[ "$convergence_rule_count" -eq 4 ] || fail "EventStorming should keep exactly four convergence rules, found $convergence_rule_count"
+assert_contains "$event_storming_skill" '**Stay proportionate**' "EventStorming should avoid performing a visible checklist"
+assert_contains "$event_storming_skill" '**Use questions to advance the model**' "EventStorming questions should close modeling gaps rather than enforce an approval ritual"
+assert_contains "$event_storming_skill" 'first apply every independent accepted slice' "EventStorming should persist unblocked decisions before asking"
+assert_contains "$event_storming_skill" 'answer belongs to the user or a domain authority and can materially change a scoped Scenario Thread' "EventStorming should ask only authoritative model-changing questions"
+assert_contains "$event_storming_skill" 'Focus one coherent Hotspot per turn, not one grammatical interrogative' "EventStorming should group dependent questions by modeling purpose"
+assert_contains "$event_storming_skill" 'A **modeling probe**' "EventStorming should support fact and counterexample discovery"
+assert_contains "$event_storming_skill" 'Do not manufacture a binary choice or provide a recommendation when discovering what the business does' "EventStorming discovery questions should remain neutral"
+assert_contains "$event_storming_skill" 'A **decision proposal**' "EventStorming should distinguish owned tradeoffs from discovery"
+assert_contains "$event_storming_skill" 'Do not block merely to obtain approval for a DDD label, Aggregate boundary, lifecycle notation' "EventStorming should own evidence-supported design representation"
+assert_contains "$event_storming_skill" 'plausible answers would produce different board or artifact deltas' "EventStorming questions should have discriminating modeling value"
+assert_contains "$event_storming_skill" 'do not restate every accepted fact inside the question' "EventStorming should keep accepted meaning in the model rather than question prose"
+assert_contains "$event_storming_skill" 'Never hide context needed to understand a proposal only in verification metadata' "EventStorming should not hide decision context from the user"
+assert_contains "$event_storming_skill" '**Apply accepted slices immediately**' "EventStorming should persist Model and Design decisions incrementally"
+assert_contains "$event_storming_skill" 'run `apply-model` or `apply-design` for its smallest consistency closure' "EventStorming should limit writes to their semantic closure"
+assert_contains "$event_storming_skill" 'never wait for unrelated hotspots' "EventStorming should not retain a whole-workflow Model write gate"
+assert_contains "$event_storming_skill" '**Loop and prove readiness by replay**' "EventStorming should prove readiness after incremental decisions"
+assert_contains "$event_storming_skill" 'promote independent or coupled closures to `codify_ready` only when complete replay adds no new decision' "EventStorming should not repeat accepted decisions at completion"
+assert_contains "$event_storming_skill" '## Readiness and modeling conversation' "EventStorming should keep one visible interaction contract"
+assert_contains "$event_storming_skill" 'express them naturally; a compact block is optional' "EventStorming should make readiness content visible without fixing its presentation"
+assert_contains "$event_storming_skill" 'Applied: <accepted semantic and tactical slices>' "EventStorming should expose applied progress"
+assert_contains "$event_storming_skill" 'Active: <one coherent Hotspot or none>' "EventStorming should expose the active hotspot"
+assert_contains "$event_storming_skill" 'Remaining: <material semantic/tactical obligations or none>' "EventStorming should expose remaining obligations"
+assert_contains "$event_storming_skill" 'State: model_open | model_ready | design_open | codify_ready' "EventStorming should expose strategic and tactical readiness"
+assert_contains "$event_storming_skill" 'There is no required punctuation, heading sequence, or number of subordinate questions' "EventStorming should not reduce model discovery to a question format"
+assert_contains "$event_storming_skill" 'A short exchange may report readiness in one sentence' "EventStorming should keep simple exchanges proportionate"
+assert_not_contains "$event_storming_skill" 'one interrogative sentence' "EventStorming should not require one-question-mark choreography"
+assert_not_contains "$event_storming_skill" 'defer that choice to the next turn instead of appending it' "EventStorming should not split one causal Hotspot mechanically"
+assert_contains "$event_storming_skill" '`codify_ready` requires every material Model obligation to be accounted for' "EventStorming should define exhaustive design readiness"
+assert_contains "$event_storming_skill" 'every applicable design choice resolved and justified under the authority rule above' "EventStorming should own evidence-supported tactical choices"
+assert_contains "$event_storming_skill" 'resolving them cannot change the handoff' "EventStorming should not exclude material handoff work"
+assert_contains "$event_storming_skill" 'declare `context_map_migration: true`' "EventStorming should keep whole-set legacy migration explicit"
 assert_contains "$CLAUDE_ROOT/templates/model.md" '# <Bounded Context> Domain Model' "model template should identify its bounded context"
 assert_contains "$CLAUDE_ROOT/templates/model.md" 'model_revision: 1' "model template should start revision tracking"
+assert_contains "$CLAUDE_ROOT/templates/model.md" 'model_status: evolving' "model template should start as accepted but evolving"
 assert_contains "$CLAUDE_ROOT/templates/model.md" '## Failure and Recovery Semantics' "model template should preserve failure semantics"
 assert_contains "$CLAUDE_ROOT/templates/design.md" '# <Bounded Context> Tactical Design' "design template should identify its bounded context"
 assert_contains "$CLAUDE_ROOT/templates/design.md" 'based_on_model_revision: 1' "design template should bind to a model revision"
+assert_contains "$CLAUDE_ROOT/templates/design.md" 'design_status: evolving' "design template should start as accepted but evolving"
 assert_contains "$CLAUDE_ROOT/templates/design.md" '## Model Realization' "design template should trace material Model obligations"
 assert_contains "$CLAUDE_ROOT/templates/design.md" '## Aggregate Designs' "design template should center Aggregate reasoning"
 assert_contains "$CLAUDE_ROOT/templates/design.md" '#### Boundary Thesis' "design template should state Aggregate boundary evidence"
@@ -247,7 +262,7 @@ assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" '|-- README.md' "art
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" '|-- context-map.md' "artifact layout should require a Context Map"
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'context/<context-slug>/model.md' "artifact layout should own per-context model placement"
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'context/<context-slug>/design.md' "artifact layout should own per-context design placement"
-assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'design.md` is intentionally absent' "artifact layout should allow the pre-Shape intermediate state"
+assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" '`model_status: shape_ready` plus a revision-matched `design_status: codify_ready`' "artifact layout should define the Codify readiness gate"
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'one global Mermaid `graph LR`' "artifact layout should require one global Context Map view"
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'upstream (`U`) to downstream (`D`)' "artifact layout should define Context Map arrow direction"
 assert_contains "$CLAUDE_ROOT/templates/context-map.md" '## Global View' "Context Map template should expose one global view"
@@ -259,19 +274,28 @@ assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'unique lower_snake_case
 assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'need not duplicate the context directory slug' "Context Map node identifiers should remain document syntax"
 assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'upstream_context --> downstream_context' "Context Map template should keep edges unlabeled"
 assert_contains "$CLAUDE_ROOT/templates/context-map.md" '#### Local View' "Context Map template should project direct neighbors locally"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'fenced `text` wireframe' "Context Map Local View should be an ASCII wireframe"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'Dependency arrows point from upstream to downstream, so do not add U/D labels' "Context Map Local View arrows should carry dependency direction without U/D labels"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'one connected fan-in/fan-out drawing rather than one relationship per Markdown line' "Context Map Local View should be one connected drawing"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" '| <Upstream Context> | ----> | <Downstream Context> |' "Context Map Local View should show boxed contexts joined by an arrow"
+assert_contains "$CLAUDE_ROOT/templates/context-map.md" 'Local Views never use Mermaid' "Context Map should reserve Mermaid for the Global View"
 assert_contains "$CLAUDE_ROOT/templates/context-map.md" '#### Upstream Dependencies' "Context Map template should expose downstream acceptance"
 assert_contains "$CLAUDE_ROOT/templates/context-map.md" '#### Downstream Contracts' "Context Map template should expose upstream publication"
 assert_not_contains "$CLAUDE_ROOT/templates/context-map.md" '## Relationships' "Context Map template should not keep a detached relationship inventory"
 assert_contains "$CLAUDE_ROOT/templates/README.md" '[<Bounded Context>](context/<context-slug>/model.md)' "artifact README should use real context links"
 assert_contains "$CLAUDE_ROOT/templates/README.md" '[context-map.md](context-map.md)' "artifact README should link the Context Map"
 assert_contains "$CLAUDE_ROOT/templates/README.md" '`design.md` lives beside' "artifact README should locate each Tactical Design"
-assert_contains "$CLAUDE_ROOT/templates/README.md" 'may be absent until Shape' "artifact README should explain the pre-Shape Design state"
+assert_contains "$CLAUDE_ROOT/templates/README.md" 'may be absent before EventStorming applies the first accepted tactical slice' "artifact README should explain the pre-checkpoint Design state"
+assert_contains "$CLAUDE_ROOT/templates/README.md" 'remains `evolving`' "artifact README should explain Design readiness"
 assert_not_contains "$CLAUDE_ROOT/templates/README.md" '## Structure' "artifact README should not duplicate the canonical structure"
 assert_not_contains "$CLAUDE_ROOT/templates/README.md" '|--' "artifact README should not maintain a dynamic directory tree"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" "load this plugin's internal \`maintain-artifacts\` skill" "codify should load the artifact protocol"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'execute only its `inspect` operation' "codify should request read-only artifact inspection"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'never request or perform an apply operation' "codify should never authorize artifact writes"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" '`evolving_model`' "codify should reject evolving Models"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" '`evolving_design`' "codify should reject evolving Designs"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" '`stale_design`' "codify should reject stale designs"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'route semantic or tactical gaps to `event-storming`' "codify should route all modeling work through EventStorming"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'verdicts belong to Guard and are not Codify output' "codify should route artifact feedback without Guard verdicts"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'multi-label realization map' "codify should classify one obligation across every touched surface"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Runtime/platform label never suppresses an applicable flow label' "codify should not let Runtime classification hide an applicable flow"
@@ -287,7 +311,8 @@ assert_not_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'clear over the final 
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" "load this plugin's internal \`maintain-artifacts\` skill" "guard should load the artifact protocol"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'execute only its `inspect` operation' "guard should request read-only artifact inspection"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'never request or perform an apply operation' "guard should never authorize artifact writes"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'A `stale_design` or `pending_design_reconciliation` result' "guard should report stale designs"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'An `evolving_model`, `evolving_design`, `stale_design`, or `pending_design_reconciliation` result' "guard should report non-ready designs"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'Route missing or contradictory business authority to `event-storming`' "guard should route modeling gaps through EventStorming"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'Design Realization and House-Style Conformance' "guard should define two required review axes"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '**Freeze one Review Envelope**' "guard should freeze shared review inputs before dispatch"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'launch two independent read-only workers concurrently' "guard should launch both axes concurrently"
@@ -335,21 +360,35 @@ if rg -n '(Agent tool|Task tool|general-purpose|spawn_agent|subagent_type|run_in
   fail "shared guard skill should describe delegation without platform-specific agent APIs"
 fi
 assert_contains "$claude_maintainer" 'Codify and Guard can never run an apply operation' "artifact maintainer should reject downstream writes"
-assert_contains "$claude_maintainer" '`apply-model` | Explore' "artifact maintainer should authorize Model writes only from Explore"
-assert_contains "$claude_maintainer" '`apply-design` | Shape' "artifact maintainer should authorize Design writes only from Shape"
+assert_contains "$claude_maintainer" '`apply-model` | `event-storming`' "artifact maintainer should authorize Model writes only from EventStorming"
+assert_contains "$claude_maintainer" '`apply-design` | `event-storming`' "artifact maintainer should authorize Design writes only from EventStorming"
 assert_contains "$claude_maintainer" 'An `inspect` operation needs no expected revision' "artifact inspection should discover revisions"
 assert_contains "$claude_maintainer" 'consistency set' "artifact apply operations should declare their read-only consistency set"
 assert_contains "$claude_maintainer" 'read dependencies' "artifact consistency sets should cover accepted inputs outside the write set"
 assert_contains "$claude_maintainer" 'write set is a subset of the consistency set' "artifact writes should be covered by the consistency set"
+assert_contains "$claude_maintainer" 'exact accepted decision slice and its evidence' "artifact writes should identify their accepted decision"
 assert_contains "$claude_maintainer" 'require every expected path pre-state in the consistency set to match' "artifact apply should reject stale semantic inputs"
 assert_contains "$claude_maintainer" 'A stale or missing Design is a valid pre-state for `apply-design`' "artifact maintainer should repair stale Designs"
 assert_contains "$claude_maintainer" 'Preserve accepted wording and distinctions' "artifact maintainer should not make semantic edits"
 assert_contains "$claude_maintainer" 'Reject absolute slugs, path separators, `.` or `..` segments' "artifact maintainer should reject unsafe context paths"
-assert_contains "$claude_maintainer" 'returns `changed` with a `pending_design_reconciliation` observation' "artifact maintainer should support two-phase context topology changes"
-assert_contains "$claude_maintainer" 'increment each changed Model at most once for the accepted integrated model transaction' "artifact maintainer should advance Model revisions once per integrated proposal"
+assert_contains "$claude_maintainer" 'returns `changed` with a `pending_design_reconciliation` observation' "artifact maintainer should support two-operation context topology changes"
+assert_contains "$claude_maintainer" 'increment each changed Model at most once for the accepted decision slice' "artifact maintainer should advance Model revisions once per accepted slice"
+assert_contains "$claude_maintainer" 'status-only readiness invalidation or promotion does not increment the revision or alter accepted prose' "Model readiness changes should not create semantic revision noise"
 assert_contains "$claude_maintainer" 'set each retained Design' "artifact maintainer should bind Designs to Models"
+assert_contains "$claude_maintainer" 'set `design_status` to the authorized target' "artifact maintainer should persist Design readiness"
+assert_contains "$claude_maintainer" '**Prepare the smallest consistency transaction**' "artifact maintainer should avoid workflow-wide transactions"
+assert_contains "$claude_maintainer" 'never derive or enlarge semantic scope on the executor' "artifact maintainer should validate rather than decide semantic closure"
+assert_contains "$claude_maintainer" 'validate those references mechanically without deciding semantic completeness' "artifact maintainer should not own readiness judgment"
+assert_contains "$claude_maintainer" 'Independent contexts and unrelated decisions never need a workflow-wide transaction' "artifact maintainer should keep transaction scope semantic"
+assert_contains "$claude_maintainer" '`evolving_model`' "artifact inspection should expose evolving Models"
+assert_contains "$claude_maintainer" '`evolving_design`' "artifact inspection should expose evolving Designs"
+assert_contains "$claude_maintainer" 'never return this observation for an `evolving` artifact' "artifact ready and evolving observations should not overlap"
+assert_contains "$claude_maintainer" 'legacy Model with no explicit status' "artifact inspection should fail closed on statusless Model readiness"
+assert_contains "$claude_maintainer" 'legacy Design with no explicit status' "artifact inspection should fail closed on statusless Design readiness"
+assert_contains "$claude_maintainer" 'only legacy frontmatter compatibility exception' "artifact inspection should distinguish statusless legacy files from invalid layout"
+assert_contains "$claude_maintainer" 'do not mutate the legacy file during inspection' "legacy readiness inspection should remain read-only"
 assert_contains "$claude_maintainer" 'This is a shared in-process workflow, not a separate agent' "artifact maintainer should not imply sub-agent delegation"
-assert_contains "$claude_maintainer" "Do not replace that phase's completion response" "artifact maintainer should resume its phase"
+assert_contains "$claude_maintainer" "Do not replace that workflow's completion response" "artifact maintainer should resume its workflow"
 assert_contains "$claude_maintainer" '../../templates/artifact-layout.md' "artifact maintainer should load the canonical layout"
 assert_contains "$claude_maintainer" '../../templates/README.md' "artifact maintainer should load the root README template"
 assert_contains "$claude_maintainer" '../../templates/context-map.md' "artifact maintainer should load the Context Map template"
@@ -360,6 +399,8 @@ assert_contains "$claude_maintainer" 'every accepted project Bounded Context exa
 assert_contains "$claude_maintainer" 'document-local unique `lower_snake_case` Mermaid identifier' "artifact maintainer should require only document-local node identity"
 assert_not_contains "$claude_maintainer" 'lower-snake-case stable identifier' "artifact maintainer should not claim cross-revision node identity stability"
 assert_contains "$claude_maintainer" 'unlabeled edge from upstream to downstream' "artifact maintainer should forbid ambiguous diagram edge labels"
+assert_contains "$claude_maintainer" 'one non-Mermaid `text` wireframe containing itself and exactly its direct neighbors' "artifact maintainer should require one Local View wireframe"
+assert_contains "$claude_maintainer" 'arrow direction expressing dependency and no U/D labels' "artifact maintainer should derive Local View dependency direction from arrows"
 assert_contains "$claude_maintainer" 'Keep the workspace working directory unchanged' "artifact maintainer should not change cwd to invoke the Context Map validator"
 assert_contains "$claude_maintainer" '`node <absolute-validator-path> <absolute-context-map-path>`' "artifact maintainer should invoke the validator with absolute paths"
 assert_contains "$claude_maintainer" '`context_map_migration: true`' "artifact maintainer should expose an explicit legacy Context Map migration flag"
@@ -369,28 +410,36 @@ assert_contains "$claude_maintainer" 'exact observed fingerprint and bytes' "leg
 assert_contains "$claude_maintainer" 'exact observed fingerprint and bytes of each still match' "coordinated legacy migration should reject stale source bytes"
 assert_contains "$claude_maintainer" 'complete accepted terminal Context Map, exact terminal content for every semantically affected Model, and exact terminal README content' "legacy Context Map migration should require a complete accepted target"
 assert_contains "$claude_maintainer" 'Replace the complete Context Map, every coordinated legacy Model, and any coordinated legacy README in the same atomic transaction' "legacy Context Map migration should be a whole-artifact atomic replacement"
-assert_contains "$claude_maintainer" 'Every other current-state invalidity aborts the transaction' "legacy Context Map migration should not bypass unrelated invalid layouts"
+assert_contains "$claude_maintainer" 'outside it but preventing validation of that set' "legacy Context Map migration should block only relevant invalid layouts"
+assert_contains "$claude_maintainer" 'other invalid artifacts remain unchanged and reported' "legacy Context Map migration should not absorb unrelated repairs"
 assert_contains "$claude_maintainer" 'never infers a dependency direction, contract, authority, translation, or other semantic repair' "artifact maintainer should not decide legacy-map migration semantics"
-assert_contains "$claude_maintainer" 'all other current-pre-state failures abort every apply operation with no write or semantic repair' "artifact maintainer should fail closed outside the controlled migration"
+assert_contains "$claude_maintainer" 'inside the declared consistency closure or a required structural counterpart aborts' "artifact maintainer should fail closed inside the accepted slice"
+assert_contains "$claude_maintainer" 'outside that closure without expanding or blocking the apply' "artifact maintainer should not couple independent invalid artifacts"
 assert_contains "$claude_maintainer" 'self-loops, reciprocal edges, longer cycles' "artifact maintainer should enforce the Context Map DAG"
 assert_contains "$claude_maintainer" 'runtime request and response may use one owned contract without creating a reverse dependency' "artifact maintainer should separate runtime interaction from dependency direction"
 if rg -n '../../templates/' \
-  "$CLAUDE_ROOT/skills/explore/SKILL.md" \
-  "$CLAUDE_ROOT/skills/shape/SKILL.md" \
+  "$CLAUDE_ROOT/skills/event-storming/SKILL.md" \
   "$CLAUDE_ROOT/skills/codify/SKILL.md" \
   "$CLAUDE_ROOT/skills/guard/SKILL.md" \
-  "$CODEX_ROOT/skills/explore/SKILL.md" \
-  "$CODEX_ROOT/skills/shape/SKILL.md" \
+  "$CODEX_ROOT/skills/event-storming/SKILL.md" \
   "$CODEX_ROOT/skills/codify/SKILL.md" \
   "$CODEX_ROOT/skills/guard/SKILL.md" >/dev/null; then
-  fail "phase skills should load template mechanics through maintain-artifacts"
+  fail "workflow skills should load template mechanics through maintain-artifacts"
 fi
 if rg -n '(\$|/)ddd-expert:' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
   rg -n '(\$|/)ddd-expert:' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >&2
   fail "shared SKILL contracts should not contain platform-specific invocation syntax"
 fi
-assert_contains "$CLAUDE_ROOT/README.md" '/ddd-expert:explore' "Claude README should use slash skill invocation"
-assert_contains "$CODEX_ROOT/README.md" '$ddd-expert:explore' "Codex README should use dollar skill invocation"
+assert_contains "$CLAUDE_ROOT/README.md" '/ddd-expert:event-storming' "Claude README should use the EventStorming slash invocation"
+assert_contains "$CODEX_ROOT/README.md" '$ddd-expert:event-storming' "Codex README should use the EventStorming dollar invocation"
+assert_contains "$CLAUDE_ROOT/README.md" 'Use EventStorming as the single modeling path' "Claude README should expose one modeling workflow"
+assert_contains "$CODEX_ROOT/README.md" 'Use EventStorming as the single modeling path' "Codex README should expose one modeling workflow"
+assert_contains "$CLAUDE_ROOT/README.md" 'same skill loops between business discovery and software design' "Claude README should hide modeling choreography"
+assert_contains "$CODEX_ROOT/README.md" 'same skill loops between business discovery and software design' "Codex README should hide modeling choreography"
+assert_contains "$CLAUDE_ROOT/README.md" 'uses proportionate Big Picture and Process Modelling' "Claude README should put strategic EventStorming before Tactical Design"
+assert_contains "$CODEX_ROOT/README.md" 'Software Design EventStorming assigns Aggregate decisions' "Codex README should distinguish tactical EventStorming"
+assert_contains "$CLAUDE_ROOT/README.md" 'does not force a new repository-wide Big Picture' "Claude README should keep EventStorming proportionate"
+assert_contains "$CODEX_ROOT/README.md" 'codex plugin marketplace upgrade skill-workshop-codex' "Codex README should upgrade by marketplace name"
 assert_contains "$CLAUDE_ROOT/README.md" 'clear independent Guard in the same task' "Claude README should expose the Codify completion gate"
 assert_contains "$CODEX_ROOT/README.md" 'clear independent Guard in the same task' "Codex README should expose the Codify completion gate"
 if rg -n -F '$ddd-expert:maintain-artifacts' "$CODEX_ROOT/README.md" >/dev/null; then
@@ -398,7 +447,7 @@ if rg -n -F '$ddd-expert:maintain-artifacts' "$CODEX_ROOT/README.md" >/dev/null;
 fi
 if rg -n -F 'docs/ddd-expert/context/' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
   rg -n -F 'docs/ddd-expert/context/' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >&2
-  fail "phase skills should resolve artifact paths through the central layout contract"
+  fail "workflow skills should resolve artifact paths through the central layout contract"
 fi
 if rg -n -F 'docs/ddd/' "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null; then
   rg -n -F 'docs/ddd/' "$CLAUDE_ROOT" "$CODEX_ROOT" >&2
@@ -422,14 +471,10 @@ assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'route `codify`' "guard sho
 
 if rg -n 'ddd-golang-(scaffold|domain|application|transport|cqrs|infrastructure|events-messages|taskqueue|runtime)\.md' \
   "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
-  fail "phase skills should enter Go House Style through its router rather than link implementation leaves directly"
+  fail "workflow skills should enter Go House Style through its router rather than link implementation leaves directly"
 fi
-if rg -n 'ddd-(golang|python|typescript)\.md' \
-  "$CLAUDE_ROOT/skills/explore/SKILL.md" "$CODEX_ROOT/skills/explore/SKILL.md" >/dev/null; then
-  fail "explore should not load language House Style"
-fi
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'For Go, start with' "shape should enter Go guidance through its router"
-assert_contains "$CLAUDE_ROOT/skills/shape/SKILL.md" 'For Python or TypeScript, load only the relevant section' "shape should load compact language guides selectively"
+assert_contains "$event_storming_skill" 'For Go, start with' "EventStorming should enter Go guidance through its router"
+assert_contains "$event_storming_skill" 'For Python or TypeScript, load only the relevant compact language section' "EventStorming should load compact language guides selectively"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Go, start with' "codify should enter Go guidance through its router"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Python or TypeScript, load only the sections for touched surfaces' "codify should load compact language guides selectively"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For triggered Go code, start with' "guard should enter Go guidance through its router during depth"
@@ -513,13 +558,13 @@ if rg -ni 'evaluation evidence|evaluation fixture|eval fixture|scoring fixture|k
   fail "references should not contain evaluation-fixture material"
 fi
 
-if rg -ni 'return(s|ed)? to `?(explore|shape|codify|guard)`?|return-to-(explore|shape|codify|guard)' "${optimized_refs[@]}" >/dev/null; then
-  rg -ni 'return(s|ed)? to `?(explore|shape|codify|guard)`?|return-to-(explore|shape|codify|guard)' "${optimized_refs[@]}" >&2
-  fail "references should expose missing authority while phase skills own routing"
+if rg -ni 'return(s|ed)? to `?(event-storming|codify|guard)`?|return-to-(event-storming|codify|guard)' "${optimized_refs[@]}" >/dev/null; then
+  rg -ni 'return(s|ed)? to `?(event-storming|codify|guard)`?|return-to-(event-storming|codify|guard)' "${optimized_refs[@]}" >&2
+  fail "references should expose missing authority while workflow skills own routing"
 fi
 
 if rg -n '\.\./skills/|skills/[[:alnum:]-]+/SKILL\.md' "${optimized_refs[@]}" >/dev/null; then
-  fail "references should not link directly to phase skill files"
+  fail "references should not link directly to workflow skill files"
 fi
 
 if rg -ni '^#{1,4}[[:space:]]+.*(Planning Workflow|Architecture Gate|Level [123]|Boundary Checklist|Mechanized Review Checks|DDD Tactical Design Reference|Key Principles Summary)' \
@@ -529,11 +574,11 @@ if rg -ni '^#{1,4}[[:space:]]+.*(Planning Workflow|Architecture Gate|Level [123]
   fail "language references should not retain planning workflows or review-checklist sediment"
 fi
 
-if rg -ni 'active (DDD )?phase|phase skill|phase route|plan/spec must|apply the gates' \
+if rg -ni 'active DDD workflow|workflow skill|workflow route|plan/spec must|apply the gates' \
   "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >/dev/null; then
-  rg -ni 'active (DDD )?phase|phase skill|phase route|plan/spec must|apply the gates' \
+  rg -ni 'active DDD workflow|workflow skill|workflow route|plan/spec must|apply the gates' \
     "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >&2
-  fail "language references should not duplicate phase workflow contracts"
+  fail "language references should not duplicate workflow contracts"
 fi
 
 if rg -ni '\b(FastAPI|Uvicorn|Pydantic|SQLAlchemy|Celery|Structlog|Fastify|TypeBox|Kysely|BullMQ|XState|Pino)\b' \
@@ -711,4 +756,4 @@ assert_contains "$ROOT/docs/adr/0001-ddd-expert-reference-architecture.md" 'laye
 assert_contains "$ROOT/docs/adr/0001-ddd-expert-reference-architecture.md" 'immutable base/target identifiers' "DDD ADR should preserve stable committed Guard inputs"
 assert_contains "$ROOT/docs/adr/0001-ddd-expert-reference-architecture.md" 'immutable base plus a complete fingerprinted worktree snapshot' "DDD ADR should preserve stable worktree Guard inputs"
 
-echo "  ddd-expert plugin: phase contracts and reference architecture correct"
+echo "  ddd-expert plugin: workflow contracts and reference architecture correct"

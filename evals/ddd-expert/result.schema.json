@@ -9,7 +9,7 @@
     },
     "phase": {
       "type": "string",
-      "enum": ["explore", "shape", "codify", "guard"]
+      "enum": ["event-storming", "codify", "guard"]
     },
     "completion": {
       "type": "string",
@@ -35,7 +35,7 @@
         "properties": {
           "target": {
             "type": "string",
-            "enum": ["explore", "shape", "codify", "guard"]
+            "enum": ["event-storming", "codify", "guard"]
           },
           "reason": {
             "type": "string",

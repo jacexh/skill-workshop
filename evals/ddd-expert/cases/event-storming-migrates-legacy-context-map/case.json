@@ -1,0 +1,168 @@
+{
+  "id": "event-storming-migrates-legacy-context-map",
+  "phase": "event-storming",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["event-storming", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/agent-execution/model.md",
+        "docs/ddd-expert/context/work/model.md",
+        "docs/ddd-expert/context/project-knowledge/model.md"
+      ],
+      "allowed_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/agent-execution/model.md",
+        "docs/ddd-expert/context/work/model.md",
+        "docs/ddd-expert/context/project-knowledge/model.md"
+      ],
+      "forbidden_paths": [
+        "docs/accepted-context-map-migration.md",
+        "docs/ddd-expert/context/agent-execution/design.md",
+        "docs/ddd-expert/context/work/design.md",
+        "docs/ddd-expert/context/project-knowledge/design.md"
+      ]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/README.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "Context dependencies and named contracts are authoritative in [context-map.md](context-map.md)."
+        ],
+        "excludes": ["## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": ["Context relationships are authoritative", "Source Coverage", "Story Coverage", "Coverage Ledger"],
+        "excludes_words": []
+      },
+      {
+        "path": "docs/ddd-expert/context-map.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.",
+          "agent_execution[\"Agent Execution\"]",
+          "work[\"Work\"]",
+          "project_knowledge[\"Project Knowledge\"]",
+          "agent_execution --> work",
+          "agent_execution --> project_knowledge",
+          "#### Local View",
+          "```text",
+          "| Agent Execution |--+----->| Work |",
+          "+----->| Project Knowledge |",
+          "| Agent Execution |-->| Work |",
+          "| Agent Execution |-->| Project Knowledge |",
+          "##### Work Agent Run Outcome",
+          "##### Knowledge Agent Run Outcome",
+          "#### Downstream Contracts",
+          "#### Upstream Dependencies"
+        ],
+        "contains_any": [
+          ["Agent Execution owns Agent Run", "Agent Execution is authoritative for Agent Run", "Agent Execution retains authority over Agent Run", "Agent Run admission, identity, lifecycle, and terminal outcome", "Agent Run admission, identity, lifecycle, and terminal outcomes"],
+          ["Work owns Work lifecycle and completion", "Work alone owns Work completion", "Work retains authority over Work completion", "Work lifecycle and completion"],
+          ["Project Knowledge owns Knowledge Candidate evaluation and acceptance", "Project Knowledge alone accepts Knowledge Candidates", "Project Knowledge retains authority over Candidate acceptance", "Knowledge Candidate evaluation and acceptance"],
+          ["never completes a Work", "does not complete a Work", "does not by itself complete Work", "cannot complete Work by itself"],
+          ["never accepts a Knowledge Candidate", "does not accept a Knowledge Candidate", "does not by itself accept a Candidate", "cannot accept a Candidate by itself"]
+        ],
+        "contains_words": ["Published", "Guarantee", "Accepted", "translation"],
+        "excludes": [
+          "## Relationships",
+          "Work <-> Project Knowledge",
+          "work --> project_knowledge",
+          "project_knowledge --> work",
+          "[U]",
+          "[D]",
+          "- No context dependencies.",
+          "<!--",
+          "## Source Coverage",
+          "## Story Coverage",
+          "## Coverage Ledger"
+        ],
+        "excludes_semantic": [
+          "Partnership",
+          "Shared Kernel",
+          "Agent Execution completes Work",
+          "Agent Run outcome completes a Work",
+          "Agent Execution accepts a Knowledge Candidate",
+          "Agent Run outcome accepts a Knowledge Candidate",
+          "Work owns Agent Run",
+          "Project Knowledge owns Agent Run",
+          "Source Coverage",
+          "Story Coverage",
+          "Coverage Ledger"
+        ],
+        "excludes_words": []
+      },
+      {
+        "path": "docs/ddd-expert/context/agent-execution/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": ["model_revision: 2", "model_status: shape_ready", "## Context Dependencies", "Work", "Project Knowledge"],
+        "contains_any": [
+          ["owns Agent Run", "authority for Agent Run", "authoritative Agent Run"],
+          ["publishes", "published"],
+          ["stable Agent Run identity", "stable Run identity"],
+          ["never completes a Work", "does not complete Work", "does not by itself complete Work", "Work accepts that outcome only as execution evidence", "accepts its outcome only as execution evidence", "retains authority over Work lifecycle and completion", "retains authority over Work completion", "Agent Run outcomes do not decide Work completion"],
+          ["never accepts a Knowledge Candidate", "does not accept a Knowledge Candidate", "does not by itself accept a Candidate", "Project Knowledge accepts that outcome only as execution evidence", "accepts its outcome only as execution evidence", "retains authority over Knowledge Candidate evaluation and acceptance", "retains authority over Knowledge Candidate acceptance", "Agent Run outcomes do not decide Work completion or Knowledge Candidate acceptance"]
+        ],
+        "contains_words": ["Agent", "Run", "Outcome"],
+        "excludes": ["<->", "<!--", "## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": ["Partnership", "Shared Kernel", "Work owns Agent Run", "Project Knowledge owns Agent Run", "Agent Execution completes Work", "Agent Execution accepts a Knowledge Candidate", "Source Coverage", "Story Coverage", "Coverage Ledger"],
+        "excludes_words": []
+      },
+      {
+        "path": "docs/ddd-expert/context/work/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": ["model_revision: 2", "model_status: shape_ready", "## Context Dependencies", "Agent Execution"],
+        "contains_any": [
+          ["Work owns Work lifecycle and completion", "Work alone owns Work completion", "Work retains authority over completion"],
+          ["execution evidence", "Agent Run evidence"],
+          ["never completes a Work", "does not complete Work", "does not by itself complete Work", "cannot complete Work by itself", "never treats an Agent Run outcome as completion of a Work"]
+        ],
+        "contains_words": ["Work", "completion"],
+        "excludes": ["<->", "<!--", "## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": ["Partnership", "Shared Kernel", "Agent Execution owns Work completion", "Agent Run outcome completes a Work", "Source Coverage", "Story Coverage", "Coverage Ledger"],
+        "excludes_words": []
+      },
+      {
+        "path": "docs/ddd-expert/context/project-knowledge/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": ["model_revision: 2", "model_status: shape_ready", "## Context Dependencies", "Agent Execution"],
+        "contains_any": [
+          ["Project Knowledge owns Knowledge Candidate evaluation and acceptance", "Project Knowledge alone accepts Knowledge Candidates", "Project Knowledge retains authority over Candidate acceptance"],
+          ["execution evidence", "Agent Run evidence"],
+          ["never accepts a Knowledge Candidate", "does not accept a Knowledge Candidate", "does not by itself accept a Candidate", "cannot accept a Candidate by itself", "never treats an Agent Run outcome as acceptance of a Knowledge Candidate"]
+        ],
+        "contains_words": ["Candidate"],
+        "excludes": ["<->", "<!--", "## Source Coverage", "## Story Coverage", "## Coverage Ledger"],
+        "excludes_semantic": ["Partnership", "Shared Kernel", "Agent Execution owns Candidate acceptance", "Agent Run outcome accepts a Knowledge Candidate", "Source Coverage", "Story Coverage", "Coverage Ledger"],
+        "excludes_words": []
+      }
+    ],
+    "checks": [
+      {
+        "argv": [
+          "node",
+          "/eval/validate-context-map.mjs",
+          "docs/ddd-expert/context-map.md"
+        ],
+        "exit": 0,
+        "timeout_seconds": 30
+      }
+    ]
+  }
+}

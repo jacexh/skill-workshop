@@ -21,7 +21,11 @@ graph LR
 
 #### Local View
 
-- `Payment [U] -> Order`
+```text
++---------+   +-------+
+| Payment |-->| Order |
++---------+   +-------+
+```
 
 #### Upstream Dependencies
 
@@ -38,7 +42,11 @@ graph LR
 
 #### Local View
 
-- `Payment -> Order [D]`
+```text
++---------+   +-------+
+| Payment |-->| Order |
++---------+   +-------+
+```
 
 #### Downstream Contracts
 

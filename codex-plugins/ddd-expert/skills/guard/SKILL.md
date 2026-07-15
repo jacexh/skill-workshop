@@ -13,7 +13,7 @@ Build or runtime blockers limit executable verification only. Continue independe
 
 Guard is read-only. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation in the same run with authority `guard`; never request or perform an apply operation. Report artifact evidence and routing through the review response without persisting findings under `docs/ddd-expert`.
 
-The originating request defines the claimed change scope, not business truth. Each affected context's Model owns business meaning; its revision-matched Design owns tactical obligations; ddd-expert references own implementation defaults; code, tests, and existing conventions are evidence.
+The originating request defines the claimed change scope, not business truth. Each affected context's `shape_ready` Model owns business meaning; its revision-matched `codify_ready` Design owns tactical obligations; ddd-expert references own implementation defaults; code, tests, and existing conventions are evidence.
 
 Establish before judging code:
 
@@ -23,7 +23,7 @@ Establish before judging code:
 4. changed files and necessary neighboring code, generated artifacts, migrations, configuration, runtime wiring, logs, and verification evidence;
 5. stable IDs for every scoped Design obligation, every changed file and required production path, and every additive layer, mechanism, and specialized-surface label attached to those paths.
 
-Code and tests never override accepted authority. Missing artifacts block only judgments that need them. A `stale_design` or `pending_design_reconciliation` result is not accepted implementation authority: report the material gap to `shape` while continuing independent conformance review. Route missing or contradictory business authority to `explore`.
+Code and tests never override accepted authority. Missing artifacts block only judgments that need them. An `evolving_model`, `evolving_design`, `stale_design`, or `pending_design_reconciliation` result is not ready implementation authority: report the material gap to `event-storming` while continuing independent conformance review. Route missing or contradictory business authority to `event-storming`.
 
 An explicit accepted Design choice governs only its stated scope. Vague waiver language and local convention cannot override the Model, Design, or an applicable house-style rule.
 
@@ -39,9 +39,9 @@ Scope narrows applicable responsibilities: an absent layer or surface that the r
 6. **Synthesize and verify**: combine duplicate symptoms into the smallest evidence-backed root cause, preserve its `[Realization]`, `[Conformance]`, or `[Both]` provenance, verify reported high-impact evidence, run available executable checks, and route each non-clear result.
 7. **Enforce completion**: the two coverage unions still reconcile exactly to their frozen inventory IDs; every frozen surface is clear/not applicable or has a terminal candidate; every hypothesis and depth request is terminal; adjacent evidence is closed; both required axis workers completed; the source snapshot did not drift; the frozen artifacts did not drift; every reported item cites concrete authority and implementation evidence. Snapshot drift makes the Guard execution incomplete rather than clear.
 
-If a required axis worker cannot be launched, fails, or returns unusable output, retry it once with a fresh worker and the same envelope. Each required role therefore has at most two attempts total. If it fails again, stop as an incomplete Guard execution. Do not substitute a main-thread axis, issue `No DDD findings`, infer an axis verdict, or emit an Explore/Shape/Codify route for this execution blocker.
+If a required axis worker cannot be launched, fails, or returns unusable output, retry it once with a fresh worker and the same envelope. Each required role therefore has at most two attempts total. If it fails again, stop as an incomplete Guard execution. Do not substitute a main-thread axis, issue `No DDD findings`, infer an axis verdict, or emit an `event-storming` or `codify` route for this execution blocker.
 
-A depth worker must return a terminal `clear`, `violation`, or `evidence_gap`. If it fails, returns unusable output, or returns `needs_depth`, stop as incomplete without redispatching that family. Do not infer a verdict or emit a phase route from this execution blocker.
+A depth worker must return a terminal `clear`, `violation`, or `evidence_gap`. If it fails, returns unusable output, or returns `needs_depth`, stop as incomplete without redispatching that family. Do not infer a verdict or emit a workflow route from this execution blocker.
 
 ## Axis contracts
 
@@ -80,7 +80,7 @@ A depth worker uses `depth:<reason-family>` as its axis, the same envelope, and 
 ## Hypothesis and dispatch discipline
 
 - A smell candidate is innocent until depth evidence proves a violation; seek evidence that clears it as actively as evidence that confirms it.
-- Every merged candidate ends `clear`, `violation`, or `evidence_gap`; attach a phase route only to a non-clear result.
+- Every merged candidate ends `clear`, `violation`, or `evidence_gap`; attach a workflow route only to a non-clear result.
 - Use a depth worker only when falsification needs a new large reference surface, cross-layer/cross-context tracing, runtime reachability, or credible disconfirming evidence. A direct one-file proof remains in its axis worker.
 - Missing, partial, and incorrect realization are violations when accepted authority and completed scope are clear. `unverifiable` is an evidence gap, not a substitute for proven absence.
 - A required verification seam that does not exist is missing realization. Existing verification that cannot run is a verification gap.
@@ -120,8 +120,8 @@ Each applicable sentinel seeds a hypothesis, never a verdict:
 
 ## Routing and reporting
 
-- Missing or contradictory business facts: `evidence_gap`, route `explore`.
-- Missing, stale, or contradictory tactical design: `evidence_gap`, route `shape`.
+- Missing or contradictory business facts, or an evolving Model: `evidence_gap`, route `event-storming`.
+- Missing, stale, or contradictory tactical design: `evidence_gap`, route `event-storming`.
 - Clear authority with missing, partial, or incorrect implementation, or a house-style violation: `violation`, route `codify`.
 - Missing runtime, test, or operational proof: report a material verification gap; do not turn an unavailable check into a model claim.
 

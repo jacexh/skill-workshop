@@ -1,0 +1,287 @@
+{
+  "id": "event-storming-baseline-with-open-lifecycle",
+  "phase": "event-storming",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "dialogue": {
+    "answer": "answer.md",
+    "first_turn": {
+      "completion": ["needs_clarification"],
+      "questions": {
+        "min": 1,
+        "max": 3,
+        "contains_any": [
+          ["Purchase", "commerce operator", "采购", "购买"],
+          ["stock check", "stock fails", "inventory check", "库存检查", "库存失败"],
+          ["fraud check", "fraud fails", "fraud review", "风控检查", "风控失败"],
+          ["who decides", "who records", "which authority", "what decides", "谁决定", "谁记录"],
+          ["what fact", "which fact", "what outcome", "resulting fact", "产生什么事实", "什么结果"],
+          ["fulfillment", "preparation", "release", "retry", "corrected evidence", "履约", "重试", "更正"]
+        ],
+        "propositions": [
+          {
+            "name": "question investigates Purchase authority when either check fails",
+            "accepts": [
+              "who decides the Purchase outcome when stock or fraud checks fail",
+              "does Purchase decide after a failed stock or fraud check",
+              "which authority records rejection when either check fails",
+              "what decides acceptance when stock or fraud evidence fails"
+            ],
+            "rejects": [
+              "Funds decides whether stock or fraud checks pass",
+              "the database decides Purchase acceptance",
+              "failed checks do not affect Purchase"
+            ]
+          },
+          {
+            "name": "question investigates the failure fact and business consequence",
+            "accepts": [
+              "what fact is established and whether fulfillment preparation stops",
+              "which rejection fact results and what happens to fulfillment",
+              "what outcome is recorded and whether retry requires new evidence",
+              "what business fact and consequence follow a failed check"
+            ],
+            "rejects": [
+              "no business fact is established",
+              "fulfillment always proceeds after a failed check",
+              "the failure changes Funds Settled"
+            ]
+          }
+        ],
+        "excludes": [
+          "transition table",
+          "state machine",
+          "lifecycle representation",
+          "Repository",
+          "database",
+          "Kafka"
+        ]
+      },
+      "git": {
+        "changed": "some",
+        "required_paths": [
+          "docs/ddd-expert/README.md",
+          "docs/ddd-expert/context-map.md",
+          "docs/ddd-expert/context/funds/model.md",
+          "docs/ddd-expert/context/funds/design.md",
+          "docs/ddd-expert/context/purchase/model.md",
+          "docs/ddd-expert/context/purchase/design.md"
+        ],
+        "allowed_paths": [
+          "docs/ddd-expert/README.md",
+          "docs/ddd-expert/context-map.md",
+          "docs/ddd-expert/context/funds/model.md",
+          "docs/ddd-expert/context/funds/design.md",
+          "docs/ddd-expert/context/purchase/model.md",
+          "docs/ddd-expert/context/purchase/design.md"
+        ],
+        "forbidden_paths": ["docs/stories.md", "docs/topology-decision.md"]
+      },
+      "files": [
+        {
+          "path": "docs/ddd-expert/context-map.md",
+          "exists": true,
+          "forbid_temporary_trace": true,
+          "contains": ["funds --> purchase", "Funds Settled", "#### Local View", "```text", "-->|"],
+          "contains_any": [["Funds is authoritative", "Funds owns", "Funds is the sole authority"], ["Purchase consumes", "Purchase accepts", "Purchase translates"]],
+          "excludes": ["purchase --> funds", "[U]", "[D]"]
+        },
+        {
+          "path": "docs/ddd-expert/context/funds/model.md",
+          "exists": true,
+          "forbid_temporary_trace": true,
+          "contains": ["model_revision: 1", "model_status: evolving", "Funds Settled"],
+          "contains_any": [["reversal", "reverse"], ["expiry", "expire"], ["publishes", "published"]],
+          "excludes": ["model_status: shape_ready", "Purchase Accepted", "Purchase Rejected", "Aggregate Root", "Repository"]
+        },
+        {
+          "path": "docs/ddd-expert/context/purchase/model.md",
+          "exists": true,
+          "forbid_temporary_trace": true,
+          "contains": ["model_revision: 1", "model_status: evolving", "Funds Settled"],
+          "contains_any": [["Purchase owns", "Purchase is authoritative"], ["stock check", "stock evidence"], ["fraud check", "fraud evidence"]],
+          "excludes": ["model_status: shape_ready", "Stock Check Failed", "Fraud Check Failed", "Purchase Accepted", "Purchase Rejected", "both checks pass", "either check fails", "corrected evidence", "new acceptance attempt"]
+        },
+        {
+          "path": "docs/ddd-expert/context/funds/design.md",
+          "exists": true,
+          "contains": ["based_on_model_revision: 1", "design_status: evolving", "Funds Settled"],
+          "excludes": ["design_status: codify_ready", "Purchase Accepted", "Purchase Rejected"]
+        },
+        {
+          "path": "docs/ddd-expert/context/purchase/design.md",
+          "exists": true,
+          "contains": ["based_on_model_revision: 1", "design_status: evolving"],
+          "excludes": ["design_status: codify_ready", "Stock Check Failed", "Fraud Check Failed", "Purchase Accepted", "Purchase Rejected", "both checks pass", "either check fails"]
+        }
+      ],
+      "checks": []
+    }
+  },
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": {
+      "min": 1,
+      "max": 3,
+      "contains_any": [
+        ["Funds", "Funds Settled", "Purchase release", "release fulfillment", "资金", "放行"],
+        ["reversal", "expiry", "correction", "reliable funds", "later Funds outcome", "冲正", "过期", "更正"],
+        ["what fact", "what happens", "which outcome", "release eligibility", "who decides", "产生什么事实", "有何后果", "谁决定"]
+      ],
+      "excludes": [
+        "transition table",
+        "state machine",
+        "lifecycle representation",
+        "Repository",
+        "database",
+        "Kafka",
+        "who decides the Purchase outcome when stock or fraud checks fail",
+        "what happens when the stock or fraud check fails"
+      ]
+    },
+    "routes": { "contains": [], "excludes": ["event-storming", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/funds/model.md",
+        "docs/ddd-expert/context/funds/design.md",
+        "docs/ddd-expert/context/purchase/model.md",
+        "docs/ddd-expert/context/purchase/design.md"
+      ],
+      "allowed_paths": [
+        "docs/ddd-expert/README.md",
+        "docs/ddd-expert/context-map.md",
+        "docs/ddd-expert/context/funds/model.md",
+        "docs/ddd-expert/context/funds/design.md",
+        "docs/ddd-expert/context/purchase/model.md",
+        "docs/ddd-expert/context/purchase/design.md"
+      ],
+      "forbidden_paths": ["docs/stories.md", "docs/topology-decision.md"]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/README.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "# DDD Expert Artifacts",
+          "[Funds](context/funds/model.md)",
+          "[Purchase](context/purchase/model.md)",
+          "[context-map.md](context-map.md)"
+        ],
+        "excludes": ["<!--"]
+      },
+      {
+        "path": "docs/ddd-expert/context-map.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "# Context Map",
+          "graph LR",
+          "Funds",
+          "Purchase",
+          "#### Local View",
+          "```text",
+          "---->"
+        ],
+        "contains_any": [["funds --> purchase", "funds_context --> purchase_context"]],
+        "excludes": ["<!--", "[U]", "[D]"]
+      },
+      {
+        "path": "docs/ddd-expert/context/funds/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "model_revision: 1",
+          "model_status: evolving",
+          "# Funds Domain Model",
+          "Funds Settled"
+        ],
+        "contains_any": [["reversal", "reverse"], ["expiry", "expire"], ["publishes", "published"]],
+        "excludes": ["<!--", "Aggregate Root", "Repository", "design_status: codify_ready"]
+      },
+      {
+        "path": "docs/ddd-expert/context/purchase/model.md",
+        "exists": true,
+        "forbid_temporary_trace": true,
+        "contains": [
+          "model_revision: 2",
+          "model_status: evolving",
+          "# Purchase Domain Model",
+          "Stock Check Failed",
+          "Fraud Check Failed",
+          "Purchase Accepted",
+          "Purchase Rejected"
+        ],
+        "contains_any": [
+          ["commerce operator", "Commerce Operator"],
+          ["Accept Purchase", "acceptance request", "requests Purchase acceptance"],
+          ["Purchase decides", "Purchase owns", "Purchase is authoritative"],
+          ["both checks pass", "stock and fraud checks pass", "Stock Approved ... Fraud Approved"],
+          ["either check fails", "stock or fraud check fails", "any failed check"],
+          ["does not begin fulfillment preparation", "fulfillment preparation does not begin", "prevents fulfillment preparation"],
+          ["may not be released", "cannot release fulfillment", "fulfillment release is not permitted"],
+          ["new check evidence", "corrected evidence", "new acceptance attempt", "retry"]
+        ],
+        "excludes": ["<!--", "Aggregate Root", "Repository"],
+        "excludes_semantic": [
+          "Funds decides Purchase acceptance",
+          "Purchase Accepted may be established when a check fails",
+          "Purchase Rejected permits fulfillment preparation",
+          "a failed check changes Funds Settled"
+        ]
+      },
+      {
+        "path": "docs/ddd-expert/context/funds/design.md",
+        "exists": true,
+        "contains": [
+          "based_on_model_revision: 1",
+          "design_status: evolving",
+          "# Funds Tactical Design",
+          "Funds Settled"
+        ],
+        "excludes": ["<!--", "design_status: codify_ready"]
+      },
+      {
+        "path": "docs/ddd-expert/context/purchase/design.md",
+        "exists": true,
+        "contains": [
+          "based_on_model_revision: 2",
+          "design_status: evolving",
+          "# Purchase Tactical Design",
+          "## Model Realization",
+          "## Aggregate Designs",
+          "### Purchase",
+          "Stock Check Failed",
+          "Fraud Check Failed",
+          "Purchase Accepted",
+          "Purchase Rejected",
+          "#### Invariants",
+          "#### Behaviors and Lifecycle"
+        ],
+        "contains_any": [
+          ["Purchase Aggregate Root", "Purchase is the Aggregate Root", "Purchase Root"],
+          ["Purchase decides", "Purchase owns", "Purchase is authoritative"],
+          ["both checks pass", "stock and fraud checks pass", "Stock Approved ... Fraud Approved"],
+          ["either check fails", "stock or fraud check fails", "any failed check"],
+          ["does not begin fulfillment preparation", "prevents fulfillment preparation", "may not be released"],
+          ["new check evidence", "corrected evidence", "new acceptance attempt", "retry"]
+        ],
+        "excludes": ["<!--", "design_status: codify_ready", "#### Verification Obligations"],
+        "excludes_semantic": [
+          "Funds decides Purchase acceptance",
+          "Purchase Accepted may be established when a check fails",
+          "Purchase Rejected permits fulfillment preparation"
+        ]
+      }
+    ],
+    "checks": []
+  }
+}

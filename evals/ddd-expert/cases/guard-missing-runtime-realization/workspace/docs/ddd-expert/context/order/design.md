@@ -1,6 +1,7 @@
 ---
 context: Order
 based_on_model_revision: 3
+design_status: codify_ready
 ---
 
 # Order Tactical Design
