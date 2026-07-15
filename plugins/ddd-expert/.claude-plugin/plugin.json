@@ -1,7 +1,7 @@
 {
   "name": "ddd-expert",
   "description": "EventStorming-led DDD workflow for strategic modeling, tactical design, implementation, and review",
-  "version": "1.15.10",
+  "version": "1.15.11",
   "author": {
     "name": "xuhao"
   },
