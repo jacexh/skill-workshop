@@ -60,8 +60,10 @@ for (const phase of phases) {
 
 for (const id of [
   "codify-accepted-go-change",
-  "codify-rejects-evolving-design",
-  "guard-clean-house-style",
+  "codify-model-ready-direct-handoff",
+  "codify-business-request-conflicts-with-model",
+  "guard-model-ready-lifecycle-conformance",
+  "guard-model-ready-query-violation",
   "guard-missing-model-evidence",
 ]) {
   if (!directories.includes(id)) throw new Error(`ddd-expert eval suite is missing ${id}`);
@@ -81,14 +83,29 @@ while IFS= read -r model; do
     fail "canonical eval Model lacks a positive model_revision: $model"
   status="$(sed -n 's/^model_status: //p' "$model")"
   case "$status" in
-    model_ready|shape_ready|evolving|'') ;;
+    model_ready|draft) ;;
     *) fail "canonical eval Model has invalid status '$status': $model" ;;
+  esac
+  case "$model" in
+    */codify-requires-model-ready/*)
+      [ "$status" = "draft" ] ||
+        fail "negative readiness fixture must remain unconfirmed: $model"
+      ;;
+    *)
+      [ "$status" = "model_ready" ] ||
+        fail "Codify/Guard authority must be a confirmed model_ready Model: $model"
+      ;;
   esac
 done < <(find "$CASES_ROOT" -path '*/workspace/docs/ddd-expert/context/*/model.md' -type f)
 
-while IFS= read -r design; do
-  model="${design%/design.md}/model.md"
-  [ -f "$model" ] || fail "canonical eval Design lacks its context Model: $design"
-done < <(find "$CASES_ROOT" -path '*/workspace/docs/ddd-expert/context/*/design.md' -type f)
+if find "$CASES_ROOT" -type f -name 'design.md' | grep -q .; then
+  fail "standalone Tactical Design artifacts must not appear in ddd-expert evals"
+fi
+
+readiness_refs="$(rg -n 'design_' "$CASES_ROOT" || true)"
+if [ -n "$readiness_refs" ]; then
+  printf '%s\n' "$readiness_refs" >&2
+  fail "ddd-expert evals must use model_ready Models as direct authority"
+fi
 
 echo "PASS ddd-expert deterministic eval checks"

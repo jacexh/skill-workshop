@@ -45,7 +45,7 @@ collaboration governed by `ddd-expert`.
 - **[DDD Principle]** The authority for a contract's semantics controls its meaning and admissible change.
 - **[Heuristic]** Before choosing a mechanism, ask which inconsistency is tolerable, who retries, who compensates, and what proves completion.
 - **[Heuristic]** Synchronous calls add temporal and availability coupling; asynchronous delivery adds state, duplication, ordering, and recovery obligations.
-- **[House Rule]** Do not introduce Outbox, Inbox, Process Manager, Saga, or another reliability mechanism merely because collaboration is asynchronous. Adopt one only after relevant facts expose its need and the design is explicitly accepted; once accepted, use the prescribed House Style rather than an improvised substitute.
+- **[House Rule]** Do not introduce Outbox, Inbox, Process Manager, Saga, or another reliability mechanism merely because collaboration is asynchronous. Adopt one only when confirmed recovery semantics or accepted project constraints expose its need; Codify then selects the prescribed House Style rather than an improvised substitute.
 
 ## 2. Published Synchronous APIs
 
@@ -93,7 +93,7 @@ collaboration governed by `ddd-expert`.
 ### Outbox
 
 An Outbox atomically stores a publishable record with source state so publication can continue after the source transaction commits.
-- **[House Rule]** Use an Outbox only when the accepted design requires source-state commit and publishable handoff not to be lost independently. Once applicable, record both in the same local transaction and publish through a separate relay.
+- **[House Rule]** Use an Outbox only when confirmed recovery semantics or accepted project constraints require source-state commit and publishable handoff not to be lost independently. Once applicable, record both in the same local transaction and publish through a separate relay.
 - **[House Rule]** Do not keep a second direct-publish path for the same fact after the Outbox path is accepted.
 - **[Heuristic]** Relay delivery is normally at least once: publication may succeed before progress is recorded, so consumers still need an accepted idempotency strategy.
 
@@ -101,7 +101,7 @@ An Outbox atomically stores a publishable record with source state so publicatio
 
 Idempotency means repeated processing has the same accepted business effect, not merely that a handler returns success twice.
 - **[House Rule]** When duplicate effects are material, use an accepted consumer-scoped message identity or business idempotency key and record it atomically with the same local transactional side effect. An external RPC, broker publish, or file write is not made atomic with MySQL by an Inbox row; it requires an accepted downstream-idempotency, Outbox, Process Manager, or recovery protocol.
-- **[House Rule]** Use an Inbox only when the accepted idempotency and recovery design requires durable receipt or outcome tracking; natural idempotency or an Aggregate-owned business key may be sufficient in other cases.
+- **[House Rule]** Use an Inbox only when confirmed idempotency and recovery semantics require durable receipt or outcome tracking; natural idempotency or an Aggregate-owned business key may be sufficient in other cases.
 - **[Heuristic]** Global deduplication, per-consumer Inbox, and Aggregate-owned idempotency facts have different ownership, retention, and contention tradeoffs.
 
 ### Failure and Recovery

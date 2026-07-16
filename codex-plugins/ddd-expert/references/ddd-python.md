@@ -5,9 +5,9 @@ description: Compact Python DDD House Style for multi-context layout, the adopte
 
 # Python DDD House Style
 
-Use this reference after the model and Tactical Design are accepted. It does not decide Aggregate boundaries, consistency, durability, or collaboration. It fixes how accepted responsibilities are implemented in Python.
+Use this reference after the Model is confirmed. It does not decide Aggregate boundaries, consistency, durability, or collaboration. It fixes how confirmed responsibilities are implemented in Python.
 
-Every rule below is a House Rule: it applies only when its stated concern exists, and it is mandatory once applicable. An existing alternative is a House Style conflict, not an automatic exception. An uncovered concern or explicit exception requires an accepted technology or design decision; do not choose another library ad hoc.
+Every rule below is a House Rule: it applies only when its stated concern exists, and it is mandatory once applicable. An existing alternative is a House Style conflict, not an automatic exception. For an uncovered concern or explicit exception, Codify derives the engineering choice from accepted project constraints and repository evidence; do not choose another library ad hoc.
 
 Use [`ddd-modeling.md`](ddd-modeling.md) for discovery, [`ddd-core.md`](ddd-core.md) for the DDD and Clean Architecture baseline, [`ddd-collaboration.md`](ddd-collaboration.md) for cross-context design, and [`database.md`](database.md) for MySQL schema and SQL rules.
 
@@ -338,7 +338,7 @@ class CreateUserHandler:
         return CreateUserResult(user_id=user.id)
 ```
 
-This baseline intentionally has no event machinery. When a post-commit best-effort reaction is accepted, add the Aggregate event buffer and semantic dispatcher conditionally. Its adapter exposes one stable admitted dispatch-failure type; Application catches only that explicitly suppressed outcome, while programming and mapping defects reach the outer boundary. Durable handoff uses an accepted Outbox/process design.
+This baseline intentionally has no event machinery. When confirmed semantics permit a post-commit best-effort reaction, add the Aggregate event buffer and semantic dispatcher conditionally. Its adapter exposes one stable admitted dispatch-failure type; Application catches only that explicitly suppressed outcome, while programming and mapping defects reach the outer boundary. Durable handoff uses the house-style Outbox or process mechanism selected by Codify from confirmed recovery semantics and accepted project constraints.
 
 Application owns what must commit together; Infrastructure owns how. A Repository may hide one local transaction. State plus Outbox needs an explicit atomic capability; raw `Session` never enters Application. Multi-root atomic pressure returns to modeling.
 
@@ -498,7 +498,7 @@ Define idempotency by business effect; add Inbox only when durable receipt/outco
 
 ## Task Queue
 
-Use Celery only after distributed deferred work is accepted.
+Use Celery only when confirmed semantics or accepted project constraints require distributed deferred work.
 
 - Application defines an immutable local payload and semantic enqueue Protocol under `application/task`; it never imports Celery.
 - Transport task processors decode one payload and delegate to one Application handler.

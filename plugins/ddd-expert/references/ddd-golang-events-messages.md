@@ -9,8 +9,9 @@ This Flow Guide owns the end-to-end event and message flow. The Layer Guides
 remain authoritative for each layer's general responsibilities.
 
 Do not introduce Integration Messages, Kafka, outbox, inbox, retry topics, or a
-DLQ merely because a use case is asynchronous. Once the accepted design uses a
-mechanism, use the prescribed go-jimu component and the flow below.
+DLQ merely because a use case is asynchronous. Once confirmed recovery semantics
+or accepted project constraints require a mechanism, use the prescribed go-jimu
+component and the flow below.
 
 ## Adopted Components
 
@@ -133,7 +134,7 @@ func (h *RegisterUserHandler) Handle(ctx context.Context, cmd RegisterUser) erro
 ```
 
 This is not the default for a required or recoverable reaction. If loss is not
-acceptable, require an accepted durable design before adding an outbox,
+acceptable, require confirmed durable-delivery semantics or an accepted project constraint before adding an outbox,
 persistent task, reconciler, or Process Manager.
 
 ## Same-context Event Handlers
@@ -363,7 +364,7 @@ import (
 `internal/pkg/messagebus` constructs the provider runtime with
 `jimukafka.NewClient`, `jimukafka.NewPublisher`, and
 `jimukafka.NewConsumer`. `NewConsumer` requires an explicit
-`jimukafka.FailurePolicy`; choose it in accepted runtime design rather than
+`jimukafka.FailurePolicy`; derive it from confirmed failure semantics and accepted operational constraints rather than
 silently enabling retry or DLQ. Pass the shared registry with
 `jimukafka.WithPayloadResolver(registry)`.
 
@@ -384,12 +385,12 @@ Application, or Transport.
 
 ## Conditional Outbox
 
-Use outbox only after the design accepts atomic recording of publication intent.
+Use outbox only when confirmed recovery semantics or accepted project constraints require atomic recording of publication intent.
 The component currently supplies `outbox.Recorder`, `outbox.Store`,
 `outbox.Codec`, and `outbox.Relay`; it does not supply an xorm Store or a
 transaction propagation API.
 
-An accepted implementation must therefore provide an Infrastructure
+The implementation must therefore provide an Infrastructure
 `outbox.Store` whose `Append` participates in the same xorm transaction as
 `Repository.Save`. Application constructs the producer-owned
 `message.Message`; the transaction records it through `outbox.Recorder` instead

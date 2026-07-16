@@ -4,6 +4,13 @@ EventStorming-led DDD/backend workflow skills for Codex.
 
 Use EventStorming as the single modeling path from backend evidence to a user-confirmed Strategic Model. This plugin is hookless.
 
+```text
+$ddd-expert:event-storming
+-> model_ready
+$ddd-expert:codify
+$ddd-expert:guard
+```
+
 ## Installation
 
 ```bash
@@ -24,9 +31,9 @@ Restart Codex after upgrade.
 
 ## Capabilities
 
-- `$ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, adversarially reviews the complete integrated model, waits for explicit model confirmation, and then applies one synchronized `model_ready` documentation closure.
-- `$ddd-expert:codify` realizes already accepted Tactical Design in working backend code and must obtain a clear independent Guard in the same task for material changes.
-- `$ddd-expert:guard` independently reviews concrete implementation evidence for Design Realization and House-Style Conformance.
+- `$ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, adversarially reviews the complete integrated model, writes incremented canonical `draft` Models for review, summarizes them in the console, waits for explicit confirmation, and then promotes those revisions while applying one synchronized `model_ready` documentation closure.
+- `$ddd-expert:codify` realizes a confirmed `model_ready` Model in working backend code, makes the required engineering decisions from project authority and house style, and must obtain a clear independent Guard in the same task for material changes.
+- `$ddd-expert:guard` independently reviews concrete implementation evidence for Model Realization and House-Style Conformance.
 - `maintain-artifacts` is the internal read/validation/write protocol, not a user entry point.
 
 The plugin does not auto-inject context. EventStorming owns Strategic Model meaning and post-confirmation document rendering. The internal protocol preserves the exact confirmed views, validates the complete rendered transaction, and applies supplied bytes without deciding semantics. Codify and Guard inspect DDD artifacts read-only.
@@ -36,10 +43,10 @@ The plugin does not auto-inject context. EventStorming owns Strategic Model mean
 Choose by requested outcome:
 
 - `$ddd-expert:event-storming` when a story, scenario, Spec, PRD, or existing Model needs domain discovery, Aggregate/context boundaries, collaboration, and a confirmed Strategic Model.
-- `$ddd-expert:codify` when a separately accepted, revision-matched Tactical Design must be implemented in the house style.
+- `$ddd-expert:codify` when a confirmed `model_ready` Model must be implemented in the house style.
 - `$ddd-expert:guard` when a concrete backend change must be reviewed before merge or release.
 
-EventStorming stops at `model_ready`. It does not generate Tactical Design or route automatically into Codify. A missing or stale Tactical Design is a separate authority gap, not permission for EventStorming to invent implementation decisions.
+EventStorming finishes at `model_ready`, which is the direct input to Codify. No separate design artifact, readiness status, or workflow stage sits between them. EventStorming confirms business meaning; Codify derives engineering realization from that Model, accepted project constraints, repository evidence, and the plugin's house style.
 
 ## EventStorming contract
 
@@ -58,7 +65,7 @@ The modeling path follows this order:
 
 A simple change inside an accepted context does not force a new repository-wide Big Picture. The depth is proportionate, but the order and confirmation boundary do not change.
 
-All exploration stays on a temporary EventStorming Board, separate from any Aggregate, Bounded Context, or Context Map. Supplied authority and local answers can support board facts or working decisions, but neither authorizes a file write. Before model confirmation, every workspace file remains unchanged.
+Exploration stays on a temporary EventStorming Board, separate from any Aggregate, Bounded Context, or Context Map. Supplied authority and local answers can support board facts or working decisions, but neither authorizes a file write. After all ten steps and adversarial review, EventStorming validates the complete candidate and replaces the affected canonical Models with incremented `model_status: draft` revisions. Other project files remain unchanged until confirmation.
 
 The facilitator investigates facts available in project evidence, then asks the user only for domain facts or decisions the evidence cannot supply. It presents discovered information in useful groups while putting one frontier question to the user per turn. Fact probes remain open; design proposals include a recommendation, reasons, and the strongest credible alternative. Local answers are working confirmations that later evidence may reopen.
 
@@ -66,12 +73,12 @@ When the scope is coherent, EventStorming shows:
 
 - the exact Mermaid EventStorming view with timeline, Commands, actors/external systems, policies, past-tense Events, Hotspots, Bounded Context boundaries, and every supported Aggregate boundary—or the explicit evidence-based `No supported Aggregate` conclusion at Bounded Context scope;
 - proposed language, authority, lifecycle, supported Aggregates/core objects, contexts, and collaboration;
-- separate Context Map Model Dependency (`U -> D`) and runtime/business Interaction (`initiator -> receiver`) views; and
+- keep the Context Map focused on semantic Model Dependency (`U -> D`) contracts while scenario interactions stay in EventStorming Models; and
 - key design decisions, assumptions, and non-blocking Hotspots.
 
 Before confirmation, the facilitator challenges the model from participant/authority, scenario-variation, and model-pressure perspectives. It selects only cases capable of changing a material conclusion and stops when the strongest known alternative was considered and further cases have diminishing decision value. Blocking Hotspots must be resolved or removed by narrowing scope; non-blocking Hotspots remain visible.
 
-Only explicit confirmation of the current complete integrated model authorizes documentation synchronization. A local “yes,” confirmation of one Aggregate, or acceptance of source facts does not confirm the whole model. A correction returns to the earliest affected step and replaces the candidate as a whole.
+EventStorming summarizes the draft paths, revisions, validation, decisions, assumptions, and Hotspots in the console. Only explicit confirmation of those exact complete draft revisions authorizes promotion and documentation synchronization. A local “yes,” confirmation of one Aggregate, or acceptance of source facts does not confirm the whole model. A correction returns to the earliest affected step and writes a new complete draft revision.
 
 After confirmation, EventStorming derives the minimal documentation closure and synchronizes relevant DDD artifacts and living Spec, PRD, ADR, and Glossary documents. The user does not approve a per-file impact inventory. If rendering exposes a new semantic decision, it returns to the EventStorming Board. The written Model contains the exact diagram source the user saw and uses `model_status: model_ready`; historical ADR handling follows repository policy and normally creates a superseding ADR instead of rewriting old rationale.
 
@@ -81,21 +88,20 @@ Aggregate and Bounded Context conclusions come after events, Commands, actors, r
 
 When a mechanism appears repeatedly, EventStorming applies DRY to knowledge rather than syntax and balances cohesion, information hiding, coupling, and YAGNI before comparing a shared domain mechanism, a shared technical Module, and distinct local semantics with translations. Common business language, lifecycle, rules, and ownership may establish one reusable domain capability; similar code shape alone may justify only technical reuse or deliberate local duplication.
 
-The Context Map keeps semantic dependency and interaction direction separate. Global `U -> D` edges form a DAG and express model/published-contract influence. Interaction edges express initiator-to-receiver flow, may point the other way or form cycles, and never create model ownership.
+The Context Map records semantic model dependency only. Global `U -> D` edges form a DAG and express model/published-contract influence; each named contract is documented once. Runtime call direction does not determine ownership, and relevant cross-context scenario interactions stay in the EventStorming Models.
 
 ## Artifact templates
 
 - `templates/artifact-layout.md` defines the canonical DDD root and write boundaries.
 - `templates/README.md` defines project DDD navigation.
-- `templates/context-map.md` defines separate semantic-dependency and interaction projections.
+- `templates/context-map.md` defines the global semantic-dependency projection, per-context inventory, optional Local Views, and named dependency contracts.
 - `templates/model.md` defines one confirmed Model with its exact EventStorming view.
-- `templates/design.md` defines separately accepted Tactical Design structure; EventStorming does not create or update it.
 
-EventStorming may update the DDD README, Context Map, Models, and relevant project-owned companion documents through one post-confirmation `apply-confirmed-model` transaction. Codify and Guard may inspect only.
+EventStorming writes only affected canonical Models as incremented `draft` approval candidates before confirmation. After approval, it promotes those exact revisions and updates the DDD README, Context Map, and relevant project-owned companion documents through one `apply-confirmed-model` transaction. Codify and Guard may inspect only and never accept `draft` Models as implementation authority.
 
 ## Scope
 
-Use this plugin for strategic domain modeling, accepted design realization, and backend DDD review across Domain/Application/Transport/Infrastructure ownership, generated protocol boundaries, Go/Python/TypeScript backends, messages/tasks/runtime behavior, and database-backed persistence when those concerns are in scope.
+Use this plugin for domain modeling, confirmed-Model realization, and backend DDD review across Domain/Application/Transport/Infrastructure ownership, generated protocol boundaries, Go/Python/TypeScript backends, messages/tasks/runtime behavior, and database-backed persistence when those concerns are in scope.
 
 Do not use it for frontend architecture, browser QA, product UI design, or general dynamic standards lookup.
 

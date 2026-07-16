@@ -19,9 +19,11 @@ configs/
     defaults.yml
 
 docs/
-  ddd/
-    model.md
-    design.md
+  ddd-expert/
+    context-map.md
+    context/
+      <context>/
+        model.md
 
 proto/
   <contract-owner>/
@@ -53,7 +55,7 @@ internal/
           dto.go
         eventhandler/             # when same-BC reactions exist
           <fact>.go
-        task/                     # only after Task Queue is accepted
+        task/                     # only when background execution is required
           <task>.go
 
       transport/                 # only for accepted inbound adapters
@@ -97,7 +99,7 @@ migrations/
   001_<change>.sql
 ```
 
-Do not add `api/`, `service.go`, `policy.go`, `state.go`, `processmanager/`, Outbox/Inbox folders, or provider directories merely because a future design might need them. Use Domain-language filenames and create conditional mechanisms only after their responsibility is accepted.
+Do not add `api/`, `service.go`, `policy.go`, `state.go`, `processmanager/`, Outbox/Inbox folders, or provider directories merely because a future change might need them. Use Domain-language filenames and create conditional mechanisms only when confirmed semantics or accepted project constraints require their responsibility.
 
 ## Required BC Files
 

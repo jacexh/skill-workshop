@@ -6,8 +6,8 @@ description: Go House Style for Application-owned internal task contracts, Trans
 # Go Task Queue
 
 A Task Queue is a conditional internal delivery mechanism for deferred
-Application work. Do not introduce it before the design accepts background task
-execution. Once accepted, use:
+Application work. Introduce it only when confirmed recovery semantics, latency
+requirements, or accepted project constraints require background execution. Once applicable, use:
 
 - `github.com/go-jimu/components/taskqueue` for provider-neutral contracts;
 - `github.com/go-jimu/contrib/taskqueue/asynq` for the Asynq adapter;
@@ -93,7 +93,7 @@ registered `Definition` from the payload type. `SchemaRegistry.DecodeJSON`
 resolves `Task.Type()` and returns a newly allocated registered payload.
 
 The optional `Definition.Queue` is a provider-neutral lane. Set it only when an
-accepted operational design needs a named lane; otherwise leave it empty for
+accepted operational constraints need a named lane; otherwise leave it empty for
 the runtime default.
 
 ## Enqueue from Application
@@ -144,7 +144,7 @@ configuration, `asynq.Option`, and worker retry metadata remain in Runtime.
 
 Direct enqueue after a database commit has a commit gap. Do not silently add a
 durable task/outbox mechanism. If state and task intent must be atomic, require
-an accepted persistence design first.
+confirmed durable-recovery semantics or an accepted persistence constraint first.
 
 ## Transport Task Processor
 

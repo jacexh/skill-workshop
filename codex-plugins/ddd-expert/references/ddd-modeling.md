@@ -5,7 +5,7 @@ description: Language-neutral strategic DDD guidance for EventStorming, Ubiquito
 
 # DDD Modeling
 
-Use this reference to reason about business meaning. It does not authorize project writes, choose implementation mechanisms, or turn an EventStorming board into Tactical Design.
+Use this reference to reason about business meaning. It does not authorize project writes, choose implementation mechanisms, or turn an unconfirmed EventStorming Board into implementation authority.
 
 ## Rule strength
 
@@ -81,18 +81,17 @@ Use this reference to reason about business meaning. It does not authorize proje
 
 ## 7. Context collaboration
 
-Mainstream DDD includes symmetric patterns such as Partnership and Shared Kernel. `ddd-expert` deliberately uses an acyclic semantic dependency map and models runtime/business interaction separately.
+Mainstream DDD includes symmetric patterns such as Partnership and Shared Kernel. `ddd-expert` deliberately uses an acyclic semantic dependency map.
 
 - **[House Rule]** A Model Dependency edge is `U -> D`: upstream owns a named published meaning or contract whose model may influence the downstream model. It is not a runtime-call arrow.
 - **[House Rule]** Model Dependency self-loops, reciprocal edges, longer cycles, bidirectional arrows, Partnership, and Shared Kernel are unsupported. Rework authority, language, ownership, or translation rather than drawing mutual semantic dependency.
-- **[House Rule]** Both ends of a dependency name the same contract and endpoints: upstream states published meaning and guarantee; downstream states accepted meaning and local translation.
-- **[House Rule]** An Interaction edge is `initiator -> receiver` between accepted project Bounded Contexts and records a runtime or business exchange, including trigger or intent and result or failure feedback. It may oppose a Model Dependency and may participate in a cycle. External actors, systems, and technical components stay on EventStorming views unless independent business evidence establishes them as contexts.
-- **[DDD Principle]** Request/response direction does not decide model ownership. One interaction can use an upstream-owned or downstream-owned semantic contract without adding a reverse model dependency.
+- **[House Rule]** Record each named dependency contract once with both endpoints: upstream published meaning and guarantee, plus downstream reliance and local translation. Do not duplicate the same relationship under both Bounded Contexts.
+- **[DDD Principle]** Request/response direction does not decide model ownership. Runtime interactions stay in the relevant EventStorming scenario or implementation documentation; a call alone does not create a Context Map relationship or add a reverse model dependency.
 - **[Heuristic]** Revisit a dependency when authority, consumer count, translation cost, change cadence, or guarantees change materially.
 
 ### Canonical Local View wireframes
 
-Local View connectors are validated syntax: connector cells touch the context boxes, and a multi-neighbor view uses one connected branch rather than several unrelated arrows. Use these shapes and substitute the confirmed context names without adding spaces between a box and its connector.
+Local Views are optional focus aids when one context's direct-neighbor slice is materially easier to read than the Global View. When included, their connectors are validated syntax: connector cells touch the context boxes, and a multi-neighbor view uses one connected branch rather than several unrelated arrows. Use these shapes and substitute the confirmed context names without adding spaces between a box and its connector.
 
 One dependency:
 

@@ -5,12 +5,12 @@ description: Language-neutral MySQL persistence house style for schemas, SQL, in
 
 # MySQL Persistence House Style
 
-Use this reference whenever accepted Tactical Design requires MySQL persistence. Model ownership and consistency boundaries come first; this file then governs their physical representation.
+Use this reference whenever the confirmed Model and implementation scope require MySQL persistence. Model ownership and consistency boundaries come first; this file then governs their physical representation.
 
 ## Authority and Applicability
 
 - **[DDD Principle]** A semantic or consistency property that persistence must preserve.
-- **[House Rule]** A mandatory implementation rule once its described scenario applies. An uncovered capability requires an explicit accepted technology or design decision; do not silently choose another convention or library.
+- **[House Rule]** A mandatory implementation rule once its described scenario applies. For an uncovered capability, Codify derives the technology choice from accepted project constraints and repository evidence; do not silently choose another convention or library.
 - **[Heuristic]** A fact-finding or capacity signal. It helps decide whether a scenario applies; it is not permission to ignore an applicable House Rule.
 
 The adopted database is MySQL 8. The active language House Style selects the adapter, connection API, and UUIDv7 implementation. Verify the deployed MySQL minor version, InnoDB row format, SQL mode, topology, and migration tooling before relying on a version-dependent capability. That verification may select the supported execution mechanism; it does not weaken the schema and persistence rules below.
@@ -31,7 +31,7 @@ The adopted database is MySQL 8. The active language House Style selects the ada
 
 - **[DDD Principle]** Tables are persistence representations, not Domain objects. An Aggregate may map to several tables, and a read model may project or join several sources.
 - **[DDD Principle]** The accepted Aggregate boundary determines atomic write ownership. A foreign key, shared table, or database transaction does not create an Aggregate boundary.
-- **[House Rule]** A command-side Repository persists exactly one Aggregate Root and its owned state in one local transaction. Independent Aggregate changes require an accepted coordination design.
+- **[House Rule]** A command-side Repository persists exactly one Aggregate Root and its owned state in one local transaction. Independent Aggregate changes require confirmed coordination semantics; Codify selects the house-style realization.
 - **[House Rule]** Lists, pages, history, reports, statistics, cross-Aggregate composition, denormalized views, and optimized projections use an Application-owned QueryRepository. A focused read of one reasonably sized Aggregate may use its Domain Repository when full reconstitution is appropriate and no distinct read semantics exist.
 - **[House Rule]** Integration tables, idempotency records, projection checkpoints, and process state are introduced only by an accepted flow. Once introduced, they use this file's naming, standard columns, types, indexes, migration, and concurrency rules.
 - **[House Rule]** Transport never queries tables or Repositories directly. Infrastructure owns persistence records, mappings, and adapters; Runtime owns the shared connection-pool or database-client lifecycle.
@@ -126,7 +126,7 @@ Check affected rows. Zero rows maps to the same stable concurrency-conflict erro
 
 - **[House Rule]** Persistence preserves the accepted distinction among `NULL`, empty string, zero, and an absent row.
 - **[House Rule]** Ordinary scalar columns are `NOT NULL` and declare an explicit default. Strings default to `''`; numeric and Unix-millisecond columns default to `0`; row versions default to `1`.
-- **[House Rule]** A field whose Domain meaning is genuinely optional uses an explicit representation accepted in Tactical Design; it must not turn unknown into an apparently valid zero value merely to avoid `NULL`.
+- **[House Rule]** A field whose confirmed Domain meaning is genuinely optional uses an explicit representation that preserves that meaning; it must not turn unknown into an apparently valid zero value merely to avoid `NULL`.
 - **[House Rule]** `text`, `blob`, and other types whose default support varies by MySQL version are `NOT NULL` without a schema default; every `INSERT` supplies the value explicitly.
 
 ## 5. Role-Specific Table Shapes
@@ -259,7 +259,7 @@ Do not assume a row-constructor range such as `(created_at, id) < (?, ?)` will p
 
 - **[House Rule]** `INSERT` names every column; `INSERT INTO t VALUES (...)` is prohibited.
 - **[House Rule]** A batch `INSERT` contains at most 1000 rows.
-- **[House Rule]** A transaction changes at most 2000 rows and executes at most 5 SQL statements. A use case that cannot fit these bounds requires an accepted bulk, streaming, or consistency design.
+- **[House Rule]** A transaction changes at most 2000 rows and executes at most 5 SQL statements. For a use case that cannot fit these bounds, Codify selects a bulk, streaming, or consistency mechanism from confirmed semantics, measured evidence, and accepted project constraints.
 - **[House Rule]** `UPDATE` and `DELETE` use deterministic predicates and check affected rows. An update/delete with an arbitrary `LIMIT` is prohibited.
 - **[House Rule]** `UPDATE ... JOIN`, `DELETE ... JOIN`, cross-database joins, correlated update/delete subqueries, stored procedures, stored functions, triggers, views, scheduled database events, and foreign keys are prohibited in this house style.
 - **[House Rule]** Required relationships and uniqueness are enforced through owned write logic plus primary/unique constraints. The foreign-key prohibition is a deployment house rule, not a claim that DDD forbids foreign keys.
@@ -342,7 +342,7 @@ When a new non-null value cannot be assigned safely by a schema default, first a
 
 ## 10. Partitioning and Sharding
 
-Partitioning and sharding are conditional scale mechanisms. Do not introduce them without measured size, retention, locality, throughput, or operational evidence and an accepted routing design.
+Partitioning and sharding are conditional scale mechanisms. Do not introduce them without measured size, retention, locality, throughput, or operational evidence plus accepted project authority for the routing and operational commitment.
 
 ### Sharding
 
@@ -355,7 +355,7 @@ Partitioning and sharding are conditional scale mechanisms. Do not introduce the
 
 MySQL requires every unique key on a partitioned table to include every column used by the partitioning expression.
 - **[House Rule]** A partitioned table contains no more than 1024 partitions including subpartitions, and production access paths include the partition key for pruning.
-- **[House Rule]** Verify representative plans prove partition pruning. A path that requires cross-partition fan-out requires an explicit accepted read or scale design.
+- **[House Rule]** Verify representative plans prove partition pruning. A path that requires cross-partition fan-out requires accepted project authority for its read and scale commitment; Codify derives the concrete mechanism after that authority exists.
 - **[Heuristic]** At 2 GiB in one partition, review retention, scan cost, DDL behavior, backup, and recovery. File size alone does not select the next mechanism.
 
 ## 11. Required Verification

@@ -5,9 +5,9 @@ description: Go DDD House Style baseline and navigation index for dependency bou
 
 # Go DDD House Style Baseline
 
-Load this baseline after the model and design are accepted. It does not decide Aggregate boundaries, consistency, or collaboration. It fixes how accepted responsibilities are implemented in Go and routes detailed work to the smallest relevant Knowledge Leaf.
+Load this baseline after the Model is confirmed. It does not decide Aggregate boundaries, consistency, or collaboration. It fixes how confirmed responsibilities are implemented in Go and routes detailed work to the smallest relevant Knowledge Leaf.
 
-Every Go rule below is a House Rule: it applies only when its stated concern exists, and it is mandatory once applicable. An existing alternative is a House Style conflict, not an automatic exception. An uncovered concern or explicit exception requires an accepted technology or design decision; do not choose another library ad hoc.
+Every Go rule below is a House Rule: it applies only when its stated concern exists, and it is mandatory once applicable. An existing alternative is a House Style conflict, not an automatic exception. For an uncovered concern or explicit exception, Codify derives the engineering choice from accepted project constraints and repository evidence and records it where the project normally records architecture decisions.
 
 ## Dependency Direction
 
@@ -112,4 +112,4 @@ Do not substitute Gin/Echo for Chi, grpc-go for ConnectRPC, GORM/sqlc for xorm, 
 | Internal task, polling, periodic work | Task queue plus every touched Layer Guide |
 | Fx/config/server/worker/goroutine/shutdown/telemetry | Runtime and Scaffold |
 
-If the change would alter accepted boundaries, consistency, durability, published contracts, recovery, or Runtime commitments, require an accepted design decision before implementation. Otherwise follow the applicable House Rule without offering alternative stacks.
+If the change would alter confirmed business boundaries, consistency meaning, published contracts, or recovery semantics, return to EventStorming. Otherwise Codify selects the engineering realization from accepted project constraints, repository evidence, and the applicable House Rules.

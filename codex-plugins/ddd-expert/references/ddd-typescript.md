@@ -5,10 +5,10 @@ description: Compact TypeScript DDD House Style for Node.js services, multi-BC p
 
 # TypeScript DDD House Style
 
-This compact guide adds TypeScript/Node.js constraints to accepted Tactical
-Design and [`ddd-core.md`](ddd-core.md). Rule-strength meanings come from the
+This compact guide adds TypeScript/Node.js constraints to the confirmed Model
+and [`ddd-core.md`](ddd-core.md). Rule-strength meanings come from the
 common references. Kafka, BullMQ, XState, CQRS, Outbox, Inbox, and OpenTelemetry
-remain absent until accepted design requires them; once applicable, the stack
+remain absent until confirmed semantics or accepted project constraints require them; once applicable, the stack
 and placement here are mandatory. An existing alternative is a conflict to
 resolve, not an automatic exception.
 

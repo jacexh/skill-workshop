@@ -1,12 +1,12 @@
 ---
 context: "<Bounded Context>"
 model_revision: 1
-model_status: model_ready
+model_status: draft
 ---
 
 # <Bounded Context> Domain Model
 
-<!-- This artifact is the user-confirmed Strategic Model for one Bounded Context. Copy the exact confirmed EventStorming source, replace every placeholder, remove all template comments, and retain the canonical section order. -->
+<!-- This artifact is the complete EventStorming approval candidate for one Bounded Context. Use model_status: draft before confirmation and promote the exact approved revision to model_ready. Copy the exact EventStorming source, replace every placeholder, remove all template comments, and retain the canonical section order. -->
 
 ## EventStorming Model
 
@@ -47,15 +47,15 @@ flowchart LR
 
 ## Aggregates and Core Business Objects
 
-<!-- State each confirmed Aggregate boundary/root and the identity, lifecycle, invariant, or concurrency reason that requires it. If Bounded Context scope supports none, write exactly `- **No supported Aggregate:** <evidence-based reason>` instead of inventing a root. Keep detailed Tactical Design elsewhere. -->
+<!-- State each confirmed Aggregate boundary/root and the identity, lifecycle, invariant, or concurrency reason that requires it. For each material core object, record the Domain facts Codify needs to choose its tactical form: business meaning, identity and continuity when present, ownership, lifecycle, validity, equality, normalization or units, and references to other Aggregates by identity when material. Do not prescribe fields, classes, accessors, or storage mapping. If Bounded Context scope supports none, write exactly `- **No supported Aggregate:** <evidence-based reason>` instead of inventing a root. -->
 
 ## Scenarios and Lifecycle
 
-<!-- Narrate material Commands, past-tense facts, reactions, changed rights/obligations/value, and terminal conditions in business time. -->
+<!-- Narrate material Commands, past-tense facts, reactions, changed rights/obligations/value, and terminal conditions in business time. When a scenario crosses Aggregates or an external authority, state its trigger, business progress that must survive interruption, reactions, and completion or termination meaning. Preserve those semantic obligations without prescribing a Process Manager, message topology, transaction, or runtime mechanism. -->
 
 ## Invariants and Policies
 
-<!-- State immediate consistency rules, decision policies, timing rules, and their business authority. -->
+<!-- State immediate consistency rules, decision policies, timing rules, their required facts, semantic owner, and business outcome. -->
 
 ## Failure and Recovery Semantics
 
@@ -71,4 +71,4 @@ flowchart LR
 
 ## Context Dependencies
 
-<!-- Optional final section. Record only this context's confirmed side of semantic dependencies and translations from context-map.md. Runtime interactions belong to the Context Map Interaction View, not here. -->
+<!-- Required when this context participates in a Context Map dependency; otherwise omit it. For each named contract, record this context's upstream or downstream role, published meaning, permitted downstream reliance, local translation, and the upstream-owned authority, ordering, durability, or failure guarantee when material. Cross-context scenario interactions remain visible in the EventStorming diagram when they matter to this model; do not turn runtime call direction into a semantic dependency. -->

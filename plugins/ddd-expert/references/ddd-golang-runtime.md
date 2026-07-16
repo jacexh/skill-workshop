@@ -326,7 +326,7 @@ Fx lifecycle order follows the constructor dependency graph and hook registratio
 
 ## Conditional OpenTelemetry
 
-Do not add OTel merely because the library exists. It becomes mandatory only when distributed tracing is an Accepted Design Decision and an observability backend is available.
+Do not add OTel merely because the library exists. It becomes mandatory only when accepted project observability constraints require distributed tracing and a backend is available.
 
 Runtime then owns OTLP exporter/resource/TracerProvider construction, global propagation, and `TracerProvider.Shutdown(ctx)` in `fx.Lifecycle`. Add `connectrpc.com/otelconnect` to global Connect interceptors using its verified constructor:
 

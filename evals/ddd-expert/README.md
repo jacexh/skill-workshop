@@ -17,6 +17,10 @@ Manual transcript review is product feedback, not a keyword score and not an aut
 
 Checked-in `codify` and `guard` cases may assert observable file changes, commands, review families, evidence paths, and structured completion. The runner does not use another LLM as a judge.
 
+A confirmed per-context Model (`model_status: model_ready`) is direct business
+and implementation authority for both phases. Automated fixtures do not use a
+separate tactical-design readiness artifact.
+
 Validate fixtures and the deterministic scorer without a model call:
 
 ```bash

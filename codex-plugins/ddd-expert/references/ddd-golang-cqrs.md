@@ -155,4 +155,4 @@ A projection is read-side state, not an Aggregate by virtue of being mutable in 
 
 ## Verification
 
-Application query tests cover result shape, authorization, pagination and composition with focused Repository fakes. Infrastructure integration tests exercise real filtering, ordering, pagination and storage mapping; apply the persistence rules in [`database.md`](database.md). Projection tests cover duplicate, out-of-order, replay and rebuild behavior whenever the accepted delivery design permits them.
+Application query tests cover result shape, authorization, pagination and composition with focused Repository fakes. Infrastructure integration tests exercise real filtering, ordering, pagination and storage mapping; apply the persistence rules in [`database.md`](database.md). Projection tests cover duplicate, out-of-order, replay and rebuild behavior whenever confirmed delivery semantics permit them.

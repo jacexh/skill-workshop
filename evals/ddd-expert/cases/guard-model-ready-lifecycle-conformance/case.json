@@ -1,0 +1,23 @@
+{
+  "id": "guard-model-ready-lifecycle-conformance",
+  "phase": "guard",
+  "suites": ["full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["clear"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["event-storming", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": ["violation", "evidence_gap"],
+    "git": {
+      "changed": "none",
+      "required_paths": [],
+      "forbidden_paths": []
+    },
+    "files": [],
+    "checks": []
+  }
+}

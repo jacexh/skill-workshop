@@ -123,11 +123,11 @@ The subscriber validates envelope/type facts required for mapping, extracts mess
 
 The consuming context imports a producer-owned Published Fact Contract, or its own receiver-owned Asynchronous Intent Contract. It never imports another context's internal Domain Event. `message.Subscriber.Subscribe` is registration in `<context>.go`; `message.Runner.Run` and Kafka/franz-go remain under `internal/pkg/messagebus`.
 
-Outbox, Inbox, persistent idempotency, retry and DLQ are not implied by using messages. Add only the mechanism accepted by Tactical Design.
+Outbox, Inbox, persistent idempotency, retry and DLQ are not implied by using messages. Add only mechanisms required by confirmed recovery semantics or accepted project constraints; Codify chooses their house-style realization.
 
 ## Task Processor
 
-Task Queue code exists only after the design accepts it. The owning context defines the stable contract under `application/task`; the inbound adapter lives under `transport/taskprocessor` and implements `github.com/go-jimu/components/taskqueue.Processor`:
+Task Queue code exists only when confirmed recovery semantics, latency requirements, or accepted project constraints require background execution. The owning context defines the stable contract under `application/task`; the inbound adapter lives under `transport/taskprocessor` and implements `github.com/go-jimu/components/taskqueue.Processor`:
 
 ```go
 package taskprocessor
