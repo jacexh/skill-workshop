@@ -1,6 +1,6 @@
 {
   "name": "ddd-expert",
-  "version": "1.15.11",
+  "version": "1.15.14",
   "description": "Adversarial HITP EventStorming plus accepted-design implementation and review",
   "author": {
     "name": "xuhao"

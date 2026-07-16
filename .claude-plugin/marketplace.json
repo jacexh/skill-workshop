@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.15.13"
+    "version": "1.15.14"
   },
   "plugins": [
     {
@@ -44,7 +44,7 @@
       "name": "ddd-expert",
       "source": "./plugins/ddd-expert",
       "description": "Adversarial HITP EventStorming plus accepted-design implementation and review",
-      "version": "1.15.11",
+      "version": "1.15.14",
       "author": {
         "name": "xuhao"
       },
