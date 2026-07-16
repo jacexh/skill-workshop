@@ -13,7 +13,7 @@ Build or runtime blockers limit executable verification only. Continue independe
 
 Guard is read-only. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation in the same run with authority `guard`; never request or perform an apply operation. Report artifact evidence and routing through the review response without persisting findings under `docs/ddd-expert`.
 
-The originating request defines the claimed change scope, not business truth. Each affected context's `shape_ready` Model owns business meaning; its revision-matched `codify_ready` Design owns tactical obligations; ddd-expert references own implementation defaults; code, tests, and existing conventions are evidence.
+The originating request defines the claimed change scope, not business truth. Each affected context's canonical `model_ready` Model owns business meaning; a structurally valid `legacy_ready_model` with `shape_ready` remains read-only compatible authority. Its revision-matched `codify_ready` Design owns tactical obligations; ddd-expert references own implementation defaults; code, tests, and existing conventions are evidence.
 
 Establish before judging code:
 
@@ -23,7 +23,7 @@ Establish before judging code:
 4. changed files and necessary neighboring code, generated artifacts, migrations, configuration, runtime wiring, logs, and verification evidence;
 5. stable IDs for every scoped Design obligation, every changed file and required production path, and every additive layer, mechanism, and specialized-surface label attached to those paths.
 
-Code and tests never override accepted authority. Missing artifacts block only judgments that need them. An `evolving_model`, `evolving_design`, `stale_design`, or `pending_design_reconciliation` result is not ready implementation authority: report the material gap to `event-storming` while continuing independent conformance review. Route missing or contradictory business authority to `event-storming`.
+Code and tests never override accepted authority. Missing artifacts block only judgments that need them. A `legacy_model`, `missing_design`, `evolving_design`, or `stale_design` result is not ready implementation authority. Route missing or contradictory business authority to `event-storming` while continuing independent conformance review. Do not route a purely Tactical Design gap to EventStorming: report the exact missing, stale, or contradictory accepted tactical authority and limit only the judgments that require it.
 
 An explicit accepted Design choice governs only its stated scope. Vague waiver language and local convention cannot override the Model, Design, or an applicable house-style rule.
 
@@ -114,14 +114,14 @@ Each applicable sentinel seeds a hypothesis, never a verdict:
 - durable facts govern later admission, terminal closure, and replay;
 - execution facts and parent terminal facts use distinct timing and language;
 - multi-step external collaboration has named coordination and recovery;
-- cross-context contracts and model imports preserve the Context Map's acyclic `U -> D` dependencies; request/response through one contract does not justify a reciprocal import;
+- cross-context contracts and model imports preserve the Context Map's acyclic `U -> D` Model Dependency View; the separate Interaction View may run in either direction, and request/response through one contract does not justify a reciprocal model import;
 - Domain/Application APIs use domain-owned language;
 - production messages, tasks, schedules, reconciliation, and recovery have reachable Runtime ownership.
 
 ## Routing and reporting
 
-- Missing or contradictory business facts, or an evolving Model: `evidence_gap`, route `event-storming`.
-- Missing, stale, or contradictory tactical design: `evidence_gap`, route `event-storming`.
+- Missing or contradictory business facts, a non-ready Model, a wrong Aggregate/Bounded Context boundary, or an invalid semantic Context Map: `evidence_gap`, route `event-storming`.
+- Missing, stale, or contradictory Tactical Design: `evidence_gap`; report that separately accepted tactical authority is required and do not claim EventStorming will create it.
 - Clear authority with missing, partial, or incorrect implementation, or a house-style violation: `violation`, route `codify`.
 - Missing runtime, test, or operational proof: report a material verification gap; do not turn an unavailable check into a model claim.
 

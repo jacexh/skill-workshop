@@ -1,7 +1,7 @@
 {
   "name": "ddd-expert",
   "version": "1.15.11",
-  "description": "EventStorming-led DDD workflow for strategic modeling, tactical design, implementation, and review",
+  "description": "Adversarial HITP EventStorming plus accepted-design implementation and review",
   "author": {
     "name": "xuhao"
   },
@@ -14,8 +14,8 @@
   ],
   "interface": {
     "displayName": "DDD Expert",
-    "shortDescription": "EventStorming-led DDD/backend design workflow",
-    "longDescription": "EventStorming-led DDD workflow from backend product evidence through accepted Strategic Modeling and Tactical Design to a codify-ready handoff, with independent implementation review.",
+    "shortDescription": "Adversarial HITP EventStorming workflow",
+    "longDescription": "DDD workflow that facilitates the ten EventStorming steps one frontier decision at a time, challenges the integrated model from multiple perspectives, and synchronizes documentation only after explicit model confirmation; accepted Tactical Design can be implemented and independently reviewed.",
     "developerName": "xuhao",
     "category": "Productivity",
     "capabilities": [
@@ -23,7 +23,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use $ddd-expert:event-storming to take this backend story through proportionate EventStorming to accepted Strategic Modeling and a codify-ready Tactical Design."
+      "Use $ddd-expert:event-storming to facilitate the ten EventStorming steps on a temporary EventStorming Board. Ask one frontier decision at a time, recommend design choices with their strongest credible alternative, show the complete integrated model for explicit user confirmation, then synchronize relevant documentation and stop at model_ready."
     ]
   },
   "skills": "./skills/"

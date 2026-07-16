@@ -1,264 +1,51 @@
 # ddd-expert behavior evaluations
 
-This suite measures observable `ddd-expert` behavior. It complements
-`scripts/release/test/test_ddd_expert_plugin.sh`, which remains a deterministic
-manifest, mirror, and prompt-surface lint.
+This suite runs isolated observable-behavior checks for `codify` and `guard`. It complements `scripts/release/test/test_ddd_expert_plugin.sh`, which checks plugin structure and the EventStorming workflow contract deterministically.
 
-The evaluator does not use another LLM as a judge. Each checked-in case defines
-approved expectations, and the runner scores:
+## EventStorming evaluation boundary
 
-- structured phase completion, questions, routes, and review conclusions;
-- review reason families plus existing evidence paths and valid line numbers;
-- the actual workspace change set from the immutable baseline, including
-  ignored files, mode changes, and optional exact write-set limits;
-- required or forbidden file content;
-- real post-run verification commands.
+EventStorming has no release-gated architecture-answer fixtures. A keyword, fixed phrase, expected Bounded Context name, or preselected context boundary cannot prove that an HITP modeling conversation was reasonable. Adding such a case would optimize the Skill for the oracle rather than for domain discovery.
 
-A Guard execution whose required axis workers cannot complete reports
-`completion: stopped` and `review_conclusion: incomplete`, with no DDD verdict
-or phase route. This keeps execution failures distinct from authority or
-verification evidence gaps.
+Evaluate EventStorming through:
 
-## Commands
+- deterministic checks for the ten-step order, one-frontier-question contract, pre-confirmation write barrier, integrated-model confirmation, diagram persistence, documentation synchronization, and Strategic stop; and
+- manual review of a small representative HITP transcript for evidence gathering, useful questions, credible alternatives, willingness to revise, visible uncertainty, and absence of invented business authority.
 
-Validate the fixtures and scorer without calling a model:
+Manual transcript review is product feedback, not a keyword score and not an automated release gate.
+
+## Automated suite
+
+Checked-in `codify` and `guard` cases may assert observable file changes, commands, review families, evidence paths, and structured completion. The runner does not use another LLM as a judge.
+
+Validate fixtures and the deterministic scorer without a model call:
 
 ```bash
 node scripts/eval/ddd-expert.js validate
-node scripts/eval/ddd-expert.js self-test
 node scripts/eval/ddd-expert.js doctor
 ```
 
-`doctor` does not call a model. It verifies Docker tools, the isolated local
-marketplace, the uniquely enabled plugin, and the installed source hash.
-
-Run the fast workflow sentinels once:
+Run a smoke suite:
 
 ```bash
 node scripts/eval/ddd-expert.js run \
   --suite smoke \
-  --model gpt-5.6-sol \
+  --model <model> \
   --reasoning medium
 ```
 
-Run every case three times. A case passes when at least two complete trials
-pass; the suite passes only when every case passes:
+Run all automated cases:
 
 ```bash
 node scripts/eval/ddd-expert.js run \
   --suite full \
-  --model gpt-5.6-sol \
+  --model <model> \
   --reasoning high
 ```
 
-Use `--case <id>` and `--runs 1` while developing one fixture. Raw traces,
-structured responses, copied workspaces, and `summary.json` are written under
-`/tmp/ddd-expert-evals/<timestamp>` by default. The output root and retained
-directories are mode `0700`; retained regular files are mode `0600`. An
-explicit output path must be an empty, owned real directory and may not traverse
-a symlink.
+Use `--case <id>` and `--runs 1` while developing one fixture. Raw traces and copied workspaces are written under `/tmp/ddd-expert-evals/<timestamp>` by default. Provider, transport, timeout, and CLI failures are infrastructure failures rather than behavior failures.
 
-Provider, transport, timeout, and CLI failures are invalid trials rather than
-behavior failures. The runner retries them twice by default. If it still cannot
-collect the requested number of valid trials, the suite is `INCONCLUSIVE` and
-exits with status 2; a behavior failure exits with status 1. Override the retry
-limit with `--infra-retries`. If Codex exits successfully but omits or corrupts
-the schema-constrained result, that is a behavior failure and is not retried as
-infrastructure.
+## Adding an automated case
 
-## Execution model
+Add cases only for an observable Codify or Guard contract that can be judged without pretending to know the correct domain model. Keep each workspace minimal and expectations outside the model-visible input.
 
-At startup the runner freezes the selected cases, response schema, minimal
-marketplace, and current `codex-plugins/ddd-expert` source. It verifies that the
-installed plugin hash matches that snapshot. Each trial receives a fresh
-workspace, Git baseline, and independent `CODEX_HOME`; the plugin cache and
-minimal marketplace are mounted read-only. The trial is intentionally
-non-ephemeral inside that disposable home because Codex collaboration requires
-a registered root thread. Scoring expectations never enter the model container.
-For a two-turn case, the checked-in domain answer is withheld from turn 1 and
-enters only the explicit turn-2 continuation prompt. The case prompt, workspace,
-and answer must use distinct real paths: fixture validation rejects symlinks,
-symlinked ancestors, hard links, inode aliases, and an answer or prompt inside
-the model-visible workspace.
-The retained host-side login copy is excluded while that home is copied. A
-short-lived broker creates `auth.json` there as an owner-only FIFO and serves
-the login only while Codex starts; the FIFO keeps its nested read-only bind
-inside the container. The runner holds the broker's stdin liveness pipe open,
-so parent exit (including `SIGKILL`) makes the broker zero its payload and stop.
-The runner requires the broker's exact ready line before starting Docker, then
-cuts off and reaps the broker as soon as the first nonblank, newline-framed
-Codex JSONL event is a valid `thread.started` object. Any different ordering,
-invalid framing, early broker exit, timeout, or cleanup failure invalidates the
-trial and removes its container. This event ordering is a Codex compatibility
-gate, not scoring evidence or a trust claim. After Docker exits, the runner
-verifies that `auth.json` is still the same empty FIFO. Normal completion and
-handled `SIGINT`/`SIGTERM` abort and reap active containers before removing the
-temporary homes and host-side login copy.
-
-Collaboration events in the retained trace are diagnostic only. The evaluated
-process can write its own output channels, so the runner does not treat those
-events as a tamper-proof topology attestation or use them as scoring evidence.
-
-The model call and post-run checks run in the checked-in Docker image. Codex's
-internal sandbox is disabled only inside a capability-dropped, read-only-root
-container. The container sees one isolated home, one case workspace, its result
-directory, the response schema, and the minimal marketplace. It does not see
-the source repository, other cases, or expected answers. This also avoids
-nested user-namespace failures on hosts where bubblewrap cannot start.
-The writable trial workspace has a nested read-only `.git` mount, and post-run
-checks see the entire workspace read-only. Scoring uses bounded filesystem
-snapshots rather than invoking host Git on model-controlled files.
-The mutable image tag is resolved once and every doctor, trial, and post-run
-check executes that immutable image ID. Model calls and checks have an
-in-container deadline plus a short host cleanup grace; every run also has a
-random trusted name, cidfile, and label so a timed-out Docker client cannot
-leave its container running. The same controller registry is drained during a
-handled runner shutdown before its private runtime roots are removed.
-
-Two-turn cases reuse the same isolated workspace, original Git baseline, and
-disposable `CODEX_HOME`. The runner currently starts a fresh `codex exec` for
-turn 2; it does not claim native thread resumption. Instead, the continuation
-prompt includes the turn-1 structured response and the domain participant's
-answer, and tells the model to continue from the unchanged workspace without
-reopening accepted facts. Retained artifacts label this mode
-`explicit-prompt-same-workspace`. Turn-1 scoring checks the purpose of the
-HotSpot question, its workspace delta, and any declared `files` and `checks` for
-an accepted slice already written; final scoring compares the cumulative
-workspace delta against the original baseline.
-
-Behavior runs require an explicit model. `summary.json` records the model,
-reasoning level, Codex version, plugin/eval/snapshot fingerprints, exact Docker
-image ID, run count, discarded infrastructure attempts, and individual
-assertions. Dialogue-aware summaries use `schemaVersion: 3`; each dialogue
-trial retains both turn results and grades plus its continuation mode. The
-runner fingerprint includes both the orchestrator and the auth
-FIFO broker. Use those identities rather than a mutable image tag or Git
-`dirty` flag when comparing releases.
-
-## Adding a case
-
-Keep a case focused on one risk. Add a directory under `cases/` containing:
-
-- `case.json`: execution policy and deterministic expectations;
-- `prompt.md`: the user request, without expected-answer hints;
-- `workspace/`: the smallest project evidence needed to decide the case.
-
-To evaluate discovery followed by a domain answer, add `answer.md` beside the
-prompt and declare a `dialogue` block:
-
-```json
-{
-  "dialogue": {
-    "answer": "answer.md",
-    "first_turn": {
-      "completion": ["needs_clarification"],
-      "questions": {
-        "min": 1,
-        "max": 1,
-        "contains_any": [["authority", "who decides"]]
-      },
-      "git": {
-        "changed": "some",
-        "required_paths": ["docs/ddd-expert/context/example/design.md"],
-        "allowed_paths": ["docs/ddd-expert/context/example/design.md"],
-        "forbidden_paths": []
-      },
-      "files": [{
-        "path": "docs/ddd-expert/context/example/design.md",
-        "exists": true,
-        "contains": ["design_status: evolving", "Accepted invariant"],
-        "excludes": []
-      }],
-      "checks": []
-    }
-  }
-}
-```
-
-`dialogue.first_turn.questions`, `files`, and `checks` use the same scorers as
-their final expectations, but neither turn is scored by question-mark count or
-a fixed sentence shape. `first_turn.git` proves when a slice was written;
-declare `first_turn.files` whenever the case must also prove what accepted
-meaning was already present before the domain answer. The ordinary top-level
-`expect` remains the turn-2 oracle for the full cumulative artifact state.
-
-For discovery-order risks, `expect.questions.contains`, `contains_any`, and
-`excludes` score the coherent set of question entries in the turn after Unicode
-normalization. Each phrase is matched within one entry and never assembled
-across an array boundary; different required groups may still be satisfied by
-different entries in the same coherent HotSpot. English
-matches use word boundaries; spaces in a phrase also accept a dash. A trailing
-`*` declares an explicit English word family (`own*` matches `own`, `owns`, and
-`ownership`) without reverting to arbitrary substring matching. Chinese
-alternatives use continuous normalized text. Each `contains_any` group requires
-one alternative somewhere in that question set, so a case can require several
-independent semantic signals without locking the model to one sentence or one
-array entry. Use `propositions` when a conclusion's
-polarity matters: each proposition declares accepted and rejected paraphrases,
-and the scorer evaluates every occurrence in its prose clause. An external
-negation reverses the occurrence, while intrinsic accepted wording such as
-“cannot establish two terminal outcomes” remains accepted. Question scoring is
-semantic: punctuation, the number of interrogative clauses, and a fixed
-recommendation/alternative shape are not scoring signals.
-
-A standalone `...` in a semantic phrase permits a bounded gap within the same
-prose clause. Use it to bind a relation to both operands, such as
-`move* ... across root*`; it never crosses `.`, `!`, `?`, or `;`. Prefer this
-over a bare verb that an unrelated sentence could satisfy.
-
-File assertions keep `contains` for exact structural or identifier checks.
-Use `contains_any` groups for accepted semantic decisions that may be expressed
-with equivalent capitalization, line wrapping, inline Markdown decoration, or wording; every group must
-match at least one normalized alternative. This matcher proves that a semantic
-signal is present, not that its polarity is positive. Use file `propositions`
-for accepted conclusions and keep `excludes_semantic` for standalone forbidden
-claims; both match case- and line-wrap-insensitively. Keep scorer self-tests for
-an accepted paraphrase, external negation, and an explicit opposite. Keep
-`excludes` for exact syntax or heading exclusions where normalized substring
-matching would be too broad. Use `identifiers_without_format` when accepted
-Domain identity semantics must not acquire an implementation format; its
-relation-aware check follows bounded pronoun chains, scopes denial to the
-nearest relationship, and recognizes numeric and natural-language character
-rules while preserving explicit “no such format” statements. Completed strategic
-EventStorming artifacts use `forbid_temporary_trace` so source-item accounting cannot survive
-under coverage, traceability, crosswalk, reconciliation, or disposition labels.
-
-`expect.git.allowed_paths` is optional. When present, every observed change must
-match one of those paths. Combine it with `required_paths` containing the same
-members to declare an exact write set: all declared artifacts must change and no
-temporary trace, source document, or unrelated artifact may be added. The runner
-compares a full pre/post workspace file snapshot outside `.git`, so ignored files
-remain part of this check. Unsafe, unreadable, oversized, or special entries fail
-closed before artifact inspection.
-
-For topology-discovery risks, pair an answer-neutral sentinel with an accepted
-decision-slice write case. The sentinel should verify that missing language or
-business authority is resolved before a context-local lifecycle; the write case
-should prove that one accepted semantic closure is applied without waiting for
-unrelated discovery or mutating an unaccepted artifact. Keep a separate legacy
-Context Map migration case because that migration is intentionally a
-coordinated whole-set replacement.
-
-For staged EventStorming tactical consensus, keep separate cases for the first tactical choice,
-the next focused choice after an accepted slice has been written as `evolving`,
-same-run continuation after embedded semantic clarification, and final
-`codify_ready` promotion without a duplicate integrated acceptance. A case that
-starts with every choice already accepted cannot by itself prove the
-intermediate write-and-continue behavior. Include retained-Entity and
-retained-Value-Object write cases when their definition contracts differ
-materially.
-
-When context nodes are known but an edge is not, use a relationship sentinel
-that requires the upstream-owned fact or intent, downstream local meaning, and
-contract authority before either context's local lifecycle is explored.
-
-Run `validate`, `self-test`, and `doctor`, then run the new case at least three
-times. Guard cases assert both a reason family and concrete evidence. Prefer one
-exact `family`; use `families_any` only when the fixture itself cannot distinguish
-equivalent root-cause and implementation-surface classifications. The case
-expectation is the one-time maintainer judgment. Normal regression runs do not
-require manual scoring.
-
-Do not copy fixture-specific issue names into the generic plugin instructions.
-Fix repeated misses at the highest reusable reasoning level, then rerun the
-unchanged case.
+Do not add an EventStorming case whose pass condition depends on expected terminology, a fixed architecture answer, or occurrence of design-principle words. Use a human-reviewed transcript when the question is whether the facilitator exercised sound judgment.

@@ -1,124 +1,139 @@
 ---
 name: ddd-modeling
-description: Language-neutral DDD guidance for Ubiquitous Language, subdomains, Bounded Contexts, authority, lifecycles, invariants, and model boundaries.
+description: Language-neutral strategic DDD guidance for EventStorming, Ubiquitous Language, authority, Aggregate candidates, Bounded Contexts, lifecycles, and collaboration views.
 ---
 
 # DDD Modeling
 
-This Knowledge Leaf combines established DDD concepts with focused reasoning
-probes. It is informed by multiple mainstream DDD viewpoints; no single author
-or school is its sole authority.
+Use this reference to reason about business meaning. It does not authorize project writes, choose implementation mechanisms, or turn an EventStorming board into Tactical Design.
 
-## Rule Strength
+## Rule strength
 
-- **[DDD Principle]** A durable DDD meaning or boundary. Apply it through the accepted domain model rather than as a mechanical code rule.
-- **[House Rule]** A conditional implementation or architecture constraint. It does not apply before its stated condition is true; once applicable, it is mandatory.
+- **[DDD Principle]** A durable DDD meaning or boundary supported by domain evidence.
+- **[House Rule]** A deliberate `ddd-expert` modeling constraint. Apply it only when its stated concern is present; once applicable, preserve it consistently.
 - **[Heuristic]** A question or pressure signal. It invites investigation and never proves a conclusion alone.
 
-Unless a rule states a narrower condition, its House Rule applies to backend
-design governed by `ddd-expert` when the stated model facts are established; it
-does not require a separate rule-by-rule opt-in.
+## 1. Event-first causal modeling
 
-## Navigation
+- **[DDD Principle]** A Domain Event names a business fact that has already happened. Use past tense and business language.
+- **[Heuristic]** Start by asking what outcome became true, not which page, service, table, message, or class exists.
+- **[Heuristic]** Order material events in business time, then work backward to Commands and actors and forward through policies, reactions, and stable outcomes.
+- **[DDD Principle]** A Command expresses an actor's intent; a policy or rule explains why the business admits, rejects, derives, or reacts; an Event states the resulting fact.
+- **[House Rule]** An EventStorming event is analytical evidence, not automatic authority for a Domain Event class, Integration Message, asynchronous transport, Event Sourcing, or event-driven architecture.
+- **[Heuristic]** Replay failure, duplication, cancellation, expiry, recovery, and concurrency only when they could change business meaning.
 
-| Need | Section |
-|---|---|
-| Establish shared business language | Ubiquitous Language |
-| Separate problem space from model boundaries | Subdomains and Bounded Contexts |
-| Identify truth and decision owners | Authority |
-| Describe relationships between contexts | Context Map |
-| Reconstruct identity, facts, and closure | Lifecycle and Fact Timeline |
-| Replay accepted scenarios into tactical candidates | Software Design EventStorming |
-| Find invariants and Aggregate candidates | Consistency Boundaries |
-| Place policy, orchestration, and mechanism | Capability Classification |
-
-## 1. Ubiquitous Language
+## 2. Ubiquitous Language
 
 - **[DDD Principle]** A Bounded Context owns a coherent language shared by domain experts and implementers.
-- **[DDD Principle]** The same term may have different meanings in different contexts. Translation is safer than forcing one enterprise-wide object model.
-- **[DDD Principle]** Names in the Domain model, Application semantic contracts, and accepted design artifacts express business meaning rather than storage, transport, or vendor vocabulary. Adapter and Runtime names accurately expose the mechanisms they own.
-- **[Heuristic]** Start with behavior: who initiates the story, what decision changes business state, what outcome becomes visible, and which exception matters?
-- **[Heuristic]** Treat nouns copied from screens, tables, reports, or protocol schemas as unclassified evidence, not ready-made Entities.
+- **[DDD Principle]** The same term may have different meanings in different contexts. Explicit translation is safer than one forced enterprise object model.
 - **[Heuristic]** Look for synonyms describing one fact, one noun with competing definitions, and state words whose authority or terminal meaning is unclear.
-
-## 2. Subdomains and Bounded Contexts
-
-- **[DDD Principle]** A Subdomain is part of the business problem space. A Bounded Context is a boundary within which one model and language apply. They are related but not necessarily one-to-one.
-- **[Heuristic]** Classify Core, Supporting, or Generic Subdomains only when the distinction changes investment, ownership, sourcing, or boundary decisions.
-- **[Heuristic]** Consider a boundary when language, authority, lifecycle, policy, model purpose, change cadence, or team ownership diverges.
-- **[Heuristic]** Shared storage, deployment, UI, or technology does not prove one context; separate deployment does not prove two.
-- **[Heuristic]** Ask whether a proposed context owns meaningful language and policy or merely wraps a vendor or technical mechanism.
-- **[House Rule]** When two areas have distinct accepted language or authority, keep their Domain models separate and integrate through an explicit contract; shared deployment or storage does not waive this rule.
+- **[Heuristic]** Treat nouns copied from screens, schemas, protocols, packages, and current code as evidence, not ready-made business objects.
+- **[House Rule]** Retain a term in the confirmed Model only when it carries supported authority, identity, lifecycle, rule, or a distinct scenario outcome.
 
 ## 3. Authority
 
-- **[DDD Principle]** Business authority owns a decision or fact. Data custody owns only a stored representation.
-- **[DDD Principle]** A projection, cache, replica, or downstream consumer cannot grant rights that contradict the authoritative fact.
-- **[Heuristic]** For each material fact, ask who proposes, confirms, changes, reverses, expires, and publishes it.
-- **[Heuristic]** Distinguish command authority, confirmation authority, observation source, and storage owner when they differ.
-- **[Heuristic]** If two contexts both appear to own a fact, identify whether they own different meanings, different lifecycle stages, or an unresolved boundary.
-- **[House Rule]** When authority is external to the local context, represent the accepted external fact explicitly and translate it into local language at the boundary; do not import the external model as the local Domain model.
+- **[DDD Principle]** Every material fact has an authority: the role, policy, context, or external source entitled to establish it.
+- **[Heuristic]** Ask who proposes, decides, confirms, changes, reverses, expires, observes, and publishes a fact; these may be different authorities.
+- **[Heuristic]** Record what information the decision maker has at decision time and whose rights, obligations, value, or next action changes.
+- **[House Rule]** Code and current storage prove observed behavior, not business authority. Conflicts between code and an authoritative business source remain visible until resolved.
+- **[House Rule]** When authority is external to a local context, represent the accepted external fact and translate it at the boundary instead of importing the external model as local Domain language.
 
-## 4. Context Map
+## 4. Lifecycle and fact timeline
 
-Mainstream DDD includes symmetric collaboration patterns such as Partnership and jointly owned Shared Kernel. `ddd-expert` deliberately narrows that design space: its Context Map uses only one-way model and published-contract dependencies, and the complete graph must remain acyclic.
+- **[DDD Principle]** Identity is continuity across change. A lifecycle explains creation, material transitions or derivations, and terminal or archival meaning.
+- **[Heuristic]** For each state word, identify the event that establishes it, prior facts required, actions it enables or forbids, and whether it can be reversed, superseded, or expire.
+- **[Heuristic]** Distinguish a business obligation's lifecycle from execution facts when either can advance independently.
+- **[Heuristic]** Use a transition table for genuinely discrete state changes; use a fact timeline, lineage, derivation, or orthogonal dimensions when an FSM would be artificial.
+- **[House Rule]** Preserve limiting semantics such as `only`, `never`, `at most`, terminality, and same-outcome guarantees across diagrams and prose.
 
-- **[House Rule]** Every Context Map edge is `U -> D`: upstream owns a named published contract whose meaning may influence the downstream model. It is not a runtime-call arrow.
-- **[House Rule]** Self-loops, reciprocal edges, longer dependency cycles, bidirectional arrows, Partnership, and Shared Kernel are unsupported. Rework language, authority, ownership, or translation instead of drawing mutual dependency.
-- **[House Rule]** Customer-Supplier, Conformist, Anti-Corruption Layer, and Open Host Service / Published Language may annotate an already established directional edge. They do not determine, reverse, or duplicate its direction. Separate Ways means no edge.
-- **[House Rule]** Both ends name the same contract and endpoints: upstream records published meaning and guarantees; downstream records accepted meaning and local translation. Runtime request and response may travel through that one owned contract without creating a reverse edge.
-- **[Heuristic]** Several contexts using the same capability do not form a Shared Kernel. If the capability owns coherent language, authority, or lifecycle, test it as an independent upstream supporting or generic context with fan-out consumers; a shared pure technical library is not itself a Bounded Context relationship.
-- **[Heuristic]** Revisit an edge when consumer count, team power, change cadence, translation cost, or authority changes materially.
+## 5. Aggregates and core business objects
 
-## 5. Lifecycle and Fact Timeline
+- **[DDD Principle]** An Aggregate is a consistency and mutation boundary governed by one root. Table joins, packages, RPCs, and current transaction shape do not define it.
+- **[Heuristic]** Ask what must be true immediately after a Command and which invalid state cannot safely wait for retry, compensation, reconciliation, or a later reaction.
+- **[Heuristic]** Independent identity, lifecycle, authority, external reference, unbounded collections, and high write contention pressure objects toward separate Aggregates.
+- **[House Rule]** Choose the smallest Aggregate candidate that protects each supported immediate invariant. Do not split an owned Entity or Value Object merely because no cross-object invariant was mentioned.
+- **[Heuristic]** For a non-trivial Aggregate, state a boundary thesis and test the closest credible split, merge, or deletion against one concrete invariant, concurrency path, or failure scenario.
+- **[House Rule]** Strategic EventStorming may confirm an Aggregate boundary and root but does not invent Repository APIs, schemas, handlers, DTOs, Process Managers, or other tactical realization.
+- **[House Rule]** A Bounded Context model with no supported identity, invariant, lifecycle, or concurrency boundary records an explicit evidence-based `No supported Aggregate` result. Never fabricate an Aggregate to satisfy a template; Aggregate-scoped confirmation is unavailable until an Aggregate is supported.
 
-- **[DDD Principle]** A lifecycle describes identity, admissible transitions, terminal conditions when they exist, and the authority behind each change.
-- **[DDD Principle]** A past-tense business fact is modeling evidence; it is not automatically a Domain Event or Integration Message.
-- **[Heuristic]** Reconstruct trigger or intent -> decision -> past-tense fact -> reaction, including reversal, cancellation, expiry, retry, compensation, and recovery where material.
-- **[Heuristic]** Ask which facts are business-visible, durable, externally confirmed, repeated, or only useful for a projection or audit.
-- **[Heuristic]** Separate the lifecycle of a business obligation from execution facts of external work when either can advance independently.
-- **[Heuristic]** Check whether a candidate is an Entity, immutable snapshot, attribute, read model, external representation, or durable process state before choosing a tactical type.
-- **[Heuristic]** Do not infer precedence between conflicting state words. Identify the authoritative fact and the rights it grants or removes.
-- **[House Rule]** When accepted facts establish material discrete transitions, the authoritative Design representation records `From`, `Intent`, `Authority`, `Guard`, `To`, and `Established Fact`. A diagram may aid reading but does not replace those semantics.
-- **[House Rule]** Use a fact timeline, lineage, derivation rule, or another fitting representation when an immutable object, append-only history, derived state, or orthogonal state dimensions would make one finite-state machine artificial.
-- **[House Rule]** Keep an Aggregate's business lifecycle and a Process Manager's coordination lifecycle distinct. Execution mechanics remain attached correctness constraints unless their state changes business eligibility, rights, or outcomes.
+## 6. Bounded Contexts and abstraction pressure
 
-## 6. Software Design EventStorming
+- **[DDD Principle]** A Subdomain is part of the problem space. A Bounded Context is a boundary within which one model and language apply; they are not necessarily one-to-one.
+- **[Heuristic]** Consider a context boundary when language, authority, lifecycle, policy, model purpose, change cadence, or organizational ownership diverges materially.
+- **[Heuristic]** Name a context for its supported business authority and model. A process, use-case, feature, or scenario label does not establish a narrower context unless it also has independent language, authority, lifecycle, or model purpose.
+- **[Heuristic]** Shared storage, deployment, UI, library, or technology does not prove one context. Separate deployment, package, or service does not prove two.
+- **[House Rule]** Never promote a vendor, runtime, framework component, or technical mechanism to a Bounded Context without supported business language, authority, lifecycle, and model purpose.
+- **[Heuristic]** When several areas appear to repeat one mechanism, compare:
+  1. one shared domain mechanism with coherent language, lifecycle, rules, and business ownership;
+  2. one shared technical Module that owns no business decision; and
+  3. distinct local semantics connected through translations.
+- **[House Rule]** Choose shared domain ownership only when the semantic evidence is genuinely common. Choose local models when similar shapes hide different authorities or lifecycles. Technical reuse never requires a shared Domain model.
 
-Software Design EventStorming is a collaborative tactical analysis of accepted scenarios. Commands expose intent, Aggregate decisions expose invariant ownership, past-tense facts expose outcomes, policies expose reactions, and Process Managers expose durable coordination. Read models and external systems reveal information and boundary needs without becoming Domain objects by default.
+### Repetition and abstraction pressure
 
-- **[House Rule]** EventStorming uses the board to discover and challenge tactical candidates before proposing a Design; it does not treat the first arrangement of notes as a design conclusion.
-- **[House Rule]** Boards, sticky-note inventories, hot-spot notes, and alternative drafts are temporary working material. Persist only the accepted stable design and the evidence needed to review it.
-- **[DDD Principle]** An event used during analysis is evidence that something happened. It does not by itself require a Domain Event type, an Integration Message, asynchronous delivery, Event Sourcing, or an event-driven implementation architecture.
-- **[Heuristic]** Mark a hot spot where authority, invariant ownership, lifecycle, consistency, or failure semantics admit more than one credible tactical answer. A hot spot is a prompt for one design decision, not a document checkpoint.
-- **[House Rule]** A replay that exposes a missing business fact is not ready for tactical placement. When accepted facts are complete, tactical placement and mechanism may be resolved without inventing new business meaning.
+- **[Heuristic]** Apply DRY to duplicated knowledge and sources of truth, not merely repeated syntax or similarly shaped call chains.
+- **[Heuristic]** Cohesion and SRP favor one owner when the behavior changes for the same reason; they favor separation when callers have independent policy, lifecycle, or release pressure.
+- **[Heuristic]** A shared technical Module earns its seam when a small Interface hides meaningful complexity, gives several callers leverage, and concentrates change locally. A pass-through wrapper or hypothetical future reuse is not depth.
+- **[Heuristic]** Balance common reuse against coupling: a shared Module is harmful when callers must coordinate for rules they do not share or learn an Interface nearly as complex as their local implementations.
+- **[Heuristic]** YAGNI and avoidance of hasty abstraction restrain extraction until observed variation supports a stable seam. Deliberate local duplication can be cheaper than the wrong shared abstraction.
+- **[Heuristic]** Treat these principles as competing design forces, not a scorecard: none has automatic precedence, and the relevant evidence and tradeoff must be stated for the concrete mechanism.
+- **[House Rule]** These software-design principles decide whether and where a shared seam may pay for itself. They do not establish business language, authority, lifecycle, or a Bounded Context; domain evidence still decides those.
 
-## 7. Consistency Boundaries
+## 7. Context collaboration
 
-- **[DDD Principle]** An invariant states what must be true at a defined consistency boundary. A policy states how the business decides or reacts.
-- **[DDD Principle]** An Aggregate is a consistency and mutation boundary governed by one root; table shape and transaction shape do not define it.
-- **[Heuristic]** Ask what must be true immediately after the command and what invalid state cannot be repaired by retry, compensation, reconciliation, or a later reaction.
-- **[Heuristic]** Ask what can change independently, what has its own lifecycle, and what external actors reference directly.
-- **[Heuristic]** Independent lifecycle, different authority, unbounded collections, and high write contention pressure a boundary toward separate Aggregates.
-- **[Heuristic]** Cross-table persistence may represent one Aggregate; one database transaction across several objects does not prove one Aggregate.
-- **[House Rule]** Model candidates as separate Aggregates when the accepted facts establish independent identity, lifecycle, authority, or direct external reference and no invariant requires their atomic mutation. Absence of a cross-object invariant alone does not split an owned Entity or Value Object from its root.
-- **[House Rule]** When an accepted invariant does require immediate consistency, choose the smallest Aggregate boundary that protects it without loading or locking an unbounded graph.
-- **[House Rule]** For every new or materially changed non-trivial Aggregate, state a boundary thesis linking its owned state to the invariant it protects. When a credible split or merge alternative exists, test it against a concrete invariant, concurrency, or failure scenario; do not manufacture an alternative for a self-evident boundary.
-- **[Heuristic]** A use case that appears to require one atomic transaction across Aggregate Roots is a boundary alarm. Recheck whether one invariant truly requires immediate consistency, whether the roots should merge, or whether an explicit recoverable process preserves the business outcome before accepting a multi-root transaction.
-- **[Heuristic]** An Aggregate Map communicates Roots, owned Entities and Value Objects, and identity-only cross-root references. A database ERD may document a design-significant persistence view, but cannot prove the Domain boundary.
+Mainstream DDD includes symmetric patterns such as Partnership and Shared Kernel. `ddd-expert` deliberately uses an acyclic semantic dependency map and models runtime/business interaction separately.
 
-## 8. Capability Classification
+- **[House Rule]** A Model Dependency edge is `U -> D`: upstream owns a named published meaning or contract whose model may influence the downstream model. It is not a runtime-call arrow.
+- **[House Rule]** Model Dependency self-loops, reciprocal edges, longer cycles, bidirectional arrows, Partnership, and Shared Kernel are unsupported. Rework authority, language, ownership, or translation rather than drawing mutual semantic dependency.
+- **[House Rule]** Both ends of a dependency name the same contract and endpoints: upstream states published meaning and guarantee; downstream states accepted meaning and local translation.
+- **[House Rule]** An Interaction edge is `initiator -> receiver` between accepted project Bounded Contexts and records a runtime or business exchange, including trigger or intent and result or failure feedback. It may oppose a Model Dependency and may participate in a cycle. External actors, systems, and technical components stay on EventStorming views unless independent business evidence establishes them as contexts.
+- **[DDD Principle]** Request/response direction does not decide model ownership. One interaction can use an upstream-owned or downstream-owned semantic contract without adding a reverse model dependency.
+- **[Heuristic]** Revisit a dependency when authority, consumer count, translation cost, change cadence, or guarantees change materially.
 
-- **[DDD Principle]** Stable business language, admission, ownership, eligibility, state, and derivation rules belong to the Domain model even when their subject sounds technical.
-- **[DDD Principle]** Use-case sequencing and coordination of already-modeled behavior belong to Application.
-- **[House Rule]** Durable coordination state and transition rules for an accepted Process Manager belong to Application. Protocol, persistence, SDK, topology, timer, retry-runner, scheduling, and process-runtime lifecycle mechanics remain in outer adapters or Runtime.
-- **[Heuristic]** Separate routing policy from address lookup, scheduling policy from timer mechanics, and ownership rules from lease storage.
-- **[Heuristic]** Before naming a Service, Repository, port, handler, task, or Process Manager, ask who owns its rule, state, transaction, retry, and recovery.
-- **[Heuristic]** An important Domain judgment with no natural Entity or Value Object owner points toward a Domain Policy or Domain Service. Durable cross-step progress points toward a Process Manager. Mechanical forwarding remains implementation wiring.
-- **[Heuristic]** Technology-shaped names and many unrelated dependencies are placement pressure, not automatic violations.
-- **[House Rule]** When an inner responsibility needs an external capability, define the contract in the inner caller's language and adapt the mechanism outside it.
+### Canonical Local View wireframes
 
-## Related References
+Local View connectors are validated syntax: connector cells touch the context boxes, and a multi-neighbor view uses one connected branch rather than several unrelated arrows. Use these shapes and substitute the confirmed context names without adding spaces between a box and its connector.
 
-- [ddd-core.md](ddd-core.md) for DDD tactical building blocks and the integrated DDD + Clean Architecture baseline.
-- [ddd-collaboration.md](ddd-collaboration.md) for cross-context contracts and long-running collaboration.
+One dependency:
+
+```text
++---+   +---+
+| A |-->| B |
++---+   +---+
+```
+
+Fan-out from the current context:
+
+```text
++---+         +---+
+| A |--+----->| B |
++---+  |      +---+
+       |
+       |      +---+
+       +----->| C |
+              +---+
+```
+
+Fan-in to the current context:
+
+```text
++---+
+| B |--+
++---+  |
+       |
++---+  |      +---+
+| C |--+----->| A |
++---+         +---+
+```
+
+## 8. Constructive challenge, Hotspots, and confirmation
+
+- **[DDD Principle]** A Hotspot makes a gap, contradiction, ambiguity, assumption, risk, or deferred branch visible. It is valuable modeling output, not a defect to hide.
+- **[Heuristic]** Challenge the weakest material assumption with the strongest credible alternative or counterexample. Stop when further cases have diminishing decision value rather than trying to exhaust every theoretical path.
+- **[Heuristic]** Ask a fact, example, or counterexample only when plausible answers would materially change the causal story, language, authority, Aggregate, context boundary, or collaboration.
+- **[Heuristic]** Use participant/authority, scenario variation, and model pressure as complementary perspectives. Select only the perspective that can change the current decision.
+- **[House Rule]** Supported individual facts do not make their aggregate composition authoritative. Local answers are working confirmations; final confirmation applies to the exact integrated scope, views, decisions, assumptions, and non-blocking Hotspots the user saw.
+- **[House Rule]** An Aggregate-scoped confirmation cannot silently authorize its whole Bounded Context; a context-scoped confirmation cannot silently authorize a cross-context topology.
+- **[House Rule]** A corrected integrated model replaces the previous candidate as a whole. Do not combine partial acceptance of an older diagram with an unseen revision.
+- **[House Rule]** A blocking Hotspot has a plausible answer that would change an in-scope timeline, material rule, Aggregate, Bounded Context, or collaboration direction. Resolve it or narrow the scope before confirmation; retain non-blocking Hotspots explicitly.
+- **[Heuristic]** A model is ready to present when material Scenario Threads are coherent, all ten EventStorming dimensions relevant to the scope are visible, the strongest known model-changing alternatives were tested, collaboration views are distinct, and remaining uncertainty is explicit.
