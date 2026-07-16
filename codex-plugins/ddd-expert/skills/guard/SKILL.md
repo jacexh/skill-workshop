@@ -1,19 +1,19 @@
 ---
 name: guard
-description: Use when reviewing concrete backend implementation changes before merge or release for Model Realization and House-Style Conformance with a confirmed EventStorming Model and ddd-expert guidance.
+description: Use when reviewing concrete backend implementation changes before merge or release for Model Realization and House-Style Conformance, including closure of a ready EventStorming iteration.
 ---
 
 # Guard
 
-Review concrete implementation evidence through two independent axes: Model Realization and House-Style Conformance. Breadth produces falsifiable hypotheses; depth clears or proves them. A main coordinator owns the Review Envelope, dispatch, synthesis, verification, and routing; it does not perform either complete axis, redesign, or modify project files. For a Codify handoff, the coordinator runs read-only in a fresh agent context distinct from the implementer.
+Review concrete implementation evidence through two independent axes: Model Realization and House-Style Conformance. Breadth produces falsifiable hypotheses; depth clears or proves them. Guard review is read-only. A main coordinator owns the Review Envelope, dispatch, synthesis, verification, and routing; it does not perform either complete axis or redesign. For a Codify handoff, the coordinator runs in a fresh agent context distinct from the implementer.
 
 Build or runtime blockers limit executable verification only. Continue independent static review, and never treat compilation failure, passing tests, package names, or absence of suspicious words as model proof.
 
 ## Review authority
 
-Guard is read-only. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation in the same run with authority `guard`; never request or perform an apply operation. Report artifact evidence and routing through the review response without persisting findings under `docs/ddd-expert`.
+Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation while reviewing with authority `guard`. The review remains read-only until every Guard completion gate is clear. Then request only `mark-event-storming-implemented` for the reviewed ready iterations; persist no findings or model changes under `docs/ddd-expert`.
 
-The originating request defines the claimed change scope, not business truth. Each affected context's canonical `model_ready` Model owns business meaning. Relevant accepted PRDs, Specs, ADRs, Glossaries, and project documentation own their recorded constraints; ddd-expert references own implementation defaults; code, tests, and existing conventions are realization evidence.
+The originating request and scoped `ready` EventStorming minutes define the claimed iteration scope, not business truth. Each affected canonical Model owns current business meaning; a `legacy_model_ready` remains accepted during migration. Relevant accepted PRDs, Specs, ADRs, Glossaries, and project documentation own their recorded constraints; ddd-expert references own implementation defaults; code, tests, and existing conventions are realization evidence.
 
 Establish before judging code:
 
@@ -23,7 +23,7 @@ Establish before judging code:
 4. changed files and necessary neighboring code, generated artifacts, migrations, configuration, runtime wiring, logs, and verification evidence;
 5. stable IDs for every scoped Model or request obligation, every changed file and required production path, and every additive layer, mechanism, and specialized-surface label attached to those paths.
 
-Code and tests never override accepted authority. Missing artifacts block only judgments that need them. A `draft_model`, `legacy_model`, or missing Model is not ready implementation authority. Route missing or contradictory business authority to `event-storming` while continuing independent conformance review. Engineering realization choices are judged from accepted project constraints, ddd-expert references, and repository evidence; they do not require another readiness artifact. If the implementation creates a destructive, security/compliance, incompatible deployment/public-contract, or first external-platform commitment that accepted project authority does not cover, report that exact project-authority gap without inventing a design stage.
+Code and tests never override accepted authority. Missing artifacts block only judgments that need them. A `draft` EventStorming iteration or missing Model is not ready implementation authority. Route missing or contradictory business authority to `event-storming` while continuing independent conformance review. Engineering realization choices are judged from accepted project constraints, ddd-expert references, and repository evidence. If the implementation creates a destructive, security/compliance, incompatible deployment/public-contract, or first external-platform commitment that accepted project authority does not cover, report that exact project-authority gap without inventing a design stage.
 
 An explicit accepted constraint governs only its stated scope. Vague waiver language and local convention cannot override the Model, accepted project authority, or an applicable house-style rule.
 
@@ -38,6 +38,7 @@ Scope narrows applicable responsibilities: an absent layer or surface that the r
 5. **Deep-check selectively**: axis workers close direct and adjacent evidence that shares the same reason and supplied surface. For every merged family still marked `needs_depth`, launch one bounded falsification worker; combine families only when they require the same evidence and reference surface. Each family is dispatched at most once. Launch independent families concurrently within capacity; never launch one worker per smell or allow recursive fan-out.
 6. **Synthesize and verify**: combine duplicate symptoms into the smallest evidence-backed root cause, preserve its `[Realization]`, `[Conformance]`, or `[Both]` provenance, verify reported high-impact evidence, run available executable checks, and route each non-clear result.
 7. **Enforce completion**: the two coverage unions still reconcile exactly to their frozen inventory IDs; every frozen surface is clear/not applicable or has a terminal candidate; every hypothesis and depth request is terminal; adjacent evidence is closed; both required axis workers completed; the source snapshot did not drift; the frozen artifacts did not drift; every reported item cites concrete authority and implementation evidence. Snapshot drift makes the Guard execution incomplete rather than clear.
+8. **Close a clear iteration**: only after step 7 is clear, use `maintain-artifacts.mark-event-storming-implemented` to transition every reviewed `ready` EventStorming file to `implemented` and check its matching README item. A failed closure makes the Guard execution incomplete.
 
 If a required axis worker cannot be launched, fails, or returns unusable output, retry it once with a fresh worker and the same envelope. Each required role therefore has at most two attempts total. If it fails again, stop as an incomplete Guard execution. Do not substitute a main-thread axis, issue `No DDD findings`, infer an axis verdict, or emit an `event-storming` or `codify` route for this execution blocker.
 
@@ -125,7 +126,7 @@ Each applicable sentinel seeds a hypothesis, never a verdict:
 - Clear authority with missing, partial, or incorrect implementation, or a house-style violation: `violation`, route `codify`.
 - Missing runtime, test, or operational proof: report a material verification gap; do not turn an unavailable check into a model claim.
 
-Report only non-clear outcomes, ordered by architectural severity. Prefix each finding with `[Realization]`, `[Conformance]`, or `[Both]`; merge shared root causes rather than pasting worker reports. Cite file/line evidence, impact, root cause, and correction direction, then authority/verification gaps, checks, and residual risk. Assign Blocker/Major/Minor only to violations. Say `No DDD findings` only after both axes and all completion gates are clear.
+Report only non-clear outcomes, ordered by architectural severity. Prefix each finding with `[Realization]`, `[Conformance]`, or `[Both]`; merge shared root causes rather than pasting worker reports. Cite file/line evidence, impact, root cause, and correction direction, then authority/verification gaps, checks, and residual risk. Assign Blocker/Major/Minor only to violations. Say `No DDD findings` only after both axes, all completion gates, and any required `implemented` transition are clear.
 
 ## References
 

@@ -4,6 +4,7 @@
 - Date: 2026-07-16
 - Supersedes: the EventStorming modeling, acceptance, and artifact-write decisions in [ADR 0001: ddd-expert uses progressive reference knowledge leaves](0001-ddd-expert-reference-architecture.md)
 - Pre-confirmation Model materialization, Strategic-stop, separate Tactical Design authority, and downstream realization-axis decisions superseded by: [ADR 0004: `model_ready` Enters Codify Directly](0004-model-ready-enters-codify-directly.md)
+- EventStorming artifact placement and per-Model diagram persistence superseded by: [ADR 0005: EventStorming Produces Iteration Minutes and Current Models](0005-event-storming-minutes-and-current-models.md)
 
 ## Context
 
