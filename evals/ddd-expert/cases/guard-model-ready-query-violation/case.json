@@ -1,0 +1,31 @@
+{
+  "id": "guard-model-ready-query-violation",
+  "phase": "guard",
+  "suites": ["full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["violations"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": ["codify"], "excludes": ["event-storming", "guard"] },
+    "verdicts": [
+      {
+        "kind": "violation",
+        "family": "cqrs_boundary",
+        "evidence_paths": ["internal/business/order/infrastructure/store.go"]
+      }
+    ],
+    "forbid_verdicts": ["evidence_gap"],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": [
+      {
+        "argv": ["go", "test", "./..."],
+        "exit": 1,
+        "timeout_seconds": 60
+      }
+    ]
+  }
+}

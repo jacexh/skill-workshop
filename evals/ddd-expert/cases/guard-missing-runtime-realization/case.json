@@ -16,7 +16,7 @@
         "family": "runtime_recovery",
         "evidence_paths": [
           "docs/change-request.md",
-          "docs/ddd-expert/context/order/design.md",
+          "docs/ddd-expert/context/order/model.md",
           "internal/business/order/order.go"
         ]
       }

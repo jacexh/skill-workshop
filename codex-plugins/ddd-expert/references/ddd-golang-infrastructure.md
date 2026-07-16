@@ -214,7 +214,7 @@ Prefer small Aggregates. When an accepted Aggregate nevertheless owns several En
 
 ## QueryRepository Adapter
 
-Product lists, pages, history, reports, projections, and optimized partial reads use an Application-owned QueryRepository. A focused read of exactly one reasonably sized Aggregate may use the Domain Repository only when the accepted design does not introduce distinct read semantics.
+Product lists, pages, history, reports, projections, and optimized partial reads use an Application-owned QueryRepository. A focused read of exactly one reasonably sized Aggregate may use the Domain Repository only when the confirmed Model and request do not introduce distinct read semantics.
 
 ```go
 package infrastructure

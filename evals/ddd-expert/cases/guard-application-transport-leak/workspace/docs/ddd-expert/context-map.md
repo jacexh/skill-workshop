@@ -12,12 +12,14 @@ graph LR
     payment --> order
 ```
 
+
 ## Bounded Contexts
 
 ### Order
 
 - **Core responsibility:** Own order fulfillment.
 - **Business authority:** Order state and fulfillment decisions.
+- **Model:** [Order](context/order/model.md)
 
 #### Local View
 
@@ -26,32 +28,20 @@ graph LR
 | Payment |-->| Order |
 +---------+   +-------+
 ```
-
-#### Upstream Dependencies
-
-##### Payment Captured Fact
-
-- **Upstream:** Payment
-- **Accepted meaning:** Order accepts that payment capture succeeded.
-- **Local translation:** Order translates the fact into its Record Payment intent.
 
 ### Payment
 
 - **Core responsibility:** Settle payments.
 - **Business authority:** Payment capture facts.
+- **Model:** [Payment](context/payment/model.md)
 
-#### Local View
+## Model Dependency Contracts
 
-```text
-+---------+   +-------+
-| Payment |-->| Order |
-+---------+   +-------+
-```
+### Payment Captured Fact
 
-#### Downstream Contracts
-
-##### Payment Captured Fact
-
+- **Upstream:** Payment
 - **Downstream:** Order
 - **Published meaning:** Payment publishes its authoritative captured fact.
+- **Downstream reliance:** Order relies on successful payment capture.
+- **Local translation:** Order translates the fact into its Record Payment intent.
 - **Guarantee:** Payment owns capture meaning and publication.

@@ -1,11 +1,11 @@
 ---
 name: guard
-description: Use when reviewing concrete backend implementation changes before merge or release for Design Realization and House-Style Conformance with accepted domain decisions, Tactical Design, and ddd-expert guidance.
+description: Use when reviewing concrete backend implementation changes before merge or release for Model Realization and House-Style Conformance with a confirmed EventStorming Model and ddd-expert guidance.
 ---
 
 # Guard
 
-Review concrete implementation evidence through two independent axes: Design Realization and House-Style Conformance. Breadth produces falsifiable hypotheses; depth clears or proves them. A main coordinator owns the Review Envelope, dispatch, synthesis, verification, and routing; it does not perform either complete axis, redesign, or modify project files. For a Codify handoff, the coordinator runs read-only in a fresh agent context distinct from the implementer.
+Review concrete implementation evidence through two independent axes: Model Realization and House-Style Conformance. Breadth produces falsifiable hypotheses; depth clears or proves them. A main coordinator owns the Review Envelope, dispatch, synthesis, verification, and routing; it does not perform either complete axis, redesign, or modify project files. For a Codify handoff, the coordinator runs read-only in a fresh agent context distinct from the implementer.
 
 Build or runtime blockers limit executable verification only. Continue independent static review, and never treat compilation failure, passing tests, package names, or absence of suspicious words as model proof.
 
@@ -13,28 +13,28 @@ Build or runtime blockers limit executable verification only. Continue independe
 
 Guard is read-only. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation in the same run with authority `guard`; never request or perform an apply operation. Report artifact evidence and routing through the review response without persisting findings under `docs/ddd-expert`.
 
-The originating request defines the claimed change scope, not business truth. Each affected context's canonical `model_ready` Model owns business meaning; a structurally valid `legacy_ready_model` with `shape_ready` remains read-only compatible authority. Its revision-matched `codify_ready` Design owns tactical obligations; ddd-expert references own implementation defaults; code, tests, and existing conventions are evidence.
+The originating request defines the claimed change scope, not business truth. Each affected context's canonical `model_ready` Model owns business meaning. Relevant accepted PRDs, Specs, ADRs, Glossaries, and project documentation own their recorded constraints; ddd-expert references own implementation defaults; code, tests, and existing conventions are realization evidence.
 
 Establish before judging code:
 
 1. review mode, exact target, comparison base or explicit snapshot surface, and the behavior claimed complete;
-2. affected Bounded Contexts, Context Map relationships, and relevant Model and Design sections;
-3. relevant house-style references and any explicit Design choices that override their defaults;
+2. affected Bounded Contexts, Context Map relationships, and relevant Model and accepted project-document sections;
+3. relevant house-style references and any explicit accepted constraints that override their defaults;
 4. changed files and necessary neighboring code, generated artifacts, migrations, configuration, runtime wiring, logs, and verification evidence;
-5. stable IDs for every scoped Design obligation, every changed file and required production path, and every additive layer, mechanism, and specialized-surface label attached to those paths.
+5. stable IDs for every scoped Model or request obligation, every changed file and required production path, and every additive layer, mechanism, and specialized-surface label attached to those paths.
 
-Code and tests never override accepted authority. Missing artifacts block only judgments that need them. A `legacy_model`, `missing_design`, `evolving_design`, or `stale_design` result is not ready implementation authority. Route missing or contradictory business authority to `event-storming` while continuing independent conformance review. Do not route a purely Tactical Design gap to EventStorming: report the exact missing, stale, or contradictory accepted tactical authority and limit only the judgments that require it.
+Code and tests never override accepted authority. Missing artifacts block only judgments that need them. A `draft_model`, `legacy_model`, or missing Model is not ready implementation authority. Route missing or contradictory business authority to `event-storming` while continuing independent conformance review. Engineering realization choices are judged from accepted project constraints, ddd-expert references, and repository evidence; they do not require another readiness artifact. If the implementation creates a destructive, security/compliance, incompatible deployment/public-contract, or first external-platform commitment that accepted project authority does not cover, report that exact project-authority gap without inventing a design stage.
 
-An explicit accepted Design choice governs only its stated scope. Vague waiver language and local convention cannot override the Model, Design, or an applicable house-style rule.
+An explicit accepted constraint governs only its stated scope. Vague waiver language and local convention cannot override the Model, accepted project authority, or an applicable house-style rule.
 
 Scope narrows applicable responsibilities: an absent layer or surface that the request does not claim is neither a coverage gap nor a violation. Follow adjacent evidence only while it shares the same reason family; never turn a narrow review into an unrequested project-completeness audit.
 
 ## Workflow
 
 1. **Frame the review**: choose `change_review` or `snapshot_review`. For a change, pin an immutable base and either an immutable target or a complete worktree snapshot. A mutable-worktree command set must enumerate staged, unstaged, and untracked paths and fingerprint their contents; a plain diff that omits new paths is incomplete. For a snapshot review, name and fingerprint the complete surface being asserted.
-2. **Freeze one Review Envelope**: record change intent, scope, affected contexts, artifact paths/revisions/fingerprints, source-snapshot identity and inspection commands, evidence commands, selected references, and the frozen specialized-surface inventory. Give every scoped Design obligation, changed file, required production path, layer, mechanism, and specialized surface a stable inventory ID; labels are additive. Pass paths and commands rather than duplicating full files. Recheck the envelope before finalizing.
-3. **Launch both axes**: use the host's native agent delegation to launch two independent read-only workers concurrently. Dispatch both initial workers before accepting or awaiting either completion. Label their exact roles `design-realization` and `house-style-conformance`; one worker or attempt cannot serve both roles. They receive the same frozen envelope, run in distinct agent contexts, cannot see each other's observations, and cannot delegate further. The coordinator performs neither complete axis.
-4. **Reconcile coverage, then merge**: require the Design Realization coverage union to equal the frozen Design-obligation IDs and the Conformance coverage union to equal every frozen changed-file, required-path, layer, mechanism, and specialized-surface ID, with no missing or unknown IDs. Treat a mismatch as an unusable worker result. Then merge related candidates by semantic owner, lifecycle, boundary, state vocabulary, collaboration, Repository/CQRS shape, runtime reachability, or specialized reference surface. One axis being clear never cancels the other's non-clear result.
+2. **Freeze one Review Envelope**: record change intent, scope, affected contexts, artifact paths/revisions/fingerprints, source-snapshot identity and inspection commands, evidence commands, selected references, and the frozen specialized-surface inventory. Give every scoped Model or request obligation, changed file, required production path, layer, mechanism, and specialized surface a stable inventory ID; labels are additive. Pass paths and commands rather than duplicating full files. Recheck the envelope before finalizing.
+3. **Launch both axes**: use the host's native agent delegation to launch two independent read-only workers concurrently. Dispatch both initial workers before accepting or awaiting either completion. Label their exact roles `model-realization` and `house-style-conformance`; one worker or attempt cannot serve both roles. They receive the same frozen envelope, run in distinct agent contexts, cannot see each other's observations, and cannot delegate further. The coordinator performs neither complete axis.
+4. **Reconcile coverage, then merge**: require the Model Realization coverage union to equal the frozen Model/request-obligation IDs and the Conformance coverage union to equal every frozen changed-file, required-path, layer, mechanism, and specialized-surface ID, with no missing or unknown IDs. Treat a mismatch as an unusable worker result. Then merge related candidates by semantic owner, lifecycle, boundary, state vocabulary, collaboration, Repository/CQRS shape, runtime reachability, or specialized reference surface. One axis being clear never cancels the other's non-clear result.
 5. **Deep-check selectively**: axis workers close direct and adjacent evidence that shares the same reason and supplied surface. For every merged family still marked `needs_depth`, launch one bounded falsification worker; combine families only when they require the same evidence and reference surface. Each family is dispatched at most once. Launch independent families concurrently within capacity; never launch one worker per smell or allow recursive fan-out.
 6. **Synthesize and verify**: combine duplicate symptoms into the smallest evidence-backed root cause, preserve its `[Realization]`, `[Conformance]`, or `[Both]` provenance, verify reported high-impact evidence, run available executable checks, and route each non-clear result.
 7. **Enforce completion**: the two coverage unions still reconcile exactly to their frozen inventory IDs; every frozen surface is clear/not applicable or has a terminal candidate; every hypothesis and depth request is terminal; adjacent evidence is closed; both required axis workers completed; the source snapshot did not drift; the frozen artifacts did not drift; every reported item cites concrete authority and implementation evidence. Snapshot drift makes the Guard execution incomplete rather than clear.
@@ -45,17 +45,17 @@ A depth worker must return a terminal `clear`, `violation`, or `evidence_gap`. I
 
 ## Axis contracts
 
-### Design Realization worker
+### Model Realization worker
 
-Use the change intent to select only the Model and Design obligations this review claims to deliver. Trace each scoped obligation through its applicable `Domain -> Application -> port -> adapter -> Runtime -> verification` path and assign exactly one state:
+Use the change intent to select only the Model and request obligations this review claims to deliver. Trace each scoped obligation through its applicable `Domain -> Application -> port -> adapter -> Runtime -> verification` path and assign exactly one state:
 
 - `realized`, `missing_realization`, `partial_realization`, `incorrect_realization`, `unverifiable`, or `not_applicable`.
 
-Proving `missing_realization` requires the scope authority, Design obligation, expected semantic owner or production path, every relevant inspected entrypoint/adapter/registration/configuration/verification surface, and evidence that no alternative realization exists. Missing a searched name is not proof. Semantic behavior outside the change intent is a candidate only when it conflicts with accepted authority or requires new authority.
+Proving `missing_realization` requires the scope authority, Model or request obligation, expected semantic owner or production path, every relevant inspected entrypoint/adapter/registration/configuration/verification surface, and evidence that no alternative realization exists. Missing a searched name is not proof. Semantic behavior outside the change intent is a candidate only when it conflicts with accepted authority or requires new authority.
 
 ### House-Style Conformance worker
 
-Classify the diff or snapshot by touched layer and specialized surface. Apply the compact breadth baseline below, plus only the relevant reference sections and explicit Design overrides. Seed `coverage_obligation` and `hypothesis` rows; inspect the nearest sibling flows, states, events, ports, adapters, persistence methods, and runtime registrations that share the same reason. Cheaply falsify what the supplied evidence can settle, and mark expensive cross-layer candidates `needs_depth` rather than expanding scope.
+Classify the diff or snapshot by touched layer and specialized surface. Apply the compact breadth baseline below, plus only the relevant reference sections and explicit accepted constraints. Seed `coverage_obligation` and `hypothesis` rows; inspect the nearest sibling flows, states, events, ports, adapters, persistence methods, and runtime registrations that share the same reason. Cheaply falsify what the supplied evidence can settle, and mark expensive cross-layer candidates `needs_depth` rather than expanding scope.
 
 ### Worker result
 
@@ -63,17 +63,17 @@ Each required worker returns exactly one JSON object with no surrounding prose:
 
 ```json
 {
-  "axis": "design-realization",
+  "axis": "model-realization",
   "status": "completed",
-  "coverage": [{"id": "obligation-row", "inventory_ids": ["design:payment-capture"], "state": "realized"}],
+  "coverage": [{"id": "obligation-row", "inventory_ids": ["model:payment-capture"], "state": "realized"}],
   "candidates": [],
   "gaps": []
 }
 ```
 
-`axis` must equal the worker's assigned role exactly. Set `status` to `completed` only after every row is worker-terminal: closed directly or explicitly handed to depth. `coverage` must be nonempty and use unique row identifiers. Every row includes a nonempty `inventory_ids` array and one Design state above or, for Conformance, `clear`, `violation`, `evidence_gap`, `needs_depth`, or `not_applicable`. One row may cover several inventory IDs that share one reason; the union must match that axis's frozen inventory exactly, with no missing or unknown IDs.
+`axis` must equal the worker's assigned role exactly. Set `status` to `completed` only after every row is worker-terminal: closed directly or explicitly handed to depth. `coverage` must be nonempty and use unique row identifiers. Every row includes a nonempty `inventory_ids` array and one Model-realization state above or, for Conformance, `clear`, `violation`, `evidence_gap`, `needs_depth`, or `not_applicable`. One row may cover several inventory IDs that share one reason; the union must match that axis's frozen inventory exactly, with no missing or unknown IDs.
 
-Every `candidates` row is an object with `coverage_id`, `state` (`violation` or `needs_depth`), `reason_family`, `authority`, `confirming_evidence`, `disconfirming_evidence`, and `depth_scope`. Citation/evidence fields are arrays of concise path-and-location strings; only disconfirming evidence may be empty. `depth_scope` is a nonempty bounded question for `needs_depth` and `null` for a proven violation. Every `gaps` row is an object with `coverage_id`, `reason_family`, `missing`, `authority`, and nonempty `evidence`; `authority` may be empty only when its absence is the reported gap. Each `coverage_id` must name a row in `coverage`. Missing, partial, or incorrect Design realization maps to a violation candidate; `unverifiable` maps to a gap.
+Every `candidates` row is an object with `coverage_id`, `state` (`violation` or `needs_depth`), `reason_family`, `authority`, `confirming_evidence`, `disconfirming_evidence`, and `depth_scope`. Citation/evidence fields are arrays of concise path-and-location strings; only disconfirming evidence may be empty. `depth_scope` is a nonempty bounded question for `needs_depth` and `null` for a proven violation. Every `gaps` row is an object with `coverage_id`, `reason_family`, `missing`, `authority`, and nonempty `evidence`; `authority` may be empty only when its absence is the reported gap. Each `coverage_id` must name a row in `coverage`. Missing, partial, or incorrect Model realization maps to a violation candidate; `unverifiable` maps to a gap.
 
 A depth worker uses `depth:<reason-family>` as its axis, the same envelope, and one coverage row that retains the supplied `inventory_ids` and returns exactly `clear`, `violation`, or `evidence_gap`; it cannot return `needs_depth`. Keep citations, evidence, and detail for clear/not-applicable rows internal. Do not repeat the full envelope, paste clear code, spawn another worker, or recommend edits to DDD artifacts.
 
@@ -114,14 +114,14 @@ Each applicable sentinel seeds a hypothesis, never a verdict:
 - durable facts govern later admission, terminal closure, and replay;
 - execution facts and parent terminal facts use distinct timing and language;
 - multi-step external collaboration has named coordination and recovery;
-- cross-context contracts and model imports preserve the Context Map's acyclic `U -> D` Model Dependency View; the separate Interaction View may run in either direction, and request/response through one contract does not justify a reciprocal model import;
+- cross-context contracts and model imports preserve the Context Map's acyclic `U -> D` Model Dependency View; runtime request/response through one contract does not justify a reciprocal model import;
 - Domain/Application APIs use domain-owned language;
 - production messages, tasks, schedules, reconciliation, and recovery have reachable Runtime ownership.
 
 ## Routing and reporting
 
 - Missing or contradictory business facts, a non-ready Model, a wrong Aggregate/Bounded Context boundary, or an invalid semantic Context Map: `evidence_gap`, route `event-storming`.
-- Missing, stale, or contradictory Tactical Design: `evidence_gap`; report that separately accepted tactical authority is required and do not claim EventStorming will create it.
+- Missing or contradictory implementation constraints in accepted project documents: `evidence_gap` when an irreversible or external commitment cannot be authorized from the authority order; name the owning project/ADR decision and do not invent a separate readiness requirement.
 - Clear authority with missing, partial, or incorrect implementation, or a house-style violation: `violation`, route `codify`.
 - Missing runtime, test, or operational proof: report a material verification gap; do not turn an unavailable check into a model claim.
 
@@ -132,7 +132,7 @@ Report only non-clear outcomes, ordered by architectural severity. Prefix each f
 - Start Conformance breadth with this skill's compact baseline; do not load a language guide or [../../references/ddd-core.md](../../references/ddd-core.md) wholesale.
 - During depth, load only the rule owner required by the merged family.
 - Use [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for missing model evidence.
-- Use [../../references/ddd-core.md](../../references/ddd-core.md) for tactical ownership.
+- Use [../../references/ddd-core.md](../../references/ddd-core.md) for domain ownership and realization shape.
 - Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for event, message, or cross-context evidence.
 - For triggered Go code, start with [../../references/ddd-golang.md](../../references/ddd-golang.md), then follow only the layer, flow, or platform leaf that owns the family.
 - For triggered Python or TypeScript code, load only the relevant section of [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).

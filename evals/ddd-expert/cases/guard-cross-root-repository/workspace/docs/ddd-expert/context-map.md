@@ -12,12 +12,14 @@ graph LR
     payment --> order
 ```
 
+
 ## Bounded Contexts
 
 ### Order
 
 - **Core responsibility:** Own the order lifecycle.
 - **Business authority:** Order state and fulfillment decisions.
+- **Model:** [Order](context/order/model.md)
 
 #### Local View
 
@@ -26,32 +28,20 @@ graph LR
 | Payment |-->| Order |
 +---------+   +-------+
 ```
-
-#### Upstream Dependencies
-
-##### Payment Succeeded Fact
-
-- **Upstream:** Payment
-- **Accepted meaning:** Order accepts the authoritative settlement outcome.
-- **Local translation:** Order translates it into its own fulfillment decision.
 
 ### Payment
 
 - **Core responsibility:** Own payment settlement.
 - **Business authority:** Payment attempt and settlement state.
+- **Model:** [Payment](context/payment/model.md)
 
-#### Local View
+## Model Dependency Contracts
 
-```text
-+---------+   +-------+
-| Payment |-->| Order |
-+---------+   +-------+
-```
+### Payment Succeeded Fact
 
-#### Downstream Contracts
-
-##### Payment Succeeded Fact
-
+- **Upstream:** Payment
 - **Downstream:** Order
 - **Published meaning:** Payment publishes its authoritative settlement outcome.
+- **Downstream reliance:** Order relies on the authoritative settlement outcome.
+- **Local translation:** Order translates it into its own fulfillment decision.
 - **Guarantee:** Payment owns settlement meaning and publication.

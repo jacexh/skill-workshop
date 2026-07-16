@@ -338,7 +338,7 @@ if (/<(?:-+|=+)>|[↔↭↮↹⇄⇆⇋⇌⇎⇔⇿⟷⟺⤄⥂⥄⥊⥋⥎⥐�
   invalid("bidirectional arrows such as <->, <-->, or ↔ are forbidden");
 }
 if (/^## Relationships\s*$/m.test(source)) {
-  invalid("legacy ## Relationships is unsupported; project contracts into each context");
+  invalid("legacy ## Relationships is unsupported; use ## Model Dependency Contracts");
 }
 
 const allLines = source.split(/\r?\n/);
@@ -356,6 +356,7 @@ const semanticFieldLabels = new Set([
   "Core responsibility",
   "Business authority",
   "Accepted meaning",
+  "Downstream reliance",
   "Local translation",
   "Published meaning",
   "Guarantee",
@@ -442,27 +443,30 @@ for (const line of allLines) {
 }
 
 const globalStart = allLines.findIndex((line) => line === "## Global View");
-const interactionStart = allLines.findIndex((line) => line === "## Interaction View");
 const boundedStart = allLines.findIndex((line) => line === "## Bounded Contexts");
+const dependencyContractsStart = allLines.findIndex(
+  (line) => line === "## Model Dependency Contracts",
+);
 const h2Headings = allLines.filter((line) => /^## /.test(line));
-const expectedH2Headings = interactionStart >= 0
-  ? ["## Global View", "## Interaction View", "## Bounded Contexts"]
-  : ["## Global View", "## Bounded Contexts"];
+const expectedH2Headings = [
+  "## Global View",
+  "## Bounded Contexts",
+  "## Model Dependency Contracts",
+];
 if (h2Headings.length !== expectedH2Headings.length ||
     h2Headings.some((heading, index) => heading !== expectedH2Headings[index])) {
-  invalid("expected exactly ## Global View followed by ## Bounded Contexts, with optional ## Interaction View between them");
-}
-if (!allowLegacy && interactionStart < 0) {
-  invalid("## Interaction View is required; use --allow-legacy only for inspection or coordinated migration");
+  invalid(
+    "expected exactly ## Global View, ## Bounded Contexts, and " +
+    "## Model Dependency Contracts in that order",
+  );
 }
 if (allLines.slice(1, globalStart).some((line) => line.trim() !== "")) {
   invalid("only blank lines may appear between # Context Map and ## Global View");
 }
 
-const globalEnd = interactionStart >= 0 ? interactionStart : boundedStart;
+const globalEnd = boundedStart;
 const globalLines = allLines.slice(globalStart + 1, globalEnd);
 const directionStatement = "Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.";
-const interactionDirectionStatement = "Arrow direction: `initiator -> receiver` (runtime/business interaction). It does not describe model ownership or Context Map dependency.";
 
 function parseViewEnvelope(viewName, lines, statement, absoluteSectionStart) {
   const directionLines = lines.filter((line) => line.startsWith("Arrow direction:"));
@@ -500,18 +504,7 @@ function parseViewEnvelope(viewName, lines, statement, absoluteSectionStart) {
 }
 
 const globalEnvelope = parseViewEnvelope("Global View", globalLines, directionStatement, globalStart);
-const interactionLines = interactionStart >= 0
-  ? allLines.slice(interactionStart + 1, boundedStart)
-  : null;
-const interactionEnvelope = interactionLines === null
-  ? null
-  : parseViewEnvelope(
-    "Interaction View",
-    interactionLines,
-    interactionDirectionStatement,
-    interactionStart,
-  );
-const mermaidRanges = [globalEnvelope, ...(interactionEnvelope === null ? [] : [interactionEnvelope])];
+const mermaidRanges = [globalEnvelope];
 let continuationOpen = false;
 let localTextFenceOpen = false;
 for (let index = 0; index < allLines.length; index += 1) {
@@ -549,7 +542,7 @@ for (let index = 0; index < allLines.length; index += 1) {
   if (!/^\s*(?:`{3,}|~{3,})/.test(line)) continue;
   if (mermaidRanges.some(({ absoluteStart }) => index === absoluteStart) && line === "```mermaid") continue;
   if (mermaidRanges.some(({ absoluteEnd }) => index === absoluteEnd) && line === "```") continue;
-  invalid("only the canonical Global View and optional Interaction View Mermaid code fences are supported");
+  invalid("only the canonical Global View Mermaid and optional Local View text code fences are supported");
 }
 if (localTextFenceOpen) invalid("Local View text code fence is not closed");
 
@@ -629,82 +622,7 @@ for (const id of nodes.keys()) {
   if (!visit(id)) invalid("cycle detected; the Context Map must remain a DAG");
 }
 
-const interactionEdges = [];
-const interactionEdgeKeys = new Set();
-if (interactionEnvelope !== null) {
-  const interactionGraphLines = interactionEnvelope.graphLines;
-  const interactionGraphDeclarations = interactionGraphLines
-    .map((line, index) => (/^\s*graph LR\s*$/.test(line) ? index : -1))
-    .filter((index) => index >= 0);
-  const firstInteractionGraphLine = interactionGraphLines.findIndex((line) => line.trim() !== "");
-  if (interactionGraphDeclarations.length !== 1 ||
-      interactionGraphDeclarations[0] !== firstInteractionGraphLine) {
-    invalid("Interaction View must contain exactly one Mermaid graph LR as the first nonblank block line");
-  }
-
-  const interactionNodes = new Map();
-  const interactionLabels = new Set();
-  const interactionNamesByInitiator = new Set();
-  for (let index = interactionGraphDeclarations[0] + 1; index < interactionGraphLines.length; index += 1) {
-    const line = interactionGraphLines[index];
-    if (line.trim() === "") continue;
-
-    const node = line.match(/^\s*([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\["([^"]+)"\]\s*$/);
-    if (node) {
-      const [, id, label] = node;
-      if (interactionNodes.has(id) || interactionLabels.has(label)) {
-        invalid(`Interaction View contains duplicate node ${label}`);
-      }
-      interactionNodes.set(id, label);
-      interactionLabels.add(label);
-      continue;
-    }
-
-    const edge = line.match(
-      /^\s*([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\s*-->\|([^|]+)\|\s*([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\s*$/,
-    );
-    if (edge) {
-      const initiatorId = edge[1];
-      const name = edge[2].trim();
-      const receiverId = edge[3];
-      if (edge[2] !== name || !hasRenderedText(name)) {
-        invalid("Interaction View edge must declare one non-empty canonical Interaction Name");
-      }
-      interactionEdges.push({ initiatorId, receiverId, name });
-      continue;
-    }
-
-    invalid(`unsupported Interaction View graph line: ${line.trim()}`);
-  }
-
-  if (interactionNodes.size !== nodes.size || [...nodes].some(
-    ([id, label]) => interactionNodes.get(id) !== label,
-  )) {
-    invalid("Interaction View nodes must match Global View exactly");
-  }
-
-  for (const interaction of interactionEdges) {
-    const { initiatorId, receiverId, name } = interaction;
-    if (!interactionNodes.has(initiatorId) || !interactionNodes.has(receiverId)) {
-      invalid(`Interaction View edge ${initiatorId} -> ${receiverId}/${name} has an unknown endpoint`);
-    }
-    if (initiatorId === receiverId) {
-      invalid(`Interaction View self-interaction ${initiatorId}/${name} is not cross-context`);
-    }
-    const nameKey = `${initiatorId}::${name}`;
-    if (interactionNamesByInitiator.has(nameKey)) {
-      invalid(`Interaction View contains duplicate Interaction Name ${nodes.get(initiatorId)}/${name}`);
-    }
-    interactionNamesByInitiator.add(nameKey);
-    const edgeKey = `${nodes.get(initiatorId)}->${nodes.get(receiverId)}::${name}`;
-    if (interactionEdgeKeys.has(edgeKey)) {
-      invalid(`Interaction View contains duplicate interaction ${edgeKey}`);
-    }
-    interactionEdgeKeys.add(edgeKey);
-  }
-}
-
-const contextLines = allLines.slice(boundedStart + 1);
+const contextLines = allLines.slice(boundedStart + 1, dependencyContractsStart);
 const firstContextHeading = contextLines.findIndex((line) => /^### /.test(line));
 if (firstContextHeading < 0 || contextLines.slice(0, firstContextHeading).some((line) => line.trim() !== "")) {
   invalid("Bounded Contexts must begin with a canonical ### context section");
@@ -741,145 +659,19 @@ for (const [upstreamId, downstreamId] of edges) {
   expectedLocal.get(downstream).add(`${upstream}->${downstream}:U`);
 }
 
-const upstreamContracts = [];
-const downstreamContracts = [];
-const interactionProjections = [];
-
-function parseContracts(context, lines, heading, endpointLabel, semanticLabels, target) {
-  const headingCount = lines.filter((line) => line === heading).length;
-  if (headingCount > 1) invalid(`duplicate ${heading} section for ${context}`);
-  const body = sectionLines(lines, heading, 4);
-  if (body === null) return;
-  for (let index = 0; index < body.length; index += 1) {
-    const contract = body[index].match(/^##### ([^#].*)$/);
-    if (!contract) {
-      if (body[index].trim() !== "") {
-        invalid(`contract projection section ${context}/${heading} contains unsupported content: ${body[index].trim()}`);
-      }
-      continue;
-    }
-    const name = contract[1].trim();
-    assertSupportedCollaborationSemantics(name);
-    let end = body.length;
-    for (let cursor = index + 1; cursor < body.length; cursor += 1) {
-      if (/^##### [^#]/.test(body[cursor])) {
-        end = cursor;
-        break;
-      }
-    }
-    const contractLines = body.slice(index + 1, end);
-    const allowedFields = new Set([endpointLabel, ...semanticLabels, "Collaboration pattern"]);
-    for (const line of contractLines) {
-      if (line.trim() === "" || /^ {1,5}[^ \t]/.test(line)) continue;
-      const field = line.match(/^- \*\*([^*]+):\*\* (.*)$/);
-      if (!field || !allowedFields.has(field[1])) {
-        invalid(`contract projection ${context}/${name} contains unsupported contract field: ${line.trim()}`);
-      }
-    }
-    const endpointLines = contractLines.filter((line) => /^- \*\*(?:Upstream|Downstream):\*\*/.test(line));
-    const endpointPattern = new RegExp(`^- \\*\\*${endpointLabel}:\\*\\* (\\S.*)$`);
-    if (endpointLines.length !== 1 || !endpointPattern.test(endpointLines[0]) ||
-        !hasRenderedText(endpointLines[0].match(endpointPattern)?.[1] || "")) {
-      invalid(`contract projection ${context}/${name} must declare exactly one non-empty ${endpointLabel}`);
-    }
-    const endpoint = endpointLines[0].match(endpointPattern)[1].trim();
-    for (const label of semanticLabels) {
-      const prefix = `- **${label}:**`;
-      const semanticLines = contractLines.filter((line) => line.startsWith(prefix));
-      if (semanticLines.length !== 1 || !hasRenderedText(semanticLines[0].slice(prefix.length))) {
-        invalid(`contract semantics ${context}/${name} must declare exactly one non-empty ${label}`);
-      }
-    }
-    const collaborationPrefix = "- **Collaboration pattern:**";
-    const collaborationLines = contractLines.filter((line) => line.startsWith(collaborationPrefix));
-    if (collaborationLines.length > 1 ||
-        (collaborationLines.length === 1 && !hasRenderedText(collaborationLines[0].slice(collaborationPrefix.length)))) {
-      invalid(`contract projection ${context}/${name} must declare at most one non-empty Collaboration pattern`);
-    }
-    target.push({ context, endpoint, name });
-    index = end - 1;
-  }
-}
-
-function parseInteractions(context, lines) {
-  const heading = "#### Interactions";
-  const headingCount = lines.filter((line) => line === heading).length;
-  if (headingCount > 1) invalid(`duplicate ${heading} section for ${context}`);
-  const body = sectionLines(lines, heading, 4);
-  if (body === null) return;
-  for (let index = 0; index < body.length; index += 1) {
-    const interaction = body[index].match(/^##### ([^#].*)$/);
-    if (!interaction) {
-      if (body[index].trim() !== "") {
-        invalid(`interaction projection section ${context}/${heading} contains unsupported content: ${body[index].trim()}`);
-      }
-      continue;
-    }
-    const name = interaction[1].trim();
-    let end = body.length;
-    for (let cursor = index + 1; cursor < body.length; cursor += 1) {
-      if (/^##### [^#]/.test(body[cursor])) {
-        end = cursor;
-        break;
-      }
-    }
-    const interactionLines = body.slice(index + 1, end);
-    const fieldLabels = ["Receiver", "Trigger or intent", "Result or failure feedback"];
-    const allowedFields = new Set(fieldLabels);
-    for (const line of interactionLines) {
-      if (line.trim() === "" || /^ {1,5}[^ \t]/.test(line)) continue;
-      const field = line.match(/^- \*\*([^*]+):\*\* (.*)$/);
-      if (!field || !allowedFields.has(field[1])) {
-        invalid(`interaction projection ${context}/${name} contains unsupported field: ${line.trim()}`);
-      }
-    }
-    const values = new Map();
-    for (const label of fieldLabels) {
-      const prefix = `- **${label}:**`;
-      const fieldLines = interactionLines.filter((line) => line.startsWith(prefix));
-      if (fieldLines.length !== 1 || !hasRenderedText(fieldLines[0].slice(prefix.length))) {
-        invalid(`interaction projection ${context}/${name} must declare exactly one non-empty ${label}`);
-      }
-      values.set(label, fieldLines[0].slice(prefix.length).trim());
-    }
-    interactionProjections.push({
-      initiator: context,
-      receiver: values.get("Receiver"),
-      name,
-    });
-    index = end - 1;
-  }
-}
-
 for (const [context, lines] of contexts) {
-  const allowedSections = new Set([
-    "#### Local View",
-    "#### Interactions",
-    "#### Upstream Dependencies",
-    "#### Downstream Contracts",
-  ]);
+  const allowedSections = new Set(["#### Local View"]);
   const sectionHeadings = lines.filter((line) => /^#### /.test(line));
   for (const heading of sectionHeadings) {
     if (!allowedSections.has(heading)) {
       invalid(`${context} contains unsupported context section ${heading}`);
     }
   }
-  const sectionRank = new Map([
-    ["#### Local View", 0],
-    ["#### Interactions", 1],
-    ["#### Upstream Dependencies", 2],
-    ["#### Downstream Contracts", 3],
-  ]);
-  for (let index = 1; index < sectionHeadings.length; index += 1) {
-    if (sectionRank.get(sectionHeadings[index]) < sectionRank.get(sectionHeadings[index - 1])) {
-      invalid(`${context} context sections must follow Local View, Interactions, Upstream Dependencies, Downstream Contracts order`);
-    }
-  }
   const firstSection = lines.findIndex((line) => /^#### /.test(line));
   const preamble = lines.slice(0, firstSection < 0 ? lines.length : firstSection);
   for (const line of preamble) {
     if (line.trim() === "" || /^ {1,5}[^ \t]/.test(line) ||
-        /^- \*\*(?:Core responsibility|Business authority):\*\* \S/.test(line)) {
+        /^- \*\*(?:Core responsibility|Business authority|Model):\*\* \S/.test(line)) {
       continue;
     }
     invalid(`${context} contains unsupported context content: ${line.trim()}`);
@@ -891,95 +683,121 @@ for (const [context, lines] of contexts) {
       invalid(`${context} must declare exactly one non-empty ${label}`);
     }
   }
+  const modelPrefix = "- **Model:**";
+  const modelFields = lines.filter((line) => line.startsWith(modelPrefix));
+  const model = modelFields.length === 1
+    ? modelFields[0].match(
+      /^- \*\*Model:\*\* \[([^\]\r\n]+)\]\(context\/[a-z0-9]+(?:[-_][a-z0-9]+)*\/model\.md\)$/,
+    )
+    : null;
+  if (model === null || model[1] !== context) {
+    invalid(
+      `${context} must declare exactly one matching Model link at context/<context-slug>/model.md`,
+    );
+  }
 
   const localHeadingCount = lines.filter((line) => line === "#### Local View").length;
-  if (localHeadingCount !== 1) invalid(`Local View must appear exactly once for ${context}`);
-  const expected = expectedLocal.get(context);
-  parseLocalWireframe(context, sectionLines(lines, "#### Local View", 4), expected, new Set(contexts.keys()));
+  if (localHeadingCount > 1) invalid(`Local View may appear at most once for ${context}`);
+  if (localHeadingCount === 1) {
+    const expected = expectedLocal.get(context);
+    parseLocalWireframe(
+      context,
+      sectionLines(lines, "#### Local View", 4),
+      expected,
+      new Set(contexts.keys()),
+    );
+  }
+}
 
-  parseInteractions(context, lines);
-  parseContracts(
-    context,
-    lines,
-    "#### Upstream Dependencies",
+function parseGlobalDetails(start, end, sectionName, requiredLabels, optionalLabels = []) {
+  const lines = allLines.slice(start + 1, end);
+  const entries = [];
+  const names = new Set();
+  let index = 0;
+  while (index < lines.length && lines[index].trim() === "") index += 1;
+
+  while (index < lines.length) {
+    const heading = lines[index].match(/^### ([^#].*)$/);
+    if (!heading) {
+      invalid(`${sectionName} must contain only canonical ### detail sections`);
+    }
+    const name = heading[1].trim();
+    if (!hasRenderedText(name)) invalid(`${sectionName} contains an empty detail name`);
+    assertSupportedCollaborationSemantics(name);
+    if (names.has(name)) invalid(`${sectionName} contains duplicate detail name ${name}`);
+    names.add(name);
+
+    let next = index + 1;
+    while (next < lines.length && !/^### [^#]/.test(lines[next])) next += 1;
+    const detailLines = lines.slice(index + 1, next);
+    const allowedLabels = new Set([...requiredLabels, ...optionalLabels]);
+    const values = new Map();
+    for (const line of detailLines) {
+      if (line.trim() === "" || /^ {1,5}[^ \t]/.test(line)) continue;
+      const field = line.match(/^- \*\*([^*]+):\*\* (.*)$/);
+      if (!field || !allowedLabels.has(field[1])) {
+        invalid(`${sectionName} detail ${name} contains unsupported field: ${line.trim()}`);
+      }
+      if (values.has(field[1])) {
+        invalid(`${sectionName} detail ${name} must declare ${field[1]} exactly once`);
+      }
+      if (!hasRenderedText(field[2])) {
+        invalid(`${sectionName} detail ${name} must declare non-empty ${field[1]}`);
+      }
+      values.set(field[1], field[2].trim());
+    }
+    for (const label of requiredLabels) {
+      if (!values.has(label)) {
+        invalid(`${sectionName} detail ${name} must declare ${label} exactly once`);
+      }
+    }
+    for (const label of optionalLabels) {
+      if (values.has(label)) assertSupportedCollaborationSemantics(values.get(label));
+    }
+    entries.push({ name, values });
+    index = next;
+    while (index < lines.length && lines[index].trim() === "") index += 1;
+  }
+  return entries;
+}
+
+const dependencyDetails = parseGlobalDetails(
+  dependencyContractsStart,
+  allLines.length,
+  "Model Dependency Contracts",
+  [
     "Upstream",
-    ["Accepted meaning", "Local translation"],
-    upstreamContracts,
-  );
-  parseContracts(
-    context,
-    lines,
-    "#### Downstream Contracts",
     "Downstream",
-    ["Published meaning", "Guarantee"],
-    downstreamContracts,
-  );
-}
+    "Published meaning",
+    "Downstream reliance",
+    "Local translation",
+    "Guarantee",
+  ],
+  ["Collaboration pattern"],
+);
 
-const contractKey = (upstream, downstream, name) => `${upstream}->${downstream}::${name}`;
-const upstreamKeys = new Set();
-for (const entry of upstreamContracts) {
-  const key = `${entry.endpoint}->${entry.context}`;
-  const upstreamId = labelToId.get(entry.endpoint);
-  const downstreamId = labelToId.get(entry.context);
-  if (!upstreamId || !downstreamId || !edgeKeys.has(`${upstreamId}->${downstreamId}`)) {
-    invalid(`contract projection ${key}/${entry.name} is absent from Global View`);
+const coveredDependencyEdges = new Set();
+for (const detail of dependencyDetails) {
+  const upstream = detail.values.get("Upstream");
+  const downstream = detail.values.get("Downstream");
+  const upstreamId = labelToId.get(upstream);
+  const downstreamId = labelToId.get(downstream);
+  const graphEdge = upstreamId && downstreamId ? `${upstreamId}->${downstreamId}` : null;
+  if (graphEdge === null || !edgeKeys.has(graphEdge)) {
+    invalid(
+      `Model Dependency Contracts detail ${detail.name} endpoints ` +
+      `${upstream} -> ${downstream} are absent from Global View`,
+    );
   }
-  const projectionKey = contractKey(entry.endpoint, entry.context, entry.name);
-  if (upstreamKeys.has(projectionKey)) invalid(`duplicate contract projection ${projectionKey}`);
-  upstreamKeys.add(projectionKey);
+  coveredDependencyEdges.add(graphEdge);
 }
-
-const downstreamKeys = new Set();
-for (const entry of downstreamContracts) {
-  const key = `${entry.context}->${entry.endpoint}`;
-  const upstreamId = labelToId.get(entry.context);
-  const downstreamId = labelToId.get(entry.endpoint);
-  if (!upstreamId || !downstreamId || !edgeKeys.has(`${upstreamId}->${downstreamId}`)) {
-    invalid(`contract projection ${key}/${entry.name} is absent from Global View`);
-  }
-  const projectionKey = contractKey(entry.context, entry.endpoint, entry.name);
-  if (downstreamKeys.has(projectionKey)) invalid(`duplicate contract projection ${projectionKey}`);
-  downstreamKeys.add(projectionKey);
-}
-
-if (!sameSet(upstreamKeys, downstreamKeys)) {
-  invalid("contract projection names and endpoints must match on upstream and downstream sides");
-}
-
 for (const [upstreamId, downstreamId] of edges) {
-  const prefix = `${nodes.get(upstreamId)}->${nodes.get(downstreamId)}::`;
-  if (![...upstreamKeys].some((key) => key.startsWith(prefix))) {
-    invalid(`contract projection is missing for ${nodes.get(upstreamId)} -> ${nodes.get(downstreamId)}`);
+  if (!coveredDependencyEdges.has(`${upstreamId}->${downstreamId}`)) {
+    invalid(
+      `Model Dependency Contracts detail is missing for ` +
+      `${nodes.get(upstreamId)} -> ${nodes.get(downstreamId)}`,
+    );
   }
 }
 
-const projectedInteractionKeys = new Set();
-const projectedNamesByInitiator = new Set();
-for (const projection of interactionProjections) {
-  const { initiator, receiver, name } = projection;
-  if (!labelToId.has(receiver) || receiver === initiator) {
-    invalid(`interaction projection ${initiator}->${receiver}/${name} must name another Bounded Context as Receiver`);
-  }
-  const nameKey = `${initiator}::${name}`;
-  if (projectedNamesByInitiator.has(nameKey)) {
-    invalid(`duplicate interaction projection ${initiator}/${name}`);
-  }
-  projectedNamesByInitiator.add(nameKey);
-  const key = `${initiator}->${receiver}::${name}`;
-  if (!interactionEdgeKeys.has(key)) {
-    invalid(`interaction projection ${key} is absent from Interaction View`);
-  }
-  projectedInteractionKeys.add(key);
-}
-
-for (const key of interactionEdgeKeys) {
-  if (!projectedInteractionKeys.has(key)) {
-    invalid(`interaction projection is missing for ${key}`);
-  }
-}
-
-const interactionSummary = interactionEnvelope === null
-  ? ""
-  : `, ${interactionEdges.length} interactions`;
-console.log(`valid Context Map: ${nodes.size} contexts, ${edges.length} dependencies${interactionSummary}`);
+console.log(`valid Context Map: ${nodes.size} contexts, ${edges.length} dependencies`);

@@ -5,7 +5,7 @@ description: Go house style for Aggregate Roots, Entities, Value Objects, Domain
 
 # Go Domain Layer
 
-Use this guide after Tactical Design has accepted the model and its consistency boundary. Domain code owns business state, rules and language. It does not own use-case coordination, protocol mapping, persistence mechanics or runtime policy.
+Use this guide after EventStorming has confirmed the Model and its consistency boundary. Domain code owns business state, rules and language. It does not own use-case coordination, protocol mapping, persistence mechanics or runtime policy.
 
 ## Aggregate Shape and Mapping Surface
 
@@ -105,7 +105,7 @@ An Infrastructure converter may restore an existing Aggregate with a struct lite
 
 - The Aggregate Root controls changes to owned Entities and enforces invariants synchronously.
 - Domain methods may change in-memory state and record Domain Events. They never save, publish, enqueue, log, start a goroutine or choose retry/provider policy.
-- Persist owned Entities and Value Objects with their root unless Tactical Design has accepted an independent Aggregate.
+- Persist owned Entities and Value Objects with their root unless the confirmed Model establishes an independent Aggregate.
 - Technical audit timestamps stay in the DO. Put time in Domain only when business behavior uses it, and pass the authoritative time into the operation when determinism matters.
 
 A persisted mutable Aggregate uses optimistic locking:
@@ -191,7 +191,7 @@ Use `github.com/go-jimu/components/ddd/event`. An internal Domain Event is a pas
 - Infrastructure reconstitution initializes `event.NewCollection()` and never drains it.
 - Do not expose another bounded context to this event type.
 
-`Save -> Events.Drain() -> event.Dispatcher.DispatchAll()` is used only when the accepted design permits a same-context, post-commit best-effort follow-up. `DispatchAll` accepts background work; it does not prove that handlers completed. Durable or recoverable delivery requires an accepted mechanism; do not describe in-memory dispatch as reliable. The complete flow belongs to [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md).
+`Save -> Events.Drain() -> event.Dispatcher.DispatchAll()` is used only when confirmed recovery semantics and accepted project constraints permit a same-context, post-commit best-effort follow-up. `DispatchAll` accepts background work; it does not prove that handlers completed. Durable or recoverable delivery requires an appropriate Codify-selected mechanism; do not describe in-memory dispatch as reliable. The complete flow belongs to [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md).
 
 ## Lifecycle and FSM
 

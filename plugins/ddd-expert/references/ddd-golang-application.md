@@ -108,7 +108,7 @@ Persistence mapping belongs in `infrastructure/convert.go` and follows the analo
 
 Place a command in `application/command/<use_case>.go`. The handler constructs or loads Domain state, calls Domain behavior and persists the accepted Aggregate. Do not repeat Domain validation on the command DTO.
 
-The following shape applies when the design has accepted post-commit best-effort Domain Event dispatch:
+The following shape applies when confirmed recovery semantics permit post-commit best-effort Domain Event dispatch:
 
 ```go
 package command
@@ -171,7 +171,7 @@ func (h *CreateUserHandler) Handle(
 }
 ```
 
-Without an accepted best-effort follow-up, omit the dispatcher. When durable handoff is accepted, use the prescribed outbox/task/process design rather than adding a second direct-publish path.
+Without confirmed best-effort follow-up semantics, omit the dispatcher. When durable handoff is required, use the prescribed outbox/task/process mechanism rather than adding a second direct-publish path.
 
 A normal command changes one Aggregate. If correctness appears to require saving several independent roots atomically, return to the collaboration design instead of hiding the conflict in a transaction or Repository method.
 
@@ -204,7 +204,7 @@ if err == nil {
 }
 ```
 
-The full implementation imports `github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/ddd/message` and its own `example/gen/user/integration/v1` package. It must not import Kafka. Because `event.Handler.Handle` has no error result, this handler owns logging for a failure it cannot return. Do not treat direct publication as reliable delivery; use [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) for the accepted delivery design.
+The full implementation imports `github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/ddd/message` and its own `example/gen/user/integration/v1` package. It must not import Kafka. Because `event.Handler.Handle` has no error result, this handler owns logging for a failure it cannot return. Do not treat direct publication as reliable delivery; use [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) for the mechanism Codify derives from confirmed delivery semantics and project constraints.
 
 ## Application Services, Ports and Transactions
 
@@ -212,7 +212,7 @@ Use a named Application service only for meaningful use-case orchestration. It m
 
 Place an outbound port beside the use case that consumes it. Name the semantic capability (`EligibilityProvider`, `ReserveCredit`, `CustomerIntentSender`), not the mechanism (`HTTPClient`, `BrokerPublisher`, `RedisStore`, `TxManager`). Do not wrap an already accepted provider-neutral go-jimu port with a same-shape local interface.
 
-Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction. An accepted state-plus-outbox design needs an explicit semantic atomic capability; raw `xorm.Session` never enters Application.
+Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction. Confirmed state-plus-outbox atomicity needs an explicit semantic capability; raw `xorm.Session` never enters Application.
 
 ## Errors, Logging and Tests
 
@@ -232,7 +232,7 @@ application/
   command/<use_case>.go
   query/<use_case>.go
   eventhandler/<fact>.go       # when same-BC reaction exists
-  task/<task>.go               # only after Task Queue is accepted
+  task/<task>.go               # only when background execution is required
 ```
 
 ConnectRPC handlers, Integration Message subscribers and task processors belong to Transport, not Application.

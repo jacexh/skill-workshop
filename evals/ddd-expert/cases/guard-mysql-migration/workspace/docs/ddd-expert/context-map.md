@@ -9,12 +9,15 @@ graph LR
     order["Order"]
 ```
 
+
 ## Bounded Contexts
 
 ### Order
 
 - **Core responsibility:** Own customer orders.
 - **Business authority:** Order lifecycle and invariants.
+
+- **Model:** [Order](context/order/model.md)
 
 #### Local View
 
@@ -23,3 +26,5 @@ graph LR
 | Order |
 +-------+
 ```
+
+## Model Dependency Contracts

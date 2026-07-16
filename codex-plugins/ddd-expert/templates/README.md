@@ -8,6 +8,4 @@
 
 - [<Bounded Context>](context/<context-slug>/model.md)
 
-Every linked Model contains the exact confirmed EventStorming diagram and uses `model_status: model_ready`. Semantic dependencies, runtime/business interactions, and named contracts are authoritative in [context-map.md](context-map.md).
-
-An existing `design.md` lives beside its context's `model.md` only when separately accepted Tactical Design authority exists. EventStorming does not create or update it. A Model revision may therefore leave Design absent or stale until a separate tactical-design task resolves it.
+Every linked Model contains the exact EventStorming approval candidate. It uses `model_status: draft` while awaiting confirmation and `model_status: model_ready` after the exact revision is approved. Semantic dependencies, runtime/business interactions, and named contracts are authoritative in [context-map.md](context-map.md). A `model_ready` Model is ready for Codify.

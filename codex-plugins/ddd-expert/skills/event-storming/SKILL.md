@@ -11,12 +11,14 @@ Facilitate EventStorming with the user. Bring architectural judgment and constru
 EventStorming Board
 -> ten EventStorming steps
 -> integrated model and adversarial review
+-> validated `draft` Model files and console summary
 -> explicit user confirmation
--> synchronized documentation
+-> promote Models and synchronize documentation
 -> model_ready
+-> ready for Codify
 ```
 
-Load this plugin's internal `maintain-artifacts` skill in the same run. Use `inspect` while discovering evidence, `validate-proposed-model` before presenting an integrated model, and `apply-confirmed-model` only after the user confirms that model. Keep Tactical Design, implementation, and Codify outside this workflow.
+Load this plugin's internal `maintain-artifacts` skill in the same run. Use `inspect` while discovering evidence, `validate-proposed-model` after adversarial review, `write-model-draft` to materialize the approval candidate, and `apply-confirmed-model` only after the user confirms that exact draft. Keep implementation outside this workflow. A verified `model_ready` result is ready for Codify.
 
 ## Authority and states
 
@@ -26,13 +28,13 @@ Keep three levels of authority distinct:
 - **Working Confirmation**: the user accepts a local conclusion so discussion can advance; later evidence may reopen it;
 - **Integrated Model Confirmation**: the user accepts the current complete integrated model after seeing its diagrams, decisions, assumptions, and non-blocking Hotspots.
 
-Before Integrated Model Confirmation, keep every project file byte-identical. Existing accepted artifacts remain authoritative while the EventStorming Board evolves. A local answer, accepted Aggregate, or source fact is never write authority.
+Before the ten steps and adversarial review produce one complete candidate, keep every project file byte-identical. Then replace only the affected canonical Models with `model_status: draft` and incremented revisions so those files become the approval surface; all other accepted artifacts remain byte-identical and authoritative until confirmation. A local answer, accepted Aggregate, source fact, or draft Model is never implementation authority.
 
 Use three visible states:
 
 - `working`: the current step has an unresolved material question;
-- `awaiting_confirmation`: the ten steps and adversarial review are complete and the integrated model is visible;
-- `model_ready`: the confirmed model and its documentation closure were applied and verified.
+- `awaiting_confirmation`: the ten steps and adversarial review are complete, and the exact integrated candidate is visible in canonical `draft` Model files;
+- `model_ready`: the confirmed model and its documentation closure were applied, verified, and are ready for implementation.
 
 ## EventStorming Board
 
@@ -75,9 +77,9 @@ Advance when the current step has a coherent working model, its key contradictio
 5. **Add actors and external systems**: identify who proposes, decides, confirms, changes, reverses, expires, and publishes material facts, including scheduled policies and external authorities.
 6. **Mark business rules and policies**: place invariants, admission rules, decision policies, timing rules, and reactions between Commands and Events. State who owns each rule and what rights, obligations, value, or next action it changes.
 7. **Mark problems and ambiguities**: expose missing facts, contradictions, disputed language, assumptions, risks, and deferred branches. Resolve the material ones through evidence, examples, counterexamples, and focused questions.
-8. **Identify Aggregates and core business objects**: only after the causal timeline is coherent, cluster behavior around identity, lifecycle, immediate invariants, and concurrency responsibility. Test credible split, merge, and deletion alternatives. Record `No supported Aggregate` at Bounded Context scope when the evidence supports none; never invent a root to satisfy a template.
+8. **Identify Aggregates and core business objects**: only after the causal timeline is coherent, cluster behavior around identity, lifecycle, immediate invariants, and concurrency responsibility. Capture the business facts Codify will need to choose tactical forms: object identity and continuity, ownership, lifecycle, validity, equality, normalization or units, and cross-Aggregate reference meaning when material. Test credible split, merge, and deletion alternatives. Record `No supported Aggregate` at Bounded Context scope when the evidence supports none; never invent a root to satisfy a template.
 9. **Identify Bounded Contexts**: group responsibilities where one coherent language, business authority, lifecycle, policy, and model purpose fit. Names, packages, services, teams, storage, calls, transaction shape, and current runtime components are evidence, never boundary authority.
-10. **Establish context collaboration**: record responsibility, authority, named contracts, and translations. Keep the semantic Model Dependency View (`U -> D`, upstream model influence to downstream model) separate from the runtime/business Interaction View (`initiator -> receiver`). Derive both from domain evidence; call direction does not decide model ownership.
+10. **Establish context collaboration**: record responsibility, authority, named contracts, translations, downstream reliance, and upstream-owned authority, ordering, durability, or failure guarantees in the semantic Model Dependency View (`U -> D`, upstream model influence to downstream model). Derive ownership from domain evidence; runtime call direction does not decide model ownership and does not belong in the Context Map merely because a call exists.
 
 ## Constructive challenge
 
@@ -93,9 +95,9 @@ An unresolved Hotspot is **blocking** when plausible answers could change an in-
 
 ## Integrated model and confirmation
 
-After all ten steps, present one current integrated model for adversarial review. If a challenge changes it, reopen the affected step, replace the candidate as a whole, and review the new candidate. Do not combine partial acceptance of an earlier diagram with an unseen revision.
+After all ten steps, assemble one current integrated model for adversarial review. If a challenge changes it, reopen the affected step, replace the candidate as a whole, and review the new candidate. Do not combine partial acceptance of an earlier diagram with an unseen revision.
 
-Present:
+The integrated candidate must contain:
 
 1. the exact scope and exclusions;
 2. a complete EventStorming diagram for every affected Aggregate or Bounded Context;
@@ -103,13 +105,17 @@ Present:
 4. key design decisions with their business reasons; and
 5. assumptions and non-blocking Hotspots.
 
-Use versionable Mermaid `flowchart LR` diagrams. Show connected `actor/external -> Command -> policy/rule -> past-tense Event` scenario threads, the relevant Aggregate and Bounded Context boundaries, and visible Hotspots. For a cross-context model, show the Model Dependency View separately from the Interaction View. Persist the confirmed diagrams in the affected `model.md` files; persist the complete confirmed collaboration projections in `context-map.md`.
+Before requesting confirmation, replay every material scenario and ensure the integrated model supplies the business meaning implementation must preserve: ownership; Aggregate boundaries; core-object identity, continuity, validity, and equality semantics; lifecycle and immediate invariants; cross-Aggregate progress and completion obligations; collaboration translations and guarantees; and material failure or recovery semantics. Persist only facts that constrain realization, not a tactical design log. Repository APIs, CQRS shape, Process Managers, package placement, persistence schema, runtime wiring, and verification mechanics remain Codify decisions derived from project authority and code evidence.
 
-Ask for explicit confirmation of the current integrated model. The user confirms the domain model, not a per-file change plan. Any semantic correction returns to `working` and requires a complete revised presentation.
+Use versionable Mermaid `flowchart LR` diagrams. Show connected `actor/external -> Command -> policy/rule -> past-tense Event` scenario threads, the relevant Aggregate and Bounded Context boundaries, and visible Hotspots. For a cross-context model, include the Model Dependency View. Persist scenario interactions in the affected `model.md` diagrams; persist only confirmed semantic dependencies and contracts in `context-map.md` after confirmation.
+
+After adversarial review, run `validate-proposed-model`, then use `maintain-artifacts.write-model-draft` to replace each affected canonical `model.md` with the complete candidate, increment `model_revision`, and set `model_status: draft`. Codify and Guard never accept `draft`. In the console, summarize the scope, draft paths and revisions, validation result, key decisions, assumptions, and non-blocking Hotspots, then ask for explicit confirmation of those exact drafts. The user confirms the domain model, not a per-file change plan.
+
+Any semantic correction returns to `working`, requires a complete revised candidate, and writes another validated `draft` revision before confirmation is requested again. After explicit confirmation, promote the exact displayed draft to `model_ready` without another revision increment; if the candidate fingerprint differs, do not promote it as the confirmed model.
 
 ## Documentation closure
 
-Model confirmation authorizes synchronization of the confirmed meaning into relevant project-owned DDD artifacts and living Specs, PRDs, ADRs, and Glossaries. Determine the minimal semantic consistency closure after confirmation; do not ask the user to approve a document-impact inventory.
+Model confirmation authorizes promotion of the exact approved draft Models to `model_ready` and synchronization of the confirmed meaning into the Context Map, root DDD README, and relevant project-owned living Specs, PRDs, ADRs, and Glossaries. Determine the minimal semantic consistency closure after confirmation; do not ask the user to approve a document-impact inventory.
 
 Render every affected terminal document from the confirmed model and repository policy, stage and validate the whole consistency set outside the project workspace, recheck observed pre-states, then apply it once through `maintain-artifacts.apply-confirmed-model`. Persist the exact confirmed diagrams and do not introduce new domain meaning while rendering.
 
@@ -120,12 +126,12 @@ If document synchronization requires a semantic decision absent from the confirm
 Finish with one of:
 
 - `needs_clarification`: show the board delta and ask the one frontier question;
-- `awaiting_confirmation`: show the complete integrated model and ask for explicit confirmation;
+- `awaiting_confirmation`: summarize the integrated model, cite the canonical `draft` Model paths, revisions, and fingerprints, and ask for explicit confirmation;
 - `model_ready`: cite the confirmed scope, changed paths, Model revisions, diagram persistence, Context Map validation, and synchronized documentation;
 - `no_change`: cite the already confirmed model and current artifacts proving no change is needed;
 - `blocked`: identify the authority, validation, transaction, or external failure and exact filesystem state.
 
-The terminal outcome is Strategic Model readiness. EventStorming never creates or rewrites Tactical Design and never claims `codify_ready`.
+The terminal outcome is a confirmed Model ready for implementation. A `model_ready` result is ready for Codify; no additional readiness artifact or workflow stage is required.
 
 ## References
 

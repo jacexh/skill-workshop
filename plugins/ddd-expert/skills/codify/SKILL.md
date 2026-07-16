@@ -1,53 +1,55 @@
 ---
 name: codify
-description: Use when house-style backend coding must implement accepted Tactical Design, make an unambiguous mechanical change, or repair a Guard finding already covered by accepted authority.
+description: Use when house-style backend coding must realize a confirmed EventStorming Model, make an unambiguous mechanical change, or repair a Guard finding already covered by accepted authority.
 ---
 
 # Codify
 
-Realize an accepted Tactical Design as working, verified backend code in the `ddd-expert` house style. Codify implements decisions and produces implementation evidence; Guard independently reviews the result. Codify does not invent business facts or semantic design.
+Realize a confirmed EventStorming Model as working, verified backend code in the `ddd-expert` house style. Codify preserves accepted business meaning, makes the engineering decisions needed to implement it, and produces implementation evidence for an independent Guard review.
 
 ## Authority
 
-Every DDD artifact is read-only in Codify. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation in the same run with authority `codify`; never request or perform an apply operation. Report artifact evidence without persisting implementation status or feedback under `docs/ddd-expert`. Route business-language, authority, Aggregate, Bounded Context, or Context Map gaps to `event-storming`. Missing, stale, or contradictory Tactical Design is not an EventStorming output; report the missing accepted tactical authority and stop rather than promising that strategic modeling will create it.
+Every DDD artifact is read-only in Codify. Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation in the same run with authority `codify`; never request or perform an apply operation. Report artifact evidence without persisting implementation status or feedback under `docs/ddd-expert`. A canonical `model_ready` Model is sufficient implementation authority. Route only missing or contradictory business meaning, authority, Aggregate, Bounded Context, or Context Map decisions to `event-storming`.
 
 Use this order when inputs disagree:
 
-1. Each affected context's canonical `model_ready` Model owns its business meaning and collaboration views. A structurally valid `legacy_ready_model` with `shape_ready` remains read-only compatible authority until its next confirmed Model update.
-2. Each affected context's revision-matched `codify_ready` Design owns its tactical choices and collaboration responsibilities.
+1. Each affected context's canonical `model_ready` Model owns its business meaning and collaboration views.
+2. Relevant accepted PRDs, Specs, ADRs, Glossaries, and project documentation own their recorded product and architectural constraints.
 3. The `ddd-expert` references own implementation defaults and house-style shape.
 4. The request or ticket owns the current change scope.
-5. Existing code, tests, and local conventions are compatibility evidence.
+5. Existing code, tests, generated artifacts, adopted libraries, and local conventions are compatibility and realization evidence.
 
-An explicit accepted design choice controls its exact scope. Vague waiver language, current transaction shape, package names, or local convention do not override higher authority.
+An explicit accepted constraint controls its exact scope. Vague waiver language, current transaction shape, package names, or local convention do not override higher authority.
 
-DDD artifacts may be absent for a purely mechanical change whose behavior, semantic owner, and layer are already unambiguous. Do not create DDD documents from Codify. If implementation requires a material business choice, return to `event-storming` before editing. If it requires a material tactical choice, stop for separately accepted Tactical Design authority before editing.
+DDD artifacts may be absent for a purely mechanical change whose behavior, semantic owner, and layer are already unambiguous. Do not create DDD documents from Codify. If implementation requires a material business choice or would change the confirmed Model, return to `event-storming` before editing. Repository/CQRS shape, ports, layers, package placement, persistence, adapters, runtime wiring, migrations, and verification strategy are Codify decisions. Derive them from the authority order, house style, and repository evidence instead of introducing another readiness gate.
+
+Codify may make those engineering decisions when they stay within accepted project constraints and do not create a new irreversible or external commitment. Do not autonomously choose destructive data/schema change, retention or deletion policy, security/compliance posture, incompatible deployment or public-contract migration, or first adoption of an external platform, paid service, or uncovered technology. When the request and accepted project documents do not authorize such a commitment, stop and name the exact project-authority or ADR decision required. This is not a standalone design phase and routes to EventStorming only when the missing decision changes business meaning.
 
 ## Workflow
 
-1. **Preflight before edits**: run artifact inspection, then read the scoped request, accepted authority, touched code, generated artifacts, migrations, runtime entrypoints, and verification surface. Resolve every material authority conflict before changing files.
-2. **Check readiness**: treat `uninitialized`, `missing_model`, and `missing_design` as structural observations, not automatic blockers. Proceed without artifacts only for a purely mechanical change whose behavior, semantic owner, and layer are unambiguous. Accept `model_ready` and `legacy_ready_model`; route a material `legacy_model`, missing Model, contradictory business authority, or strategic Context Map repair to `event-storming`. A missing, `evolving_design`, or `stale_design` is unavailable tactical authority: stop and name the exact separately accepted Tactical Design decision required. Return to EventStorming for unresolved business language, authority, Aggregate, Bounded Context, or semantic collaboration. Return for tactical authority—not EventStorming—for Repository/CQRS, port, layer, Process Manager, runtime-containment, or other realization decisions not already accepted. Routine scaffold, package placement, adopted library, adapter, database, message, and runtime mechanics belong to Codify when accepted authority makes them mechanical.
-3. **Build one multi-label realization map**: for every accepted design obligation and required production path, account for its semantic owner, execution owner when applicable, layer/package, abstraction or adapter, adopted library, runtime mechanics, and verification evidence. Labels accumulate rather than compete. For Go, a Runtime/platform label never suppresses an applicable flow label: periodic, polling, and deferred-recovery work also follows the router's taskqueue branch. Load every mapped reference branch and keep the map internal.
+1. **Preflight before edits**: run artifact inspection, then read the scoped request, confirmed Model, relevant accepted project documents, touched code, generated artifacts, migrations, runtime entrypoints, and verification surface. Resolve every material authority conflict before changing files.
+2. **Check readiness**: a canonical `model_ready` Model enters Codify directly. Proceed without a Model only for a purely mechanical change whose behavior, semantic owner, and layer are already unambiguous. Route a `draft_model`, material `legacy_model`, missing Model, contradictory business authority, or semantic Context Map repair to `event-storming`. Do not return or block merely because a reversible in-scope engineering decision was not pre-recorded: derive Repository/CQRS shape, ports, layers, Process Managers, package placement, adopted libraries, adapters, database/message mechanics, and runtime containment from accepted project constraints, the house style, and repository evidence. Stop for exact project authority when the choice would create one of the irreversible or external commitments above.
+3. **Build one multi-label realization map**: for every confirmed Model or request obligation and required production path, account for its semantic owner, execution owner when applicable, layer/package, abstraction or adapter, adopted library, runtime mechanics, and verification evidence. Labels accumulate rather than compete. For Go, a Runtime/platform label never suppresses an applicable flow label: periodic, polling, and deferred-recovery work also follows the router's taskqueue branch. Load every mapped reference branch and keep the map internal.
 4. **Reconcile the implementation**: after each edit, map every actual changed file and required path back to the realization map. Add newly exposed labels, load their reference branches, and resolve any responsibility or authority conflict before continuing.
-5. **Implement the house style**: preserve business decisions in the semantic owner, keep dependencies inward, use the adopted abstractions and libraries, isolate generated/storage/runtime types at adapters, and wire every production path required by the design. Cross-context contracts and imports must preserve the Context Map's acyclic `U -> D` Model Dependency View; the separate Interaction View may run in either direction, and request/response through one owned contract is not permission for a reverse model import. If realization appears to need a reciprocal or longer cyclic model dependency, return to `event-storming` for semantic ownership analysis. If semantic direction is clear but tactical placement is not accepted, stop for Tactical Design authority. Do not broaden the change to unrelated legacy conformance.
+5. **Implement the house style**: preserve business decisions in the semantic owner, keep dependencies inward, use the adopted abstractions and libraries, isolate generated/storage/runtime types at adapters, and wire every production path required by the Model and request. Cross-context contracts and imports must preserve the Context Map's acyclic `U -> D` Model Dependency View; runtime request/response direction is not permission for a reverse model import. If realization appears to need a reciprocal or longer cyclic model dependency, return to `event-storming` for semantic ownership analysis. When semantic direction is clear, choose the placement from project constraints, references, and repository evidence. Do not broaden the change to unrelated legacy conformance.
 6. **Verify implementation evidence**: run the smallest sufficient combination of tests, build/static checks, import inspection, migration dry run, runtime wiring evidence, or smoke checks appropriate to the realization map. Record what passed, what remains unverified, and the complete source snapshot Guard must review.
 
 ## Independent Guard handoff
 
-Codify does not self-certify Design Realization or House-Style Conformance. After a non-mechanical `changed` implementation has local verification evidence, send the scoped request plus either immutable base/target identifiers or an immutable base plus a complete worktree snapshot to a fresh read-only Guard coordinator in a distinct agent context in the same task. A worktree snapshot must enumerate staged, unstaged, and untracked paths, fingerprint their contents, and provide replayable inspection commands. That coordinator freezes its own Review Envelope. A route to a future Guard is not a substitute for completing this independent review.
+Codify does not self-certify Model Realization or House-Style Conformance. After a non-mechanical `changed` implementation has local verification evidence, send the scoped request plus either immutable base/target identifiers or an immutable base plus a complete worktree snapshot to a fresh read-only Guard coordinator in a distinct agent context in the same task. A worktree snapshot must enumerate staged, unstaged, and untracked paths, fingerprint their contents, and provide replayable inspection commands. That coordinator freezes its own Review Envelope. A route to a future Guard is not a substitute for completing this independent review.
 
-The task is complete only when Guard returns clear over the final source snapshot. A Guard violation with accepted authority returns to Codify for repair, local verification, and a fresh Guard run. An `event-storming` route stops implementation for a Strategic Model gap. A Tactical Design authority gap also stops implementation but does not route to EventStorming. Resolve reported verification gaps and rerun Guard when they are locally closable; otherwise follow the owning route or block. An incomplete Guard execution blocks completion.
+The task is complete only when Guard returns clear over the final source snapshot. A Guard violation with accepted authority returns to Codify for repair, local verification, and a fresh Guard run. An `event-storming` route stops implementation only for an exact confirmed-Model or business-authority gap. Resolve reported verification gaps and rerun Guard when they are locally closable; otherwise follow the owning route or block. An incomplete Guard execution blocks completion.
 
 Only a purely mechanical change that alters no behavior, responsibility, dependency, contract, persistence, runtime, or verification obligation may skip Guard, and the completion report cites that evidence.
 
 ## Guard remediation
 
-A Guard finding is evidence, not implementation authority. Before fixing it, compare the current worktree with the accepted model, revision-matched Tactical Design, and house style:
+A Guard finding is evidence, not implementation authority. Before fixing it, compare the current worktree with the confirmed Model, accepted project constraints, and house style:
 
 - if the finding is stale or already fixed, return `no_change` with evidence;
 - if accepted authority already defines the correct shape, fix the implementation, verify locally, and rerun Guard in the same task;
 - if the correction changes business meaning, return to `event-storming`;
-- if the correction changes Tactical Design, stop for separately accepted tactical authority;
+- if the correction changes only engineering realization, Codify chooses and applies the house-style correction;
 - if proof is missing, gather evidence rather than guessing or editing.
 
 ## Completion
@@ -60,7 +62,7 @@ Finish with one of:
 
 - `changed`: summarize code behavior and local verification plus either the clear final-snapshot Guard evidence or the explicit purely mechanical exception.
 - `no_change`: cite the evidence that made editing unnecessary.
-- `returned`: identify either `event-storming` for an exact Strategic Model gap or the exact missing Tactical Design authority, with the evidence exposing it.
+- `returned`: identify either `event-storming` for an exact confirmed-Model/business-authority gap or the exact missing project-authority/ADR commitment, with the evidence exposing it.
 - `blocked`: identify the external execution constraint, unrun verification, or incomplete Guard execution.
 
 Keep the final response focused on changed files, verification, and residual risk.
@@ -71,6 +73,6 @@ Keep the final response focused on changed files, verification, and residual ris
 - Infer the active language from the accepted choice and touched files. Use Go House Style only when the backend language remains open.
 - For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md) and follow only the router leaves for touched Domain, Application, Transport, CQRS, Infrastructure, events/messages, taskqueue, Runtime, scaffold, or generated-code surfaces.
 - For Python or TypeScript, load only the sections for touched surfaces from the compact [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md) guide.
-- Load the relevant section of [../../references/ddd-core.md](../../references/ddd-core.md) when tactical ownership must be checked.
+- Load the relevant section of [../../references/ddd-core.md](../../references/ddd-core.md) when domain ownership or realization shape must be checked.
 - Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for event, message, or cross-context work.
 - Load [../../references/database.md](../../references/database.md) for schema, migration, index, SQL, or persistence work.
