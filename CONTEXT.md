@@ -42,8 +42,44 @@ _Avoid_: implementation refactor, silent architecture upgrade
 A mechanism or tactical choice explicitly confirmed by the user or recorded as current/accepted in an authoritative Tactical Design, ADR, or equivalent project artifact. Silence, incidental existing code, and an LLM's unconfirmed recommendation are not acceptance.
 _Avoid_: inferred approval, existing implementation
 
+**EventStorming Board**:
+Temporary conversation state used for the modeling destination, current ten-step position, Supported Modeling Facts, Working Confirmations, frontier question, Hotspots, fog, and out-of-scope areas. It is separate from any Aggregate, Bounded Context, or Context Map and grants no incremental write authority.
+_Avoid_: evolving Model, accepted slice
+
+**Supported Modeling Fact**:
+A fact, term, rule, or relationship backed by supplied project evidence or a domain-authority answer and therefore usable on the EventStorming Board. Support does not confirm the fact's placement in an integrated model or authorize a file write.
+_Avoid_: accepted artifact fact, implicit confirmation
+
+**Frontier Question**:
+The single currently answerable question with the greatest downstream impact and information gain within the active EventStorming step. Discovered information may be presented in groups, but only this decision is put to the user in one turn.
+_Avoid_: batch questionnaire, fixed checklist item
+
+**Working Confirmation**:
+The user's local acceptance of a fact or design conclusion so EventStorming can advance. Later evidence may reopen it; it does not authorize a project write.
+_Avoid_: artifact acceptance, final approval
+
+**Integrated Model Confirmation**:
+The user's explicit acceptance of the current complete EventStorming diagrams, strategic conclusions, key decisions, assumptions, and non-blocking Hotspots after adversarial review. It is the only EventStorming write authority.
+_Avoid_: local answer, partial approval, file-impact approval
+
+**Confirmed EventStorming Model**:
+The exact integrated Strategic Model accepted through Integrated Model Confirmation and persisted with its diagram source unchanged in a `model_ready` Model artifact.
+_Avoid_: supported board, tactical design, regenerated summary
+
+**Documentation Closure**:
+The one logical post-confirmation transaction that derives the minimal affected project-owned set and synchronizes the confirmed DDD Model and Context Map with relevant living Spec, PRD, ADR, and Glossary entries while preserving document lifecycle and unrelated history.
+_Avoid_: incremental model write, documentation cleanup
+
+**Model Dependency View**:
+The Context Map projection whose upstream-to-downstream (`U -> D`) arrows express semantic or published-contract influence and therefore form a DAG.
+_Avoid_: runtime call graph, request direction
+
+**Interaction View**:
+The separate Context Map projection whose `initiator -> receiver` arrows express runtime or business exchanges, including trigger and result/failure feedback. Interactions may oppose Model Dependency direction or form cycles without changing model ownership.
+_Avoid_: reverse dependency, bounded-context authority graph
+
 **Context Dependency Edge**:
-A one-way Context Map dependency from upstream (`U`) to downstream (`D`) that expresses model influence and contract direction rather than a runtime call. Runtime request/response may use that one owned contract, but never creates a second reverse dependency; every named edge must preserve the graph as a DAG.
+A one-way edge in the Model Dependency View from upstream (`U`) to downstream (`D`) that expresses model influence and contract direction rather than runtime interaction. Runtime request/response may use that one owned contract but never creates a reverse dependency; every named dependency edge must preserve the graph as a DAG.
 _Avoid_: bidirectional relationship arrow, mutual-call edge, `<->`
 
 **Persistence House Style**:

@@ -1,128 +1,120 @@
 ---
 name: maintain-artifacts
-description: Use when a ddd-expert workflow needs to inspect DDD artifacts, apply an accepted decision slice, or promote ready artifacts; validates authority, minimal consistency closure, layout, status, and model-design revisions without making semantic decisions.
+description: Use when a ddd-expert workflow must internally inspect DDD artifacts, structurally validate an integrated model, or apply documentation synchronized from a user-confirmed Strategic Model.
 user-invocable: false
 ---
 
-# Maintain Artifacts
+# Maintain DDD Artifacts
 
-Execute the DDD artifact protocol inside the currently active workflow. This is a shared in-process workflow, not a separate agent or trusted caller boundary. It owns no business fact or Tactical Design decision and never asks the user to supply one.
+Act as the artifact executor for `ddd-expert`. Own structure, consistency closure, concurrency checks, and file application. Own no domain decision.
 
-## Operation input
+Accept only an explicit caller authority and operation:
 
-Every operation states:
+- `event-storming` may use `inspect`, `validate-proposed-model`, and `apply-confirmed-model`;
+- `codify` and `guard` may use `inspect` only.
 
-- `authority`: `event-storming`, `codify`, or `guard`;
-- `operation`: `inspect`, `apply-model`, or `apply-design`;
-- the affected context names and stable lower-kebab-case slugs when known.
+Unknown authorities or operations return `blocked` without writing.
 
-An `inspect` operation needs no expected revision. When its context scope is omitted, inspect the complete artifact root.
+## Inspect
 
-An apply operation additionally states:
+Inspect the canonical artifact root plus caller-supplied project evidence. Return paths, exact observed content fingerprints, model/design revisions, links, layout diagnostics, and structural readiness. Never infer business truth from file presence, code shape, or naming.
 
-- the exact accepted decision slice and its evidence, or a readiness status change with `event-storming`'s gap or complete-readiness evidence;
-- a consistency set containing every path whose observed content or Model revision the accepted decision depends on, including read dependencies that remain unchanged;
-- the expected pre-state of every path in the consistency set: absent, or an observed content fingerprint plus any Model revision;
-- a write set containing the paths whose content changes; the write set is a subset of the consistency set;
-- exact accepted terminal content for every changed semantic section, explicit removals, and the target `model_status` or `design_status`;
-- for `apply-design`, the exact current Model revision for every affected context.
+Recognize:
 
-Allowed Model targets are `evolving` and `shape_ready`; allowed Design targets are `evolving` and `codify_ready`. Every semantic statement in either state must already be accepted. Require `event-storming`'s complete scoped replay evidence before a ready promotion. A legacy artifact with no status contains accepted content but has unproved readiness: report it as `evolving_model` or `evolving_design` until `event-storming` replays the scope and authorizes an explicit status.
+- `ready_model`: a structurally valid `model_ready` Model;
+- `legacy_ready_model`: a readable legacy `shape_ready` Model;
+- `legacy_model`: a readable `evolving` or statusless Model without ready authority;
+- `legacy_context_map`: a readable retired Context Map that needs confirmed coordinated migration;
+- `missing_model`, `missing_design`, `evolving_design`, and `stale_design`;
+- `uninitialized`; and
+- `invalid_layout` with concrete diagnostics.
 
-Missing readiness status is the only legacy frontmatter compatibility exception. Do not return `invalid_layout` for that absence alone; apply every other frontmatter and layout check normally, and do not mutate the legacy file during inspection.
+Inspection is read-only. A current implementation or legacy artifact is evidence, not permission to preserve its semantics.
 
-Only the controlled legacy Context Map replacement described below may additionally state `context_map_migration: true`; omit it from every other operation.
+## Validate a proposed model
 
-Reject absolute slugs, path separators, `.` or `..` segments, and any slug that can escape its context directory.
+Use `validate-proposed-model` only after EventStorming has completed the ten steps and assembled the exact user-visible integrated model.
 
-| Operation | Allowed authority | Filesystem effect |
-|---|---|---|
-| `inspect` | Any workflow | Read-only |
-| `apply-model` | `event-storming` | Root README, Context Map, and affected Models only |
-| `apply-design` | `event-storming` | Affected Designs and newly empty context directories only |
+Receive the proposed Model EventStorming sections and complete Context Map source when affected. Place them in canonical wrappers under ephemeral scratch outside the project workspace, check them against the Model template and run the installed Context Map structural validator in its strict default mode, report diagnostics, and remove scratch. Keep every project path unchanged. The validator's `--allow-legacy` mode is only for inspecting a retired map or coordinating its confirmed migration; it is never valid for a proposed or confirmed model.
 
-Codify and Guard can never run an apply operation. Treat an invalid operation input as an internal protocol error: write nothing, correct it in the active workflow, and retry the operation. It is not an Apply result; if accepted data needed to correct it is unavailable, the active workflow reports its own `blocked` completion.
+This operation proves only that the displayed diagrams and artifact projections are structurally persistable. It does not judge whether the domain model is reasonable, grant confirmation, prepare companion-document prose, or authorize a write.
 
-## Workflow
+## Apply a confirmed model
 
-1. **Load the contract**: read the Artifact Layout and only the templates needed by the operation.
-2. **Inspect current state**: verify the artifact root, accepted context directories, safe slugs, template residue, frontmatter, links, and Model-to-Design revision links. Read every file in the consistency set before changing any. Preserve the exact validator diagnostic when a current Context Map is invalid; inspection still returns `invalid_layout` under every authority.
-3. **Compare before apply**: require every expected path pre-state in the consistency set to match. For `apply-design`, also require the delegated Model revision to equal the current Model revision. A stale or missing Design is a valid pre-state for `apply-design`; the operation exists to create or repair it. On mismatch, write nothing and report `revision_conflict` with expected and observed state.
-4. **Prepare the smallest consistency transaction**: validate the `event-storming`-declared consistency closure against its stated read dependencies and accepted terminal content; never derive or enlarge semantic scope on the executor's own authority. Mechanically assemble the declared write set from the templates, exact accepted terminal content, explicit removals, and unaffected current content. A declared local decision normally changes one Model or Design; a declared topology or cross-context contract decision includes every artifact `event-storming` identified to keep both accepted sides consistent. Preserve accepted wording and distinctions. Do not rename terms, infer replacements, decide that a statement is superseded, omit a section on semantic grounds, or turn a summary delta into new domain or tactical prose. Return an invalid operation input when the declared closure, its necessary structural counterpart, or exact content is missing.
-5. **Apply the authorized write set**:
-   - `apply-model`: bootstrap the root README and Context Map when needed; update navigation, dependencies, and affected Models; start a new Model at revision `1` and increment each changed Model at most once for the accepted decision slice. A status-only readiness invalidation or promotion does not increment the revision or alter accepted prose. Never touch a Design.
-   - `apply-design`: create, update, move, or delete affected Designs as required by accepted topology, set each retained Design's `based_on_model_revision` to the exact current Model revision, and set `design_status` to the authorized target. A proven no-semantic-change revalidation, readiness invalidation, or readiness promotion may update only frontmatter. Never touch the root README, Context Map, or Models.
-6. **Verify the result**: re-read the consistency set; confirm layout, links, explicit statuses, no placeholders/comments, exact accepted terminal content, authorized paths only, unchanged read dependencies, and revision invariants. For a ready promotion, require `event-storming`'s declared replay evidence, zero-material-open-obligation statement, and exact referenced paths and revisions; validate those references mechanically without deciding semantic completeness. A `shape_ready` target also requires a valid Context Map and structurally consistent affected Models. A `codify_ready` target also requires `shape_ready` Models at exact revisions and structurally consistent affected Designs. Keep the workspace working directory unchanged. Resolve the installed validator and each current, prepared, or written Context Map to absolute paths, then run `node <absolute-validator-path> <absolute-context-map-path>` during inspection, before apply, and after apply. A prepared-target failure always aborts before writing. A current legacy-map failure may proceed only through the controlled exception below. Any other current-pre-state failure inside the declared consistency closure or a required structural counterpart aborts with no write or semantic repair. Report an invalid artifact outside that closure without expanding or blocking the apply, unless it prevents validation of the declared closure. A post-write failure is a partial filesystem failure: report `blocked` with exact observed state; do not conceal it as success.
-7. **Resume the workflow**: expose the operation status, observed and written revisions, changed paths, validation evidence, and any required route to the active workflow. Do not replace that workflow's completion response.
+Use `apply-confirmed-model` only after EventStorming supplies:
 
-## Controlled legacy Context Map migration
+- the current integrated model and its explicit user-confirmation evidence;
+- the exact confirmed EventStorming and Context Map sources;
+- every fully rendered project-owned terminal file in the documentation closure;
+- the complete consistency read set; and
+- the exact observed pre-state of every existing path in that set.
 
-An eligible legacy set starts with an existing Context Map in the retired pre-DAG shape, identified by the old arrow legend or detached `## Relationships` structure. Symmetric relationship notation may be evidence inside that retired structure but is not sufficient by itself. Discover the set from an unscoped inspection of the complete DDD artifact root: it contains that Map, every Model in the root that still uses the retired `## Context Relationships` heading, and the root README when it still says `Context relationships are authoritative`. A legacy Model or README with those markers cannot be omitted as "unrelated". A validator failure or any other stale or invalid artifact outside this objectively discovered coordinated set does not create migration authority.
+The user confirms the integrated domain model, not this internal file inventory. EventStorming derives the documentation closure after confirmation. Reject an input that requires the executor to invent a term, rule, boundary, collaboration, lifecycle decision, or document meaning.
 
-Accept `context_map_migration: true` only for `authority: event-storming` with `operation: apply-model`, after the complete migration target has explicit acceptance. Require all of the following before preparing a write:
+Apply with this fail-fast sequence:
 
-- complete-root inspection returned the exact `invalid_layout` diagnostics for the legacy Context Map and every retired Model section, proved that no legacy Model was omitted, and proved that no other current invalidity prevents validation of the coordinated migration set;
-- the consistency set contains the invalid Context Map, every coordinated legacy Model, and any coordinated legacy README; the exact observed fingerprint and bytes of each still match;
-- the write set supplies the complete accepted terminal Context Map, exact terminal content for every semantically affected Model, and exact terminal README content whenever its legacy wording is present or the accepted context inventory changes; and
-- the complete prepared terminal Context Map passes the bundled validator before any project artifact changes.
+1. Verify `authority: event-storming`, explicit confirmation of the current integrated model, canonical paths, and a unique write for each target.
+2. Verify every rendered DDD Model contains its exact confirmed EventStorming source and every rendered Context Map contains its exact confirmed collaboration projections.
+3. Stage the complete rendered terminal set outside the project workspace and validate the staged DDD root, Models, Context Map, navigation, revisions, and repository-required document checks.
+4. Re-read every consistency-set pre-state after staging and immediately before the first project mutation. Any drift returns `revision_conflict` with zero writes.
+5. Apply only the supplied bytes, remove only paths that are mechanical consequences of the confirmed model, and verify the resulting complete consistency set.
 
-Replace the complete Context Map, every coordinated legacy Model, and any coordinated legacy README in the same atomic transaction as all other affected Models. The executor copies accepted terminal content and never infers a dependency direction, contract, authority, translation, or other semantic repair. It cannot patch only an offending legacy relationship, rename a Model heading without accepted terminal content, preserve retired README authority wording, or preserve an unaccepted remainder. Reject the flag for any authority other than `event-storming`, for `inspect`, `apply-design`, an unaccepted or partial target, a stale source fingerprint or byte sequence, or a map whose failure is not a recognized retired shape. Any current invalidity inside the coordinated set, or outside it but preventing validation of that set, aborts the transaction; other invalid artifacts remain unchanged and reported.
+Project files are never an optimistic validation area. If the filesystem provides a repository lock, compare-and-swap primitive, or atomic directory exchange, use it. Otherwise report the residual race honestly. A failure after the first mutation is `blocked` with the exact partial state; never claim rollback or `model_ready` without proof.
 
-## Context Map dependency projection
+## Canonical Model
 
-The Context Map Global View is a mechanical projection of the accepted context inventory and local contract details; it owns no additional domain meaning. The entire graph follows the `ddd-expert` House Rule that model and contract dependencies form a directed acyclic graph. Validate that it:
+Each written `model.md`:
 
-- contains exactly one Mermaid `graph LR` and the visible `U -> D` direction statement;
-- declares every accepted project Bounded Context exactly once, including contexts with no directed relationship, using one document-local unique `lower_snake_case` Mermaid identifier and its accepted name as the visible label;
-- contains no external context node;
-- represents every accepted dependency between project contexts exactly once as a plain, unlabeled edge from upstream to downstream, with no other edge;
-- rejects self-loops, reciprocal edges, longer cycles, `<->`, `<-->`, Partnership, Shared Kernel, and the legacy `## Relationships` structure;
-- gives every context one non-Mermaid `text` wireframe containing itself and exactly its direct neighbors, with arrow direction expressing dependency and no U/D labels; and
-- projects every named contract with the same identity and endpoints into the upstream context's Downstream Contracts and downstream context's Upstream Dependencies.
+- uses the canonical path and template section order;
+- declares `model_status: model_ready` and advances `model_revision` once for this confirmed model;
+- contains a complete Mermaid `flowchart LR` under `## EventStorming Model`;
+- shows its Bounded Context boundary, connected actor/external-to-Command-to-rule/policy-to-past-tense-Event threads, supported Aggregate boundaries or an evidence-based `No supported Aggregate` conclusion, and non-blocking Hotspots; and
+- contains exactly the confirmed EventStorming diagram source for that Model.
 
-An arrow means upstream model or published-contract influence on a downstream model, never runtime call flow. A runtime request and response may use one owned contract without creating a reverse dependency. Directional collaboration patterns may annotate an established edge but cannot create, reverse, or duplicate it. When `apply-model` changes the accepted context inventory or a dependency, update both local projections and the Global View in the same Context Map write. A missing, extra, mislabeled, reversed, reciprocal, or cyclic projection is `invalid_layout`; never repair it by inventing direction, ownership, or contract meaning.
+At Aggregate scope, preserve excluded sibling meaning and diagrams byte-for-byte. If confirmed meaning changes a sibling or the shared Bounded Context, the caller must expand the modeled scope and obtain a new integrated confirmation.
 
-## Decision-slice transaction scope
+## Context Map projections
 
-An accepted decision slice may affect only one context; in that case the write set may contain one Model when context inventory and dependencies remain unchanged. Include every artifact supplying a semantic read dependency in the consistency set, but do not expand the write set to unrelated files.
+The Global View is a structural projection of confirmed Bounded Contexts and semantic dependencies:
 
-When the accepted slice changes context responsibility, business authority, a dependency, an authority boundary, or a translation boundary, put the Context Map and every semantically affected Model in one write set. Add the root README when the accepted context inventory or navigation changes. Apply that minimal semantic closure together so each context records only its accepted side of the dependency. Independent contexts and unrelated decisions never need a workflow-wide transaction.
+- declare every accepted project Bounded Context exactly once, including isolated contexts;
+- draw each upstream-to-downstream model dependency once as `U -> D`;
+- reject self-loops, reciprocal dependencies, longer cycles, bidirectional arrows, Partnership, Shared Kernel, and external or technical components presented as project Bounded Contexts; and
+- project each named contract consistently into the upstream publisher and downstream consumer sections.
 
-## Context topology changes
+The Interaction View uses the same accepted project Bounded Context nodes and draws runtime/business `initiator -> receiver` exchanges. Interactions may oppose a model dependency or form cycles. They never create, reverse, or duplicate semantic ownership.
 
-`event-storming` may accept a context rename, split, merge, or removal. `apply-model` updates only the root README, Context Map, and Models and leaves any old Design untouched. It returns `changed` with a `pending_design_reconciliation` observation. The same `event-storming` workflow then accepts the tactical consequence and `apply-design` creates, moves, rewrites, or deletes affected Designs. Remove an obsolete context directory only after it is empty.
+The executor validates projection consistency, not semantic truth. A structurally valid but different graph is confirmation drift and invalid apply input.
 
-This two-operation state is intentional. Until `event-storming` completes `apply-design`, Codify treats affected Designs as unavailable authority and Guard reports the evidence gap while continuing independent review.
+## Documentation closure
 
-## Inspect result
+The write set may contain the DDD root README, Context Map, affected Models, and relevant project-owned living Spec, PRD, ADR, and Glossary documents. Include only documents whose claims or vocabulary must change to express the confirmed model, plus mechanically coupled navigation.
 
-Return structural observations only; semantic sufficiency belongs to the active workflow:
+- Update living Specs, PRDs, and Glossaries from the confirmed meaning.
+- Follow repository ADR policy. Preserve accepted historical rationale and create a superseding ADR when a confirmed decision changes it.
+- Leave inspected but semantically accurate sources unchanged.
+- Leave external or remote sources outside project writes.
+- Keep Tactical Design read-only. A missing, stale, or orphaned `design.md` is reported for a separate tactical workflow; EventStorming never creates, edits, moves, promotes, or deletes it.
 
-- `ready`: every artifact required by the current operation is structurally valid, carries its required ready status, and has every required revision link matched; never return this observation for an `evolving` artifact;
-- `uninitialized`: the artifact root does not yet exist;
-- `missing_model`: an accepted context has no readable Model;
-- `missing_design`: a Model has no Design; this is valid after Model acceptance and before the first successful `apply-design`;
-- `evolving_model`: a Model contains accepted facts but is not `shape_ready`, including a legacy Model with no explicit status;
-- `evolving_design`: a Design contains accepted decisions but is not `codify_ready`, including a legacy Design with no explicit status;
-- `stale_design`: a Design references a different Model revision;
-- `pending_design_reconciliation`: context topology and retained Designs are temporarily out of alignment;
-- `invalid_layout`: a root file, path, slug, link, frontmatter field, or template constraint is invalid.
+A context rename, split, merge, or removal updates root navigation, Context Map, and every affected Model in one consistency closure. Remove an obsolete Model only when its absence is a direct consequence of the confirmed context inventory. Do not remove a directory that still contains retained Tactical Design or unrelated files.
 
-Inspection never decides that business facts are contradictory or that a Tactical Design covers the Model. It reports paths, revisions, and concrete structural evidence so the active workflow can decide whether to clarify, route, implement, or review.
+## Legacy Context Map migration
 
-## Apply result
+When inspection finds a retired Context Map, discover the complete coordinated legacy set: the map, Models with retired relationship structure, and affected root navigation. EventStorming must present and obtain confirmation for the replacement integrated model before applying it. Migrate the whole coordinated set once; never infer missing dependency direction, interaction, contract, authority, or translation during execution.
+
+## Results
 
 Return one of:
 
-- `changed`: list every changed path, resulting revision, and structural observation such as `pending_design_reconciliation`;
-- `no_change`: cite the evidence that made writing unnecessary;
-- `revision_conflict`: report expected and observed pre-state without writing;
-- `blocked`: identify the external failure and exact resulting filesystem state.
+- `changed`: list every changed path, resulting Model revision, diagram equality check, Context Map validation, and documentation checks;
+- `no_change`: cite the confirmed model and current bytes proving no write was needed;
+- `revision_conflict`: report expected and observed pre-state with zero writes;
+- `blocked`: identify the validation, authority, transaction, or post-write failure and exact filesystem state.
 
-Never write implementation progress, review findings, task history, or transient session status into DDD artifacts. Model and Design readiness frontmatter is structural authority metadata, not a discovery log.
+Never write EventStorming Board state, implementation progress, review findings, task history, or session status into project artifacts.
 
 ## References
 
-- Load [../../templates/artifact-layout.md](../../templates/artifact-layout.md) for the canonical project tree and artifact meanings.
-- Load [../../templates/README.md](../../templates/README.md), [../../templates/context-map.md](../../templates/context-map.md), and [../../templates/model.md](../../templates/model.md) only for `apply-model`.
-- Load [../../templates/design.md](../../templates/design.md) only for `apply-design`.
+- Load [../../templates/artifact-layout.md](../../templates/artifact-layout.md) for canonical paths and artifact roles.
+- Load [../../templates/README.md](../../templates/README.md), [../../templates/context-map.md](../../templates/context-map.md), and [../../templates/model.md](../../templates/model.md) for `apply-confirmed-model`.
+- Load [../../templates/design.md](../../templates/design.md) only while inspecting existing Tactical Design structure.

@@ -5,6 +5,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 CLAUDE_VALIDATOR="$ROOT/plugins/ddd-expert/scripts/validate-context-map.mjs"
 CODEX_VALIDATOR="$ROOT/codex-plugins/ddd-expert/scripts/validate-context-map.mjs"
+CLAUDE_TEMPLATE="$ROOT/plugins/ddd-expert/templates/context-map.md"
+CODEX_TEMPLATE="$ROOT/codex-plugins/ddd-expert/templates/context-map.md"
 
 fail() {
   echo "FAIL $1" >&2
@@ -15,6 +17,10 @@ fail() {
 [ -f "$CODEX_VALIDATOR" ] || fail "Codex Context Map validator missing"
 cmp -s "$CLAUDE_VALIDATOR" "$CODEX_VALIDATOR" ||
   fail "Claude and Codex Context Map validators should match"
+[ -f "$CLAUDE_TEMPLATE" ] || fail "Claude Context Map template missing"
+[ -f "$CODEX_TEMPLATE" ] || fail "Codex Context Map template missing"
+cmp -s "$CLAUDE_TEMPLATE" "$CODEX_TEMPLATE" ||
+  fail "Claude and Codex Context Map templates should match"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -177,8 +183,48 @@ graph LR
 ```
 EOF
 
-node "$CLAUDE_VALIDATOR" "$valid" >/dev/null ||
+legacy_output="$(node "$CLAUDE_VALIDATOR" --allow-legacy "$valid")" ||
   fail "validator rejected a valid fan-out, diamond, and isolated-context DAG"
+valid_expected_output='valid Context Map: 5 contexts, 4 dependencies'
+[ "$legacy_output" = "$valid_expected_output" ] ||
+  fail "legacy validator output changed unexpectedly: $legacy_output"
+codex_valid_output="$(node "$CODEX_VALIDATOR" --allow-legacy "$valid")" ||
+  fail "Codex validator rejected the valid Context Map"
+[ "$codex_valid_output" = "$valid_expected_output" ] ||
+  fail "Codex Context Map validator output changed unexpectedly: $codex_valid_output"
+
+rendered_template="$tmp/rendered-template.md"
+node - "$CLAUDE_TEMPLATE" "$rendered_template" <<'NODE'
+const fs = require("fs");
+let source = fs.readFileSync(process.argv[2], "utf8").replace(/<!--[\s\S]*?-->/gu, "");
+for (const [placeholder, value] of [
+  ["<Context A>", "Decision Authority"],
+  ["<Context B>", "Request Coordination"],
+  ["<Upstream Context>", "Decision Authority"],
+  ["<Downstream Context>", "Request Coordination"],
+  ["<Interaction Name>", "Request Decision"],
+  ["<Business capability owned by this context>", "Own context decisions"],
+  ["<Facts and decisions for which this context is authoritative>", "Context facts and decisions"],
+  ["<Contract Name>", "Decision Facts"],
+  ["<Upstream facts, decisions, or guarantees exposed in upstream language>", "Decision facts accepted by Request Coordination"],
+  ["<Authority, ordering, durability, or failure guarantee the upstream owns>", "Decision Authority owns publication"],
+  ["<Receiving Context>", "Decision Authority"],
+  ["<Business or runtime condition that initiates the interaction>", "Request Coordination needs a decision"],
+  ["<Result, rejection, timeout, or recovery meaning visible to the initiator>", "Decision Authority returns a result or rejection"],
+  ["<Published meaning this context is allowed to rely on>", "Request Coordination accepts Decision Facts"],
+  ["<How the downstream protects and expresses its local language>", "Request Coordination translates into local language"],
+]) {
+  source = source.split(placeholder).join(value);
+}
+source = source.replace(/\n{3,}/gu, "\n\n").trim() + "\n";
+if (/<[^>\n]+>/u.test(source)) throw new Error("rendered Context Map template retains a placeholder");
+fs.writeFileSync(process.argv[3], source);
+NODE
+template_output="$(node "$CLAUDE_VALIDATOR" "$rendered_template")" ||
+  fail "instantiated Context Map template is not strict-validator compatible"
+template_expected_output='valid Context Map: 2 contexts, 1 dependencies, 1 interactions'
+[ "$template_output" = "$template_expected_output" ] ||
+  fail "instantiated Context Map template output changed unexpectedly: $template_output"
 
 context_named_u="$tmp/context-named-u.md"
 sed \
@@ -188,7 +234,7 @@ sed \
   -e 's/^- \*\*Business authority:\*\* E facts\.$/- **Business authority:** U facts./' \
   -e 's/^| E |$/| U |/' \
   "$valid" >"$context_named_u"
-node "$CLAUDE_VALIDATOR" "$context_named_u" >/dev/null ||
+node "$CLAUDE_VALIDATOR" --allow-legacy "$context_named_u" >/dev/null ||
   fail "validator confused a Bounded Context named U with a Local View direction label"
 
 multiline_continuation="$tmp/multiline-continuation.md"
@@ -198,13 +244,13 @@ sed -i '0,/- \*\*Published meaning:\*\*/{/- \*\*Published meaning:\*\*/a\  This 
 }' "$multiline_continuation"
 sed -i '0,/^  This continuation clarifies/{/^  This continuation clarifies/a\    Four-space continuation remains ordinary prose inside the list item.
 }' "$multiline_continuation"
-node "$CLAUDE_VALIDATOR" "$multiline_continuation" >/dev/null ||
+node "$CLAUDE_VALIDATOR" --allow-legacy "$multiline_continuation" >/dev/null ||
   fail "validator rejected an ordinary Markdown bullet continuation"
 
 indented_code_continuation="$tmp/indented-code-continuation.md"
 cp "$valid" "$indented_code_continuation"
 sed -i '/^- \*\*Core responsibility:\*\* Own A decisions\.$/a\      This six-space line is an indented code block inside the list item.' "$indented_code_continuation"
-if node "$CLAUDE_VALIDATOR" "$indented_code_continuation" >/dev/null 2>&1; then
+if node "$CLAUDE_VALIDATOR" --allow-legacy "$indented_code_continuation" >/dev/null 2>&1; then
   fail "validator accepted an indented code block as ordinary bullet continuation"
 fi
 
@@ -226,7 +272,7 @@ cat >>"$domain_partnership" <<'EOF'
 +-------------+
 ```
 EOF
-node "$CLAUDE_VALIDATOR" "$domain_partnership" >/dev/null ||
+node "$CLAUDE_VALIDATOR" --allow-legacy "$domain_partnership" >/dev/null ||
   fail "validator confused a Bounded Context named Partnership with a Context Map pattern"
 
 domain_shared_kernel="$tmp/domain-shared-kernel.md"
@@ -247,13 +293,13 @@ cat >>"$domain_shared_kernel" <<'EOF'
 +---------------+
 ```
 EOF
-node "$CLAUDE_VALIDATOR" "$domain_shared_kernel" >/dev/null ||
+node "$CLAUDE_VALIDATOR" --allow-legacy "$domain_shared_kernel" >/dev/null ||
   fail "validator confused a Bounded Context named Shared Kernel with a Context Map pattern"
 
 document_node_id="$tmp/document-node-id.md"
 cp "$valid" "$document_node_id"
 sed -i 's/^    a\["A"\]$/    upstream_a["A"]/; s/^    a --> /    upstream_a --> /' "$document_node_id"
-node "$CLAUDE_VALIDATOR" "$document_node_id" >/dev/null ||
+node "$CLAUDE_VALIDATOR" --allow-legacy "$document_node_id" >/dev/null ||
   fail "validator should accept a unique lower_snake_case node identifier without inferring a directory slug"
 
 assert_invalid() {
@@ -261,7 +307,7 @@ assert_invalid() {
   local expected="$2"
   local output
 
-  if output="$(node "$CLAUDE_VALIDATOR" "$fixture" 2>&1)"; then
+  if output="$(node "$CLAUDE_VALIDATOR" --allow-legacy "$fixture" 2>&1)"; then
     fail "validator accepted invalid fixture $(basename "$fixture")"
   fi
   printf '%s\n' "$output" | rg -Fq -- "$expected" || {
@@ -269,6 +315,169 @@ assert_invalid() {
     fail "invalid fixture $(basename "$fixture") did not report $expected"
   }
 }
+
+assert_invalid_strict() {
+  local fixture="$1"
+  local expected="$2"
+  local output
+
+  if output="$(node "$CLAUDE_VALIDATOR" "$fixture" 2>&1)"; then
+    fail "strict validator accepted invalid fixture $(basename "$fixture")"
+  fi
+  printf '%s\n' "$output" | rg -Fq -- "$expected" || {
+    printf '%s\n' "$output" >&2
+    fail "invalid strict fixture $(basename "$fixture") did not report $expected"
+  }
+}
+
+assert_invalid_strict "$valid" "Interaction View"
+
+add_interaction_view() {
+  local source="$1"
+  local target="$2"
+  local include_edge="$3"
+
+  awk -v include_edge="$include_edge" '
+    $0 == "## Bounded Contexts" {
+      print "## Interaction View"
+      print ""
+      print "Arrow direction: `initiator -> receiver` (runtime/business interaction). It does not describe model ownership or Context Map dependency."
+      print ""
+      print "```mermaid"
+      print "graph LR"
+      print "    a[\"A\"]"
+      print "    b[\"B\"]"
+      print "    c[\"C\"]"
+      print "    d[\"D\"]"
+      print "    e[\"E\"]"
+      if (include_edge == "yes") {
+        print ""
+        print "    b -->|Request A Review| a"
+      }
+      print "```"
+      print ""
+    }
+    { print }
+  ' "$source" >"$target"
+}
+
+interaction_graph_only="$tmp/interaction-graph-only.md"
+add_interaction_view "$valid" "$interaction_graph_only" yes
+
+reverse_direction_interaction="$tmp/reverse-direction-interaction.md"
+awk '
+  $0 == "### B" { in_b = 1 }
+  $0 == "### C" { in_b = 0 }
+  in_b && $0 == "#### Upstream Dependencies" {
+    print "#### Interactions"
+    print ""
+    print "##### Request A Review"
+    print ""
+    print "- **Receiver:** A"
+    print "- **Trigger or intent:** B requests a runtime review from A."
+    print "- **Result or failure feedback:** A returns the review result or a failure reason."
+    print ""
+  }
+  { print }
+' "$interaction_graph_only" >"$reverse_direction_interaction"
+
+node "$CLAUDE_VALIDATOR" "$reverse_direction_interaction" >/dev/null ||
+  fail "strict validator rejected a runtime interaction opposite to the A -> B model dependency"
+
+no_cross_context_interactions="$tmp/no-cross-context-interactions.md"
+add_interaction_view "$valid" "$no_cross_context_interactions" no
+node "$CLAUDE_VALIDATOR" "$no_cross_context_interactions" >/dev/null ||
+  fail "strict validator rejected a canonical zero-edge Interaction View"
+
+interaction_cycle="$tmp/interaction-cycle.md"
+awk '
+  $0 == "    b -->|Request A Review| a" {
+    print
+    print "    a -->|Send B Result| b"
+    next
+  }
+  $0 == "### A" { in_a = 1 }
+  $0 == "### B" { in_a = 0 }
+  in_a && $0 == "#### Downstream Contracts" {
+    print "#### Interactions"
+    print ""
+    print "##### Send B Result"
+    print ""
+    print "- **Receiver:** B"
+    print "- **Trigger or intent:** A sends the runtime result to B."
+    print "- **Result or failure feedback:** B acknowledges the result or returns a failure reason."
+    print ""
+  }
+  { print }
+' "$reverse_direction_interaction" >"$interaction_cycle"
+node "$CLAUDE_VALIDATOR" "$interaction_cycle" >/dev/null ||
+  fail "strict validator rejected a valid Interaction View cycle"
+
+assert_invalid_strict "$interaction_graph_only" "interaction projection is missing"
+
+interaction_node_mismatch="$tmp/interaction-node-mismatch.md"
+awk '
+  $0 == "## Interaction View" { in_interactions = 1 }
+  $0 == "## Bounded Contexts" { in_interactions = 0 }
+  in_interactions && $0 == "    e[\"E\"]" { next }
+  { print }
+' "$reverse_direction_interaction" >"$interaction_node_mismatch"
+assert_invalid_strict "$interaction_node_mismatch" "Interaction View nodes must match Global View exactly"
+
+projection_without_interaction="$tmp/projection-without-interaction.md"
+awk '
+  $0 == "### B" { in_b = 1 }
+  $0 == "### C" { in_b = 0 }
+  in_b && $0 == "#### Upstream Dependencies" {
+    print "#### Interactions"
+    print ""
+    print "##### Request A Review"
+    print ""
+    print "- **Receiver:** A"
+    print "- **Trigger or intent:** B requests a runtime review from A."
+    print "- **Result or failure feedback:** A returns the review result or a failure reason."
+    print ""
+  }
+  { print }
+' "$no_cross_context_interactions" >"$projection_without_interaction"
+assert_invalid_strict "$projection_without_interaction" "is absent from Interaction View"
+
+for interaction_field in 'Receiver' 'Trigger or intent' 'Result or failure feedback'; do
+  missing_interaction_field="$tmp/missing-interaction-field-$(printf '%s' "$interaction_field" | tr '[:upper:] ' '[:lower:]-').md"
+  sed "/^- \*\*$interaction_field:\*\*/d" \
+    "$reverse_direction_interaction" >"$missing_interaction_field"
+  assert_invalid_strict "$missing_interaction_field" "must declare exactly one non-empty $interaction_field"
+done
+
+interaction_node_id_mismatch="$tmp/interaction-node-id-mismatch.md"
+awk '
+  $0 == "## Interaction View" { in_interactions = 1 }
+  $0 == "## Bounded Contexts" { in_interactions = 0 }
+  in_interactions && $0 == "    a[\"A\"]" { print "    interaction_a[\"A\"]"; next }
+  in_interactions && $0 == "    b -->|Request A Review| a" { print "    b -->|Request A Review| interaction_a"; next }
+  { print }
+' "$reverse_direction_interaction" >"$interaction_node_id_mismatch"
+assert_invalid_strict "$interaction_node_id_mismatch" "Interaction View nodes must match Global View exactly"
+
+unlabeled_interaction_edge="$tmp/unlabeled-interaction-edge.md"
+sed 's/^    b -->|Request A Review| a$/    b --> a/' \
+  "$reverse_direction_interaction" >"$unlabeled_interaction_edge"
+assert_invalid_strict "$unlabeled_interaction_edge" "unsupported Interaction View graph line"
+
+runtime_edge_in_global_view="$tmp/runtime-edge-in-global-view.md"
+sed '0,/^    a --> b$/{s/^    a --> b$/    a -->|Request B Work| b/}' \
+  "$valid" >"$runtime_edge_in_global_view"
+assert_invalid "$runtime_edge_in_global_view" "unsupported Global View graph line"
+
+duplicate_interaction_name="$tmp/duplicate-interaction-name.md"
+sed '/^    b -->|Request A Review| a$/a\    b -->|Request A Review| c' \
+  "$reverse_direction_interaction" >"$duplicate_interaction_name"
+assert_invalid_strict "$duplicate_interaction_name" "duplicate Interaction Name"
+
+self_interaction="$tmp/self-interaction.md"
+sed 's/^    b -->|Request A Review| a$/    b -->|Request A Review| b/' \
+  "$reverse_direction_interaction" >"$self_interaction"
+assert_invalid_strict "$self_interaction" "not cross-context"
 
 self_loop="$tmp/self-loop.md"
 cp "$valid" "$self_loop"
@@ -348,7 +557,7 @@ done
 ordinary_ampersand="$tmp/ordinary-ampersand.md"
 sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Research \&amp; Development facts.#}' \
   "$valid" >"$ordinary_ampersand"
-node "$CLAUDE_VALIDATOR" "$ordinary_ampersand" >/dev/null ||
+node "$CLAUDE_VALIDATOR" --allow-legacy "$ordinary_ampersand" >/dev/null ||
   fail "validator confused an ordinary ampersand entity with a bidirectional arrow"
 
 for arrow in \
@@ -525,7 +734,7 @@ done
 ordinary_business_partnership="$tmp/ordinary-business-partnership.md"
 sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Partnership application acceptance and lifecycle.#}' \
   "$valid" >"$ordinary_business_partnership"
-node "$CLAUDE_VALIDATOR" "$ordinary_business_partnership" >/dev/null ||
+node "$CLAUDE_VALIDATOR" --allow-legacy "$ordinary_business_partnership" >/dev/null ||
   fail "validator confused ordinary Partnership business language with a DDD collaboration pattern"
 
 for chinese_relation in \
@@ -546,7 +755,7 @@ done
 ordinary_inline_emphasis="$tmp/ordinary-inline-emphasis.md"
 sed '0,/- \*\*Business authority:\*\* A facts\./{s#A facts\.#Payment owns **captured funds** and Research \&amp; Development facts.#}' \
   "$valid" >"$ordinary_inline_emphasis"
-node "$CLAUDE_VALIDATOR" "$ordinary_inline_emphasis" >/dev/null ||
+node "$CLAUDE_VALIDATOR" --allow-legacy "$ordinary_inline_emphasis" >/dev/null ||
   fail "validator rejected ordinary inline emphasis or an ordinary ampersand entity"
 
 for semantic_field in \

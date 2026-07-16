@@ -9,7 +9,7 @@
     "completion": ["stopped", "needs_clarification"],
     "review_conclusion": ["not_applicable"],
     "questions": { "min": 0, "max": 1 },
-    "routes": { "contains": ["event-storming"], "excludes": [] },
+    "routes": { "contains": [], "excludes": ["event-storming", "codify", "guard"] },
     "verdicts": [],
     "forbid_verdicts": [],
     "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },

@@ -2,12 +2,16 @@
 
 import fs from "node:fs";
 
-const path = process.argv[2];
+const arguments_ = process.argv.slice(2);
+const allowLegacy = arguments_.includes("--allow-legacy");
+const positionalArguments = arguments_.filter((argument) => argument !== "--allow-legacy");
 
-if (!path || process.argv.length !== 3) {
-  console.error("usage: validate-context-map.mjs <context-map.md>");
+if (positionalArguments.length !== 1 ||
+    arguments_.some((argument) => argument.startsWith("--") && argument !== "--allow-legacy")) {
+  console.error("usage: validate-context-map.mjs [--allow-legacy] <context-map.md>");
   process.exit(2);
 }
+const [path] = positionalArguments;
 
 let source;
 try {
@@ -438,44 +442,83 @@ for (const line of allLines) {
 }
 
 const globalStart = allLines.findIndex((line) => line === "## Global View");
+const interactionStart = allLines.findIndex((line) => line === "## Interaction View");
 const boundedStart = allLines.findIndex((line) => line === "## Bounded Contexts");
 const h2Headings = allLines.filter((line) => /^## /.test(line));
-if (h2Headings.length !== 2 ||
-    h2Headings[0] !== "## Global View" ||
-    h2Headings[1] !== "## Bounded Contexts") {
-  invalid("expected exactly ## Global View followed by ## Bounded Contexts");
+const expectedH2Headings = interactionStart >= 0
+  ? ["## Global View", "## Interaction View", "## Bounded Contexts"]
+  : ["## Global View", "## Bounded Contexts"];
+if (h2Headings.length !== expectedH2Headings.length ||
+    h2Headings.some((heading, index) => heading !== expectedH2Headings[index])) {
+  invalid("expected exactly ## Global View followed by ## Bounded Contexts, with optional ## Interaction View between them");
+}
+if (!allowLegacy && interactionStart < 0) {
+  invalid("## Interaction View is required; use --allow-legacy only for inspection or coordinated migration");
 }
 if (allLines.slice(1, globalStart).some((line) => line.trim() !== "")) {
   invalid("only blank lines may appear between # Context Map and ## Global View");
 }
 
-const globalLines = allLines.slice(globalStart + 1, boundedStart);
+const globalEnd = interactionStart >= 0 ? interactionStart : boundedStart;
+const globalLines = allLines.slice(globalStart + 1, globalEnd);
 const directionStatement = "Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.";
-const directionLines = globalLines.filter((line) => line.startsWith("Arrow direction:"));
-if (directionLines.length !== 1 || directionLines[0] !== directionStatement) {
-  invalid("Global View must contain exactly one canonical Arrow direction statement");
+const interactionDirectionStatement = "Arrow direction: `initiator -> receiver` (runtime/business interaction). It does not describe model ownership or Context Map dependency.";
+
+function parseViewEnvelope(viewName, lines, statement, absoluteSectionStart) {
+  const directionLines = lines.filter((line) => line.startsWith("Arrow direction:"));
+  if (directionLines.length !== 1 || directionLines[0] !== statement) {
+    invalid(`${viewName} must contain exactly one canonical Arrow direction statement`);
+  }
+
+  const mermaidStarts = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (/^```mermaid\s*$/.test(lines[index])) mermaidStarts.push(index);
+  }
+  if (mermaidStarts.length !== 1) {
+    invalid(`${viewName} must contain exactly one Mermaid graph LR block`);
+  }
+  const start = mermaidStarts[0];
+  const end = lines.findIndex(
+    (line, index) => index > start && /^```\s*$/.test(line),
+  );
+  if (end < 0) invalid(`${viewName} Mermaid graph LR block is not closed`);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (index >= start && index <= end) continue;
+    const line = lines[index];
+    if (line.trim() === "" || line === statement) continue;
+    invalid(`unsupported ${viewName} content outside Mermaid graph: ${line.trim()}`);
+  }
+
+  return {
+    start,
+    end,
+    graphLines: lines.slice(start + 1, end),
+    absoluteStart: absoluteSectionStart + 1 + start,
+    absoluteEnd: absoluteSectionStart + 1 + end,
+  };
 }
 
-const mermaidStarts = [];
-for (let index = 0; index < globalLines.length; index += 1) {
-  if (/^```mermaid\s*$/.test(globalLines[index])) mermaidStarts.push(index);
-}
-if (mermaidStarts.length !== 1) {
-  invalid("Global View must contain exactly one Mermaid graph LR block");
-}
-const mermaidStart = mermaidStarts[0];
-const mermaidEnd = globalLines.findIndex(
-  (line, index) => index > mermaidStart && /^```\s*$/.test(line),
-);
-if (mermaidEnd < 0) invalid("Global View Mermaid graph LR block is not closed");
-
-const absoluteMermaidStart = globalStart + 1 + mermaidStart;
-const absoluteMermaidEnd = globalStart + 1 + mermaidEnd;
+const globalEnvelope = parseViewEnvelope("Global View", globalLines, directionStatement, globalStart);
+const interactionLines = interactionStart >= 0
+  ? allLines.slice(interactionStart + 1, boundedStart)
+  : null;
+const interactionEnvelope = interactionLines === null
+  ? null
+  : parseViewEnvelope(
+    "Interaction View",
+    interactionLines,
+    interactionDirectionStatement,
+    interactionStart,
+  );
+const mermaidRanges = [globalEnvelope, ...(interactionEnvelope === null ? [] : [interactionEnvelope])];
 let continuationOpen = false;
 let localTextFenceOpen = false;
 for (let index = 0; index < allLines.length; index += 1) {
   const line = allLines[index];
-  const outsideMermaid = index < absoluteMermaidStart || index > absoluteMermaidEnd;
+  const outsideMermaid = !mermaidRanges.some(
+    ({ absoluteStart, absoluteEnd }) => index >= absoluteStart && index <= absoluteEnd,
+  );
   if (outsideMermaid && line === "```text") {
     if (localTextFenceOpen) invalid("nested Local View text code fences are unsupported");
     localTextFenceOpen = true;
@@ -504,20 +547,13 @@ for (let index = 0; index < allLines.length; index += 1) {
     continuationOpen = /^- \*\*[^*]+:\*\* \S/.test(line);
   }
   if (!/^\s*(?:`{3,}|~{3,})/.test(line)) continue;
-  if (index === absoluteMermaidStart && line === "```mermaid") continue;
-  if (index === absoluteMermaidEnd && line === "```") continue;
-  invalid("only the canonical Global View Mermaid code fence is supported");
+  if (mermaidRanges.some(({ absoluteStart }) => index === absoluteStart) && line === "```mermaid") continue;
+  if (mermaidRanges.some(({ absoluteEnd }) => index === absoluteEnd) && line === "```") continue;
+  invalid("only the canonical Global View and optional Interaction View Mermaid code fences are supported");
 }
 if (localTextFenceOpen) invalid("Local View text code fence is not closed");
 
-for (let index = 0; index < globalLines.length; index += 1) {
-  if (index >= mermaidStart && index <= mermaidEnd) continue;
-  const line = globalLines[index];
-  if (line.trim() === "" || line === directionStatement) continue;
-  invalid(`unsupported Global View content outside Mermaid graph: ${line.trim()}`);
-}
-
-const graphLines = globalLines.slice(mermaidStart + 1, mermaidEnd);
+const graphLines = globalEnvelope.graphLines;
 const graphDeclarations = graphLines
   .map((line, index) => (/^\s*graph LR\s*$/.test(line) ? index : -1))
   .filter((index) => index >= 0);
@@ -593,6 +629,81 @@ for (const id of nodes.keys()) {
   if (!visit(id)) invalid("cycle detected; the Context Map must remain a DAG");
 }
 
+const interactionEdges = [];
+const interactionEdgeKeys = new Set();
+if (interactionEnvelope !== null) {
+  const interactionGraphLines = interactionEnvelope.graphLines;
+  const interactionGraphDeclarations = interactionGraphLines
+    .map((line, index) => (/^\s*graph LR\s*$/.test(line) ? index : -1))
+    .filter((index) => index >= 0);
+  const firstInteractionGraphLine = interactionGraphLines.findIndex((line) => line.trim() !== "");
+  if (interactionGraphDeclarations.length !== 1 ||
+      interactionGraphDeclarations[0] !== firstInteractionGraphLine) {
+    invalid("Interaction View must contain exactly one Mermaid graph LR as the first nonblank block line");
+  }
+
+  const interactionNodes = new Map();
+  const interactionLabels = new Set();
+  const interactionNamesByInitiator = new Set();
+  for (let index = interactionGraphDeclarations[0] + 1; index < interactionGraphLines.length; index += 1) {
+    const line = interactionGraphLines[index];
+    if (line.trim() === "") continue;
+
+    const node = line.match(/^\s*([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\["([^"]+)"\]\s*$/);
+    if (node) {
+      const [, id, label] = node;
+      if (interactionNodes.has(id) || interactionLabels.has(label)) {
+        invalid(`Interaction View contains duplicate node ${label}`);
+      }
+      interactionNodes.set(id, label);
+      interactionLabels.add(label);
+      continue;
+    }
+
+    const edge = line.match(
+      /^\s*([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\s*-->\|([^|]+)\|\s*([a-z][a-z0-9]*(?:_[a-z0-9]+)*)\s*$/,
+    );
+    if (edge) {
+      const initiatorId = edge[1];
+      const name = edge[2].trim();
+      const receiverId = edge[3];
+      if (edge[2] !== name || !hasRenderedText(name)) {
+        invalid("Interaction View edge must declare one non-empty canonical Interaction Name");
+      }
+      interactionEdges.push({ initiatorId, receiverId, name });
+      continue;
+    }
+
+    invalid(`unsupported Interaction View graph line: ${line.trim()}`);
+  }
+
+  if (interactionNodes.size !== nodes.size || [...nodes].some(
+    ([id, label]) => interactionNodes.get(id) !== label,
+  )) {
+    invalid("Interaction View nodes must match Global View exactly");
+  }
+
+  for (const interaction of interactionEdges) {
+    const { initiatorId, receiverId, name } = interaction;
+    if (!interactionNodes.has(initiatorId) || !interactionNodes.has(receiverId)) {
+      invalid(`Interaction View edge ${initiatorId} -> ${receiverId}/${name} has an unknown endpoint`);
+    }
+    if (initiatorId === receiverId) {
+      invalid(`Interaction View self-interaction ${initiatorId}/${name} is not cross-context`);
+    }
+    const nameKey = `${initiatorId}::${name}`;
+    if (interactionNamesByInitiator.has(nameKey)) {
+      invalid(`Interaction View contains duplicate Interaction Name ${nodes.get(initiatorId)}/${name}`);
+    }
+    interactionNamesByInitiator.add(nameKey);
+    const edgeKey = `${nodes.get(initiatorId)}->${nodes.get(receiverId)}::${name}`;
+    if (interactionEdgeKeys.has(edgeKey)) {
+      invalid(`Interaction View contains duplicate interaction ${edgeKey}`);
+    }
+    interactionEdgeKeys.add(edgeKey);
+  }
+}
+
 const contextLines = allLines.slice(boundedStart + 1);
 const firstContextHeading = contextLines.findIndex((line) => /^### /.test(line));
 if (firstContextHeading < 0 || contextLines.slice(0, firstContextHeading).some((line) => line.trim() !== "")) {
@@ -632,6 +743,7 @@ for (const [upstreamId, downstreamId] of edges) {
 
 const upstreamContracts = [];
 const downstreamContracts = [];
+const interactionProjections = [];
 
 function parseContracts(context, lines, heading, endpointLabel, semanticLabels, target) {
   const headingCount = lines.filter((line) => line === heading).length;
@@ -689,9 +801,60 @@ function parseContracts(context, lines, heading, endpointLabel, semanticLabels, 
   }
 }
 
+function parseInteractions(context, lines) {
+  const heading = "#### Interactions";
+  const headingCount = lines.filter((line) => line === heading).length;
+  if (headingCount > 1) invalid(`duplicate ${heading} section for ${context}`);
+  const body = sectionLines(lines, heading, 4);
+  if (body === null) return;
+  for (let index = 0; index < body.length; index += 1) {
+    const interaction = body[index].match(/^##### ([^#].*)$/);
+    if (!interaction) {
+      if (body[index].trim() !== "") {
+        invalid(`interaction projection section ${context}/${heading} contains unsupported content: ${body[index].trim()}`);
+      }
+      continue;
+    }
+    const name = interaction[1].trim();
+    let end = body.length;
+    for (let cursor = index + 1; cursor < body.length; cursor += 1) {
+      if (/^##### [^#]/.test(body[cursor])) {
+        end = cursor;
+        break;
+      }
+    }
+    const interactionLines = body.slice(index + 1, end);
+    const fieldLabels = ["Receiver", "Trigger or intent", "Result or failure feedback"];
+    const allowedFields = new Set(fieldLabels);
+    for (const line of interactionLines) {
+      if (line.trim() === "" || /^ {1,5}[^ \t]/.test(line)) continue;
+      const field = line.match(/^- \*\*([^*]+):\*\* (.*)$/);
+      if (!field || !allowedFields.has(field[1])) {
+        invalid(`interaction projection ${context}/${name} contains unsupported field: ${line.trim()}`);
+      }
+    }
+    const values = new Map();
+    for (const label of fieldLabels) {
+      const prefix = `- **${label}:**`;
+      const fieldLines = interactionLines.filter((line) => line.startsWith(prefix));
+      if (fieldLines.length !== 1 || !hasRenderedText(fieldLines[0].slice(prefix.length))) {
+        invalid(`interaction projection ${context}/${name} must declare exactly one non-empty ${label}`);
+      }
+      values.set(label, fieldLines[0].slice(prefix.length).trim());
+    }
+    interactionProjections.push({
+      initiator: context,
+      receiver: values.get("Receiver"),
+      name,
+    });
+    index = end - 1;
+  }
+}
+
 for (const [context, lines] of contexts) {
   const allowedSections = new Set([
     "#### Local View",
+    "#### Interactions",
     "#### Upstream Dependencies",
     "#### Downstream Contracts",
   ]);
@@ -703,12 +866,13 @@ for (const [context, lines] of contexts) {
   }
   const sectionRank = new Map([
     ["#### Local View", 0],
-    ["#### Upstream Dependencies", 1],
-    ["#### Downstream Contracts", 2],
+    ["#### Interactions", 1],
+    ["#### Upstream Dependencies", 2],
+    ["#### Downstream Contracts", 3],
   ]);
   for (let index = 1; index < sectionHeadings.length; index += 1) {
     if (sectionRank.get(sectionHeadings[index]) < sectionRank.get(sectionHeadings[index - 1])) {
-      invalid(`${context} context sections must follow Local View, Upstream Dependencies, Downstream Contracts order`);
+      invalid(`${context} context sections must follow Local View, Interactions, Upstream Dependencies, Downstream Contracts order`);
     }
   }
   const firstSection = lines.findIndex((line) => /^#### /.test(line));
@@ -733,6 +897,7 @@ for (const [context, lines] of contexts) {
   const expected = expectedLocal.get(context);
   parseLocalWireframe(context, sectionLines(lines, "#### Local View", 4), expected, new Set(contexts.keys()));
 
+  parseInteractions(context, lines);
   parseContracts(
     context,
     lines,
@@ -789,4 +954,32 @@ for (const [upstreamId, downstreamId] of edges) {
   }
 }
 
-console.log(`valid Context Map: ${nodes.size} contexts, ${edges.length} dependencies`);
+const projectedInteractionKeys = new Set();
+const projectedNamesByInitiator = new Set();
+for (const projection of interactionProjections) {
+  const { initiator, receiver, name } = projection;
+  if (!labelToId.has(receiver) || receiver === initiator) {
+    invalid(`interaction projection ${initiator}->${receiver}/${name} must name another Bounded Context as Receiver`);
+  }
+  const nameKey = `${initiator}::${name}`;
+  if (projectedNamesByInitiator.has(nameKey)) {
+    invalid(`duplicate interaction projection ${initiator}/${name}`);
+  }
+  projectedNamesByInitiator.add(nameKey);
+  const key = `${initiator}->${receiver}::${name}`;
+  if (!interactionEdgeKeys.has(key)) {
+    invalid(`interaction projection ${key} is absent from Interaction View`);
+  }
+  projectedInteractionKeys.add(key);
+}
+
+for (const key of interactionEdgeKeys) {
+  if (!projectedInteractionKeys.has(key)) {
+    invalid(`interaction projection is missing for ${key}`);
+  }
+}
+
+const interactionSummary = interactionEnvelope === null
+  ? ""
+  : `, ${interactionEdges.length} interactions`;
+console.log(`valid Context Map: ${nodes.size} contexts, ${edges.length} dependencies${interactionSummary}`);
