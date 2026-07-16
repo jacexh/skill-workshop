@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "DDD Expert",
     "shortDescription": "Adversarial HITP EventStorming workflow",
-    "longDescription": "DDD workflow that facilitates the ten EventStorming steps one frontier decision at a time, challenges the integrated model from multiple perspectives, writes incremented canonical draft Models for approval, and promotes them with synchronized documentation after explicit model confirmation; model_ready enters Codify directly for implementation and independent review.",
+    "longDescription": "DDD workflow that facilitates the ten EventStorming steps one frontier decision at a time, challenges the integrated model from multiple perspectives, writes one draft meeting record for approval, and synchronizes ready Models after explicit model confirmation; Codify implements the ready iteration and Guard closes it as implemented.",
     "developerName": "xuhao",
     "category": "Productivity",
     "capabilities": [
@@ -23,7 +23,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use $ddd-expert:event-storming to facilitate the ten EventStorming steps on a temporary EventStorming Board. Ask one frontier decision at a time, recommend design choices with their strongest credible alternative, validate and write incremented canonical draft Models, summarize them for explicit user confirmation, then promote the same revisions and synchronize relevant documentation; model_ready is ready for $ddd-expert:codify."
+      "Use $ddd-expert:event-storming to facilitate the ten EventStorming steps on a temporary EventStorming Board. Ask one frontier decision at a time, recommend design choices with their strongest credible alternative, validate and write one meeting record with status: draft, summarize it for explicit user confirmation, then set status: ready and synchronize affected Models for $ddd-expert:codify."
     ]
   },
   "skills": "./skills/"

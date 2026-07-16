@@ -6,55 +6,56 @@ Project-owned DDD artifacts use this canonical structure:
 docs/ddd-expert/
 |-- README.md
 |-- context-map.md
+|-- event-storming/
+|   `-- <event-storming-slug>.md
 `-- context/
     `-- <context-slug>/
         `-- model.md
 ```
 
-## Context directory
+## Iteration minutes
 
-One directory represents one complete candidate or confirmed Bounded Context. `<context-slug>` is the stable lower-kebab-case form of its candidate name. A package, service, team, table, or deployment name is not a substitute when it differs from the business context name.
+One file under `event-storming/` records one EventStorming meeting and its implementation handoff. Use a stable, unique lower-kebab-case slug derived from the Spec, issue, or modeling scope. A later iteration creates another file; completed minutes are not current domain authority.
 
-Separate Bounded Contexts use separate directories. The root does not contain a shared `model.md`, and one context artifact does not collect another context's internal model.
+The minutes follow `draft -> ready -> implemented`:
 
-`model.md` is written only after the ten EventStorming steps and adversarial review produce one complete approval candidate. That candidate increments `model_revision` and uses `model_status: draft`. Explicit approval promotes the exact same revision to `model_status: model_ready`; a semantic correction writes another incremented draft revision. Earlier exploration exists only on the temporary EventStorming Board. A canonical `model_ready` Model enters Codify directly.
+- `draft`: the complete candidate is visible for confirmation; canonical Models remain unchanged.
+- `ready`: the user confirmed the minutes and EventStorming synchronized every affected Model and document.
+- `implemented`: Guard cleared the implementation and closed this iteration.
 
-Because one `model.md` may contain several Aggregates, an Aggregate-scoped confirmation preserves every excluded sibling diagram and semantic range byte-for-byte. A change to shared Bounded Context meaning or a sibling Aggregate requires Bounded Context scope and a newly presented integrated model.
+The root README keeps one TODO link per minutes file. `draft` and `ready` remain unchecked; Guard checks the item only with the `implemented` transition.
+
+## Context Models
+
+One context directory represents one Bounded Context. `<context-slug>` is the stable lower-kebab-case form of its accepted name. A package, service, team, table, or deployment name is not a substitute when it differs from the business context name.
+
+Models remain the current domain authority. A confirmed EventStorming iteration increments each semantically changed `model_revision`, updates `last_changed_by` to those minutes, and integrates only durable conclusions owned by that context. Complete iteration diagrams and cross-context scenario flow stay in the minutes instead of being copied into every Model.
 
 ## Artifact meaning
 
-| Artifact | Semantic authorizer | Content |
+| Artifact | Writer | Content |
 |---|---|---|
-| `README.md` | EventStorming (`apply-confirmed-model`) | Navigation to the confirmed Bounded Contexts |
-| `context-map.md` | EventStorming (`apply-confirmed-model`) | Context inventory, semantic dependencies, optional focused Local Views, and one authoritative detail record per named contract |
-| `context/<context-slug>/model.md` | EventStorming (`write-model-draft`, then `apply-confirmed-model`) | Exact complete EventStorming candidate and that context's language, authority, Aggregates/core objects, lifecycle, invariants, policies, failure semantics, Hotspots, dependencies, revision, and `draft` or `model_ready` status |
-
-The EventStorming Board, sticky-note inventory, rejected alternatives, source-coverage notes, and confirmation conversation are temporary. The complete approval candidate is not temporary: its exact Mermaid source is a first-class part of the `draft` `model.md` and remains unchanged when promoted.
+| `README.md` | EventStorming; Guard only for iteration closure | Navigation to Models plus the EventStorming TODO index |
+| `context-map.md` | EventStorming | Context inventory, semantic dependencies, optional Local Views, and one authoritative detail record per named contract |
+| `event-storming/<event-storming-slug>.md` | EventStorming; Guard only for `ready -> implemented` | One iteration's complete scope, integrated diagram, decisions and reasons, affected Models, assumptions, Hotspots, and status |
+| `context/<context-slug>/model.md` | EventStorming | Current context language, authority, Aggregates/core objects, lifecycle, invariants, policies, failure semantics, Hotspots, dependencies, revision, and latest minutes link |
 
 ## Context Map projections
 
 `context-map.md` starts with one global Mermaid `graph LR`. It declares every confirmed project Bounded Context exactly once, including isolated contexts, using a unique `lower_snake_case` Mermaid identifier and accepted context name. Each plain, unlabeled edge points from upstream (`U`) to downstream (`D`) and means model or published-contract influence. The dependency graph is a DAG: no self-loop, reciprocal edge, longer cycle, bidirectional arrow, Partnership, or Shared Kernel.
 
-Each context has:
+Each context has one core responsibility, business authority, and link to its canonical Model. Add a fenced `text` Local View only when a direct-neighbor focus materially improves readability over the Global View. Each named semantic contract appears once under `Model Dependency Contracts`, with its upstream, downstream, published meaning, downstream reliance, local translation, and guarantee.
 
-- one core responsibility, business authority, and link to its canonical Model; and
-- an optional fenced `text` Local View only when a direct-neighbor focus materially improves readability over the Global View. When present, it contains exactly that context and its direct semantic-dependency neighbors, with dependency arrows from upstream to downstream and no Mermaid or U/D labels.
+## Documentation closure
 
-Each named semantic contract appears once under `Model Dependency Contracts`, with its upstream, downstream, published meaning, downstream reliance, local translation, and guarantee. Runtime request/response direction does not determine model ownership or add a reverse dependency.
+Before confirmation, write only the `draft` minutes and its unchecked README entry. After confirmation, stage the `ready` minutes, affected Models, Context Map, README, and relevant project-owned living Specs, PRDs, ADRs, and Glossaries outside the workspace, then apply the complete consistency set once. If synchronization requires a semantic decision absent from the minutes, return that decision to the EventStorming Board.
 
-## Confirmed documentation closure
-
-Spec, PRD, ADR, and Glossary documents remain in their project-defined locations. They are not copied under `docs/ddd-expert/`. After the user confirms the integrated model, EventStorming derives the minimal affected set and `apply-confirmed-model` updates it in one logical consistency transaction. The user confirms domain meaning, not a per-file impact inventory. If synchronization requires a semantic decision absent from the model, return that decision to the EventStorming Board before writing.
-
-Living Specs, PRDs, and Glossaries may be updated. ADR handling follows repository policy; an accepted historical ADR is preserved and a changed decision is recorded in a superseding ADR, with only an allowed status or superseded-by pointer added to the old record. Unrelated or external documents are not absorbed into the transaction.
-
-## Context topology changes
-
-A confirmed context rename, split, merge, or removal updates root navigation, Context Map, and all affected Models together. Old Model files are deleted only when their absence follows mechanically from the confirmed context inventory; a context directory is removed only when it contains no unrelated files.
+Preserve accepted historical ADR rationale and create a superseding ADR when repository policy requires it. A confirmed context rename, split, merge, or removal updates root navigation, Context Map, and all affected Models together.
 
 ## File templates
 
-- Use [README.md](README.md) for the project artifact entry point.
-- Use [context-map.md](context-map.md) for semantic dependencies and runtime/business interactions.
-- Use [model.md](model.md) for one complete candidate or confirmed Bounded Context Model and exact EventStorming view.
-- Omit only the explicitly optional sections and remove all template comments and placeholders from written artifacts.
+- Use [README.md](README.md) for project navigation and the iteration TODO index.
+- Use [context-map.md](context-map.md) for semantic dependencies.
+- Use [event-storming.md](event-storming.md) for one complete EventStorming iteration.
+- Use [model.md](model.md) for one current Bounded Context Model.
+- Omit only explicitly optional sections and remove all template comments and placeholders from written artifacts.

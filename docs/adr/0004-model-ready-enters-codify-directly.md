@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-16
 - Supersedes: the separate Tactical Design readiness and Design Realization authority decisions in [ADR 0001](0001-ddd-expert-reference-architecture.md), and the Strategic stop decision in [ADR 0003](0003-event-storming-whole-model-confirmation.md)
+- EventStorming artifact placement, Model status, and implementation closure superseded by: [ADR 0005: EventStorming Produces Iteration Minutes and Current Models](0005-event-storming-minutes-and-current-models.md)
 
 ## Context
 

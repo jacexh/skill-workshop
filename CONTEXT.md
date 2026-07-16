@@ -63,8 +63,8 @@ The user's explicit acceptance of the current complete EventStorming diagrams, s
 _Avoid_: local answer, partial approval, file-impact approval
 
 **Confirmed EventStorming Model**:
-The exact integrated Strategic Model accepted through Integrated Model Confirmation and persisted with its diagram source unchanged in a `model_ready` Model artifact.
-_Avoid_: supported board, tactical design, regenerated summary
+The exact integrated Strategic Model accepted through Integrated Model Confirmation, persisted unchanged in the confirmed iteration minutes and projected into the affected current Models.
+_Avoid_: supported board, tactical design, per-Model EventStorming diagram
 
 **Documentation Closure**:
 The one logical post-confirmation transaction that derives the minimal affected project-owned set and synchronizes the confirmed DDD Model and Context Map with relevant living Spec, PRD, ADR, and Glossary entries while preserving document lifecycle and unrelated history.
