@@ -667,6 +667,10 @@ assert_contains "$scaffold" 'messagesubscriber/' "Go scaffold should separate me
 assert_contains "$scaffold" 'taskprocessor/' "Go scaffold should separate task processors"
 assert_contains "$scaffold" 'convert.go' "Go scaffold should use convert.go for persistence mapping"
 assert_contains "$scaffold" 'gen/' "Go scaffold should place generated stubs under gen"
+assert_contains "$scaffold" 'private/v1/' "Go scaffold should separate deployment-private RPC contracts"
+assert_contains "$scaffold" 'public/v1/' "Go scaffold should separate externally supported RPC contracts"
+assert_contains "$scaffold" 'integration/v1/' "Go scaffold should separate Integration Message contracts"
+assert_contains "$scaffold" 'task/v1/' "Go scaffold should place durable Task schemas under proto"
 assert_contains "$scaffold" 'migrations/' "Go scaffold should use the canonical migration directory"
 
 application="$CLAUDE_ROOT/references/ddd-golang-application.md"
@@ -698,6 +702,7 @@ assert_contains "$transport" 'transport/taskprocessor' "Go Transport should own 
 assert_contains "$transport" 'message.Subscriber.Subscribe' "Go Transport should separate subscriber registration"
 assert_contains "$transport" 'message.Runner.Run' "Go Runtime should own the message runner lifecycle"
 assert_contains "$transport" 'app.Commands' "Go Transport adapters should delegate through the Application registry"
+assert_contains "$transport" 'gen/user/public/v1' "Go Transport should use the external RPC contract namespace"
 
 events="$CLAUDE_ROOT/references/ddd-golang-events-messages.md"
 assert_contains "$events" 'Published Fact Contract' "Go messaging should define producer-owned facts"
@@ -712,9 +717,14 @@ assert_contains "$taskqueue" 'application/task' "Go taskqueue should own task co
 assert_contains "$taskqueue" 'transport/taskprocessor' "Go taskqueue should own processors in Transport"
 assert_contains "$taskqueue" 'internal/pkg/taskqueue' "Go taskqueue should keep Asynq runtime technical"
 assert_contains "$taskqueue" 'app.Commands' "Go task processors should delegate through the Application registry"
-assert_contains "$taskqueue" 'taskqueue.NewJSONTask' "Go task contracts should use the current direct JSON constructor"
-assert_contains "$taskqueue" 'taskqueue.DecodeJSON' "Go task processors should use the current direct JSON decoder"
+assert_contains "$taskqueue" 'proto/<context>/task/v1' "Go taskqueue should protect durable payload schemas with protobuf"
+assert_contains "$taskqueue" 'taskqueue.NewProtoTask' "Go task contracts should use the protobuf constructor"
+assert_contains "$taskqueue" 'taskqueue.DecodeProto' "Go task processors should use the protobuf decoder"
+assert_contains "$taskqueue" 'taskqueue.ProtoCodec' "Go task tests should verify codec metadata"
 assert_contains "$taskqueue" 'NewEnqueueOptions(options...).Validate()' "Go taskqueue guidance should validate provider-facing policy"
+if rg -n 'taskqueue\.(NewJSONTask|DecodeJSON)' "$CLAUDE_ROOT"/references/ddd-golang*.md >/dev/null; then
+  fail "Go taskqueue house style should not retain JSON task construction or decoding"
+fi
 
 infrastructure="$CLAUDE_ROOT/references/ddd-golang-infrastructure.md"
 assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure should own DO/Domain conversion"

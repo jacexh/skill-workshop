@@ -22,7 +22,7 @@ Command-side business data reaches a Domain Factory or reconstituted Entity and 
 
 ## ConnectRPC
 
-When an RPC API exists, use ConnectRPC. Contract sources live under `proto/<context>/...`, generated messages and stubs live directly under `gen/`, the adapter lives under `transport/connectrpc`, and shared HTTP server/interceptor lifecycle lives under `internal/pkg/connectrpc`.
+When an RPC API exists, use ConnectRPC. Deployment-private contracts live under `proto/<context>/private/v1`; externally supported contracts with their stronger authentication and compatibility obligations live under `proto/<context>/public/v1`. Generated messages and stubs mirror the source path directly under `gen/`, the adapter lives under `transport/connectrpc`, and shared HTTP server/interceptor lifecycle lives under `internal/pkg/connectrpc`.
 
 ```go
 package connectrpc
@@ -31,8 +31,8 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	"example/gen/user/v1"
-	"example/gen/user/v1/userv1connect"
+	"example/gen/user/public/v1"
+	"example/gen/user/public/v1/userv1connect"
 	"example/internal/business/user/application"
 	"example/internal/business/user/application/command"
 )
@@ -127,7 +127,7 @@ Outbox, Inbox, persistent idempotency, retry and DLQ are not implied by using me
 
 ## Task Processor
 
-Task Queue code exists only when confirmed recovery semantics, latency requirements, or accepted project constraints require background execution. The owning context defines the stable contract under `application/task`; the inbound adapter lives under `transport/taskprocessor` and implements `github.com/go-jimu/components/taskqueue.Processor`:
+Task Queue code exists only when confirmed recovery semantics, latency requirements, or accepted project constraints require background execution. The owning context defines its durable protobuf schema under `proto/<context>/task/v1` and its semantic definition/constructor under `application/task`; the inbound adapter lives under `transport/taskprocessor` and implements `github.com/go-jimu/components/taskqueue.Processor`:
 
 ```go
 package taskprocessor
@@ -135,6 +135,7 @@ package taskprocessor
 import (
 	"context"
 
+	notificationtaskv1 "example/gen/notification/task/v1"
 	"github.com/go-jimu/components/taskqueue"
 	"example/internal/business/notification/application"
 	"example/internal/business/notification/application/command"
@@ -161,12 +162,12 @@ func (p *SendWelcomeProcessor) Process(
 	ctx context.Context,
 	queued taskqueue.Task,
 ) error {
-	var payload notificationtask.SendWelcomePayload
-	if err := taskqueue.DecodeJSON(queued, &payload); err != nil {
-		return err // malformed JSON already wraps taskqueue.ErrSkipRetry
+	payload := &notificationtaskv1.SendWelcomeTaskV1{}
+	if err := taskqueue.DecodeProto(queued, payload); err != nil {
+		return err // malformed protobuf already wraps taskqueue.ErrSkipRetry
 	}
 	return p.app.Commands.SendWelcomeNotification.Handle(ctx, command.SendWelcomeNotification{
-		UserID: payload.UserID,
+		UserID: payload.GetUserId(),
 	})
 }
 ```

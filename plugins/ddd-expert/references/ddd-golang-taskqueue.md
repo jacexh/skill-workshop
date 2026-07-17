@@ -1,6 +1,6 @@
 ---
 name: ddd-golang-taskqueue
-description: Go House Style for Application-owned internal task contracts, Transport task processors, provider-neutral enqueue policy, periodic triggers, and Asynq runtime wiring.
+description: Go House Style for protobuf-backed internal task contracts, Transport task processors, provider-neutral enqueue policy, periodic triggers, and Asynq runtime wiring.
 ---
 
 # Go Task Queue
@@ -19,10 +19,16 @@ another context's internal task directly.
 ## Responsibility and Placement
 
 ```text
+proto/<context>/task/v1/
+  <task>.proto               # durable Task payload schema
+
+gen/<context>/task/v1/
+  <task>.pb.go               # generated; never edit
+
 internal/business/<context>/
   application/
     task/
-      <task>.go             # TaskType, Definition, payload, task constructor
+      <task>.go             # TaskType, Definition, task constructor
   transport/
     taskprocessor/
       <task>.go             # taskqueue.Processor -> one Application Command
@@ -35,7 +41,8 @@ internal/pkg/taskqueue/
 | Responsibility | Owner |
 |---|---|
 | Business eligibility, deadline, terminal state, compensation | Domain/Application |
-| Versioned task type, definition, payload, task construction | Application `task` package |
+| Versioned task payload schema | Owning context under `proto/<context>/task/v1` |
+| Task type, definition, and task construction | Application `task` package |
 | Enqueue accepted deferred work | Application through `taskqueue.Enqueuer` |
 | Decode one task and delegate to one command | Transport `taskprocessor` |
 | Redis, Asynq options, worker retry, concurrency, middleware, lifecycle | Runtime |
@@ -47,16 +54,37 @@ that duplicate `taskqueue.Enqueuer`, `Processor`, and the adopted adapter.
 
 ## Application Task Contract
 
-Define a stable, versioned `taskqueue.TaskType`, one `taskqueue.Definition`, and
-one JSON payload under `application/task`. Payloads carry stable identifiers and
-immutable facts needed to invoke the use case. They do not carry Aggregates,
-Data Objects, protobuf messages, or Asynq types.
+Define the durable payload schema under `proto/<context>/task/v1` and generate it
+under the matching `gen/<context>/task/v1` path. A Task may remain queued across
+deployments, so protobuf field numbers and the repository's Buf breaking check
+protect its persisted shape. The payload carries stable identifiers and
+immutable facts needed to invoke the use case; it does not carry Aggregates,
+Data Objects, provider metadata, or Asynq types.
+
+```protobuf
+// proto/document/task/v1/review_document.proto
+syntax = "proto3";
+
+package document.task.v1;
+
+option go_package = "example.com/service/gen/document/task/v1;documenttaskv1";
+
+message ReviewDocumentTaskV1 {
+  string document_id = 1;
+}
+```
+
+Application owns the semantic `TaskType`, provider-neutral `Definition`, and
+constructor that builds the protobuf-backed envelope:
 
 ```go
 // internal/business/document/application/task/review_document.go
 package task
 
-import "github.com/go-jimu/components/taskqueue"
+import (
+	documenttaskv1 "example.com/service/gen/document/task/v1"
+	"github.com/go-jimu/components/taskqueue"
+)
 
 const ReviewDocumentType taskqueue.TaskType = "document.review.v1"
 
@@ -65,23 +93,20 @@ var ReviewDocumentDefinition = taskqueue.Definition{
 	Queue: "document",
 }
 
-type ReviewDocument struct {
-	DocumentID string `json:"document_id"`
-}
-
 func NewReviewDocument(documentID string) (taskqueue.Task, error) {
-	return taskqueue.NewJSONTask(
+	return taskqueue.NewProtoTask(
 		ReviewDocumentDefinition,
-		&ReviewDocument{DocumentID: documentID},
+		&documenttaskv1.ReviewDocumentTaskV1{DocumentId: documentID},
 		taskqueue.WithKey(documentID),
 	)
 }
 ```
 
 Build the envelope with the exported `Definition` through
-`taskqueue.NewJSONTask`, and decode it with `taskqueue.DecodeJSON` into the
-contract's payload type. Keep this explicit construction and decoding path
-throughout Application, Transport, composition, and tests.
+`taskqueue.NewProtoTask`, and decode it with `taskqueue.DecodeProto` into the
+generated contract type. `TaskType` identifies the semantic payload schema;
+protobuf is the payload codec. Keep those concepts separate throughout
+Application, Transport, provider adapters, and tests.
 
 The optional `Definition.Queue` is a provider-neutral lane. Set it only when an
 accepted operational constraint needs a named lane; otherwise leave it empty for
@@ -145,7 +170,7 @@ confirmed durable-recovery semantics or an accepted persistence constraint first
 ## Transport Task Processor
 
 A processor lives under `transport/taskprocessor`, implements one
-`taskqueue.Processor`, decodes with `taskqueue.DecodeJSON`, maps to one
+`taskqueue.Processor`, decodes with `taskqueue.DecodeProto`, maps to one
 Application Command, and delegates once.
 
 ```go
@@ -155,6 +180,7 @@ package taskprocessor
 import (
 	"context"
 
+	documenttaskv1 "example.com/service/gen/document/task/v1"
 	"github.com/go-jimu/components/taskqueue"
 	"example.com/service/internal/business/document/application"
 	"example.com/service/internal/business/document/application/command"
@@ -178,18 +204,18 @@ func (*ReviewDocumentProcessor) TaskType() taskqueue.TaskType {
 }
 
 func (p *ReviewDocumentProcessor) Process(ctx context.Context, queued taskqueue.Task) error {
-	var payload applicationtask.ReviewDocument
-	if err := taskqueue.DecodeJSON(queued, &payload); err != nil {
+	payload := &documenttaskv1.ReviewDocumentTaskV1{}
+	if err := taskqueue.DecodeProto(queued, payload); err != nil {
 		return err
 	}
 	return p.app.Commands.ReviewDocument.Handle(ctx, command.ReviewDocument{
-		DocumentID: payload.DocumentID,
+		DocumentID: payload.GetDocumentId(),
 	})
 }
 ```
 
-`taskqueue.DecodeJSON` returns errors matching `taskqueue.ErrSkipRetry`
-for malformed JSON.
+`taskqueue.DecodeProto` returns errors matching `taskqueue.ErrSkipRetry`
+for malformed protobuf.
 The Asynq adapter translates an error matching `taskqueue.ErrSkipRetry` to
 `asynq.SkipRetry`, so Transport can reject a permanently invalid delivery
 without importing Asynq.
@@ -311,6 +337,13 @@ if err := scheduler.RegisterPeriodicTask(periodic); err != nil {
 Here `redisOptions` is an `asynq.RedisConnOpt`, `workerConfig` is an
 `asynq.Config`, and `schedulerOptions` is `*asynq.SchedulerOpts`.
 
+`NewProtoTask` records `taskqueue.ProtoCodec` in the provider-neutral envelope.
+An adapter must preserve `TaskType`, payload bytes, and `PayloadCodec` before a
+consumer uses codec-selected `DecodePayload`. The house-style processor uses
+explicit `DecodeProto`, so the task schema and codec
+remain unambiguous even when an older provider envelope preserves only type and
+payload bytes.
+
 The BC module contributes `taskqueue.Processor` values
 and accepted `taskqueue.PeriodicTask` values. Runtime registers them before
 startup, closes the enqueue client, and manages worker/scheduler `Start` and
@@ -325,11 +358,11 @@ contract, otherwise install the service's single-completion middleware once.
 
 ## Verification
 
-- Application task tests assert the encoded
-  type, payload, key, and provider-neutral enqueue options, including invalid
-  option combinations.
+- Application task tests construct the real generated protobuf payload and
+  assert type, `ProtoCodec`, decoded fields, key, and provider-neutral enqueue
+  options, including invalid option combinations.
 - Transport processor tests create tasks through
-  `taskqueue.NewJSONTask`, execute the real processor, and assert one
+  `taskqueue.NewProtoTask`, execute the real processor, and assert one
   Application delegation, retry error, or `ErrSkipRetry` result.
 - Polling tests cover not-ready re-enqueue, deadline/exhaustion, duplicate
   execution, and terminal no-op behavior.
