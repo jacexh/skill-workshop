@@ -1,7 +1,7 @@
 {
   "name": "ddd-expert",
   "description": "Adversarial HITP EventStorming plus confirmed-Model implementation and review",
-  "version": "1.15.16",
+  "version": "1.15.17",
   "author": {
     "name": "xuhao"
   },
