@@ -701,6 +701,7 @@ assert_contains "$transport" 'app.Commands' "Go Transport adapters should delega
 
 events="$CLAUDE_ROOT/references/ddd-golang-events-messages.md"
 assert_contains "$events" 'Published Fact Contract' "Go messaging should define producer-owned facts"
+assert_contains "$events" 'It is an Integration Message contract' "Go messaging should classify published facts as Integration Messages"
 assert_contains "$events" 'Asynchronous Intent Contract' "Go messaging should define receiver-owned intents"
 assert_contains "$events" 'Use outbox only when confirmed recovery semantics or accepted project constraints require' "Go messaging should keep outbox conditional without a separate design gate"
 assert_contains "$events" 'does not supply an xorm Store' "Go messaging should not invent missing outbox adapters"

@@ -185,7 +185,11 @@ Transport never calls a Domain Repository or QueryRepository directly.
 
 A same-context reaction lives in `application/eventhandler/<fact>.go` and implements `event.Handler`. It is a follow-up transaction; it cannot roll back the producing command.
 
-When it publishes this context's accepted fact, Application may use the producer-owned generated contract and provider-neutral publisher directly:
+When it publishes this context's accepted fact, Application may use the
+producer-owned generated contract and provider-neutral publisher directly.
+`UserCreated` remains the internal Domain Event; `UserRegisteredV1` is the
+producer-owned Published Fact Contract. It is an Integration Message contract
+whose protobuf value is used as the payload of `message.Message`:
 
 ```go
 payload := &userintegrationv1.UserRegisteredV1{

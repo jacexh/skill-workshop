@@ -161,9 +161,10 @@ The producing BC owns a Published Fact Contract. Put its protobuf source under
 The producing Application may import that generated contract. This is the
 narrow exception for a producer-owned Published Language; it does not permit
 Application to import RPC stubs, another BC's intent contract, or Kafka types.
-The contract name is Published Language and does not repeat the Domain Event
-name: `UserCreated` is the local fact; `UserRegisteredV1` is the published
-contract.
+`UserCreated` is the local Domain Event. `UserRegisteredV1` is the
+producer-owned Published Fact Contract. It is an Integration Message contract;
+its generated protobuf value is the payload carried by `message.Message`. The
+Published Language name does not need to repeat the internal Domain Event name.
 
 ```go
 // internal/business/user/application/eventhandler/user_created.go
@@ -213,6 +214,7 @@ func (h *UserCreatedHandler) Handle(ctx context.Context, raw event.Event) {
 		return
 	}
 
+	// UserRegisteredV1 is the Published Fact Contract payload type.
 	payload := &userintegrationv1.UserRegisteredV1{
 		UserId: fact.UserID,
 		Name:   fact.Name,
