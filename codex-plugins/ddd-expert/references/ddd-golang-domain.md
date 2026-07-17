@@ -197,9 +197,72 @@ Use `github.com/go-jimu/components/ddd/event`. An internal Domain Event is a pas
 
 Use enum plus Aggregate methods for a simple lifecycle. When the accepted lifecycle has many states, guarded edges, several actors or genuinely state-specific behavior, use `github.com/go-jimu/components/fsm` instead of duplicating transition switches across callers.
 
-The Aggregate remains the `fsm.StateContext`; callers still invoke business methods:
+The core model is state polymorphism: the same Aggregate delegates a behavior
+to its current state, and each concrete state implements that behavior
+differently. Define the business behavior interface in Domain, embed
+`*fsm.SimpleState` in a base/default state whose methods return errors, and
+override only the behaviors supported by each concrete state:
 
 ```go
+const (
+	StateUnpaid fsm.StateLabel = "order.unpaid"
+	StatePaid   fsm.StateLabel = "order.paid"
+	ActionPay   fsm.Action     = "pay"
+)
+
+var ErrInvalidPaymentAmount = errors.New("payment amount must be positive")
+
+type orderState interface {
+	fsm.State
+	Pay(amount int) error
+	Cancel() error
+}
+
+type baseOrderState struct{ *fsm.SimpleState }
+
+func (s *baseOrderState) Pay(int) error {
+	return fmt.Errorf("%s cannot pay", s.Label())
+}
+
+func (s *baseOrderState) Cancel() error {
+	return fmt.Errorf("%s cannot cancel", s.Label())
+}
+
+type unpaidOrderState struct{ baseOrderState }
+
+func newUnpaidOrderState() fsm.State {
+	return &unpaidOrderState{baseOrderState{
+		SimpleState: fsm.NewSimpleState(StateUnpaid),
+	}}
+}
+
+func (s *unpaidOrderState) Pay(amount int) error {
+	if amount <= 0 {
+		return ErrInvalidPaymentAmount
+	}
+	order := s.Context().(*Order)
+	order.paidAmount = amount
+	return nil
+}
+```
+
+The Aggregate owns the current concrete state and implements
+`fsm.StateContext`. Public business methods call the current state's behavior
+first, then use a private `fsm.Transit` helper only after that behavior succeeds:
+
+```go
+type Order struct {
+	state      orderState
+	paidAmount int
+}
+
+func NewOrder() *Order {
+	initial := newUnpaidOrderState().(orderState)
+	order := &Order{state: initial}
+	initial.SetContext(order)
+	return order
+}
+
 func (o *Order) CurrentState() fsm.State { return o.state }
 
 func (o *Order) SetState(next fsm.State) error {
@@ -214,9 +277,34 @@ func (o *Order) SetState(next fsm.State) error {
 func (o *Order) transition(action fsm.Action) error {
 	return fsm.Transit(o, fsm.MustGetStateMachine("order"), action)
 }
+
+func (o *Order) Pay(amount int) error {
+	if err := o.state.Pay(amount); err != nil {
+		return err
+	}
+	return o.transition(ActionPay)
+}
 ```
 
-State behavior and guards stay in Domain. Application calls `Pay`, `Cancel` or another business method, not `fsm.Transit`. Infrastructure persists the state label, not transition rules. A state count is evidence of complexity, not a keyword trigger; do not introduce FSM until the facts warrant it.
+Call `RegisterStateBuilder` for every label referenced by an edge, add
+transitions, and call `Check` during setup or tests. Register the checked machine through
+`RegisterStateMachine`, which freezes it and exposes the read-only
+`RuntimeStateMachine` used by `MustGetStateMachine`. Never use
+`HasTransition` as the permission check before invoking state behavior: the
+concrete state method owns acceptance or rejection.
+
+`Condition` is edge selection after behavior succeeds, not a replacement for
+business validation. A nil condition is unconditional; candidates for the same
+`from + action` are evaluated in add order and the first match wins. If none
+matches, `fsm.Transit` leaves the state unchanged. It builds the selected target,
+calls `next.SetContext(o)`, then delegates assignment and any state-change event
+recording to `SetState`.
+
+State behavior and guards stay in Domain. Application calls `Pay`, `Cancel` or
+another business method, not `fsm.Transit`. Infrastructure persists the state
+label and reconstitutes the matching concrete state with its Aggregate context;
+it does not persist transition rules. A state count is evidence of complexity,
+not a keyword trigger; do not introduce FSM until the facts warrant it.
 
 ## Import Boundary and Verification
 

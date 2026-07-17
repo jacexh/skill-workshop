@@ -28,7 +28,7 @@ Infrastructure -> Application and Domain contracts
 Application has two narrow, accepted provider-neutral exceptions:
 
 - a producing Application event handler may map a Domain Event to its own generated Integration Message contract and call `message.Publisher`;
-- an accepted internal task contract may use `components/taskqueue`, `SchemaRegistry`, and `Enqueuer` under `application/task`.
+- an accepted internal task may define its durable payload schema under `proto/<context>/task/v1`, then use `components/taskqueue` and `Enqueuer` under `application/task`.
 
 Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xorm sessions, Fx, and active loops remain outside Application.
 
@@ -68,7 +68,7 @@ Use [`ddd-modeling.md`](ddd-modeling.md) for model discovery, [`ddd-core.md`](dd
 | Dependency injection and lifecycle | `go.uber.org/fx` | Go service Runtime |
 | RPC | `connectrpc.com/connect` | RPC API exists |
 | HTTP routing | `github.com/go-chi/chi/v5` | ConnectRPC mounting or hand-written HTTP exists |
-| Contract toolchain | Buf, Protobuf, `google.golang.org/protobuf` | RPC or Integration Message contract exists; output is `gen/` |
+| Contract toolchain | Buf, Protobuf, `google.golang.org/protobuf` | RPC, Integration Message, or durable Task payload contract exists; output is `gen/` |
 | Business-data validation | `github.com/go-playground/validator/v10` | Domain Entity or Value Object validation |
 | ORM | `xorm.io/xorm` | MySQL persistence or QueryRepository exists |
 | MySQL driver | `github.com/go-sql-driver/mysql` | MySQL Runtime exists |

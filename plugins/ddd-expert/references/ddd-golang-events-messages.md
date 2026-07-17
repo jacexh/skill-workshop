@@ -55,16 +55,16 @@ import (
 	"github.com/go-jimu/components/ddd/event"
 )
 
-const EventKindUserRegistered event.Kind = "user.registered"
+const EventKindUserCreated event.Kind = "user.created"
 
-type UserRegistered struct {
+type UserCreated struct {
 	UserID     string
 	Name       string
 	Email      string
 	OccurredAt time.Time
 }
 
-func (UserRegistered) Kind() event.Kind { return EventKindUserRegistered }
+func (UserCreated) Kind() event.Kind { return EventKindUserCreated }
 ```
 
 An Aggregate owns an `event.Collection`, mutates its state, then records the
@@ -161,9 +161,13 @@ The producing BC owns a Published Fact Contract. Put its protobuf source under
 The producing Application may import that generated contract. This is the
 narrow exception for a producer-owned Published Language; it does not permit
 Application to import RPC stubs, another BC's intent contract, or Kafka types.
+`UserCreated` is the local Domain Event. `UserRegisteredV1` is the
+producer-owned Published Fact Contract. It is an Integration Message contract;
+its generated protobuf value is the payload carried by `message.Message`. The
+Published Language name does not need to repeat the internal Domain Event name.
 
 ```go
-// internal/business/user/application/eventhandler/user_registered.go
+// internal/business/user/application/eventhandler/user_created.go
 package eventhandler
 
 import (
@@ -179,27 +183,27 @@ import (
 	"example.com/service/internal/business/user/domain"
 )
 
-type UserRegisteredPublisher struct {
+type UserCreatedHandler struct {
 	publisher message.Publisher
 	logger    *slog.Logger
 }
 
-var _ event.Handler = (*UserRegisteredPublisher)(nil)
+var _ event.Handler = (*UserCreatedHandler)(nil)
 
-func NewUserRegisteredPublisher(
+func NewUserCreatedHandler(
 	publisher message.Publisher,
 	logger *slog.Logger,
-) *UserRegisteredPublisher {
-	return &UserRegisteredPublisher{publisher: publisher, logger: logger}
+) *UserCreatedHandler {
+	return &UserCreatedHandler{publisher: publisher, logger: logger}
 }
 
-func (h *UserRegisteredPublisher) Listening() []event.Kind {
-	return []event.Kind{domain.EventKindUserRegistered}
+func (h *UserCreatedHandler) Listening() []event.Kind {
+	return []event.Kind{domain.EventKindUserCreated}
 }
 
-func (h *UserRegisteredPublisher) Handle(ctx context.Context, raw event.Event) {
+func (h *UserCreatedHandler) Handle(ctx context.Context, raw event.Event) {
 	startedAt := time.Now()
-	fact, ok := raw.(domain.UserRegistered)
+	fact, ok := raw.(domain.UserCreated)
 	if !ok {
 		h.logger.ErrorContext(ctx, "unexpected domain event",
 			slog.String("operation", "user.publish_registered"),
@@ -210,6 +214,7 @@ func (h *UserRegisteredPublisher) Handle(ctx context.Context, raw event.Event) {
 		return
 	}
 
+	// UserRegisteredV1 is the Published Fact Contract payload type.
 	payload := &userintegrationv1.UserRegisteredV1{
 		UserId: fact.UserID,
 		Name:   fact.Name,

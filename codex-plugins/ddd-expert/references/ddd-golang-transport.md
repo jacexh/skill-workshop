@@ -22,7 +22,7 @@ Command-side business data reaches a Domain Factory or reconstituted Entity and 
 
 ## ConnectRPC
 
-When an RPC API exists, use ConnectRPC. Contract sources live under `proto/<context>/...`, generated messages and stubs live directly under `gen/`, the adapter lives under `transport/connectrpc`, and shared HTTP server/interceptor lifecycle lives under `internal/pkg/connectrpc`.
+When an RPC API exists, use ConnectRPC. Deployment-private contracts live under `proto/<context>/private/v1`; externally supported contracts with their stronger authentication and compatibility obligations live under `proto/<context>/public/v1`. Generated messages and stubs mirror the source path directly under `gen/`, the adapter lives under `transport/connectrpc`, and shared HTTP server/interceptor lifecycle lives under `internal/pkg/connectrpc`.
 
 ```go
 package connectrpc
@@ -31,8 +31,8 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	"example/gen/user/v1"
-	"example/gen/user/v1/userv1connect"
+	"example/gen/user/public/v1"
+	"example/gen/user/public/v1/userv1connect"
 	"example/internal/business/user/application"
 	"example/internal/business/user/application/command"
 )
@@ -127,15 +127,15 @@ Outbox, Inbox, persistent idempotency, retry and DLQ are not implied by using me
 
 ## Task Processor
 
-Task Queue code exists only when confirmed recovery semantics, latency requirements, or accepted project constraints require background execution. The owning context defines the stable contract under `application/task`; the inbound adapter lives under `transport/taskprocessor` and implements `github.com/go-jimu/components/taskqueue.Processor`:
+Task Queue code exists only when confirmed recovery semantics, latency requirements, or accepted project constraints require background execution. The owning context defines its durable protobuf schema under `proto/<context>/task/v1` and its semantic definition/constructor under `application/task`; the inbound adapter lives under `transport/taskprocessor` and implements `github.com/go-jimu/components/taskqueue.Processor`:
 
 ```go
 package taskprocessor
 
 import (
 	"context"
-	"fmt"
 
+	notificationtaskv1 "example/gen/notification/task/v1"
 	"github.com/go-jimu/components/taskqueue"
 	"example/internal/business/notification/application"
 	"example/internal/business/notification/application/command"
@@ -143,17 +143,15 @@ import (
 )
 
 type SendWelcomeProcessor struct {
-	registry *taskqueue.SchemaRegistry
-	app      *application.Application
+	app *application.Application
 }
 
 var _ taskqueue.Processor = (*SendWelcomeProcessor)(nil)
 
 func NewSendWelcomeProcessor(
-	registry *taskqueue.SchemaRegistry,
 	app *application.Application,
 ) *SendWelcomeProcessor {
-	return &SendWelcomeProcessor{registry: registry, app: app}
+	return &SendWelcomeProcessor{app: app}
 }
 
 func (p *SendWelcomeProcessor) TaskType() taskqueue.TaskType {
@@ -164,23 +162,19 @@ func (p *SendWelcomeProcessor) Process(
 	ctx context.Context,
 	queued taskqueue.Task,
 ) error {
-	decoded, err := p.registry.DecodeJSON(queued)
-	if err != nil {
-		return err // malformed JSON already wraps taskqueue.ErrSkipRetry
-	}
-	payload, ok := decoded.(*notificationtask.SendWelcomePayload)
-	if !ok {
-		return fmt.Errorf("%w: unexpected task payload %T", taskqueue.ErrSkipRetry, decoded)
+	payload := &notificationtaskv1.SendWelcomeTaskV1{}
+	if err := taskqueue.DecodeProto(queued, payload); err != nil {
+		return err // malformed protobuf already wraps taskqueue.ErrSkipRetry
 	}
 	return p.app.Commands.SendWelcomeNotification.Handle(ctx, command.SendWelcomeNotification{
-		UserID: payload.UserID,
+		UserID: payload.GetUserId(),
 	})
 }
 ```
 
 A processor handles one `TaskType` and delegates to one Application Command. Expected waiting is not a provider failure: enqueue an explicitly bounded delayed follow-up and complete the current task. Domain guards or an accepted persistent mechanism make repeated delivery converge.
 
-`<context>.go` contributes schema and processor registration. `internal/pkg/taskqueue` owns the Asynq/Redis clients, worker, scheduler, retry middleware and Fx lifecycle. Periodic scheduling enqueues an ordinary task; it does not call a business service directly. External bounded contexts collaborate through Integration Messages, not another context's internal task contract.
+`<context>.go` contributes processor and periodic registration. `internal/pkg/taskqueue` owns the Asynq/Redis clients, worker, scheduler, retry middleware and Fx lifecycle. Periodic scheduling enqueues an ordinary task; it does not call a business service directly. External bounded contexts collaborate through Integration Messages, not another context's internal task contract.
 
 ## Errors, Logging and Trace Context
 

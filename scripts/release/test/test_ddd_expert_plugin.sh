@@ -599,6 +599,12 @@ for leaf in "$CLAUDE_ROOT"/references/ddd-golang-*.md; do
   basename="$(basename "$leaf")"
   assert_contains "$go_router" "$basename" "Go router missing $basename"
 done
+if rg -n 'SchemaRegistry' "$CLAUDE_ROOT"/references/ddd-golang*.md >/dev/null; then
+  fail "Go references should keep one explicit task construction style"
+fi
+if rg -n 'SimpleStateContext' "$CLAUDE_ROOT"/references/ddd-golang*.md >/dev/null; then
+  fail "Go references should use the current FSM StateContext API"
+fi
 
 for adopted in \
   'go.uber.org/fx' \
@@ -661,6 +667,10 @@ assert_contains "$scaffold" 'messagesubscriber/' "Go scaffold should separate me
 assert_contains "$scaffold" 'taskprocessor/' "Go scaffold should separate task processors"
 assert_contains "$scaffold" 'convert.go' "Go scaffold should use convert.go for persistence mapping"
 assert_contains "$scaffold" 'gen/' "Go scaffold should place generated stubs under gen"
+assert_contains "$scaffold" 'private/v1/' "Go scaffold should separate deployment-private RPC contracts"
+assert_contains "$scaffold" 'public/v1/' "Go scaffold should separate externally supported RPC contracts"
+assert_contains "$scaffold" 'integration/v1/' "Go scaffold should separate Integration Message contracts"
+assert_contains "$scaffold" 'task/v1/' "Go scaffold should place durable Task schemas under proto"
 assert_contains "$scaffold" 'migrations/' "Go scaffold should use the canonical migration directory"
 
 application="$CLAUDE_ROOT/references/ddd-golang-application.md"
@@ -675,6 +685,11 @@ domain="$CLAUDE_ROOT/references/ddd-golang-domain.md"
 assert_contains "$domain" 'github.com/go-playground/validator/v10' "Go Domain should own business-data validation"
 assert_contains "$domain" 'It does not need to span multiple Aggregates' "Domain Service should not require cross-Aggregate work"
 assert_contains "$domain" 'After a successful `Save`, that Aggregate instance is stale' "Go Domain should define the post-Save lifecycle"
+assert_contains "$domain" 'core model is state polymorphism' "Go FSM guidance should model polymorphic state behavior"
+assert_contains "$domain" '*fsm.SimpleState' "Go FSM guidance should use the component base state"
+assert_contains "$domain" "current state's behavior" "Go FSM guidance should delegate business behavior to the current state"
+assert_contains "$domain" 'HasTransition' "Go FSM guidance should reject transition lookup as the behavior permission check"
+assert_contains "$domain" 'RegisterStateBuilder' "Go FSM guidance should require builders for transition targets"
 
 cqrs="$CLAUDE_ROOT/references/ddd-golang-cqrs.md"
 assert_contains "$cqrs" 'Do not create a QueryRepository merely because an endpoint or method is named `Get`' "CQRS should not force focused Get reads through QueryRepository"
@@ -687,9 +702,11 @@ assert_contains "$transport" 'transport/taskprocessor' "Go Transport should own 
 assert_contains "$transport" 'message.Subscriber.Subscribe' "Go Transport should separate subscriber registration"
 assert_contains "$transport" 'message.Runner.Run' "Go Runtime should own the message runner lifecycle"
 assert_contains "$transport" 'app.Commands' "Go Transport adapters should delegate through the Application registry"
+assert_contains "$transport" 'gen/user/public/v1' "Go Transport should use the external RPC contract namespace"
 
 events="$CLAUDE_ROOT/references/ddd-golang-events-messages.md"
 assert_contains "$events" 'Published Fact Contract' "Go messaging should define producer-owned facts"
+assert_contains "$events" 'It is an Integration Message contract' "Go messaging should classify published facts as Integration Messages"
 assert_contains "$events" 'Asynchronous Intent Contract' "Go messaging should define receiver-owned intents"
 assert_contains "$events" 'Use outbox only when confirmed recovery semantics or accepted project constraints require' "Go messaging should keep outbox conditional without a separate design gate"
 assert_contains "$events" 'does not supply an xorm Store' "Go messaging should not invent missing outbox adapters"
@@ -700,6 +717,14 @@ assert_contains "$taskqueue" 'application/task' "Go taskqueue should own task co
 assert_contains "$taskqueue" 'transport/taskprocessor' "Go taskqueue should own processors in Transport"
 assert_contains "$taskqueue" 'internal/pkg/taskqueue' "Go taskqueue should keep Asynq runtime technical"
 assert_contains "$taskqueue" 'app.Commands' "Go task processors should delegate through the Application registry"
+assert_contains "$taskqueue" 'proto/<context>/task/v1' "Go taskqueue should protect durable payload schemas with protobuf"
+assert_contains "$taskqueue" 'taskqueue.NewProtoTask' "Go task contracts should use the protobuf constructor"
+assert_contains "$taskqueue" 'taskqueue.DecodeProto' "Go task processors should use the protobuf decoder"
+assert_contains "$taskqueue" 'taskqueue.ProtoCodec' "Go task tests should verify codec metadata"
+assert_contains "$taskqueue" 'NewEnqueueOptions(options...).Validate()' "Go taskqueue guidance should validate provider-facing policy"
+if rg -n 'taskqueue\.(NewJSONTask|DecodeJSON)' "$CLAUDE_ROOT"/references/ddd-golang*.md >/dev/null; then
+  fail "Go taskqueue house style should not retain JSON task construction or decoding"
+fi
 
 infrastructure="$CLAUDE_ROOT/references/ddd-golang-infrastructure.md"
 assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure should own DO/Domain conversion"

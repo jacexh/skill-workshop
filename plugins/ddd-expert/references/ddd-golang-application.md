@@ -14,7 +14,7 @@ Application owns transport-neutral commands, queries, results and DTOs. It must 
 Two accepted, narrow exceptions do not collapse the layer boundary:
 
 - a producer-side `application/eventhandler` may map its own Domain Event to the same bounded context's generated Published Fact Contract under `gen/<context>/integration/...` and publish it through `github.com/go-jimu/components/ddd/message.Publisher`;
-- after Task Queue has been accepted, `application/task` may define the provider-neutral task contract and use `github.com/go-jimu/components/taskqueue` types such as `Definition`, `SchemaRegistry` and `Enqueuer`.
+- after Task Queue has been accepted, `application/task` may import its own generated `gen/<context>/task/v1` payload schema and use `github.com/go-jimu/components/taskqueue` types such as `Definition` and `Enqueuer` to construct protobuf-backed tasks.
 
 Generated RPC types remain Transport. Kafka and Asynq types remain Runtime. A sender of an asynchronous intent calls a local semantic port; Infrastructure/ACL maps that intent to the receiving context's generated contract.
 
@@ -185,7 +185,11 @@ Transport never calls a Domain Repository or QueryRepository directly.
 
 A same-context reaction lives in `application/eventhandler/<fact>.go` and implements `event.Handler`. It is a follow-up transaction; it cannot roll back the producing command.
 
-When it publishes this context's accepted fact, Application may use the producer-owned generated contract and provider-neutral publisher directly:
+When it publishes this context's accepted fact, Application may use the
+producer-owned generated contract and provider-neutral publisher directly.
+`UserCreated` remains the internal Domain Event; `UserRegisteredV1` is the
+producer-owned Published Fact Contract. It is an Integration Message contract
+whose protobuf value is used as the payload of `message.Message`:
 
 ```go
 payload := &userintegrationv1.UserRegisteredV1{
@@ -232,7 +236,7 @@ application/
   command/<use_case>.go
   query/<use_case>.go
   eventhandler/<fact>.go       # when same-BC reaction exists
-  task/<task>.go               # only when background execution is required
+  task/<task>.go               # TaskType, Definition, protobuf-backed constructor
 ```
 
 ConnectRPC handlers, Integration Message subscribers and task processors belong to Transport, not Application.

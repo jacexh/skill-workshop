@@ -113,7 +113,7 @@ package user
 import (
     connect "connectrpc.com/connect"
     "github.com/go-jimu/components/ddd/event"
-    "example/gen/user/v1/userv1connect"
+    "example/gen/user/public/v1/userv1connect"
     "example/internal/business/user/application"
     "example/internal/business/user/application/command"
     "example/internal/business/user/application/eventhandler"
