@@ -134,7 +134,6 @@ package taskprocessor
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/go-jimu/components/taskqueue"
 	"example/internal/business/notification/application"
@@ -143,17 +142,15 @@ import (
 )
 
 type SendWelcomeProcessor struct {
-	registry *taskqueue.SchemaRegistry
-	app      *application.Application
+	app *application.Application
 }
 
 var _ taskqueue.Processor = (*SendWelcomeProcessor)(nil)
 
 func NewSendWelcomeProcessor(
-	registry *taskqueue.SchemaRegistry,
 	app *application.Application,
 ) *SendWelcomeProcessor {
-	return &SendWelcomeProcessor{registry: registry, app: app}
+	return &SendWelcomeProcessor{app: app}
 }
 
 func (p *SendWelcomeProcessor) TaskType() taskqueue.TaskType {
@@ -164,13 +161,9 @@ func (p *SendWelcomeProcessor) Process(
 	ctx context.Context,
 	queued taskqueue.Task,
 ) error {
-	decoded, err := p.registry.DecodeJSON(queued)
-	if err != nil {
+	var payload notificationtask.SendWelcomePayload
+	if err := taskqueue.DecodeJSON(queued, &payload); err != nil {
 		return err // malformed JSON already wraps taskqueue.ErrSkipRetry
-	}
-	payload, ok := decoded.(*notificationtask.SendWelcomePayload)
-	if !ok {
-		return fmt.Errorf("%w: unexpected task payload %T", taskqueue.ErrSkipRetry, decoded)
 	}
 	return p.app.Commands.SendWelcomeNotification.Handle(ctx, command.SendWelcomeNotification{
 		UserID: payload.UserID,
@@ -180,7 +173,7 @@ func (p *SendWelcomeProcessor) Process(
 
 A processor handles one `TaskType` and delegates to one Application Command. Expected waiting is not a provider failure: enqueue an explicitly bounded delayed follow-up and complete the current task. Domain guards or an accepted persistent mechanism make repeated delivery converge.
 
-`<context>.go` contributes schema and processor registration. `internal/pkg/taskqueue` owns the Asynq/Redis clients, worker, scheduler, retry middleware and Fx lifecycle. Periodic scheduling enqueues an ordinary task; it does not call a business service directly. External bounded contexts collaborate through Integration Messages, not another context's internal task contract.
+`<context>.go` contributes processor and periodic registration. `internal/pkg/taskqueue` owns the Asynq/Redis clients, worker, scheduler, retry middleware and Fx lifecycle. Periodic scheduling enqueues an ordinary task; it does not call a business service directly. External bounded contexts collaborate through Integration Messages, not another context's internal task contract.
 
 ## Errors, Logging and Trace Context
 

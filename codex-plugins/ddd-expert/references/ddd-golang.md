@@ -28,7 +28,7 @@ Infrastructure -> Application and Domain contracts
 Application has two narrow, accepted provider-neutral exceptions:
 
 - a producing Application event handler may map a Domain Event to its own generated Integration Message contract and call `message.Publisher`;
-- an accepted internal task contract may use `components/taskqueue`, `SchemaRegistry`, and `Enqueuer` under `application/task`.
+- an accepted internal task contract may use `components/taskqueue` and `Enqueuer` under `application/task`.
 
 Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xorm sessions, Fx, and active loops remain outside Application.
 

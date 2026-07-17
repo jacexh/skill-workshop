@@ -599,6 +599,12 @@ for leaf in "$CLAUDE_ROOT"/references/ddd-golang-*.md; do
   basename="$(basename "$leaf")"
   assert_contains "$go_router" "$basename" "Go router missing $basename"
 done
+if rg -n 'SchemaRegistry' "$CLAUDE_ROOT"/references/ddd-golang*.md >/dev/null; then
+  fail "Go references should keep one explicit task construction style"
+fi
+if rg -n 'SimpleStateContext' "$CLAUDE_ROOT"/references/ddd-golang*.md >/dev/null; then
+  fail "Go references should use the current FSM StateContext API"
+fi
 
 for adopted in \
   'go.uber.org/fx' \
@@ -675,6 +681,11 @@ domain="$CLAUDE_ROOT/references/ddd-golang-domain.md"
 assert_contains "$domain" 'github.com/go-playground/validator/v10' "Go Domain should own business-data validation"
 assert_contains "$domain" 'It does not need to span multiple Aggregates' "Domain Service should not require cross-Aggregate work"
 assert_contains "$domain" 'After a successful `Save`, that Aggregate instance is stale' "Go Domain should define the post-Save lifecycle"
+assert_contains "$domain" 'core model is state polymorphism' "Go FSM guidance should model polymorphic state behavior"
+assert_contains "$domain" '*fsm.SimpleState' "Go FSM guidance should use the component base state"
+assert_contains "$domain" "current state's behavior" "Go FSM guidance should delegate business behavior to the current state"
+assert_contains "$domain" 'HasTransition' "Go FSM guidance should reject transition lookup as the behavior permission check"
+assert_contains "$domain" 'RegisterStateBuilder' "Go FSM guidance should require builders for transition targets"
 
 cqrs="$CLAUDE_ROOT/references/ddd-golang-cqrs.md"
 assert_contains "$cqrs" 'Do not create a QueryRepository merely because an endpoint or method is named `Get`' "CQRS should not force focused Get reads through QueryRepository"
@@ -700,6 +711,9 @@ assert_contains "$taskqueue" 'application/task' "Go taskqueue should own task co
 assert_contains "$taskqueue" 'transport/taskprocessor' "Go taskqueue should own processors in Transport"
 assert_contains "$taskqueue" 'internal/pkg/taskqueue' "Go taskqueue should keep Asynq runtime technical"
 assert_contains "$taskqueue" 'app.Commands' "Go task processors should delegate through the Application registry"
+assert_contains "$taskqueue" 'taskqueue.NewJSONTask' "Go task contracts should use the current direct JSON constructor"
+assert_contains "$taskqueue" 'taskqueue.DecodeJSON' "Go task processors should use the current direct JSON decoder"
+assert_contains "$taskqueue" 'NewEnqueueOptions(options...).Validate()' "Go taskqueue guidance should validate provider-facing policy"
 
 infrastructure="$CLAUDE_ROOT/references/ddd-golang-infrastructure.md"
 assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure should own DO/Domain conversion"
