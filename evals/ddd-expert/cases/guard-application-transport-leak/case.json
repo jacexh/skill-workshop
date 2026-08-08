@@ -8,6 +8,22 @@
   "expect": {
     "completion": ["completed"],
     "review_conclusion": ["violations"],
+    "architecture_ledger": {
+      "min_units": 1,
+      "required": [
+        {
+          "source_id": "docs/ddd-expert/context/order/model.md#Model Realization",
+          "source_assertion_contains": ["Application records the accepted payment fact", "remains transport-neutral"],
+          "responsibility": "application",
+          "state": "violation",
+          "verdict": {
+            "kind": "violation",
+            "families_any": ["layer_boundary"],
+            "evidence_paths": ["internal/business/order/application/order_paid.go"]
+          }
+        }
+      ]
+    },
     "questions": { "min": 0, "max": 0 },
     "routes": { "contains": ["codify"], "excludes": ["event-storming"] },
     "verdicts": [
@@ -17,6 +33,7 @@
         "evidence_paths": ["internal/business/order/application/order_paid.go"]
       }
     ],
+    "exact_verdict_count": 1,
     "forbid_verdicts": [],
     "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
     "files": [],

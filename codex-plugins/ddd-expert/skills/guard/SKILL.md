@@ -1,140 +1,83 @@
 ---
 name: guard
-description: Use when reviewing concrete backend implementation changes before merge or release for Model Realization and House-Style Conformance, including closure of a ready EventStorming iteration.
+description: Use when independently reviewing concrete backend changes for faithful Model realization and ddd-expert house-style implementation before merge, release, or EventStorming iteration closure.
 ---
 
 # Guard
 
-Review concrete implementation evidence through two independent axes: Model Realization and House-Style Conformance. Breadth produces falsifiable hypotheses; depth clears or proves them. Guard review is read-only. A main coordinator owns the Review Envelope, dispatch, synthesis, verification, and routing; it does not perform either complete axis or redesign. For a Codify handoff, the coordinator runs in a fresh agent context distinct from the implementer.
+Guard is an independent **semantic-structure review** of a stable backend change. It asks one question: **does the changed architecture express the accepted Model in the `ddd-expert` House Style?**
 
-Build or runtime blockers limit executable verification only. Continue independent static review, and never treat compilation failure, passing tests, package names, or absence of suspicious words as model proof.
+This is not a comprehensive code review, bug hunt, verification campaign, or file-by-file conformance audit. Read implementation code to judge where business meaning and engineering responsibilities live. A concrete logic defect is a Guard finding when it shows that accepted Domain behavior is missing, contradicted, or owned by the wrong abstraction; ordinary adapter, SQL, protocol, provider, performance, or UI defects belong to producer verification and other review tools.
 
-## Review authority
+A producer's **Review Handoff** is a navigation index, not authority, coverage proof, or a verdict. Run Guard in one fresh agent context distinct from the implementer, keep it read-only, and do not delegate or create recursive review fan-out.
 
-Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation while reviewing with authority `guard`. The review remains read-only until every Guard completion gate is clear. Then request only `mark-event-storming-implemented` for the reviewed ready iterations; persist no findings or model changes under `docs/ddd-expert`.
+## Review contract
 
-The originating request and scoped `ready` EventStorming minutes define the claimed iteration scope, not business truth. Each affected canonical Model owns current business meaning; a `legacy_model_ready` remains accepted during migration. Relevant accepted PRDs, Specs, ADRs, Glossaries, and project documentation own their recorded constraints; ddd-expert references own implementation defaults; code, tests, and existing conventions are realization evidence.
+Before artifact work, load this plugin's internal `maintain-artifacts` skill and execute only its `inspect` operation with authority `guard`. Read the actual content of the artifact set that governs this change:
 
-Establish before judging code:
+- the artifact README and scoped `ready` EventStorming minutes;
+- every affected canonical Model named by those minutes;
+- the relevant Context Map relationships;
+- every governing project document explicitly referenced by that scope, limited to its relevant sections.
 
-1. review mode, exact target, comparison base or explicit snapshot surface, and the behavior claimed complete;
-2. affected Bounded Contexts, Context Map relationships, and relevant Model and accepted project-document sections;
-3. relevant house-style references and any explicit accepted constraints that override their defaults;
-4. changed files and necessary neighboring code, generated artifacts, migrations, configuration, runtime wiring, logs, and verification evidence;
-5. stable IDs for every scoped Model or request obligation, every changed file and required production path, and every additive layer, mechanism, and specialized-surface label attached to those paths.
+The affected canonical Models own current business meaning. Scoped `ready` minutes own this iteration's claimed solution and implementation scope. Accepted PRDs, Specs, ADRs, Glossaries, and project documents own their recorded constraints. The `ddd-expert` references own implementation defaults. Code, tests, generated artifacts, runtime configuration, and existing conventions are evidence, not higher authority. A `legacy_model_ready` Model remains accepted current authority during migration.
 
-Code and tests never override accepted authority. Missing artifacts block only judgments that need them. A `draft` EventStorming iteration or missing Model is not ready implementation authority. Route missing or contradictory business authority to `event-storming` while continuing independent conformance review. Engineering realization choices are judged from accepted project constraints, ddd-expert references, and repository evidence. If the implementation creates a destructive, security/compliance, incompatible deployment/public-contract, or first external-platform commitment that accepted project authority does not cover, report that exact project-authority gap without inventing a design stage.
+A missing or contradictory authority produces an `evidence_gap` only for the judgment it prevents; continue reviewing independent architecture units. A `draft` iteration is not implementation authority. An explicit accepted constraint overrides a House Rule only within its stated scope.
 
-An explicit accepted constraint governs only its stated scope. Vague waiver language and local convention cannot override the Model, accepted project authority, or an applicable house-style rule.
+## Review focus
 
-Scope narrows applicable responsibilities: an absent layer or surface that the request does not claim is neither a coverage gap nor a violation. Follow adjacent evidence only while it shares the same reason family; never turn a narrow review into an unrequested project-completeness audit.
+Review every applicable architectural responsibility, but vary depth by what that layer owns rather than changed-path count. No layer is categorically excluded:
+
+`Interface` is the language-neutral responsibility name used by this plugin. A language House Style may give its physical package a language-specific name; Go calls the same layer `transport`. They are not separate layers.
+
+- **Domain is primary**: inspect affected Aggregate Roots, owned Entities and Value Objects, intention-revealing methods, invariants, lifecycle transitions, Repository contracts, and Domain Events. Judge whether behavior and facts belong to the accepted owner. For an event, review its owner, name, and Domain payload; inspect a consumer contract only when collaboration is itself a frozen review unit.
+- **Application is primary**: inspect affected commands, queries, coordinators, transaction ownership, and outbound ports. Judge whether each use case delegates decisions to Domain, supplies current authoritative facts when required, and depends on necessary business capabilities rather than storage, protocol, provider, topology, or SDK mechanisms.
+- **Infrastructure is a structural seam**: inspect affected Repository and port adapters, mapping boundaries, transaction abstractions, and outbound adapters far enough to judge whether they faithfully implement inner contracts, isolate technical mechanisms, and preserve Aggregate ownership. For example, verify that one Root's `Repository.Save` encapsulates owned persistence rather than exposing tables or combining independent Roots. Do not turn this into SQL, provider, locking, or error-branch debugging.
+- **Interface is a structural seam**: inspect affected handlers and public mappings for protocol isolation, actor/context extraction, one Application delegation, and semantic outcome translation. The requirement may determine the API shape; Guard judges placement and dependency, not API aesthetics or ordinary endpoint bugs.
+- **Runtime is a structural seam when affected**: inspect composition and registration ownership plus dependency direction. This confirms architectural wiring, not operational reachability of an endpoint or job. Do not investigate process health, deployment, environment values, or operational failures.
+
+A changed file is not automatically a review obligation. Group symbols that express one architectural responsibility and review that seam once. Mechanical implementation beneath an already-sound seam is producer-verification evidence, not a reason to read every body or trace every behavior through every layer.
+
+Test bodies and frontend behavior are producer-verification evidence, not a search surface for backend architecture findings. Do not open them merely to discover more behavior or defects; inspect one only when a declaration explicitly included in a frozen architecture unit lives there.
+
+## Review Handoff
+
+Codify maintains this compact index while implementing and passes it by path when possible. It contains only producer claims and reproducible evidence:
+
+- `claim_sources`: originating request, scoped minutes, affected Models, relevant Context Map, and governing project documents, with exact paths, relevant headings or revisions, and fingerprints;
+- `snapshot`: immutable base/target identifiers or an immutable base plus complete staged, unstaged, and untracked manifest fingerprints and replay commands;
+- `architecture_review_units`: neutral IDs, `authority_refs`, optional `house_rule_refs`, one atomic responsibility assertion, and the changed `path#symbol` entries that define or connect that architectural seam; put independently falsifiable assertions in separate units even when they share files, while rule count alone never creates another unit;
+- `producer_checks`: command, exit code, concise result, source fingerprint, and any check not run with its objective reason.
+- `producer_checkpoint`: `complete` or `incomplete`, bound to the same snapshot fingerprint; this is Codify execution status, not a Guard verdict.
+
+The handoff contains no `clear`, `violation`, `evidence_gap`, conformance claim, severity, risk label, suspicion, recommendation, or Guard-completeness assertion. Keep it outside `docs/ddd-expert`; it is review input, not a DDD artifact. For an arbitrary review with no handoff, build the same compact index after independently pinning the source; an absent producer checkpoint prevents iteration closure but not the structural review.
 
 ## Workflow
 
-1. **Frame the review**: choose `change_review` or `snapshot_review`. For a change, pin an immutable base and either an immutable target or a complete worktree snapshot. A mutable-worktree command set must enumerate staged, unstaged, and untracked paths and fingerprint their contents; a plain diff that omits new paths is incomplete. For a snapshot review, name and fingerprint the complete surface being asserted.
-2. **Freeze one Review Envelope**: record change intent, scope, affected contexts, artifact paths/revisions/fingerprints, source-snapshot identity and inspection commands, evidence commands, selected references, and the frozen specialized-surface inventory. Give every scoped Model or request obligation, changed file, required production path, layer, mechanism, and specialized surface a stable inventory ID; labels are additive. Pass paths and commands rather than duplicating full files. Recheck the envelope before finalizing.
-3. **Launch both axes**: use the host's native agent delegation to launch two independent read-only workers concurrently. Dispatch both initial workers before accepting or awaiting either completion. Label their exact roles `model-realization` and `house-style-conformance`; one worker or attempt cannot serve both roles. They receive the same frozen envelope, run in distinct agent contexts, cannot see each other's observations, and cannot delegate further. The coordinator performs neither complete axis.
-4. **Reconcile coverage, then merge**: require the Model Realization coverage union to equal the frozen Model/request-obligation IDs and the Conformance coverage union to equal every frozen changed-file, required-path, layer, mechanism, and specialized-surface ID, with no missing or unknown IDs. Treat a mismatch as an unusable worker result. Then merge related candidates by semantic owner, lifecycle, boundary, state vocabulary, collaboration, Repository/CQRS shape, runtime reachability, or specialized reference surface. One axis being clear never cancels the other's non-clear result.
-5. **Deep-check selectively**: axis workers close direct and adjacent evidence that shares the same reason and supplied surface. For every merged family still marked `needs_depth`, launch one bounded falsification worker; combine families only when they require the same evidence and reference surface. Each family is dispatched at most once. Launch independent families concurrently within capacity; never launch one worker per smell or allow recursive fan-out.
-6. **Synthesize and verify**: combine duplicate symptoms into the smallest evidence-backed root cause, preserve its `[Realization]`, `[Conformance]`, or `[Both]` provenance, verify reported high-impact evidence, run available executable checks, and route each non-clear result.
-7. **Enforce completion**: the two coverage unions still reconcile exactly to their frozen inventory IDs; every frozen surface is clear/not applicable or has a terminal candidate; every hypothesis and depth request is terminal; adjacent evidence is closed; both required axis workers completed; the source snapshot did not drift; the frozen artifacts did not drift; every reported item cites concrete authority and implementation evidence. Snapshot drift makes the Guard execution incomplete rather than clear.
-8. **Close a clear iteration**: only after step 7 is clear, use `maintain-artifacts.mark-event-storming-implemented` to transition every reviewed `ready` EventStorming file to `implemented` and check its matching README item. A failed closure makes the Guard execution incomplete.
+1. **Pin the source before reading the handoff body**: identify the comparison base and fingerprint the complete staged, unstaged, and untracked target. Use changed names and diff shape to locate affected responsibilities. The full inventory proves source identity; it does not require equal review of every path.
+2. **Build a finite, atomic architecture-unit set**: derive units only from the union of (a) architecture responsibilities explicitly claimed for this change by the scoped request or ready minutes and (b) DDD-significant declarations or wiring edges added or changed in the target diff. One unit groups the `path#symbol` entries needed to falsify one atomic responsibility assertion across its necessary layers. If ownership, a semantic inner contract, its adapter fidelity, or composition can be independently conforming or nonconforming, give them separate units even when they share symbols. Ordinary function-body edits, tests, migrations, generated output, configuration values, mechanisms, endpoints, and speculative failure modes do not seed units by themselves.
+3. **Audit, trace, then freeze the units**: reproduce the handoff snapshot and compare its sources and units with the two seed sources in step 2. Split every compound responsibility into atomic assertions and make an explicit crosswalk from each source-unit assertion, identified by source ID and clause, to exactly one frozen ID. Preserve the union of its authority and House Rule references across the children; an assertion or rule cannot disappear merely because a sibling is clear or violated. Add only omissions directly proven by the two seeds, load the House Rule sections governing the resulting units, reconcile the crosswalk, then freeze IDs before depth. Adjacent evidence may change a frozen unit's judgment but cannot create another unit unless it directly proves that a step-2 seed was omitted. Producer checks are receipts, not tasks to rerun.
+4. **Inspect each unit inside-out**: start with its Domain owner and behavior, then Application orchestration and ports, then only the Interface, Infrastructure, collaboration, or Runtime symbols that define or connect the same responsibility. Challenge Aggregate and lifecycle ownership, event meaning, Repository semantics, dependency direction, mechanism isolation, boundary translation, and composition. Review signatures and structural control flow before implementation detail. Judge the semantic shape of an inner contract separately from whether its adapter works; adapter fidelity cannot clear a mechanism-shaped or over-broad inner capability. A violation terminates only its own unit; it cannot stand in for another responsibility sharing the same evidence.
+5. **Use question-led implementation depth**: before expanding into an adapter or runtime implementation body, state one concrete, falsifiable architecture question left unresolved by the seam. Inspect the minimum adjacent evidence and stop when answered. Ordinary implementation correctness, API aesthetics, and provider-specific behavior remain out of scope even though their architectural boundary is reviewed.
+6. **Consume verification receipts; do not verify again**: match producer checks and checkpoint to the pinned source. Do not run producer tests, builds, migrations, query experiments, environment probes, Docker, live databases, networks, deployment checks, or external services. Static inspection may read the DI or configuration declaration that defines a frozen seam; it must not inspect environment values or probe a running configuration. Missing implementation-correctness evidence is not a Guard gap.
+7. **Recheck and report**: recompute source and governing-artifact fingerprints. Completion requires every source assertion to appear in the reconciled crosswalk and every frozen unit ID to have exactly one state: `clear`, `violation`, or `evidence_gap`. Emit a compact table with source unit/assertion, frozen ID, responsibility, and state before merging symptoms with one semantic owner and root cause; clear rows need no evidence detail. A merged correction direction must address every violated unit contributing to that root. Changed files and adjacent evidence are not completion dimensions.
 
-If a required axis worker cannot be launched, fails, or returns unusable output, retry it once with a fresh worker and the same envelope. Each required role therefore has at most two attempts total. If it fails again, stop as an incomplete Guard execution. Do not substitute a main-thread axis, issue `No DDD findings`, infer an axis verdict, or emit an `event-storming` or `codify` route for this execution blocker.
+## Judgment
 
-A depth worker must return a terminal `clear`, `violation`, or `evidence_gap`. If it fails, returns unusable output, or returns `needs_depth`, stop as incomplete without redispatching that family. Do not infer a verdict or emit a workflow route from this execution blocker.
+- `violation`: accepted meaning or structural House Style is clear and its architectural realization is missing, misplaced, contradictory, or leaks a forbidden responsibility. Route to `codify`.
+- `evidence_gap`: a material semantic-structure judgment cannot be made because exact authority or the necessary implementation evidence is unavailable. Route to `event-storming` only when the missing evidence is business meaning or a semantic boundary decision.
+- `incomplete`: the source or artifacts drift, or execution stops before every frozen unit receives one terminal state. This is an execution result, not an implementation finding; `evidence_gap` is already a terminal unit state.
 
-## Axis contracts
+Passing tests, package names, DTOs, Repository names, transaction shape, or absence of a searched symbol never prove realization by themselves. Conversely, a missing test, unavailable service, generic implementation suspicion, or possible edge-case bug is not a Guard finding unless it prevents or disproves a named semantic-structure judgment.
 
-### Model Realization worker
+Report only non-clear outcomes, ordered by architectural impact. Prefix each with `[Realization]`, `[Conformance]`, or `[Both]`; assign Blocker/Major/Minor only to violations. Cite the governing source, concrete file/line evidence, impact, root cause, and correction direction. List the consumed producer checkpoint and only residual evidence that affects the structural verdict. Say `No DDD structural findings` only after step 7 completes; this does not claim general code correctness.
 
-Use the change intent to select only the Model and request obligations this review claims to deliver. Trace each scoped obligation through its applicable `Domain -> Application -> port -> adapter -> Runtime -> verification` path and assign exactly one state:
-
-- `realized`, `missing_realization`, `partial_realization`, `incorrect_realization`, `unverifiable`, or `not_applicable`.
-
-Proving `missing_realization` requires the scope authority, Model or request obligation, expected semantic owner or production path, every relevant inspected entrypoint/adapter/registration/configuration/verification surface, and evidence that no alternative realization exists. Missing a searched name is not proof. Semantic behavior outside the change intent is a candidate only when it conflicts with accepted authority or requires new authority.
-
-### House-Style Conformance worker
-
-Classify the diff or snapshot by touched layer and specialized surface. Apply the compact breadth baseline below, plus only the relevant reference sections and explicit accepted constraints. Seed `coverage_obligation` and `hypothesis` rows; inspect the nearest sibling flows, states, events, ports, adapters, persistence methods, and runtime registrations that share the same reason. Cheaply falsify what the supplied evidence can settle, and mark expensive cross-layer candidates `needs_depth` rather than expanding scope.
-
-### Worker result
-
-Each required worker returns exactly one JSON object with no surrounding prose:
-
-```json
-{
-  "axis": "model-realization",
-  "status": "completed",
-  "coverage": [{"id": "obligation-row", "inventory_ids": ["model:payment-capture"], "state": "realized"}],
-  "candidates": [],
-  "gaps": []
-}
-```
-
-`axis` must equal the worker's assigned role exactly. Set `status` to `completed` only after every row is worker-terminal: closed directly or explicitly handed to depth. `coverage` must be nonempty and use unique row identifiers. Every row includes a nonempty `inventory_ids` array and one Model-realization state above or, for Conformance, `clear`, `violation`, `evidence_gap`, `needs_depth`, or `not_applicable`. One row may cover several inventory IDs that share one reason; the union must match that axis's frozen inventory exactly, with no missing or unknown IDs.
-
-Every `candidates` row is an object with `coverage_id`, `state` (`violation` or `needs_depth`), `reason_family`, `authority`, `confirming_evidence`, `disconfirming_evidence`, and `depth_scope`. Citation/evidence fields are arrays of concise path-and-location strings; only disconfirming evidence may be empty. `depth_scope` is a nonempty bounded question for `needs_depth` and `null` for a proven violation. Every `gaps` row is an object with `coverage_id`, `reason_family`, `missing`, `authority`, and nonempty `evidence`; `authority` may be empty only when its absence is the reported gap. Each `coverage_id` must name a row in `coverage`. Missing, partial, or incorrect Model realization maps to a violation candidate; `unverifiable` maps to a gap.
-
-A depth worker uses `depth:<reason-family>` as its axis, the same envelope, and one coverage row that retains the supplied `inventory_ids` and returns exactly `clear`, `violation`, or `evidence_gap`; it cannot return `needs_depth`. Keep citations, evidence, and detail for clear/not-applicable rows internal. Do not repeat the full envelope, paste clear code, spawn another worker, or recommend edits to DDD artifacts.
-
-## Hypothesis and dispatch discipline
-
-- A smell candidate is innocent until depth evidence proves a violation; seek evidence that clears it as actively as evidence that confirms it.
-- Every merged candidate ends `clear`, `violation`, or `evidence_gap`; attach a workflow route only to a non-clear result.
-- Use a depth worker only when falsification needs a new large reference surface, cross-layer/cross-context tracing, runtime reachability, or credible disconfirming evidence. A direct one-file proof remains in its axis worker.
-- Missing, partial, and incorrect realization are violations when accepted authority and completed scope are clear. `unverifiable` is an evidence gap, not a substitute for proven absence.
-- A required verification seam that does not exist is missing realization. Existing verification that cannot run is a verification gap.
-- When a proven implementation violation itself prevents its verification, include the missing proof in that violation instead of duplicating it as an `evidence_gap`.
-- Implementation transaction shape, object splitting, DTO presence, QueryRepository presence, or local convention cannot by themselves prove model correctness.
-- Prefer the shared model or boundary cause over listing every mechanical symptom. The coordinator validates findings; it does not repeat either full scan.
-
-## Breadth baseline
-
-Seed one coverage obligation for every touched specialized surface without loading its full reference during breadth. Layer, mechanism, and specialized-surface labels are additive, so one path may seed several inventory IDs:
-
-- **Language/framework**: layer and mechanism;
-- **Database**: schema, migration, SQL, mapping, index, constraint, and configuration;
-- **Generated/protocol**: generated boundaries and translation ownership;
-- **Async/runtime**: events, messages, tasks, schedules, recovery, registration, and lifecycle wiring;
-- **Model evidence**: unclear authority, lifecycle, invariant, failure tolerance, language, boundary, or coordination.
-
-| Layer | Expected responsibility signals | Boundary-leak signals |
-|---|---|---|
-| Domain | Behavior, invariants, lifecycle, policies, Domain Events, Aggregate writes, Repository interfaces | Generated/storage/runtime types, persistence or dispatch mechanics, public mutation, external clients |
-| Application | Command/query orchestration, transaction/idempotency boundary, dispatch after persistence, DTO/read mapping | Business state decisions, direct Entity mutation, technical clients, cross-owner transactions, mixed handler roles |
-| Infrastructure | Repository/query adapters, mapping, storage/SDK mechanics, publishers | Business decisions, lifecycle admission, independent owners hidden behind one save, raw mechanisms exposed inward |
-| Interface | Protocol translation, actor/context extraction, one Application delegation, public outcome mapping | Business workflow, Repository/transaction control, Aggregate mutation, event/task orchestration |
-| Runtime | Configuration, composition, registration, process lifecycle, reachable recovery | Business policy, compensation semantics, hidden loops, lifecycle owned inward |
-
-Each applicable sentinel seeds a hypothesis, never a verdict:
-
-- one Aggregate Root owns one lifecycle and invariant boundary;
-- one write Repository represents one Aggregate Root plus owned children/value objects; distinct list/report/projection reads use QueryRepository/read facades;
-- independent Aggregate Roots do not depend on one transaction for business correctness;
-- durable facts govern later admission, terminal closure, and replay;
-- execution facts and parent terminal facts use distinct timing and language;
-- multi-step external collaboration has named coordination and recovery;
-- cross-context contracts and model imports preserve the Context Map's acyclic `U -> D` Model Dependency View; runtime request/response through one contract does not justify a reciprocal model import;
-- Domain/Application APIs use domain-owned language;
-- production messages, tasks, schedules, reconciliation, and recovery have reachable Runtime ownership.
-
-## Routing and reporting
-
-- Missing or contradictory business facts, a non-ready Model, a wrong Aggregate/Bounded Context boundary, or an invalid semantic Context Map: `evidence_gap`, route `event-storming`.
-- Missing or contradictory implementation constraints in accepted project documents: `evidence_gap` when an irreversible or external commitment cannot be authorized from the authority order; name the owning project/ADR decision and do not invent a separate readiness requirement.
-- Clear authority with missing, partial, or incorrect implementation, or a house-style violation: `violation`, route `codify`.
-- Missing runtime, test, or operational proof: report a material verification gap; do not turn an unavailable check into a model claim.
-
-Report only non-clear outcomes, ordered by architectural severity. Prefix each finding with `[Realization]`, `[Conformance]`, or `[Both]`; merge shared root causes rather than pasting worker reports. Cite file/line evidence, impact, root cause, and correction direction, then authority/verification gaps, checks, and residual risk. Assign Blocker/Major/Minor only to violations. Say `No DDD findings` only after both axes, all completion gates, and any required `implemented` transition are clear.
+For a clear reviewed `ready` iteration, request `maintain-artifacts.mark-event-storming-implemented` only when the snapshot-bound producer checkpoint is also `complete`. Otherwise report the Guard structural verdict and closure as incomplete without rerunning producer verification. A failed closure does not alter the review verdict.
 
 ## References
 
-- Start Conformance breadth with this skill's compact baseline; do not load a language guide or [../../references/ddd-core.md](../../references/ddd-core.md) wholesale.
-- During depth, load only the rule owner required by the merged family.
-- Use [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for missing model evidence.
-- Use [../../references/ddd-core.md](../../references/ddd-core.md) for domain ownership and realization shape.
-- Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for event, message, or cross-context evidence.
-- For triggered Go code, start with [../../references/ddd-golang.md](../../references/ddd-golang.md), then follow only the layer, flow, or platform leaf that owns the family.
-- For triggered Python or TypeScript code, load only the relevant section of [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
-- Load [../../references/database.md](../../references/database.md) independently for persistence evidence.
+- Use [../../references/ddd-modeling.md](../../references/ddd-modeling.md) only for missing Model evidence.
+- Start with the relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md) for layer ownership, ports, Repository boundaries, and realization shape.
+- Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) only when retained Domain Events or cross-context collaboration are affected.
+- For Go, use [../../references/ddd-golang.md](../../references/ddd-golang.md) to route each architecture unit to only the layer or flow sections that own its seam.
+- For Python or TypeScript, load only the sections owning each architecture unit from [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).

@@ -1,7 +1,7 @@
 {
-  "id": "guard-missing-runtime-realization",
+  "id": "guard-outbound-port-structure",
   "phase": "guard",
-  "suites": ["full"],
+  "suites": ["smoke", "full"],
   "sandbox": "read-only",
   "prompt": "prompt.md",
   "workspace": "workspace",
@@ -12,23 +12,21 @@
       "min_units": 2,
       "required": [
         {
-          "source_id": "docs/change-request.md#Consume Payment Captured",
-          "source_assertion_contains": ["deployed Order process subscribes the inbound handler"],
-          "responsibility": "runtime",
+          "source_id": "recipient-notification",
+          "source_assertion_contains": ["business-language recipient notification capability", "no HTTP or provider mechanics"],
+          "responsibility": "application",
           "state": "violation",
-          "distinct_group": "payment-captured-consumption",
           "verdict": {
             "kind": "violation",
             "families_any": ["layer_boundary"],
-            "evidence_paths": ["docs/change-request.md", "docs/ddd-expert/context/order/model.md", "internal/business/order/order.go"]
+            "evidence_paths": ["internal/shipping/application/announce_dispatch.go"]
           }
         },
         {
-          "source_id": "docs/change-request.md#Consume Payment Captured",
-          "source_assertion_contains": ["delegates each accepted fact once", "existing Record Payment use case"],
-          "responsibility": "interface",
-          "state": "clear",
-          "distinct_group": "payment-captured-consumption"
+          "source_id": "recipient-notification",
+          "source_assertion_contains": ["Infrastructure adapter faithfully implements the supplied inner contract", "without adding business decisions"],
+          "responsibility": "infrastructure",
+          "state": "clear"
         }
       ]
     },
@@ -38,11 +36,7 @@
       {
         "kind": "violation",
         "family": "layer_boundary",
-        "evidence_paths": [
-          "docs/change-request.md",
-          "docs/ddd-expert/context/order/model.md",
-          "internal/business/order/order.go"
-        ]
+        "evidence_paths": ["internal/shipping/application/announce_dispatch.go"]
       }
     ],
     "exact_verdict_count": 1,

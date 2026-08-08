@@ -35,10 +35,10 @@ Restart Codex after upgrade.
 
 - `$ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, adversarially reviews the complete integrated model, writes one `draft` meeting record, waits for explicit confirmation, and then synchronizes `ready` minutes, canonical Models, and relevant documentation.
 - `$ddd-expert:codify` realizes one or more `ready` EventStorming iterations and their affected canonical Models in working backend code, makes the required engineering decisions from project authority and house style, and runs producer conformance before either stopping at a verified implementation checkpoint or handing a stable snapshot to Guard.
-- `$ddd-expert:guard` independently reviews concrete implementation evidence for Model Realization and House-Style Conformance, then marks every cleared `ready` iteration `implemented`.
+- `$ddd-expert:guard` uses one fresh read-only reviewer to judge whether a stable backend change expresses the accepted Model in the house style, then marks every structurally clear `ready` iteration `implemented` when its producer checkpoint is complete.
 - `maintain-artifacts` is the internal read/validation/write protocol, not a user entry point.
 
-The plugin does not auto-inject context. EventStorming owns Strategic Model meaning and post-confirmation document rendering. The internal protocol preserves exact meeting records, validates the complete rendered transaction, and applies supplied bytes without deciding semantics. Codify is read-only over DDD artifacts; Guard review is read-only and may perform only the final `ready -> implemented` closure after a clear verdict.
+The plugin does not auto-inject context. EventStorming owns Strategic Model meaning and post-confirmation document rendering. The internal protocol preserves exact meeting records, validates the complete rendered transaction, and applies supplied bytes without deciding semantics. Codify is read-only over DDD artifacts; Guard review is read-only and may perform only the final `ready -> implemented` closure after a clear verdict over the matching complete producer checkpoint.
 
 ## Activation guidance
 
@@ -48,7 +48,7 @@ Choose by requested outcome:
 - `$ddd-expert:codify` when one or more `ready` EventStorming iterations and their canonical Models must be implemented in the house style.
 - `$ddd-expert:guard` when a concrete backend change must be reviewed before merge or release.
 
-EventStorming finishes at `ready`: its meeting record carries the complete iteration solution and affected canonical Models carry current business meaning. No separate design phase sits between EventStorming and Codify. Routine implementation may remain at a verified Codify checkpoint; Guard finishes the iteration at `implemented` after independently clearing the final stable snapshot.
+EventStorming finishes at `ready`: its meeting record carries the complete iteration solution and affected canonical Models carry current business meaning. No separate design phase sits between EventStorming and Codify. Routine implementation may remain at a verified Codify checkpoint; Guard finishes the iteration at `implemented` only after independently clearing the final stable snapshot and consuming its complete producer checkpoint.
 
 ## EventStorming contract
 
@@ -100,11 +100,11 @@ The Context Map records semantic model dependency only. Global `U -> D` edges fo
 - `templates/event-storming.md` defines one complete iteration record and its lifecycle.
 - `templates/model.md` defines one current Bounded Context Model.
 
-EventStorming writes only draft minutes and the README TODO before confirmation. After approval, it applies the ready minutes, affected Models, Context Map, and relevant project-owned documents through one transaction. Codify reads ready minutes and Models; Guard closes a clear iteration as implemented.
+EventStorming writes only draft minutes and the README TODO before confirmation. After approval, it applies the ready minutes, affected Models, Context Map, and relevant project-owned documents through one transaction. Codify reads ready minutes and Models; Guard closes a structurally clear iteration only with its matching complete producer checkpoint.
 
 ## Scope
 
-Use this plugin for domain modeling, confirmed-Model realization, and backend DDD review across Domain/Application/Transport/Infrastructure ownership, generated protocol boundaries, Go/Python/TypeScript backends, messages/tasks/runtime behavior, and database-backed persistence when those concerns are in scope.
+Use this plugin for domain modeling, confirmed-Model realization, and backend DDD review across Domain/Application/Interface/Infrastructure/Runtime ownership, generated protocol boundaries, Go/Python/TypeScript backends, messages/tasks/runtime behavior, and database-backed persistence when those concerns are in scope. `Interface` is the language-neutral responsibility; Go names its physical package `transport`.
 
 Do not use it for frontend architecture, browser QA, product UI design, or general dynamic standards lookup.
 
