@@ -8,7 +8,8 @@ Use EventStorming as the single modeling path from backend evidence to a user-co
 $ddd-expert:event-storming
 -> ready EventStorming minutes + canonical Models
 $ddd-expert:codify
-$ddd-expert:guard
+-> verified implementation checkpoint
+$ddd-expert:guard (iteration closure or merge/release)
 -> implemented
 ```
 
@@ -33,7 +34,7 @@ Restart Codex after upgrade.
 ## Capabilities
 
 - `$ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, adversarially reviews the complete integrated model, writes one `draft` meeting record, waits for explicit confirmation, and then synchronizes `ready` minutes, canonical Models, and relevant documentation.
-- `$ddd-expert:codify` realizes one or more `ready` EventStorming iterations and their affected canonical Models in working backend code, makes the required engineering decisions from project authority and house style, and obtains a clear independent Guard in the same task for material changes.
+- `$ddd-expert:codify` realizes one or more `ready` EventStorming iterations and their affected canonical Models in working backend code, makes the required engineering decisions from project authority and house style, and runs producer conformance before either stopping at a verified implementation checkpoint or handing a stable snapshot to Guard.
 - `$ddd-expert:guard` independently reviews concrete implementation evidence for Model Realization and House-Style Conformance, then marks every cleared `ready` iteration `implemented`.
 - `maintain-artifacts` is the internal read/validation/write protocol, not a user entry point.
 
@@ -47,7 +48,7 @@ Choose by requested outcome:
 - `$ddd-expert:codify` when one or more `ready` EventStorming iterations and their canonical Models must be implemented in the house style.
 - `$ddd-expert:guard` when a concrete backend change must be reviewed before merge or release.
 
-EventStorming finishes at `ready`: its meeting record carries the complete iteration solution and affected canonical Models carry current business meaning. No separate design phase sits between EventStorming and Codify. Guard finishes the iteration at `implemented` after independently clearing the implementation.
+EventStorming finishes at `ready`: its meeting record carries the complete iteration solution and affected canonical Models carry current business meaning. No separate design phase sits between EventStorming and Codify. Routine implementation may remain at a verified Codify checkpoint; Guard finishes the iteration at `implemented` after independently clearing the final stable snapshot.
 
 ## EventStorming contract
 
