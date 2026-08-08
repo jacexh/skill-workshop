@@ -12,6 +12,7 @@ Order owns its lifecycle and invariant decisions.
 
 ## Persistence
 
-Order is one Aggregate Root stored in MySQL. Its schema must follow the
-installed ddd-expert MySQL House Style; this conformance review does not reopen
-the accepted Aggregate boundary.
+Order is one Aggregate Root. Its Domain Repository keeps persistence mechanics
+outside Domain and saves the complete Root. The concrete MySQL schema and
+migration mechanics are producer-owned implementation evidence; they do not
+change this accepted boundary.

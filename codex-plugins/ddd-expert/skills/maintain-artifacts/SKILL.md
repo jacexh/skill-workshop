@@ -68,11 +68,11 @@ Project files are never an optimistic validation area. Report any failure after 
 
 ## Mark EventStorming implemented
 
-Use `mark-event-storming-implemented` only after Guard proves both required axes and every completion gate clear over one unchanged Review Envelope.
+Use `mark-event-storming-implemented` only after Guard reports a clear semantic-structure review over one unchanged snapshot, every frozen architecture unit is terminal, and the snapshot-bound producer checkpoint is complete.
 
 Receive the reviewed `ready` minutes paths and fingerprints, Guard's clear completion evidence, the frozen Model and source snapshot identities, the README pre-state, and the exact rendered closure. For each reviewed iteration, preserve every byte except `status: ready -> implemented`; change only its matching README checkbox from `[ ]` to `[x]`. Stage, recheck all pre-states, apply once, and verify both representations agree.
 
-A violation, evidence gap, incomplete worker, snapshot drift, unrelated minutes, or any other status transition returns `blocked` or `revision_conflict` with zero writes. Persist the iteration closure only; keep review findings in Guard's response.
+A violation, evidence gap, incomplete Guard execution, snapshot drift, unrelated minutes, or any other status transition returns `blocked` or `revision_conflict` with zero writes. Persist the iteration closure only; keep review findings in Guard's response.
 
 ## Canonical Models
 

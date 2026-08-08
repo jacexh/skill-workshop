@@ -7,17 +7,13 @@
   "workspace": "workspace",
   "expect": {
     "completion": ["completed"],
-    "review_conclusion": ["violations"],
+    "review_conclusion": ["clear"],
+    "architecture_ledger": { "min_units": 0, "max_units": 0, "required": [] },
     "questions": { "min": 0, "max": 0 },
-    "routes": { "contains": [], "excludes": ["event-storming"] },
-    "verdicts": [
-      {
-        "kind": "violation",
-        "family": "persistence_conformance",
-        "evidence_paths": ["migrations/001_create_order.sql"]
-      }
-    ],
-    "forbid_verdicts": [],
+    "routes": { "contains": [], "excludes": ["event-storming", "codify"] },
+    "verdicts": [],
+    "exact_verdict_count": 0,
+    "forbid_verdicts": ["violation", "evidence_gap"],
     "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
     "files": [],
     "checks": []

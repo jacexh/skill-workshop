@@ -44,6 +44,15 @@ const VERDICT_FAMILIES = [
   "persistence_conformance",
   "layer_boundary",
 ];
+const ARCHITECTURE_RESPONSIBILITIES = [
+  "domain",
+  "application",
+  "infrastructure",
+  "interface",
+  "runtime",
+  "collaboration",
+];
+const ARCHITECTURE_UNIT_STATES = ["clear", "violation", "evidence_gap"];
 const AUTOMATED_PHASES = Object.freeze(["codify", "guard"]);
 let requestedTerminationSignal = null;
 let terminationHandlersInstalled = false;
@@ -208,6 +217,67 @@ function resolveExecutable(command) {
   fail(`executable not found: ${command}`, 2);
 }
 
+function executablePath(candidate) {
+  try {
+    fs.accessSync(candidate, fs.constants.X_OK);
+    return fs.realpathSync(candidate);
+  } catch {
+    return null;
+  }
+}
+
+function codexPlatformAsset() {
+  const key = `${process.platform}/${process.arch}`;
+  return {
+    "linux/x64": { packageName: "@openai/codex-linux-x64", target: "x86_64-unknown-linux-musl" },
+    "linux/arm64": { packageName: "@openai/codex-linux-arm64", target: "aarch64-unknown-linux-musl" },
+  }[key] || null;
+}
+
+function resolveCodexRuntime(command) {
+  const entry = resolveExecutable(command);
+  const explicitNative = process.env.CODEX_NATIVE_BIN
+    ? resolveExecutable(process.env.CODEX_NATIVE_BIN)
+    : null;
+  let nativeBinary = explicitNative;
+
+  if (!nativeBinary && path.extname(entry) !== ".js") {
+    nativeBinary = entry;
+  }
+
+  if (!nativeBinary) {
+    const asset = codexPlatformAsset();
+    if (!asset) {
+      fail(`cannot resolve the npm Codex native asset for ${process.platform}/${process.arch}; set CODEX_NATIVE_BIN`, 2);
+    }
+    const packageRoot = path.resolve(path.dirname(entry), "..");
+    const vendorRoots = [path.join(packageRoot, "vendor")];
+    try {
+      const packageJson = require.resolve(`${asset.packageName}/package.json`, {
+        paths: [path.dirname(entry), packageRoot],
+      });
+      vendorRoots.unshift(path.join(path.dirname(packageJson), "vendor"));
+    } catch {
+      // The unified npm package may carry a non-hoisted or fallback vendor directory.
+    }
+    for (const vendorRoot of vendorRoots) {
+      nativeBinary = executablePath(path.join(vendorRoot, asset.target, "bin", "codex"));
+      if (nativeBinary) break;
+    }
+    if (!nativeBinary) {
+      fail(`cannot resolve the native Codex binary for ${entry}; set CODEX_NATIVE_BIN`, 2);
+    }
+  }
+
+  const codeModeHost = process.env.CODEX_CODE_MODE_HOST
+    ? resolveExecutable(process.env.CODEX_CODE_MODE_HOST)
+    : executablePath(path.join(path.dirname(nativeBinary), "codex-code-mode-host"));
+  if (!codeModeHost) {
+    fail(`cannot resolve codex-code-mode-host beside ${nativeBinary}; set CODEX_CODE_MODE_HOST`, 2);
+  }
+  return { entry, nativeBinary, codeModeHost };
+}
+
 function sleep(milliseconds) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
@@ -337,6 +407,53 @@ function validateQuestionExpectation(value, label) {
   }
 }
 
+function validateArchitectureLedgerExpectation(value, label) {
+  if (!hasOnlyKeys(value, ["min_units", "max_units", "required"]) ||
+      !Number.isInteger(value.min_units) || value.min_units < 0 ||
+      ("max_units" in value && (!Number.isInteger(value.max_units) || value.max_units < value.min_units)) ||
+      !Array.isArray(value.required)) {
+    fail(`${label} must define non-negative min_units, optional max_units >= min_units, and required rows`, 2);
+  }
+  const distinctGroups = new Map();
+  for (const [index, required] of value.required.entries()) {
+    const itemLabel = `${label}.required[${index}]`;
+    if (!hasOnlyKeys(required, ["source_id", "source_assertion_contains", "responsibility", "state", "distinct_group", "verdict"]) ||
+        typeof required.source_id !== "string" || required.source_id.length === 0 ||
+        !ARCHITECTURE_RESPONSIBILITIES.includes(required.responsibility) ||
+        !ARCHITECTURE_UNIT_STATES.includes(required.state) ||
+        ("distinct_group" in required && (typeof required.distinct_group !== "string" || required.distinct_group.length === 0))) {
+      fail(`${itemLabel} is invalid`, 2);
+    }
+    if (required.distinct_group) {
+      distinctGroups.set(required.distinct_group, (distinctGroups.get(required.distinct_group) || 0) + 1);
+    }
+    stringArray(required.source_assertion_contains, `${itemLabel}.source_assertion_contains`, false);
+    if (required.source_assertion_contains.some((item) => normalizeSemanticText(item).length === 0 || !isValidSemanticExpectation(item))) {
+      fail(`${itemLabel}.source_assertion_contains must contain valid semantic text`, 2);
+    }
+    if (required.state === "clear" && "verdict" in required) {
+      fail(`${itemLabel} clear rows must not expect a verdict`, 2);
+    }
+    if (required.state !== "clear") {
+      const verdict = required.verdict;
+      if (!hasOnlyKeys(verdict, ["kind", "families_any", "evidence_paths"]) ||
+          verdict.kind !== required.state || !["violation", "evidence_gap"].includes(verdict.kind)) {
+        fail(`${itemLabel}.verdict must match its non-clear state`, 2);
+      }
+      stringArray(verdict.families_any, `${itemLabel}.verdict.families_any`, false);
+      stringArray(verdict.evidence_paths, `${itemLabel}.verdict.evidence_paths`);
+      if (verdict.families_any.some((family) => !VERDICT_FAMILIES.includes(family))) {
+        fail(`${itemLabel}.verdict contains an invalid family`, 2);
+      }
+    }
+  }
+  for (const [group, count] of distinctGroups) {
+    if (count < 2) {
+      fail(`${label} distinct_group ${group} must contain at least two required rows`, 2);
+    }
+  }
+}
+
 function validateGitExpectation(value, label) {
   if (!hasOnlyKeys(value, ["changed", "required_paths", "forbidden_paths", "allowed_paths"]) ||
       !["none", "some"].includes(value.changed)) {
@@ -442,7 +559,8 @@ function validateCase(caseDir, config) {
 
   const expect = config.expect;
   const expectedKeys = ["completion", "review_conclusion", "questions", "routes", "verdicts", "forbid_verdicts", "git", "files", "checks"];
-  if (!hasOnlyKeys(expect, expectedKeys)) {
+  const optionalExpectedKeys = ["architecture_ledger", "exact_verdict_count"];
+  if (!hasOnlyKeys(expect, [...expectedKeys, ...optionalExpectedKeys])) {
     fail(`${config.id}.expect must be an object`, 2);
   }
   for (const key of expectedKeys) {
@@ -462,6 +580,12 @@ function validateCase(caseDir, config) {
     fail(`${config.id}: invalid expected review conclusion`, 2);
   }
   validateQuestionExpectation(expect.questions, `${config.id}.expect.questions`);
+  if ("architecture_ledger" in expect) {
+    validateArchitectureLedgerExpectation(expect.architecture_ledger, `${config.id}.expect.architecture_ledger`);
+  }
+  if ("exact_verdict_count" in expect && (!Number.isInteger(expect.exact_verdict_count) || expect.exact_verdict_count < 0)) {
+    fail(`${config.id}.expect.exact_verdict_count must be a non-negative integer`, 2);
+  }
   if (!hasOnlyKeys(expect.routes, ["contains", "excludes"])) {
     fail(`${config.id}.expect.routes must be an object`, 2);
   }
@@ -531,7 +655,7 @@ function validateResultShape(result) {
   if (!isPlainObject(result)) {
     return ["result is not an object"];
   }
-  const exactKeys = ["scenario_id", "phase", "completion", "review_conclusion", "questions", "routes", "verdicts", "changed_files", "verification"];
+  const exactKeys = ["scenario_id", "phase", "completion", "review_conclusion", "architecture_ledger", "questions", "routes", "verdicts", "changed_files", "verification"];
   for (const key of exactKeys) {
     if (!(key in result)) {
       errors.push(`missing result field ${key}`);
@@ -555,9 +679,36 @@ function validateResultShape(result) {
   if (!["not_applicable", "clear", "violations", "evidence_gaps", "incomplete"].includes(result.review_conclusion)) {
     errors.push("review_conclusion is invalid");
   }
-  for (const key of ["questions", "routes", "verdicts", "changed_files", "verification"]) {
+  for (const key of ["architecture_ledger", "questions", "routes", "verdicts", "changed_files", "verification"]) {
     if (!Array.isArray(result[key])) {
       errors.push(`${key} must be an array`);
+    }
+  }
+  const sourceAssertions = new Set();
+  const frozenUnits = new Map();
+  for (const row of Array.isArray(result.architecture_ledger) ? result.architecture_ledger : []) {
+    if (!hasOnlyKeys(row, ["source_id", "source_assertion", "frozen_id", "responsibility", "state"]) ||
+        typeof row.source_id !== "string" || row.source_id.length === 0 ||
+        typeof row.source_assertion !== "string" || normalizeSemanticText(row.source_assertion).length === 0 ||
+        typeof row.frozen_id !== "string" || row.frozen_id.length === 0 ||
+        !ARCHITECTURE_RESPONSIBILITIES.includes(row.responsibility) ||
+        !ARCHITECTURE_UNIT_STATES.includes(row.state)) {
+      errors.push("architecture ledger row is invalid");
+      continue;
+    }
+    const sourceKey = `${row.source_id}\0${normalizeSemanticText(row.source_assertion)}`;
+    if (sourceAssertions.has(sourceKey)) {
+      errors.push("each source assertion must appear exactly once in the architecture ledger");
+    }
+    sourceAssertions.add(sourceKey);
+    const existing = frozenUnits.get(row.frozen_id);
+    if (existing && (existing.responsibility !== row.responsibility || existing.state !== row.state)) {
+      errors.push("each frozen architecture unit must have one responsibility and terminal state");
+    } else if (!existing) {
+      frozenUnits.set(row.frozen_id, {
+        responsibility: row.responsibility,
+        state: row.state,
+      });
     }
   }
   if (Array.isArray(result.questions)) {
@@ -570,10 +721,30 @@ function validateResultShape(result) {
       errors.push("route is invalid");
     }
   }
+  const unitVerdictLinks = new Map();
   for (const verdict of Array.isArray(result.verdicts) ? result.verdicts : []) {
-    if (!hasOnlyKeys(verdict, ["kind", "family", "summary", "evidence"]) || !["violation", "evidence_gap"].includes(verdict.kind) || !VERDICT_FAMILIES.includes(verdict.family) || typeof verdict.summary !== "string" || verdict.summary.length === 0 || !Array.isArray(verdict.evidence)) {
+    if (!hasOnlyKeys(verdict, ["kind", "family", "summary", "unit_ids", "correction", "evidence"]) ||
+        !["violation", "evidence_gap"].includes(verdict.kind) ||
+        !VERDICT_FAMILIES.includes(verdict.family) ||
+        typeof verdict.summary !== "string" || verdict.summary.length === 0 ||
+        !Array.isArray(verdict.unit_ids) || verdict.unit_ids.length === 0 ||
+        verdict.unit_ids.some((unitId) => typeof unitId !== "string" || unitId.length === 0) ||
+        new Set(verdict.unit_ids).size !== verdict.unit_ids.length ||
+        typeof verdict.correction !== "string" || verdict.correction.length === 0 ||
+        !Array.isArray(verdict.evidence)) {
       errors.push("verdict is invalid");
       continue;
+    }
+    for (const unitId of verdict.unit_ids) {
+      const unit = frozenUnits.get(unitId);
+      if (!unit) {
+        errors.push("verdict unit_ids must name frozen architecture units");
+        continue;
+      }
+      if (unit.state !== verdict.kind) {
+        errors.push("verdict kind must match every linked architecture-unit state");
+      }
+      unitVerdictLinks.set(unitId, (unitVerdictLinks.get(unitId) || 0) + 1);
     }
     for (const evidence of verdict.evidence) {
       if (!hasOnlyKeys(evidence, ["path", "line", "detail"]) || typeof evidence.path !== "string" || evidence.path.length === 0 || !(evidence.line === null || (Number.isInteger(evidence.line) && evidence.line >= 1)) || typeof evidence.detail !== "string" || evidence.detail.length === 0) {
@@ -594,19 +765,36 @@ function validateResultShape(result) {
   }
   if (result.phase === "guard") {
     const kinds = Array.isArray(result.verdicts) ? result.verdicts.map((verdict) => verdict.kind) : [];
+    const unitStates = [...frozenUnits.values()].map((unit) => unit.state);
     if (result.review_conclusion === "not_applicable") {
       errors.push("guard review_conclusion must be clear, violations, evidence_gaps, or incomplete");
-    } else if (result.review_conclusion === "clear" && kinds.length > 0) {
-      errors.push("a clear guard review must not contain verdicts");
-    } else if (result.review_conclusion === "violations" && !kinds.includes("violation")) {
-      errors.push("violations conclusion requires a violation verdict");
-    } else if (result.review_conclusion === "evidence_gaps" && (!kinds.includes("evidence_gap") || kinds.includes("violation"))) {
-      errors.push("evidence_gaps conclusion requires evidence gaps and no violations");
+    } else if (result.review_conclusion === "clear" && (kinds.length > 0 || unitStates.some((state) => state !== "clear"))) {
+      errors.push("a clear guard review requires only clear architecture units and no verdicts");
+    } else if (result.review_conclusion === "violations" && (!kinds.includes("violation") || !unitStates.includes("violation"))) {
+      errors.push("violations conclusion requires a linked violation architecture unit");
+    } else if (result.review_conclusion === "evidence_gaps" &&
+        (!kinds.includes("evidence_gap") || kinds.includes("violation") || !unitStates.includes("evidence_gap") || unitStates.includes("violation"))) {
+      errors.push("evidence_gaps conclusion requires linked evidence-gap units and no violations");
     } else if (result.review_conclusion === "incomplete" && (result.completion !== "stopped" || kinds.length > 0 || (Array.isArray(result.routes) && result.routes.length > 0))) {
       errors.push("incomplete conclusion requires stopped completion with no verdicts or routes");
     }
-  } else if (result.review_conclusion !== "not_applicable" || (Array.isArray(result.verdicts) && result.verdicts.length > 0)) {
-    errors.push("non-guard results must use not_applicable with no verdicts");
+    if (result.review_conclusion !== "incomplete") {
+      if (result.completion !== "completed") {
+        errors.push("a terminal Guard conclusion requires completed execution");
+      }
+      for (const [unitId, unit] of frozenUnits) {
+        const linkCount = unitVerdictLinks.get(unitId) || 0;
+        if ((unit.state === "clear" && linkCount !== 0) || (unit.state !== "clear" && linkCount !== 1)) {
+          errors.push("each terminal non-clear architecture unit must link to exactly one verdict and clear units to none");
+        }
+      }
+    } else if (Array.isArray(result.architecture_ledger) && result.architecture_ledger.length > 0) {
+      errors.push("an incomplete Guard result must not claim a terminal architecture ledger");
+    }
+  } else if (result.review_conclusion !== "not_applicable" ||
+      (Array.isArray(result.verdicts) && result.verdicts.length > 0) ||
+      (Array.isArray(result.architecture_ledger) && result.architecture_ledger.length > 0)) {
+    errors.push("non-guard results must use not_applicable with no architecture ledger or verdicts");
   }
   return errors;
 }
@@ -2198,6 +2386,59 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
   assertions.push(assertion("phase", result.phase === config.phase, `got ${result.phase}`));
   assertions.push(assertion("completion", expect.completion.includes(result.completion), `got ${result.completion}`));
   assertions.push(assertion("review conclusion", expect.review_conclusion.includes(result.review_conclusion), `got ${result.review_conclusion}`));
+  const ledgerExpectation = expect.architecture_ledger || { min_units: 0, required: [] };
+  const frozenUnitCount = new Set(result.architecture_ledger.map((row) => row.frozen_id)).size;
+  assertions.push(assertion(
+    "architecture ledger minimum frozen units",
+    frozenUnitCount >= ledgerExpectation.min_units,
+    `got ${frozenUnitCount}, expected at least ${ledgerExpectation.min_units}`,
+  ));
+  if ("max_units" in ledgerExpectation) {
+    assertions.push(assertion(
+      "architecture ledger maximum frozen units",
+      frozenUnitCount <= ledgerExpectation.max_units,
+      `got ${frozenUnitCount}, expected at most ${ledgerExpectation.max_units}`,
+    ));
+  }
+  const distinctMatches = new Map();
+  for (const required of ledgerExpectation.required) {
+    const row = result.architecture_ledger.find((candidate) =>
+      candidate.source_id === required.source_id &&
+      candidate.responsibility === required.responsibility &&
+      candidate.state === required.state &&
+      required.source_assertion_contains.every((needle) =>
+        normalizedSemanticContains(normalizeSemanticText(candidate.source_assertion), needle)));
+    assertions.push(assertion(
+      `architecture ledger row ${required.source_id}/${required.responsibility}/${required.state}`,
+      Boolean(row),
+      row ? `matched ${row.frozen_id}` : "no matching source assertion row",
+    ));
+    if (row && required.distinct_group) {
+      const matches = distinctMatches.get(required.distinct_group) || [];
+      matches.push(row.frozen_id);
+      distinctMatches.set(required.distinct_group, matches);
+    }
+    if (row && required.verdict) {
+      const linkedVerdict = result.verdicts.find((verdict) =>
+        verdict.kind === required.verdict.kind &&
+        required.verdict.families_any.includes(verdict.family) &&
+        verdict.unit_ids.includes(row.frozen_id) &&
+        required.verdict.evidence_paths.every((expectedPath) =>
+          verdict.evidence.some((evidence) => pathMatches(evidence.path, expectedPath))));
+      assertions.push(assertion(
+        `architecture ledger verdict linkage ${row.frozen_id}`,
+        Boolean(linkedVerdict),
+        linkedVerdict ? `linked ${linkedVerdict.family}` : "no matching linked verdict",
+      ));
+    }
+  }
+  for (const [group, frozenIds] of distinctMatches) {
+    assertions.push(assertion(
+      `architecture ledger distinct frozen units ${group}`,
+      new Set(frozenIds).size === frozenIds.length,
+      `got ${frozenIds.join(", ")}`,
+    ));
+  }
   assertions.push(assertion(
     "question count",
     result.questions.length >= expect.questions.min && result.questions.length <= expect.questions.max,
@@ -2276,6 +2517,13 @@ function scoreResult(loadedCase, result, workspace, options = {}) {
       `forbid verdict ${forbidden}`,
       !result.verdicts.some((verdict) => verdict.kind === forbidden),
       `got ${result.verdicts.map((verdict) => verdict.kind).join(",") || "none"}`,
+    ));
+  }
+  if ("exact_verdict_count" in expect) {
+    assertions.push(assertion(
+      "exact verdict count",
+      result.verdicts.length === expect.exact_verdict_count,
+      `got ${result.verdicts.length}, expected ${expect.exact_verdict_count}`,
     ));
   }
 
@@ -2420,10 +2668,12 @@ function buildPrompt(loadedCase) {
     "Follow the skill normally, including edits or verification when the scenario calls for them.",
     "Your final response must conform to the supplied JSON schema.",
     `Set scenario_id to ${loadedCase.config.id} and phase to ${loadedCase.config.phase}.`,
-    `Set review_conclusion to ${loadedCase.config.phase === "guard" ? "clear, violations, evidence_gaps, or incomplete when required workers cannot complete" : "not_applicable"}.`,
+    `Set review_conclusion to ${loadedCase.config.phase === "guard" ? "the terminal value required by the Guard skill" : "not_applicable"}.`,
     "Use questions only for questions that must be answered before work can continue.",
     "Use routes only for an explicit phase handoff required by the named skill.",
-    "For guard, classify each violation or evidence gap with the closest schema-defined family.",
+    "For guard, preserve Review Handoff source IDs and clause text in the ledger; without a handoff, use path#heading and quote the relevant authority clause, or use path#symbol and name the relevant changed declaration.",
+    "For guard, put every source assertion and its frozen unit judgment in architecture_ledger, then link every non-clear frozen_id to exactly one verdict through unit_ids.",
+    "For guard, classify each violation or evidence gap with the closest schema-defined family and give its correction direction. For non-guard phases, use an empty architecture_ledger.",
     "Report only workspace-relative evidence and changed-file paths.",
     "",
     "Scenario:",
@@ -2617,6 +2867,7 @@ function buildTrialExecutionArgs(
     "-v", `${modelOutput}:/artifacts:rw`,
     "-v", `${context.resultSchema}:/eval/result.schema.json:ro`,
     "-v", `${context.codexBinary}:/usr/local/bin/codex:ro`,
+    "-v", `${context.codexCodeModeHost}:/usr/local/bin/codex-code-mode-host:ro`,
     "-w", "/workspace", context.containerImage,
     "/usr/bin/timeout", "--signal=TERM", "--kill-after=10s", `${context.timeoutSeconds}s`,
     "/usr/local/bin/codex",
@@ -2955,7 +3206,9 @@ function doctorCommand(options) {
     fs.mkdtempSync(path.join(os.tmpdir(), "ddd-expert-doctor-")),
   );
   try {
-    const codexBinary = resolveExecutable(process.env.CODEX_BIN || "codex");
+    const codexRuntime = resolveCodexRuntime(process.env.CODEX_BIN || "codex");
+    const codexBinary = codexRuntime.nativeBinary;
+    const codexCodeModeHost = codexRuntime.codeModeHost;
     const codexVersion = runCommand([codexBinary, "--version"], { timeoutSeconds: 30 });
     requireSuccess(codexVersion, "codex --version");
     const imageId = ensureContainerImage(options.containerImage);
@@ -3021,6 +3274,7 @@ function doctorCommand(options) {
       "-v", `${doctorPluginCache}:${containerPluginCache}:ro`,
       "-v", `${marketplaceRoot}:${marketplaceRoot}:ro`,
       "-v", `${codexBinary}:/usr/local/bin/codex:ro`,
+      "-v", `${codexCodeModeHost}:/usr/local/bin/codex-code-mode-host:ro`,
       imageId, "/usr/local/bin/codex", "plugin", "list", "--json",
     ], { timeoutSeconds: 60, runtimeRoot, prefix: "doctor-codex" });
     parsePluginList(inContainer, "container codex plugin list");
@@ -3065,7 +3319,9 @@ async function runCommandMain(options) {
   try {
     throwIfRunnerTerminating();
     const codexBin = process.env.CODEX_BIN || "codex";
-    const codexBinary = resolveExecutable(codexBin);
+    const codexRuntime = resolveCodexRuntime(codexBin);
+    const codexBinary = codexRuntime.nativeBinary;
+    const codexCodeModeHost = codexRuntime.codeModeHost;
     const codexVersion = runCommand([codexBinary, "--version"], { timeoutSeconds: 30 });
     requireSuccess(codexVersion, "codex --version");
     const containerImageId = ensureContainerImage(options.containerImage);
@@ -3077,6 +3333,7 @@ async function runCommandMain(options) {
       outputDir,
       runtimeRoot,
       codexBinary,
+      codexCodeModeHost,
       codexHome: installed.codexHome,
       pluginCacheRelative: installed.pluginCacheRelative,
       pluginHash: installed.pluginHash,
@@ -3260,8 +3517,10 @@ if (require.main === module) {
 }
 
 module.exports = {
+  initializeGit,
   loadCases,
   pathMatches,
+  resolveCodexRuntime,
   scoreResult,
   validateResultShape,
 };

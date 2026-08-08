@@ -1,5 +1,6 @@
-Review the Order history query implementation against the confirmed
-model-ready Order Model. The supplied Domain, Application query,
-Infrastructure, and test files are the complete implementation surface for
-this narrow boundary. Report concrete conformance failures without inventing
-unrelated scope, and do not edit files.
+Review the semantic structure of the Order history query boundary against the
+confirmed model-ready Order Model. The producer reports that its order-history
+check currently fails. Consume that as a receipt: do not run verification or
+turn an ordinary comparator defect into a DDD structural finding. Judge only
+the Application-owned QueryRepository, DTO boundary, and Infrastructure
+adapter seam; do not edit files.

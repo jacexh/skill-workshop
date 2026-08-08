@@ -7,17 +7,31 @@
   "workspace": "workspace",
   "expect": {
     "completion": ["completed"],
-    "review_conclusion": ["violations"],
+    "review_conclusion": ["clear"],
+    "architecture_ledger": {
+      "min_units": 2,
+      "required": [
+        {
+          "source_id": "docs/ddd-expert/context/order/model.md#Persistence and Query Boundaries",
+          "source_assertion_contains": ["Application-owned QueryRepository returning OrderSummary DTOs"],
+          "responsibility": "application",
+          "state": "clear",
+          "distinct_group": "order-history-boundary"
+        },
+        {
+          "source_id": "docs/ddd-expert/context/order/model.md#Persistence and Query Boundaries",
+          "source_assertion_contains": ["Infrastructure Store implements both inward contracts", "keeping them separate"],
+          "responsibility": "infrastructure",
+          "state": "clear",
+          "distinct_group": "order-history-boundary"
+        }
+      ]
+    },
     "questions": { "min": 0, "max": 0 },
-    "routes": { "contains": ["codify"], "excludes": ["event-storming", "guard"] },
-    "verdicts": [
-      {
-        "kind": "violation",
-        "family": "cqrs_boundary",
-        "evidence_paths": ["internal/business/order/infrastructure/store.go"]
-      }
-    ],
-    "forbid_verdicts": ["evidence_gap"],
+    "routes": { "contains": [], "excludes": ["event-storming", "codify", "guard"] },
+    "verdicts": [],
+    "exact_verdict_count": 0,
+    "forbid_verdicts": ["violation", "evidence_gap"],
     "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
     "files": [],
     "checks": [

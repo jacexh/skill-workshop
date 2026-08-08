@@ -21,7 +21,7 @@ The minutes follow `draft -> ready -> implemented`:
 
 - `draft`: the complete candidate is visible for confirmation; canonical Models remain unchanged.
 - `ready`: the user confirmed the minutes and EventStorming synchronized every affected Model and document.
-- `implemented`: Guard cleared the implementation and closed this iteration.
+- `implemented`: Guard cleared the reviewed semantic structure, the matching producer checkpoint was complete, and Guard closed this iteration.
 
 The root README keeps one TODO link per minutes file. `draft` and `ready` remain unchecked; Guard checks the item only with the `implemented` transition.
 
