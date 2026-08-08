@@ -56,12 +56,33 @@ Advance through live exchange rather than a batch questionnaire.
 1. Investigate facts available from Specs, PRDs, ADRs, Glossaries, accepted DDD artifacts, code, and tests instead of asking the user to retrieve them. Code proves current behavior, not business authority.
 2. Present discovered information in useful groups, but put only one frontier question to the user per turn. Choose the question with the highest downstream impact and information gain within the current step, and briefly state why it is next.
 3. For a **fact probe**, state the evidence and ask for the missing fact, example, or counterexample without recommending what the business truth should be.
-4. For a **design decision**, state the supported facts and tension, give a recommended answer with reasons, steelman the strongest credible alternative, then ask for one decision.
+4. For a **design decision**, state the supported facts and tension, give a recommended answer with reasons, steelman the strongest credible alternative, then ask for one decision using the Decision Frame below.
 5. When the user disagrees, investigate the business evidence behind their position and replay the affected scenario. Change the recommendation when new evidence warrants it; otherwise preserve the professional objection and consequences. The informed user has final decision authority, and residual disagreement becomes an assumption or Hotspot.
 6. When neither party can answer, inspect available evidence, construct discriminating business cases, or identify the domain participant who can answer. Keep the gap as a Hotspot rather than inventing certainty.
 7. Give a decision working confirmation only when its supporting facts are clear, its strongest known counterexample was considered, the user understands the tradeoff, and no known model-level blocker remains. Stop challenging when further cases have diminishing decision value.
 
 Conflicting project sources are evidence, not an automatic precedence rule. Present the exact conflict. Promote it to the frontier when it blocks the current model; otherwise retain it as a Hotspot until its dependent branch becomes current.
+
+Render each design decision as one compact **Decision Frame**. Preserve this visual hierarchy:
+
+```markdown
+### ✅ Recommendation — <short name>
+
+<recommended answer in one or two sentences>
+
+- **Why:** <business reasons>
+- **Trade-off:** <main cost>
+
+> **🔀 Alternative — <short name>**
+>
+> <credible alternative in one or two sentences>
+>
+> **Prefer when:** <condition that makes this alternative better>
+
+**👉 Decision:** <one frontier question>
+```
+
+Keep the recommendation as the primary reading path and the blockquoted alternative visually subordinate but substantively complete. Fact probes do not use a Decision Frame.
 
 ## The ten EventStorming steps
 
