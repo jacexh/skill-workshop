@@ -403,6 +403,11 @@ of directly publishing the same fact. Runtime constructs `outbox.Relay`, which
 claims records, decodes them, publishes through `message.Publisher`, and marks
 them published or failed.
 
+When the confirmed multi-Root local transaction seam exists, the outbox Store
+and every participating Repository resolve the same current executor from
+`internal/pkg/database`; do not add a second outbox-only context key or session
+lifecycle.
+
 This is at-least-once delivery. Publishing can succeed while
 `MarkPublished` fails, so consumers still need a scenario-appropriate
 idempotency strategy. Do not claim exactly-once delivery, do not keep a second

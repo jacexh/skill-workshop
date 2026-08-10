@@ -340,7 +340,7 @@ class CreateUserHandler:
 
 This baseline intentionally has no event machinery. When confirmed semantics permit a post-commit best-effort reaction, add the Aggregate event buffer and semantic dispatcher conditionally. Its adapter exposes one stable admitted dispatch-failure type; Application catches only that explicitly suppressed outcome, while programming and mapping defects reach the outer boundary. Durable handoff uses the house-style Outbox or process mechanism selected by Codify from confirmed recovery semantics and accepted project constraints.
 
-Application owns what must commit together; Infrastructure owns how. A Repository may hide one local transaction. State plus Outbox needs an explicit atomic capability; raw `Session` never enters Application. Multi-root atomic pressure returns to modeling.
+Application owns what must commit together; Infrastructure owns how. A Repository may hide one local transaction. State plus Outbox needs an explicit atomic capability; raw `Session` never enters Application. Multi-root atomic pressure without the confirmed same-context, one-resource exception returns to modeling; this compact Python guide does not prescribe that exception's provider realization.
 
 ### Queries and CQRS
 

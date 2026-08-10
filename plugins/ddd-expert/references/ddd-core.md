@@ -61,6 +61,8 @@ Style names its physical Interface layer `transport`.
 
 - **[DDD Principle]** Application coordinates a use case and delegates business decisions to the Domain owner.
 - **[House Rule]** A command coordinates required facts, Domain behavior, persistence, and accepted reactions without reimplementing Domain rules.
+- **[House Rule]** One command transaction mutates one Aggregate Root by default. Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one Bounded Context and one local transactional resource.
+- **[House Rule]** For that exception, Application defines the transaction scope, Infrastructure makes every participating Repository use one physical local transaction and owns begin, commit, and rollback, and Domain remains transaction-unaware. Each write Repository still owns exactly one Aggregate Root; the active language House Style defines the participation mechanism.
 - **[House Rule]** A query returns an Application read result without mutating business state.
 - **[House Rule]** When a use case needs an external capability, Application may own a semantic outbound port; its contract must not expose provider, SDK, protocol, topology, or storage vocabulary.
 - **[Heuristic]** Many unrelated collaborators may indicate missing Domain behavior, an over-broad use case, or durable process coordination. No dependency count proves this alone.
@@ -95,7 +97,7 @@ Style names its physical Interface layer `transport`.
 - **[DDD Principle]** External callers and Repositories address the root; the root protects invariants of owned Entities and Value Objects.
 - **[House Rule]** The implementation names the Root, every material owned Entity and Value Object, identity-only references to other Roots, the invariant each behavior preserves, and the immediate consistency boundary established by the confirmed Model.
 - **[House Rule]** Reference another Aggregate Root by identity rather than retaining a mutable object graph across Aggregate boundaries.
-- **[House Rule]** Unless the accepted model requires a stronger atomic boundary, one command transaction mutates one Aggregate Root.
+- **[House Rule]** A confirmed multi-Root transaction is an exceptional Application consistency scope; it does not merge the participating Aggregates or weaken either Root's invariant boundary.
 - **[Heuristic]** A shared ORM session, foreign key, or multi-table write is persistence evidence, not Aggregate-boundary evidence.
 
 ### Domain Service
@@ -104,7 +106,7 @@ Style names its physical Interface layer `transport`.
 - **[DDD Principle]** A Domain Service may involve one Aggregate, several Aggregates, or no Aggregate; crossing Aggregate boundaries is not a requirement.
 - **[House Rule]** When a Domain Service is used, keep it mostly stateless, name it in the Ubiquitous Language, accept Domain values or snapshots, and return a decision, value, error, or fact.
 - **[House Rule]** Application normally supplies required facts and time. A Domain Service may use a narrowly defined Domain-owned semantic collaborator, including a required Repository query capability, only when reducing the interaction to primitive precomputed data would erase Domain meaning. A query does not remove a time-of-check/time-of-use race; correctness that depends on concurrent state requires an accepted constraint, lock, isolation, or other consistency mechanism outside the Domain Service's control.
-- **[House Rule]** A Domain Service never saves Aggregates or controls a transaction. A cross-Aggregate decision does not authorize atomic persistence of several roots.
+- **[House Rule]** A Domain Service never saves Aggregates or controls a transaction. When a confirmed use case spans several roots, the service owns the named cross-Aggregate business rule and invokes public Aggregate behavior; Application loads and saves the roots and defines the transaction scope. The service or calculation alone does not authorize atomic persistence.
 - **[Heuristic]** Durable progress, timeout, retry, and compensation point toward an Application coordinator or Process Manager rather than a Domain Service.
 
 ### Domain Event

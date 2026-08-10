@@ -143,6 +143,8 @@ A responsible Domain Service:
 - calls public Aggregate behavior rather than assigning exported state;
 - does not save, control transactions, log, retry, schedule or depend on generated/provider APIs.
 
+When a confirmed same-context use case must change several independent roots atomically, the Domain Service owns the named cross-Aggregate business rule and applies it through those roots' public behavior. Application still loads and saves every root and defines the transaction scope. The presence of a Domain Service does not itself authorize the stronger consistency boundary.
+
 ```go
 package domain
 

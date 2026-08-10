@@ -93,7 +93,8 @@ internal/
   pkg/
     module.go                     # shared Runtime module selection
     connectrpc/                   # ConnectRPC/Chi server and interceptors
-    database/                     # xorm engine and MySQL lifecycle
+    transaction/                  # conditional provider-neutral Within contract
+    database/                     # xorm lifecycle; tx adapter/resolver when confirmed
     eventbus/                     # in-memory Domain Event dispatcher
     messagebus/                   # Kafka publisher/consumer Runtime
     taskqueue/                    # Asynq client/worker/scheduler Runtime
@@ -125,6 +126,8 @@ A BC may have Application and Transport without a Domain or Infrastructure packa
 | `infrastructure` | persistence, QueryRepository, ACL/external implementation and mechanical conversion |
 | `<context>.go` | constructors and registrations for this BC only |
 | `internal/pkg` | shared technical clients, active loops, provider config and process lifecycle |
+| `internal/pkg/transaction` | conditional provider-neutral transaction-scope contract shared by BC Applications |
+| `internal/pkg/database` | xorm engine lifecycle; conditionally, the local Transactor implementation and current-executor resolution used by Repository adapters |
 
 One context never imports another context's `domain`, `application`, `transport`, or `infrastructure`. A same-process deployment does not erase a bounded-context boundary. Use an accepted published contract, Integration Message, or ACL.
 
@@ -222,7 +225,7 @@ The same module may register Domain Event handlers, message payload factories/su
 
 ## Shared Runtime Packages
 
-`internal/pkg/<capability>` owns a reusable technical resource only when multiple contexts or the process composition need it. It may expose an initialized xorm engine, ConnectRPC server, event dispatcher, message publisher/subscriber, task worker, logger, or telemetry provider. It does not contain Domain objects, product DTOs, published language, ACL mapping, or context-specific persistence.
+`internal/pkg/<capability>` owns a reusable technical resource only when multiple contexts or the process composition need it. It may expose an initialized xorm engine, a project-local transaction-scope contract and adapter, ConnectRPC server, event dispatcher, message publisher/subscriber, task worker, logger, or telemetry provider. It does not contain Domain objects, product DTOs, published language, ACL mapping, or context-specific persistence. `transaction/` appears only after the confirmed multi-Root exception exists; do not pre-create it for ordinary one-Root commands.
 
 Avoid `common`, `shared`, `utils`, and `models`. A package name states the technical capability and owns its configuration, constructor, lifecycle, and shutdown.
 

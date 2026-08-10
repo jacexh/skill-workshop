@@ -25,10 +25,11 @@ Infrastructure -> Application and Domain contracts
 | Infrastructure | Repository/QueryRepository implementations, DO conversion, ACLs, external adapters | Domain decisions, inbound protocol handling, process lifecycle |
 | Runtime | Fx composition, configuration, shared clients, servers, consumers, workers, schedulers, telemetry, shutdown | business rules and bounded-context language |
 
-Application has two narrow, accepted provider-neutral exceptions:
+Application has three narrow, accepted provider-neutral exceptions:
 
 - a producing Application event handler may map a Domain Event to its own generated Integration Message contract and call `message.Publisher`;
-- an accepted internal task may define its durable payload schema under `proto/<context>/task/v1`, then use `components/taskqueue` and `Enqueuer` under `application/task`.
+- an accepted internal task may define its durable payload schema under `proto/<context>/task/v1`, then use `components/taskqueue` and `Enqueuer` under `application/task`;
+- only for a confirmed same-BC, one-resource multi-Root transaction, a Command Handler may use the project-local `internal/pkg/transaction.Transactor` callback. Its xorm implementation and current-executor resolution remain in `internal/pkg/database`.
 
 Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xorm sessions, Fx, and active loops remain outside Application.
 
@@ -108,6 +109,7 @@ Do not substitute Gin/Echo for Chi, grpc-go for ConnectRPC, GORM/sqlc for xorm, 
 | Command/Query/use-case coordination, assembler | Application; CQRS when the read model separates |
 | RPC/HTTP endpoint, message consumer, task processor | Transport plus the relevant Flow Guide |
 | Repository/QueryRepository implementation, DO/schema, external adapter | Infrastructure plus Database when persisted |
+| Confirmed multi-Root local atomic change | Domain, Application, Infrastructure, Database, Scaffold, and Runtime for composition |
 | Domain Event or Integration Message publication/consumption | Events/messages plus every touched Layer Guide |
 | Internal task, polling, periodic work | Task queue plus every touched Layer Guide |
 | Fx/config/server/worker/goroutine/shutdown/telemetry | Runtime and Scaffold |
