@@ -664,6 +664,9 @@ do
 done
 
 # High-value Go boundaries, intentionally sparse and independent of section numbers.
+core="$CLAUDE_ROOT/references/ddd-core.md"
+assert_contains "$core" 'Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one Bounded Context and one local transactional resource.' "multi-Aggregate transactions should require confirmed Model authority and one local consistency scope"
+
 scaffold="$CLAUDE_ROOT/references/ddd-golang-scaffold.md"
 assert_contains "$scaffold" 'internal/business/' "Go scaffold should support multiple bounded contexts"
 assert_contains "$scaffold" 'application.go' "Go scaffold should require application.go"
@@ -677,6 +680,7 @@ assert_contains "$scaffold" 'public/v1/' "Go scaffold should separate externally
 assert_contains "$scaffold" 'integration/v1/' "Go scaffold should separate Integration Message contracts"
 assert_contains "$scaffold" 'task/v1/' "Go scaffold should place durable Task schemas under proto"
 assert_contains "$scaffold" 'migrations/' "Go scaffold should use the canonical migration directory"
+assert_contains "$scaffold" 'internal/pkg/transaction' "Go scaffold should place the conditional transaction contract outside individual bounded contexts"
 
 application="$CLAUDE_ROOT/references/ddd-golang-application.md"
 assert_contains "$application" 'type Application struct' "Go Application should expose a grouped registry"
@@ -685,10 +689,15 @@ assert_matches "$application" '^[[:space:]]+Queries[[:space:]]+Queries' "Go Appl
 assert_contains "$application" 'func AssembleUserDTO' "Go Application should define DTO-to-Entity mapping"
 assert_contains "$application" 'func AssembleUserEntity' "Go Application should define Entity-to-DTO mapping"
 assert_contains "$application" 'domain.NewUser' "new Domain objects should use a Domain Factory"
+assert_contains "$application" 'Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one bounded context and one local transactional resource.' "multi-Aggregate transactions should require confirmed Model authority and one local consistency scope"
+assert_contains "$application" 'Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback.' "Application should own use-case scope without owning transaction machinery"
+assert_contains "$application" 'internal/pkg/transaction/transactor.go' "Go Application should share one project-local provider-neutral Transactor contract"
+assert_contains "$application" 'Within(context.Context, func(context.Context) error) error' "Go Transactor should expose only a context-propagating callback"
 
 domain="$CLAUDE_ROOT/references/ddd-golang-domain.md"
 assert_contains "$domain" 'github.com/go-playground/validator/v10' "Go Domain should own business-data validation"
 assert_contains "$domain" 'It does not need to span multiple Aggregates' "Domain Service should not require cross-Aggregate work"
+assert_contains "$domain" 'does not save, control transactions' "Domain Services should neither persist Aggregates nor control transactions"
 assert_contains "$domain" 'After a successful `Save`, that Aggregate instance is stale' "Go Domain should define the post-Save lifecycle"
 assert_contains "$domain" 'core model is state polymorphism' "Go FSM guidance should model polymorphic state behavior"
 assert_contains "$domain" '*fsm.SimpleState' "Go FSM guidance should use the component base state"
@@ -736,6 +745,10 @@ assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure
 assert_contains "$infrastructure" 'xorm.io/xorm' "Go Infrastructure should use the adopted ORM"
 assert_contains "$infrastructure" 'Prefer small Aggregates' "Go Infrastructure should keep small Aggregates as the default"
 assert_contains "$infrastructure" 'mutation journal keyed by Entity kind and identity' "Go Infrastructure should expose optional Aggregate change tracking"
+assert_contains "$infrastructure" 'If a context still carries a transaction declaration but its session is missing, mismatched, expired, or already closed, resolution returns a stable error and never falls back to the engine.' "marked invalid transactions should fail closed instead of falling back"
+assert_contains "$infrastructure" 'WithinOrJoin(context.Context, func(xorm.Interface) error) error' "multi-statement Repository operations should join or own a transaction without lifecycle ambiguity"
+assert_contains "$infrastructure" 'a present but invalid declaration returns the stable participation error without invoking the callback or writing' "join-or-own transaction helpers should reject marked invalid state"
+assert_contains "$infrastructure" 'Prove commit and rollback with the real Repository adapters and MySQL, observing durable state from a fresh observer after the transaction boundary; static checks and fake Repository tests do not prove atomicity or enlistment.' "multi-Aggregate transaction guidance should require real-adapter integration evidence"
 assert_contains "$infrastructure" 'Do not log and return the same error' "Go Infrastructure should avoid duplicate error logs"
 
 runtime="$CLAUDE_ROOT/references/ddd-golang-runtime.md"
@@ -765,6 +778,7 @@ for column in '`id` varchar(36)' '`version` int unsigned' '`created_at` bigint' 
 done
 assert_contains "$database" 'new in-memory Aggregate has version `0`' "database profile should define initial versions"
 assert_contains "$database" 'After a successful save, the instance is stale' "database profile should align post-save behavior"
+assert_contains "$database" 'Every participating one-Root Repository joins the same physical transaction so all writes commit or roll back together' "database guidance should require one physical transaction for the confirmed exception"
 if rg -n 'xorm|go-sql-driver|github\.com/google/uuid|convert\.go|\*xorm' "$database" >/dev/null; then
   rg -n 'xorm|go-sql-driver|github\.com/google/uuid|convert\.go|\*xorm' "$database" >&2
   fail "shared database profile should not own Go adapter choices"

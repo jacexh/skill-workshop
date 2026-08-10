@@ -173,7 +173,32 @@ func (h *CreateUserHandler) Handle(
 
 Without confirmed best-effort follow-up semantics, omit the dispatcher. When durable handoff is required, use the prescribed outbox/task/process mechanism rather than adding a second direct-publish path.
 
-A normal command changes one Aggregate. If correctness appears to require saving several independent roots atomically, return to the collaboration design instead of hiding the conflict in a transaction or Repository method.
+A normal command changes one Aggregate. Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one bounded context and one local transactional resource. Without that complete authority, expose the missing consistency decision instead of hiding it in a transaction or multi-Root Repository.
+
+For the confirmed exception, define the provider-neutral contract once for the project rather than once per bounded context:
+
+```go
+// internal/pkg/transaction/transactor.go
+package transaction
+
+import "context"
+
+type Transactor interface {
+	Within(context.Context, func(context.Context) error) error
+}
+```
+
+The Command Handler receives `transaction.Transactor` and calls `Within`. Inside its callback it:
+
+1. passes the derived context unchanged to every participating Repository;
+2. loads and locks roots in stable identity order when locking is required;
+3. invokes the named Domain Service, which applies business rules through public Aggregate behavior;
+4. saves each root through its own Repository; and
+5. returns an error for any failed decision or save so Infrastructure rolls back the whole scope.
+
+Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback. The callback contains no RPC, Kafka, file operation, event publication, goroutine, or retry. A bounded whole-use-case retry is allowed only when confirmed policy requires it; every attempt starts a new scope and reloads all roots.
+
+Do not publish Domain Events or return a successful result until `Within` has committed. An accepted outbox record is written by the same current transaction. If the callback, rollback, or commit fails, discard all participating Aggregate instances and their staged events; do not continue using their in-memory state.
 
 ## Query Handler
 
@@ -216,7 +241,9 @@ Use a named Application service only for meaningful use-case orchestration. It m
 
 Place an outbound port beside the use case that consumes it. Name the semantic capability (`EligibilityProvider`, `ReserveCredit`, `CustomerIntentSender`), not the mechanism (`HTTPClient`, `BrokerPublisher`, `RedisStore`, `TxManager`). Do not wrap an already accepted provider-neutral go-jimu port with a same-shape local interface.
 
-Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction. Confirmed state-plus-outbox atomicity needs an explicit semantic capability; raw `xorm.Session` never enters Application.
+The conditional `internal/pkg/transaction.Transactor` above is a shared technical execution contract, not a semantic outbound port. Do not duplicate it under each BC's `application`, call it `UnitOfWork`, expose Repository factories through it, or pass options, `*xorm.Session`, or another provider handle inward. Add isolation or retry controls only when confirmed semantics require them and the local contract defines their behavior.
+
+Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction only when no Application scope is active; under an active scope it joins the current transaction. Confirmed state-plus-outbox atomicity uses the same participation seam; raw `xorm.Session` never enters Application.
 
 ## Errors, Logging and Tests
 
@@ -225,7 +252,7 @@ Application owns what must commit together; Infrastructure owns how. A single-Ag
 - Application logs a business-semantic fact only when it has independent operational value. Durable evidence is a Domain Event, audit record or persisted state, not a log line.
 - Application becomes the execution logger only for a terminal flow with no outer observer or when it deliberately swallows a best-effort failure.
 
-Test handlers with real Domain objects and focused fakes for Repository, QueryRepository, ACL and outbound ports. Cover orchestration, stable errors, persistence-before-dispatch and committed-but-not-delivered behavior. Do not reimplement Domain rules in Application tests.
+Test handlers with real Domain objects and focused fakes for Repository, QueryRepository, ACL and outbound ports. Cover orchestration, stable errors, persistence-before-dispatch and committed-but-not-delivered behavior. For a confirmed multi-Root use case, verify that one `Within` callback encloses every load, Domain decision, and save, but do not claim a fake Transactor proves physical enlistment or rollback. Do not reimplement Domain rules in Application tests.
 
 ## File Shape
 

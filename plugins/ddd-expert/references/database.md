@@ -31,7 +31,7 @@ The adopted database is MySQL 8. The active language House Style selects the ada
 
 - **[DDD Principle]** Tables are persistence representations, not Domain objects. An Aggregate may map to several tables, and a read model may project or join several sources.
 - **[DDD Principle]** The accepted Aggregate boundary determines atomic write ownership. A foreign key, shared table, or database transaction does not create an Aggregate boundary.
-- **[House Rule]** A command-side Repository persists exactly one Aggregate Root and its owned state in one local transaction. Independent Aggregate changes require confirmed coordination semantics; Codify selects the house-style realization.
+- **[House Rule]** A command-side Repository persists exactly one Aggregate Root and its owned state. Its write owns one local transaction by default. Under the confirmed same-context, same-resource exception, several one-Root Repository adapters enlist in the same Application scope and one physical local database transaction; do not replace them with a multi-Root Repository.
 - **[House Rule]** Lists, pages, history, reports, statistics, cross-Aggregate composition, denormalized views, and optimized projections use an Application-owned QueryRepository. A focused read of one reasonably sized Aggregate may use its Domain Repository when full reconstitution is appropriate and no distinct read semantics exist.
 - **[House Rule]** Integration tables, idempotency records, projection checkpoints, and process state are introduced only by an accepted flow. Once introduced, they use this file's naming, standard columns, types, indexes, migration, and concurrency rules.
 - **[House Rule]** Transport never queries tables or Repositories directly. Infrastructure owns persistence records, mappings, and adapters; Runtime owns the shared connection-pool or database-client lifecycle.
@@ -39,7 +39,7 @@ The adopted database is MySQL 8. The active language House Style selects the ada
 ### Language Adapter Boundary
 
 - **[House Rule]** Runtime validates the DSN, opens and verifies the database client, configures bounded connection pools, and closes it during shutdown.
-- **[House Rule]** Bounded-context Infrastructure receives an initialized database client, transaction factory, or equivalent language-specific capability; it does not load configuration or open a process-wide connection.
+- **[House Rule]** Bounded-context Infrastructure receives an initialized database capability; it does not load configuration or open a process-wide connection. Application opens an accepted multi-Root scope through a provider-neutral callback, while Infrastructure resolves the current provider executor and owns its transaction lifecycle.
 - **[House Rule]** Use ordered SQL migrations for production schema changes. ORM metadata creation, auto-sync, and schema-push features are not deployment mechanisms.
 - **[House Rule]** Bind external values through the adopted adapter's parameter API. Never build SQL by concatenating input.
 
@@ -267,6 +267,8 @@ Do not assume a row-constructor range such as `(created_at, id) < (?, ?)` will p
 ## 8. Transactions and Concurrency
 
 - **[DDD Principle]** Transaction scope implements an accepted consistency boundary; it does not define one.
+- **[House Rule]** A confirmed multi-Root atomic use case remains inside one Bounded Context and one local database resource. Every participating one-Root Repository joins the same physical transaction so all writes commit or roll back together; a cross-context, cross-database, or distributed transaction is not this exception.
+- **[House Rule]** A Repository participating in an Application-owned scope neither begins, commits, nor rolls back a nested transaction. Without an outer scope, it retains its ordinary one-Root local transaction behavior.
 - **[House Rule]** Keep transactions short, acquire locks in stable primary-key order, and update by primary or unique keys where possible.
 - **[House Rule]** HTTP, RPC, file, Kafka, and other external calls do not occur inside a database transaction. A flow that requires atomic durable handoff uses an accepted local record such as an outbox, not an open network call.
 
@@ -289,6 +291,7 @@ WHERE id = ? AND version = ? AND deleted_at = 0;
 - **[House Rule]** The Repository checks affected rows. An update count other than one maps to a stable concurrency-conflict error; do not hide it as not-found or success.
 - **[House Rule]** Repository save does not increment the in-memory Aggregate version. After a successful save, the instance is stale: Application may assemble a result and drain already-recorded events, but it must not expose the stale version as the newly persisted concurrency token, mutate, or save that instance again. A later transaction reloads it.
 - **[House Rule]** An Aggregate spanning several owned tables uses one local database transaction. All writes succeed or roll back together.
+- **[House Rule]** After any callback, rollback, or commit failure in a multi-Root scope, discard every participating in-memory Aggregate and its staged events. Publish events only after commit; when durable handoff is required, persist the accepted outbox record in that same transaction.
 - **[House Rule]** The adapter binds the identity, loaded version, and active-row predicate, performs the increment in SQL, checks the affected-row count, and translates provider failures at its owned boundary. Language-specific syntax belongs in the active language House Style.
 
 ### Pessimistic Locking
@@ -361,6 +364,7 @@ MySQL requires every unique key on a partitioned table to include every column u
 ## 11. Required Verification
 
 - **[House Rule]** Repository integration tests run against MySQL and cover insert version `1`, update comparison/increment, affected-row conflict mapping, active-row filtering, owned-table rollback, and persistence-record/Domain conversion.
+- **[House Rule]** A multi-Root transaction integration test uses the real Repository adapters and database: a fresh observer sees both writes after commit, sees neither when a later save fails, and sees no write when transaction participation is rejected. Static checks, callback fakes, and mock Repositories do not prove one physical transaction.
 - **[House Rule]** QueryRepository integration tests cover real column selection, filters, stable ordering, pagination boundaries, and read-model mapping.
 - **[House Rule]** Applicable outbox, inbox, projection, or process-state tests cover atomic persistence, uniqueness/idempotency, duplicate delivery, out-of-order evidence, and pending-work index paths.
 - **[House Rule]** Schema review checks naming, five standard columns, types, comments, collation, index caps, redundant indexes, migration compatibility, and representative query plans.
