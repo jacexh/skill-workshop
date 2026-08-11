@@ -46,6 +46,10 @@ _Avoid_: inferred approval, existing implementation
 Temporary conversation state used for the modeling destination, current ten-step position, Supported Modeling Facts, Working Confirmations, frontier question, Hotspots, fog, and out-of-scope areas. It is separate from any Aggregate, Bounded Context, or Context Map and grants no incremental write authority.
 _Avoid_: evolving Model, accepted slice
 
+**Workshop Event**:
+A workflow term for a material past-tense business fact placed on the EventStorming Board or confirmed diagram to discover a causal story. It remains analytical evidence and by itself grants no authority for a selected Domain Event or Published Fact Contract.
+_Avoid_: automatic Domain Event, automatic Published Fact Contract
+
 **Supported Modeling Fact**:
 A fact, term, rule, or relationship backed by supplied project evidence or a domain-authority answer and therefore usable on the EventStorming Board. Support does not confirm the fact's placement in an integrated model or authorize a file write.
 _Avoid_: accepted artifact fact, implicit confirmation

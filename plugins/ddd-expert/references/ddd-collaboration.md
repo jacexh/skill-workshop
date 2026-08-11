@@ -58,11 +58,11 @@ collaboration governed by `ddd-expert`.
 ## 3. Domain Events
 
 - **[DDD Principle]** A Domain Event is a selected past-tense fact in the language of one Bounded Context.
-- **[DDD Principle]** A fact discovered during modeling becomes a Domain Event only when the model needs a named local reaction or durable fact.
+- **[DDD Principle]** A modeled past-tense fact becomes a Domain Event only when the model needs either a named local reaction to the occurrence or the occurrence itself, not merely the resulting state, as durable domain evidence.
 - **[DDD Principle]** DDD does not prescribe one universal dispatch point before or after commit.
 - **[House Rule]** When a Domain Event is used, record it with the Domain behavior that establishes the fact; Application coordinates dispatch according to the accepted transaction and failure semantics.
 - **[House Rule]** When same-context post-commit follow-up is explicitly accepted as best effort, persistence succeeds before dispatch and dispatch failure cannot roll back the committed command. The language Flow Guide owns the executable sequence.
-- **[House Rule]** EventStorming classifies a retained local business fact as a Domain Event and a retained cross-context contract as an Integration Message. Provider delivery attempts, lease changes, retry notifications, worker status, and log records remain execution observations; attach any required fencing, idempotency, or recovery guarantee to the Aggregate, Process Manager, or contract it protects rather than creating a separate Runtime Event category.
+- **[House Rule]** EventStorming classifies a selected local Workshop Event as a Domain Event and selected cross-context published meaning as a Published Fact Contract. Provider delivery attempts, lease changes, retry notifications, worker status, and log records remain execution observations; attach any required fencing, idempotency, or recovery guarantee to the Aggregate, Process Manager, or contract it protects rather than creating a separate Runtime Event category.
 - **[House Rule]** When an execution observation itself changes business eligibility, rights, or outcomes, the corresponding business fact and authority must be established before it is named as Domain behavior.
 - **[Heuristic]** Before-commit handlers participate in the command consistency boundary; after-commit in-process handlers create a crash gap; durable handoff adds persistence, replay, and idempotency obligations.
 - **[Heuristic]** Calling `Save` does not necessarily mean commit. Inspect the real transaction boundary before reasoning about timing.

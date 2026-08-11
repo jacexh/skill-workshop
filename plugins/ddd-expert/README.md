@@ -39,7 +39,7 @@ EventStorming finishes at `ready`: its meeting record carries the complete itera
 The modeling path follows this order:
 
 1. clarify the modeling scope;
-2. place past-tense Domain Events first;
+2. place past-tense Workshop Events first;
 3. arrange events on the timeline;
 4. find Commands;
 5. add actors and external systems;
@@ -57,10 +57,12 @@ The facilitator investigates facts available in project evidence, then asks the 
 
 When the scope is coherent, EventStorming shows:
 
-- the exact Mermaid EventStorming view with timeline, Commands, actors/external systems, policies, past-tense Events, Hotspots, Bounded Context boundaries, and every supported Aggregate boundary—or the explicit evidence-based `No supported Aggregate` conclusion at Bounded Context scope;
+- the exact Mermaid EventStorming view with timeline, Commands, actors/external systems, policies, past-tense Workshop Events, Hotspots, Bounded Context boundaries, and every supported Aggregate boundary—or the explicit evidence-based `No supported Aggregate` conclusion at Bounded Context scope;
 - proposed language, authority, lifecycle, supported Aggregates/core objects, contexts, and collaboration;
 - keep the Context Map focused on semantic Model Dependency (`U -> D`) contracts while complete scenario interactions stay in the EventStorming minutes; and
 - key design decisions, assumptions, and non-blocking Hotspots.
+
+`Workshop Event` is this workflow's label for an analytical past-tense fact; it does not automatically become a selected Domain Event or Published Fact Contract. The connected scenario threads are the iteration's single Workshop Event inventory; EventStorming does not generate a parallel manual Event Index. During integrated review, the canonical collaboration rules select any Domain Event semantics for the affected Model, while cross-context published meaning remains in its named dependency contract.
 
 Before confirmation, the facilitator challenges the model from participant/authority, scenario-variation, and model-pressure perspectives. It selects only cases capable of changing a material conclusion and stops when the strongest known alternative was considered and further cases have diminishing decision value. Blocking Hotspots must be resolved or removed by narrowing scope; non-blocking Hotspots remain visible.
 
