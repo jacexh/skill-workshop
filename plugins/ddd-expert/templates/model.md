@@ -24,6 +24,10 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 <!-- Narrate this context's durable scenarios and lifecycle. Keep the complete cross-context iteration flow in the linked EventStorming minutes; retain here only obligations that remain part of this context's current model. Preserve cross-Aggregate progress and completion obligations without prescribing a Process Manager, message topology, transaction, or runtime mechanism. -->
 
+## Domain Events and Reactions
+
+<!-- Omit this section when the confirmed Model selects no Domain Events. For each selected Domain Event, record its exact past-tense fact name, owning Aggregate or Bounded Context, establishing behavior, selection reason, and material failure or recovery guarantee. Do not copy analytical-only Workshop Events or prescribe event classes, persistence, dispatch, or transport. Published cross-context meaning belongs once in Context Dependencies. -->
+
 ## Invariants and Policies
 
 <!-- State immediate consistency rules, decision policies, timing rules, their required facts, semantic owner, and business outcome. -->
@@ -42,4 +46,4 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 ## Context Dependencies
 
-<!-- Required when this context participates in a Context Map dependency; otherwise omit it. For each named contract, record this context's upstream or downstream role, published meaning, permitted downstream reliance, local translation, and the upstream-owned authority, ordering, durability, or failure guarantee when material. -->
+<!-- Required when this context participates in a Context Map dependency; otherwise omit it. For each named contract, record this context's upstream or downstream role, published meaning, permitted downstream reliance, local translation, and the upstream-owned authority, ordering, durability, or failure guarantee when material. Keep each Published Fact Contract aligned with its one named Context Map dependency; do not duplicate it as a Workshop Event catalog. -->

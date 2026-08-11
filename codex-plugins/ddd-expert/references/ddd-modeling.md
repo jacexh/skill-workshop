@@ -15,11 +15,12 @@ Use this reference to reason about business meaning. It does not authorize proje
 
 ## 1. Event-first causal modeling
 
-- **[DDD Principle]** A Domain Event names a business fact that has already happened. Use past tense and business language.
+- **[DDD Principle]** Model a material business fact that has already happened in past tense and business language.
 - **[Heuristic]** Start by asking what outcome became true, not which page, service, table, message, or class exists.
 - **[Heuristic]** Order material events in business time, then work backward to Commands and actors and forward through policies, reactions, and stable outcomes.
 - **[DDD Principle]** A Command expresses an actor's intent; a policy or rule explains why the business admits, rejects, derives, or reacts; an Event states the resulting fact.
-- **[House Rule]** An EventStorming event is analytical evidence, not automatic authority for a Domain Event class, Integration Message, asynchronous transport, Event Sourcing, or event-driven architecture.
+- **[House Rule]** A **Workshop Event** is this workflow's analytical EventStorming fact node. It is not automatic authority for a Domain Event, Published Fact Contract, asynchronous transport, Event Sourcing, or event-driven architecture.
+- **[House Rule]** When a Workshop Event may need selected local or cross-context semantics, load [ddd-collaboration.md](ddd-collaboration.md) and apply its selection rules. Do not infer selection from persistence, transport, or current code types.
 - **[Heuristic]** Replay failure, duplication, cancellation, expiry, recovery, and concurrency only when they could change business meaning.
 
 ## 2. Ubiquitous Language

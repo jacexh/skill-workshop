@@ -186,7 +186,7 @@ assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'one or more scoped EventS
 assert_contains "$event_storming_skill" '## The ten EventStorming steps' "EventStorming should own one explicit modeling workflow"
 expected_workflow_steps="$(printf '%s\n' \
   '1. **Clarify the modeling scope**' \
-  '2. **Place Domain Events first**' \
+  '2. **Place Workshop Events first**' \
   '3. **Arrange events on the timeline**' \
   '4. **Find Commands**' \
   '5. **Add actors and external systems**' \
@@ -211,7 +211,21 @@ assert_contains "$event_storming_skill" 'one coherent language, business authori
 assert_contains "$event_storming_skill" 'Model Dependency View' "EventStorming should name semantic Context Map direction"
 assert_not_contains "$event_storming_skill" 'Interaction View' "EventStorming should not add a runtime interaction projection to the Context Map"
 assert_contains "$event_storming_skill" 'scenario interactions in the EventStorming minutes' "EventStorming should keep complete iteration flow out of per-context Models"
+assert_contains "$event_storming_skill" "A **Workshop Event** is this workflow's distinguishing label" "EventStorming should distinguish workshop facts from retained event contracts"
+assert_contains "$event_storming_skill" 'analytical by default' "EventStorming should keep Workshop Events analytical until the model selects stronger semantics"
+assert_contains "$event_storming_skill" 'every included material scenario has at least one supported Workshop Event or an explicit no-new-business-fact result' "EventStorming should define when event discovery covers the scoped scenarios"
+assert_contains "$event_storming_skill" 'every Workshop Event belongs to at least one replayable business-time thread' "EventStorming should not leave Workshop Events as disconnected notes"
+assert_contains "$event_storming_skill" 'connected `actor/external -> Command -> policy/rule -> Workshop Event` thread' "EventStorming should require replayable causal scenario threads"
+assert_contains "$event_storming_skill" "single source of truth for the iteration's Workshop Events" "EventStorming should keep its diagram threads as the event inventory"
+assert_contains "$event_storming_skill" 'Do not add a parallel manual Event Index' "EventStorming should not duplicate Workshop Events in a manual catalog"
+assert_contains "$event_storming_skill" 'apply the Domain Event and Published Fact selection rules routed by `ddd-modeling`' "EventStorming should use the canonical event-selection authority"
+assert_contains "$event_storming_skill" 'named Published Fact Contract' "EventStorming should select published cross-context meaning explicitly"
+assert_contains "$event_storming_skill" 'Unannotated Workshop Events remain analytical' "EventStorming should avoid bloating every analytical event node"
 assert_contains "$CLAUDE_ROOT/references/ddd-modeling.md" '| A |--+----->| B |' "DDD reference should show a canonical Local View fan-out"
+assert_contains "$CLAUDE_ROOT/references/ddd-modeling.md" '**Workshop Event**' "DDD modeling guidance should name the workflow's analytical event role"
+assert_contains "$CLAUDE_ROOT/references/ddd-modeling.md" 'load [ddd-collaboration.md](ddd-collaboration.md) and apply its selection rules' "DDD modeling guidance should route event selection to one authority"
+assert_contains "$CLAUDE_ROOT/references/ddd-collaboration.md" 'the occurrence itself, not merely the resulting state, as durable domain evidence' "DDD collaboration guidance should own the Domain Event selection rule"
+assert_contains "$ROOT/CONTEXT.md" '**Workshop Event**:' "project language should define the workflow-specific event term"
 
 # The EventStorming Board remains private until one integrated model is ready.
 assert_contains "$event_storming_skill" '## EventStorming Board' "EventStorming should separate conversation state from domain artifacts"
@@ -248,6 +262,13 @@ assert_not_contains "$event_storming_skill" 'semantic_delta' "EventStorming shou
 assert_not_contains "$event_storming_skill" 'package fingerprint' "EventStorming should not optimize for content-addressed confirmation machinery"
 assert_contains "$CLAUDE_ROOT/templates/event-storming.md" 'status: draft' "EventStorming minutes should begin as a draft"
 assert_contains "$CLAUDE_ROOT/templates/event-storming.md" '## EventStorming Model' "EventStorming minutes should preserve the complete integrated diagram"
+assert_contains "$CLAUDE_ROOT/templates/event-storming.md" 'Workshop Event: <Past-tense business fact>' "EventStorming minutes should label analytical event nodes unambiguously"
+assert_contains "$CLAUDE_ROOT/templates/event-storming.md" 'Domain Event: <Canonical past-tense fact>' "EventStorming minutes should show selected Domain Event annotation syntax"
+assert_contains "$CLAUDE_ROOT/templates/event-storming.md" 'Given fact: <Pre-existing authority or state>' "EventStorming minutes should distinguish inputs from Workshop Events"
+assert_contains "$CLAUDE_ROOT/templates/event-storming.md" 'No-new-fact result: <Rejected or unchanged>' "EventStorming minutes should distinguish terminal no-change results"
+assert_contains "$CLAUDE_ROOT/templates/event-storming.md" 'Published Fact Contract: <name>' "EventStorming minutes should name cross-context publication on its original dependency"
+assert_contains "$CLAUDE_ROOT/templates/event-storming.md" 'single source of truth for the iteration' "EventStorming minutes should not duplicate the scenario-thread inventory"
+assert_not_contains "$CLAUDE_ROOT/templates/event-storming.md" '## Event Index' "EventStorming minutes should not add a parallel event catalog"
 assert_contains "$CLAUDE_ROOT/templates/event-storming.md" '## Affected Models' "EventStorming minutes should link every affected canonical Model"
 assert_contains "$CLAUDE_ROOT/templates/event-storming.md" '## Decisions and Reasons' "EventStorming minutes should preserve confirmed decisions and their reasons"
 assert_contains "$CLAUDE_ROOT/templates/event-storming.md" '## Assumptions and Hotspots' "EventStorming minutes should preserve non-blocking uncertainty"
@@ -259,11 +280,15 @@ assert_not_contains "$CLAUDE_ROOT/templates/model.md" '## EventStorming Model' "
 assert_contains "$CLAUDE_ROOT/templates/model.md" '## Aggregates and Core Business Objects' "model template should record step-eight conclusions"
 assert_contains "$CLAUDE_ROOT/templates/model.md" 'identity and continuity when present, ownership, lifecycle, validity, equality, normalization or units' "model template should preserve core-object semantics Codify needs for tactical choices"
 assert_contains "$CLAUDE_ROOT/templates/model.md" 'without prescribing a Process Manager, message topology, transaction, or runtime mechanism' "model template should preserve coordination meaning without predesigning its realization"
+assert_contains "$CLAUDE_ROOT/templates/model.md" '## Domain Events and Reactions' "model template should project only selected durable local event meaning"
+assert_contains "$CLAUDE_ROOT/templates/model.md" 'Omit this section when the confirmed Model selects no Domain Events' "model template should not force an empty Domain Event catalog"
+assert_contains "$CLAUDE_ROOT/templates/model.md" 'Do not copy analytical-only Workshop Events' "model template should not duplicate every workshop fact"
 assert_contains "$CLAUDE_ROOT/templates/model.md" 'Required when this context participates in a Context Map dependency' "model template should carry each participating context dependency into Codify authority"
 assert_contains "$CLAUDE_ROOT/templates/model.md" 'permitted downstream reliance, local translation' "model template should preserve contract reliance and translation"
 assert_contains "$CLAUDE_ROOT/templates/model.md" '- **No supported Aggregate:** <evidence-based reason>' "model template should permit an evidence-based BC result without inventing an Aggregate"
 assert_contains "$CLAUDE_ROOT/templates/model.md" '## Failure and Recovery Semantics' "model template should preserve failure semantics"
 assert_contains "$CLAUDE_ROOT/templates/model.md" '## Hotspots and Open Questions' "model template should preserve visible unresolved scope"
+assert_contains "$claude_maintainer" 'selected Domain Event semantics when present' "artifact maintenance should preserve implementation-shaping event semantics in canonical Models"
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" 'docs/ddd-expert/' "artifact layout should own the documentation root"
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" '|-- README.md' "artifact layout should require a root README"
 assert_contains "$CLAUDE_ROOT/templates/artifact-layout.md" '|-- context-map.md' "artifact layout should require a Context Map"

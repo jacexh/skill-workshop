@@ -12,22 +12,28 @@ status: draft
 
 ## EventStorming Model
 
-<!-- Persist the complete integrated view discussed with the user. Include actors/external systems, Commands, policies, past-tense Events, supported Aggregate and Bounded Context boundaries, cross-context scenario interactions, and non-blocking Hotspots. -->
+<!-- Persist the complete integrated view discussed with the user. Include actors/external systems, Commands, policies, past-tense Workshop Events, supported Aggregate and Bounded Context boundaries, cross-context scenario interactions, and non-blocking Hotspots. Connected scenario threads are the single source of truth for the iteration's Workshop Events; do not add a parallel manual Event Index. Use the distinct Given fact, Workshop Event, and No-new-fact result labels/styles below. Unannotated Workshop Events remain analytical. When selected, append `Domain Event: <Canonical past-tense fact>` to the original Workshop Event node. Label published cross-context edges `Published Fact Contract: <name>`. -->
 
 ```mermaid
 flowchart LR
     actor["<Actor>"]:::actor
 
     subgraph BC["BC: <Bounded Context>"]
+        given["Given fact: <Pre-existing authority or state>"]:::given
         subgraph Aggregate["Aggregate: <Aggregate Root>"]
             command["Command: <Business intent>"]:::command
             policy{"Policy: <Decision rule>"}:::policy
-            event(["Event: <Past-tense fact>"]):::event
+            event(["Workshop Event: <Past-tense business fact>"]):::event
+            %% Selected form: event(["Workshop Event: <Past-tense business fact><br/>Domain Event: <Canonical past-tense fact>"]):::event
+            no_fact["No-new-fact result: <Rejected or unchanged>"]:::result
         end
         hotspot_H1["Hotspot H1: <Non-blocking question>"]:::hotspot
     end
 
     actor --> command --> policy --> event
+    given --> policy
+    policy -.-> no_fact
+    %% Cross-context form: event -- "Published Fact Contract: <name>" --> downstream_context
     policy -.-> hotspot_H1
 
     classDef actor fill:#fff2cc,stroke:#8a6d1d,color:#111
@@ -35,12 +41,14 @@ flowchart LR
     classDef command fill:#cfe2f3,stroke:#24527a,color:#111
     classDef policy fill:#d9d2e9,stroke:#674ea7,color:#111
     classDef event fill:#f9cb9c,stroke:#b45f06,color:#111
+    classDef given fill:#eeeeee,stroke:#666666,color:#111
+    classDef result fill:#ffffff,stroke:#666666,color:#111,stroke-dasharray: 4 4
     classDef hotspot fill:#f4cccc,stroke:#990000,color:#111,stroke-dasharray: 5 5
 ```
 
 ## Decisions and Reasons
 
-<!-- Record the material language, authority, lifecycle, Aggregate, Bounded Context, collaboration, and recovery decisions plus the business evidence or trade-off behind each. -->
+<!-- Record the material language, authority, lifecycle, Aggregate, Bounded Context, selected Domain Event, published-contract, collaboration, and recovery decisions plus the business evidence or trade-off behind each. -->
 
 ## Affected Models
 

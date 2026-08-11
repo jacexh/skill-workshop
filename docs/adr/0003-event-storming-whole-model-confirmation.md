@@ -23,7 +23,7 @@ Keep one public `event-storming` skill and adopt the following contract.
 Run the standard ten steps in order:
 
 1. clarify modeling scope;
-2. place past-tense Domain Events first;
+2. place past-tense Workshop Events first;
 3. arrange the event timeline;
 4. find Commands;
 5. add actors and external systems;
@@ -32,6 +32,8 @@ Run the standard ten steps in order:
 8. identify Aggregates and core business objects;
 9. identify Bounded Contexts; and
 10. establish context collaboration.
+
+`Workshop Event` is the workflow's distinguishing label for an analytical past-tense business fact. Event selection follows the canonical DDD collaboration rules only after the causal model is coherent: selected local facts become Domain Event semantics, selected cross-context meaning becomes a Published Fact Contract, and the remaining Workshop Events stay analytical in the original scenario threads rather than being copied into a second catalog.
 
 The current frontier orders questions within a step. Later-step ideas may be retained as hypotheses but cannot be decided before their evidence exists. A step advances when its working model is coherent, key contradictions are handled, and remaining uncertainty is explicit. New evidence reopens the earliest affected step.
 

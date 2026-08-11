@@ -81,7 +81,7 @@ Each new or changed `model.md`:
 
 - uses the canonical path and template section order;
 - declares `model_revision` and a relative `last_changed_by` link, with no iteration status;
-- states current language, authority, Aggregates/core objects, lifecycle, invariants, policies, failure semantics, Hotspots, and dependencies owned by that context;
+- states current language, authority, Aggregates/core objects, lifecycle, selected Domain Event semantics when present, invariants, policies, failure semantics, Hotspots, and dependencies owned by that context;
 - supplies enough durable meaning for Codify without prescribing reversible implementation choices; and
 - leaves complete iteration diagrams and cross-context scenario flow in the linked EventStorming minutes.
 
