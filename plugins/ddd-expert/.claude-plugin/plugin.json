@@ -1,6 +1,6 @@
 {
   "name": "ddd-expert",
-  "description": "Adversarial HITP EventStorming plus confirmed-Model implementation and review",
+  "description": "Adversarial EventStorming, conditional Tactical Design, implementation, and review",
   "version": "1.15.22",
   "author": {
     "name": "xuhao"

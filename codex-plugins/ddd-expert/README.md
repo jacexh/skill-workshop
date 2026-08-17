@@ -7,6 +7,8 @@ Use EventStorming as the single modeling path from backend evidence to a user-co
 ```text
 $ddd-expert:event-storming
 -> ready EventStorming minutes + canonical Models
+$ddd-expert:tactical-design (only for a real Design Delta)
+-> ready collaboration design + stable claims + optional BC Architecture projection
 $ddd-expert:codify
 -> verified implementation checkpoint
 $ddd-expert:guard (iteration closure or merge/release)
@@ -33,22 +35,24 @@ Restart Codex after upgrade.
 
 ## Capabilities
 
-- `$ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, adversarially reviews the complete integrated model, writes one `draft` meeting record, waits for explicit confirmation, and then synchronizes `ready` minutes, canonical Models, and relevant documentation.
-- `$ddd-expert:codify` realizes one or more `ready` EventStorming iterations and their affected canonical Models in working backend code, makes the required engineering decisions from project authority and house style, and runs producer conformance before either stopping at a verified implementation checkpoint or handing a stable snapshot to Guard.
-- `$ddd-expert:guard` uses one fresh read-only reviewer to judge whether a stable backend change expresses the accepted Model in the house style, then marks every structurally clear `ready` iteration `implemented` when its producer checkpoint is complete.
+- `$ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, then synchronizes confirmed Aggregate Capabilities and only business-required Reactions into canonical Models.
+- `$ddd-expert:tactical-design` runs only for a real Design Delta, confirms complete critical collaboration sequences and a small stable claim set, and projects only durable BC-specific decisions into optional `context/<context-slug>/architecture.md`. No Design Delta produces no Tactical Design artifact.
+- `$ddd-expert:codify` realizes ready EventStorming authority plus any required ready Tactical Design in working backend code, runs producer conformance, and either stops at a verified implementation checkpoint or hands a stable snapshot to Guard.
+- `$ddd-expert:guard` uses one fresh read-only reviewer to judge whether a stable backend change expresses the accepted Model, Tactical Design claims, and house style, then jointly closes the reviewed ready records when its producer checkpoint is complete.
 - `maintain-artifacts` is the internal read/validation/write protocol, not a user entry point.
 
-The plugin does not auto-inject context. EventStorming owns Strategic Model meaning and post-confirmation document rendering. The internal protocol preserves exact meeting records, validates the complete rendered transaction, and applies supplied bytes without deciding semantics. Codify is read-only over DDD artifacts; Guard review is read-only and may perform only the final `ready -> implemented` closure after a clear verdict over the matching complete producer checkpoint.
+The plugin does not auto-inject context. EventStorming owns Strategic Model meaning, Aggregate Capabilities, and Required Reactions. Tactical Design owns material collaboration deltas; optional BC Architecture owns only their surviving context-specific decisions. Generic House Style, full sequences, code structure, and history are not copied there. Codify is read-only over DDD artifacts; Guard may perform only the final joint `ready -> implemented` closure after a clear verdict over the matching complete producer checkpoint.
 
 ## Activation guidance
 
 Choose by requested outcome:
 
 - `$ddd-expert:event-storming` when a story, scenario, Spec, PRD, or existing Model needs domain discovery, Aggregate/context boundaries, collaboration, and a confirmed Strategic Model.
-- `$ddd-expert:codify` when one or more `ready` EventStorming iterations and their canonical Models must be implemented in the house style.
+- `$ddd-expert:tactical-design` when confirmed business meaning still leaves material Aggregate collaboration, transaction, state, concurrency, event, failure/recovery, or durable Interface ownership to decide.
+- `$ddd-expert:codify` when ready EventStorming authority and every required Tactical Design must be implemented in the house style.
 - `$ddd-expert:guard` when a concrete backend change must be reviewed before merge or release.
 
-EventStorming finishes at `ready`: its meeting record carries the complete iteration solution and affected canonical Models carry current business meaning. No separate design phase sits between EventStorming and Codify. Routine implementation may remain at a verified Codify checkpoint; Guard finishes the iteration at `implemented` only after independently clearing the final stable snapshot and consuming its complete producer checkpoint.
+EventStorming finishes at `ready`: its meeting record carries the complete iteration solution and affected canonical Models carry current business meaning plus Aggregate Capabilities. Work goes directly to Codify when established seams already cover the realization; Tactical Design is inserted only for a real Design Delta. Routine implementation may remain at a verified Codify checkpoint; Guard finishes the scoped records at `implemented` only after independently clearing the final stable snapshot and consuming its complete producer checkpoint.
 
 ## EventStorming contract
 
@@ -75,6 +79,8 @@ When the scope is coherent, EventStorming shows:
 
 - the exact Mermaid EventStorming view with timeline, Commands, actors/external systems, policies, past-tense Workshop Events, Hotspots, Bounded Context boundaries, and every supported Aggregate boundary—or the explicit evidence-based `No supported Aggregate` conclusion at Bounded Context scope;
 - proposed language, authority, lifecycle, supported Aggregates/core objects, contexts, and collaboration;
+- each supported Aggregate Root's intention-revealing business capabilities, required facts, outcomes, and rejection meaning;
+- only business-required `Domain Event or Published Fact Contract -> Reaction Policy -> Command -> Aggregate Capability or coordination` mappings;
 - keep the Context Map focused on semantic Model Dependency (`U -> D`) contracts while complete scenario interactions stay in the EventStorming minutes; and
 - key design decisions, assumptions, and non-blocking Hotspots.
 
@@ -101,8 +107,10 @@ The Context Map records semantic model dependency only. Global `U -> D` edges fo
 - `templates/context-map.md` defines the global semantic-dependency projection, per-context inventory, optional Local Views, and named dependency contracts.
 - `templates/event-storming.md` defines one complete iteration record and its lifecycle.
 - `templates/model.md` defines one current Bounded Context Model.
+- `templates/architecture.md` defines an optional sparse current Architecture for one Bounded Context.
+- `templates/tactical-design.md` defines one material Design Delta and its confirmed collaboration claims.
 
-EventStorming writes only draft minutes and the README TODO before confirmation. After approval, it applies the ready minutes, affected Models, Context Map, and relevant project-owned documents through one transaction. Codify reads ready minutes and Models; Guard closes a structurally clear iteration only with its matching complete producer checkpoint.
+EventStorming writes only draft minutes and the README TODO before confirmation. After approval, it applies the ready minutes, affected Models, Context Map, and relevant project-owned documents through one transaction. Tactical Design independently drafts and confirms only a material Design Delta, applying any exact BC Architecture projection with its ready transition. If newer Model authority invalidates an unimplemented ready Tactical Design, Tactical Design replaces or retires that record and its Architecture sources before Codify. Codify reads current authority; Guard jointly closes governed ready records while leaving BC Architecture current.
 
 ## Scope
 
