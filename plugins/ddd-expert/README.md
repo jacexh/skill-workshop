@@ -61,12 +61,14 @@ The facilitator investigates facts available in project evidence, then asks the 
 
 When the scope is coherent, EventStorming shows:
 
-- the exact Mermaid EventStorming view with timeline, Commands, actors/external systems, policies, past-tense Workshop Events, Hotspots, Bounded Context boundaries, and every supported Aggregate boundary—or the explicit evidence-based `No supported Aggregate` conclusion at Bounded Context scope;
+- the exact Mermaid EventStorming view with timeline, normalized Commands outside Aggregate boxes, Root-owned capabilities and rules inside their Aggregates, actors/external systems, past-tense Workshop Events, Hotspots, Bounded Context boundaries, and every supported Aggregate boundary—or the explicit evidence-based `No supported Aggregate` conclusion at Bounded Context scope;
 - proposed language, authority, lifecycle, supported Aggregates/core objects, contexts, and collaboration;
 - each normalized Command's target Aggregate Capability or explicit coordination, with one stable Root operation rather than separate capabilities for scenario or pre-state branches;
 - only business-required `Domain Event or Published Fact Contract -> Reaction Policy -> Command -> Aggregate Capability or coordination` mappings;
 - keep the Context Map focused on semantic Model Dependency (`U -> D`) contracts while complete scenario interactions stay in the EventStorming minutes; and
 - key design decisions, assumptions, and non-blocking Hotspots.
+
+The minutes retain only a compact Command-to-Capability mapping alongside the complete scenario threads. Each affected `model.md` is the sole current authority for the full capability contracts that Codify consumes.
 
 `Workshop Event` is this workflow's label for an analytical past-tense fact; it does not automatically become a selected Domain Event or Published Fact Contract. The connected scenario threads are the iteration's single Workshop Event inventory; EventStorming does not generate a parallel manual Event Index. During integrated review, the canonical collaboration rules select any Domain Event semantics for the affected Model, while cross-context published meaning remains in its named dependency contract.
 

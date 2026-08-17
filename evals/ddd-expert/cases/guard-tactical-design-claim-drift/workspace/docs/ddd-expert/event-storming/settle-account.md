@@ -12,17 +12,23 @@ Settle one Account and announce durable completion. Provider delivery is outside
 
 ```mermaid
 flowchart LR
-    actor["Actor: Operator"] --> command["Command: Settle Account"]
-    command --> policy{"Policy: Account is eligible"}
-    policy --> capability["Aggregate Capability: Settle"]
-    capability --> event(["Workshop Event: Settlement Completed"])
+    actor["Actor: Operator"]
+    subgraph settlement["BC: Settlement"]
+        command["Command: Settle Account"]
+        subgraph account["Aggregate: Account"]
+            capability["Aggregate Capability: Settle"]
+            policy{"Policy: Account is eligible"}
+            event(["Workshop Event: Settlement Completed"])
+        end
+    end
+    actor --> command --> capability --> policy --> event
 ```
 
-## Aggregate Capabilities
+## Command-to-Capability Projection
 
-| Bounded Context | Aggregate Root | Source Command(s) | Capability | Required authoritative facts | Guaranteed business result | Stable rejection |
-|---|---|---|---|---|---|---|
-| Settlement | Account | Settle Account | Settle | Current balance and positive amount | Balance decreases and settlement is accepted | Insufficient balance or invalid amount leaves Account unchanged |
+| Bounded Context | Normalized Command | Aggregate Root or coordination owner | Aggregate Capability or explicit coordination |
+|---|---|---|---|
+| Settlement | Settle Account | Account | Settle |
 
 ## Decisions and Reasons
 

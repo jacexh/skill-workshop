@@ -34,13 +34,13 @@ Recognize:
 
 Inspection is read-only. File presence and code shape are evidence, not business authority.
 
-Treat an otherwise valid existing minutes record or canonical Model whose capability table still uses `Capability | Business intent | Required facts | State transition or outcome | Rejection or failure` as an accepted `legacy_capability_projection`, not `invalid_layout`. Report the diagnostic and preserve its bytes. New drafts and every later EventStorming revision of an affected Model must use the normalized Command-to-Capability projection; a supersession write may still consume and preserve an older ready record without migrating its historical body.
+Treat an otherwise valid existing minutes record with an `## Aggregate Capabilities` table, or a canonical Model whose capability table still uses `Capability | Business intent | Required facts | State transition or outcome | Rejection or failure`, as an accepted `legacy_capability_projection`, not `invalid_layout`. Report the diagnostic and preserve its bytes. New draft minutes use the compact `Command-to-Capability Projection`; every later EventStorming revision of an affected Model uses the full normalized capability contract. A supersession write may still consume and preserve an older ready record without migrating its historical body.
 
 ## Validate a proposed model
 
 Use `validate-proposed-model` after EventStorming completes the ten steps and assembles the exact candidate minutes plus every projected terminal Model and Context Map source.
 
-Stage canonical wrappers outside the project workspace. Validate the minutes against the EventStorming template, including its complete Command-to-Capability and Required Reaction projections; validate every projected Model against the Model template and the Context Map with the installed strict validator. Require every source Command named by an in-scope capability to occur in a connected scenario thread, every in-scope state-changing Command to reach a capability or explicit coordination, every new or changed capability to name at least one source Command, and the affected Models' mappings and business-required reactions to equal the confirmed context-owned projections. Report diagnostics and remove scratch. Keep every project path unchanged.
+Stage canonical wrappers outside the project workspace. Validate the minutes against the EventStorming template, including its compact Command-to-Capability mapping and Required Reaction projection; validate every projected Model's full capability contracts against the Model template and validate the Context Map with the installed strict validator. Require every source Command named by an in-scope capability to occur in a connected scenario thread, every in-scope state-changing Command to reach a capability or explicit coordination, and every new or changed capability to name at least one source Command. Require each Model source-Command/capability pair to equal the compact minutes mapping; require its authoritative facts, result, and rejection to be supported by the connected scenario threads rather than introduced only in the Model projection; and require business-required reactions to equal the confirmed context-owned projection. Report diagnostics and remove scratch. Keep every project path unchanged.
 
 This proves only that the displayed diagrams and artifact projections are structurally persistable. It neither judges the domain model nor authorizes a write.
 
@@ -131,7 +131,7 @@ Each new or changed `model.md`:
 
 - uses the canonical path and template section order;
 - declares `model_revision` and a relative `last_changed_by` link, with no iteration status;
-- states current language, authority, Aggregates/core objects, normalized Command-to-Capability mappings when Aggregates are supported, lifecycle, selected Domain Event semantics when present, business-required reactions when present, invariants, policies, failure semantics, Hotspots, and dependencies owned by that context;
+- states current language, authority, Aggregates/core objects, full normalized Aggregate Capability contracts when Aggregates are supported, lifecycle, selected Domain Event semantics when present, business-required reactions when present, invariants, policies, failure semantics, Hotspots, and dependencies owned by that context;
 - supplies enough durable meaning for Codify without prescribing reversible implementation choices; and
 - leaves complete iteration diagrams and cross-context scenario flow in the linked EventStorming minutes.
 

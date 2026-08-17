@@ -12,7 +12,7 @@ status: draft
 
 ## EventStorming Model
 
-<!-- Persist the complete integrated view discussed with the user. Include actors/external systems, Commands, policies, past-tense Workshop Events, supported Aggregate and Bounded Context boundaries, cross-context scenario interactions, and non-blocking Hotspots. Connected scenario threads are the single source of truth for the iteration's Workshop Events; do not add a parallel manual Event Index. Use the distinct Given fact, Workshop Event, and No-new-fact result labels/styles below. Unannotated Workshop Events remain analytical. When selected, append `Domain Event: <Canonical past-tense fact>` to the original Workshop Event node. Label published cross-context edges `Published Fact Contract: <name>`. -->
+<!-- Persist the complete integrated view discussed with the user. Include actors/external systems, normalized Commands, policies, Aggregate Capabilities or explicit coordination, past-tense Workshop Events, supported Aggregate and Bounded Context boundaries, cross-context scenario interactions, and non-blocking Hotspots. Keep a Command at Bounded Context level outside the Aggregate that may handle it; place a Root-owned capability and its decision rule inside that Aggregate. Connected scenario threads are the single source of truth for the iteration's Workshop Events; do not add a parallel manual Event Index. Use the distinct Given fact, Workshop Event, and No-new-fact result labels/styles below. Unannotated Workshop Events remain analytical. When selected, append `Domain Event: <Canonical past-tense fact>` to the original Workshop Event node. Label published cross-context edges `Published Fact Contract: <name>`. -->
 
 ```mermaid
 flowchart LR
@@ -22,8 +22,8 @@ flowchart LR
         given["Given fact: <Pre-existing authority or state>"]:::given
         command["Command: <Business intent>"]:::command
         subgraph Aggregate["Aggregate: <Aggregate Root>"]
-            policy{"Policy: <Decision rule>"}:::policy
             capability["Aggregate Capability: <Root-owned operation>"]:::capability
+            policy{"Policy: <Decision rule>"}:::policy
             event(["Workshop Event: <Past-tense business fact>"]):::event
             %% Selected form: event(["Workshop Event: <Past-tense business fact><br/>Domain Event: <Canonical past-tense fact>"]):::event
             no_fact["No-new-fact result: <Rejected or unchanged>"]:::result
@@ -31,10 +31,10 @@ flowchart LR
         hotspot_H1["Hotspot H1: <Non-blocking question>"]:::hotspot
     end
 
-    actor --> command --> policy --> capability --> event
+    actor --> command --> capability --> policy --> event
     given --> policy
     policy -.-> no_fact
-    %% Reaction form: selected_event --> reaction_policy["Reaction Policy: <Why the fact causes the next intent>"] --> next_command["Command: <Next business intent>"]
+    %% Reaction form: selected_event --> reaction_policy["Reaction Policy: <Why the fact causes the next intent>"] --> next_command["Command: <Next business intent>"] --> next_capability["Aggregate Capability: <Target operation>"]
     %% Cross-context form: event -- "Published Fact Contract: <name>" --> downstream_context
     policy -.-> hotspot_H1
 
@@ -49,13 +49,13 @@ flowchart LR
     classDef hotspot fill:#f4cccc,stroke:#990000,color:#111,stroke-dasharray: 5 5
 ```
 
-## Aggregate Capabilities
+## Command-to-Capability Projection
 
-<!-- This table is the exact Command-to-Capability projection included in Integrated Model Confirmation. Normalize Commands by initiating business intent, then include one row per stable Root operation rather than per pre-state or scenario branch. Each row shapes the Root's intention-revealing Domain method surface but does not prescribe a signature, exact method count, branch logic, or orchestration. Include one row for every supported capability in scope and project the confirmed rows into each affected current Model. If the scope supports no Aggregate, write the evidence-based no-Aggregate conclusion instead. -->
+<!-- Keep only the exact traceability being confirmed: one row per normalized Command-to-target mapping. Do not repeat required facts, outcomes, rejection branches, or other capability contract fields here; the integrated scenario threads show that business meaning, and each affected `model.md` is the sole current authority for the full capability contract after confirmation. When no Aggregate owns the intent, name the explicit Application/cross-Aggregate coordination owner instead of inventing a Root. -->
 
-| Bounded Context | Aggregate Root | Source Command(s) | Capability | Required authoritative facts | Guaranteed business result | Stable rejection |
-|---|---|---|---|---|---|---|
-| <Bounded Context> | <Aggregate Root> | <Normalized business intent> | <Stable Root operation> | <Facts the Root owns or must receive> | <Common accepted guarantee> | <Common rejected/unchanged guarantee> |
+| Bounded Context | Normalized Command | Aggregate Root or coordination owner | Aggregate Capability or explicit coordination |
+|---|---|---|---|
+| <Bounded Context> | <Business intent> | <Aggregate Root or coordination owner> | <Stable Root operation or explicit coordination> |
 
 ## Required Reactions
 
