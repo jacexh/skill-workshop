@@ -22,7 +22,7 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 ## Aggregate Capabilities
 
-<!-- This section is the sole current authority for each supported Aggregate Root's full capability contracts. Project normalized EventStorming Commands into stable intention-revealing business operations; the linked minutes retain only compact Command-to-Capability traceability. One row guides the Root's Domain method surface; do not create rows per pre-state, success/rejection branch, timing case, or Application workflow. State only the operation's source Command or Commands, common required authoritative facts, guaranteed business result, and stable rejection contract. It does not prescribe a signature or exact method count: internal branches, helpers, or a justified prepare/complete protocol may realize one capability without moving the Root's decision into its caller. Account for every state-changing Command through one or more owned capabilities or explicit Application/cross-Aggregate coordination. Omit this section when the context has no supported Aggregate. -->
+<!-- This section is the sole current authority for each supported Aggregate Root's full capability contracts. Project normalized EventStorming Command-labeled edges into stable intention-revealing business operations. One row guides the Root's Domain method surface; do not create rows per pre-state, success/rejection branch, timing case, or Application workflow. State only the operation's source Command or Commands, common required authoritative facts, guaranteed business result, and stable rejection contract. It does not prescribe a signature or exact method count: internal branches, helpers, or a justified prepare/complete protocol may realize one capability without moving the Root's decision into its caller. Account for every state-changing Command through one or more owned capabilities or explicit Application/cross-Aggregate coordination. Omit this section when the context has no supported Aggregate. -->
 
 ### <Aggregate Root>
 
@@ -34,9 +34,9 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 <!-- Narrate this context's durable scenarios and lifecycle. Keep the complete cross-context iteration flow in the linked EventStorming minutes; retain here only obligations that remain part of this context's current model. Preserve cross-Aggregate progress and completion obligations without prescribing a Process Manager, message topology, transaction, or runtime mechanism. -->
 
-## Domain Events and Reactions
+## Domain Events and Event-triggered Commands
 
-<!-- Omit this section when the confirmed Model selects no Domain Events and requires no reactions. Keep only selected local Domain Events and business-required fact-to-intent causality. Do not copy analytical-only Workshop Events. Do not prescribe handlers, dispatch, transport, transactions, or retry mechanisms. Published cross-context meaning belongs once in Context Dependencies; a reaction below references only its contract name. -->
+<!-- Omit this section when the confirmed Model selects no Domain Events and owns no event-triggered Commands. Keep only selected local Domain Events and business-required fact-to-intent causality. Do not copy analytical-only Workshop Events. Do not prescribe handlers, dispatch, transport, transactions, or retry mechanisms. Published cross-context meaning belongs once in Context Dependencies; a trigger below references only its contract name. -->
 
 ### Selected Domain Events
 
@@ -44,15 +44,15 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 | Domain Event | Owner | Established by Aggregate Capability | Why occurrence matters | Business failure or recovery |
 |---|---|---|---|---|
-| <Past-tense fact> | <Aggregate Root or Bounded Context> | <Capability> | <Required local reaction or durable evidence purpose> | <Business guarantee> |
+| <Past-tense fact> | <Aggregate Root or Bounded Context> | <Capability> | <Required event-triggered Command or durable evidence purpose> | <Business guarantee> |
 
-### Required Reactions
+### Event-triggered Commands
 
-<!-- Omit this subsection when this context owns no business-required reaction. An Event is an established fact; the named policy or process owner issues the next Command. -->
+<!-- Omit this subsection when this context owns no Command required by an established Domain Event or Published Fact Contract. The triggering fact replaces a human Role as the source of intent; the reacting context owns the Command and its required business outcome. -->
 
-| Observed Domain Event or Published Fact Contract | Reaction Policy and owner | Issued Command | Target Aggregate Capability or coordination | Business failure or recovery |
-|---|---|---|---|---|
-| <Fact or contract name> | <Business reason and semantic owner> | <Business intent> | <Capability or explicit coordination> | <Business obligation if the reaction fails or repeats> |
+| Triggering Domain Event or Published Fact Contract | Command | Target Aggregate Capability or coordination | Required business outcome |
+|---|---|---|---|
+| <Fact or contract name> | <Business intent> | <Capability or explicit coordination> | <Outcome the context must establish> |
 
 ## Invariants and Policies
 

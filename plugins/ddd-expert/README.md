@@ -19,13 +19,13 @@ This plugin is hookless. Skill frontmatter enables normal discovery, modeling, i
 
 ## How it works
 
-- `/ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, normalizes Commands by initiating intent, then projects them into stable Aggregate Capabilities and only business-required Reactions in canonical Models.
+- `/ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, normalizes Commands by initiating intent, then projects them into stable Aggregate Capabilities and event-triggered Commands in canonical Models.
 - `/ddd-expert:tactical-design` runs only for a real Design Delta, confirms complete critical collaboration sequences and a small stable claim set, and projects only durable BC-specific decisions into optional `context/<context-slug>/architecture.md`. No Design Delta produces no Tactical Design artifact.
 - `/ddd-expert:codify` realizes ready EventStorming authority plus any required ready Tactical Design in working backend code, runs producer conformance, and either stops at a verified implementation checkpoint or hands a stable snapshot to Guard.
 - `/ddd-expert:guard` uses one fresh read-only reviewer to judge whether a stable backend change expresses the accepted Model, Tactical Design claims, and house style, then jointly closes the reviewed ready records when its producer checkpoint is complete.
 - `maintain-artifacts` is the internal read/validation/write protocol, not a user entry point.
 
-EventStorming owns Strategic Model meaning, Aggregate Capabilities, and Required Reactions. Tactical Design owns material collaboration deltas; optional BC Architecture owns only their surviving context-specific decisions. Generic House Style, full sequences, code structure, and history are not copied there. Codify is read-only over DDD artifacts; Guard may perform only the final joint `ready -> implemented` closure after a clear verdict over the matching complete producer checkpoint.
+EventStorming owns Strategic Model meaning, Aggregate Capabilities, and event-triggered Commands. Tactical Design owns material collaboration deltas; optional BC Architecture owns only their surviving context-specific decisions. Generic House Style, full sequences, code structure, and history are not copied there. Codify is read-only over DDD artifacts; Guard may perform only the final joint `ready -> implemented` closure after a clear verdict over the matching complete producer checkpoint.
 
 ## Activation guidance
 
@@ -46,8 +46,8 @@ The modeling path follows this order:
 2. place past-tense Workshop Events first;
 3. arrange events on the timeline;
 4. find Commands;
-5. add actors and external systems;
-6. mark business rules and policies;
+5. add Roles and external authorities;
+6. capture constraints and event-triggered Commands;
 7. mark problems and ambiguities;
 8. identify Aggregates and core business objects;
 9. identify Bounded Contexts; and
@@ -61,16 +61,16 @@ The facilitator investigates facts available in project evidence, then asks the 
 
 When the scope is coherent, EventStorming shows:
 
-- the exact Mermaid EventStorming view with timeline, normalized Commands outside Aggregate boxes, Root-owned capabilities and rules inside their Aggregates, actors/external systems, past-tense Workshop Events, Hotspots, Bounded Context boundaries, and every supported Aggregate boundary—or the explicit evidence-based `No supported Aggregate` conclusion at Bounded Context scope;
+- the exact low-resolution Mermaid EventStorming view with Bounded Context-local Roles, Command-labeled arrows, Root-owned Capabilities, material past-tense Workshop Events, Bounded Context boundaries, and every supported Aggregate boundary—or the explicit evidence-based `No supported Aggregate` conclusion at Bounded Context scope;
 - proposed language, authority, lifecycle, supported Aggregates/core objects, contexts, and collaboration;
-- each normalized Command's target Aggregate Capability or explicit coordination, with one stable Root operation rather than separate capabilities for scenario or pre-state branches;
-- only business-required `Domain Event or Published Fact Contract -> Reaction Policy -> Command -> Aggregate Capability or coordination` mappings;
-- keep the Context Map focused on semantic Model Dependency (`U -> D`) contracts while complete scenario interactions stay in the EventStorming minutes; and
+- each permitted source-to-target Command relationship, expressed by one arrow and target rather than duplicate nodes or a mapping table;
+- only business-required `Domain Event or Published Fact Contract -- Command --> Aggregate Capability or coordination` mappings, with a selected local Domain Event kept distinct from its producer-owned cross-context contract;
+- the semantic Context Map, focused on Model Dependency (`U -> D`) contracts while complete scenario interactions stay in the EventStorming minutes; and
 - key design decisions, assumptions, and non-blocking Hotspots.
 
-The minutes retain only a compact Command-to-Capability mapping alongside the complete scenario threads. Each affected `model.md` is the sole current authority for the full capability contracts that Codify consumes.
+The connected diagram edges are the minutes' only Command-to-Capability and event-to-Command traceability. Each affected `model.md` is the sole current authority for the full capability contracts and event-triggered Commands that Codify consumes.
 
-`Workshop Event` is this workflow's label for an analytical past-tense fact; it does not automatically become a selected Domain Event or Published Fact Contract. The connected scenario threads are the iteration's single Workshop Event inventory; EventStorming does not generate a parallel manual Event Index. During integrated review, the canonical collaboration rules select any Domain Event semantics for the affected Model, while cross-context published meaning remains in its named dependency contract.
+`Workshop Event` is this workflow's label for an analytical past-tense fact; it does not automatically become a selected Domain Event or Published Fact Contract. The connected business-success threads are the iteration's single Workshop Event inventory; EventStorming does not generate a parallel manual Event Index or Command mapping table. Generic preconditions, Policy nodes, permission failures, rejections, unchanged results, and Hotspots stay outside the main diagram; an adverse fact remains only when it changes business rights, obligations, value, or a required next action. During integrated review, the canonical collaboration rules select any Domain Event semantics for the affected Model, while cross-context published meaning remains in its named producer-owned contract.
 
 Before confirmation, the facilitator challenges the model from participant/authority, scenario-variation, and model-pressure perspectives. It selects only cases capable of changing a material conclusion and stops when the strongest known alternative was considered and further cases have diminishing decision value. Blocking Hotspots must be resolved or removed by narrowing scope; non-blocking Hotspots remain visible.
 
@@ -82,7 +82,7 @@ After confirmation, EventStorming derives the minimal documentation closure and 
 
 ## Boundary quality
 
-Aggregate and Bounded Context conclusions come after events, Commands, actors, rules, and Hotspots are understood. Package, service, table, runtime component, team, or call direction is never enough to establish a context.
+Aggregate and Bounded Context conclusions come after events, Commands, Roles, constraints, and Hotspots are understood. Package, service, table, runtime component, team, or call direction is never enough to establish a context.
 
 When a mechanism appears repeatedly, EventStorming applies DRY to knowledge rather than syntax and balances cohesion, information hiding, coupling, and YAGNI before comparing a shared domain mechanism, a shared technical Module, and distinct local semantics with translations. Common business language, lifecycle, rules, and ownership may establish one reusable domain capability; similar code shape alone may justify only technical reuse or deliberate local duplication.
 

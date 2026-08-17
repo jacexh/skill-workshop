@@ -12,23 +12,15 @@ Settle one Account and announce durable completion. Provider delivery is outside
 
 ```mermaid
 flowchart LR
-    actor["Actor: Operator"]
     subgraph settlement["BC: Settlement"]
-        command["Command: Settle Account"]
+        role["Role: Operator"]
         subgraph account["Aggregate: Account"]
-            capability["Aggregate Capability: Settle"]
-            policy{"Policy: Account is eligible"}
+            capability["Capability: Settle"]
             event(["Workshop Event: Settlement Completed"])
         end
+        role -- "Command: Settle Account" --> capability --> event
     end
-    actor --> command --> capability --> policy --> event
 ```
-
-## Command-to-Capability Projection
-
-| Bounded Context | Normalized Command | Aggregate Root or coordination owner | Aggregate Capability or explicit coordination |
-|---|---|---|---|
-| Settlement | Settle Account | Account | Settle |
 
 ## Decisions and Reasons
 

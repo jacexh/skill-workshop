@@ -46,9 +46,13 @@ _Avoid_: inferred approval, existing implementation
 An intention-revealing business operation owned by one Aggregate Root, projected from one or more normalized EventStorming Commands to shape the Root's public Domain method surface. It states the common authoritative facts, successful guarantee, and stable rejection for that operation; scenario or pre-state branches remain policies and lifecycle meaning rather than separate capabilities. It guides methods without prescribing a signature or exact method count.
 _Avoid_: state-qualified scenario branch, CRUD operation, method signature, application workflow
 
-**Required Reaction**:
-A durable business obligation in one Bounded Context in which a named policy or process owner observes a selected Domain Event or Published Fact Contract and issues a Command toward an Aggregate Capability or explicit coordination. Dispatch and delivery mechanisms are not part of this meaning.
-_Avoid_: event handler wiring, automatic callback, transport subscription
+**Business Role**:
+A participant whose business decision rights are defined in one Bounded Context. EventStorming places the Role inside that context and outside every Aggregate, then labels its outgoing intent as a Command edge.
+_Avoid_: generic Actor, IAM principal, transport identity
+
+**Event-triggered Command**:
+A Bounded Context-local business intent required by an established Domain Event or Published Fact Contract. EventStorming draws the fact or contract directly to the target Aggregate Capability or explicit coordination with the Command as the edge label; dispatch and delivery mechanisms are not part of this meaning.
+_Avoid_: Reaction Policy node, event handler wiring, automatic callback, transport subscription
 
 **Design Delta**:
 A material gap between confirmed business authority and implementable collaboration ownership, such as a new or changed transaction, state, concurrency, event-publication, failure/recovery, semantic-port, or durable Interface responsibility. Reversible work inside accepted seams is not a Design Delta.

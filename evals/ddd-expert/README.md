@@ -9,7 +9,7 @@ EventStorming has no release-gated architecture-answer fixtures. A keyword, fixe
 Evaluate EventStorming through:
 
 - deterministic checks for the ten-step order, one-frontier-question contract, pre-confirmation write barrier, integrated-model confirmation, diagram persistence, documentation synchronization, and Strategic stop; and
-- manual review of a small representative HITP transcript for evidence gathering, useful questions, credible alternatives, willingness to revise, visible uncertainty, and absence of invented business authority. For Aggregate Capability changes, include one scenario where the same actor intent crosses different pre-states and one where the actor chooses materially different intents; verify that Command normalization, capability granularity, and Command-to-Capability traceability distinguish them without scoring a preferred domain name.
+- manual review of a small representative HITP transcript for evidence gathering, useful questions, credible alternatives, willingness to revise, visible uncertainty, and absence of invented business authority. For Aggregate Capability changes, include one scenario where the same Role intent crosses different pre-states and one where the Role chooses materially different intents; verify that Command normalization, capability granularity, and Command-labeled-edge traceability distinguish them without scoring a preferred domain name.
 
 Manual transcript review is product feedback, not a keyword score and not an automated release gate.
 
