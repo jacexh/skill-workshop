@@ -19,6 +19,8 @@ Use this reference to reason about business meaning. It does not authorize proje
 - **[Heuristic]** Start by asking what outcome became true, not which page, service, table, message, or class exists.
 - **[Heuristic]** Order material events in business time, then work backward to Commands and actors and forward through policies, reactions, and stable outcomes.
 - **[DDD Principle]** A Command expresses an actor's intent; a policy or rule explains why the business admits, rejects, derives, or reacts; an Event states the resulting fact.
+- **[DDD Principle]** A decision rule admits or rejects one Command; a Reaction Policy observes an established fact and issues the next intent. An Event is not itself a Command issuer.
+- **[House Rule]** Persist a business-required `selected Domain Event or Published Fact Contract -> Reaction Policy -> Command -> Aggregate Capability or explicit coordination` chain in the reacting context's current Model. Keep implementation-only event wiring out of the Model.
 - **[House Rule]** A **Workshop Event** is this workflow's analytical EventStorming fact node. It is not automatic authority for a Domain Event, Published Fact Contract, asynchronous transport, Event Sourcing, or event-driven architecture.
 - **[House Rule]** When a Workshop Event may need selected local or cross-context semantics, load [ddd-collaboration.md](ddd-collaboration.md) and apply its selection rules. Do not infer selection from persistence, transport, or current code types.
 - **[Heuristic]** Replay failure, duplication, cancellation, expiry, recovery, and concurrency only when they could change business meaning.
@@ -55,6 +57,8 @@ Use this reference to reason about business meaning. It does not authorize proje
 - **[House Rule]** Choose the smallest Aggregate candidate that protects each supported immediate invariant. Do not split an owned Entity or Value Object merely because no cross-object invariant was mentioned.
 - **[Heuristic]** For a non-trivial Aggregate, state a boundary thesis and test the closest credible split, merge, or deletion against one concrete invariant, concurrency path, or failure scenario.
 - **[House Rule]** Strategic EventStorming may confirm an Aggregate boundary and root but does not invent Repository APIs, schemas, handlers, DTOs, Process Managers, or other tactical realization.
+- **[House Rule]** Each supported Aggregate Root exposes intention-revealing business capabilities for the state-changing Commands and policy decisions it owns. Record each capability's intent, required authoritative facts, successful transition or outcome, and rejection or failure meaning; account for a Command through one or more owned capabilities or explicit Application/cross-Aggregate coordination when no one Root owns the whole action.
+- **[House Rule]** A capability usually maps to a Domain method but is not a method signature. Do not prescribe parameters, return types, fields, packages, persistence, or Application orchestration in the Model.
 - **[House Rule]** A Bounded Context model with no supported identity, invariant, lifecycle, or concurrency boundary records an explicit evidence-based `No supported Aggregate` result. Never fabricate an Aggregate to satisfy a template; Aggregate-scoped confirmation is unavailable until an Aggregate is supported.
 
 ## 6. Bounded Contexts and abstraction pressure

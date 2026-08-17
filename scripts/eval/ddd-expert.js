@@ -592,7 +592,7 @@ function validateCase(caseDir, config) {
   stringArray(expect.routes.contains, `${config.id}.expect.routes.contains`);
   stringArray(expect.routes.excludes, `${config.id}.expect.routes.excludes`);
   for (const target of [...expect.routes.contains, ...expect.routes.excludes]) {
-    if (!["event-storming", "codify", "guard"].includes(target)) {
+    if (!["event-storming", "tactical-design", "codify", "guard"].includes(target)) {
       fail(`${config.id}: invalid expected route ${target}`, 2);
     }
   }
@@ -717,7 +717,7 @@ function validateResultShape(result) {
     }
   }
   for (const route of Array.isArray(result.routes) ? result.routes : []) {
-    if (!hasOnlyKeys(route, ["target", "reason"]) || !["event-storming", "codify", "guard"].includes(route.target) || typeof route.reason !== "string" || route.reason.length === 0) {
+    if (!hasOnlyKeys(route, ["target", "reason"]) || !["event-storming", "tactical-design", "codify", "guard"].includes(route.target) || typeof route.reason !== "string" || route.reason.length === 0) {
       errors.push("route is invalid");
     }
   }

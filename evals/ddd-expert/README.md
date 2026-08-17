@@ -1,6 +1,6 @@
 # ddd-expert behavior evaluations
 
-This suite runs isolated observable-behavior checks for `codify` and `guard`. It complements `scripts/release/test/test_ddd_expert_plugin.sh`, which checks plugin structure and the EventStorming workflow contract deterministically.
+This suite runs isolated observable-behavior checks for `codify` and `guard`. It complements `scripts/release/test/test_ddd_expert_plugin.sh`, which checks plugin structure plus the EventStorming and Tactical Design workflow contracts deterministically.
 
 ## EventStorming evaluation boundary
 
@@ -13,13 +13,21 @@ Evaluate EventStorming through:
 
 Manual transcript review is product feedback, not a keyword score and not an automated release gate.
 
+## Tactical Design evaluation boundary
+
+Tactical Design is also an interactive judgment workflow, so the suite does not score its design answer by keywords or a preselected sequence. Deterministic checks cover the Design Delta threshold, no-artifact result, complete-sequence and claim contracts, integrated confirmation, artifact lifecycle, and routing. Manually review representative transcripts for whether the Design Delta was material, sequences reached visible outcomes and failures, ownership was explicit, claims were independently falsifiable, and Codify discretion remained broad enough.
+
+Guard fixtures may include an already accepted Tactical Design when the observable question is whether Guard faithfully detects code that contradicts a specific immutable claim. That tests review behavior, not whether the original design was wise.
+
 ## Automated suite
 
 Checked-in `codify` and `guard` cases may assert observable file changes, commands, review families, evidence paths, and structured completion. The runner does not use another LLM as a judge.
 
 A confirmed per-context Model (`model_status: model_ready`) is direct business
-and implementation authority for both phases. Automated fixtures do not use a
-separate tactical-design readiness artifact.
+authority for both phases. It remains direct implementation authority when no
+Design Delta exists; a Guard fixture may add one scoped ready Tactical Design
+record and its matching current BC Architecture projection when implementation
+fidelity to an accepted collaboration claim is the observable behavior under test.
 
 Validate fixtures and the deterministic scorer without a model call:
 

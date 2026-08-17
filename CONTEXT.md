@@ -39,8 +39,32 @@ An LLM-identified need for a mechanism that would change accepted consistency, p
 _Avoid_: implementation refactor, silent architecture upgrade
 
 **Accepted Design Decision**:
-A mechanism or tactical choice explicitly confirmed by the user or recorded as current/accepted in an authoritative Tactical Design, ADR, or equivalent project artifact. Silence, incidental existing code, and an LLM's unconfirmed recommendation are not acceptance.
+A mechanism or tactical choice explicitly confirmed by the user or recorded in current Bounded Context Architecture, a scoped ready Tactical Design, an accepted ADR, or equivalent project authority. Silence, incidental existing code, and an LLM's unconfirmed recommendation are not acceptance.
 _Avoid_: inferred approval, existing implementation
+
+**Aggregate Capability**:
+An intention-revealing business behavior owned by one Aggregate Root, including the facts it requires, its successful state transition or outcome, and its rejection or failure meaning. It usually maps to a method in code but does not prescribe a signature.
+_Avoid_: CRUD operation, method signature, application workflow
+
+**Required Reaction**:
+A durable business obligation in one Bounded Context in which a named policy or process owner observes a selected Domain Event or Published Fact Contract and issues a Command toward an Aggregate Capability or explicit coordination. Dispatch and delivery mechanisms are not part of this meaning.
+_Avoid_: event handler wiring, automatic callback, transport subscription
+
+**Design Delta**:
+A material gap between confirmed business authority and implementable collaboration ownership, such as a new or changed transaction, state, concurrency, event-publication, failure/recovery, semantic-port, or durable Interface responsibility. Reversible work inside accepted seams is not a Design Delta.
+_Avoid_: every implementation task, code diff, mandatory design phase
+
+**Tactical Design Claim**:
+A stable, independently falsifiable assertion in a confirmed Tactical Design that names an implementation-shaping semantic owner, boundary, ordering, or atomicity guarantee for Guard to trace into code.
+_Avoid_: Mermaid arrow, file checklist, producer verdict
+
+**Bounded Context Architecture**:
+The optional current authority at `context/<context-slug>/architecture.md` for durable, context-specific software decisions that materially constrain future realization. It excludes Model facts, generic House Style, full Tactical Design sequences, code structure, and historical rationale.
+_Avoid_: root architecture ledger, per-context House Style copy, design transcript
+
+**Critical Collaboration Sequence**:
+A complete success, rejection, failure, or recovery path that shows the initiating actor, Application coordination, Aggregate Capabilities, authoritative reads/writes, transaction and state boundaries, event timing, and visible outcome.
+_Avoid_: Context Map edge, partial happy-path call graph
 
 **EventStorming Board**:
 Temporary conversation state used for the modeling destination, current ten-step position, Supported Modeling Facts, Working Confirmations, frontier question, Hotspots, fog, and out-of-scope areas. It is separate from any Aggregate, Bounded Context, or Context Map and grants no incremental write authority.
@@ -77,10 +101,6 @@ _Avoid_: incremental model write, documentation cleanup
 **Model Dependency View**:
 The Context Map projection whose upstream-to-downstream (`U -> D`) arrows express semantic or published-contract influence and therefore form a DAG.
 _Avoid_: runtime call graph, request direction
-
-**Interaction View**:
-The separate Context Map projection whose `initiator -> receiver` arrows express runtime or business exchanges, including trigger and result/failure feedback. Interactions may oppose Model Dependency direction or form cycles without changing model ownership.
-_Avoid_: reverse dependency, bounded-context authority graph
 
 **Context Dependency Edge**:
 A one-way edge in the Model Dependency View from upstream (`U`) to downstream (`D`) that expresses model influence and contract direction rather than runtime interaction. Runtime request/response may use that one owned contract but never creates a reverse dependency; every named dependency edge must preserve the graph as a DAG.

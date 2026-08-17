@@ -1,7 +1,7 @@
 {
   "name": "ddd-expert",
   "version": "1.15.22",
-  "description": "Adversarial HITP EventStorming plus confirmed-Model implementation and review",
+  "description": "Adversarial EventStorming, conditional Tactical Design, implementation, and review",
   "author": {
     "name": "xuhao"
   },
@@ -14,8 +14,8 @@
   ],
   "interface": {
     "displayName": "DDD Expert",
-    "shortDescription": "Adversarial HITP EventStorming workflow",
-    "longDescription": "DDD workflow that facilitates the ten EventStorming steps one frontier decision at a time, challenges the integrated model from multiple perspectives, writes one draft meeting record for approval, and synchronizes ready Models after explicit model confirmation; Codify implements the ready iteration and Guard closes it as implemented.",
+    "shortDescription": "EventStorming with conditional Tactical Design",
+    "longDescription": "DDD workflow that facilitates the ten EventStorming steps one frontier decision at a time, challenges the integrated model, and synchronizes ready Models after explicit model confirmation; a real Design Delta adds confirmed collaboration sequences and claims before Codify, while Guard closes the realized records.",
     "developerName": "xuhao",
     "category": "Productivity",
     "capabilities": [
@@ -23,7 +23,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use $ddd-expert:event-storming to facilitate the ten EventStorming steps on a temporary EventStorming Board. Ask one frontier decision at a time, recommend design choices with their strongest credible alternative, validate and write one meeting record with status: draft, summarize it for explicit user confirmation, then set status: ready and synchronize affected Models for $ddd-expert:codify."
+      "Use $ddd-expert:event-storming to facilitate the ten EventStorming steps on a temporary EventStorming Board. Ask one frontier decision at a time, recommend design choices with their strongest credible alternative, validate and write one meeting record with status: draft, summarize it for explicit user confirmation, then set status: ready and synchronize affected Models. Invoke $ddd-expert:tactical-design only for a real Design Delta; otherwise continue directly with $ddd-expert:codify."
     ]
   },
   "skills": "./skills/"

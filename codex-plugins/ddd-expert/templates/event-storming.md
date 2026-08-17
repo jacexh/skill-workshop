@@ -4,7 +4,7 @@ status: draft
 
 # <EventStorming Scope>
 
-<!-- These minutes are the complete solution for one EventStorming iteration. Keep `status: draft` until the user confirms this exact candidate, use `status: ready` after the affected Models are synchronized, and let Guard set `status: implemented` only after the implementation is clear. Replace every placeholder and remove all template comments. -->
+<!-- These minutes are the complete solution for one EventStorming iteration. Keep `status: draft` until the user confirms this exact candidate, use `status: ready` after the affected Models are synchronized, and let Guard set `status: implemented` only after the implementation is clear. Use `status: superseded` plus `superseded_by: "<new-ready-minutes-path>"` only when a later confirmed correction replaces a ready iteration before implementation. Replace every placeholder and remove all template comments. -->
 
 ## Scope and Exclusions
 
@@ -33,6 +33,7 @@ flowchart LR
     actor --> command --> policy --> event
     given --> policy
     policy -.-> no_fact
+    %% Reaction form: selected_event --> reaction_policy["Reaction Policy: <Why the fact causes the next intent>"] --> next_command["Command: <Next business intent>"]
     %% Cross-context form: event -- "Published Fact Contract: <name>" --> downstream_context
     policy -.-> hotspot_H1
 
@@ -45,6 +46,22 @@ flowchart LR
     classDef result fill:#ffffff,stroke:#666666,color:#111,stroke-dasharray: 4 4
     classDef hotspot fill:#f4cccc,stroke:#990000,color:#111,stroke-dasharray: 5 5
 ```
+
+## Aggregate Capabilities
+
+<!-- This table is the exact capability projection included in Integrated Model Confirmation. Include one row for every supported Aggregate Root capability in scope and project the confirmed rows into each affected current Model. Do not prescribe code signatures or orchestration. If the scope supports no Aggregate, write the evidence-based no-Aggregate conclusion instead. -->
+
+| Bounded Context | Aggregate Root | Capability | Business intent | Required facts | State transition or outcome | Rejection or failure |
+|---|---|---|---|---|---|---|
+| <Bounded Context> | <Aggregate Root> | <Business capability> | <Why invoked> | <Authoritative facts> | <Accepted result> | <Rejected/unchanged result> |
+
+## Required Reactions
+
+<!-- Omit this section when the confirmed Model requires no reaction from a selected Domain Event or Published Fact Contract. Include only business-required causality being projected into the reacting Model; keep complete scenario flow in the diagram and implementation mechanisms out. -->
+
+| Reacting Bounded Context | Observed Domain Event or Published Fact Contract | Reaction Policy | Owner | Issued Command | Target Aggregate Capability or coordination | Business failure or recovery |
+|---|---|---|---|---|---|---|
+| <Bounded Context> | <Fact or contract name> | <Why the fact requires the next intent> | <Policy, Process, or other semantic owner> | <Business intent> | <Capability or explicit coordination> | <Failure, duplicate, or recovery meaning> |
 
 ## Decisions and Reasons
 

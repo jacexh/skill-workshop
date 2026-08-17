@@ -71,6 +71,7 @@ for (const id of [
   "guard-model-ready-query-violation",
   "guard-missing-model-evidence",
   "guard-outbound-port-structure",
+  "guard-tactical-design-claim-drift",
 ]) {
   if (!directories.includes(id)) throw new Error(`ddd-expert eval suite is missing ${id}`);
 }
@@ -90,6 +91,9 @@ if (!resultSchema.required.includes("architecture_ledger")) {
 if (resultSchema.properties.verdicts.items.properties.unit_ids.uniqueItems !== true) {
   throw new Error("Guard verdict unit_ids must be unique");
 }
+if (!resultSchema.properties.routes.items.properties.target.enum.includes("tactical-design")) {
+  throw new Error("Guard result routes must admit Tactical Design authority gaps");
+}
 
 const compound = readCase("guard-outbound-port-structure");
 if (compound.expect.architecture_ledger.min_units < 2 || compound.expect.architecture_ledger.required.length !== 2) {
@@ -105,6 +109,28 @@ const reciprocalGroups = reciprocal.expect.architecture_ledger.required
   .filter((row) => row.distinct_group === "reciprocal-context-edges");
 if (reciprocal.expect.architecture_ledger.min_units < 2 || reciprocalGroups.length !== 2) {
   throw new Error("reciprocal collaboration fixture must keep both dependency edges independently terminal");
+}
+
+const tacticalDrift = readCase("guard-tactical-design-claim-drift");
+const tacticalWorkspace = path.join(casesRoot, "guard-tactical-design-claim-drift", "workspace");
+const tacticalRecord = fs.readFileSync(path.join(tacticalWorkspace, "docs/ddd-expert/tactical-design/settle-account.md"), "utf8");
+const tacticalClaim = tacticalDrift.expect.architecture_ledger.required
+  .find((row) => row.source_id === "docs/ddd-expert/tactical-design/settle-account.md#TD-001");
+if (!tacticalClaim || tacticalClaim.state !== "violation" || tacticalClaim.responsibility !== "application") {
+  throw new Error("Tactical Design drift fixture must bind TD-001 to an Application violation");
+}
+if (!tacticalRecord.includes('<a id="TD-001"></a>TD-001')) {
+  throw new Error("Tactical Design drift fixture must expose a navigable TD-001 anchor");
+}
+if ((tacticalRecord.match(/Operator->>Application: Settle account/g) || []).length !== 2) {
+  throw new Error("every Tactical Design fixture sequence must show its initiating intent");
+}
+if (fs.existsSync(path.join(tacticalWorkspace, "docs/ddd-expert/context/settlement/architecture.md"))) {
+  throw new Error("Tactical Design drift fixture must not duplicate Model or House Style in BC Architecture");
+}
+if (!tacticalDrift.expect.routes.contains.includes("codify") ||
+    !tacticalDrift.expect.routes.excludes.includes("tactical-design")) {
+  throw new Error("accepted Tactical Design code drift must route to Codify");
 }
 
 for (const id of ["guard-model-ready-query-violation", "guard-mysql-migration"]) {
@@ -154,7 +180,7 @@ while IFS= read -r model; do
 done < <(find "$CASES_ROOT" -path '*/workspace/docs/ddd-expert/context/*/model.md' -type f)
 
 if find "$CASES_ROOT" -type f -name 'design.md' | grep -q .; then
-  fail "standalone Tactical Design artifacts must not appear in ddd-expert evals"
+  fail "retired root design.md artifacts must not appear in ddd-expert evals"
 fi
 
 readiness_refs="$(rg -n 'design_' "$CASES_ROOT" || true)"
