@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.15.22"
+    "version": "1.16.0"
   },
   "plugins": [
     {
@@ -44,7 +44,7 @@
       "name": "ddd-expert",
       "source": "./plugins/ddd-expert",
       "description": "Adversarial EventStorming, conditional Tactical Design, implementation, and review",
-      "version": "1.15.22",
+      "version": "1.16.0",
       "author": {
         "name": "xuhao"
       },
