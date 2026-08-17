@@ -9,13 +9,13 @@ EventStorming has no release-gated architecture-answer fixtures. A keyword, fixe
 Evaluate EventStorming through:
 
 - deterministic checks for the ten-step order, one-frontier-question contract, pre-confirmation write barrier, integrated-model confirmation, diagram persistence, documentation synchronization, and Strategic stop; and
-- manual review of a small representative HITP transcript for evidence gathering, useful questions, credible alternatives, willingness to revise, visible uncertainty, and absence of invented business authority.
+- manual review of a small representative HITP transcript for evidence gathering, useful questions, credible alternatives, willingness to revise, visible uncertainty, and absence of invented business authority. For Aggregate Capability changes, include one scenario where the same actor intent crosses different pre-states and one where the actor chooses materially different intents; verify that Command normalization, capability granularity, and Command-to-Capability traceability distinguish them without scoring a preferred domain name.
 
 Manual transcript review is product feedback, not a keyword score and not an automated release gate.
 
 ## Tactical Design evaluation boundary
 
-Tactical Design is also an interactive judgment workflow, so the suite does not score its design answer by keywords or a preselected sequence. Deterministic checks cover the Design Delta threshold, no-artifact result, complete-sequence and claim contracts, integrated confirmation, artifact lifecycle, and routing. Manually review representative transcripts for whether the Design Delta was material, sequences reached visible outcomes and failures, ownership was explicit, claims were independently falsifiable, and Codify discretion remained broad enough.
+Tactical Design is also an interactive judgment workflow, so the suite does not score its design answer by keywords or a preselected sequence. Deterministic checks cover the Design Delta threshold, no-artifact result, complete-sequence and claim contracts, integrated confirmation, artifact lifecycle, and routing. Manually review representative transcripts for whether the Design Delta was material, sequences reached visible outcomes and failures, ownership was explicit, claims were independently falsifiable, and Codify discretion remained broad enough. Include a review that exposes several dependent Model contradictions and verify that Tactical Design sweeps and consolidates them before one EventStorming handback instead of creating a correction cycle per question.
 
 Guard fixtures may include an already accepted Tactical Design when the observable question is whether Guard faithfully detects code that contradicts a specific immutable claim. That tests review behavior, not whether the original design was wise.
 

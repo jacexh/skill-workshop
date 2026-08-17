@@ -20,9 +20,10 @@ flowchart LR
 
     subgraph BC["BC: <Bounded Context>"]
         given["Given fact: <Pre-existing authority or state>"]:::given
+        command["Command: <Business intent>"]:::command
         subgraph Aggregate["Aggregate: <Aggregate Root>"]
-            command["Command: <Business intent>"]:::command
             policy{"Policy: <Decision rule>"}:::policy
+            capability["Aggregate Capability: <Root-owned operation>"]:::capability
             event(["Workshop Event: <Past-tense business fact>"]):::event
             %% Selected form: event(["Workshop Event: <Past-tense business fact><br/>Domain Event: <Canonical past-tense fact>"]):::event
             no_fact["No-new-fact result: <Rejected or unchanged>"]:::result
@@ -30,7 +31,7 @@ flowchart LR
         hotspot_H1["Hotspot H1: <Non-blocking question>"]:::hotspot
     end
 
-    actor --> command --> policy --> event
+    actor --> command --> policy --> capability --> event
     given --> policy
     policy -.-> no_fact
     %% Reaction form: selected_event --> reaction_policy["Reaction Policy: <Why the fact causes the next intent>"] --> next_command["Command: <Next business intent>"]
@@ -41,6 +42,7 @@ flowchart LR
     classDef external fill:#d9eaf7,stroke:#24527a,color:#111
     classDef command fill:#cfe2f3,stroke:#24527a,color:#111
     classDef policy fill:#d9d2e9,stroke:#674ea7,color:#111
+    classDef capability fill:#d9ead3,stroke:#38761d,color:#111
     classDef event fill:#f9cb9c,stroke:#b45f06,color:#111
     classDef given fill:#eeeeee,stroke:#666666,color:#111
     classDef result fill:#ffffff,stroke:#666666,color:#111,stroke-dasharray: 4 4
@@ -49,11 +51,11 @@ flowchart LR
 
 ## Aggregate Capabilities
 
-<!-- This table is the exact capability projection included in Integrated Model Confirmation. Include one row for every supported Aggregate Root capability in scope and project the confirmed rows into each affected current Model. Do not prescribe code signatures or orchestration. If the scope supports no Aggregate, write the evidence-based no-Aggregate conclusion instead. -->
+<!-- This table is the exact Command-to-Capability projection included in Integrated Model Confirmation. Normalize Commands by initiating business intent, then include one row per stable Root operation rather than per pre-state or scenario branch. Each row shapes the Root's intention-revealing Domain method surface but does not prescribe a signature, exact method count, branch logic, or orchestration. Include one row for every supported capability in scope and project the confirmed rows into each affected current Model. If the scope supports no Aggregate, write the evidence-based no-Aggregate conclusion instead. -->
 
-| Bounded Context | Aggregate Root | Capability | Business intent | Required facts | State transition or outcome | Rejection or failure |
+| Bounded Context | Aggregate Root | Source Command(s) | Capability | Required authoritative facts | Guaranteed business result | Stable rejection |
 |---|---|---|---|---|---|---|
-| <Bounded Context> | <Aggregate Root> | <Business capability> | <Why invoked> | <Authoritative facts> | <Accepted result> | <Rejected/unchanged result> |
+| <Bounded Context> | <Aggregate Root> | <Normalized business intent> | <Stable Root operation> | <Facts the Root owns or must receive> | <Common accepted guarantee> | <Common rejected/unchanged guarantee> |
 
 ## Required Reactions
 

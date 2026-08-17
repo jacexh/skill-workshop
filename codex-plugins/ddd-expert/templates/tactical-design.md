@@ -12,7 +12,7 @@ status: draft
 
 ## Critical Collaboration Sequences
 
-<!-- Include one complete sequence per materially different success, rejection, failure, timeout, retry, or recovery path. Show responsibility participants, Aggregate Capability calls, authoritative reads/writes, transaction boundary, state/checkpoint changes, event publication timing, and visible outcome. Do not use code-level method signatures unless an accepted public contract itself is authority. -->
+<!-- Include one complete sequence per materially different success, rejection, failure, timeout, retry, or recovery path. Show the normalized Command, responsibility participants, exact accepted Aggregate Capability, authoritative reads/writes, transaction boundary, state/checkpoint changes, event publication timing, and visible outcome. Reuse the same capability across state variants; trace any additional Domain call to that capability or an accepted Model policy instead of inventing state-qualified operations. Do not use code-level method signatures unless an accepted public contract itself is authority. -->
 
 ```mermaid
 sequenceDiagram

@@ -19,7 +19,7 @@ This plugin is hookless. Skill frontmatter enables normal discovery, modeling, i
 
 ## How it works
 
-- `/ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, then synchronizes confirmed Aggregate Capabilities and only business-required Reactions into canonical Models.
+- `/ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, normalizes Commands by initiating intent, then projects them into stable Aggregate Capabilities and only business-required Reactions in canonical Models.
 - `/ddd-expert:tactical-design` runs only for a real Design Delta, confirms complete critical collaboration sequences and a small stable claim set, and projects only durable BC-specific decisions into optional `context/<context-slug>/architecture.md`. No Design Delta produces no Tactical Design artifact.
 - `/ddd-expert:codify` realizes ready EventStorming authority plus any required ready Tactical Design in working backend code, runs producer conformance, and either stops at a verified implementation checkpoint or hands a stable snapshot to Guard.
 - `/ddd-expert:guard` uses one fresh read-only reviewer to judge whether a stable backend change expresses the accepted Model, Tactical Design claims, and house style, then jointly closes the reviewed ready records when its producer checkpoint is complete.
@@ -63,7 +63,7 @@ When the scope is coherent, EventStorming shows:
 
 - the exact Mermaid EventStorming view with timeline, Commands, actors/external systems, policies, past-tense Workshop Events, Hotspots, Bounded Context boundaries, and every supported Aggregate boundary—or the explicit evidence-based `No supported Aggregate` conclusion at Bounded Context scope;
 - proposed language, authority, lifecycle, supported Aggregates/core objects, contexts, and collaboration;
-- each supported Aggregate Root's intention-revealing business capabilities, required facts, outcomes, and rejection meaning;
+- each normalized Command's target Aggregate Capability or explicit coordination, with one stable Root operation rather than separate capabilities for scenario or pre-state branches;
 - only business-required `Domain Event or Published Fact Contract -> Reaction Policy -> Command -> Aggregate Capability or coordination` mappings;
 - keep the Context Map focused on semantic Model Dependency (`U -> D`) contracts while complete scenario interactions stay in the EventStorming minutes; and
 - key design decisions, assumptions, and non-blocking Hotspots.
@@ -73,6 +73,8 @@ When the scope is coherent, EventStorming shows:
 Before confirmation, the facilitator challenges the model from participant/authority, scenario-variation, and model-pressure perspectives. It selects only cases capable of changing a material conclusion and stops when the strongest known alternative was considered and further cases have diminishing decision value. Blocking Hotspots must be resolved or removed by narrowing scope; non-blocking Hotspots remain visible.
 
 EventStorming summarizes the draft minutes path, validation, decisions, assumptions, affected Models, and Hotspots in the console. Only explicit confirmation of those exact minutes authorizes the `ready` transition and documentation synchronization. A local “yes,” confirmation of one Aggregate, or acceptance of source facts does not confirm the whole model. A correction returns to the earliest affected step and rewrites the same draft minutes.
+
+When Tactical Design exposes several related Model contradictions, it first consolidates them as one temporary Model Review Batch. EventStorming resolves that batch one frontier question at a time and creates at most one correction draft, rewriting the same draft until confirmation. A confirmed correction still receives one new minutes record and supersedes replaced unimplemented authority; confirmed history is never rewritten merely to reduce file count.
 
 After confirmation, EventStorming derives the minimal documentation closure and synchronizes the `ready` minutes, affected canonical Models, Context Map, README, and relevant living Spec, PRD, ADR, and Glossary documents. Models integrate durable context-owned conclusions and link the minutes through `last_changed_by`; historical ADR handling follows repository policy.
 

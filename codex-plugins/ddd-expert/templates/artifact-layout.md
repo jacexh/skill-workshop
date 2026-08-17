@@ -20,6 +20,8 @@ docs/ddd-expert/
 
 One file under `event-storming/` records one EventStorming meeting and its implementation handoff. Use a stable, unique lower-kebab-case slug derived from the Spec, issue, or modeling scope. A later iteration creates another file; completed minutes are not current domain authority.
 
+Questions discovered during Tactical Design remain temporary conversation state while one Model Review Batch is assembled. A settled batch that actually changes business authority creates at most one correction draft, and every revision before confirmation rewrites that same draft. Do not create one minutes file per challenge question, and do not rewrite an already confirmed record to avoid honest lineage.
+
 The normal minutes lifecycle is `draft -> ready -> implemented`; a confirmed pre-implementation correction adds the branch `ready -> superseded`:
 
 - `draft`: the complete candidate is visible for confirmation; canonical Models remain unchanged.

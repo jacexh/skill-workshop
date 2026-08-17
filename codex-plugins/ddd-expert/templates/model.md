@@ -22,13 +22,13 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 ## Aggregate Capabilities
 
-<!-- For each supported Aggregate Root, record its intention-revealing business capabilities. A capability usually maps to an intention-revealing method in code, but this authority owns behavior rather than a method signature. Account for every state-changing Command or policy decision through one or more owned capabilities or explicit Application/cross-Aggregate coordination; state required authoritative facts, successful transition/outcome, and rejection/failure meaning. Do not prescribe parameters, return types, fields, packages, persistence, or orchestration mechanisms. Omit this section when the context has no supported Aggregate. -->
+<!-- For each supported Aggregate Root, project normalized EventStorming Commands into stable intention-revealing business operations. One row guides the Root's Domain method surface; do not create rows per pre-state, success/rejection branch, timing case, or Application workflow. State only the operation's source Command or Commands, common required authoritative facts, guaranteed business result, and stable rejection contract. It does not prescribe a signature or exact method count: internal branches, helpers, or a justified prepare/complete protocol may realize one capability without moving the Root's decision into its caller. Account for every state-changing Command through one or more owned capabilities or explicit Application/cross-Aggregate coordination. Omit this section when the context has no supported Aggregate. -->
 
 ### <Aggregate Root>
 
-| Capability | Business intent | Required facts | State transition or outcome | Rejection or failure |
+| Source Command(s) | Capability | Required authoritative facts | Guaranteed business result | Stable rejection |
 |---|---|---|---|---|
-| <Business capability> | <Why the actor invokes it> | <Facts the Root owns or must receive> | <Accepted business result> | <Rejected/unchanged result> |
+| <Normalized business intent> | <Stable Root operation> | <Facts the Root owns or must receive> | <Common accepted guarantee> | <Common rejected/unchanged guarantee> |
 
 ## Scenarios and Lifecycle
 

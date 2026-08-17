@@ -26,6 +26,10 @@ rg -q 'const AUTOMATED_PHASES = Object\.freeze\(\["codify", "guard"\]\);' "$RUNN
   fail "automated ddd-expert evaluator should admit only Codify and Guard cases"
 rg -q 'codex-code-mode-host:ro' "$RUNNER" ||
   fail "container evaluator should mount the code-mode host beside Codex"
+rg -q 'same actor intent crosses different pre-states' "$ROOT/evals/ddd-expert/README.md" ||
+  fail "manual EventStorming review should cover capability granularity across state variants"
+rg -q 'consolidates them before one EventStorming handback' "$ROOT/evals/ddd-expert/README.md" ||
+  fail "manual Tactical Design review should cover batched Model challenges"
 if node "$RUNNER" self-test >/dev/null 2>&1; then
   fail "retired scorer self-test should not remain a public evaluator command"
 fi
