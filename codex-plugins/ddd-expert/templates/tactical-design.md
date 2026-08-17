@@ -12,31 +12,37 @@ status: draft
 
 ## Critical Collaboration Sequences
 
-<!-- Include one complete sequence per materially different success, rejection, failure, timeout, retry, or recovery path. Show the normalized Command, responsibility participants, exact accepted Aggregate Capability, authoritative reads/writes, transaction boundary, state/checkpoint changes, event publication timing, and visible outcome. Reuse the same capability across state variants; trace any additional Domain call to that capability or an accepted Model policy instead of inventing state-qualified operations. Do not use code-level method signatures unless an accepted public contract itself is authority. -->
+<!-- These typed sequence diagrams are the only persisted Model-to-design projection; do not add a parallel mapping table. Include one complete sequence per materially different success, rejection, failure, timeout, retry, or recovery path. A separate diagram is justified only by different responsibility, guarantee, durable state/checkpoint, or visible outcome; combine mechanically equivalent variants in one `alt` branch or note and use the fewest readable scenario-focused diagrams. Use exact accepted `Role:`, `External Authority:`, `Command:`, `Aggregate:`, `Capability:`, `Domain Event:`, `Published Fact Contract:`, `Integration Message:`, `Coordination:`, and `Workshop Event:` labels when that meaning participates in the Design Delta. Preserve the Domain Event -> producer translation -> Integration Message -> consumer translation -> event-triggered Command chain when published meaning crosses a Bounded Context. Show an analytical Workshop Event only as an outcome note; it does not become a software participant, message, or event type. Reuse the same Capability across state variants; trace any additional Domain call to that Capability or an accepted Model policy. Show authoritative reads/writes, transaction boundary, state/checkpoint changes, event publication timing, and visible outcome. Do not use code-level method signatures unless an accepted public contract itself is authority. -->
 
 ```mermaid
 sequenceDiagram
-    actor User as <Actor>
-    participant Interface as <Interface responsibility>
-    participant Application as <Application use case>
-    participant Root as <Aggregate Root>
-    participant Repository as <Repository responsibility>
+    actor Role as Role: <Business Role>
+    %% For a non-human source, use: actor Authority as External Authority: <Accepted authority>
+    participant Interface as Interface: <Inbound responsibility>
+    participant Application as Application: <Command use case>
+    participant Repository as Repository: <Aggregate collection>
+    participant Root as Aggregate: <Aggregate Root>
 
-    User->>Interface: <Intent>
-    Interface->>Application: <Semantic command>
-    Application->>Repository: <Load authoritative state>
-    Repository-->>Application: <Aggregate>
-    Application->>Root: <Aggregate Capability>
-    Root-->>Application: <Business outcome or rejection>
-    Application->>Repository: <Persist inside named transaction boundary>
-    Repository-->>Application: <Commit result>
-    Application-->>Interface: <Semantic result>
-    Interface-->>User: <Visible outcome>
+    Role->>Interface: Command: <Business intent>
+    Interface->>Application: Command: <Business intent>
+    Application->>Repository: Load: <Authoritative state>
+    Repository-->>Application: Aggregate: <Aggregate Root>
+    Application->>Root: Capability: <Stable Root operation>
+    Root-->>Application: Business outcome: <Accepted or rejected meaning>
+    Application->>Repository: Persist: <Named transaction boundary>
+    Repository-->>Application: Commit result: <Outcome>
+    Application-->>Interface: Result: <Semantic result>
+    Interface-->>Role: Outcome: <Visible business outcome>
+    Note over Role,Root: Workshop Event: <Past-tense business outcome>
+
+    %% Selected local-event form: Root-->>Application: Domain Event: <Past-tense fact>
+    %% Cross-context continuation must show Published Fact Contract, Integration Message,
+    %% consumer translation, event-triggered Command, and target Capability as distinct steps.
 ```
 
 ## Ownership and Changed Interfaces
 
-<!-- Name transaction, state, concurrency, event publication, failure, and recovery ownership. List only changed semantic Interfaces or seams and connect Aggregate calls to accepted Aggregate Capabilities. -->
+<!-- Name transaction, state, concurrency, event publication, failure, and recovery ownership. List only changed semantic Interfaces or seams and connect each responsibility to the exact typed Model meaning shown in the sequences. Keep Role authorization, Domain Event recording, Published Fact translation, Integration Message adaptation, event-triggered Commands, and Aggregate Capability ownership distinct when present. -->
 
 ## Tactical Design Claims
 

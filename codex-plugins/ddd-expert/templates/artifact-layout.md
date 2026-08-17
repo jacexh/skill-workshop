@@ -62,8 +62,8 @@ An identity-preserving context rename mechanically moves its Architecture withou
 | `README.md` | EventStorming and Tactical Design; Guard only for iteration closure | Navigation to Models plus EventStorming and Tactical Design TODO indexes |
 | `context-map.md` | EventStorming | Context inventory, semantic dependencies, optional Local Views, and one authoritative detail record per named contract |
 | `event-storming/<event-storming-slug>.md` | EventStorming; Guard only for `ready -> implemented` | One iteration's complete scope, integrated business-success diagrams with Role/fact-to-Capability Command edges, decisions and reasons, affected Models, assumptions, Hotspots, and status or correction lineage |
-| `tactical-design/<tactical-design-slug>.md` | Tactical Design; Guard only for `ready -> implemented` | One Design Delta, complete critical collaboration sequences, ownership, changed Interfaces, claims, non-goals, discretion, and status or invalidation lineage |
-| `context/<context-slug>/model.md` | EventStorming | Current context language, authority, Aggregates/core objects, full Aggregate Capability contracts, lifecycle, selected Domain Events, event-triggered Commands, invariants, policies, failure semantics, Hotspots, dependencies, revision, and latest minutes link |
+| `tactical-design/<tactical-design-slug>.md` | Tactical Design; Guard only for `ready -> implemented` | One Design Delta, typed Model-to-responsibility collaboration sequences, ownership, changed Interfaces, claims, non-goals, discretion, and status or invalidation lineage |
+| `context/<context-slug>/model.md` | EventStorming | Current context language, Role-to-Command permissions, authority, Aggregates/core objects, full Aggregate Capability contracts, lifecycle, selected Domain Events, event-triggered Commands, invariants, policies, failure semantics, Hotspots, dependencies, revision, and latest minutes link |
 | `context/<context-slug>/architecture.md` | Tactical Design | Optional current BC-specific architecture decisions, revision, and confirming claim links |
 
 ## Context Map projections

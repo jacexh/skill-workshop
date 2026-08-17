@@ -14,7 +14,7 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 ## Authority and Ownership
 
-<!-- State who proposes, decides, confirms, changes, reverses, expires, and publishes material facts. -->
+<!-- State who proposes, decides, confirms, changes, reverses, expires, and publishes material facts. Preserve each confirmed Bounded Context-local Role-to-Command permission in compact business language, grouping Roles that share a permission; do not equate the Role to an IAM principal, transport identity, handler, or authorization mechanism. -->
 
 ## Aggregates and Core Business Objects
 

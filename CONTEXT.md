@@ -47,7 +47,7 @@ An intention-revealing business operation owned by one Aggregate Root, projected
 _Avoid_: state-qualified scenario branch, CRUD operation, method signature, application workflow
 
 **Business Role**:
-A participant whose business decision rights are defined in one Bounded Context. EventStorming places the Role inside that context and outside every Aggregate, then labels its outgoing intent as a Command edge.
+A participant whose business decision rights are defined in one Bounded Context. EventStorming places the Role inside that context and outside every Aggregate, labels its outgoing intent as a Command edge, and preserves the confirmed permission in that context's current Model without equating it to an IAM identity.
 _Avoid_: generic Actor, IAM principal, transport identity
 
 **Event-triggered Command**:
@@ -67,7 +67,7 @@ The optional current authority at `context/<context-slug>/architecture.md` for d
 _Avoid_: root architecture ledger, per-context House Style copy, design transcript
 
 **Critical Collaboration Sequence**:
-A complete success, rejection, failure, or recovery path that shows the initiating actor, Application coordination, Aggregate Capabilities, authoritative reads/writes, transaction and state boundaries, event timing, and visible outcome.
+A complete success, rejection, failure, or recovery path that uses typed Model labels to show the initiating Role, external authority, or fact; Command; Application coordination; Aggregate Capability; authoritative reads/writes; transaction and state boundaries; selected Domain Event and message translation when present; and the analytical Workshop Event outcome.
 _Avoid_: Context Map edge, partial happy-path call graph
 
 **EventStorming Board**:
