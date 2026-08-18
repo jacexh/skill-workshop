@@ -237,7 +237,7 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 }
 ```
 
-New Aggregates have in-memory `Version == 0` and are inserted with stored version `1`. Updates compare the loaded version and increment it atomically. `Save` does not refresh the Aggregate. After success, the caller may assemble a result and drain events already recorded by that transaction, but it must not expose the stale Version as the newly persisted concurrency token, mutate, or save that instance again; the next transaction reloads a fresh Aggregate and event collection.
+This adapter example implements the request-scoped optimistic lifecycle: new Aggregates have in-memory `Version == 0`, stored rows begin at `1`, and updates compare and increment the loaded version atomically. `Save` does not refresh that loaded instance, so the caller may map its result and drain recorded events but must not expose its version as current or reuse it for another mutation. A resident-checkpoint adapter instead accepts the immutable snapshot and checkpoint token defined by its accepted design; it does not replace or roll back the live Aggregate.
 
 When one accepted Aggregate maps to several tables, wrap its statements with the shared database `WithinOrJoin`: it joins an active Application scope or owns the complete local lifecycle when no scope exists. Do not let the Repository inspect ownership or call `Begin`, `Commit`, `Rollback`, or `Close` directly. A session is persistence machinery, not evidence that independent Aggregates share one consistency boundary.
 
@@ -336,6 +336,6 @@ If accepted state and publish intent must commit atomically, its Store resolves 
 
 ## Verification
 
-Use MySQL-backed integration tests for Repository and QueryRepository behavior. Cover insert version `1`, update version comparison/increment, affected-row conflict mapping, soft-delete filtering when applicable, DO conversion validation, owned-row rollback, stale Save behavior, deterministic query ordering, and first-boundary error preservation. Outbox tests cover atomic state/message insertion and relay retry only when that design is active.
+Use MySQL-backed integration tests for the selected Repository lifecycle and QueryRepository behavior. For request-scoped optimistic persistence, cover insert version `1`, comparison/increment, conflict mapping, rollback, and stale Save behavior. For resident checkpoints, cover snapshot persistence, token conflict, and the rule that checkpoint success or failure does not replace live authority. Also cover applicable filtering, conversion, deterministic query ordering, and first-boundary error preservation. Test Outbox behavior only when that design is active.
 
 Prove commit and rollback with the real Repository adapters and MySQL, observing durable state from a fresh observer after the transaction boundary; static checks and fake Repository tests do not prove atomicity or enlistment. For the multi-Root exception, prove both writes commit, a later Repository failure rolls both back, and a marked missing/mismatched/expired transaction fails without a write. Also cover commit failure, callback cancellation, panic, nested rejection, stable lock order, and the real Handler path so callback-context loss would break the rollback assertion.

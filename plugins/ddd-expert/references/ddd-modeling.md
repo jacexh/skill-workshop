@@ -54,9 +54,12 @@ Use this reference to reason about business meaning. It does not authorize proje
 ## 5. Aggregates and core business objects
 
 - **[DDD Principle]** An Aggregate is a consistency and mutation boundary governed by one root. Table joins, packages, RPCs, and current transaction shape do not define it.
+- **[DDD Principle]** One Aggregate may own core objects with distinct identities, lifecycles, rules, and change reasons when they still share one immediate consistency boundary. The Root composes their responsibilities; it does not have to absorb every behavior.
 - **[Heuristic]** Ask what must be true immediately after a Command and which invalid state cannot safely wait for retry, compensation, reconciliation, or a later reaction.
-- **[Heuristic]** Independent identity, lifecycle, authority, external reference, unbounded collections, and high write contention pressure objects toward separate Aggregates.
+- **[Heuristic]** Independent authority, external reference, independent consistency or mutation, unbounded collections, and high write contention pressure objects toward separate Aggregates. Identity or a distinct lifecycle alone may instead reveal an owned Entity whose responsibility should remain visible.
+- **[Heuristic]** For each core object, name the facts and rules it owns, why it changes, the minimal semantic result it produces, and how the Root composes it. If all answers collapse into the Root, test whether the object is unnecessary; if every answer collapses into Application, test for missing Domain behavior.
 - **[House Rule]** Choose the smallest Aggregate candidate that protects each supported immediate invariant. Do not split an owned Entity or Value Object merely because no cross-object invariant was mentioned.
+- **[House Rule]** EventStorming records this responsibility thesis as a falsifiable business-structure hypothesis. It does not prescribe classes, methods, interfaces, or call direction.
 - **[Heuristic]** For a non-trivial Aggregate, state a boundary thesis and test the closest credible split, merge, or deletion against one concrete invariant, concurrency path, or failure scenario.
 - **[House Rule]** Strategic EventStorming may confirm an Aggregate boundary and root but does not invent Repository APIs, schemas, handlers, DTOs, Process Managers, or other tactical realization.
 - **[House Rule]** Project Aggregate Capabilities from normalized Commands after assigning business-decision ownership. Every in-scope state-changing Command maps to one or more owned capabilities or explicit Application/cross-Aggregate coordination, and every new or changed capability traces back to at least one Command.

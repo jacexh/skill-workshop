@@ -48,6 +48,12 @@
         "excludes": ["context/billing/architecture.md"]
       }
     ],
-    "checks": []
+    "checks": [
+      {
+        "argv": ["go", "test", "./..."],
+        "exit": 0,
+        "timeout_seconds": 60
+      }
+    ]
   }
 }

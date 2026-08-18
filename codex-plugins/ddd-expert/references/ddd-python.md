@@ -21,8 +21,8 @@ Runtime -> composition, configuration, clients, loops, servers and shutdown
 
 | Layer | Owns | Must not own |
 |---|---|---|
-| Domain | Aggregates, Entities, Value Objects, Domain Services, Domain Events, semantic validation, write Repository contracts | Pydantic/FastAPI schemas, SQLAlchemy, logging, providers, Runtime |
-| Application | Commands, Queries, use cases, `Application` registry, DTO assemblers, same-context reactions, semantic outbound ports | HTTP/gRPC handlers, SQLAlchemy sessions, Kafka/Celery clients, active loops |
+| Domain | Aggregates, Entities, Value Objects, Domain Services, Domain Events, semantic validation, write Repository and Domain-timed collaborator contracts | Pydantic/FastAPI schemas, SQLAlchemy, logging, providers, Runtime |
+| Application | Commands, Queries, use cases, `Application` registry, DTO assemblers, same-context reactions, semantic outbound ports for Application-owned continuations | HTTP/gRPC handlers, SQLAlchemy sessions, Kafka/Celery clients, active loops |
 | Transport | HTTP/gRPC handlers, Integration Message subscribers, task processors, external mapping and disposition | Repositories, transactions, Aggregate mutation, provider Runtime |
 | Infrastructure | Repository/QueryRepository implementations, row conversion, ACLs and outbound adapters | Domain decisions, inbound handling, process lifecycle |
 | Runtime | Explicit composition, settings, shared clients, servers, consumers, workers, logging, telemetry and shutdown | business rules and bounded-context language |
@@ -223,15 +223,14 @@ Rules come from the accepted model; sample limits are not reusable. The bottom c
 
 ### Mutation and Persistence Lifecycle
 
-- The root controls owned Entity changes. Domain methods never save, publish, enqueue, log, start work, retry or choose provider policy.
-- A new persisted Aggregate has in-memory version `0`; Infrastructure inserts `1` and increments updates atomically.
-- `save()` leaves the instance stale. Application may assemble results/drain events, but cannot mutate or save it again.
+- The root controls owned Entity changes. Domain methods never save, publish, enqueue, log, start work, technically retry or choose provider mechanics. When they decide a capability is business-required, its Domain-language collaborator contract is Domain-owned; Application supplies its implementation.
+- Accepted project authority or Tactical Design selects the lifecycle; persistence technology does not. For a request-scoped optimistic Aggregate, a new instance has version `0`, Infrastructure inserts `1`, and `save()` leaves that loaded instance stale. For a resident Aggregate, the live instance remains authoritative and persistence accepts a snapshot/checkpoint without replacing or rolling back live state.
 - Value Objects use value equality, establish validity at construction and are immutable. Copy mutable inputs and expose immutable values/defensive copies.
 - Use plain `Enum` for closed Domain values and translate through `.value` at mapping boundaries. Use `IntEnum` or `StrEnum` only when primitive substitutability is explicitly part of the accepted model.
 
 ### Domain Service
 
-A Domain Service is an important named operation that does not naturally belong to an Entity or Value Object; it need not span Aggregates. Keep it synchronous, mostly stateless and deterministic. It accepts Domain facts and returns a decision/value/error/fact; it never saves, controls transactions, logs, retries, schedules or imports providers. A narrow semantic collaborator is allowed only when primitive precomputation would erase meaning; it does not solve races or authorize multi-root persistence.
+A Domain Service is an important named operation that does not naturally belong to an Entity or Value Object; it need not span Aggregates. Keep it synchronous, mostly stateless and deterministic. It accepts Domain facts and returns a decision/value/error/fact; it never saves, controls transactions, logs, retries, schedules or imports providers. A narrow Domain-owned semantic collaborator is allowed only when primitive precomputation would erase meaning; Application supplies its implementation, and the collaborator does not solve races or authorize multi-root persistence.
 
 ### Repository
 
@@ -321,7 +320,7 @@ def assemble_user_entity(user: User) -> UserDTO:
     )
 ```
 
-This maps existing state and invokes Domain validation. Creation calls `User.register()` directly. Assemblers have no business branching, external mapping, I/O, logging or transaction control. A post-save DTO cannot present its stale version as current.
+This maps existing state and invokes Domain validation. Creation calls `User.register()` directly. Assemblers have no business branching, external mapping, I/O, logging or transaction control. Under the request-scoped lifecycle, a post-save DTO cannot present its stale version as current.
 
 ### Command Handler
 
@@ -484,7 +483,7 @@ External HTTP adapters receive a process-managed `httpx.Client`. ACLs translate 
 
 A Domain Event is a frozen Domain dataclass, not Pydantic/Protobuf/Kafka, and never imported by another context. Producing Application may import its one producer-owned fact contract. Sender Infrastructure maps local semantics to receiver-owned intent.
 
-Post-commit best effort uses `save -> drain_events -> dispatch_all` only when crash loss is accepted. The Aggregate records the selected fact with its transition; Application drains once after save and catches only the stable admitted dispatch-failure type. Failure cannot roll back persistence; a state-changing handler reloads a fresh Aggregate in a new transaction.
+Post-commit best effort uses `save -> drain_events -> dispatch_all` only when crash loss and the request-scoped lifecycle are accepted. The Aggregate records the selected fact with its transition; Application drains once after save and catches only the stable admitted dispatch-failure type. Failure cannot roll back persistence; a state-changing handler reloads a fresh Aggregate in a new transaction. A resident Aggregate requires its own accepted event/checkpoint flow.
 
 Kafka uses synchronous `confluent-kafka` with explicit serializers. Runtime owns Producer callbacks, `poll()`/bounded `flush()`, Consumer group/rebalance, readiness and shutdown. Consumers set `enable.auto.commit=false` and `enable.auto.offset.store=false`; only after an accepted terminal processor disposition may Runtime either commit the explicit processed message/offsets, or store those accepted offsets locally and then explicitly commit the accepted batch during its bounded batch, rebalance, or shutdown policy. Retryable failure does not advance them. Consumers run in dedicated workers, never FastAPI request workers.
 
@@ -546,7 +545,7 @@ Stop inbound work, drain bounded in-flight work, flush Kafka/telemetry, close cl
 - Domain: Factory/reconstitution validity, invariants, transitions and services with real objects; add event evidence only when events exist.
 - Application: real handler/Domain behavior plus focused semantic fakes; avoid untyped mocks.
 - Transport: real external input, mapping, one delegation, errors and disposition; do not mock parsing.
-- Persistence: apply root migrations to real MySQL; verify mapping, active rows, version conflict, rollback, query order and stale instances. SQLite/metadata creation are not evidence.
+- Persistence: apply root migrations to real MySQL and verify the selected lifecycle. Request-scoped persistence covers version conflict, rollback, and stale instances; resident checkpoints cover snapshot/token behavior and continued live authority. Also verify mapping, active rows, and query order. SQLite/metadata creation are not evidence.
 - Messaging/tasks: compatibility, disposition, redelivery/idempotency, delivery failure, exhaustion and worker shutdown; accepted Outbox also verifies rollback and delivery-before-mark recovery.
 - Runtime: settings redaction, registrations/reachability, completion log and bounded start/drain/shutdown.
 

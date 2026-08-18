@@ -7,7 +7,7 @@ description: Go DDD House Style baseline and navigation index for dependency bou
 
 Load this baseline after the Model is confirmed. It does not decide Aggregate boundaries, consistency, or collaboration. It fixes how confirmed responsibilities are implemented in Go and routes detailed work to the smallest relevant Knowledge Leaf.
 
-Every Go rule below is a House Rule: it applies only when its stated concern exists, and it is mandatory once applicable. An existing alternative is a House Style conflict, not an automatic exception. For an uncovered concern or explicit exception, Codify derives the engineering choice from accepted project constraints and repository evidence and records it where the project normally records architecture decisions.
+Every Go rule below realizes an already selected design. It applies only when its stated concern and lifecycle branch are established. Go House Style never chooses Aggregate boundaries, resident versus request-scoped state, business sequencing, or failure policy.
 
 ## Dependency Direction
 
@@ -19,8 +19,8 @@ Infrastructure -> Application and Domain contracts
 
 | Layer | Owns | Must not own |
 |---|---|---|
-| Domain | Aggregates, Entities, Value Objects, Domain Services, Domain Events, write Repository contracts | protocol, persistence, logging, task/message providers, Runtime |
-| Application | Commands, Queries, use-case coordination, `Application` registry, DTO assemblers, same-context reactions, internal task contracts | ConnectRPC/HTTP handlers, xorm, Kafka/Asynq clients, process lifecycle |
+| Domain | Aggregates, Entities, Value Objects, Domain Services, Domain Events, business sequencing, write Repository and Domain-timed collaborator contracts | protocol, persistence, logging, task/message provider mechanics, Runtime |
+| Application | Commands, Queries, use-case coordination/context, Application-owned semantic capabilities, `Application` registry, DTO assemblers, same-context reactions, internal task contracts | ConnectRPC/HTTP handlers, xorm, Kafka/Asynq clients, process lifecycle |
 | Transport | ConnectRPC/HTTP handlers, Integration Message subscribers, task processors, scheduled inbound triggers | Repositories, transactions, Aggregate mutation, provider runtimes |
 | Infrastructure | Repository/QueryRepository implementations, DO conversion, ACLs, external adapters | Domain decisions, inbound protocol handling, process lifecycle |
 | Runtime | Fx composition, configuration, shared clients, servers, consumers, workers, schedulers, telemetry, shutdown | business rules and bounded-context language |
@@ -97,7 +97,7 @@ Do not substitute Gin/Echo for Chi, grpc-go for ConnectRPC, GORM/sqlc for xorm, 
 - Application DTO/Domain Entity conversion lives in `application/assembler.go`. DO/Domain Entity conversion lives in `infrastructure/convert.go`.
 - Exported Domain fields are a mechanical mapping surface. New Aggregates use `domain.NewXxx` or another Domain Factory; outer layers do not assign fields to perform business changes.
 - Business data is validated in Domain. Application DTOs and DOs do not duplicate validator tags. Query filters/read models follow the CQRS guide.
-- A saved Aggregate instance is stale: it may be read, assembled, and drained of already-recorded events, but it is not mutated or saved again.
+- Apply the lifecycle selected by accepted authority: a Repository-loaded request-scoped Aggregate becomes stale under the Domain guide's optimistic branch; a resident Aggregate remains the live authority and persists snapshots/checkpoints. Do not infer either branch from persistence technology.
 - Transport or Runtime owns one execution completion log. Application emits a separate business-semantic log only when it adds independent value or owns a terminal/suppressed outcome.
 - One bounded context never imports another context's `internal/business/<context>` packages. Collaborate through an accepted published contract, Integration Message, or ACL.
 
@@ -106,6 +106,7 @@ Do not substitute Gin/Echo for Chi, grpc-go for ConnectRPC, GORM/sqlc for xorm, 
 | Change | Load in addition to this baseline |
 |---|---|
 | Domain behavior, invariant, lifecycle, Repository contract | Domain |
+| Resident Aggregate, snapshot, or checkpoint persistence | Domain, Application, Infrastructure, and Runtime as actually affected |
 | Command/Query/use-case coordination, assembler | Application; CQRS when the read model separates |
 | RPC/HTTP endpoint, message consumer, task processor | Transport plus the relevant Flow Guide |
 | Repository/QueryRepository implementation, DO/schema, external adapter | Infrastructure plus Database when persisted |

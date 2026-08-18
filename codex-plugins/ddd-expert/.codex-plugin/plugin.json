@@ -1,7 +1,7 @@
 {
   "name": "ddd-expert",
   "version": "1.16.2",
-  "description": "Adversarial EventStorming, conditional Tactical Design, implementation, and review",
+  "description": "Purpose-led EventStorming, falsifiable Tactical Design, implementation, and review",
   "author": {
     "name": "xuhao"
   },
@@ -14,8 +14,8 @@
   ],
   "interface": {
     "displayName": "DDD Expert",
-    "shortDescription": "EventStorming with conditional Tactical Design",
-    "longDescription": "DDD workflow that facilitates the ten EventStorming steps one frontier decision at a time, challenges the integrated model, and synchronizes ready Models after explicit model confirmation; a real Design Delta adds confirmed collaboration sequences and claims before Codify, while Guard closes the realized records.",
+    "shortDescription": "DDD discovery with falsifiable design",
+    "longDescription": "DDD workflow that starts from the user's purpose, separates confirmed business facts from structural hypotheses, and invokes Tactical Design only for a material design gap. Tactical Design establishes object responsibilities, state authority, and semantic flow before technical sequences; Codify may test a draft through reversible implementation, and Guard reviews only the reconciled ready design.",
     "developerName": "xuhao",
     "category": "Productivity",
     "capabilities": [
@@ -23,7 +23,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use $ddd-expert:event-storming to facilitate the ten EventStorming steps on a temporary EventStorming Board. Ask one frontier decision at a time, recommend design choices with their strongest credible alternative, validate and write one meeting record with status: draft, summarize it for explicit user confirmation, then set status: ready and synchronize affected Models. Invoke $ddd-expert:tactical-design only for a real Design Delta; otherwise continue directly with $ddd-expert:codify."
+      "Use $ddd-expert:event-storming to clarify the user's purpose and separate confirmed business facts from a falsifiable strategic model. Invoke $ddd-expert:tactical-design only for a real Design Delta; establish domain-object responsibilities, state authority, semantic flow, and necessity before technical sequences. Treat a Tactical Design draft as a candidate that $ddd-expert:codify may test reversibly, then reconcile the evidence before ready status and Guard."
     ]
   },
   "skills": "./skills/"

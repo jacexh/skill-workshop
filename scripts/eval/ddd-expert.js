@@ -53,7 +53,7 @@ const ARCHITECTURE_RESPONSIBILITIES = [
   "collaboration",
 ];
 const ARCHITECTURE_UNIT_STATES = ["clear", "violation", "evidence_gap"];
-const AUTOMATED_PHASES = Object.freeze(["tactical-design", "codify", "guard"]);
+const AUTOMATED_PHASES = Object.freeze(["event-storming", "tactical-design", "codify", "guard"]);
 let requestedTerminationSignal = null;
 let terminationHandlersInstalled = false;
 

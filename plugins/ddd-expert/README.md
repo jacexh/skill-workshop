@@ -6,10 +6,14 @@ Use EventStorming as the single modeling path from backend evidence to a user-co
 
 ```text
 /ddd-expert:event-storming
--> ready EventStorming minutes + canonical Models
+-> confirmed business facts + current falsifiable Models
 /ddd-expert:tactical-design (only for a real Design Delta)
--> ready collaboration design + stable claims + exhaustive claim disposition
-/ddd-expert:codify
+-> domain-object thesis + draft collaboration candidate
+/ddd-expert:codify (reversible exploration)
+-> implementation evidence
+/ddd-expert:tactical-design
+-> reconciled ready design
+/ddd-expert:codify (final realization)
 -> verified implementation checkpoint
 /ddd-expert:guard (iteration closure or merge/release)
 -> implemented
@@ -19,13 +23,13 @@ This plugin is hookless. Skill frontmatter enables normal discovery, modeling, i
 
 ## How it works
 
-- `/ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, normalizes Commands by initiating intent, then projects them into stable Aggregate Capabilities and event-triggered Commands in canonical Models.
-- `/ddd-expert:tactical-design` runs only for a real Design Delta, uses typed critical collaboration sequences as the only persisted Model-to-design projection, confirms a small stable claim set, and projects only durable BC-specific decisions into optional `context/<context-slug>/architecture.md`; every Tactical Design Claim is accounted for as `projected` or `iteration-only`, and a projected claim creates, updates, or removes its owning Architecture state in the ready consistency write. No Design Delta produces no Tactical Design artifact.
-- `/ddd-expert:codify` realizes ready EventStorming authority plus any required ready Tactical Design in working backend code, carries a temporary many-to-many Model-to-code projection, runs producer conformance, and either stops at a verified implementation checkpoint or hands a stable snapshot to Guard.
-- `/ddd-expert:guard` uses one fresh read-only reviewer to independently reconstruct the scoped projection and judge whether a stable backend change expresses the accepted Model, Tactical Design claims, and house style, then jointly closes the reviewed ready records when its producer checkpoint is complete.
+- `/ddd-expert:event-storming` starts from discovery or an existing thesis, separates confirmed business facts from falsifiable structural hypotheses, and asks only questions capable of changing the model.
+- `/ddd-expert:tactical-design` runs only for a real Design Delta. It establishes a domain-object UML, responsibility and state authority, semantic flow, and necessity proof before deriving the fewest critical sequences. The first persisted draft appears only after adversarial conversation.
+- `/ddd-expert:codify` may reversibly explore a Tactical Design draft, records what implementation confirmed or falsified, and returns for reconciliation. Only a reconciled ready design can produce the final Guard handoff.
+- `/ddd-expert:guard` reviews final code against confirmed business facts and reconciled design; an unreconciled tactical difference that preserves strategic structure routes to Tactical Design, while a strategic contradiction routes to EventStorming.
 - `maintain-artifacts` is the internal read/validation/write protocol, not a user entry point.
 
-EventStorming owns Strategic Model meaning, Role-to-Command permissions, Aggregate Capabilities, and event-triggered Commands. Tactical Design owns material collaboration deltas; its typed sequences project relevant Model relationships without another mapping table, while optional BC Architecture owns only surviving context-specific decisions. The file stays optional, but every claim has an explicit durable or iteration-only disposition. Generic House Style, full sequences, code structure, and history are not copied there. Codify is read-only over DDD artifacts and keeps its code projection only as task evidence; Guard may perform only the final joint `ready -> implemented` closure after a clear verdict over the matching complete producer checkpoint.
+EventStorming owns confirmed business meaning and the current falsifiable strategic model. Tactical Design owns material collaboration candidates and their reconciliation; optional BC Architecture owns only surviving context-specific decisions. House Style supplies conditional realization rules and never selects state lifecycle, business sequencing, or domain concepts. Codify is read-only over DDD artifacts and uses code as falsification and realization evidence; Guard closes only reconciled ready records.
 
 ## Activation guidance
 
@@ -33,14 +37,16 @@ Choose by requested outcome:
 
 - `/ddd-expert:event-storming` when a story, scenario, Spec, PRD, or existing Model needs domain discovery, Aggregate/context boundaries, collaboration, and a confirmed Strategic Model.
 - `/ddd-expert:tactical-design` when confirmed business meaning still leaves material Aggregate collaboration, transaction, state, concurrency, event, failure/recovery, or durable Interface ownership to decide.
-- `/ddd-expert:codify` when ready EventStorming authority and every required Tactical Design must be implemented in the house style.
+- `/ddd-expert:codify` when ready EventStorming authority must be implemented, or an authorized reversible exploration should test a Tactical Design draft.
 - `/ddd-expert:guard` when a concrete backend change must be reviewed before merge or release.
 
-EventStorming finishes at `ready`: its meeting record carries the complete iteration solution and affected canonical Models carry current business meaning plus Aggregate Capabilities. Work goes directly to Codify when established seams already cover the realization; Tactical Design is inserted only for a real Design Delta. Routine implementation may remain at a verified Codify checkpoint; Guard finishes the scoped records at `implemented` only after independently clearing the final stable snapshot and consuming its complete producer checkpoint.
+EventStorming finishes at `ready`: its minutes preserve confirmed facts and its Models carry the current structural hypothesis. Work goes directly to Codify when established seams cover realization. A real Design Delta stays `draft` through reversible Codify exploration, is reconciled and confirmed as `ready`, and only then enters final verification and Guard.
+
+Later implementation evidence may invalidate that tactical candidate without changing the EventStorming Model. Tactical Design discards an unconfirmed draft when the delta disappears, replaces an unimplemented ready record when a material delta remains, or retires it against the surviving ready EventStorming authority when no extra design authority remains. It never edits implemented provenance or lets stale claims continue to constrain Codify.
 
 ## EventStorming contract
 
-The modeling path follows this order:
+Discovery considers these lenses in causal order:
 
 1. clarify the modeling scope;
 2. place past-tense Workshop Events first;
@@ -53,9 +59,9 @@ The modeling path follows this order:
 9. identify Bounded Contexts; and
 10. establish context collaboration.
 
-A simple change inside an accepted context does not force a new repository-wide Big Picture. The depth is proportionate, but the order and confirmation boundary do not change.
+A thesis review may acknowledge already-supported lenses and move directly to the first conclusion that could be falsified. A simple change inside an accepted context does not force a new repository-wide Big Picture; depth is proportionate while the integrated confirmation boundary remains explicit.
 
-Exploration stays on a temporary EventStorming Board, separate from any Aggregate, Bounded Context, or Context Map. Supplied authority and local answers can support board facts or working decisions, but neither authorizes a file write. After all ten steps and adversarial review, EventStorming validates the complete candidate and writes one `draft` meeting record plus its unchecked README entry. Canonical Models remain unchanged until confirmation.
+Exploration stays on a temporary EventStorming Board, separate from any Aggregate, Bounded Context, or Context Map. Supplied authority and local answers can support board facts or working decisions, but neither authorizes a file write. After the relevant lenses and adversarial review, EventStorming validates the current candidate and writes one `draft` meeting record plus its unchecked README entry. Canonical Models remain unchanged until confirmation.
 
 The facilitator investigates facts available in project evidence, then asks the user only for domain facts or decisions the evidence cannot supply. It presents discovered information in useful groups while putting one frontier question to the user per turn. Fact probes remain open; design proposals include a recommendation, reasons, and the strongest credible alternative. Local answers are working confirmations that later evidence may reopen.
 
@@ -98,7 +104,7 @@ The Context Map records semantic model dependency only. Global `U -> D` edges fo
 - `templates/architecture.md` defines an optional sparse current Architecture for one Bounded Context.
 - `templates/tactical-design.md` defines one material Design Delta, its typed Model-to-design collaboration sequences, and its confirmed claims.
 
-EventStorming writes only draft minutes and the README TODO before confirmation. After approval, it applies the ready minutes, affected Models, Context Map, and relevant project-owned documents through one transaction. Tactical Design independently drafts and confirms only a material Design Delta, accounting for every claim and applying every projected BC Architecture row with its ready transition. If newer Model authority invalidates an unimplemented ready Tactical Design, Tactical Design replaces or retires that record and its Architecture sources before Codify. Codify reads current authority; Guard jointly closes governed ready records while leaving BC Architecture current.
+EventStorming writes only draft minutes before confirmation. Tactical Design writes a draft only after its object/state thesis survives conversational challenge; Codify may test that draft reversibly, after which Tactical Design reconciles evidence and applies the ready transition plus any durable BC Architecture projection. Guard jointly closes only final reconciled records.
 
 ## Scope
 

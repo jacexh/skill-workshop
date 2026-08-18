@@ -43,7 +43,7 @@
     {
       "name": "ddd-expert",
       "source": "./plugins/ddd-expert",
-      "description": "Adversarial EventStorming, conditional Tactical Design, implementation, and review",
+      "description": "Purpose-led EventStorming, falsifiable Tactical Design, implementation, and review",
       "version": "1.16.2",
       "author": {
         "name": "xuhao"

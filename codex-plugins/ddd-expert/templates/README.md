@@ -18,6 +18,6 @@ Every linked Model is the current domain authority for that Bounded Context. A l
 
 ## Tactical Design Deltas
 
-<!-- Omit this section when the project has no Tactical Design records. Keep one link per material Design Delta. Use `[ ]` for `draft` or `ready`; use `[x]` only when its record uses `status: implemented`. For `superseded`, use a plain lineage entry linking the old delta to its replacement ready Tactical Design or to the newer ready EventStorming minutes that eliminated it. -->
+<!-- Omit this section when the project has no Tactical Design records. Keep one link per material Design Delta. Use `[ ]` for `draft` or `ready`; use `[x]` only when its record uses `status: implemented`. For `superseded`, use a plain lineage entry linking the old delta to its replacement ready Tactical Design or to the ready EventStorming authority left sufficient when newer business authority or reconciled implementation evidence eliminated the delta. -->
 
 - [ ] [<Design Delta>](tactical-design/<tactical-design-slug>.md)

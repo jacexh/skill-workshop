@@ -1,85 +1,138 @@
 ---
 name: tactical-design
-description: Use when a confirmed EventStorming Model leaves a material Design Delta in Aggregate collaboration, transaction, state, concurrency, event, failure, recovery, or durable software-boundary ownership that must be understood and confirmed before Codify.
+description: Use when a confirmed EventStorming Model leaves a material Design Delta in domain-object responsibility, collaboration, state authority, transaction, concurrency, event, failure, recovery, or durable software-boundary ownership that must be challenged and reconciled before Guard.
 ---
 
 # Tactical Design
 
-Turn a confirmed Model's implementation-shaping gap into one user-confirmed collaboration design. Tactical Design owns the seam between business authority and code. It has falsification power, not Model write authority: a concrete counterexample may overturn EventStorming conclusions, but only EventStorming may confirm and synchronize revised business meaning.
+Turn confirmed business meaning into the smallest credible system thesis, test it against alternatives and implementation evidence, and leave one reconciled collaboration design. Tactical Design may falsify structural hypotheses; only EventStorming may confirm changed business meaning.
 
-Use this skill only for a real **Design Delta**: the requested realization creates or changes coordination among Aggregates or contexts, transaction ownership, state/checkpoint ownership, concurrency control, event publication timing, failure/recovery responsibility, semantic ports, or another durable software boundary. A new story, several objects, or implementation work alone is not a Design Delta.
+Use this skill only for a real **Design Delta**. A delta exists when the requested realization creates or changes domain-object responsibility, collaboration among Aggregates or contexts, runtime or durable state authority, transaction or concurrency ownership, event timing, business-visible failure policy, semantic ports, or another durable software boundary. Several files or domain objects alone are not a delta.
 
-Load this plugin's internal `maintain-artifacts` skill in the same run. Use `inspect` first, `validate-proposed-tactical-design` before materialization, `write-tactical-design-draft` to expose the exact candidate, `discard-tactical-design-draft` only when newer confirmed authority removes or replaces an unconfirmed draft's delta, `supersede-ready-tactical-design` only to retire invalidated unimplemented authority when no replacement delta remains, and `apply-ready-tactical-design` only after explicit user confirmation of the exact draft path and fingerprint.
+Do not load `maintain-artifacts` while clarifying purpose, building the thesis, or challenging it. Read existing artifacts as evidence. Load the internal skill in full only when a coherent candidate needs structural validation or a write, or when an actual artifact-status ambiguity blocks authority resolution. It owns mechanics, never design judgment.
 
-## Authority and artifact ownership
+## Authority
 
-Read the scoped `ready` EventStorming minutes, affected canonical Models, Context Map, relevant current BC Architecture, current project constraints, accepted project documents, House Style, and implementation evidence. Use this order when they disagree:
+Keep unlike conclusions unlike:
 
-1. canonical Models own current business meaning;
-2. scoped `ready` EventStorming minutes own the confirmed iteration scope and complete causal story but cannot override a canonical Model;
-3. accepted Specs, PRDs, ADRs, other project constraints, and each relevant current BC Architecture own their recorded project or context-specific decisions;
-4. a scoped `ready` Tactical Design owns its confirmed Design Delta without overriding those sources;
-5. `ddd-expert` House Style supplies defaults; and
-6. code and tests are realization evidence, never silent design acceptance.
+1. Canonical Models and scoped `ready` EventStorming minutes own confirmed business facts, constraints, permissions, and required outcomes.
+2. Their Bounded Context, Aggregate, capability, and core-object decomposition is the current falsifiable strategic model of those facts.
+3. Accepted Specs, PRDs, ADRs, project constraints, and current BC Architecture own the decisions they explicitly record.
+4. A Tactical Design `draft` is an implementation candidate. A scoped `ready` Tactical Design owns the reconciled Design Delta.
+5. House Style realizes an already selected design; it does not select a lifecycle, state authority, business sequence, or domain concept.
+6. Code and tests are evidence. They may falsify a structural candidate but never silently become business authority.
 
-An inspected `legacy_capability_projection` remains accepted business authority while its Model is unchanged. Reconstruct its source Command traceability from the governing ready minutes before drawing sequences. If two legacy rows appear to be pre-state variants of one normalized Command, add that concrete ambiguity to a Model Review Batch instead of treating the rows as separate operations or silently rewriting the Model.
+Route a missing or contradictory business fact, rule, Bounded Context, Aggregate, capability, core-object decomposition, lifecycle meaning, or context boundary to EventStorming as one consolidated **Model Challenge**. Keep a tactical alternative here only when it preserves both the confirmed business facts and the current strategic structure. Route a hard-to-reverse platform, public-contract, data, security, or operational commitment to the project's decision mechanism.
 
-Artifact ownership is deliberately sparse:
+## Sparse artifacts
 
-- each Bounded Context `model.md` owns current business language, Role-to-Command permissions, Aggregate boundaries and Capabilities, selected Domain Events, and event-triggered Commands;
-- one `docs/ddd-expert/tactical-design/<slug>.md` owns the accepted Design Delta and its complete critical collaboration sequences for this implementation slice; and
-- an optional `context/<context-slug>/architecture.md` owns only durable, BC-specific software decisions that survive the Design Delta; and
-- ADRs own hard-to-reverse decisions and rationale, while code and configuration own implementation detail.
+- Each Bounded Context `model.md` owns current business meaning and its current structural hypothesis.
+- One `docs/ddd-expert/tactical-design/<slug>.md` owns the current candidate for this Design Delta.
+- Optional `context/<context-slug>/architecture.md` files own only durable BC-specific software decisions that survive the iteration.
+- ADRs own hard-to-reverse decisions and rationale. Code owns reversible implementation detail.
 
-The Architecture file is lazy, but claim disposition is mandatory: every confirmed Tactical Design Claim is either projected once into its owning context's current Architecture or explicitly classified `iteration-only` with a concrete reason that no BC-specific decision survives. Do not copy the same claim into several current authorities or create a root `docs/ddd-expert/architecture.md`. A Tactical Design record may reference one or more EventStorming iterations and one or more affected Bounded Contexts; do not create one mechanically per Model or meeting. An `implemented` Tactical Design record is history; current BC Architecture carries its surviving decisions. A `superseded` record is invalidated pre-implementation history and contributes no current Architecture source.
-
-## Design Delta decision
-
-Before drafting, inspect the affected Tactical Design lifecycle, then state the candidate delta and compare it with relevant current BC Architecture plus accepted project constraints. Do not return `no_design_change` while an unconfirmed draft or invalidated ready record still requires discard, replacement, or retirement. Otherwise, return `no_design_change` and write no Tactical Design file when the work is reversible inside established seams and Codify can derive it from accepted authority plus House Style; keep every project artifact byte-identical.
-
-Route to `event-storming` when a required business rule, Aggregate capability, semantic owner, lifecycle, context boundary, or collaboration meaning is missing or contradictory. Route to an ADR decision when the project requires authority for a hard-to-reverse platform, public-contract, data, security, or operational commitment. Do not hide either gap inside a diagram.
-
-When a critical sequence or counterexample appears to falsify current business authority, open one temporary **Model Review Batch** instead of returning on the first question. It is conversation state, not another project artifact. Leave the complete Tactical Design draft byte-identical and stop only design decisions that depend on the challenged meaning. Sweep every existing sequence, claim, proposed Architecture decision, and known success/failure/recovery path that relies on the same Model sections; ask one frontier question at a time to distinguish a real business contradiction from a tactical alternative, without deciding revised business meaning.
-
-Close the Model Review Batch before handback. If every candidate is compatible with current authority, resume Tactical Design without invoking EventStorming. Otherwise return one consolidated **Model Challenge** containing the originating draft path and fingerprint; challenged ready minutes; every challenged Model path, revision, and section; all known concrete business scenarios or counterexamples in the batch; affected sequences, claims, and current Architecture decisions; the settled scope of the challenge; and the current unresolved business frontier question. Explain the conflicts without prescribing EventStorming answers. EventStorming works through that one batch and creates at most one correction draft; Tactical Design remains frozen until it returns `no_change` or newer `ready` authority.
+Do not create a root Architecture file, a second mapping ledger, or one Tactical Design record per Model or conversation. An implemented record is history; current BC Architecture carries any surviving decisions.
 
 ## Design workflow
 
-1. **Pin scope and authority**: name the implementation slice, linked ready minutes, affected Models, relevant current BC Architecture, accepted project constraints, and the exact Design Delta. Keep unrelated contexts and hypothetical scale out of scope.
-2. **Identify collaboration responsibilities**: start from the confirmed Role-or-fact-to-Command and Command-to-Capability threads. Carry a Bounded Context-local business Role or external authority only as the initiating participant, then name the Domain owners, Application orchestrators, semantic ports, Repositories, Interface adapters, and Runtime composition needed to explain the Design Delta. A technical participant is one design object or semantic Interface with a receiver-visible callable surface, not another Role; it need not commit to a concrete class or package.
-3. **Draw complete typed collaboration sequences**: use Mermaid `sequenceDiagram` as the only persisted Model-to-design projection. Group all technical objects owned by the same Bounded Context in one Mermaid `box ... end`; use one box per represented context, keep business Roles and external authorities outside these object boxes, and leave an external system outside when no modeled Bounded Context owns it. Label every invocation arrow into or between technical participants `Public Method: <receiver method>(<semantic inputs>)`, and label every reply arrow `Returns: <semantic result>`. `Public Method` means the receiver-visible callable operation at the depicted seam, not a public network API or a commitment to final language syntax. Apply `ddd-core`'s Model-to-code Projection and put exact accepted Model meaning in adjacent traceability notes and participant labels using its kind and name: `Role`, `External Authority`, `Command`, `Aggregate`, `Capability`, `Domain Event`, `Published Fact Contract`, `Integration Message`, `Coordination`, or `Workshop Event`. For each material success, rejection, failure, timeout, retry, or recovery path, show Application coordination, authoritative reads/writes, transaction boundary, state/checkpoint changes, event publication timing, and externally visible outcome. Give a path its own diagram only when responsibility, guarantee, durable state/checkpoint, or externally visible outcome differs; combine mechanically equivalent variants in one `alt` branch or note. Reuse one Capability across its state variants; every additional Domain call must remain traceable to that Capability or an accepted Model policy. When published meaning crosses a context boundary, keep the producing Domain Event, producer translation, Integration Message, consumer translation, event-triggered Command, and target Capability distinct through adjacent notes on the corresponding Public Method calls. Show an analytical Workshop Event only as an outcome note; it never requires a software participant, message, or event type. Split a genuinely crowded flow into the fewest scenario-focused diagrams that remain readable and add no parallel Model-to-design mapping table. Complete this step only when every BC-owned technical object belongs to exactly one context box, every invocation arrow names the receiver's Public Method, every reply names its returned meaning, and every Model relationship affected by the Design Delta appears in at least one sequence without inventing a mechanism or state-qualified operation.
-4. **Assign ownership**: make transaction, state, concurrency, event publication, failure, and recovery ownership explicit. Preserve the Domain as transaction-unaware unless accepted project authority says otherwise. Distinguish what must be atomic, what becomes visible after commit, and which state remains unchanged after failure.
-5. **Define changed Interfaces and seams**: state only new or changed semantic Interfaces, seams, and receiver-owned Public Methods shown on invocation arrows. Name their inputs, results, and failure contracts in the owning language rather than provider, table, protocol, topology, or SDK mechanisms. Connect each technical responsibility back to the exact typed Model meaning shown in the sequences. Preserve Role authorization without equating a business Role to an IAM identity; keep Domain Event, Published Fact Contract, and Integration Message types separate; and keep each Aggregate call traceable to an accepted Capability or Model policy without making Application select a state-qualified Root operation.
-6. **Extract a small `Tactical Design Claims` set**: assign IDs such as `TD-001` that are stable within one record to independently falsifiable implementation-shaping assertions. Give each ID a matching explicit HTML anchor in the claim ID cell, for example `<a id="TD-001"></a>TD-001`. A claim should express a semantic owner, boundary, ordering, or atomicity guarantee that Guard can map to code. Do not create one claim per Mermaid arrow, file, method, or layer. Its canonical claim key is `<record-path>#TD-NNN`; the matching anchor makes that key navigable. Use the canonical key in handoffs and cross-record references.
-7. **Project current BC Architecture sparingly**: Account for every Tactical Design Claim exactly once in the `BC Architecture Projection` ledger; project only durable, context-specific decisions into each owning `context/<context-slug>/architecture.md`. Mark a durable claim `projected` and name its owning Bounded Context, `add`, `replace`, or `remove` action, stable local decision ID, and exact current statement—or `—` for `remove`; mark a non-durable claim `iteration-only` and give the concrete reason it imposes no surviving BC-specific constraint. Project a cross-context responsibility once to its owner. Perform no Architecture write only when every claim is explicitly `iteration-only`; otherwise create, update, or remove every owning Architecture as declared in the ready consistency write. Removing the final current row removes the optional file. Do not copy complete sequences, generic House Style, Model facts, code structure, or decision history into BC Architecture.
-8. **Bound Codify discretion**: list decisions Codify may make reversibly inside the accepted seams, plus explicit non-goals. Prefer the smallest compatible mechanism; do not speculate about queues, caches, sharding, replication, or distributed coordination without accepted requirements.
-9. **Materialize the review canvas**: replay every critical sequence against its governing Model relationships, claims, and claim-by-claim Architecture disposition; challenge one credible alternative; validate the whole candidate; and write the complete initial draft before asking the first design question. The draft must already contain every scoped typed sequence, ownership decision, changed Interface, claim, Architecture disposition and projection, non-goal, Codify discretion, alternative, and reason. Write only the draft plus its one README entry; current Models, BC Architecture, and project decisions remain unchanged. Cite the exact editor path and fingerprint.
-10. **Review one frontier at a time**: use the draft as the shared editor canvas. In each turn, cite the relevant sequence or claim, proactively explain the current design and decisive constraints, then ask one frontier question per turn—the unresolved issue with the greatest effect on ownership or guarantees. Treat a user challenge as a hypothesis, not an accepted correction: steelman it against the governing authority and current Architecture, and trace at least one credible consequence or counterexample through the affected paths. Change the recommendation only when the evidence warrants it; otherwise state the professional objection and trade-off. Where no higher authority is contradicted, the informed user has final decision authority. When evidence may challenge business meaning, add it to the current Model Review Batch and perform the dependent-path sweep before deciding whether a handback is needed.
-11. **Revise design by connected batch**: when no Model Review Batch is open, a tactical challenge starts or extends one design revision batch; it never triggers an immediate draft write. Keep proposed conclusions in conversation while asking one frontier question per turn across the same affected chain. Close the revision batch only after every affected success, rejection, failure, timeout, retry, and recovery path, plus ownership, claims, Architecture dispositions and projections, non-goals, discretion, and ADR impact, is settled. Then render and validate the whole candidate and rewrite the complete draft once at the same path with a new fingerprint; keep the single README entry and all current authority unchanged. Leave the draft byte-identical when the review changes no accepted design. Start a separate batch for an unrelated concern.
-12. **Resolve and resume after Model review**: close the complete Model Review Batch before returning one consolidated Model Challenge. If EventStorming returns `no_change`, keep the same bytes and resume at the challenged frontier. When EventStorming produces newer `ready` Models, inspect the complete authority and affected Tactical Design lifecycle again. For an unconfirmed draft, rebase the same draft as one complete design revision batch when the same Design Delta and implementation-slice identity remain; issue a new fingerprint and restart review at the earliest affected sequence. If no delta remains, discard that draft and its README entry; if slice identity changed, discard it and construct one new complete draft. A `ready` Tactical Design whose governing EventStorming record was superseded is no longer Codify authority and is never rewritten or discarded: when a material delta remains, construct and confirm a replacement draft at a new canonical path, then make the new `ready` record, old `ready -> superseded` lineage, and complete Architecture reprojection one consistency write; when no delta remains, use `supersede-ready-tactical-design` to retire it against the newer ready minutes and remove every Architecture row sourced from its claims. Do not route to Codify until an invalidated ready record is replaced or retired.
-13. **Confirm the current whole**: repeat review and batch revision until no material frontier or open batch remains. Summarize the exact current draft and request explicit integrated confirmation of its path and fingerprint. After confirmation, apply only the exact `draft -> ready` transition plus supplied README, complete claim-disposition ledger, every matching affected BC Architecture projection, and ADR closure as one consistency set. Never change a canonical Model from Tactical Design; a business-meaning correction returns to EventStorming.
+### 1. Pin the question
 
-## Confirmation and completion
+Name the implementation slice, governing business facts and constraints, current structural hypotheses, accepted project decisions, and the exact Design Delta. Also identify the entry mode:
 
-The user confirms the collaboration design as one whole: Design Delta, complete typed critical sequences and their Model projection, ownership, changed Interfaces, Tactical Design Claims, exact claim-by-claim BC Architecture disposition and projection, non-goals, Codify discretion, and any ADR updates. Acceptance of one diagram or claim is not integrated confirmation.
+- **user thesis**: restate the user's proposed object responsibilities and call direction, then look for the strongest fact or counterexample that could overturn it;
+- **agent proposal**: state the evidence and uncertainty, construct the smallest candidate, then attack it before asking the user to accept it.
+
+Ask the user what they want the review to accomplish when that purpose is not already explicit. Do not run a compliance audit when they want an explanation, comparison, or design challenge.
+
+### 2. Build the domain-object thesis
+
+Before layer or provider sequences, describe the affected Aggregate internals at domain-object level:
+
+- a Mermaid `classDiagram` showing Aggregate Roots, owned Entities and Value Objects, and meaningful relationships/cardinality;
+- for each object: identity and lifecycle, owned facts/state, rules and change reasons, semantic result, and why it belongs inside or outside the Aggregate;
+- the Root's composition responsibility rather than an assumption that the Root must contain every behavior.
+
+This is a candidate realization of the confirmed business facts, not a new business fact. If the current Model cannot support it, open a Model Challenge rather than inventing meaning.
+
+### 3. Make authority and flow explicit
+
+Record only the state and collaboration that determine the design:
+
+- **state authority**: for each material mutable fact, name its business owner, live runtime authority, optional durable checkpoint or external authority, and what remains valid after failure;
+- **semantic flow**: name the producer, minimal domain result, consumer, business sequencer, and technical executor;
+- **call ownership**: Domain owns when a business capability is required and owns any Domain-language collaborator contract it invokes. Application supplies use-case context, transactions, and implementations of inner contracts; it owns an outbound port only when it owns the use-case continuation. Infrastructure performs provider, database, protocol, and retry mechanics.
+
+Do not infer `Repository.Get -> Root -> Repository.Save`, resident state, event publication, rollback, or asynchronous coordination from House Style. Select those only when project authority and the thesis require them.
+
+### 4. Apply the necessity test
+
+For every proposed participant, state, event, checkpoint, transaction, coordinator, or recovery mechanism, answer:
+
+> Which confirmed responsibility or guarantee becomes impossible if this is removed?
+
+Delete the concept when there is no concrete answer. Prefer a normal semantic flow that explains the system over a catalogue of defensive mechanisms. Add an adverse path only when it changes a business right, obligation, value, required next action, responsibility, guarantee, durable state, or externally visible result. Provider errors that do not do so remain implementation and verification concerns.
+
+If two or more corrections point to the same responsibility or state-authority mistake, or mechanisms grow while business scenarios do not, stop local patching. Rebuild the smallest whole thesis from supported facts and require every old concept to earn its way back.
+
+### 5. Challenge before persisting
+
+Compare the thesis with one credible alternative, including deletion or a different object split. Explain the decisive trade-off and ask one high-impact frontier question when one remains. Stop when further questions have diminishing decision value.
+
+Do not write a complete solution artifact before the first design question. Keep early reasoning in conversation so an untested draft does not become an anchor. If the user supplied the thesis, challenge it rather than merely confirming it. If the agent supplied it, show uncertainty and the strongest objection rather than asking the user to validate unexplained output.
+
+Return `no_design_change` with zero artifact writes when established seams cover the work. Otherwise continue only after the object thesis, state authority, semantic flow, and necessity test are coherent.
+
+### 6. Derive critical sequences
+
+Draw the fewest Mermaid `sequenceDiagram` views needed to make the Design Delta checkable. Derive participants and calls from the object thesis; do not use a template topology as the answer.
+
+Group technical objects by owning Bounded Context. Keep business Roles, external authorities, and unowned external systems outside those boxes. Label calls `Public Method: <receiver operation>(<semantic inputs>)` and replies `Returns: <semantic result>`. Preserve adjacent traceability to accepted Commands, Capabilities, Domain Events, Published Fact Contracts, Integration Messages, or explicit coordination without multiplying operations by pre-state.
+
+Show the normal path first. Add a separate or `alt` path only under the materiality rule in step 4. Make transaction, state, concurrency, event publication, and visible outcome ownership explicit where they are part of the delta.
+
+### 7. Materialize an exploration draft
+
+After the candidate is coherent, validate and write one exploration `draft` plus its README entry. Include the scope, object thesis, state authority, semantic flow, necessity proof, material sequences, changed ownership, non-goals, discretion, and challenged alternative. Do not add final `TD-NNN` claims or BC Architecture dispositions yet; they would turn an untested candidate into a conformance target. Cite the path and fingerprint. Existing Models, BC Architecture, and project decisions remain unchanged.
+
+Codify may now perform reversible implementation exploration against the draft when the user has authorized implementation and the confirmed business boundary is explicit. It must preserve business facts, record design evidence and semantic deviations, and avoid irreversible external actions. It cannot hand off to Guard while the Tactical Design remains `draft`.
+
+If the user requested design only, stop with this draft. Without implementation evidence it does not become `ready`.
+
+### 8. Reconcile implementation evidence
+
+Review the implemented normal flow, deleted or introduced concepts, state authority, and any deviation from the draft:
+
+- a business contradiction becomes one Model Challenge to EventStorming;
+- a smaller or different collaboration that preserves the facts and current strategic structure revises this same draft;
+- unsupported mechanisms are deleted, not retained under a new name;
+- unchanged conclusions are preserved only after the whole thesis still explains them.
+
+Rewrite the draft once per connected revision batch, not after every question. Then replay the class diagram, state authority, semantic flow, material sequences, non-goals, and Codify discretion as one current whole. Only now extract a small set of independently falsifiable `TD-NNN` claims about the reconciled semantic ownership, boundaries, ordering, or atomicity. Account for each exactly once as a durable BC Architecture projection or `iteration-only` with a concrete reason.
+
+The same reconciliation rule applies when later concrete implementation evidence falsifies a candidate while its ready EventStorming facts and strategic model remain unchanged. If the candidate is still `draft` and the whole Design Delta disappears, discard it instead of preserving a cancelled mechanism. Never edit an unimplemented `ready` record: with explicit confirmation of the evidence-backed revision, replace it atomically with a new reconciled ready record when a material delta remains, or retire it directly when the current EventStorming authority is sufficient without that delta. Direct retirement points `superseded_by` to that surviving ready EventStorming record; this denotes the remaining authority, not a change to its business facts. Either ready path replaces or removes every BC Architecture source from the stale claims in the same consistency write. An `implemented` record remains provenance and is never reopened.
+
+### 9. Confirm and hand off
+
+Request explicit confirmation of the reconciled draft path and fingerprint. Apply the exact `draft -> ready` transition, README state, complete claim disposition, required BC Architecture projection, and ADR closure as one consistency set. Tactical Design never changes a canonical Model.
+
+Codify then produces the final verified implementation checkpoint against this reconciled authority. Guard reviews the final code and `ready` design. An unreconciled tactical difference that preserves confirmed facts and current strategic structure is an `evidence_gap` routed here; evidence against Model-owned structure routes to EventStorming instead.
+
+## Completion
 
 Finish with one of:
 
-- `no_design_change`: only when no draft or invalidated ready authority awaits resolution, cite the accepted seams that make direct Codify safe and keep every project artifact byte-identical;
-- `discarded`: cite the removed unconfirmed draft, its removed README entry, and the newer authority that eliminated or replaced its delta;
-- `reviewing`: cite the exact draft path and fingerprint, identify the current sequence, design revision batch, or Model Review Batch, and ask the one frontier question;
-- `awaiting_confirmation`: no frontier question, design revision batch, or Model Review Batch remains; cite the exact draft path and fingerprint and summarize the candidate whole;
-- `ready`: cite the confirmed record, canonical claim keys, affected contexts, changed BC Architecture revisions, explicit iteration-only claims, and any ADR updates;
-- `superseded`: cite the retired unimplemented record, newer ready authority, README lineage, and removed or replaced BC Architecture sources;
-- `returned`: identify `event-storming` with the consolidated Model Challenge and frozen draft, or name the exact project/ADR authority needed with the contradiction; or
-- `blocked`: identify validation, revision, filesystem, or external failure and the exact state.
-
-A `ready` Tactical Design is Codify authority only for its scoped Design Delta. Guard closes it together with the reviewed ready EventStorming records after the matching implementation is clear and the producer checkpoint is complete. Closure leaves BC Architecture unchanged; the implemented record remains provenance for its projected decisions.
+- `no_design_change`: established seams cover the work and no draft or invalidated ready record remains;
+- `reviewing`: cite the current thesis or draft and ask the single highest-impact frontier question;
+- `draft`: the design-only candidate is coherent but has no implementation evidence and remains non-authoritative;
+- `exploring`: cite the exact draft and authorized reversible implementation boundary;
+- `awaiting_confirmation`: implementation evidence is reconciled and the exact draft whole awaits confirmation;
+- `ready`: cite the confirmed record, claim dispositions, BC Architecture changes, and Codify handoff;
+- `discarded` or `superseded`: cite the retired candidate, the surviving or replacement authority, and the evidence that invalidated it;
+- `model_challenge`: cite the consolidated contradiction and route to EventStorming;
+- `blocked`: identify the exact authority, validation, write, or external failure and current filesystem state.
 
 ## References
 
-- Load [../../references/ddd-core.md](../../references/ddd-core.md) for Aggregate, Application, port, Repository, and dependency ownership.
-- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) only when the Design Delta includes events, messages, or cross-context collaboration.
-- For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md) and follow only the leaves that own the proposed seams.
-- For Python or TypeScript, load only the relevant sections of [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
-- Load [../../references/database.md](../../references/database.md) only for accepted persistence or transaction constraints.
+- Load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) only when the strategic model may be missing business evidence.
+- Load [../../references/ddd-core.md](../../references/ddd-core.md) for responsibility, state authority, business sequencing, and realization seams.
+- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) only when selected cross-context collaboration is affected.

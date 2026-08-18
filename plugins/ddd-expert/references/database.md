@@ -272,7 +272,9 @@ Do not assume a row-constructor range such as `(created_at, id) < (?, ?)` will p
 - **[House Rule]** Keep transactions short, acquire locks in stable primary-key order, and update by primary or unique keys where possible.
 - **[House Rule]** HTTP, RPC, file, Kafka, and other external calls do not occur inside a database transaction. A flow that requires atomic durable handoff uses an accepted local record such as an outbox, not an open network call.
 
-### Optimistic Aggregate Lifecycle
+### Request-scoped Optimistic Aggregate Lifecycle
+
+This branch applies only when accepted design loads a fresh Aggregate per transaction. Database House Style does not choose it over a resident Aggregate.
 
 ```sql
 -- New in-memory Aggregate version == 0; stored row begins at 1.
@@ -289,10 +291,14 @@ WHERE id = ? AND version = ? AND deleted_at = 0;
 ```
 
 - **[House Rule]** The Repository checks affected rows. An update count other than one maps to a stable concurrency-conflict error; do not hide it as not-found or success.
-- **[House Rule]** Repository save does not increment the in-memory Aggregate version. After a successful save, the instance is stale: Application may assemble a result and drain already-recorded events, but it must not expose the stale version as the newly persisted concurrency token, mutate, or save that instance again. A later transaction reloads it.
+- **[House Rule]** Repository save does not increment the loaded in-memory Aggregate version. Under this branch, a successful save makes that instance stale: Application may assemble a result and drain recorded events, but must not expose the stale token, mutate, or save the instance again. A later transaction reloads it.
 - **[House Rule]** An Aggregate spanning several owned tables uses one local database transaction. All writes succeed or roll back together.
-- **[House Rule]** After any callback, rollback, or commit failure in a multi-Root scope, discard every participating in-memory Aggregate and its staged events. Publish events only after commit; when durable handoff is required, persist the accepted outbox record in that same transaction.
+- **[House Rule]** After a callback, rollback, or commit failure in this request-scoped multi-Root branch, discard the loaded Aggregate instances and staged events. Publish events only after commit; when durable handoff is required, persist the accepted outbox record in that transaction.
 - **[House Rule]** The adapter binds the identity, loaded version, and active-row predicate, performs the increment in SQL, checks the affected-row count, and translates provider failures at its owned boundary. Language-specific syntax belongs in the active language House Style.
+
+### Resident Aggregate Checkpoints
+
+When accepted design names a resident Aggregate as live authority, the database stores an immutable snapshot/checkpoint and optional checkpoint token. A checkpoint write never makes the resident instance stale and a database failure does not implicitly restore, replace, or overwrite live state. Durability, retry, recovery, and shutdown policy come from the accepted design; this reference only implements them.
 
 ### Pessimistic Locking
 

@@ -23,8 +23,8 @@ _Avoid_: deployment pipeline, publish script
 ### DDD Expert References
 
 **House Style**:
-The normative backend implementation conventions supplied by `ddd-expert`, including adopted dependencies, API usage, and concrete examples that make those conventions executable.
-_Avoid_: generic best practices, technology profile
+The normative backend implementation conventions supplied by `ddd-expert` for realizing an already selected design, including adopted dependencies, API usage, and concrete examples. It does not select domain concepts, object boundaries, state lifecycle, business sequencing, or failure policy.
+_Avoid_: generic best practices, technology profile, modeling advice
 
 **Conditional House Rule**:
 A House Style rule with an explicit applicability condition. It is not applied outside that condition; once applicable, its prescribed library and implementation shape are mandatory rather than one option among alternatives.
@@ -35,11 +35,11 @@ An LLM-selected move to the prescribed House Style mechanism when observed compl
 _Avoid_: automatic threshold rule, tactical redesign
 
 **Design Escalation**:
-An LLM-identified need for a mechanism that would change accepted consistency, persistence, contract, recovery, or runtime responsibilities and therefore must be resolved in Tactical Design before implementation.
+An LLM-identified need for a mechanism that would change accepted consistency, persistence, contract, recovery, or runtime responsibilities and therefore must be owned and reconciled in Tactical Design before final realization or Guard. An explicitly authorized, bounded, reversible implementation exploration may test its draft candidate first.
 _Avoid_: implementation refactor, silent architecture upgrade
 
 **Accepted Design Decision**:
-A mechanism or tactical choice explicitly confirmed by the user or recorded in current Bounded Context Architecture, a scoped ready Tactical Design, an accepted ADR, or equivalent project authority. Silence, incidental existing code, and an LLM's unconfirmed recommendation are not acceptance.
+A mechanism or tactical choice explicitly confirmed by the user or recorded in current Bounded Context Architecture, a reconciled ready Tactical Design, an accepted ADR, or equivalent project authority. Silence, incidental existing code, an unreconciled draft, and an LLM's unconfirmed recommendation are not acceptance.
 _Avoid_: inferred approval, existing implementation
 
 **Aggregate Capability**:
@@ -55,11 +55,11 @@ A Bounded Context-local business intent required by an established Domain Event 
 _Avoid_: Reaction Policy node, event handler wiring, automatic callback, transport subscription
 
 **Design Delta**:
-A material gap between confirmed business authority and implementable collaboration ownership, such as a new or changed transaction, state, concurrency, event-publication, failure/recovery, semantic-port, or durable Interface responsibility. Reversible work inside accepted seams is not a Design Delta.
+A material gap between confirmed business authority and an implementable system thesis, such as unresolved object responsibility, state authority, semantic flow, transaction, concurrency, event-publication, failure/recovery, semantic-port, or durable Interface ownership. Reversible work inside accepted seams is not a Design Delta.
 _Avoid_: every implementation task, code diff, mandatory design phase
 
 **Tactical Design Claim**:
-A stable, independently falsifiable assertion in a confirmed Tactical Design that names an implementation-shaping semantic owner, boundary, ordering, or atomicity guarantee for Guard to trace into code.
+A stable, independently falsifiable assertion in a reconciled ready Tactical Design that names an implementation-shaping semantic owner, boundary, ordering, or atomicity guarantee for Guard to trace into code.
 _Avoid_: Mermaid arrow, file checklist, producer verdict
 
 **Bounded Context Architecture**:
@@ -67,11 +67,11 @@ The optional current authority at `context/<context-slug>/architecture.md` for d
 _Avoid_: root architecture ledger, per-context House Style copy, design transcript
 
 **Critical Collaboration Sequence**:
-A complete success, rejection, failure, or recovery path that uses typed Model labels to show the initiating Role, external authority, or fact; Command; Application coordination; Aggregate Capability; authoritative reads/writes; transaction and state boundaries; selected Domain Event and message translation when present; and the analytical Workshop Event outcome.
-_Avoid_: Context Map edge, partial happy-path call graph
+A minimal material path derived from the domain-object thesis. It shows the semantic owner, business sequencer, technical executor, authoritative state transition, and visible result needed to falsify one design claim; separate rejection, failure, or recovery paths exist only when they change responsibility, guarantee, durable state, required next action, or visible result.
+_Avoid_: exhaustive call graph, template-prescribed Repository flow, one diagram per technical error
 
 **EventStorming Board**:
-Temporary conversation state used for the modeling destination, current ten-step position, Supported Modeling Facts, Working Confirmations, frontier question, Hotspots, fog, and out-of-scope areas. It is separate from any Aggregate, Bounded Context, or Context Map and grants no incremental write authority.
+Temporary conversation state used for the purpose, supported facts, current hypotheses, highest-impact unresolved question, Hotspots, and exclusions. It is separate from any Aggregate, Bounded Context, or Context Map and grants no incremental write authority.
 _Avoid_: evolving Model, accepted slice
 
 **Workshop Event**:
@@ -83,7 +83,7 @@ A fact, term, rule, or relationship backed by supplied project evidence or a dom
 _Avoid_: accepted artifact fact, implicit confirmation
 
 **Frontier Question**:
-The single currently answerable question with the greatest downstream impact and information gain within the active EventStorming step. Discovered information may be presented in groups, but only this decision is put to the user in one turn.
+The single currently answerable question most likely to change the current model or thesis. Discovered information may be presented in groups, but only this decision is put to the user in one turn.
 _Avoid_: batch questionnaire, fixed checklist item
 
 **Working Confirmation**:
@@ -91,11 +91,11 @@ The user's local acceptance of a fact or design conclusion so EventStorming can 
 _Avoid_: artifact acceptance, final approval
 
 **Integrated Model Confirmation**:
-The user's explicit acceptance of the current complete EventStorming diagrams, strategic conclusions, key decisions, assumptions, and non-blocking Hotspots after adversarial review. It is the only EventStorming write authority.
+The user's explicit acceptance of the current supported EventStorming diagrams, strategic conclusions, key decisions, assumptions, and non-blocking Hotspots after adversarial review. It is the only EventStorming write authority and does not make structural hypotheses infallible.
 _Avoid_: local answer, partial approval, file-impact approval
 
 **Confirmed EventStorming Model**:
-The exact integrated Strategic Model accepted through Integrated Model Confirmation, persisted unchanged in the confirmed iteration minutes and projected into the affected current Models.
+The exact confirmed business facts and reviewed structural model accepted through Integrated Model Confirmation, persisted unchanged in the confirmed iteration minutes and projected into the affected current Models. Its structural conclusions remain falsifiable by later evidence.
 _Avoid_: supported board, tactical design, per-Model EventStorming diagram
 
 **Documentation Closure**:
@@ -171,8 +171,8 @@ The pure mapping code in a bounded context's Infrastructure layer that converts 
 _Avoid_: Application Assembler, ORM Entity
 
 **Stale Aggregate Instance**:
-An Aggregate instance after successful Repository `Save`: its existing state may be read, assembled into a result, and its already-recorded Domain Events may be drained, but it cannot perform another business mutation or be saved again. Its in-memory Version is not the newly persisted concurrency token. A subsequent transaction reloads a fresh instance and event collection.
-_Avoid_: unusable result, automatically refreshed Aggregate
+In the request-scoped optimistic lifecycle only, an Aggregate instance after successful Repository `Save`: its existing state may be read, assembled into a result, and its already-recorded Domain Events may be drained, but it cannot perform another business mutation or be saved again. A resident Aggregate with checkpoint persistence remains the live authority and is outside this term.
+_Avoid_: universal post-save rule, unusable result, automatically refreshed Aggregate
 
 **Application Use-case Registry**:
 A protocol-neutral grouped use-case registry for one bounded context. The active language guide defines its physical module and API shape. It exposes Command Handlers through a Commands group and Query Handlers through a Queries group without implementing protocol adapters or duplicating handler methods.

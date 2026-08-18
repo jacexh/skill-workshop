@@ -104,18 +104,26 @@ An Infrastructure converter may restore an existing Aggregate with a struct lite
 ## Mutation and Persistence Lifecycle
 
 - The Aggregate Root controls changes to owned Entities and enforces invariants synchronously.
-- Domain methods may change in-memory state and record Domain Events. They never save, publish, enqueue, log, start a goroutine or choose retry/provider policy.
+- Domain methods may change in-memory state and record Domain Events. They never save, publish, enqueue, log, start a goroutine or choose technical retry/provider policy. When they decide a capability is business-required, its collaborator contract is Domain-owned and uses Domain language; Application supplies the implementation and Infrastructure owns provider mechanics.
 - Persist owned Entities and Value Objects with their root unless the confirmed Model establishes an independent Aggregate.
 - Technical audit timestamps stay in the DO. Put time in Domain only when business behavior uses it, and pass the authoritative time into the operation when determinism matters.
 
-A persisted mutable Aggregate uses optimistic locking:
+Select one lifecycle from accepted project authority or Tactical Design. Persistence does not select it.
+
+### Request-scoped Aggregate
+
+A Repository-loaded Aggregate may use optimistic locking:
 
 - a new in-memory Aggregate has `Version == 0` and is inserted with stored version `1`;
 - an update increments the stored version only when `id`, loaded `version` and non-deleted predicate match;
 - an affected-row mismatch maps to a stable concurrency-conflict error;
 - `Repository.Save` does not update the in-memory version.
 
-After a successful `Save`, that Aggregate instance is stale. Application may read already-produced result fields, assemble a DTO and drain the events recorded by that transaction. It must not invoke another business mutation or save the instance again. Because its `Version` is also stale, a post-Save result must not present that value as the newly persisted concurrency token; reload when a caller requires the current token. A later transaction reloads a new Aggregate with a fresh `event.Collection`.
+Under this branch, a successful `Save` makes that loaded instance stale. Application may map already-produced results and drain that transaction's events, but must not mutate or save it again. Reload when a later operation or caller requires current state or the new persistence token.
+
+### Resident Aggregate with checkpoint persistence
+
+Under this branch, the long-lived in-memory Aggregate remains the live runtime authority across checkpoints. Serialize its behavior with the accepted mailbox, lock, or single-owner mechanism. Persistence receives an immutable snapshot/checkpoint; a successful checkpoint does not replace the resident instance, and a failed checkpoint does not implicitly roll back or overwrite its live state. A database version may be a checkpoint token rather than a Domain version. Exact durability, retry, recovery, and shutdown behavior belong to the accepted design, not this House Style.
 
 ## Entity and Value Object
 
@@ -159,7 +167,7 @@ func (AllocationService) Allocate(
 }
 ```
 
-Application normally loads facts and participants before calling the service. A Domain-owned semantic collaborator, including a narrow Repository query capability, is allowed only when precomputing a primitive would erase Domain meaning. The query does not eliminate a time-of-check/time-of-use race; correctness that depends on concurrent state requires an accepted constraint, lock, isolation, or other consistency mechanism outside the service's control. The service still never calls `Save` or controls the transaction. A cross-Aggregate calculation does not authorize atomic persistence of several roots.
+Application normally supplies facts, participants, and semantic capabilities. A Domain owner or Domain Service may invoke a narrow Domain-owned collaborator when precomputing a primitive would erase the rule or its required timing. Application supplies that contract's implementation at the use-case boundary; provider vocabulary, context, retry mechanics, and external execution remain outside Domain. A query does not eliminate a time-of-check/time-of-use race, and a Domain collaborator never authorizes atomic persistence by itself.
 
 ## Repository Contract
 
@@ -189,7 +197,7 @@ Several independent root parameters, workflow verbs or table-shaped methods are 
 Use `github.com/go-jimu/components/ddd/event`. An internal Domain Event is a past-tense fact in this bounded context and is not an Integration Message contract.
 
 - The Aggregate records accepted facts in `event.Collection`.
-- Only Application drains the collection, once, after successful persistence.
+- In an accepted request-scoped post-commit flow, only Application drains the collection, once, after successful persistence. A resident Aggregate follows its separately accepted event/checkpoint policy; House Style does not make checkpoint success the precondition for Domain sequencing or live-state event handling.
 - Infrastructure reconstitution initializes `event.NewCollection()` and never drains it.
 - Do not expose another bounded context to this event type.
 

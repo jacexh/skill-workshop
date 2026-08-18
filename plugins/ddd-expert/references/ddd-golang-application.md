@@ -100,7 +100,7 @@ func AssembleUserEntity(entity *domain.User) *User {
 }
 ```
 
-The assembler has no logging, I/O, transaction or business branch. It does not map protobuf or DO types. DTO-to-Entity assembly is for existing data and is followed by Domain validation before behavior. A create-user use case calls `domain.NewUser(...)`; it never calls `AssembleUserDTO` to bypass Factory rules or creation events. After `Save`, an assembled `Version` is the stale in-memory value and must not be returned as the current persistence concurrency token.
+The assembler has no logging, I/O, transaction or business branch. It does not map protobuf or DO types. DTO-to-Entity assembly is for existing data and is followed by Domain validation before behavior. A create-user use case calls `domain.NewUser(...)`; it never calls `AssembleUserDTO` to bypass Factory rules or creation events. Under the request-scoped lifecycle, an assembled post-`Save` `Version` is stale and must not be returned as the current persistence concurrency token.
 
 Persistence mapping belongs in `infrastructure/convert.go` and follows the analogous `DO <-> Domain Entity` shape.
 
@@ -156,7 +156,7 @@ func (h *CreateUserHandler) Handle(
 		return CreatedUser{}, err
 	}
 
-	// Save makes user stale; only result mapping and this transaction's drain remain.
+	// This example uses the request-scoped lifecycle: Save makes user stale.
 	result := CreatedUser{ID: user.ID, Name: user.Name, Email: user.Email}
 	if err = h.dispatcher.DispatchAll(user.Events.Drain()); err != nil {
 		// The state is committed. This best-effort failure is swallowed and logged here.
@@ -198,7 +198,7 @@ The Command Handler receives `transaction.Transactor` and calls `Within`. Inside
 
 Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback. The callback contains no RPC, Kafka, file operation, event publication, goroutine, or retry. A bounded whole-use-case retry is allowed only when confirmed policy requires it; every attempt starts a new scope and reloads all roots.
 
-Do not publish Domain Events or return a successful result until `Within` has committed. An accepted outbox record is written by the same current transaction. If the callback, rollback, or commit fails, discard all participating Aggregate instances and their staged events; do not continue using their in-memory state.
+Do not publish Domain Events or return a successful result until `Within` has committed. An accepted outbox record is written by the same current transaction. Under this request-scoped multi-Root branch, a callback, rollback, or commit failure discards the loaded Aggregate instances and staged events. A resident Aggregate uses its separately accepted checkpoint/failure policy and is never silently treated as a transactional working copy.
 
 ## Query Handler
 
@@ -239,7 +239,7 @@ The full implementation imports `github.com/go-jimu/components/ddd/event`, `gith
 
 Use a named Application service only for meaningful use-case orchestration. It may coordinate Domain behavior, authorization, a read model, ACL, published fact or accepted background-work capability. It must not classify Domain state or become a provider facade.
 
-Place an outbound port beside the use case that consumes it. Name the semantic capability (`EligibilityProvider`, `ReserveCredit`, `CustomerIntentSender`), not the mechanism (`HTTPClient`, `BrokerPublisher`, `RedisStore`, `TxManager`). Do not wrap an already accepted provider-neutral go-jimu port with a same-shape local interface.
+When Application owns the use-case continuation, place its outbound port beside the consuming use case. Name the semantic capability (`EligibilityProvider`, `ReserveCredit`, `CustomerIntentSender`), not the mechanism (`HTTPClient`, `BrokerPublisher`, `RedisStore`, `TxManager`). When Domain owns the call timing, keep the collaborator contract in Domain and let Application supply its implementation instead of duplicating it as an Application port. Do not wrap an already accepted provider-neutral go-jimu port with a same-shape local interface.
 
 The conditional `internal/pkg/transaction.Transactor` above is a shared technical execution contract, not a semantic outbound port. Do not duplicate it under each BC's `application`, call it `UnitOfWork`, expose Repository factories through it, or pass options, `*xorm.Session`, or another provider handle inward. Add isolation or retry controls only when confirmed semantics require them and the local contract defines their behavior.
 
@@ -252,7 +252,7 @@ Application owns what must commit together; Infrastructure owns how. A single-Ag
 - Application logs a business-semantic fact only when it has independent operational value. Durable evidence is a Domain Event, audit record or persisted state, not a log line.
 - Application becomes the execution logger only for a terminal flow with no outer observer or when it deliberately swallows a best-effort failure.
 
-Test handlers with real Domain objects and focused fakes for Repository, QueryRepository, ACL and outbound ports. Cover orchestration, stable errors, persistence-before-dispatch and committed-but-not-delivered behavior. For a confirmed multi-Root use case, verify that one `Within` callback encloses every load, Domain decision, and save, but do not claim a fake Transactor proves physical enlistment or rollback. Do not reimplement Domain rules in Application tests.
+Test handlers with real Domain objects and focused fakes for Repository, QueryRepository, ACL and outbound ports. Cover orchestration and stable errors. Only when an accepted request-scoped post-commit dispatch flow exists, cover persistence-before-dispatch and committed-but-not-delivered behavior. For a confirmed multi-Root use case, verify that one `Within` callback encloses every load, Domain decision, and save, but do not claim a fake Transactor proves physical enlistment or rollback. Do not reimplement Domain rules in Application tests.
 
 ## File Shape
 

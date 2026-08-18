@@ -19,8 +19,8 @@ names are fixed:
 
 | Layer | Location | Owns |
 |---|---|---|
-| Domain | `src/business/<context>/domain` | Business language, behavior, invariants, lifecycle, Domain facts, write Repository contracts |
-| Application | `src/business/<context>/application` | Commands, Queries, use-case orchestration, transactions, DTOs, QueryRepositories, semantic outbound ports |
+| Domain | `src/business/<context>/domain` | Business language, behavior, invariants, lifecycle, Domain facts, write Repository and Domain-timed collaborator contracts |
+| Application | `src/business/<context>/application` | Commands, Queries, use-case orchestration, transactions, DTOs, QueryRepositories, semantic outbound ports for Application-owned continuations |
 | Transport | `src/business/<context>/transport` | ConnectRPC/HTTP/message/task decoding, one Application delegation, public outcome mapping |
 | Infrastructure | `src/business/<context>/infrastructure` | Persistence and outbound provider implementations, DO conversion, ACLs |
 | Platform/Runtime | `src/platform`, `src/runtime` | Shared clients, listeners, provider loops, composition, startup, shutdown, telemetry |
@@ -322,10 +322,12 @@ dispatch only after `execute` resolves, and suppress only a stable admitted
 dispatch-failure type. A commit failure discards the instance/events; programming
 defects remain visible. Otherwise omit all event machinery.
 
-A saved Aggregate is stale. It may be mapped to the command result and have
-this transaction's events drained, but it must not be mutated or saved again
-without reload. The stored version is incremented by Infrastructure, not
-written back into the Entity.
+This example uses the request-scoped optimistic lifecycle: a saved loaded
+Aggregate is stale, may supply the command result and transaction events, and
+must be reloaded before another mutation. The stored version is incremented by
+Infrastructure, not written back into that Entity. When accepted design selects
+a resident Aggregate, the live instance remains authoritative and persistence
+accepts a snapshot/checkpoint without replacing or rolling back it.
 
 Application errors express stable use-case outcomes, not provider codes.
 Application logs only valuable business facts or suppressed post-commit failure.
@@ -597,8 +599,8 @@ trace/span IDs. Runtime calls SDK shutdown.
 
 - Domain tests cover creation/reconstitution and transitions with real objects;
   add event-drain and FSM paths only when those capabilities exist.
-- Application tests prove scoped repositories, stale discipline, and mapping
-  with real handlers and focused fakes; accepted events also prove capture,
+- Application tests prove the selected lifecycle and mapping with real handlers
+  and focused fakes; accepted events also prove capture,
   commit, dispatch, and failure disposition.
 - Transport tests cover real decode/map/delegate/error/correlation behavior.
 - Kysely Repository/QueryRepository/migrations run against Testcontainers MySQL.

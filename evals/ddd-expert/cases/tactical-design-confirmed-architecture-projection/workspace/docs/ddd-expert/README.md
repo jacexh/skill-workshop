@@ -12,4 +12,4 @@ Every linked Model is the current domain authority for its Bounded Context. Sema
 
 ## Tactical Design Deltas
 
-- [ ] [Settle Invoice Atomicity](tactical-design/settle-invoice.md)
+- [ ] [Settlement Rate Ownership](tactical-design/settle-invoice.md)

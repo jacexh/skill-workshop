@@ -5,6 +5,7 @@
 - Supersedes: the EventStorming artifact-placement and Model-readiness decisions in [ADR 0003](0003-event-storming-whole-model-confirmation.md) and [ADR 0004](0004-model-ready-enters-codify-directly.md)
 - Guard review and closure preconditions superseded by: [ADR 0006: Guard Is a Bounded Semantic-Structure Review](0006-guard-is-a-semantic-structure-review.md)
 - Tactical Design artifact lifecycle and joint closure extended by: [ADR 0007: Tactical Design Is Conditional and Claim-Led](0007-conditional-tactical-design-and-claims.md)
+- Artifact authority and falsifiability refined by: [ADR 0008: Design Artifacts Are Falsifiable Candidates](0008-design-artifacts-are-falsifiable-candidates.md)
 
 ## Context
 

@@ -8,12 +8,13 @@ model_status: model_ready
 
 ## Ubiquitous Language
 
-- **Settle Invoice:** Apply an accepted payment amount to one Invoice.
-- **Invoice Settled:** The Invoice balance is durably zero.
+- **Settle Invoice:** Apply an eligible payment to one Invoice.
+- **Settlement Rate:** The authoritative conversion from a payment currency to the Invoice currency for one settlement attempt.
+- **Invoice Settled:** The Invoice balance is zero after an accepted payment.
 
 ## Authority and Ownership
 
-The Billing Clerk may request Settle Invoice. Billing owns invoice eligibility, balance transition, and settlement completion.
+The Billing Clerk may request Settle Invoice. Billing owns Invoice eligibility, balance transition, and settlement completion. The Settlement Rate Authority owns the rate used for a foreign-currency attempt.
 
 ## Aggregates and Core Business Objects
 
@@ -25,19 +26,19 @@ The Billing Clerk may request Settle Invoice. Billing owns invoice eligibility, 
 
 | Source Command(s) | Capability | Required authoritative facts | Guaranteed business result | Stable rejection |
 |---|---|---|---|---|
-| Settle Invoice | Settle Invoice | Current balance and positive payment amount | Remaining balance becomes zero and settlement is accepted | Invalid amount or already-settled Invoice leaves state unchanged |
+| Settle Invoice | Settle Invoice | Current balance, positive payment amount, and an authoritative rate for a foreign-currency attempt | A sufficient converted payment makes the remaining balance zero and settlement is accepted | Invalid, insufficient, or already-settled payment leaves state unchanged |
 
 ## Scenarios and Lifecycle
 
-An Invoice becomes settled only after its accepted balance change is durable.
+An Invoice validates its local eligibility before it requires a Settlement Rate. It becomes settled after a sufficient payment in its own currency or after applying the authoritative rate to a foreign-currency payment.
 
 ## Invariants and Policies
 
-An accepted settlement makes the remaining balance exactly zero.
+An accepted settlement makes the remaining balance exactly zero. An invalid local attempt does not require a rate.
 
 ## Failure and Recovery Semantics
 
-Persistence failure leaves the Invoice unsettled and returns a failed settlement.
+If the Settlement Rate Authority cannot provide the required rate, the Invoice remains unchanged and no settlement is accepted.
 
 ## Hotspots and Open Questions
 
