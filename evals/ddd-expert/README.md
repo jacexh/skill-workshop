@@ -1,6 +1,6 @@
 # ddd-expert behavior evaluations
 
-This suite runs isolated observable-behavior checks for `codify` and `guard`. It complements `scripts/release/test/test_ddd_expert_plugin.sh`, which checks plugin structure plus the EventStorming and Tactical Design workflow contracts deterministically.
+This suite runs isolated observable-behavior checks for Tactical Design materialization, `codify`, and `guard`. It complements `scripts/release/test/test_ddd_expert_plugin.sh`, which checks plugin structure plus the EventStorming and Tactical Design workflow contracts deterministically.
 
 ## EventStorming evaluation boundary
 
@@ -15,13 +15,13 @@ Manual transcript review is product feedback, not a keyword score and not an aut
 
 ## Tactical Design evaluation boundary
 
-Tactical Design is also an interactive judgment workflow, so the suite does not score its design answer by keywords or a preselected sequence. Deterministic checks cover the Design Delta threshold, no-artifact result, complete-sequence and claim contracts, integrated confirmation, artifact lifecycle, and routing. Manually review representative transcripts for whether the Design Delta was material, sequences reached visible outcomes and failures, ownership was explicit, claims were independently falsifiable, and Codify discretion remained broad enough. Include a review that exposes several dependent Model contradictions and verify that Tactical Design sweeps and consolidates them before one EventStorming handback instead of creating a correction cycle per question.
+Tactical Design is also an interactive judgment workflow, so the suite does not score its design answer by keywords or a preselected sequence. Automated producer cases begin from an already rendered draft and exercise only deterministic validation and confirmation materialization: every claim must have exactly one `projected` or `iteration-only` disposition, and each projected claim must create, update, or remove its owning BC Architecture state in the same ready write. They do not judge whether the original Design Delta, sequence, claim, or Architecture decision was wise. Deterministic release checks cover the Design Delta threshold, no-artifact result, complete-sequence and claim contracts, integrated confirmation, artifact lifecycle, and routing. Manually review representative transcripts for whether the Design Delta was material, sequences reached visible outcomes and failures, ownership was explicit, claims were independently falsifiable, and Codify discretion remained broad enough. Include a review that exposes several dependent Model contradictions and verify that Tactical Design sweeps and consolidates them before one EventStorming handback instead of creating a correction cycle per question.
 
 Guard fixtures may include an already accepted Tactical Design when the observable question is whether Guard faithfully detects code that contradicts a specific immutable claim. That tests review behavior, not whether the original design was wise.
 
 ## Automated suite
 
-Checked-in `codify` and `guard` cases may assert observable file changes, commands, review families, evidence paths, and structured completion. The runner does not use another LLM as a judge.
+Checked-in Tactical Design materialization, `codify`, and `guard` cases may assert observable file changes, commands, review families, evidence paths, and structured completion. The runner does not use another LLM as a judge.
 
 A confirmed per-context Model (`model_status: model_ready`) is direct business
 authority for both phases. It remains direct implementation authority when no
@@ -58,6 +58,6 @@ Use `--case <id>` and `--runs 1` while developing one fixture. Raw traces and co
 
 ## Adding an automated case
 
-Add cases only for an observable Codify or Guard contract that can be judged without pretending to know the correct domain model. Keep each workspace minimal and expectations outside the model-visible input.
+Add cases only for an observable Tactical Design materialization, Codify, or Guard contract that can be judged without pretending to know the correct domain model or collaboration design. Keep each workspace minimal and expectations outside the model-visible input.
 
 Do not add an EventStorming case whose pass condition depends on expected terminology, a fixed architecture answer, or occurrence of design-principle words. Use a human-reviewed transcript when the question is whether the facilitator exercised sound judgment.

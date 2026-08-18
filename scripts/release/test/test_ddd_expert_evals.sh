@@ -22,8 +22,8 @@ node "$AUTH_BROKER_TEST"
 node "$RUNNER" validate
 node "$RUNNER_TEST"
 
-rg -q 'const AUTOMATED_PHASES = Object\.freeze\(\["codify", "guard"\]\);' "$RUNNER" ||
-  fail "automated ddd-expert evaluator should admit only Codify and Guard cases"
+rg -q 'const AUTOMATED_PHASES = Object\.freeze\(\["tactical-design", "codify", "guard"\]\);' "$RUNNER" ||
+  fail "automated ddd-expert evaluator should admit Tactical Design materialization, Codify, and Guard cases"
 rg -q 'codex-code-mode-host:ro' "$RUNNER" ||
   fail "container evaluator should mount the code-mode host beside Codex"
 rg -q 'same Role intent crosses different pre-states' "$ROOT/evals/ddd-expert/README.md" ||
@@ -58,16 +58,18 @@ for (const directory of directories) {
   phases.add(config.phase);
 }
 
-for (const expected of ["codify", "guard"]) {
+for (const expected of ["tactical-design", "codify", "guard"]) {
   if (!phases.has(expected)) throw new Error(`ddd-expert eval suite is missing ${expected} coverage`);
 }
 for (const phase of phases) {
-  if (phase !== "codify" && phase !== "guard") {
+  if (phase !== "tactical-design" && phase !== "codify" && phase !== "guard") {
     throw new Error(`unsupported automated ddd-expert behavior phase: ${phase}`);
   }
 }
 
 for (const id of [
+  "tactical-design-confirmed-architecture-projection",
+  "tactical-design-rejects-unaccounted-claim",
   "codify-accepted-go-change",
   "codify-model-ready-direct-handoff",
   "codify-business-request-conflicts-with-model",
@@ -82,12 +84,22 @@ for (const id of [
 NODE
 
 node - "$CASES_ROOT" "$ROOT/evals/ddd-expert/result.schema.json" <<'NODE'
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 
 const casesRoot = process.argv[2];
 const resultSchema = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
 const readCase = (id) => JSON.parse(fs.readFileSync(path.join(casesRoot, id, "case.json"), "utf8"));
+const assertDraftFingerprint = (id) => {
+  const caseRoot = path.join(casesRoot, id);
+  const prompt = fs.readFileSync(path.join(caseRoot, "prompt.md"), "utf8");
+  const match = prompt.match(/SHA-256 fingerprint `([a-f0-9]{64})`/);
+  if (!match) throw new Error(`${id} prompt must pin one SHA-256 draft fingerprint`);
+  const draft = fs.readFileSync(path.join(caseRoot, "workspace/docs/ddd-expert/tactical-design/settle-invoice.md"));
+  const actual = crypto.createHash("sha256").update(draft).digest("hex");
+  if (actual !== match[1]) throw new Error(`${id} prompt fingerprint does not match its exact draft`);
+};
 
 if (!resultSchema.required.includes("architecture_ledger")) {
   throw new Error("Guard result schema must require architecture_ledger");
@@ -97,6 +109,42 @@ if (resultSchema.properties.verdicts.items.properties.unit_ids.uniqueItems !== t
 }
 if (!resultSchema.properties.routes.items.properties.target.enum.includes("tactical-design")) {
   throw new Error("Guard result routes must admit Tactical Design authority gaps");
+}
+if (!resultSchema.properties.phase.enum.includes("tactical-design")) {
+  throw new Error("ddd-expert result schema must admit Tactical Design producer cases");
+}
+
+const tacticalProducer = readCase("tactical-design-confirmed-architecture-projection");
+assertDraftFingerprint("tactical-design-confirmed-architecture-projection");
+const tacticalProducerWorkspace = path.join(casesRoot, "tactical-design-confirmed-architecture-projection", "workspace");
+const tacticalProducerDraft = fs.readFileSync(path.join(tacticalProducerWorkspace, "docs/ddd-expert/tactical-design/settle-invoice.md"), "utf8");
+if (!tacticalProducerDraft.includes("| [TD-001](#TD-001) | projected | Billing | add | ARCH-001 |") ||
+    !tacticalProducerDraft.includes("| [TD-002](#TD-002) | iteration-only | — | — | — |")) {
+  throw new Error("Tactical Design producer fixture must cover projected and iteration-only claim dispositions");
+}
+if (fs.existsSync(path.join(tacticalProducerWorkspace, "docs/ddd-expert/context/billing/architecture.md"))) {
+  throw new Error("Tactical Design producer fixture must begin before the projected BC Architecture exists");
+}
+for (const required of [
+  "docs/ddd-expert/tactical-design/settle-invoice.md",
+  "docs/ddd-expert/context/billing/architecture.md",
+  "docs/ddd-expert/README.md",
+]) {
+  if (!tacticalProducer.expect.git.required_paths.includes(required)) {
+    throw new Error(`Tactical Design producer fixture must require ${required}`);
+  }
+}
+
+const tacticalReject = readCase("tactical-design-rejects-unaccounted-claim");
+assertDraftFingerprint("tactical-design-rejects-unaccounted-claim");
+const tacticalRejectWorkspace = path.join(casesRoot, "tactical-design-rejects-unaccounted-claim", "workspace");
+const tacticalRejectDraft = fs.readFileSync(path.join(tacticalRejectWorkspace, "docs/ddd-expert/tactical-design/settle-invoice.md"), "utf8");
+if (!tacticalRejectDraft.includes('<a id="TD-002"></a>TD-002') || tacticalRejectDraft.includes("[TD-002](#TD-002)")) {
+  throw new Error("negative Tactical Design producer fixture must leave TD-002 unaccounted");
+}
+if (tacticalReject.expect.git.changed !== "none" ||
+    !tacticalReject.expect.completion.includes("stopped")) {
+  throw new Error("unaccounted Tactical Design claim must require a zero-write stopped result");
 }
 
 const compound = readCase("guard-outbound-port-structure");

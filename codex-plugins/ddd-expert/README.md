@@ -8,7 +8,7 @@ Use EventStorming as the single modeling path from backend evidence to a user-co
 $ddd-expert:event-storming
 -> ready EventStorming minutes + canonical Models
 $ddd-expert:tactical-design (only for a real Design Delta)
--> ready collaboration design + stable claims + optional BC Architecture projection
+-> ready collaboration design + stable claims + exhaustive claim disposition
 $ddd-expert:codify
 -> verified implementation checkpoint
 $ddd-expert:guard (iteration closure or merge/release)
@@ -36,12 +36,12 @@ Restart Codex after upgrade.
 ## Capabilities
 
 - `$ddd-expert:event-storming` facilitates the ten EventStorming steps one frontier question at a time, normalizes Commands by initiating intent, then projects them into stable Aggregate Capabilities and event-triggered Commands in canonical Models.
-- `$ddd-expert:tactical-design` runs only for a real Design Delta, uses typed critical collaboration sequences as the only persisted Model-to-design projection, confirms a small stable claim set, and projects only durable BC-specific decisions into optional `context/<context-slug>/architecture.md`. No Design Delta produces no Tactical Design artifact.
+- `$ddd-expert:tactical-design` runs only for a real Design Delta, uses typed critical collaboration sequences as the only persisted Model-to-design projection, confirms a small stable claim set, and projects only durable BC-specific decisions into optional `context/<context-slug>/architecture.md`; every Tactical Design Claim is accounted for as `projected` or `iteration-only`, and a projected claim creates, updates, or removes its owning Architecture state in the ready consistency write. No Design Delta produces no Tactical Design artifact.
 - `$ddd-expert:codify` realizes ready EventStorming authority plus any required ready Tactical Design in working backend code, carries a temporary many-to-many Model-to-code projection, runs producer conformance, and either stops at a verified implementation checkpoint or hands a stable snapshot to Guard.
 - `$ddd-expert:guard` uses one fresh read-only reviewer to independently reconstruct the scoped projection and judge whether a stable backend change expresses the accepted Model, Tactical Design claims, and house style, then jointly closes the reviewed ready records when its producer checkpoint is complete.
 - `maintain-artifacts` is the internal read/validation/write protocol, not a user entry point.
 
-The plugin does not auto-inject context. EventStorming owns Strategic Model meaning, Role-to-Command permissions, Aggregate Capabilities, and event-triggered Commands. Tactical Design owns material collaboration deltas; its typed sequences project relevant Model relationships without another mapping table, while optional BC Architecture owns only surviving context-specific decisions. Generic House Style, full sequences, code structure, and history are not copied there. Codify is read-only over DDD artifacts and keeps its code projection only as task evidence; Guard may perform only the final joint `ready -> implemented` closure after a clear verdict over the matching complete producer checkpoint.
+The plugin does not auto-inject context. EventStorming owns Strategic Model meaning, Role-to-Command permissions, Aggregate Capabilities, and event-triggered Commands. Tactical Design owns material collaboration deltas; its typed sequences project relevant Model relationships without another mapping table, while optional BC Architecture owns only surviving context-specific decisions. The file stays optional, but every claim has an explicit durable or iteration-only disposition. Generic House Style, full sequences, code structure, and history are not copied there. Codify is read-only over DDD artifacts and keeps its code projection only as task evidence; Guard may perform only the final joint `ready -> implemented` closure after a clear verdict over the matching complete producer checkpoint.
 
 ## Activation guidance
 
@@ -114,7 +114,7 @@ The Context Map records semantic model dependency only. Global `U -> D` edges fo
 - `templates/architecture.md` defines an optional sparse current Architecture for one Bounded Context.
 - `templates/tactical-design.md` defines one material Design Delta, its typed Model-to-design collaboration sequences, and its confirmed claims.
 
-EventStorming writes only draft minutes and the README TODO before confirmation. After approval, it applies the ready minutes, affected Models, Context Map, and relevant project-owned documents through one transaction. Tactical Design independently drafts and confirms only a material Design Delta, applying any exact BC Architecture projection with its ready transition. If newer Model authority invalidates an unimplemented ready Tactical Design, Tactical Design replaces or retires that record and its Architecture sources before Codify. Codify reads current authority; Guard jointly closes governed ready records while leaving BC Architecture current.
+EventStorming writes only draft minutes and the README TODO before confirmation. After approval, it applies the ready minutes, affected Models, Context Map, and relevant project-owned documents through one transaction. Tactical Design independently drafts and confirms only a material Design Delta, accounting for every claim and applying every projected BC Architecture row with its ready transition. If newer Model authority invalidates an unimplemented ready Tactical Design, Tactical Design replaces or retires that record and its Architecture sources before Codify. Codify reads current authority; Guard jointly closes governed ready records while leaving BC Architecture current.
 
 ## Scope
 
