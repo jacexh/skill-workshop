@@ -25,6 +25,7 @@ mechanism from accepted project constraints and repository evidence.
 | Need | Section |
 |---|---|
 | Dependency direction and layer ownership | Layered Architecture; Layer Responsibilities |
+| Trace confirmed Model meaning into software responsibilities | Model-to-code Projection |
 | Entity, Value Object, Aggregate, Domain Service, Domain Event | Tactical Building Blocks |
 | Write-side collection semantics | Repository |
 | Read-model separation | Conditional CQRS |
@@ -79,6 +80,26 @@ Style names its physical Interface layer `transport`.
 - **[House Rule]** Infrastructure implements inner contracts without moving mechanism vocabulary or business decisions inward.
 - **[House Rule]** Persistence rows, generated contracts, provider responses, Application DTOs, and Domain objects remain distinct when their owners or evolution rules differ; Infrastructure owns the required persistence and outbound translations.
 - **[House Rule]** Provider retry, topology, connection lifecycle, framework wiring, and runtime configuration remain in Infrastructure or the runtime platform boundary.
+
+## Model-to-code Projection
+
+Projection preserves semantic ownership across abstraction levels. It is traceability, not name matching or one-to-one generation: one Model concept may require several collaborating symbols, and one cohesive symbol may connect several concepts.
+
+| Confirmed Model meaning | Technical realization responsibility |
+|---|---|
+| Bounded Context, Aggregate Root, Entity, or Value Object | Preserve the owning context, identity, lifecycle, invariant, and reference boundary in Domain types and their inward-facing contracts; do not infer a deployment unit. |
+| Business Role may issue Command | Interface extracts trusted identity or context; Application preserves the Role-to-Command authorization and maps technical claims to business meaning. A Domain owner decides any eligibility that depends on authoritative Domain state. An IAM principal or transport claim is not itself the Role. |
+| External authority may issue Command | An inbound Interface authenticates or validates the accepted source and translates its contract into the semantic Application use case. Preserve the authority relationship without turning a provider, protocol, or remote payload into a Domain type. |
+| Command | Enter through one semantic Application use case or equivalent application boundary. A Command does not require a same-named class, handler, or Aggregate method. |
+| Aggregate Capability | Realize the stable operation on the Root's intention-revealing Domain method surface. Internal helpers or several cohesive methods may realize one capability when Application does not choose a pre-state branch or reproduce the Root's decision. |
+| Selected Domain Event | Represent the local Domain fact and record it with the behavior that establishes it; Application owns accepted dispatch timing and failure coordination. |
+| Published Fact Contract | Translate the selected Domain fact at the producing Application boundary into a stable Published Language. Keep its Integration Message and adapter realization distinct from the local Domain Event type. |
+| Event-triggered Command | Map the established fact or incoming contract through one consuming Interface adapter or local event boundary to one semantic Application use case, then to the accepted Capability or explicit coordination. |
+| Explicit coordination | Realize the use-case coordination in Application; introduce a Process Manager only when accepted durable process state, correlation, timeout, retry, cancellation, or compensation requires one. |
+| Analytical Workshop Event | Use it to explain the business outcome in the linked iteration or Tactical Design sequence. It requires no production event type, persistence, or dispatch unless the Model separately selects stronger semantics. |
+
+- **[House Rule]** For DDD-backed implementation, keep a scoped projection from each implementation-shaping Model meaning to the software responsibilities and production symbols that realize or connect it. Use artifact path, section, and canonical concept or relationship as the source reference; do not invent IDs in the Model.
+- **[House Rule]** Treat the projection as task evidence. Keep it outside `model.md`, BC Architecture, ADRs, and implementation code, and do not turn it into a second domain authority.
 
 ## 3. Tactical Building Blocks
 

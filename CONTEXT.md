@@ -43,12 +43,16 @@ A mechanism or tactical choice explicitly confirmed by the user or recorded in c
 _Avoid_: inferred approval, existing implementation
 
 **Aggregate Capability**:
-An intention-revealing business behavior owned by one Aggregate Root, including the facts it requires, its successful state transition or outcome, and its rejection or failure meaning. It usually maps to a method in code but does not prescribe a signature.
-_Avoid_: CRUD operation, method signature, application workflow
+An intention-revealing business operation owned by one Aggregate Root, projected from one or more normalized EventStorming Commands to shape the Root's public Domain method surface. It states the common authoritative facts, successful guarantee, and stable rejection for that operation; scenario or pre-state branches remain policies and lifecycle meaning rather than separate capabilities. It guides methods without prescribing a signature or exact method count.
+_Avoid_: state-qualified scenario branch, CRUD operation, method signature, application workflow
 
-**Required Reaction**:
-A durable business obligation in one Bounded Context in which a named policy or process owner observes a selected Domain Event or Published Fact Contract and issues a Command toward an Aggregate Capability or explicit coordination. Dispatch and delivery mechanisms are not part of this meaning.
-_Avoid_: event handler wiring, automatic callback, transport subscription
+**Business Role**:
+A participant whose business decision rights are defined in one Bounded Context. EventStorming places the Role inside that context and outside every Aggregate, labels its outgoing intent as a Command edge, and preserves the confirmed permission in that context's current Model without equating it to an IAM identity.
+_Avoid_: generic Actor, IAM principal, transport identity
+
+**Event-triggered Command**:
+A Bounded Context-local business intent required by an established Domain Event or Published Fact Contract. EventStorming draws the fact or contract directly to the target Aggregate Capability or explicit coordination with the Command as the edge label; dispatch and delivery mechanisms are not part of this meaning.
+_Avoid_: Reaction Policy node, event handler wiring, automatic callback, transport subscription
 
 **Design Delta**:
 A material gap between confirmed business authority and implementable collaboration ownership, such as a new or changed transaction, state, concurrency, event-publication, failure/recovery, semantic-port, or durable Interface responsibility. Reversible work inside accepted seams is not a Design Delta.
@@ -63,7 +67,7 @@ The optional current authority at `context/<context-slug>/architecture.md` for d
 _Avoid_: root architecture ledger, per-context House Style copy, design transcript
 
 **Critical Collaboration Sequence**:
-A complete success, rejection, failure, or recovery path that shows the initiating actor, Application coordination, Aggregate Capabilities, authoritative reads/writes, transaction and state boundaries, event timing, and visible outcome.
+A complete success, rejection, failure, or recovery path that uses typed Model labels to show the initiating Role, external authority, or fact; Command; Application coordination; Aggregate Capability; authoritative reads/writes; transaction and state boundaries; selected Domain Event and message translation when present; and the analytical Workshop Event outcome.
 _Avoid_: Context Map edge, partial happy-path call graph
 
 **EventStorming Board**:

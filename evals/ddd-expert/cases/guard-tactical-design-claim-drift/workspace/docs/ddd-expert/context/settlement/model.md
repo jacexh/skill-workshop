@@ -23,9 +23,9 @@ Settlement owns account eligibility, balance transition, and completion.
 
 ### Account
 
-| Capability | Business intent | Required facts | State transition or outcome | Rejection or failure |
+| Source Command(s) | Capability | Required authoritative facts | Guaranteed business result | Stable rejection |
 |---|---|---|---|---|
-| Settle | Apply an accepted amount | Current balance and positive amount | Balance decreases and settlement is accepted | Insufficient balance or invalid amount leaves Account unchanged |
+| Settle Account | Settle | Current balance and positive amount | Balance decreases and settlement is accepted | Insufficient balance or invalid amount leaves Account unchanged |
 
 ## Scenarios and Lifecycle
 
