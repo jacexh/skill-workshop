@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.16.2"
+    "version": "1.16.3"
   },
   "plugins": [
     {
@@ -44,7 +44,7 @@
       "name": "ddd-expert",
       "source": "./plugins/ddd-expert",
       "description": "Purpose-led EventStorming, falsifiable Tactical Design, implementation, and review",
-      "version": "1.16.2",
+      "version": "1.16.3",
       "author": {
         "name": "xuhao"
       },
