@@ -84,8 +84,10 @@ Domain behavior -> Repository.Save -> Events.Drain -> Dispatcher.DispatchAll
 Rules:
 
 - Do not drain if `Save` fails.
-- After successful `Save`, the Aggregate instance is stale. It may be read for
-  the result and drained once, but it cannot be mutated or saved again.
+- This flow assumes the request-scoped lifecycle. After successful `Save`, that
+  loaded instance is stale: it may supply the result and be drained once, but
+  cannot be mutated or saved again. A resident Aggregate requires a separately
+  accepted event/checkpoint flow; do not transplant this sequence into it.
 - `DispatchAll` confirms only that the in-memory dispatcher accepted the batch.
   It does not report handler completion, handler failure, or handler panic.
 - The original command is already committed. A dispatch admission failure is

@@ -6,7 +6,7 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 # <Bounded Context> Domain Model
 
-<!-- This artifact is the current domain authority for one Bounded Context. Integrate only durable conclusions owned by this context, link the EventStorming minutes that produced the current revision, replace every placeholder, remove all template comments, and retain the canonical section order. -->
+<!-- This artifact owns confirmed business facts and the current falsifiable structural model for one Bounded Context. Integrate only durable conclusions owned by this context, link the EventStorming minutes that produced the current revision, replace every placeholder, remove all template comments, and retain the canonical section order. -->
 
 ## Ubiquitous Language
 
@@ -18,7 +18,7 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 ## Aggregates and Core Business Objects
 
-<!-- State each confirmed Aggregate boundary/root and the identity, lifecycle, invariant, or concurrency reason that requires it. For each material core object, record the Domain facts Codify needs to choose its tactical form: business meaning, identity and continuity when present, ownership, lifecycle, validity, equality, normalization or units, and references to other Aggregates by identity when material. Do not prescribe fields, classes, accessors, or storage mapping. If Bounded Context scope supports none, write exactly `- **No supported Aggregate:** <evidence-based reason>` instead of inventing a root. -->
+<!-- State each current Aggregate boundary/root hypothesis and the identity, lifecycle, invariant, or concurrency evidence that supports it. For each material core object, record its business meaning, identity and continuity, owned facts, lifecycle and change reasons, rules, semantic result, relationships to other owned objects, and cross-Aggregate references by identity when material. A Root may compose objects with distinct responsibilities inside one Aggregate; do not make independent lifecycle an automatic split or make the Root absorb every behavior. Do not prescribe fields, classes, accessors, calls, or storage mapping. If Bounded Context scope supports none, write exactly `- **No supported Aggregate:** <evidence-based reason>`. -->
 
 ## Aggregate Capabilities
 
@@ -42,7 +42,7 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 <!-- Omit this subsection when this context selects no local Domain Event. -->
 
-| Domain Event | Owner | Established by Aggregate Capability | Why occurrence matters | Business failure or recovery |
+| Domain Event | Owner | Established by Aggregate Capability | Why occurrence matters | Business consequence if not established |
 |---|---|---|---|---|
 | <Past-tense fact> | <Aggregate Root or Bounded Context> | <Capability> | <Required event-triggered Command or durable evidence purpose> | <Business guarantee> |
 
@@ -58,9 +58,9 @@ last_changed_by: "../../event-storming/<event-storming-slug>.md"
 
 <!-- State immediate consistency rules, decision policies, timing rules, their required facts, semantic owner, and business outcome. -->
 
-## Failure and Recovery Semantics
+## Material Adverse Semantics
 
-<!-- State duplicate, cancellation, expiry, retry, compensation, and recovery meaning when material. -->
+<!-- Omit this section unless an adverse fact changes a business right, obligation, value, or required next action. Record that business consequence without prescribing timeout, retry, rollback, compensation, or recovery mechanisms. -->
 
 ## Hotspots and Open Questions
 

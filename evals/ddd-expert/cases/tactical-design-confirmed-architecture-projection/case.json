@@ -36,6 +36,11 @@
         "exists": true,
         "contains": [
           "status: ready",
+          "## Domain Responsibility Thesis",
+          "classDiagram",
+          "## State Authority and Semantic Flow",
+          "## Necessity Proof",
+          "## Reconciliation Evidence",
           "| [TD-001](#TD-001) | projected | Billing | add | ARCH-001 |",
           "| [TD-002](#TD-002) | iteration-only | — | — | — |"
         ],
@@ -59,6 +64,12 @@
         "excludes": []
       }
     ],
-    "checks": []
+    "checks": [
+      {
+        "argv": ["go", "test", "./..."],
+        "exit": 0,
+        "timeout_seconds": 60
+      }
+    ]
   }
 }

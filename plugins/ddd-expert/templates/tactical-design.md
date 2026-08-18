@@ -4,81 +4,82 @@ status: draft
 
 # <Design Delta> Tactical Design
 
-<!-- One record owns one material Design Delta for an implementation slice. Keep `status: draft` until the user confirms this exact candidate, use `status: ready` for Codify authority, and let Guard set `status: implemented` only with the paired iteration closure. Use `status: superseded` plus `superseded_by: "<replacement-ready-tactical-design-or-newer-ready-minutes-path>"` only when newer confirmed business authority invalidates this ready record before implementation. Replace every placeholder and remove all comments. -->
+<!-- One record owns one material Design Delta. `draft` is an exploration candidate, not accepted truth. Transition the reconciled candidate to `ready` before Guard; Guard closes it as `implemented`. Use `superseded` only when newer confirmed authority or reconciled implementation evidence invalidates an unimplemented ready record; `superseded_by` names either its ready replacement or the surviving ready EventStorming authority when the delta disappears. Replace placeholders and remove comments. -->
 
 ## Scope and Authority
 
-<!-- State the Design Delta and explicit exclusions. Link every governing ready EventStorming record, affected canonical Model, ADR, Spec, PRD, or other accepted project constraint. -->
+<!-- Name the Design Delta, confirmed business facts and constraints, current structural hypotheses, accepted project decisions, and exclusions. Link governing ready EventStorming records and canonical Models. -->
+
+## Domain Responsibility Thesis
+
+<!-- Explain the smallest object model that preserves the confirmed facts. The diagram is a tactical candidate; it does not silently revise business authority. -->
+
+```mermaid
+classDiagram
+    %% Derive every class and relationship from the responsibility thesis.
+    %% This template intentionally supplies no example topology.
+```
+
+| Domain object | Identity and lifecycle | Owned facts, rules, and change reasons | Semantic result | Boundary reason |
+|---|---|---|---|---|
+| <Object> | <Identity/continuity> | <What it alone knows and changes> | <Minimal domain result> | <Why owned here> |
+
+## State Authority and Semantic Flow
+
+| Material fact/state | Business owner | Live runtime authority | Durable checkpoint or external authority | Validity after failure |
+|---|---|---|---|---|
+| <Fact> | <Owner> | <Authoritative instance/source> | <Optional checkpoint/authority> | <What remains valid> |
+
+| Flow | Producer | Semantic result | Consumer | Business sequencer | Technical executor |
+|---|---|---|---|---|---|
+| <Normal flow> | <Domain owner> | <Owning-language value/capability> | <Domain owner> | <Who decides when> | <Who supplies context/provider execution> |
+
+## Necessity Proof
+
+<!-- Include only design-shaping concepts. If removing one does not break a confirmed responsibility or guarantee, remove it from the design. -->
+
+| Proposed concept | Confirmed responsibility or guarantee it enables | Consequence of removal |
+|---|---|---|
+| <Participant/state/event/checkpoint/mechanism> | <Exact supported need> | <Concrete breakage> |
 
 ## Critical Collaboration Sequences
 
-<!--
-These typed sequence diagrams are the only persisted Model-to-design projection; add no parallel mapping table. Include one complete sequence per materially different success, rejection, failure, timeout, retry, or recovery path. A separate diagram is justified only by different responsibility, guarantee, durable state/checkpoint, or visible outcome; combine mechanically equivalent variants in one `alt` branch or note and use the fewest readable scenario-focused diagrams.
-
-Group every technical object owned by the same Bounded Context in one Mermaid `box ... end`, repeating one box per represented context. Keep business Roles, external authorities, and external systems without a modeled owning context outside the object boxes. Label every invocation into or between technical participants `Public Method: <receiver method>(<semantic inputs>)`; label replies `Returns: <semantic result>`. Public Method means the receiver-visible callable seam, not a public network API or a final language signature.
-
-Put exact accepted `Role:`, `External Authority:`, `Command:`, `Aggregate:`, `Capability:`, `Domain Event:`, `Published Fact Contract:`, `Integration Message:`, `Coordination:`, and `Workshop Event:` meaning in participant labels or adjacent traceability notes. Preserve the Domain Event -> producer translation -> Integration Message -> consumer translation -> event-triggered Command chain with adjacent notes on its Public Method calls when published meaning crosses a Bounded Context. Show an analytical Workshop Event only as an outcome note; it does not become a software participant, message, or event type. Reuse the same Capability across state variants; trace any additional Domain call to that Capability or an accepted Model policy. Show authoritative reads/writes, transaction boundary, state/checkpoint changes, event publication timing, and visible outcome.
--->
+<!-- Derive the fewest readable `sequenceDiagram` views from the object thesis; do not start from a fixed layer or Repository topology. Show the normal path first. Add an adverse path only when responsibility, guarantee, durable state, required next action, or visible business result changes. Group technical participants by owning Bounded Context. Keep Roles, external authorities, and unowned external systems outside. Label calls `Public Method: <receiver operation>(<semantic inputs>)` and replies `Returns: <semantic result>`. Put accepted Model traceability in adjacent notes. -->
 
 ```mermaid
 sequenceDiagram
-    actor Role as Role: <Business Role>
-    %% For a non-human source, use: actor Authority as External Authority: <Accepted authority>
-    box <Bounded Context>
-        participant Interface as Interface: <Inbound object>
-        participant Application as Application: <Use-case object>
-        participant Repository as Repository: <Aggregate collection>
-        participant Root as Aggregate: <Aggregate Root>
-    end
-
-    Role->>Interface: Public Method: <InboundMethod>(<Request>)
-    Note over Role,Application: Command: <Business intent>
-    Interface->>Application: Public Method: <UseCaseMethod>(<Command>)
-    Application->>Repository: Public Method: Get(<Aggregate identity>)
-    Repository-->>Application: Returns: <Aggregate Root>
-    Application->>Root: Public Method: <CapabilityMethod>(<Domain arguments>)
-    Note over Application,Root: Capability: <Stable Root operation>
-    Root-->>Application: Returns: <Accepted or rejected Domain result>
-    Application->>Repository: Public Method: Save(<Aggregate Root>)
-    Repository-->>Application: Returns: <Commit outcome>
-    Application-->>Interface: Returns: <Semantic result>
-    Interface-->>Role: Returns: <Visible business outcome>
-    Note over Role,Root: Workshop Event: <Past-tense business outcome>
-
-    %% Selected local-event form: Note over Root,Application: Domain Event: <Past-tense fact>
-    %% For cross-context continuation, repeat `box <Other Bounded Context>` for its objects.
-    %% Use adjacent notes to keep Published Fact Contract, Integration Message, consumer
-    %% translation, event-triggered Command, and target Capability as distinct meanings.
+    %% Derive every participant and call from the responsibility thesis.
+    %% This template intentionally supplies no example topology.
 ```
 
 ## Ownership and Changed Interfaces
 
-<!-- Name transaction, state, concurrency, event publication, failure, and recovery ownership. List only changed semantic Interfaces or seams and connect each responsibility to the exact typed Model meaning shown in the sequences. Keep Role authorization, Domain Event recording, Published Fact translation, Integration Message adaptation, event-triggered Commands, and Aggregate Capability ownership distinct when present. -->
+<!-- Name only ownership and semantic seams changed by this delta. Distinguish who owns business timing from who supplies use-case context and provider execution. -->
 
 ## Tactical Design Claims
 
-<!-- Keep stable IDs once ready. Keep each ID equal to its explicit HTML anchor so canonical claim keys remain navigable. Each row is one independently falsifiable semantic owner, boundary, ordering, or atomicity assertion. Do not create rows per arrow, file, method, or layer. -->
+<!-- Ready-only: omit this entire section from the exploration draft. Add stable claims only after implementation evidence reconciles the candidate. -->
 
-| Claim ID | Responsibility | Accepted assertion |
+| Claim ID | Responsibility | Reconciled assertion |
 |---|---|---|
-| <a id="TD-001"></a>TD-001 | <Domain/Application/Interface/Infrastructure/Runtime/Collaboration> | <Implementation-shaping assertion> |
+| <a id="TD-001"></a>TD-001 | <Owner/seam> | <Independently falsifiable assertion> |
 
 ## BC Architecture Projection
 
-<!-- Each Tactical Design Claim appears exactly once in this ledger. Use `projected` for a durable decision, once, in the Bounded Context that owns the responsibility; supply its `add`, `replace`, or `remove` action, local decision ID, and exact current statement. `iteration-only` requires a concrete reason that the claim imposes no surviving BC-specific constraint; use `—` for its Bounded Context, action, and decision ID. No Architecture write occurs only when every row is `iteration-only`; a `remove` may delete the optional file when its final current row is removed. Do not copy sequences or rationale. -->
+<!-- Ready-only: omit this entire section from the exploration draft. Account for each reconciled claim exactly once. Project only a durable BC-specific decision; otherwise give a concrete iteration-only reason. -->
 
-| Source claim | Disposition | Bounded Context | Action | Decision ID | Current BC-specific architecture decision or iteration-only reason |
+| Source claim | Disposition | Bounded Context | Action | Decision ID | Current decision or iteration-only reason |
 |---|---|---|---|---|---|
-| [TD-001](#TD-001) | <projected/iteration-only> | <Bounded Context or `—`> | <add/replace/remove or `—`> | <ARCH-001 or `—`> | <One lasting decision, `—` for remove, or concrete iteration-only reason> |
+| [TD-001](#TD-001) | <projected/iteration-only> | <Context or `—`> | <add/replace/remove or `—`> | <ARCH-001 or `—`> | <Decision/reason> |
 
-## Non-Goals
+## Reconciliation Evidence
 
-<!-- State plausible but excluded mechanisms, flows, and architecture changes. -->
+<!-- Ready-only: omit this entire section until Codify has produced concrete implementation evidence. Record paths or symbols and executed checks that confirmed, simplified, or falsified the draft. Name deleted concepts explicitly so semantic renaming cannot preserve them. Design-only work remains draft. -->
 
-## Codify Discretion
+## Non-Goals and Codify Discretion
 
-<!-- State reversible implementation choices Codify may make inside the accepted seams. -->
+<!-- State only meaningful exclusions and the reversible choices left to Codify. -->
 
-## Decisions and Reasons
+## Decision and Alternative
 
-<!-- Record the chosen collaboration design, strongest credible alternative, decisive constraints, and any ADR update. -->
+<!-- State the chosen whole, one credible alternative or deletion challenge, and the decisive evidence. -->

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate the remaining implementation/review fixtures and deterministic scorer.
+# Validate decision-quality, implementation, and review fixtures plus the deterministic scorer.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -22,20 +22,33 @@ node "$AUTH_BROKER_TEST"
 node "$RUNNER" validate
 node "$RUNNER_TEST"
 
-rg -q 'const AUTOMATED_PHASES = Object\.freeze\(\["tactical-design", "codify", "guard"\]\);' "$RUNNER" ||
-  fail "automated ddd-expert evaluator should admit Tactical Design materialization, Codify, and Guard cases"
+rg -q 'const AUTOMATED_PHASES = Object\.freeze\(\["event-storming", "tactical-design", "codify", "guard"\]\);' "$RUNNER" ||
+  fail "automated ddd-expert evaluator should admit EventStorming decision-quality, Tactical Design, Codify, and Guard cases"
 rg -q 'codex-code-mode-host:ro' "$RUNNER" ||
   fail "container evaluator should mount the code-mode host beside Codex"
-rg -q 'same Role intent crosses different pre-states' "$ROOT/evals/ddd-expert/README.md" ||
-  fail "manual EventStorming review should cover capability granularity across state variants"
-rg -q 'consolidates them before one EventStorming handback' "$ROOT/evals/ddd-expert/README.md" ||
-  fail "manual Tactical Design review should cover batched Model challenges"
+rg -q 'does not score a preferred architecture name' "$ROOT/evals/ddd-expert/README.md" ||
+  fail "EventStorming behavior probes should avoid preferred architecture answers"
+rg -q 'object responsibility, state authority, and semantic flow' "$ROOT/evals/ddd-expert/README.md" ||
+  fail "manual Tactical Design review should assess the system thesis before mechanisms"
+rg -q 'exactly one question, zero writes, and no downstream route' "$ROOT/evals/ddd-expert/README.md" ||
+  fail "EventStorming automated probes should assert interaction boundaries rather than keywords"
+rg -q 'semantic deletion' "$ROOT/evals/ddd-expert/README.md" ||
+  fail "Codify behavior coverage should include deletion rather than semantic renaming"
+
+decisive_prompt="$CASES_ROOT/event-storming-asks-decisive-business-question/prompt.md"
+purpose_prompt="$CASES_ROOT/event-storming-clarifies-purpose/prompt.md"
+for leaked_instruction in 'exactly one' 'do not infer' 'do not write'; do
+  if rg -qi "$leaked_instruction" "$decisive_prompt"; then
+    fail "EventStorming decisive-question prompt should not disclose hidden pass condition: $leaked_instruction"
+  fi
+done
+for leaked_instruction in 'one question' 'do not choose' 'do not modify' 'process-compliance'; do
+  if rg -qi "$leaked_instruction" "$purpose_prompt"; then
+    fail "EventStorming purpose prompt should not disclose hidden pass condition: $leaked_instruction"
+  fi
+done
 if node "$RUNNER" self-test >/dev/null 2>&1; then
   fail "retired scorer self-test should not remain a public evaluator command"
-fi
-
-if find "$CASES_ROOT" -mindepth 1 -maxdepth 1 -type d -name 'event-storming-*' | grep -q .; then
-  fail "EventStorming architecture quality must not be release-gated by answer-or-keyword fixtures"
 fi
 
 node - "$CASES_ROOT" <<'NODE'
@@ -58,11 +71,11 @@ for (const directory of directories) {
   phases.add(config.phase);
 }
 
-for (const expected of ["tactical-design", "codify", "guard"]) {
+for (const expected of ["event-storming", "tactical-design", "codify", "guard"]) {
   if (!phases.has(expected)) throw new Error(`ddd-expert eval suite is missing ${expected} coverage`);
 }
 for (const phase of phases) {
-  if (phase !== "tactical-design" && phase !== "codify" && phase !== "guard") {
+  if (phase !== "event-storming" && phase !== "tactical-design" && phase !== "codify" && phase !== "guard") {
     throw new Error(`unsupported automated ddd-expert behavior phase: ${phase}`);
   }
 }
@@ -71,6 +84,7 @@ for (const id of [
   "tactical-design-confirmed-architecture-projection",
   "tactical-design-rejects-unaccounted-claim",
   "codify-accepted-go-change",
+  "codify-deletes-obsolete-mechanism",
   "codify-model-ready-direct-handoff",
   "codify-business-request-conflicts-with-model",
   "guard-model-ready-lifecycle-conformance",
@@ -125,6 +139,11 @@ if (!tacticalProducerDraft.includes("| [TD-001](#TD-001) | projected | Billing |
 if (fs.existsSync(path.join(tacticalProducerWorkspace, "docs/ddd-expert/context/billing/architecture.md"))) {
   throw new Error("Tactical Design producer fixture must begin before the projected BC Architecture exists");
 }
+if (tacticalProducerDraft.includes("no implementation evidence exists") ||
+    !tacticalProducerDraft.includes("internal/billing/application/settle_invoice.go") ||
+    !tacticalProducer.expect.checks.some((check) => check.argv.join(" ") === "go test ./...")) {
+  throw new Error("ready Tactical Design producer fixture must carry concrete implementation evidence and an executed check");
+}
 for (const required of [
   "docs/ddd-expert/tactical-design/settle-invoice.md",
   "docs/ddd-expert/context/billing/architecture.md",
@@ -142,9 +161,45 @@ const tacticalRejectDraft = fs.readFileSync(path.join(tacticalRejectWorkspace, "
 if (!tacticalRejectDraft.includes('<a id="TD-002"></a>TD-002') || tacticalRejectDraft.includes("[TD-002](#TD-002)")) {
   throw new Error("negative Tactical Design producer fixture must leave TD-002 unaccounted");
 }
+if (!tacticalRejectDraft.includes("## Domain Responsibility Thesis") ||
+    !tacticalRejectDraft.includes("## State Authority and Semantic Flow") ||
+    !tacticalRejectDraft.includes("## Necessity Proof") ||
+    !tacticalRejectDraft.includes("internal/billing/application/settle_invoice.go") ||
+    !tacticalReject.expect.checks.some((check) => check.argv.join(" ") === "go test ./...")) {
+  throw new Error("negative Tactical Design producer fixture must be otherwise valid and backed by implementation evidence");
+}
 if (tacticalReject.expect.git.changed !== "none" ||
     !tacticalReject.expect.completion.includes("stopped")) {
   throw new Error("unaccounted Tactical Design claim must require a zero-write stopped result");
+}
+
+for (const id of ["event-storming-clarifies-purpose", "event-storming-asks-decisive-business-question"]) {
+  const eventProbe = readCase(id);
+  const questionKeys = Object.keys(eventProbe.expect.questions).sort().join(",");
+  if (questionKeys !== "max,min" || eventProbe.expect.questions.min !== 1 || eventProbe.expect.questions.max !== 1) {
+    throw new Error(`${id} must assert one question without a keyword oracle`);
+  }
+}
+
+const deletion = readCase("codify-deletes-obsolete-mechanism");
+const deletionWorkspace = path.join(casesRoot, "codify-deletes-obsolete-mechanism", "workspace");
+const deletionDraft = fs.readFileSync(path.join(deletionWorkspace, "docs/ddd-expert/tactical-design/remove-persistence-confirmation.md"), "utf8");
+const deletionTest = fs.readFileSync(path.join(deletionWorkspace, "internal/billing/invoice_test.go"), "utf8");
+if (deletionDraft.includes("## Tactical Design Claims") ||
+    deletionDraft.includes("## BC Architecture Projection") ||
+    deletionDraft.includes("## Reconciliation Evidence")) {
+  throw new Error("exploration Tactical Design fixture must omit ready-only conformance sections");
+}
+if (!deletion.expect.routes.contains.includes("tactical-design") ||
+    deletion.expect.routes.contains.includes("guard") ||
+    !deletion.expect.git.allowed_paths.includes("internal/billing/invoice.go") ||
+    !deletion.expect.checks.some((check) => check.argv.join(" ") === "go test ./...")) {
+  throw new Error("semantic deletion fixture must stay reversible, verified, and route evidence to Tactical Design");
+}
+if (!deletionTest.includes('parser.ParseFile(token.NewFileSet(), "invoice.go"') ||
+    !deletionTest.includes("unexpected package-level declaration") ||
+    !deletionTest.includes('field.Names[0].Name != wanted[index].name')) {
+  throw new Error("semantic deletion fixture must prevent renamed or hidden state carriers, not only old identifiers");
 }
 
 const compound = readCase("guard-outbound-port-structure");
@@ -235,7 +290,7 @@ if find "$CASES_ROOT" -type f -name 'design.md' | grep -q .; then
   fail "retired root design.md artifacts must not appear in ddd-expert evals"
 fi
 
-readiness_refs="$(rg -n 'design_' "$CASES_ROOT" || true)"
+readiness_refs="$(rg -n 'design_(status|ready|revision)|missing_design|evolving_design|stale_design' "$CASES_ROOT" || true)"
 if [ -n "$readiness_refs" ]; then
   printf '%s\n' "$readiness_refs" >&2
   fail "ddd-expert evals must use model_ready Models as direct authority"

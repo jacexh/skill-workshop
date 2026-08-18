@@ -6,7 +6,7 @@ status: ready
 
 ## Scope and Exclusions
 
-Settle one Invoice. Provider collection and partial payments are outside scope.
+Settle one Invoice using an authoritative conversion rate when the payment uses a foreign currency. Persistence, provider protocol, and partial payments are outside scope.
 
 ## EventStorming Model
 
@@ -24,7 +24,7 @@ flowchart LR
 
 ## Decisions and Reasons
 
-The Invoice owns settlement eligibility and balance transition. Completion means durable settlement.
+The Invoice owns settlement eligibility and balance transition. It determines when an eligible foreign-currency attempt requires the rate owned by the Settlement Rate Authority. Provider mechanics do not own this business timing.
 
 ## Affected Models
 
