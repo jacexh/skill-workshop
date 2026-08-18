@@ -1,0 +1,64 @@
+{
+  "id": "tactical-design-confirmed-architecture-projection",
+  "phase": "tactical-design",
+  "suites": ["full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": [], "excludes": ["event-storming", "tactical-design", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "some",
+      "required_paths": [
+        "docs/ddd-expert/tactical-design/settle-invoice.md",
+        "docs/ddd-expert/context/billing/architecture.md",
+        "docs/ddd-expert/README.md"
+      ],
+      "forbidden_paths": [
+        "docs/ddd-expert/context/billing/model.md",
+        "docs/ddd-expert/event-storming/settle-invoice.md",
+        "docs/ddd-expert/context-map.md"
+      ],
+      "allowed_paths": [
+        "docs/ddd-expert/tactical-design/settle-invoice.md",
+        "docs/ddd-expert/context/billing/architecture.md",
+        "docs/ddd-expert/README.md"
+      ]
+    },
+    "files": [
+      {
+        "path": "docs/ddd-expert/tactical-design/settle-invoice.md",
+        "exists": true,
+        "contains": [
+          "status: ready",
+          "| [TD-001](#TD-001) | projected | Billing | add | ARCH-001 |",
+          "| [TD-002](#TD-002) | iteration-only | — | — | — |"
+        ],
+        "excludes": ["status: draft"]
+      },
+      {
+        "path": "docs/ddd-expert/context/billing/architecture.md",
+        "exists": true,
+        "contains": [
+          "architecture_revision: 1",
+          "last_changed_by: \"../../tactical-design/settle-invoice.md\"",
+          "<a id=\"ARCH-001\"></a>ARCH-001",
+          "[TD-001](../../tactical-design/settle-invoice.md#TD-001)"
+        ],
+        "excludes": ["TD-002", "Workshop Event", "sequenceDiagram"]
+      },
+      {
+        "path": "docs/ddd-expert/README.md",
+        "exists": true,
+        "contains": ["[Architecture](context/billing/architecture.md)"],
+        "excludes": []
+      }
+    ],
+    "checks": []
+  }
+}

@@ -9,7 +9,7 @@
     },
     "phase": {
       "type": "string",
-      "enum": ["event-storming", "codify", "guard"]
+      "enum": ["event-storming", "tactical-design", "codify", "guard"]
     },
     "completion": {
       "type": "string",

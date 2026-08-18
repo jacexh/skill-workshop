@@ -63,7 +63,7 @@ A stable, independently falsifiable assertion in a confirmed Tactical Design tha
 _Avoid_: Mermaid arrow, file checklist, producer verdict
 
 **Bounded Context Architecture**:
-The optional current authority at `context/<context-slug>/architecture.md` for durable, context-specific software decisions that materially constrain future realization. It excludes Model facts, generic House Style, full Tactical Design sequences, code structure, and historical rationale.
+The optional current authority at `context/<context-slug>/architecture.md` for durable, context-specific software decisions that materially constrain future realization. Every confirmed Tactical Design Claim has an explicit disposition: durable claims are projected once into the owning context's Architecture, while `iteration-only` claims retain a concrete no-surviving-decision reason in the Tactical Design record. It excludes Model facts, generic House Style, full Tactical Design sequences, code structure, and historical rationale.
 _Avoid_: root architecture ledger, per-context House Style copy, design transcript
 
 **Critical Collaboration Sequence**:
