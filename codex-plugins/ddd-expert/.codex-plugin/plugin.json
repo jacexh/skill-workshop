@@ -1,7 +1,7 @@
 {
   "name": "ddd-expert",
   "version": "1.16.3",
-  "description": "Purpose-led EventStorming, falsifiable Tactical Design, implementation, and review",
+  "description": "Strategic EventStorming, sparse Tactical Design, implementation, and review",
   "author": {
     "name": "xuhao"
   },
@@ -14,8 +14,8 @@
   ],
   "interface": {
     "displayName": "DDD Expert",
-    "shortDescription": "DDD discovery with falsifiable design",
-    "longDescription": "DDD workflow that starts from the user's purpose, separates confirmed business facts from structural hypotheses, and invokes Tactical Design only for a material design gap. Tactical Design establishes object responsibilities, state authority, and semantic flow before technical sequences; Codify may test a draft through reversible implementation, and Guard reviews only the reconciled ready design.",
+    "shortDescription": "Strategic and tactical DDD interviews",
+    "longDescription": "DDD workflow that builds a compact strategic model through EventStorming, then uses a relentless one question at a time Tactical Design interview to maintain the current domain-object design. Codify implements accepted object slices without changing design authority, and Guard reviews the result independently.",
     "developerName": "xuhao",
     "category": "Productivity",
     "capabilities": [
@@ -23,7 +23,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use $ddd-expert:event-storming to clarify the user's purpose and separate confirmed business facts from a falsifiable strategic model. Invoke $ddd-expert:tactical-design only for a real Design Delta; establish domain-object responsibilities, state authority, semantic flow, and necessity before technical sequences. Treat a Tactical Design draft as a candidate that $ddd-expert:codify may test reversibly, then reconcile the evidence before ready status and Guard."
+      "Use $ddd-expert:event-storming to clarify the user's purpose and identify confirmed Bounded Contexts and Aggregate Roots. Then use $ddd-expert:tactical-design to question domain objects depth-first, confirm one Aggregate Root at a time, and record its current object definitions, state, behavior, and actual Domain Events before $ddd-expert:codify implements them."
     ]
   },
   "skills": "./skills/"

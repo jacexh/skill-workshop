@@ -1,6 +1,6 @@
 # ADR 0007: Tactical Design Is Conditional and Claim-Led
 
-- Status: Accepted
+- Status: Superseded by [ADR 0009](0009-sparse-current-ddd-artifacts.md)
 - Date: 2026-08-17
 - Supersedes: the unconditional absence of a tactical-design workflow stage in [ADR 0004](0004-model-ready-enters-codify-directly.md)
 - Extends: artifact lifecycle and closure in [ADR 0005](0005-event-storming-minutes-and-current-models.md), and Guard authority and unit seeding in [ADR 0006](0006-guard-is-a-semantic-structure-review.md)

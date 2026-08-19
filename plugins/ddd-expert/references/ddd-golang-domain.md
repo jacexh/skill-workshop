@@ -22,6 +22,8 @@ This house style permits exported Domain fields so hand-written assemblers and c
 
 The Aggregate still exposes intention-revealing methods for every business change:
 
+A behavior confirmed under a Root or Entity belongs on that type's receiver. Keep a package function only for construction, an ownerless pure calculation, or a private algorithm called by the owning method. A function whose main argument is one Domain object and whose purpose is to inspect or change that object's state should normally be a method.
+
 ```go
 package domain
 

@@ -1,6 +1,6 @@
 # ADR 0008: Design Artifacts Are Falsifiable Candidates
 
-- Status: Accepted
+- Status: Superseded by [ADR 0009](0009-sparse-current-ddd-artifacts.md)
 - Date: 2026-08-18
 - Refines: authority and lifecycle in [ADR 0005](0005-event-storming-minutes-and-current-models.md) and [ADR 0007](0007-conditional-tactical-design-and-claims.md)
 

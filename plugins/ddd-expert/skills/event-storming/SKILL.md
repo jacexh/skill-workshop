@@ -1,119 +1,104 @@
 ---
 name: event-storming
-description: Use when a backend story, business scenario, specification, existing domain model, or proposed domain thesis needs collaborative EventStorming to a user-confirmed Strategic Model and synchronized project documentation.
+description: Use when a backend story, business scenario, specification, or existing domain model needs collaborative strategic discovery of Bounded Contexts and Aggregate Roots.
 ---
 
 # Event Storming
 
-Discover or challenge the business model with the user. The goal is a compact explanation of the supported facts, not autonomous production of a "correct architecture". The user remains the domain decision authority; the facilitator supplies evidence, counterexamples, and professional judgment.
+Discover the smallest strategic model that explains the business. The user owns domain decisions; the facilitator supplies repository evidence, counterexamples, and a recommended answer for each design fork.
 
 ```text
-business evidence or an existing thesis
--> EventStorming Board
--> integrated business model and adversarial review
--> exact draft minutes
--> explicit confirmation
--> ready minutes and synchronized current Models
--> Design Delta check
+business purpose
+-> causal discussion
+-> Bounded Contexts and Aggregate Roots
+-> integrated confirmation
+-> current strategic artifacts
 ```
 
-## Start with the user's purpose
+## Start with the user
 
-Infer the purpose when the request already states it; otherwise ask before evaluating anything. Distinguish:
+Infer the requested outcome when it is explicit. Otherwise ask what the user wants to understand or decide before evaluating the model.
 
-- **discovery**: facts and boundaries are still unknown, so build the model from evidence;
-- **thesis review**: the user or another agent already proposes objects, ownership, or boundaries, so restate that thesis and test the assumptions most likely to overturn it;
-- **model challenge**: Tactical Design or implementation evidence provides concrete counterexamples, so reopen the earliest affected conclusion and reconsider the whole dependent thesis.
+Choose the shortest useful entry:
 
-Do not turn an observational or explanatory request into a process-compliance audit. Do not force a thesis review to replay every discovery question when its evidence is already available.
+- **discovery** builds a model from a story or scenario;
+- **thesis review** tests an existing proposed model at its weakest assumption;
+- **model challenge** revisits a strategic conclusion contradicted by later concrete evidence.
 
-## Authority and artifacts
-
-Keep these distinctions visible:
-
-- **confirmed business facts and constraints** bind downstream work until explicit evidence reopens them;
-- **Bounded Context, Aggregate, capability, and core-object decomposition** is the current falsifiable structural hypothesis that explains those facts;
-- **working conclusions** support conversation but authorize no write;
-- **integrated confirmation** accepts the displayed current whole as `ready` for implementation evidence, not as immutable truth.
-
-Code and tests prove current behavior, not business authority. They may provide counterexamples to a structural hypothesis. Before integrated review, keep project files byte-identical. Then write only one `draft` minutes file and its unchecked README entry. Confirmation applies that exact draft plus the synchronized Models and Context Map.
-
-Use the EventStorming Board as temporary conversation state: scope, supported facts, current hypotheses, the highest-impact unresolved question, Hotspots, and exclusions. Never persist rejected alternatives, source-coverage notes, or conversation history as domain authority.
-
-Do not load `maintain-artifacts` while establishing purpose, discovering facts, or challenging a thesis. Read existing DDD files as project evidence when needed and keep them unchanged. Load the internal skill in full only when a coherent candidate needs structural validation or a write, or when an actual artifact-status ambiguity prevents identifying authority. It owns mechanics, never modeling decisions.
+An explanation request remains an explanation request. A local change inside an accepted model does not require repository-wide discovery.
 
 ## Conversation contract
 
-Investigate Specs, PRDs, ADRs, Glossaries, accepted DDD artifacts, code, and tests before asking the user to retrieve facts already present. Ask one question only when its answer could materially change the current model, and briefly explain the fork it controls. A fact probe asks for evidence without recommending business truth. A design decision gives a recommendation and one credible alternative:
+- Inspect relevant Specs, PRDs, ADRs, glossary entries, current DDD artifacts, code, and tests first. If a fact is available there, look it up instead of asking the user.
+- Ask one question at a time and wait for the answer. Each question must be capable of changing the current strategic model.
+- For a business fact, explain what evidence is missing. For a design choice, give a recommended answer, its reason, and the strongest credible alternative.
+- Treat disagreement and examples as evidence. Revise the model when they defeat the current explanation.
+- Stop when Bounded Context and Aggregate Root conclusions are supported and another question would not change them.
 
-```markdown
-### ✅ Recommendation — <short name>
+Keep unresolved material uncertainty visible. Never manufacture business authority from existing code or DDD terminology.
 
-<recommended answer and reasons>
+## Conversational board
 
-> **🔀 Alternative — <short name>**
->
-> <when this alternative is better>
+During discovery, maintain the lightest useful EventStorming board in the conversation: the current Workshop Event timeline, causing Commands and Roles, constraints and Hotspots, and candidate Aggregate and Bounded Context clusters. Update that working view when answers change instead of turning every intermediate state into a document.
 
-**👉 Decision:** <one high-impact question>
-```
+Use a compact text timeline, table, or arrow chain only when it makes a causal gap or boundary decision materially easier to inspect. These working views and alternatives remain in the conversation; never write them to the repository or treat their notation as separate approval.
 
-Treat disagreement as evidence: replay the affected scenario, revise when warranted, and retain a concise professional objection when not. Stop when further questioning has diminishing decision value. Conflicting sources and unresolved non-blocking uncertainty remain visible Hotspots rather than invented certainty.
+## The ten EventStorming steps
 
-When two corrections share one object-responsibility, authority, or lifecycle cause—or the model gains mechanisms without gaining business scenarios—stop preserving supposedly unaffected structural conclusions. Rebuild the smallest whole hypothesis from the supported facts.
+Use all ten steps in causal order during discovery. A thesis review may acknowledge evidence already established and resume at the first step capable of changing the thesis.
 
-## The ten EventStorming lenses
+1. **Scope**: establish the business outcome, affected parties and authorities, time horizon, included success scenarios, and exclusions.
+2. **Workshop Events**: identify material past-tense business occurrences without assuming they become production events.
+3. **Timeline**: arrange the occurrences into replayable business-time sequences.
+4. **Commands**: identify the business intent that causes each material change.
+5. **Roles and external authorities**: identify who may decide or initiate the intent in business terms.
+6. **Constraints and required next intents**: expose authoritative facts, rules, and any occurrence that requires another business action.
+7. **Problems and ambiguity**: make contradictions, assumptions, missing facts, and material Hotspots explicit.
+8. **Aggregates and core business objects**: cluster identity and immediate consistency around candidate Aggregate Roots; test a credible split, merge, or deletion.
+9. **Bounded Contexts**: separate language, authority, policy, lifecycle, and model purpose where they diverge.
+10. **Context collaboration**: identify semantic dependencies, named published contracts, translation, and downstream reliance.
 
-Use these in causal order during discovery. A thesis review may acknowledge already-supported lenses and go directly to the first one that could falsify the thesis.
+Workshop Events stay in the conversation as analytical evidence. A local occurrence becomes a Domain Event only when the implemented domain needs that occurrence as a named fact; Tactical Design records it on the object that produces or consumes it.
 
-1. **Scope**: business outcome, affected parties and authorities, time horizon, included success scenarios, and exclusions.
-2. **Workshop Events**: material past-tense business facts. A Workshop Event is analytical by default and does not authorize persistence, dispatch, messaging, or Event Sourcing.
-3. **Timeline**: a replayable business-time sequence for each included success path.
-4. **Commands**: the initiating business intent. Reuse one Command across state variants when the chosen commitment is the same.
-5. **Roles and external authorities**: business decision rights, not IAM or transport identity.
-6. **Constraints and required next intents**: authoritative facts and rules; preserve event-triggered Commands only when a selected fact requires a next business action.
-7. **Problems and ambiguity**: missing facts, contradictions, assumptions, and material Hotspots.
-8. **Aggregates and core business objects**: cluster around identity, lifecycle, immediate invariant, and concurrency responsibility. For each core object, capture the facts it owns, lifecycle and change reasons, rules, semantic result, relationships to other owned objects, and why the Root composes rather than absorbs that responsibility. Map each state-changing Command to a Root capability or explicit coordination, and test a credible split, merge, or deletion. These are business-level structural hypotheses; class shape and call direction belong to Tactical Design.
-9. **Bounded Contexts**: coherent language, business authority, lifecycle, policy, and model purpose. Packages, services, tables, teams, and runtime calls are evidence, never boundary authority.
-10. **Context collaboration**: semantic responsibility, authority, named contracts, translation, downstream reliance, and upstream-owned guarantees. Runtime call direction does not decide model ownership.
+Derive strategic boundaries from business language, authority, policy, lifecycle, and model purpose. Admit a concern only when it changes a business right, obligation, value, authority, decision, outcome, or required next action. Treat implementation observations as evidence about that business meaning; later design owns the realization.
 
-A **Workshop Event** remains in the integrated diagram only when it changes a business right, obligation, value, or required next action. Apply the same positive materiality test before modeling an adverse path. Technical timeout, retry, rollback, or recovery behavior without such a consequence belongs to Tactical Design, implementation, or verification—not the business model.
+Write only Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. Each rule is one independently challengeable claim: name the governed business concept or collaboration, any condition that changes the meaning, and the accepted business decision, permission, transition, required outcome, or invariant. State business meaning without assigning tactical behavior ownership or prescribing an implementation mechanism.
 
-## Integrated candidate
+## Current strategic artifacts
 
-Present one current whole for review:
+Persist only accepted current knowledge:
 
-- exact scope and exclusions;
-- complete, readable Mermaid `flowchart LR` scenario threads;
-- supported business facts and constraints;
-- current Bounded Context, Aggregate, capability, and core-object responsibility hypotheses;
-- selected Domain Events, Published Fact Contracts, and event-triggered Commands only where their business purpose is explicit;
-- decisions, assumptions, and non-blocking Hotspots.
+- `docs/ddd-expert/context-map.md` owns the Bounded Context inventory and semantic dependencies.
+- `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, and strategic business rules.
 
-Use connected `Role or external authority -- Command --> Aggregate Capability or explicit coordination --> Workshop Event` threads. Keep Roles outside Aggregates. A selected Domain Event annotates the establishing Workshop Event; a producer-owned Published Fact Contract remains distinct from its eventual Integration Message. Do not add a parallel Event Index or mapping table.
+`model.md` remains strategic. Tactical Design records object definition, state, behavior, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
 
-Replay each included success scenario. Ensure every projected capability and structural hypothesis has visible supporting evidence, but do not complete generic rejection, failure, retry, or recovery catalogues. Repository APIs, transactions, state authority, package placement, persistence, adapters, and runtime wiring remain outside the Strategic Model unless an accepted business fact directly constrains them.
+## Confirmation and writing
 
-After adversarial review, validate the candidate and use `write-event-storming-draft`. Summarize the path, fingerprint, facts, structural hypotheses, decisions, and Hotspots; ask for explicit confirmation of that exact whole. A correction rewrites the same draft after reconsidering its dependent hypotheses. Confirmation applies `draft -> ready`, increments affected Model revisions, and synchronizes the minimal documentation closure.
+Present one compact integrated proposal:
 
-## Later falsification and closure
+- scope and exclusions;
+- Bounded Contexts and their purpose;
+- Aggregate Roots and their consistency boundary;
+- strategic business rules;
+- semantic dependencies and named contracts;
+- remaining non-blocking uncertainty.
 
-A Tactical Design Model Challenge is one consolidated batch of concrete scenarios and affected hypotheses, not revised authority. Return `no_change` when the current model survives. When it changes, create one correction draft and let the confirmed replacement supersede unimplemented ready minutes; never rewrite accepted history.
+Write nothing while that proposal is still changing. When the user explicitly confirms the integrated strategic model, update only `context-map.md` and affected `model.md` files whose current meaning changed. Write those files directly; there is no meeting-minutes lifecycle or cross-file staging ceremony.
 
-If a ready Tactical Design depends on superseded EventStorming authority, route it back to Tactical Design before Codify or Guard. EventStorming does not edit BC Architecture decisions. A confirmed boundary rename may move its file mechanically; a split, merge, or removal returns any surviving software decision to Tactical Design.
+Then classify the next step:
+
+- use Tactical Design when Aggregate internals or domain-object behavior still needs a decision;
+- use Codify when the accepted `domain-objects.md` already covers the change;
+- stop when the user requested design only.
 
 ## Completion
 
-Finish with one of:
-
-- `needs_clarification`: show the board delta and ask the one decisive question;
-- `awaiting_confirmation`: cite the exact draft path and fingerprint and summarize the current whole;
-- `ready`: cite the confirmed facts, current structural hypotheses, minutes, Model revisions, and synchronized documents;
-- `no_change`: cite the evidence showing that the current model survived the challenge;
-- `blocked`: identify the exact authority, validation, write, or external failure and filesystem state.
-
-A `ready` result proceeds to Tactical Design only for a real Design Delta; otherwise it proceeds to Codify.
+End with the current strategic result and the evidence supporting it. Ask the one
+decisive question when authority is missing, request explicit confirmation when
+the integrated proposal is still unconfirmed, name Tactical Design or Codify
+when it owns the next step, and report any blocker with current filesystem state.
 
 ## References
 
-- Load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for Workshop Event selection, language, authority, lifecycle, Aggregate and Bounded Context reasoning, and collaboration semantics.
+- Load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for Workshop Event selection, language, Aggregate, Bounded Context, and Context Map reasoning.

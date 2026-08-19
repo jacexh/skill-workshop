@@ -16,8 +16,8 @@ accepted DDD meanings from this plugin's architecture House Style.
 - **[Heuristic]** A question or pressure signal. It invites investigation and never proves a conclusion alone.
 
 Apply a House Rule only after accepted project authority or Tactical Design has
-established its condition. Codify may choose a reversible implementation detail
-inside that design, but a generic reference never resolves a scenario-specific
+established its condition. Codify may choose an implementation detail within
+accepted object ownership, but a generic reference never resolves a scenario-specific
 modeling question.
 
 ## Navigation
@@ -96,10 +96,10 @@ Projection preserves semantic ownership across abstraction levels. It is traceab
 | Published Fact Contract | Translate the selected Domain fact at the producing Application boundary into a stable Published Language. Keep its Integration Message and adapter realization distinct from the local Domain Event type. |
 | Event-triggered Command | Map the established fact or incoming contract through one consuming Interface adapter or local event boundary to one semantic Application use case, then to the accepted Capability or explicit coordination. |
 | Explicit coordination | Preserve the confirmed semantic owner. Application coordinates loading, context, transactions, and technical continuation; a Domain owner retains business sequencing when the rule belongs to its behavior. Introduce durable coordination only when accepted business or project authority requires durable progress state. |
-| Analytical Workshop Event | Use it to explain the business outcome in the linked iteration or Tactical Design sequence. It requires no production event type, persistence, or dispatch unless the Model separately selects stronger semantics. |
+| Analytical Workshop Event | Use it only while discussing the business outcome. It creates no production event type, persistence, dispatch, or lasting artifact. |
 
-- **[House Rule]** For DDD-backed implementation, keep a scoped projection from each implementation-shaping Model meaning to the software responsibilities and production symbols that realize or connect it. Use artifact path, section, and canonical concept or relationship as the source reference; do not invent IDs in the Model.
-- **[House Rule]** Treat the projection as task evidence. Keep it outside `model.md`, BC Architecture, ADRs, and implementation code, and do not turn it into a second domain authority.
+- **[House Rule]** For DDD-backed implementation or review, cite the governing artifact clause beside the production symbols needed to prove the affected behavior. Do not create an exhaustive permanent projection.
+- **[House Rule]** Keep this trace as temporary task evidence outside DDD artifacts and implementation code; it never becomes another domain authority.
 
 ## 3. Tactical Building Blocks
 
@@ -118,6 +118,8 @@ Projection preserves semantic ownership across abstraction levels. It is traceab
 - **[DDD Principle]** External callers and Repositories address the root; the root protects invariants of owned Entities and Value Objects.
 - **[DDD Principle]** Owned objects may have distinct identities, lifecycles, rules, and change reasons inside one Aggregate. The Root composes their collaboration and invariant boundary; it need not absorb every behavior.
 - **[House Rule]** The implementation names the Root, every material owned Entity and Value Object, identity-only references to other Roots, the invariant each behavior preserves, and the immediate consistency boundary established by the confirmed Model.
+- **[Heuristic]** Prefer an owned object whose intention-revealing behavior localizes cohesive state and decisions so the Root can compose results without learning its internal decision steps. The object earns its place when deleting it would spread the same decision knowledge across the Root or callers rather than remove it.
+- **[House Rule]** A behavior assigned to a Root or Entity is exposed on that object's intention-revealing method surface. A free function is reserved for construction, ownerless pure calculation, or a private algorithm reached through the owning method; a function that mainly accepts one Domain object to inspect or mutate its state is receiver-shaped design pressure.
 - **[House Rule]** Reference another Aggregate Root by identity rather than retaining a mutable object graph across Aggregate boundaries.
 - **[House Rule]** A confirmed multi-Root transaction is an exceptional Application consistency scope; it does not merge the participating Aggregates or weaken either Root's invariant boundary.
 - **[Heuristic]** A shared ORM session, foreign key, or multi-table write is persistence evidence, not Aggregate-boundary evidence.

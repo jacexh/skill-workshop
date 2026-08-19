@@ -116,8 +116,8 @@ jq -e '.plugins[] | select(.name == "superpowers-ddd-architect")' \
 jq -e '.interface.longDescription | length > 0' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should describe the complete workflow"
 jq -e '.interface.developerName | length > 0' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should name its developer"
 jq -e '.interface.defaultPrompt | length == 1 and all(.[]; contains("$ddd-expert:event-storming"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should use the single EventStorming modeling entry"
-jq -e '.interface.defaultPrompt | all(.[]; contains("user\u0027s purpose") and contains("falsifiable strategic model") and contains("domain-object responsibilities") and contains("reconcile the evidence") and contains("$ddd-expert:tactical-design") and contains("$ddd-expert:codify"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should expose purpose-led discovery and falsifiable Tactical Design"
-jq -e '.interface.longDescription | contains("user\u0027s purpose") and contains("structural hypotheses") and contains("reversible implementation") and contains("reconciled ready design")' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should describe the candidate-to-evidence lifecycle"
+jq -e '.interface.defaultPrompt | all(.[]; contains("user\u0027s purpose") and contains("Bounded Contexts") and contains("Aggregate Roots") and contains("domain objects") and contains("$ddd-expert:tactical-design") and contains("$ddd-expert:codify"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should expose the sparse modeling workflow"
+jq -e '.interface.longDescription | contains("strategic model") and contains("one question at a time") and contains("current domain-object design")' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should describe strategic and tactical authority"
 jq -e '.interface.capabilities | index("Write")' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should declare artifact writes"
 [ ! -e "$CLAUDE_ROOT/hooks" ] || fail "Claude ddd-expert should not ship hooks"
 [ ! -e "$CODEX_ROOT/hooks" ] || fail "Codex ddd-expert should not ship hooks"
@@ -128,8 +128,8 @@ if rg -n '\$?superpowers(:|-memory|-architect|-ddd-architect)|docs/superpowers' 
   fail "ddd-expert should not bind to superpowers plugins, skills, or paths"
 fi
 
-# The modeling, implementation, and review skills own judgment and load the
-# shared artifact protocol where needed.
+# The four public skills own the whole workflow. There is no hidden artifact
+# state machine and no separate design-document lifecycle.
 for skill in event-storming tactical-design codify guard; do
   claude_skill="$CLAUDE_ROOT/skills/$skill/SKILL.md"
   codex_skill="$CODEX_ROOT/skills/$skill/SKILL.md"
@@ -140,44 +140,41 @@ for skill in event-storming tactical-design codify guard; do
   assert_references_last "$claude_skill" "$skill"
 done
 
-claude_maintainer="$CLAUDE_ROOT/skills/maintain-artifacts/SKILL.md"
-codex_maintainer="$CODEX_ROOT/skills/maintain-artifacts/SKILL.md"
-[ -f "$claude_maintainer" ] || fail "Claude ddd-expert missing maintain-artifacts skill"
-[ -f "$codex_maintainer" ] || fail "Codex ddd-expert missing maintain-artifacts skill"
-diff -u \
-  <(sed '/^user-invocable: false$/d' "$claude_maintainer") \
-  "$codex_maintainer" >/dev/null || fail "Claude and Codex maintain-artifacts skill bodies should match"
-rg -q '^description: Use when ' "$claude_maintainer" || fail "maintain-artifacts description should start with Use when"
-assert_contains "$claude_maintainer" 'user-invocable: false' "maintain-artifacts should be hidden from Claude's user command menu"
-if rg -n '^user-invocable:' "$codex_maintainer" >/dev/null; then
-  fail "Codex maintain-artifacts should not contain Claude-only frontmatter"
-fi
-assert_references_last "$claude_maintainer" "maintain-artifacts"
-
-expected_skill_inventory="$(printf '%s\n' codify event-storming guard maintain-artifacts tactical-design | sort)"
+expected_skill_inventory="$(printf '%s\n' codify event-storming guard tactical-design | sort)"
 for root in "$CLAUDE_ROOT" "$CODEX_ROOT"; do
   actual_skill_inventory="$(find "$root/skills" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)"
   [ "$actual_skill_inventory" = "$expected_skill_inventory" ] || {
     diff -u <(printf '%s\n' "$expected_skill_inventory") <(printf '%s\n' "$actual_skill_inventory") >&2 || true
-    fail "ddd-expert skill inventory should contain modeling, conditional tactical design, codify, guard, and the internal artifact protocol"
+    fail "ddd-expert skill inventory should contain only EventStorming, Tactical Design, Codify, and Guard"
   }
 done
 
-for template in README architecture artifact-layout context-map event-storming model tactical-design; do
+for template in artifact-layout context-map model domain-objects; do
   claude_template="$CLAUDE_ROOT/templates/$template.md"
   codex_template="$CODEX_ROOT/templates/$template.md"
   [ -f "$claude_template" ] || fail "Claude ddd-expert missing $template artifact template"
   [ -f "$codex_template" ] || fail "Codex ddd-expert missing $template artifact template"
   cmp -s "$claude_template" "$codex_template" || fail "Claude and Codex $template artifact templates should match"
 done
-[ ! -e "$CLAUDE_ROOT/templates/design.md" ] || fail "Claude ddd-expert should not keep a standalone Design artifact template"
-[ ! -e "$CODEX_ROOT/templates/design.md" ] || fail "Codex ddd-expert should not keep a standalone Design artifact template"
-if rg -n 'codify_ready|design_status|missing_design|evolving_design|stale_design|design-realization|Design Realization' \
-  "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null; then
-  rg -n 'codify_ready|design_status|missing_design|evolving_design|stale_design|design-realization|Design Realization' \
-    "$CLAUDE_ROOT" "$CODEX_ROOT" >&2
-  fail "ddd-expert should not retain standalone Design readiness states or review authority"
-fi
+for retired in \
+  skills/maintain-artifacts \
+  templates/README.md \
+  templates/architecture.md \
+  templates/design.md \
+  templates/event-storming.md \
+  templates/tactical-design.md; do
+  [ ! -e "$CLAUDE_ROOT/$retired" ] || fail "Claude ddd-expert should remove $retired"
+  [ ! -e "$CODEX_ROOT/$retired" ] || fail "Codex ddd-expert should remove $retired"
+done
+
+expected_template_inventory="$(printf '%s\n' artifact-layout.md context-map.md domain-objects.md model.md | sort)"
+for root in "$CLAUDE_ROOT" "$CODEX_ROOT"; do
+  actual_template_inventory="$(find "$root/templates" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort)"
+  [ "$actual_template_inventory" = "$expected_template_inventory" ] || {
+    diff -u <(printf '%s\n' "$expected_template_inventory") <(printf '%s\n' "$actual_template_inventory") >&2 || true
+    fail "ddd-expert templates should contain only current strategic and domain-object artifacts"
+  }
+done
 
 claude_context_map_validator="$CLAUDE_ROOT/scripts/validate-context-map.mjs"
 codex_context_map_validator="$CODEX_ROOT/scripts/validate-context-map.mjs"
@@ -193,24 +190,21 @@ done
 
 event_storming_skill="$CLAUDE_ROOT/skills/event-storming/SKILL.md"
 tactical_design_skill="$CLAUDE_ROOT/skills/tactical-design/SKILL.md"
-tactical_design_template="$CLAUDE_ROOT/templates/tactical-design.md"
-event_storming_template="$CLAUDE_ROOT/templates/event-storming.md"
 model_template="$CLAUDE_ROOT/templates/model.md"
+domain_objects_template="$CLAUDE_ROOT/templates/domain-objects.md"
+artifact_layout_template="$CLAUDE_ROOT/templates/artifact-layout.md"
+codify_skill="$CLAUDE_ROOT/skills/codify/SKILL.md"
+guard_skill="$CLAUDE_ROOT/skills/guard/SKILL.md"
 
-# Design-quality contracts stay intentionally small. They protect attention,
-# authority, and artifact boundaries without encoding one architecture answer.
+# EventStorming is strategic discovery. Workshop material stays conversational;
+# accepted current knowledge is the only persisted output.
 assert_contains "$event_storming_skill" '## Start with the user' "EventStorming should identify the requested purpose before evaluating"
-assert_contains "$event_storming_skill" '**discovery**' "EventStorming should support open discovery"
-assert_contains "$event_storming_skill" '**thesis review**' "EventStorming should challenge an existing thesis without replaying discovery mechanically"
-assert_contains "$event_storming_skill" '**model challenge**' "EventStorming should accept downstream falsification evidence"
-assert_contains "$event_storming_skill" 'Do not turn an observational or explanatory request into a process-compliance audit' "EventStorming should follow the user purpose"
-assert_contains "$event_storming_skill" '**confirmed business facts and constraints**' "EventStorming should separate binding facts"
-assert_contains "$event_storming_skill" 'current falsifiable structural hypothesis' "EventStorming should keep strategic structure revisable"
-assert_contains "$event_storming_skill" 'Code and tests prove current behavior, not business authority' "EventStorming should use code as evidence rather than authority"
-assert_contains "$event_storming_skill" 'Ask one question only when its answer could materially change the current model' "EventStorming should spend questions on high-impact uncertainty"
-assert_contains "$event_storming_skill" 'Stop when further questioning has diminishing decision value' "EventStorming should avoid exhaustive interviewing"
-assert_contains "$event_storming_skill" 'Rebuild the smallest whole hypothesis from the supported facts' "EventStorming should reset after repeated model-level correction"
-assert_contains "$event_storming_skill" '## The ten EventStorming lenses' "EventStorming should retain causal discovery lenses"
+assert_contains "$event_storming_skill" 'Ask one question at a time' "EventStorming should keep one decision frontier"
+assert_contains "$event_storming_skill" 'recommended answer' "EventStorming should recommend an answer with each decision question"
+assert_contains "$event_storming_skill" 'look it up' "EventStorming should investigate repository facts instead of asking the user"
+assert_contains "$event_storming_skill" 'Bounded Contexts' "EventStorming should identify Bounded Contexts"
+assert_contains "$event_storming_skill" 'Aggregate Roots' "EventStorming should identify Aggregate Roots"
+assert_contains "$event_storming_skill" '## The ten EventStorming steps' "EventStorming should preserve the complete discussion method"
 expected_workflow_steps="$(printf '%s\n' \
   '1. **Scope**' \
   '2. **Workshop Events**' \
@@ -222,144 +216,106 @@ expected_workflow_steps="$(printf '%s\n' \
   '8. **Aggregates and core business objects**' \
   '9. **Bounded Contexts**' \
   '10. **Context collaboration**')"
-actual_workflow_steps="$(awk '/^## The ten EventStorming lenses$/ { in_workflow = 1; next } /^A \*\*Workshop Event\*\*/ { in_workflow = 0 } in_workflow && /^[0-9]+\. \*\*/ { sub(/:.*/, ""); print }' "$event_storming_skill")"
-[ "$actual_workflow_steps" = "$expected_workflow_steps" ] || fail "EventStorming should preserve the ten causal lenses in order"
-assert_contains "$event_storming_skill" 'facts it owns, lifecycle and change reasons, rules, semantic result, relationships to other owned objects' "EventStorming should expose core-object responsibility evidence"
-assert_contains "$event_storming_skill" 'class shape and call direction belong to Tactical Design' "EventStorming should stop before software design"
-assert_contains "$event_storming_skill" 'changes a business right, obligation, value, or required next action' "EventStorming should use a positive adverse-path materiality gate"
-assert_contains "$event_storming_skill" 'do not complete generic rejection, failure, retry, or recovery catalogues' "EventStorming should not optimize artifact exhaustiveness"
-assert_contains "$event_storming_skill" 'as `ready` for implementation evidence, not as immutable truth' "EventStorming ready should remain falsifiable"
-assert_contains "$event_storming_skill" 'write only one `draft` minutes file' "EventStorming should preserve the pre-confirmation write barrier"
-assert_contains "$event_storming_skill" 'A Tactical Design Model Challenge is one consolidated batch' "EventStorming should reconsider related counterexamples together"
-assert_contains "$event_storming_skill" 'Do not load `maintain-artifacts` while establishing purpose' "EventStorming should not preload artifact mechanics into discovery"
-assert_contains "$event_storming_skill" 'Load the internal skill in full only when a coherent candidate needs structural validation or a write' "EventStorming should load artifact mechanics lazily"
-
-assert_contains "$event_storming_template" 'This template intentionally supplies no example topology' "EventStorming template should require evidence-derived topology"
-assert_mermaid_templates_have_no_topology "$event_storming_template" "EventStorming template"
-
-assert_contains "$model_template" 'confirmed business facts and the current falsifiable structural model' "Model should distinguish facts from structure"
-assert_contains "$model_template" 'owned facts, lifecycle and change reasons, rules, semantic result' "Model should retain core-object responsibility evidence"
-assert_contains "$model_template" 'A Root may compose objects with distinct responsibilities' "Model should not make the Root absorb every behavior"
-assert_contains "$model_template" '## Material Adverse Semantics' "Model should keep only business-material adverse meaning"
-assert_not_contains "$model_template" '## Failure and Recovery Semantics' "Model should not require a generic recovery catalogue"
-
-assert_contains "$tactical_design_skill" '**user thesis**' "Tactical Design should challenge a user-supplied thesis"
-assert_contains "$tactical_design_skill" '**agent proposal**' "Tactical Design should attack its own proposal"
-assert_contains "$tactical_design_skill" '### 2. Build the domain-object thesis' "Tactical Design should model objects before layers"
-assert_contains "$tactical_design_skill" 'Mermaid `classDiagram`' "Tactical Design should require an entity-level UML view"
-assert_contains "$tactical_design_skill" '**state authority**' "Tactical Design should name live and durable authority"
-assert_contains "$tactical_design_skill" '**semantic flow**' "Tactical Design should name the minimal result flow"
-assert_contains "$tactical_design_skill" 'Domain owns when a business capability is required' "Tactical Design should separate business timing from execution"
-assert_contains "$tactical_design_skill" 'Which confirmed responsibility or guarantee becomes impossible if this is removed?' "Tactical Design should require a positive necessity proof"
-assert_contains "$tactical_design_skill" 'Rebuild the smallest whole thesis from supported facts' "Tactical Design should reframe repeated ownership mistakes"
-assert_contains "$tactical_design_skill" 'Do not write a complete solution artifact before the first design question' "Tactical Design should avoid premature artifact anchoring"
-assert_contains "$tactical_design_skill" 'Derive participants and calls from the object thesis' "Tactical Design should not preload a solution topology"
-assert_contains "$tactical_design_skill" 'Show the normal path first' "Tactical Design should prioritize the explanatory flow"
-assert_contains "$tactical_design_skill" 'Materialize an exploration draft' "Tactical Design should make draft status explicit"
-assert_contains "$tactical_design_skill" 'Reconcile implementation evidence' "Tactical Design should revise candidates from code evidence"
-assert_contains "$tactical_design_skill" 'unsupported mechanisms are deleted, not retained under a new name' "Tactical Design should prevent semantic renaming"
-assert_contains "$tactical_design_skill" 'preserves both the confirmed business facts and the current strategic structure' "Tactical Design should not override Model-owned strategic structure"
-assert_contains "$tactical_design_skill" 'later concrete implementation evidence falsifies a candidate while its ready EventStorming facts and strategic model remain unchanged' "Tactical Design should accept same-authority falsification evidence"
-assert_contains "$tactical_design_skill" 'Direct retirement points `superseded_by` to that surviving ready EventStorming record' "Tactical Design should retire an unnecessary ready delta without inventing replacement authority"
-assert_contains "$tactical_design_skill" 'An unreconciled tactical difference that preserves confirmed facts and current strategic structure' "Tactical Design should not absorb strategic contradictions"
-assert_contains "$tactical_design_skill" 'Do not load `maintain-artifacts` while clarifying purpose' "Tactical Design should not preload artifact mechanics into design"
-assert_contains "$tactical_design_skill" 'Without implementation evidence it does not become `ready`' "Design-only Tactical Design should remain draft"
-assert_contains "$tactical_design_skill" 'Do not add final `TD-NNN` claims or BC Architecture dispositions yet' "Exploration drafts should not become conformance targets"
-
-assert_contains "$tactical_design_template" 'classDiagram' "Tactical Design template should expose the domain-object model"
-assert_contains "$tactical_design_template" '## State Authority and Semantic Flow' "Tactical Design template should expose state and call ownership"
-assert_contains "$tactical_design_template" '## Necessity Proof' "Tactical Design template should expose deletion evidence"
-assert_contains "$tactical_design_template" 'Show the normal path first' "Tactical Design template should not enumerate failures by default"
-assert_mermaid_templates_have_no_topology "$tactical_design_template" "Tactical Design template"
-assert_contains "$tactical_design_template" '## Reconciliation Evidence' "Tactical Design template should capture implementation falsification"
-assert_contains "$tactical_design_template" '## Tactical Design Claims' "Tactical Design template should preserve final semantic claims"
-assert_contains "$tactical_design_template" '## BC Architecture Projection' "Tactical Design template should retain sparse durable projection"
-assert_contains "$tactical_design_template" 'Ready-only: omit this entire section from the exploration draft' "Final claims should be absent from exploration drafts"
-
-architecture_template="$CLAUDE_ROOT/templates/architecture.md"
-assert_contains "$architecture_template" 'architecture_revision: 1' "BC Architecture should use revisioned current authority"
-assert_contains "$architecture_template" '# <Bounded Context> Architecture' "architecture template should identify one owning context"
-assert_contains "$architecture_template" '## Current Architecture Decisions' "BC Architecture should contain one sparse current-decision section"
-assert_contains "$architecture_template" '| Decision ID | Concern | Current BC-specific architecture decision | Source |' "BC Architecture should keep one compact decision ledger"
-assert_contains "$architecture_template" '<a id="ARCH-001"></a>ARCH-001' "BC Architecture decision IDs should expose stable fragment anchors"
-assert_contains "$architecture_template" 'Create this file only when at least one current row exists' "BC Architecture should be lazy rather than boilerplate"
-assert_contains "$architecture_template" 'it may name the just-superseded record solely as removal provenance while no Source points to it' "BC Architecture should distinguish retirement provenance from current claim authority"
-assert_contains "$architecture_template" 'Do not repeat canonical Model facts, generic House Style, complete Tactical Design sequences, code structure, or historical rationale' "BC Architecture should preserve one-owner boundaries"
-[ "$(rg -c '^## ' "$architecture_template")" -eq 1 ] || fail "BC Architecture should remain a single sparse decision section"
-assert_not_contains "$architecture_template" 'sequenceDiagram' "BC Architecture should not duplicate Tactical Design sequences"
-assert_not_contains "$architecture_template" '## Decisions and Reasons' "BC Architecture should not duplicate design history"
-codify_skill="$CLAUDE_ROOT/skills/codify/SKILL.md"
-guard_skill="$CLAUDE_ROOT/skills/guard/SKILL.md"
-
-assert_contains "$codify_skill" 'execute only `inspect` with authority `codify`' "Codify should keep artifacts read-only"
-assert_contains "$codify_skill" '**exploration**' "Codify should support reversible draft exploration"
-assert_contains "$codify_skill" '**final realization**' "Codify should distinguish final ready realization"
-assert_contains "$codify_skill" 'The draft is a candidate, not authority' "Codify should not promote a draft through implementation"
-assert_contains "$codify_skill" 'Do not perform irreversible external actions' "Codify exploration should stay reversible"
-assert_contains "$codify_skill" 'smallest reversible tactical alternative that preserves confirmed business facts and strategic structure' "Codify should use code to falsify tactical structure"
-assert_contains "$codify_skill" 'every obsolete semantic responsibility actually deleted' "Codify should delete rather than rename mechanisms"
-assert_contains "$codify_skill" '`design_evidence`' "Codify should return design evidence for reconciliation"
-assert_contains "$codify_skill" 'Compare responsibilities, not names' "Codify should detect semantic renaming"
-assert_contains "$codify_skill" 'Apply only House Rules whose lifecycle and design conditions are established' "Codify should not let House Style make modeling decisions"
-assert_contains "$codify_skill" 'Model-owned Bounded Context, Aggregate, capability, or core-object structure' "Codify should return strategic-structure falsification to EventStorming"
-assert_contains "$codify_skill" 'tactical alternative that preserves confirmed business facts and strategic structure' "Codify should keep Tactical Design alternatives below the strategic boundary"
-assert_contains "$codify_skill" 'exploration stops with `design_evidence`' "Codify exploration should route back to Tactical Design"
-assert_contains "$codify_skill" 'producer checkpoint remains `incomplete`' "Codify should not hand an unreconciled draft to Guard"
-assert_contains "$codify_skill" 'Never run Guard against a Tactical Design `draft`' "Codify should guard only reconciled authority"
-assert_not_contains "$codify_skill" 'codify_ready' "Codify should not add another readiness state"
-
-assert_contains "$guard_skill" 'reconciled design' "Guard should review the final design rather than an initial candidate"
-assert_contains "$guard_skill" 'does not certify that an early design candidate was wise' "Guard should not pretend fidelity proves design quality"
-assert_contains "$guard_skill" 'A Tactical Design `draft` may have guided reversible exploration but cannot seed Guard' "Guard should reject unreconciled draft authority"
-assert_contains "$guard_skill" 'live state authority, business sequencing' "Guard should inspect the missing system-design responsibilities"
-assert_contains "$guard_skill" 'invoked Domain-language collaborator contract also belongs inward' "Guard should keep domain-timed capability ownership inward"
-assert_contains "$guard_skill" 'Application supplies execution' "Guard should distinguish Application coordination"
-assert_contains "$guard_skill" 'unreconciled tactical difference that preserves that structure' "Guard should route tactical drift to Tactical Design"
-assert_contains "$guard_skill" 'Guard does not force code back to a structural hypothesis merely because it is currently recorded' "Guard should treat Model structure as falsifiable"
-assert_contains "$guard_skill" 'concrete evidence against Model-owned Bounded Context, Aggregate, capability, or core-object structure' "Guard should route strategic falsification to EventStorming"
-assert_contains "$guard_skill" 'concrete tactical evidence under the same ready authority routes to Tactical Design' "Guard should reopen an evidence-falsified ready tactical design"
-assert_contains "$guard_skill" 'plain failure to realize an already reconciled ready claim remains a `violation`' "Guard should keep implementation drift in Codify"
-assert_contains "$guard_skill" 'one fresh agent context distinct from the implementer' "Guard should remain independent"
-assert_contains "$guard_skill" 'Do not run producer tests' "Guard should consume rather than repeat producer verification"
-assert_contains "$guard_skill" 'mark-iteration-implemented' "Guard should retain narrow iteration closure"
-
-assert_contains "$claude_maintainer" 'codify` may use `inspect` only' "Artifact maintenance should keep Codify read-only"
-assert_contains "$claude_maintainer" '**structural** readiness' "Artifact maintenance should label what validation proves"
-assert_contains "$claude_maintainer" 'Never describe structural validity as design validation' "Artifact maintenance should not imply design correctness"
-assert_contains "$claude_maintainer" 'It may be reported to Codify only as an exploration candidate' "Artifact inspection should expose draft exploration without authority"
-assert_contains "$claude_maintainer" 'one derived domain-object `classDiagram`' "Tactical validation should require an evidence-derived object model"
-assert_contains "$claude_maintainer" 'state authority, semantic flow, necessity proof' "Tactical validation should cover the generative thesis"
-assert_contains "$claude_maintainer" 'do not require a fixed Interface/Application/Repository topology' "Tactical validation should avoid a template answer"
-assert_contains "$claude_maintainer" 'do not require a fixed Interface/Application/Repository topology or a diagram for every technical error' "Tactical validation should avoid exhaustive failure paths"
-assert_contains "$claude_maintainer" 'Do not require or synthesize final `TD-NNN` claims' "Exploration validation should not preload final claims"
-assert_contains "$claude_maintainer" 'Never write it before the first design question' "Artifact maintenance should avoid premature draft anchoring"
-assert_contains "$claude_maintainer" 'Require the Reconciliation Evidence section' "Ready transition should account for implementation evidence"
-assert_contains "$claude_maintainer" 'A design-only request stops at `draft`' "Artifact maintenance should require implementation evidence for ready"
-assert_contains "$claude_maintainer" 'unresolved implementation/design deviation blocks the transition' "Artifact maintenance should prevent silent drift"
-assert_contains "$claude_maintainer" '## Discard Tactical Design draft' "Artifact maintenance should retain candidate cleanup"
-assert_contains "$claude_maintainer" '## Supersede ready Tactical Design' "Artifact maintenance should retain invalidated-history closure"
-assert_contains "$claude_maintainer" 'implementation evidence reconciled under the same current ready authority' "Artifact maintenance should discard evidence-falsified drafts under unchanged business authority"
-assert_contains "$claude_maintainer" 'implementation evidence under the same current ready authority invalidates an unimplemented `ready` Tactical Design' "Artifact maintenance should retire evidence-falsified ready designs under unchanged business authority"
-assert_contains "$claude_maintainer" 'the `superseded_by` link names the authority now sufficient for realization' "Artifact maintenance should make same-authority retirement lineage explicit"
-assert_contains "$claude_maintainer" 'whose section at the adverse-semantics position is still named `## Failure and Recovery Semantics`' "Artifact inspection should accept the prior Model adverse-semantics heading"
-assert_contains "$claude_maintainer" 'Selected Domain Events table still ends with `Business failure or recovery`' "Artifact inspection should accept the prior Domain Event consequence column"
-assert_contains "$claude_maintainer" 'never perform a format-only Model revision' "Legacy Model layout should migrate only with semantic authority"
-assert_contains "$claude_maintainer" '## Mark iteration implemented' "Artifact maintenance should retain Guard closure"
-assert_contains "$claude_maintainer" 'Never create `docs/ddd-expert/architecture.md`' "Artifact maintenance should reject a root architecture catch-all"
-assert_not_contains "$claude_maintainer" '../../templates/design.md' "Artifact maintenance should not restore a standalone Design artifact"
-
-assert_contains "$ROOT/scripts/eval/ddd-expert.js" 'put every source assertion and its frozen unit judgment in architecture_ledger' "Guard eval should retain its terminal ledger"
-assert_contains "$ROOT/evals/ddd-expert/result.schema.json" '"architecture_ledger"' "Guard eval result should expose the architecture ledger"
-
-if rg -n '../../templates/' \
-  "$CLAUDE_ROOT/skills/event-storming/SKILL.md" \
-  "$CLAUDE_ROOT/skills/codify/SKILL.md" \
-  "$CLAUDE_ROOT/skills/guard/SKILL.md" \
-  "$CODEX_ROOT/skills/event-storming/SKILL.md" \
-  "$CODEX_ROOT/skills/codify/SKILL.md" \
-  "$CODEX_ROOT/skills/guard/SKILL.md" >/dev/null; then
-  fail "workflow skills should load template mechanics through maintain-artifacts"
+actual_workflow_steps="$(awk '/^## The ten EventStorming steps$/ { in_workflow = 1; next } /^## / { if (in_workflow) exit } in_workflow && /^[0-9]+\. \*\*/ { sub(/:.*/, ""); print }' "$event_storming_skill")"
+[ "$actual_workflow_steps" = "$expected_workflow_steps" ] || fail "EventStorming should preserve the ten causal steps in order"
+assert_contains "$event_storming_skill" 'Workshop Events stay in the conversation' "EventStorming should not persist workshop minutes"
+assert_contains "$event_storming_skill" 'compact text timeline, table, or arrow chain' "EventStorming should use a renderer-independent conversational board"
+assert_contains "$event_storming_skill" 'Admit a concern only when it changes a business right' "EventStorming should select concerns by business-observable meaning"
+assert_contains "$event_storming_skill" 'Each rule is one independently challengeable claim' "EventStorming should write falsifiable Business Rules"
+assert_contains "$event_storming_skill" 'without assigning tactical behavior ownership or prescribing an implementation mechanism' "EventStorming Business Rules should not pre-decide object design"
+if rg -ni 'mermaid|\b(retry|retries|transaction|transactions|concurrency|concurrent|recovery|deployment|idempotency|idempotent)\b' "$event_storming_skill" "$CLAUDE_ROOT/references/ddd-modeling.md" >/dev/null; then
+  rg -ni 'mermaid|\b(retry|retries|transaction|transactions|concurrency|concurrent|recovery|deployment|idempotency|idempotent)\b' "$event_storming_skill" "$CLAUDE_ROOT/references/ddd-modeling.md" >&2
+  fail "EventStorming guidance should not prime implementation mechanisms"
 fi
+assert_contains "$event_storming_skill" 'explicitly confirms the integrated strategic model' "EventStorming should require integrated confirmation"
+assert_contains "$event_storming_skill" '`context-map.md` and affected `model.md` files' "EventStorming should write only current strategic authority"
+
+assert_contains "$model_template" '## Purpose' "Model should state the Bounded Context purpose"
+assert_contains "$model_template" '## Aggregate Roots' "Model should identify Aggregate Roots"
+assert_contains "$model_template" '## Business Rules' "Model should retain strategic business rules"
+assert_contains "$model_template" '<Governed business concept or collaboration>' "Model Business Rules should state their business scope"
+assert_contains "$model_template" '<accepted decision, permission, transition, required outcome, or invariant>' "Model Business Rules should preserve downstream design authority"
+assert_not_contains "$model_template" '## Entities' "Model should not duplicate tactical object descriptions"
+assert_not_contains "$model_template" '## Domain Events' "Model should not duplicate object-owned Domain Events"
+
+# Tactical Design uses the same relentless, one-question interview contract as
+# grilling. It produces one sparse current object model after confirmation.
+assert_contains "$tactical_design_skill" 'Ask one question at a time' "Tactical Design should keep one design frontier"
+assert_contains "$tactical_design_skill" 'recommended answer' "Tactical Design should recommend an answer with each design question"
+assert_contains "$tactical_design_skill" 'If a fact can be found in the repository, look it up' "Tactical Design should investigate facts instead of asking the user"
+assert_contains "$tactical_design_skill" 'Write one Aggregate Root slice as soon as the user confirms that Root' "Tactical Design should persist confirmed Roots incrementally"
+assert_contains "$tactical_design_skill" 'Never write an unconfirmed Aggregate Root' "Tactical Design should preserve a per-Root confirmation barrier"
+assert_contains "$tactical_design_skill" 'Do not wait for every Aggregate Root in the Bounded Context' "Tactical Design should avoid whole-context write batching"
+assert_contains "$tactical_design_skill" 'Work one Aggregate Root at a time' "Tactical Design should finish one Aggregate before opening the next"
+assert_contains "$tactical_design_skill" 'derive the smallest complete set of **essential business pressures** from `model.md`' "Tactical Design should derive design pressure from confirmed authority"
+assert_contains "$tactical_design_skill" "working expression of the Root's essential complexity" "Tactical Design should frame inherent domain difficulty explicitly"
+assert_contains "$tactical_design_skill" 'Every pressure names the governing Business Rules' "Tactical Design should keep every pressure traceable"
+assert_contains "$tactical_design_skill" 'During exploration, vary the Subject' "Tactical Design should use behavior statements to test ownership"
+assert_contains "$tactical_design_skill" 'Resolve every material Subject, Object, and Result' "Tactical Design should classify hidden concepts"
+assert_contains "$tactical_design_skill" 'including no new split and the strongest relevant split, merge, move, or deletion alternative' "Tactical Design should compare credible object compositions"
+assert_contains "$tactical_design_skill" 'compare the design burden it introduces' "Tactical Design should weigh introduced complexity"
+assert_contains "$tactical_design_skill" 'accidental complexity introduced by the candidate composition' "Tactical Design should distinguish candidate burden from essential complexity"
+assert_contains "$tactical_design_skill" "each retained object's business definition" "Tactical Design should stay at low-resolution object design"
+assert_contains "$tactical_design_skill" '<Subject> <acts on object>, producing <result>.' "Tactical behavior descriptions should carry a complete semantic sentence"
+assert_contains "$tactical_design_skill" 'becomes the grammatical Subject and behavior owner' "Tactical Design should bind accepted behavior to an object"
+assert_not_contains "$tactical_design_skill" 'every Entity inside' "Tactical Design should not interview through an entity checklist"
+assert_contains "$tactical_design_skill" '`domain-objects.md`' "Tactical Design should own the current domain-object file"
+assert_not_contains "$tactical_design_skill" 'Codify' "Tactical Design should not prescribe implementation workflow"
+assert_contains "$tactical_design_skill" 'Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or guarantee' "Tactical Design should admit realization concerns through business authority"
+assert_not_contains "$tactical_design_skill" 'transaction, concurrency, recovery, or call direction' "Tactical Design should not prime speculative system mechanisms"
+
+for heading in '**Definition:**' '**State:**' '**Behavior:**' '**Domain Events:**'; do
+  assert_contains "$domain_objects_template" "$heading" "domain-objects template missing $heading"
+done
+assert_contains "$domain_objects_template" '<Subject> <acts on object>, producing <result>.' "domain-object behavior should use a subject-action-result sentence"
+assert_contains "$tactical_design_skill" 'Analytical Workshop Events never appear in `domain-objects.md`' "Tactical Design should keep Workshop Events out of domain objects"
+assert_not_contains "$domain_objects_template" '**Responsibilities:**' "behavior should own responsibilities"
+assert_not_contains "$domain_objects_template" '**Lifecycle:**' "state should own lifecycle"
+assert_not_contains "$domain_objects_template" '**Collaboration:**' "behavior and Domain Events should express effects"
+
+assert_contains "$artifact_layout_template" 'domain-objects.md' "artifact layout should include current tactical authority"
+assert_not_contains "$artifact_layout_template" 'event-storming/' "artifact layout should not retain meeting minutes"
+assert_not_contains "$artifact_layout_template" 'tactical-design/' "artifact layout should not retain design iterations"
+assert_not_contains "$artifact_layout_template" 'architecture.md' "artifact layout should not retain BC architecture files"
+
+assert_contains "$codify_skill" '`model.md` and `domain-objects.md`' "Codify should consume strategic and tactical authority"
+assert_contains "$codify_skill" 'DDD artifacts are read-only during Codify' "Codify should not revise design while implementing"
+assert_contains "$codify_skill" 'semantic constraints, not a complete software design' "Codify should treat sparse design as constraints rather than an inventory"
+assert_contains "$codify_skill" 'implementation latitude, not a missing modeling step' "Codify should own unspecified software realization"
+assert_contains "$codify_skill" 'applicable House Style' "Codify should resolve realization through House Style"
+assert_contains "$codify_skill" 'code surfaces actually touched' "Codify should load House Style only for current work"
+assert_contains "$codify_skill" 'Implement the complete requested slice' "Codify should realize the accepted behavior coherently"
+assert_contains "$codify_skill" 'tests and checks proportionate to the changed behavior and risk' "Codify should verify proportionately"
+assert_not_contains "$codify_skill" 'stop and route' "Codify should not create a modeling return loop"
+assert_not_contains "$codify_skill" 'EventStorming' "Codify should not route back to strategic modeling"
+assert_not_contains "$codify_skill" 'Tactical Design' "Codify should not route back to tactical modeling"
+assert_not_contains "$codify_skill" 'Preflight before edits' "Codify should not impose a preflight checklist"
+assert_not_contains "$codify_skill" 'Work from Domain outward' "Codify should not prescribe implementation order"
+assert_not_contains "$codify_skill" 'A free function' "Codify should leave detailed realization rules in House Style"
+assert_not_contains "$codify_skill" 'Provide Guard with' "Codify should not own a Guard handoff protocol"
+
+assert_contains "$guard_skill" 'affected `model.md` and `domain-objects.md`, `docs/ddd-expert/context-map.md` when Context ownership or collaboration changes' "Guard should review only applicable current model authority"
+assert_contains "$guard_skill" 'one fresh, read-only agent context distinct from the implementer' "Guard should remain independent"
+assert_contains "$guard_skill" 'they are not a complete software design' "Guard should not treat sparse models as software inventories"
+assert_contains "$guard_skill" 'implementation latitude judged through project constraints and House Style, not missing authority' "Guard should judge unmodeled structure through House Style"
+assert_contains "$guard_skill" 'non-Domain abstraction introduced, materially changed, or required by the affected behavior' "Guard should review software abstractions in the changed realization"
+assert_contains "$guard_skill" 'whether deleting it would redistribute that complexity or simply remove it' "Guard should apply the deletion test"
+assert_contains "$guard_skill" 'whether a small stable interface creates leverage and locality' "Guard should judge abstraction depth"
+assert_contains "$guard_skill" 'indirection, mapping, configuration, lifecycle, and test cost are justified' "Guard should weigh accidental abstraction cost"
+assert_contains "$guard_skill" 'CQRS, Repository, or Job neither require nor justify an abstraction' "Guard should not infer abstraction quality from pattern names"
+assert_contains "$guard_skill" 'Review only: do not edit source, DDD artifacts, tests, or project state' "Guard should remain read-only over the reviewed change"
+assert_not_contains "$guard_skill" 'EventStorming' "Guard should not create a strategic workflow route"
+assert_not_contains "$guard_skill" 'Tactical Design' "Guard should not create a tactical workflow route"
+assert_not_contains "$guard_skill" 'Codify' "Guard should not create an implementation workflow route"
+assert_not_contains "$guard_skill" 'receiver-shaped free function' "Guard should leave detailed object-shape rules in House Style"
+
+if rg -n 'maintain-artifacts|architecture\.md|classDiagram|sequenceDiagram|model_revision|last_changed_by|draft fingerprint|SHA-256 fingerprint|draft -> ready|reconcil' \
+  "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" "$CLAUDE_ROOT/templates" "$CODEX_ROOT/templates" >/dev/null; then
+  rg -n 'maintain-artifacts|architecture\.md|classDiagram|sequenceDiagram|model_revision|last_changed_by|draft fingerprint|SHA-256 fingerprint|draft -> ready|reconcil' \
+    "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" "$CLAUDE_ROOT/templates" "$CODEX_ROOT/templates" >&2
+  fail "ddd-expert should not retain the old artifact lifecycle or diagram workflow"
+fi
+
 if rg -n '(\$|/)ddd-expert:' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
   rg -n '(\$|/)ddd-expert:' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >&2
   fail "shared SKILL contracts should not contain platform-specific invocation syntax"
@@ -368,28 +324,17 @@ assert_contains "$CLAUDE_ROOT/README.md" '/ddd-expert:event-storming' "Claude RE
 assert_contains "$CODEX_ROOT/README.md" '$ddd-expert:event-storming' "Codex README should use the EventStorming dollar invocation"
 assert_contains "$CLAUDE_ROOT/README.md" '/ddd-expert:tactical-design' "Claude README should expose conditional Tactical Design"
 assert_contains "$CODEX_ROOT/README.md" '$ddd-expert:tactical-design' "Codex README should expose conditional Tactical Design"
-assert_contains "$CLAUDE_ROOT/README.md" 'Use EventStorming as the single modeling path' "Claude README should expose one modeling workflow"
-assert_contains "$CODEX_ROOT/README.md" 'Use EventStorming as the single modeling path' "Codex README should expose one modeling workflow"
-assert_contains "$CLAUDE_ROOT/README.md" 'confirmed business facts + current falsifiable Models' "Claude README should distinguish facts from structural hypotheses"
-assert_contains "$CODEX_ROOT/README.md" 'confirmed business facts + current falsifiable Models' "Codex README should distinguish facts from structural hypotheses"
-assert_contains "$CLAUDE_ROOT/README.md" 'domain-object thesis + draft collaboration candidate' "Claude README should expose the system-thesis bridge"
-assert_contains "$CODEX_ROOT/README.md" 'domain-object thesis + draft collaboration candidate' "Codex README should expose the system-thesis bridge"
-assert_contains "$CLAUDE_ROOT/README.md" 'reversible exploration' "Claude README should expose implementation falsification"
-assert_contains "$CODEX_ROOT/README.md" 'reversible exploration' "Codex README should expose implementation falsification"
-assert_contains "$CLAUDE_ROOT/README.md" 'reconciled ready design' "Claude README should expose reconciliation before Guard"
-assert_contains "$CODEX_ROOT/README.md" 'reconciled ready design' "Codex README should expose reconciliation before Guard"
+assert_contains "$CLAUDE_ROOT/README.md" 'EventStorming -> current strategic model' "Claude README should expose the sparse workflow"
+assert_contains "$CODEX_ROOT/README.md" 'EventStorming -> current strategic model' "Codex README should expose the sparse workflow"
+assert_contains "$CLAUDE_ROOT/README.md" 'Tactical Design -> current domain objects' "Claude README should expose tactical authority"
+assert_contains "$CODEX_ROOT/README.md" 'Tactical Design -> current domain objects' "Codex README should expose tactical authority"
+assert_contains "$CLAUDE_ROOT/README.md" 'one question at a time' "Claude README should expose the interview contract"
+assert_contains "$CODEX_ROOT/README.md" 'one question at a time' "Codex README should expose the interview contract"
 assert_contains "$CODEX_ROOT/README.md" 'codex plugin marketplace upgrade skill-workshop-codex' "Codex README should upgrade by marketplace name"
 assert_contains "$CLAUDE_ROOT/README.md" 'verified implementation checkpoint' "Claude README should expose the Codify checkpoint"
 assert_contains "$CODEX_ROOT/README.md" 'verified implementation checkpoint' "Codex README should expose the Codify checkpoint"
-assert_contains "$CLAUDE_ROOT/README.md" 'House Style supplies conditional realization rules' "Claude README should bound House Style ownership"
-assert_contains "$CODEX_ROOT/README.md" 'House Style supplies conditional realization rules' "Codex README should bound House Style ownership"
-if rg -n -F '$ddd-expert:maintain-artifacts' "$CODEX_ROOT/README.md" >/dev/null; then
-  fail "Codex README should not expose the internal artifact protocol as a user command"
-fi
-if rg -n -F 'docs/ddd-expert/context/' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
-  rg -n -F 'docs/ddd-expert/context/' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >&2
-  fail "workflow skills should resolve artifact paths through the central layout contract"
-fi
+assert_contains "$CLAUDE_ROOT/README.md" 'House Style owns realization choices left open by the model' "Claude README should make House Style the realization default"
+assert_contains "$CODEX_ROOT/README.md" 'House Style owns realization choices left open by the model' "Codex README should make House Style the realization default"
 if rg -n -F 'docs/ddd/' "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null; then
   rg -n -F 'docs/ddd/' "$CLAUDE_ROOT" "$CODEX_ROOT" >&2
   fail "ddd-expert should use docs/ddd-expert rather than the retired docs/ddd path"
@@ -400,28 +345,22 @@ for retired_artifact in 'docs/ddd-expert/model.md' 'docs/ddd-expert/design.md'; 
     fail "ddd-expert should keep artifacts under per-context directories rather than shared root files"
   fi
 done
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Use this order when inputs disagree' "codify should define authority order"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" '**Preflight before edits**' "codify should preflight before modifying code"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Verify implementation evidence' "codify should produce local evidence before independent review"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'leave every `ready` iteration open' "codify should preserve iteration state when Guard is deferred"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'The later Guard reviews the cumulative change from an immutable base' "codify should retain deferred changes for later certification"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '**Use question-led implementation depth**' "guard should deepen only from a falsifiable architecture question"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '`clear`, `violation`, or `evidence_gap`' "guard should use terminal verdicts"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'keep it read-only' "guard should keep review work read-only"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For a clear reviewed `ready` iteration' "guard should close only an iteration covered by its clear review"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'Route to `codify`' "guard should route implementation violations to codify"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Their silence about remaining software structure is implementation latitude' "codify should own design gaps outside the Domain contract"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Load only House Style guidance for the active language and code surfaces actually touched' "codify should apply House Style selectively"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'Use question-led depth' "guard should deepen only from a concrete structural question"
+assert_not_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '`clear`, `violation`, or `evidence_gap`' "guard should not maintain terminal-state accounting"
+assert_not_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'review unit' "guard should not maintain review-unit machinery"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'fresh, read-only agent context' "guard should keep review work independent and read-only"
 
 if rg -n 'ddd-golang-(scaffold|domain|application|transport|cqrs|infrastructure|events-messages|taskqueue|runtime)\.md' \
   "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
   fail "workflow skills should enter Go House Style through its router rather than link implementation leaves directly"
 fi
-event_reference_links="$(awk '$0 == "## References" { in_refs = 1; next } in_refs && /^- Load / { print }' "$event_storming_skill")"
-[ "$(printf '%s\n' "$event_reference_links" | sed '/^$/d' | wc -l)" -eq 1 ] || fail "EventStorming should load only its strategic modeling reference"
 assert_contains "$event_storming_skill" '../../references/ddd-modeling.md' "EventStorming should load strategic modeling guidance"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Go, start with' "codify should enter Go guidance through its router"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Python or TypeScript, load only the sections for touched surfaces' "codify should load compact language guides selectively"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Go, use' "guard should enter Go guidance through its router"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Python or TypeScript, load only the sections owning each architecture unit' "guard should load compact language guides selectively"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Python or TypeScript, load only the touched surfaces' "codify should load compact language guides selectively"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Go, start with' "guard should enter Go guidance through its router"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Python or TypeScript, load only relevant sections' "guard should load compact language guides selectively"
 
 # Canonical reference inventory. Go uses a baseline/router plus focused leaves;
 # lower-frequency Python and TypeScript each use one compact language guide.
@@ -619,8 +558,9 @@ assert_contains "$core" 'An IAM principal or transport claim is not itself the R
 assert_contains "$core" 'External authority may issue Command' "projection should preserve accepted non-human command sources"
 assert_contains "$core" 'A Command does not require a same-named class, handler, or Aggregate method' "projection should not force Command naming into code structure"
 assert_contains "$core" 'Keep its Integration Message and adapter realization distinct from the local Domain Event type' "projection should preserve local facts and wire contracts separately"
-assert_contains "$core" 'It requires no production event type, persistence, or dispatch unless the Model separately selects stronger semantics' "projection should leave analytical Workshop Events out of production code"
-assert_contains "$core" 'Keep it outside `model.md`, BC Architecture, ADRs, and implementation code' "projection should remain transient task evidence"
+assert_contains "$core" 'It creates no production event type, persistence, dispatch, or lasting artifact' "projection should leave analytical Workshop Events out of production code"
+assert_contains "$core" 'Do not create an exhaustive permanent projection' "implementation trace should remain sparse"
+assert_contains "$core" 'Keep this trace as temporary task evidence outside DDD artifacts' "implementation trace should not become authority"
 
 scaffold="$CLAUDE_ROOT/references/ddd-golang-scaffold.md"
 assert_contains "$scaffold" 'internal/business/' "Go scaffold should support multiple bounded contexts"
@@ -764,98 +704,53 @@ done
 assert_contains "$ROOT/README.md" '/plugin install ddd-expert@skill-workshop' "root README missing Claude ddd-expert install command"
 assert_contains "$ROOT/README.md" 'codex plugin add ddd-expert@skill-workshop-codex' "root README missing Codex ddd-expert install command"
 assert_contains "$ROOT/README.md" 'Domain/Application/Interface/Infrastructure/Runtime' "root README should expose every architecture responsibility"
-assert_contains "$ROOT/README.md" 'Go names its physical package `transport`' "root README should map Go transport to the shared Interface vocabulary"
-assert_contains "$ROOT/README.md" 'confirmed business facts from a current falsifiable structural model' "root README should expose layered artifact authority"
-assert_contains "$ROOT/README.md" 'domain-object UML, responsibilities, state authority, semantic flow, and necessity proof' "root README should expose the system thesis"
-assert_contains "$ROOT/README.md" 'Codify may test it through reversible implementation' "root README should expose implementation evidence"
-assert_contains "$ROOT/README.md" 'only the resulting `ready` design can enter final verification and Guard' "root README should expose reconciliation before certification"
-assert_contains "$ROOT/README.md" 'House Style supplies conditional realization rules' "root README should bound House Style ownership"
-assert_contains "$ROOT/README.md" 'link their latest minutes through `last_changed_by`' "root README should expose current Model provenance"
-confirmation_adr="$ROOT/docs/adr/0003-event-storming-whole-model-confirmation.md"
-direct_codify_adr="$ROOT/docs/adr/0004-model-ready-enters-codify-directly.md"
-iteration_minutes_adr="$ROOT/docs/adr/0005-event-storming-minutes-and-current-models.md"
-guard_review_adr="$ROOT/docs/adr/0006-guard-is-a-semantic-structure-review.md"
-tactical_design_adr="$ROOT/docs/adr/0007-conditional-tactical-design-and-claims.md"
-design_candidate_adr="$ROOT/docs/adr/0008-design-artifacts-are-falsifiable-candidates.md"
-[ -f "$confirmation_adr" ] || fail "whole-model EventStorming ADR missing"
-[ -f "$direct_codify_adr" ] || fail "direct model_ready-to-Codify ADR missing"
-[ -f "$iteration_minutes_adr" ] || fail "EventStorming iteration-minutes ADR missing"
-[ -f "$guard_review_adr" ] || fail "bounded Guard review ADR missing"
-[ -f "$tactical_design_adr" ] || fail "conditional Tactical Design ADR missing"
-[ -f "$design_candidate_adr" ] || fail "falsifiable design-artifact ADR missing"
-assert_contains "$ROOT/docs/adr/0001-ddd-expert-reference-architecture.md" 'Status: Accepted' "historical DDD ADR should retain still-current architecture authority"
-assert_contains "$ROOT/docs/adr/0001-ddd-expert-reference-architecture.md" 'EventStorming modeling and artifact-write decisions superseded by' "historical DDD ADR should narrow its superseded decision scope"
-assert_contains "$ROOT/docs/adr/0001-ddd-expert-reference-architecture.md" 'Guard review topology and coverage decisions superseded by' "historical DDD ADR should link the bounded Guard replacement"
-assert_contains "$confirmation_adr" 'temporary EventStorming Board' "new DDD ADR should preserve the pre-confirmation write barrier"
-assert_contains "$confirmation_adr" 'only one frontier decision to the user per turn' "new DDD ADR should preserve the HITP conversation contract"
-assert_contains "$confirmation_adr" 'steelmans the strongest credible alternative' "new DDD ADR should preserve constructive challenge"
-assert_contains "$confirmation_adr" 'EventStorming diagram' "new DDD ADR should persist an EventStorming view"
-assert_contains "$confirmation_adr" 'does not contain a per-file Documentation Impact Set' "new DDD ADR should keep file planning out of confirmation"
-assert_contains "$confirmation_adr" 'Pre-confirmation Model materialization, Strategic-stop, separate Tactical Design authority, and downstream realization-axis decisions superseded by' "whole-model ADR should link every superseded workflow decision"
-assert_contains "$confirmation_adr" 'Automated checks remain limited to deterministic workflow and artifact invariants' "new DDD ADR should bound automated evaluation"
-assert_contains "$direct_codify_adr" 'A canonical `model_ready` Model is sufficient implementation authority and enters Codify directly' "direct Codify ADR should remove the intermediate readiness gate"
-assert_contains "$direct_codify_adr" 'There is no standalone Design artifact, `codify_ready` status, or tactical-design workflow stage' "direct Codify ADR should retire the standalone design phase"
-assert_contains "$direct_codify_adr" 'Guard two-axis topology superseded by' "direct Codify ADR should link the bounded Guard replacement"
-assert_contains "$direct_codify_adr" 'replaces each affected canonical `model.md` with an incremented `model_status: draft` revision' "direct Codify ADR should define file-backed Model approval"
-assert_contains "$confirmation_adr" 'EventStorming artifact placement and per-Model diagram persistence superseded by' "whole-model ADR should link the iteration-minutes replacement"
-assert_contains "$direct_codify_adr" 'EventStorming artifact placement, Model status, and implementation closure superseded by' "direct Codify ADR should link the iteration-minutes replacement"
-assert_contains "$iteration_minutes_adr" 'Guard review and closure preconditions superseded by' "iteration-minutes ADR should link the bounded Guard closure replacement"
-assert_contains "$iteration_minutes_adr" '`draft -> ready -> implemented`' "iteration-minutes ADR should define the complete iteration lifecycle"
-assert_contains "$iteration_minutes_adr" '`ready -> superseded`' "iteration-minutes ADR should preserve challenged ready history without false implementation"
-assert_contains "$iteration_minutes_adr" 'regardless of whether the correcting evidence came from Tactical Design, the user, or another source' "iteration-minutes ADR should make correction lineage source-independent"
-assert_not_contains "$iteration_minutes_adr" 'atomically changes it to `ready`' "iteration-minutes ADR should not promise filesystem-level atomicity"
-assert_contains "$iteration_minutes_adr" 'one staged consistency write' "iteration-minutes ADR should describe the actual guarded write protocol"
-assert_contains "$iteration_minutes_adr" '`model_revision` and `last_changed_by`, but no iteration status or complete EventStorming diagram' "iteration-minutes ADR should keep Models as current-state authority"
-assert_contains "$guard_review_adr" 'one fresh, read-only agent context distinct from the implementer' "Guard ADR should preserve reviewer independence without fan-out"
-assert_contains "$guard_review_adr" 'finite unit set from only two seeds' "Guard ADR should bound review breadth by architecture responsibilities"
-assert_contains "$guard_review_adr" 'Every source assertion and governing reference remains represented in the child union' "Guard ADR should preserve atomic responsibility coverage"
-assert_contains "$guard_review_adr" 'does not rerun tests, builds, migrations' "Guard ADR should separate structural review from producer verification"
-assert_contains "$guard_review_adr" '607.320 seconds' "Guard ADR should record the accepted evaluation result"
-assert_contains "$tactical_design_adr" 'Tactical Design is conditional on a real Design Delta' "Tactical Design ADR should define the invocation threshold"
-assert_contains "$tactical_design_adr" 'no format-only Model revision is created' "Tactical Design ADR should preserve lazy capability-table migration"
-assert_contains "$tactical_design_adr" 'No Design Delta creates no Tactical Design artifact' "Tactical Design ADR should reject empty ceremony"
-assert_contains "$tactical_design_adr" '`model.md` owns current Bounded Context business authority, Role-to-Command permissions, Aggregate Capabilities, and event-triggered Commands' "Tactical Design ADR should preserve Model ownership"
-assert_contains "$tactical_design_adr" 'optional `docs/ddd-expert/context/<context-slug>/architecture.md`' "Tactical Design ADR should place current architecture under its owning context"
-assert_contains "$tactical_design_adr" 'Every Tactical Design Claim is accounted for exactly once as `projected` or `iteration-only`' "Tactical Design ADR should make claim disposition exhaustive"
-assert_contains "$tactical_design_adr" 'No root `docs/ddd-expert/architecture.md` is introduced' "Tactical Design ADR should reject a root architecture catch-all"
-assert_contains "$tactical_design_adr" 'one connected design revision batch' "Tactical Design ADR should batch related tactical clarification before redrawing"
-assert_contains "$tactical_design_adr" 'one temporary Model Review Batch' "Tactical Design ADR should consolidate related Model contradictions before handback"
-assert_contains "$tactical_design_adr" 'creates at most one correction draft' "Tactical Design ADR should prevent one EventStorming file per question"
-assert_contains "$tactical_design_adr" 'Model Challenge' "Tactical Design ADR should define its falsification handback to EventStorming"
-assert_contains "$tactical_design_adr" 'Evidence against Model-owned business meaning or Bounded Context, Aggregate, capability, or core-object strategic structure returns to EventStorming' "Tactical Design ADR should route strategic falsification to EventStorming"
-assert_contains "$tactical_design_adr" 'only when it preserves that strategic structure' "Tactical Design ADR should keep tactical alternatives below the strategic boundary"
-assert_contains "$tactical_design_adr" '`ready -> superseded`' "Tactical Design ADR should retire invalidated ready design without false implementation"
-assert_contains "$tactical_design_adr" 'Ordinary `no_design_change` is a zero-write result' "Tactical Design ADR should separate no-change from cleanup outcomes"
-assert_contains "$tactical_design_adr" 'Either path requires concrete evidence and replaces or removes every BC Architecture source from the stale claims' "Tactical Design ADR should close stale current architecture authority"
-assert_contains "$tactical_design_adr" 'Guard does not parse every Mermaid arrow' "Tactical Design ADR should keep Guard claim-led"
-assert_contains "$tactical_design_adr" 'including the direct EventStorming-to-Codify path' "Tactical Design ADR should retain projection on the low-cost direct path"
-assert_contains "$tactical_design_adr" 'temporary scoped `model_projection_map`' "Tactical Design ADR should define transient code traceability"
-assert_contains "$tactical_design_adr" 'independently reconstructs the scoped Model projection' "Tactical Design ADR should keep Guard independent of producer claims"
-assert_contains "$tactical_design_adr" 'closes every reviewed ready EventStorming and Tactical Design record together' "Tactical Design ADR should define joint closure"
-assert_contains "$design_candidate_adr" 'The workflow distinguishes three kinds of conclusion' "design-artifact ADR should separate business facts, strategic hypotheses, and tactical candidates"
-assert_contains "$design_candidate_adr" 'means reviewed and usable, not proven or immune to later counterexamples' "ready EventStorming should remain falsifiable"
-assert_contains "$design_candidate_adr" 'only when it preserves both confirmed business facts and that strategic structure' "design-artifact ADR should keep Tactical Design below Model-owned structure"
-assert_contains "$design_candidate_adr" 'while a strategic contradiction routes to EventStorming' "design-artifact ADR should route strategic evidence to EventStorming"
-assert_contains "$design_candidate_adr" 'It persists a draft only after that conversational candidate is coherent' "Tactical Design should not prewrite the review answer"
-assert_contains "$design_candidate_adr" 'Codify may consume a scoped Tactical Design `draft` for reversible exploration' "Codify should be able to test a candidate reversibly"
-assert_contains "$design_candidate_adr" 'cannot request Guard or claim iteration completion until Tactical Design reconciles concrete implementation evidence' "unreconciled exploration should not enter Guard"
-assert_contains "$design_candidate_adr" 'House Style owns realization rules only' "House Style should not own modeling choices"
-assert_contains "$design_candidate_adr" 'No new permanent artifact, architecture ledger, or system-design skill is introduced' "the redesign should not add more workflow surface"
-assert_contains "$design_candidate_adr" 'absence of a prewritten solution topology' "verification should reject template-driven architecture anchoring"
-assert_contains "$iteration_minutes_adr" 'closed process history, not authority that future work must reconstruct' "iteration-minutes ADR should keep completed minutes out of future authority"
-assert_contains "$iteration_minutes_adr" 'Guard gains one narrowly mechanical post-clear write; its review remains read-only' "iteration-minutes ADR should bound Guard mutation"
-assert_contains "$ROOT/CONTEXT.md" 'persisted unchanged in the confirmed iteration minutes and projected into the affected current Models' "shared vocabulary should match the iteration-minutes authority split"
-assert_contains "$ROOT/CONTEXT.md" '**Aggregate Capability**:' "shared vocabulary should define Aggregate behavior authority"
-assert_contains "$ROOT/CONTEXT.md" '**Event-triggered Command**:' "shared vocabulary should define business-required event-to-intent causality"
-assert_contains "$ROOT/CONTEXT.md" '**Bounded Context Architecture**:' "shared vocabulary should define current context-owned software authority"
-assert_contains "$ROOT/CONTEXT.md" 'Every confirmed Tactical Design Claim has an explicit disposition' "shared vocabulary should distinguish an optional file from mandatory claim accounting"
-assert_contains "$ROOT/CONTEXT.md" '**Design Delta**:' "shared vocabulary should define the conditional Tactical Design threshold"
-assert_contains "$ROOT/CONTEXT.md" '**Tactical Design Claim**:' "shared vocabulary should define Guard-facing design assertions"
-assert_contains "$ROOT/CONTEXT.md" 'It does not select domain concepts, object boundaries, state lifecycle, business sequencing, or failure policy.' "shared House Style vocabulary should exclude modeling decisions"
-assert_contains "$ROOT/CONTEXT.md" 'An explicitly authorized, bounded, reversible implementation exploration may test its draft candidate first.' "shared escalation vocabulary should permit evidence-producing exploration"
-assert_contains "$ROOT/CONTEXT.md" 'A resident Aggregate with checkpoint persistence remains the live authority and is outside this term.' "shared stale-Aggregate vocabulary should be lifecycle-conditional"
-assert_contains "$ROOT/CONTEXT.md" 'A minimal material path derived from the domain-object thesis.' "shared collaboration vocabulary should prefer thesis-derived minimal paths"
-assert_not_contains "$ROOT/CONTEXT.md" 'diagram source unchanged in a `model_ready` Model artifact' "shared vocabulary should not preserve superseded per-Model diagrams"
-assert_contains "$claude_maintainer" 'A new Model starts at `model_revision: 1`' "artifact maintainer should define the first greenfield Model revision"
+assert_contains "$ROOT/README.md" 'Go names the physical Interface package `transport`' "root README should map Go transport to the shared Interface vocabulary"
+assert_contains "$ROOT/README.md" 'complete ten-step discussion method' "root README should preserve EventStorming discussion depth"
+assert_contains "$ROOT/README.md" 'derives essential business pressures from confirmed rules' "root README should expose Tactical Design inputs"
+assert_contains "$ROOT/README.md" 'compares credible object compositions by pressure coverage and accidental design burden' "root README should expose Tactical Design tradeoffs"
+assert_contains "$ROOT/README.md" 'actual Domain Events' "root README should distinguish production events"
+assert_contains "$ROOT/README.md" 'receiver-shaped free functions require a concrete ownership reason' "root README should bind behavior to methods"
+assert_contains "$ROOT/README.md" 'Codify treats the strategic model and domain-object slices as read-only semantic constraints, not a complete software design' "root README should define Codify implementation latitude"
+assert_contains "$ROOT/README.md" 'whether changed non-Domain abstractions earn their cost by reducing overall complexity under House Style' "root README should expose Guard abstraction review"
 
-echo "  ddd-expert plugin: workflow contracts and reference architecture correct"
+sparse_adr="$ROOT/docs/adr/0009-sparse-current-ddd-artifacts.md"
+[ -f "$sparse_adr" ] || fail "sparse DDD workflow ADR missing"
+assert_contains "$sparse_adr" 'Status: Accepted' "sparse DDD workflow ADR should be accepted"
+assert_contains "$sparse_adr" 'EventStorming keeps all ten discussion steps' "ADR should preserve EventStorming discussion"
+assert_contains "$sparse_adr" '`docs/ddd-expert/context-map.md`' "ADR should define current Context Map authority"
+assert_contains "$sparse_adr" '`docs/ddd-expert/context/<context-slug>/model.md`' "ADR should define current Model authority"
+assert_contains "$sparse_adr" 'Business Rules' "ADR should define pressure-led Tactical Design authority"
+assert_contains "$sparse_adr" '-> essential business pressures' "ADR should define pressure-led Tactical Design order"
+assert_contains "$sparse_adr" 'writes or replaces that section in `domain-objects.md` immediately' "ADR should define per-Root writes"
+assert_contains "$sparse_adr" 'definition;' "ADR should define object descriptions"
+assert_contains "$sparse_adr" 'actual Domain Events.' "ADR should define production events"
+assert_contains "$sparse_adr" 'A behavior listed under a Root or Entity is normally realized as a method on that object' "ADR should define method ownership"
+assert_contains "$sparse_adr" 'Codify realizes the model through House Style' "ADR should define House Style realization"
+assert_contains "$sparse_adr" 'An abstraction earns its cost when it hides present complexity' "ADR should define Guard abstraction quality"
+assert_contains "$sparse_adr" 'There are no UML or sequence diagrams' "ADR should remove diagram artifacts"
+assert_contains "$sparse_adr" 'no such lifecycle exists' "ADR should remove artifact state machinery"
+
+for superseded_adr in \
+  0003-event-storming-whole-model-confirmation.md \
+  0004-model-ready-enters-codify-directly.md \
+  0005-event-storming-minutes-and-current-models.md \
+  0006-guard-is-a-semantic-structure-review.md \
+  0007-conditional-tactical-design-and-claims.md \
+  0008-design-artifacts-are-falsifiable-candidates.md; do
+  assert_contains "$ROOT/docs/adr/$superseded_adr" 'Status: Superseded by [ADR 0009]' "$superseded_adr should no longer be current authority"
+done
+
+assert_contains "$ROOT/CONTEXT.md" '**Strategic Model**:' "shared vocabulary should define strategic authority"
+assert_contains "$ROOT/CONTEXT.md" '**Strategic Business Rule**:' "shared vocabulary should define downstream business authority"
+assert_contains "$ROOT/CONTEXT.md" '**Domain Object Slice**:' "shared vocabulary should define tactical authority"
+assert_contains "$ROOT/CONTEXT.md" '**Pressure-led Tactical Design**:' "shared vocabulary should define discussion order"
+assert_contains "$ROOT/CONTEXT.md" '**Per-Root Confirmation**:' "shared vocabulary should define write granularity"
+assert_contains "$ROOT/CONTEXT.md" '**Behavior Description**:' "shared vocabulary should define behavior sentences"
+assert_contains "$ROOT/CONTEXT.md" '**Actual Domain Event**:' "shared vocabulary should distinguish production events"
+assert_contains "$ROOT/CONTEXT.md" 'the grammatical subject is the owning Root or Entity and normally maps to a method on that object' "shared vocabulary should bind accepted behavior to methods"
+assert_not_contains "$ROOT/CONTEXT.md" '**Modeling Contradiction**:' "shared vocabulary should not preserve a Codify return loop"
+assert_not_contains "$ROOT/CONTEXT.md" '**Bounded Context Architecture**:' "shared vocabulary should remove architecture artifact authority"
+assert_not_contains "$ROOT/CONTEXT.md" '**Tactical Design Claim**:' "shared vocabulary should remove claims machinery"
+assert_not_contains "$ROOT/CONTEXT.md" '**Guard Review Unit**:' "shared vocabulary should remove Guard state machinery"
+
+echo "  ddd-expert plugin: sparse strategic and tactical contracts correct"

@@ -1,5 +1,10 @@
 # ddd-expert 系统设计 Gap 分析
 
+> 历史调查记录：本文分析的是 v1.15.22 至 v1.16.2，并保留当时的候选方案。
+> 当前工作流以 [ADR 0009](docs/adr/0009-sparse-current-ddd-artifacts.md) 为准；其中的
+> `maintain-artifacts`、Tactical Design draft、claims、Architecture projection 和
+> reconciliation 不再是现行设计。
+
 ## 调查问题
 
 OpenPoker 的旧会话在十几个小时内不断补充事务、事件、checkpoint 和恢复机制，仍没有得到令人满意的系统设计。新会话 `01a013b1-7666-7242-936a-70b02ef94711` 没有使用 `ddd-expert`，却在获得旧会话最终整理的提示词后，一次性形成了相对优秀的方案。

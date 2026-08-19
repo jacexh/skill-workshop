@@ -1,6 +1,6 @@
 # ADR 0005: EventStorming Produces Iteration Minutes and Current Models
 
-- Status: Accepted
+- Status: Superseded by [ADR 0009](0009-sparse-current-ddd-artifacts.md)
 - Date: 2026-07-16
 - Supersedes: the EventStorming artifact-placement and Model-readiness decisions in [ADR 0003](0003-event-storming-whole-model-confirmation.md) and [ADR 0004](0004-model-ready-enters-codify-directly.md)
 - Guard review and closure preconditions superseded by: [ADR 0006: Guard Is a Bounded Semantic-Structure Review](0006-guard-is-a-semantic-structure-review.md)
