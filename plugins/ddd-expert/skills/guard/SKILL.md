@@ -69,12 +69,8 @@ Say `No DDD structural findings` only when every unit is clear. This does not cl
 
 ## Completion
 
-Finish with one result:
-
-- `clear`: all scoped review units are clear;
-- `violations`: report findings and route implementation drift;
-- `evidence_gaps`: report only judgments that unavailable authority or evidence prevents;
-- `incomplete`: identify source drift or execution failure and the last stable snapshot.
+End only after every review unit has a terminal judgment. If source drift or
+execution failure prevents that, identify the last stable snapshot.
 
 ## References
 

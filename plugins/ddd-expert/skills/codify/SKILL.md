@@ -83,12 +83,10 @@ Keep the handoff outside `docs/ddd-expert`. Do not predeclare Guard findings.
 
 ## Completion
 
-Finish with one result:
-
-- `completed`: summarize the implemented behaviors, structural deletions, changed files, and verification;
-- `event_storming_required`: cite the strategic contradiction and stop before further edits;
-- `tactical_design_required`: cite the object-design contradiction and stop before further edits;
-- `blocked`: identify the exact implementation or verification failure and current repository state.
+End with the implemented behaviors, structural deletions, changed files, and
+verification receipts. If authority or execution prevents completion, stop at
+the contradiction or failure, cite its evidence, name EventStorming or Tactical
+Design when it owns the decision, and report current repository state.
 
 ## References
 

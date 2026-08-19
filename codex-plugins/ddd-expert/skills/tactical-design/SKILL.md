@@ -67,15 +67,11 @@ Codify never edits this file. If implementation evidence contradicts an accepted
 
 ## Completion
 
-Finish with one result:
-
-- `needs_clarification`: ask the one current Root or Entity question;
-- `awaiting_root_confirmation`: show the exact compact Root slice awaiting confirmation;
-- `root_confirmed`: cite the updated Root section and name the next depth-first object, if any;
-- `codify_ready`: cite all confirmed Root slices needed by the implementation;
-- `no_tactical_change`: cite evidence that current object design already covers the work;
-- `event_storming_required`: identify the strategic contradiction;
-- `blocked`: identify the missing authority or write failure and current filesystem state.
+End with the current Root outcome and cite any confirmed or updated slice. Ask
+the one unresolved question or request confirmation of the exact proposed slice;
+after a write, name the next affected object. Name EventStorming when a strategic
+contradiction prevents progress, cite every required slice when implementation
+can begin, and report any blocker with current filesystem state.
 
 ## References
 

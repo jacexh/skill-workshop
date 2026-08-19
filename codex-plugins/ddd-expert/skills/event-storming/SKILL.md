@@ -94,14 +94,10 @@ Then classify the next step:
 
 ## Completion
 
-Finish with one result:
-
-- `needs_clarification`: show the current model delta and ask the one decisive question;
-- `awaiting_confirmation`: show the compact integrated proposal and request explicit confirmation;
-- `tactical_design_required`: cite the confirmed strategic files and the unresolved Aggregate internals;
-- `codify_ready`: cite the confirmed strategic files and existing tactical authority;
-- `no_change`: cite evidence that the current strategic model still holds;
-- `blocked`: identify the missing authority or write failure and current filesystem state.
+End with the current strategic result and the evidence supporting it. Ask the one
+decisive question when authority is missing, request explicit confirmation when
+the integrated proposal is still unconfirmed, name Tactical Design or Codify
+when it owns the next step, and report any blocker with current filesystem state.
 
 ## References
 
