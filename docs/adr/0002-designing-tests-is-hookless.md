@@ -1,6 +1,7 @@
 # ADR 0002: designing-tests Is Hookless
 
-- Status: Accepted
+- Status: Partially Superseded
+- Repository evaluation corpus, runner, and release-check decisions superseded by their removal on 2026-08-19.
 - Date: 2026-07-12
 
 ## Context
@@ -46,30 +47,5 @@ than test-case design.
 
 - `test_designing_tests_plugin.sh` enforces the hookless package, workflow
   completion criteria, valid links, metadata alignment, and byte parity.
-- `test_designing_tests_evals.sh` validates the behavior-case corpus and scorer
-  contract used for fresh-agent forward tests. The release harness does not
-  claim to execute a model; after skill changes, fresh agents receive only each
-  case's prompt and workspace, and a separate assessment is graded against the
-  undisclosed semantic rubric with `designing-tests.js suite`.
 - The auto-release workflow runs the complete release test harness before
   versioning or tagging.
-
-## Eval Execution Policy
-
-Keep regression evaluation proportional to the skill change:
-
-1. Run corpus validation and scorer self-test on every local or release test
-   pass. These checks make no model call.
-2. During iteration, forward-test only the case whose behavior is being changed.
-3. After changing the core description or workflow, run the two-case `smoke`
-   suite once: thin glue must avoid a test, while a pure regression must select
-   an exact unit proof.
-4. Run the five-case `full` suite once for release-level changes to branch
-   routing, references, or the semantic rubric.
-5. Repeat a case three times and require two passes only after observed output
-   variance or when deliberately measuring prompt stability. Repetition is not
-   the default completion gate.
-
-Use `designing-tests.js list <smoke|full>` to select prompts and
-`designing-tests.js suite <smoke|full> <assessment-dir>` to grade their separate
-semantic assessments.

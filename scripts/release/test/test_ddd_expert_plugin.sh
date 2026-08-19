@@ -284,9 +284,6 @@ if rg -n 'maintain-artifacts|architecture\.md|classDiagram|sequenceDiagram|model
   fail "ddd-expert should not retain the old artifact lifecycle or diagram workflow"
 fi
 
-assert_contains "$ROOT/scripts/eval/ddd-expert.js" 'put every source assertion and its frozen unit judgment in architecture_ledger' "Guard eval should retain its terminal ledger"
-assert_contains "$ROOT/evals/ddd-expert/result.schema.json" '"architecture_ledger"' "Guard eval result should expose the architecture ledger"
-
 if rg -n '(\$|/)ddd-expert:' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
   rg -n '(\$|/)ddd-expert:' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >&2
   fail "shared SKILL contracts should not contain platform-specific invocation syntax"
