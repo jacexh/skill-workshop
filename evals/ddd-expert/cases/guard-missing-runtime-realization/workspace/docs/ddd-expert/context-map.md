@@ -1,30 +1,14 @@
 # Context Map
 
-## Global View
-
-Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
-
-```mermaid
-graph LR
-    order["Order"]
-```
-
-
 ## Bounded Contexts
 
-### Order
+| Bounded Context | Purpose | Model |
+|---|---|---|
+| Payment | Own payment settlement outcomes. | [Model](context/payment/model.md) |
+| Order | Own order fulfillment eligibility. | [Model](context/order/model.md) |
 
-- **Core responsibility:** Own customer orders and their fulfillment state.
-- **Business authority:** Order lifecycle, payment status, and fulfillment eligibility.
+## Semantic Dependencies
 
-- **Model:** [Order](context/order/model.md)
-
-#### Local View
-
-```text
-+-------+
-| Order |
-+-------+
-```
-
-## Model Dependency Contracts
+| Upstream | Downstream | Published contract | Downstream use |
+|---|---|---|---|
+| Payment | Order | Payment Captured | Order records the capture before fulfillment. |

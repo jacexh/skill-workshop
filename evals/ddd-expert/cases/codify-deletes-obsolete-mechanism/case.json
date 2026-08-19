@@ -10,8 +10,8 @@
     "review_conclusion": ["not_applicable"],
     "questions": { "min": 0, "max": 0 },
     "routes": {
-      "contains": ["tactical-design"],
-      "excludes": ["event-storming", "codify", "guard"]
+      "contains": [],
+      "excludes": ["event-storming", "tactical-design", "codify", "guard"]
     },
     "verdicts": [],
     "forbid_verdicts": [],

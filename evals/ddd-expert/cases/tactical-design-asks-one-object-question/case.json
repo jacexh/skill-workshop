@@ -1,0 +1,23 @@
+{
+  "id": "tactical-design-asks-one-object-question",
+  "phase": "tactical-design",
+  "suites": ["smoke", "full"],
+  "sandbox": "workspace-write",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["needs_clarification"],
+    "review_conclusion": ["not_applicable"],
+    "questions": { "min": 1, "max": 1 },
+    "routes": { "contains": [], "excludes": ["event-storming", "tactical-design", "codify", "guard"] },
+    "verdicts": [],
+    "forbid_verdicts": [],
+    "git": {
+      "changed": "none",
+      "required_paths": [],
+      "forbidden_paths": ["docs/ddd-expert/context/billing/domain-objects.md"]
+    },
+    "files": [],
+    "checks": []
+  }
+}

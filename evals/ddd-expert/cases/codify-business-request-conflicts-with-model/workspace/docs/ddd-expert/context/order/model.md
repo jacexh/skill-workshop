@@ -1,20 +1,20 @@
----
-context: Order
-model_revision: 2
-model_status: model_ready
----
+# Order Model
 
-# Order Domain Model
+## Purpose
 
-## Scenarios and Lifecycle
+Own the customer order lifecycle and the rules that permit cancellation.
 
-An accepted Order may be cancelled before fulfillment starts.
+## Essential Language
 
-## Invariants and Policies
+- **Fulfilled:** The order has completed fulfillment and is final.
+- **Cancelled:** The order was stopped before fulfillment completed.
 
-A fulfilled Order cannot be cancelled. This rule was added in model revision 2.
+## Aggregate Roots
 
-## Model Realization
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Order | A customer's accepted purchase request. | Order status and cancellation eligibility change together. |
 
-Order is the Aggregate Root and owns cancellation decisions. A cancellation
-operation must reject a fulfilled Order without changing its state.
+## Business Rules
+
+- A fulfilled Order cannot be cancelled.

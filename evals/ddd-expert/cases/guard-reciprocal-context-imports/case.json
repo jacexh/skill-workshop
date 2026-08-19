@@ -12,8 +12,8 @@
       "min_units": 2,
       "required": [
         {
-          "source_id": "docs/ddd-expert/context/payment/model.md#Model Realization",
-          "source_assertion_contains": ["Payment publishes the Payment Captured contract", "no dependency on the Order model or Application API"],
+          "source_id": "docs/ddd-expert/context-map.md#Semantic Dependencies",
+          "source_assertion_contains": ["Payment", "owns Payment Captured for Order"],
           "responsibility": "collaboration",
           "state": "violation",
           "distinct_group": "reciprocal-context-edges",
@@ -24,8 +24,8 @@
           }
         },
         {
-          "source_id": "docs/ddd-expert/context/order/model.md#Model Realization",
-          "source_assertion_contains": ["does not expose an Order model or Application dependency back to Payment"],
+          "source_id": "docs/ddd-expert/context-map.md#Semantic Dependencies",
+          "source_assertion_contains": ["Order consumes Payment Captured", "no reverse semantic dependency"],
           "responsibility": "collaboration",
           "state": "violation",
           "distinct_group": "reciprocal-context-edges",

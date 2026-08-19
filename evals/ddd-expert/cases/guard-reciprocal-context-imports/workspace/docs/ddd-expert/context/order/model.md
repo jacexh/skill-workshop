@@ -1,23 +1,19 @@
----
-context: Order
-model_revision: 1
-model_status: model_ready
----
+# Order Model
 
-# Order Domain Model
+## Purpose
 
-## Authority and Ownership
+Own fulfillment eligibility.
 
-Order owns fulfillment readiness and accepts Payment Captured as external
-evidence.
+## Essential Language
 
-## Context Dependencies
+- **Payment Captured:** External evidence that Order translates into local eligibility.
 
-Order translates Payment Captured into its local eligibility language.
+## Aggregate Roots
 
-## Model Realization
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Order | A customer's accepted purchase request. | Payment evidence and fulfillment eligibility change together. |
 
-Order consumes the Payment Captured published contract through a boundary
-adapter and invokes its local Application behavior. It may depend on Payment's
-published contract but does not expose an Order model or Application dependency
-back to Payment.
+## Business Rules
+
+- Order consumes Payment Captured without exposing Order decisions back to Payment.

@@ -1,21 +1,19 @@
----
-context: Payment
-model_revision: 1
-model_status: model_ready
----
+# Payment Model
 
-# Payment Domain Model
+## Purpose
 
-## Authority and Ownership
+Own payment capture outcomes.
 
-Payment owns capture outcome and publishes Payment Captured.
+## Essential Language
 
-## Context Dependencies
+- **Payment Captured:** Settlement completed successfully.
 
-Payment publishes its fact without consuming Order language or decisions.
+## Aggregate Roots
 
-## Model Realization
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Payment | One settlement attempt. | Payment identity and capture outcome change together. |
 
-Payment publishes the Payment Captured contract from its Application boundary
-after the local Aggregate outcome is established. It owns publication to Order
-and has no dependency on the Order model or Application API.
+## Business Rules
+
+- Payment publishes its capture outcome without depending on Order decisions.

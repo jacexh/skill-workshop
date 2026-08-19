@@ -12,28 +12,28 @@
       "min_units": 4,
       "required": [
         {
-          "source_id": "docs/ddd-expert/context/order/model.md#Persistence and Query Boundaries",
+          "source_id": "docs/change-request.md#Accepted Order Storage and Query Boundaries",
           "source_assertion_contains": ["Domain write Repository exposes only Get and Save"],
           "responsibility": "domain",
           "state": "clear",
           "distinct_group": "clean-architecture-seams"
         },
         {
-          "source_id": "docs/ddd-expert/context/order/model.md#Persistence and Query Boundaries",
+          "source_id": "docs/change-request.md#Accepted Order Storage and Query Boundaries",
           "source_assertion_contains": ["Application-owned QueryRepository returning OrderSummary DTOs"],
           "responsibility": "application",
           "state": "clear",
           "distinct_group": "clean-architecture-seams"
         },
         {
-          "source_id": "docs/ddd-expert/context/order/model.md#Persistence and Query Boundaries",
+          "source_id": "docs/change-request.md#Accepted Order Storage and Query Boundaries",
           "source_assertion_contains": ["Infrastructure restores existing state through explicit mechanical conversion", "copies owned slices at the mapping boundary"],
           "responsibility": "infrastructure",
           "state": "clear",
           "distinct_group": "clean-architecture-seams"
         },
         {
-          "source_id": "docs/ddd-expert/context/order/model.md#Persistence and Query Boundaries",
+          "source_id": "docs/change-request.md#Accepted Order Storage and Query Boundaries",
           "source_assertion_contains": ["Infrastructure Store implements both inward contracts", "keeping them separate"],
           "responsibility": "infrastructure",
           "state": "clear",

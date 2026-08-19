@@ -1,18 +1,19 @@
----
-context: Order
-model_revision: 1
-model_status: model_ready
----
+# Order Model
 
-# Order Domain Model
+## Purpose
 
-## Authority and Ownership
+Own customer order lifecycle and invariant decisions.
 
-Order owns its lifecycle and invariant decisions.
+## Essential Language
 
-## Persistence
+- **Order:** A customer's accepted purchase request.
 
-Order is one Aggregate Root. Its Domain Repository keeps persistence mechanics
-outside Domain and saves the complete Root. The concrete MySQL schema and
-migration mechanics are producer-owned implementation evidence; they do not
-change this accepted boundary.
+## Aggregate Roots
+
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Order | A customer's accepted purchase request. | Order identity, status, and invariant state change together. |
+
+## Business Rules
+
+- Order is one independent consistency boundary.

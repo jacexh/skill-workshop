@@ -1,0 +1,54 @@
+{
+  "id": "guard-domain-object-behavior-drift",
+  "phase": "guard",
+  "suites": ["full"],
+  "sandbox": "read-only",
+  "prompt": "prompt.md",
+  "workspace": "workspace",
+  "expect": {
+    "completion": ["completed"],
+    "review_conclusion": ["violations"],
+    "architecture_ledger": {
+      "min_units": 1,
+      "required": [
+        {
+          "source_id": "docs/ddd-expert/context/settlement/domain-objects.md#Account",
+          "source_assertion_contains": ["Account settles an accepted amount against its balance", "decreased non-negative balance"],
+          "responsibility": "domain",
+          "state": "violation",
+          "verdict": {
+            "kind": "violation",
+            "families_any": ["aggregate_boundary", "layer_boundary"],
+            "evidence_paths": [
+              "docs/ddd-expert/context/settlement/domain-objects.md",
+              "internal/settlement/domain/account.go"
+            ]
+          }
+        }
+      ]
+    },
+    "questions": { "min": 0, "max": 0 },
+    "routes": { "contains": ["codify"], "excludes": ["event-storming", "tactical-design"] },
+    "verdicts": [
+      {
+        "kind": "violation",
+        "families_any": ["aggregate_boundary", "layer_boundary"],
+        "evidence_paths": [
+          "docs/ddd-expert/context/settlement/domain-objects.md",
+          "internal/settlement/domain/account.go"
+        ]
+      }
+    ],
+    "exact_verdict_count": 1,
+    "forbid_verdicts": ["evidence_gap"],
+    "git": { "changed": "none", "required_paths": [], "forbidden_paths": [] },
+    "files": [],
+    "checks": [
+      {
+        "argv": ["go", "test", "./..."],
+        "exit": 0,
+        "timeout_seconds": 60
+      }
+    ]
+  }
+}

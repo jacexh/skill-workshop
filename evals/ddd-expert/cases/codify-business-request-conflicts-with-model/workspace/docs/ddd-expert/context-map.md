@@ -1,30 +1,12 @@
 # Context Map
 
-## Global View
-
-Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
-
-```mermaid
-graph LR
-    order["Order"]
-```
-
-
 ## Bounded Contexts
 
-### Order
+| Bounded Context | Purpose | Model |
+|---|---|---|
+| Order | Own the customer order lifecycle and cancellation authority. | [Model](context/order/model.md) |
 
-- **Core responsibility:** Own the order lifecycle.
-- **Business authority:** Order state and cancellation decisions.
+## Semantic Dependencies
 
-- **Model:** [Order](context/order/model.md)
-
-#### Local View
-
-```text
-+-------+
-| Order |
-+-------+
-```
-
-## Model Dependency Contracts
+| Upstream | Downstream | Published contract | Downstream use |
+|---|---|---|---|

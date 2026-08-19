@@ -12,8 +12,8 @@
       "min_units": 1,
       "required": [
         {
-          "source_id": "docs/ddd-expert/context/order/model.md#Model Realization",
-          "source_assertion_contains": ["Order is an independent Aggregate Root", "its own Repository"],
+          "source_id": "docs/ddd-expert/context/order/model.md#Aggregate Roots",
+          "source_assertion_contains": ["Order", "independent boundary"],
           "responsibility": "domain",
           "state": "violation",
           "verdict": {
@@ -23,8 +23,8 @@
           }
         },
         {
-          "source_id": "docs/ddd-expert/context/payment/model.md#Model Realization",
-          "source_assertion_contains": ["Payment is an independent Aggregate Root", "does not require atomic persistence with Order"],
+          "source_id": "docs/ddd-expert/context/payment/model.md#Aggregate Roots",
+          "source_assertion_contains": ["Payment", "independent boundary"],
           "responsibility": "domain",
           "state": "violation",
           "verdict": {

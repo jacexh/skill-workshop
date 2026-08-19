@@ -12,7 +12,7 @@
       "min_units": 1,
       "required": [
         {
-          "source_id": "docs/ddd-expert/context/order/model.md#Model Realization",
+          "source_id": "docs/change-request.md#Consume Payment Captured",
           "source_assertion_contains": ["Application records the accepted payment fact", "remains transport-neutral"],
           "responsibility": "application",
           "state": "violation",

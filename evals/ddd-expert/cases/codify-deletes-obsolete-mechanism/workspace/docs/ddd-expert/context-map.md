@@ -1,20 +1,12 @@
 # Context Map
 
-## Global View
-
-```mermaid
-graph LR
-    billing["Billing"]
-```
-
 ## Bounded Contexts
 
-### Billing
+| Bounded Context | Purpose | Model |
+|---|---|---|
+| Billing | Owns Invoice settlement. | [Model](context/billing/model.md) |
 
-- **Core responsibility:** Own Invoice settlement eligibility and outcome.
-- **Business authority:** Invoice identity and settlement state.
-- **Model:** [Billing](context/billing/model.md)
+## Semantic Dependencies
 
-## Model Dependency Contracts
-
-None.
+| Upstream | Downstream | Published contract | Downstream use |
+|---|---|---|---|

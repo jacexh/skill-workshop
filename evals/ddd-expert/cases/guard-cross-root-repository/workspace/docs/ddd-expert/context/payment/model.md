@@ -1,21 +1,19 @@
----
-context: Payment
-model_revision: 1
-model_status: model_ready
----
+# Payment Model
 
-# Payment Domain Model
+## Purpose
 
-## Authority and Ownership
+Own payment settlement and its durable outcome.
 
-Payment has its own identity, lifecycle, and settlement authority.
+## Essential Language
 
-## Failure and Recovery Semantics
+- **Payment Succeeded:** Settlement completed successfully.
 
-Successful settlement is durable even while Order remains temporarily stale.
+## Aggregate Roots
 
-## Model Realization
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Payment | One settlement attempt. | Payment identity and settlement outcome form one independent boundary. |
 
-Payment is an independent Aggregate Root with its own Repository. It publishes
-`PaymentSucceeded` after settlement and does not require atomic persistence
-with Order.
+## Business Rules
+
+- A successful Payment remains authoritative while downstream Order state is temporarily stale.

@@ -1,22 +1,20 @@
----
-context: Order
-model_revision: 1
-model_status: model_ready
----
+# Order Model
 
-# Order Domain Model
+## Purpose
 
-## Authority and Ownership
+Own order fulfillment decisions.
 
-Order has its own identity and lifecycle.
+## Essential Language
 
-## Failure and Recovery Semantics
+- **Payment Succeeded:** The authoritative settlement outcome received from Payment.
 
-Payment may succeed before Order reflects the fact. The Order reaction is
-idempotent and temporary inconsistency is accepted.
+## Aggregate Roots
 
-## Model Realization
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Order | A customer's accepted purchase request. | Order identity and fulfillment eligibility form one independent boundary. |
 
-Order is an independent Aggregate Root with its own Repository. A
-`PaymentSucceeded` reaction updates Order idempotently. Retry and reconciliation
-own recovery; no invariant requires a transaction with Payment.
+## Business Rules
+
+- Order records Payment Succeeded idempotently.
+- Order and Payment do not require one atomic consistency boundary.

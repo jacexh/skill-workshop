@@ -1,27 +1,19 @@
----
-context: Shipping
-model_revision: 1
-model_status: model_ready
----
+# Shipping Model
 
-# Shipping Domain Model
+## Purpose
 
-## Authority and ownership
+Own shipment dispatch completion.
 
-Shipping owns shipment dispatch completion and the intent to notify the
-shipment recipient after dispatch.
+## Essential Language
 
-## Aggregate and lifecycle
+- **Dispatched:** The shipment has completed dispatch to its recipient.
 
-Shipment is the Aggregate Root. Dispatch completion is a Shipment lifecycle
-transition identified by Shipment ID and recipient ID.
+## Aggregate Roots
 
-## Application and outbound boundaries
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Shipment | One delivery prepared for a recipient. | Shipment identity, recipient, and dispatch status change together. |
 
-Application coordinates the accepted dispatch-notification use case and asks
-one business-language recipient notification capability to deliver the fact.
-The inward port uses Shipping language. HTTP URLs, headers, JSON encoding,
-provider clients, and retry mechanics remain private Infrastructure concerns.
+## Business Rules
 
-Infrastructure translates that semantic notification into the adopted HTTP
-provider and faithfully implements the inward capability.
+- Recipient notification is requested only after dispatch completes.

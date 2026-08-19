@@ -1,16 +1,19 @@
----
-context: Payment
-model_revision: 1
-model_status: model_ready
----
+# Payment Model
 
-# Payment Domain Model
+## Purpose
 
-## Authority and Ownership
+Own payment settlement and authoritative capture outcomes.
 
-Payment owns payment settlement and capture facts.
+## Essential Language
 
-## Context Dependencies
+- **Payment Captured:** Payment completed settlement successfully.
 
-Payment publishes Payment Captured for consumers. Order owns how that external
-fact affects order fulfillment.
+## Aggregate Roots
+
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Payment | One settlement attempt for an amount. | Settlement state and capture outcome change together. |
+
+## Business Rules
+
+- Payment alone decides whether settlement is captured.

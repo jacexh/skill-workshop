@@ -4,6 +4,7 @@
 - Date: 2026-08-08
 - Supersedes: the Guard coordinator, parallel-axis workers, exhaustive changed-path inventory, and recursive depth-review decisions in [ADR 0001](0001-ddd-expert-reference-architecture.md); the two-axis Guard decision in [ADR 0004](0004-model-ready-enters-codify-directly.md); and clear-Guard-alone closure sufficiency in [ADR 0005](0005-event-storming-minutes-and-current-models.md)
 - Tactical Design authority, claim seeding, routing, and joint closure extended by: [ADR 0007: Tactical Design Is Conditional and Claim-Led](0007-conditional-tactical-design-and-claims.md)
+- Artifact sources, routing, and removal of iteration closure refined by: [ADR 0009: Sparse Current DDD Artifacts and Depth-First Tactical Design](0009-sparse-current-ddd-artifacts.md)
 
 ## Context
 

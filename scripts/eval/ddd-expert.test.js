@@ -132,15 +132,15 @@ function testDistinctUnitAndEmptyLedgerExpectations() {
       review_conclusion: "violations",
       architecture_ledger: [
         {
-          source_id: "docs/ddd-expert/context/payment/model.md#Model Realization",
-          source_assertion: "Payment publishes the Payment Captured contract and has no dependency on the Order model or Application API.",
+          source_id: "docs/ddd-expert/context-map.md#Semantic Dependencies",
+          source_assertion: "Payment owns Payment Captured for Order and publishes the meaning downstream.",
           frozen_id: "AU-collapsed-cycle",
           responsibility: "collaboration",
           state: "violation",
         },
         {
-          source_id: "docs/ddd-expert/context/order/model.md#Model Realization",
-          source_assertion: "Order does not expose an Order model or Application dependency back to Payment.",
+          source_id: "docs/ddd-expert/context-map.md#Semantic Dependencies",
+          source_assertion: "Order consumes Payment Captured and creates no reverse semantic dependency on Payment.",
           frozen_id: "AU-collapsed-cycle",
           responsibility: "collaboration",
           state: "violation",

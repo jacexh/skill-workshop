@@ -23,95 +23,79 @@ _Avoid_: deployment pipeline, publish script
 ### DDD Expert References
 
 **House Style**:
-The normative backend implementation conventions supplied by `ddd-expert` for realizing an already selected design, including adopted dependencies, API usage, and concrete examples. It does not select domain concepts, object boundaries, state lifecycle, business sequencing, or failure policy.
-_Avoid_: generic best practices, technology profile, modeling advice
+Conditional backend implementation conventions for realizing an already accepted domain model. House Style does not select business concepts, object ownership, lifecycle, transactions, concurrency, recovery, or runtime commitments.
+_Avoid_: universal architecture, modeling authority
 
 **Conditional House Rule**:
 A House Style rule with an explicit applicability condition. It is not applied outside that condition; once applicable, its prescribed library and implementation shape are mandatory rather than one option among alternatives.
 _Avoid_: preferred default, optional recommendation
 
 **Implementation Upgrade**:
-An LLM-selected move to the prescribed House Style mechanism when observed complexity warrants it and the move does not change accepted business meaning, boundaries, consistency, durability, or runtime commitments.
+An LLM-selected move to a prescribed House Style mechanism when observed complexity warrants it and the move does not change accepted business meaning, boundaries, consistency, durability, or runtime commitments.
 _Avoid_: automatic threshold rule, tactical redesign
 
-**Design Escalation**:
-An LLM-identified need for a mechanism that would change accepted consistency, persistence, contract, recovery, or runtime responsibilities and therefore must be owned and reconciled in Tactical Design before final realization or Guard. An explicitly authorized, bounded, reversible implementation exploration may test its draft candidate first.
-_Avoid_: implementation refactor, silent architecture upgrade
-
-**Accepted Design Decision**:
-A mechanism or tactical choice explicitly confirmed by the user or recorded in current Bounded Context Architecture, a reconciled ready Tactical Design, an accepted ADR, or equivalent project authority. Silence, incidental existing code, an unreconciled draft, and an LLM's unconfirmed recommendation are not acceptance.
-_Avoid_: inferred approval, existing implementation
-
 **Aggregate Capability**:
-An intention-revealing business operation owned by one Aggregate Root, projected from one or more normalized EventStorming Commands to shape the Root's public Domain method surface. It states the common authoritative facts, successful guarantee, and stable rejection for that operation; scenario or pre-state branches remain policies and lifecycle meaning rather than separate capabilities. It guides methods without prescribing a signature or exact method count.
+An intention-revealing business operation owned by one Aggregate Root. It states the authoritative facts, successful guarantee, and stable rejection without prescribing a signature or exact method count.
 _Avoid_: state-qualified scenario branch, CRUD operation, method signature, application workflow
 
 **Business Role**:
-A participant whose business decision rights are defined in one Bounded Context. EventStorming places the Role inside that context and outside every Aggregate, labels its outgoing intent as a Command edge, and preserves the confirmed permission in that context's current Model without equating it to an IAM identity.
+A participant whose business decision rights are defined in one Bounded Context. EventStorming identifies the Role and its Commands without equating it to an IAM identity.
 _Avoid_: generic Actor, IAM principal, transport identity
 
 **Event-triggered Command**:
-A Bounded Context-local business intent required by an established Domain Event or Published Fact Contract. EventStorming draws the fact or contract directly to the target Aggregate Capability or explicit coordination with the Command as the edge label; dispatch and delivery mechanisms are not part of this meaning.
-_Avoid_: Reaction Policy node, event handler wiring, automatic callback, transport subscription
-
-**Design Delta**:
-A material gap between confirmed business authority and an implementable system thesis, such as unresolved object responsibility, state authority, semantic flow, transaction, concurrency, event-publication, failure/recovery, semantic-port, or durable Interface ownership. Reversible work inside accepted seams is not a Design Delta.
-_Avoid_: every implementation task, code diff, mandatory design phase
-
-**Tactical Design Claim**:
-A stable, independently falsifiable assertion in a reconciled ready Tactical Design that names an implementation-shaping semantic owner, boundary, ordering, or atomicity guarantee for Guard to trace into code.
-_Avoid_: Mermaid arrow, file checklist, producer verdict
-
-**Bounded Context Architecture**:
-The optional current authority at `context/<context-slug>/architecture.md` for durable, context-specific software decisions that materially constrain future realization. Every confirmed Tactical Design Claim has an explicit disposition: durable claims are projected once into the owning context's Architecture, while `iteration-only` claims retain a concrete no-surviving-decision reason in the Tactical Design record. It excludes Model facts, generic House Style, full Tactical Design sequences, code structure, and historical rationale.
-_Avoid_: root architecture ledger, per-context House Style copy, design transcript
-
-**Critical Collaboration Sequence**:
-A minimal material path derived from the domain-object thesis. It shows the semantic owner, business sequencer, technical executor, authoritative state transition, and visible result needed to falsify one design claim; separate rejection, failure, or recovery paths exist only when they change responsibility, guarantee, durable state, required next action, or visible result.
-_Avoid_: exhaustive call graph, template-prescribed Repository flow, one diagram per technical error
-
-**EventStorming Board**:
-Temporary conversation state used for the purpose, supported facts, current hypotheses, highest-impact unresolved question, Hotspots, and exclusions. It is separate from any Aggregate, Bounded Context, or Context Map and grants no incremental write authority.
-_Avoid_: evolving Model, accepted slice
+A Bounded Context-local business intent required by an established Domain Event or Published Fact Contract. Dispatch and delivery mechanisms are not part of this meaning.
+_Avoid_: event handler wiring, automatic callback, transport subscription
 
 **Workshop Event**:
-A workflow term for a material past-tense business fact placed on the EventStorming Board or confirmed diagram to discover a causal story. It remains analytical evidence and by itself grants no authority for a selected Domain Event or Published Fact Contract.
-_Avoid_: automatic Domain Event, automatic Published Fact Contract
+A material past-tense business occurrence used during EventStorming discussion. It remains analytical conversation and does not by itself become a production Domain Event or permanent artifact.
+_Avoid_: automatic Domain Event, meeting record
 
-**Supported Modeling Fact**:
-A fact, term, rule, or relationship backed by supplied project evidence or a domain-authority answer and therefore usable on the EventStorming Board. Support does not confirm the fact's placement in an integrated model or authorize a file write.
-_Avoid_: accepted artifact fact, implicit confirmation
+**Integrated Strategic Confirmation**:
+The user's explicit acceptance of the compact whole containing scope, Bounded Contexts, Aggregate Roots, strategic business rules, semantic dependencies, and visible uncertainty. It authorizes current strategic artifact updates.
+_Avoid_: local answer, partial model approval
 
-**Frontier Question**:
-The single currently answerable question most likely to change the current model or thesis. Discovered information may be presented in groups, but only this decision is put to the user in one turn.
-_Avoid_: batch questionnaire, fixed checklist item
+**Strategic Model**:
+The accepted current explanation of one Bounded Context: its purpose, essential language, Aggregate Roots, and strategic business rules. It excludes Entity details and implementation mechanisms.
+_Avoid_: meeting minutes, object catalogue, call graph
 
-**Working Confirmation**:
-The user's local acceptance of a fact or design conclusion so EventStorming can advance. Later evidence may reopen it; it does not authorize a project write.
-_Avoid_: artifact acceptance, final approval
+**Aggregate Root**:
+The externally addressed owner of one immediate consistency boundary. It composes owned Entities and protects the state and rules that must remain valid together.
+_Avoid_: service class, table group, feature folder
 
-**Integrated Model Confirmation**:
-The user's explicit acceptance of the current supported EventStorming diagrams, strategic conclusions, key decisions, assumptions, and non-blocking Hotspots after adversarial review. It is the only EventStorming write authority and does not make structural hypotheses infallible.
-_Avoid_: local answer, partial approval, file-impact approval
+**Domain Object Slice**:
+One confirmed Aggregate Root section in `domain-objects.md`, containing the Root and its owned Entities. Each object records only definition, state, behavior, and actual Domain Events.
+_Avoid_: UML, sequence document, implementation plan
 
-**Confirmed EventStorming Model**:
-The exact confirmed business facts and reviewed structural model accepted through Integrated Model Confirmation, persisted unchanged in the confirmed iteration minutes and projected into the affected current Models. Its structural conclusions remain falsifiable by later evidence.
-_Avoid_: supported board, tactical design, per-Model EventStorming diagram
+**Depth-first Tactical Design**:
+The interview order that completes one Aggregate Root and every Entity inside it before opening the next Root. Questions are asked one at a time with a recommended answer and a credible alternative.
+_Avoid_: list all Roots then fill objects, batch questionnaire
 
-**Documentation Closure**:
-The one logical post-confirmation transaction that derives the minimal affected project-owned set and synchronizes the confirmed DDD Model and Context Map with relevant living Spec, PRD, ADR, and Glossary entries while preserving document lifecycle and unrelated history.
-_Avoid_: incremental model write, documentation cleanup
+**Per-Root Confirmation**:
+The user's acceptance of one complete Aggregate Root slice after its object composition and descriptions have been challenged. That slice may be written immediately without waiting for other Roots.
+_Avoid_: whole-context write barrier, incremental unconfirmed write
 
-**Model Dependency View**:
-The Context Map projection whose upstream-to-downstream (`U -> D`) arrows express semantic or published-contract influence and therefore form a DAG.
-_Avoid_: runtime call graph, request direction
+**Behavior Description**:
+A concise domain sentence whose grammatical subject is the owning Root or Entity, whose verb and object state what it does, and whose result states the produced domain effect. It normally maps to a method on that object.
+_Avoid_: responsibility heading, method signature, caller list
 
-**Context Dependency Edge**:
-A one-way edge in the Model Dependency View from upstream (`U`) to downstream (`D`) that expresses model influence and contract direction rather than runtime interaction. Runtime request/response may use that one owned contract but never creates a reverse dependency; every named dependency edge must preserve the graph as a DAG.
-_Avoid_: bidirectional relationship arrow, mutual-call edge, `<->`
+**Actual Domain Event**:
+A selected local domain fact that production code must emit or consume for a named reaction or as durable evidence of the occurrence. It is recorded with the object behavior that establishes or consumes it.
+_Avoid_: Workshop Event, provider notification, log entry
+
+**Semantic Dependency**:
+A one-way `Upstream -> Downstream` Context Map relationship: the upstream owns a named published meaning that influences the downstream model. It is not runtime call direction.
+_Avoid_: request arrow, mutual ownership
+
+**Modeling Contradiction**:
+Concrete implementation or business evidence that conflicts with accepted strategic or domain-object authority. Codify stops; strategic conflicts are decided through EventStorming and object conflicts through Tactical Design before implementation resumes.
+_Avoid_: silent design edit, implementation convenience
+
+**Guard Review Unit**:
+One independently falsifiable accepted semantic responsibility and the minimum production evidence needed to judge its realization. Guard keeps it read-only and reports `clear`, `violation`, or `evidence_gap`.
+_Avoid_: file checklist, general bug hunt
 
 **Persistence House Style**:
-The part of House Style governing storage representation and operations across aggregate persistence, read models, integration state, SQL, and schema evolution. It is an Infrastructure concern related to, but not owned by, the Domain Repository abstraction.
+The part of House Style governing storage representation and operations across Aggregate persistence, read models, integration state, SQL, and schema evolution. It is an Infrastructure concern related to, but not owned by, the Domain Repository abstraction.
 _Avoid_: Repository table design, generic database guidance
 
 **Reference authority**:
@@ -147,15 +131,15 @@ A codebase that demonstrates the intended architectural direction and supplies r
 _Avoid_: canonical specification, incidental implementation
 
 **Published Fact Contract**:
-A versioned Integration Message contract owned by the bounded context authoritative for the fact. The producing Application may translate an internal Domain Event into its own generated Published Fact Contract and submit it through the active language's provider-neutral publisher port.
+A versioned Integration Message contract owned by the Bounded Context authoritative for the fact. The producing Application may translate an internal Domain Event into its own generated Published Fact Contract and submit it through the active language's provider-neutral publisher port.
 _Avoid_: shared Domain Event, broker event type
 
 **Asynchronous Intent Contract**:
-A versioned Integration Message contract owned by the bounded context that receives and decides whether to admit the requested action. A sending bounded context reaches it through a local semantic port and an Infrastructure/ACL mapping rather than importing the receiver's contract into its Application layer.
+A versioned Integration Message contract owned by the Bounded Context that receives and decides whether to admit the requested action. A sender reaches it through a local semantic port and Infrastructure translation rather than importing the receiver's internal model.
 _Avoid_: sender-owned command, remote Application command
 
 **Best-effort Domain Event Dispatch**:
-The conditional Go House Style flow for a same-context, post-commit follow-up whose loss has been accepted: Application persists the Aggregate, drains its `event.Collection`, and submits the batch to the in-memory `event.Dispatcher`. Submission does not report handler completion and cannot change the already committed command result.
+The conditional Go House Style flow for a same-context, post-commit follow-up whose loss has been accepted: Application persists the Aggregate, drains its `event.Collection`, and submits the batch to the in-memory `event.Dispatcher`. Submission cannot change the already committed command result.
 _Avoid_: reliable event delivery, universal Domain Event lifecycle
 
 **Focused Aggregate Read**:
@@ -163,35 +147,35 @@ A read-only Application use case that loads exactly one Aggregate through its Do
 _Avoid_: product read model, universal non-CQRS shortcut
 
 **Application Assembler**:
-The pure mapping code in a bounded context's Application layer that converts existing Application DTO state to and from a Domain Entity. Its physical module follows the active language guide. It does not create a new Aggregate in place of a Domain Factory or map protocol and persistence types.
+Pure Application mapping code that converts existing Application DTO state to and from a Domain Entity. It does not create a new Aggregate in place of a Domain Factory or map protocol and persistence types.
 _Avoid_: Domain Factory, protocol mapper, persistence converter
 
 **Infrastructure Converter**:
-The pure mapping code in a bounded context's Infrastructure layer that converts existing persistence representations to and from Domain Entities. Its physical module follows the active language guide. It performs no business decisions, I/O, logging, or transaction control.
+Pure Infrastructure mapping code that converts persistence representations to and from Domain Entities. It performs no business decisions, I/O, logging, or transaction control.
 _Avoid_: Application Assembler, ORM Entity
 
 **Stale Aggregate Instance**:
-In the request-scoped optimistic lifecycle only, an Aggregate instance after successful Repository `Save`: its existing state may be read, assembled into a result, and its already-recorded Domain Events may be drained, but it cannot perform another business mutation or be saved again. A resident Aggregate with checkpoint persistence remains the live authority and is outside this term.
+In the request-scoped optimistic lifecycle only, an Aggregate instance after successful Repository `Save`: its existing state may be read and already-recorded Domain Events may be drained, but it cannot perform another business mutation or be saved again. A resident Aggregate with checkpoint persistence is outside this term.
 _Avoid_: universal post-save rule, unusable result, automatically refreshed Aggregate
 
 **Application Use-case Registry**:
-A protocol-neutral grouped use-case registry for one bounded context. The active language guide defines its physical module and API shape. It exposes Command Handlers through a Commands group and Query Handlers through a Queries group without implementing protocol adapters or duplicating handler methods.
+A protocol-neutral grouped use-case registry for one Bounded Context. It exposes Command Handlers through a Commands group and Query Handlers through a Queries group without implementing protocol adapters or duplicating handler methods.
 _Avoid_: service locator, generated RPC service
 
 **Internal Task Contract**:
-A versioned, provider-neutral task type and payload owned by one bounded context's Application layer. Its physical module follows the active language guide. It describes internal deferred Application work and is never a cross-context collaboration contract.
+A versioned, provider-neutral task type and payload owned by one Bounded Context's Application layer. It describes internal deferred Application work and is never a cross-context collaboration contract.
 _Avoid_: Integration Message, Asynq job type
 
 **Task Processor**:
-The inbound Transport adapter that decodes one Internal Task Contract, maps it to one Application Command, and maps its outcome to the active language's task-provider completion, retry, or skip contract.
+The inbound Transport adapter that decodes one Internal Task Contract, maps it to one Application Command, and maps its outcome to the task provider's completion, retry, or skip contract.
 _Avoid_: Application use case, scheduler callback
 
 **Execution Completion Log**:
-The single structured operational record owned by the outer Transport or Runtime execution boundary for one request, message, task, event-handler run, or lifecycle operation. It records end-to-end duration, delivery/protocol outcome, correlation identifiers, and the final unsuppressed error.
+The single structured operational record owned by the outer Transport or Runtime execution boundary for one request, message, task, event-handler run, or lifecycle operation.
 _Avoid_: per-layer completion log, business audit record
 
 **Business Semantic Log**:
-An optional Application-owned record of a business-significant decision or fact that has independent operational value. It is not emitted mechanically for every Command or Query and does not replace a Domain Event, durable audit record, metric, or trace.
+An optional Application-owned record of a business-significant decision or fact that has independent operational value. It does not replace a Domain Event, durable audit record, metric, or trace.
 _Avoid_: duplicate request completion, durable business fact
 
 **Domain Validation**:

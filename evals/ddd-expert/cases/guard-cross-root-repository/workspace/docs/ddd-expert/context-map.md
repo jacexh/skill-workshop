@@ -1,47 +1,14 @@
 # Context Map
 
-## Global View
-
-Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
-
-```mermaid
-graph LR
-    order["Order"]
-    payment["Payment"]
-
-    payment --> order
-```
-
-
 ## Bounded Contexts
 
-### Order
+| Bounded Context | Purpose | Model |
+|---|---|---|
+| Payment | Own payment settlement outcomes. | [Model](context/payment/model.md) |
+| Order | Own order fulfillment decisions. | [Model](context/order/model.md) |
 
-- **Core responsibility:** Own the order lifecycle.
-- **Business authority:** Order state and fulfillment decisions.
-- **Model:** [Order](context/order/model.md)
+## Semantic Dependencies
 
-#### Local View
-
-```text
-+---------+   +-------+
-| Payment |-->| Order |
-+---------+   +-------+
-```
-
-### Payment
-
-- **Core responsibility:** Own payment settlement.
-- **Business authority:** Payment attempt and settlement state.
-- **Model:** [Payment](context/payment/model.md)
-
-## Model Dependency Contracts
-
-### Payment Succeeded Fact
-
-- **Upstream:** Payment
-- **Downstream:** Order
-- **Published meaning:** Payment publishes its authoritative settlement outcome.
-- **Downstream reliance:** Order relies on the authoritative settlement outcome.
-- **Local translation:** Order translates it into its own fulfillment decision.
-- **Guarantee:** Payment owns settlement meaning and publication.
+| Upstream | Downstream | Published contract | Downstream use |
+|---|---|---|---|
+| Payment | Order | Payment Succeeded | Order records settlement before deciding fulfillment. |

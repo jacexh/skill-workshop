@@ -1,20 +1,12 @@
 # Context Map
 
-## Global View
-
-Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
-
-```mermaid
-graph LR
-    shipping["Shipping"]
-```
-
 ## Bounded Contexts
 
-### Shipping
+| Bounded Context | Purpose | Model |
+|---|---|---|
+| Shipping | Own shipment dispatch completion. | [Model](context/shipping/model.md) |
 
-- **Core responsibility:** Own shipment dispatch and recipient notification intent.
-- **Business authority:** Shipment lifecycle and notification timing.
-- **Model:** [Shipping](context/shipping/model.md)
+## Semantic Dependencies
 
-## Model Dependency Contracts
+| Upstream | Downstream | Published contract | Downstream use |
+|---|---|---|---|

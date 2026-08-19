@@ -2,8 +2,8 @@
 
 ## Claim sources
 
-- `docs/ddd-expert/context/shipping/model.md#Application and outbound boundaries`
-- `docs/ddd-expert/context-map.md#Shipping`
+- `docs/change-request.md#Announce Shipment Dispatch`
+- `docs/ddd-expert/context/shipping/domain-objects.md#Shipment`
 
 ## Snapshot
 
@@ -11,11 +11,11 @@
 - Producer checkpoint: complete for that target.
 - Producer check: `go test ./...` exited 0 on that target.
 
-## Architecture review units
+## Review units
 
 ### recipient-notification
 
-- Authority: `docs/ddd-expert/context/shipping/model.md#Application and outbound boundaries`
+- Authority: `docs/change-request.md#Announce Shipment Dispatch`
 - House Rule: `ddd-core.md#Application` and `ddd-core.md#Infrastructure`
 - Source assertions:
   1. Application depends on a business-language recipient notification capability and exposes no HTTP or provider mechanics.

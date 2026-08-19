@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Validate the deterministic, relationship-centric ddd-expert Context Map checker.
+# Validate the sparse table-based ddd-expert Context Map checker.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -15,6 +15,7 @@ fail() {
 [ -f "$CODEX_VALIDATOR" ] || fail "Codex Context Map validator missing"
 cmp -s "$CLAUDE_VALIDATOR" "$CODEX_VALIDATOR" ||
   fail "Claude and Codex Context Map validators should match"
+node --check "$CLAUDE_VALIDATOR"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -23,65 +24,28 @@ valid="$tmp/valid.md"
 cat >"$valid" <<'EOF'
 # Context Map
 
-## Global View
-
-Arrow direction: `U -> D` (Upstream model/published-contract influence -> Downstream model). It does not describe runtime call flow.
-
-```mermaid
-graph LR
-    a["A"]
-    b["B"]
-    c["C"]
-
-    a --> b
-```
-
 ## Bounded Contexts
 
-### A
+| Bounded Context | Purpose | Model |
+|---|---|---|
+| A | Owns A decisions. | [Model](context/a/model.md) |
+| B | Owns B decisions. | [Model](context/b/model.md) |
+| C | Owns isolated C decisions. | [Model](context/c/model.md) |
 
-- **Core responsibility:** Own A decisions.
-- **Business authority:** A facts.
-- **Model:** [A](context/a/model.md)
+## Semantic Dependencies
 
-#### Local View
-
-```text
-+---+   +---+
-| A |-->| B |
-+---+   +---+
-```
-
-### B
-
-- **Core responsibility:** Own B decisions.
-- **Business authority:** B facts.
-- **Model:** [B](context/b/model.md)
-
-### C
-
-- **Core responsibility:** Own isolated C decisions.
-- **Business authority:** C facts.
-- **Model:** [C](context/c/model.md)
-
-## Model Dependency Contracts
-
-### A-B Facts
-
-- **Upstream:** A
-- **Downstream:** B
-- **Published meaning:** A facts exposed in A language.
-- **Downstream reliance:** B may rely on published A facts.
-- **Local translation:** B translates the facts into B language.
-- **Guarantee:** A owns authoritative publication.
-
+| Upstream | Downstream | Published contract | Downstream use |
+|---|---|---|---|
+| A | B | A Facts | B translates A Facts into local eligibility. |
 EOF
 
 expected='valid Context Map: 3 contexts, 1 dependencies'
-actual="$(node "$CLAUDE_VALIDATOR" "$valid")" || fail "validator rejected valid relationship-centric Context Map"
+actual="$(node "$CLAUDE_VALIDATOR" "$valid")" || fail "validator rejected valid sparse Context Map"
 [ "$actual" = "$expected" ] || fail "unexpected valid output: $actual"
-actual="$(node "$CODEX_VALIDATOR" "$valid")" || fail "Codex validator rejected valid Context Map"
-[ "$actual" = "$expected" ] || fail "unexpected Codex valid output: $actual"
+[ "$(node "$CODEX_VALIDATOR" "$valid")" = "$expected" ] ||
+  fail "Codex validator rejected valid sparse Context Map"
+[ "$(node "$CLAUDE_VALIDATOR" --allow-legacy "$valid")" = "$expected" ] ||
+  fail "--allow-legacy CLI compatibility changed"
 
 assert_invalid() {
   local fixture="$1"
@@ -96,88 +60,65 @@ assert_invalid() {
   }
 }
 
-# Local View is optional, but remains a strict direct-neighbor projection when present.
-without_local="$tmp/without-local.md"
-awk '
-  $0 == "#### Local View" { skipping = 1; next }
-  skipping && $0 == "```text" { in_fence = 1; next }
-  skipping && in_fence && $0 == "```" { skipping = 0; in_fence = 0; next }
-  skipping { next }
-  { print }
-' "$valid" >"$without_local"
-node "$CLAUDE_VALIDATOR" "$without_local" >/dev/null || fail "validator requires an optional Local View"
+no_dependencies="$tmp/no-dependencies.md"
+sed '/^| A | B | A Facts |/d' "$valid" >"$no_dependencies"
+[ "$(node "$CLAUDE_VALIDATOR" "$no_dependencies")" = 'valid Context Map: 3 contexts, 0 dependencies' ] ||
+  fail "validator should accept a Context Map without semantic dependencies"
 
-bad_local="$tmp/bad-local.md"
-sed 's/^| A |-->| B |$/| B |-->| A |/' "$valid" >"$bad_local"
-assert_invalid "$bad_local" "Local View"
+preamble="$tmp/preamble.md"
+{
+  printf '%s\n\n' '# Meeting transcript' 'Rejected alternative: merge A and B.'
+  cat "$valid"
+} >"$preamble"
+assert_invalid "$preamble" "expected exactly one # Context Map heading and no preamble"
 
-[ "$(node "$CLAUDE_VALIDATOR" --allow-legacy "$valid")" = "$expected" ] ||
-  fail "--allow-legacy CLI compatibility changed"
+intro_prose="$tmp/intro-prose.md"
+sed '1a\
+\
+Meeting transcript: rejected alternative was to merge A and B.' "$valid" >"$intro_prose"
+assert_invalid "$intro_prose" "Context Map may contain only its heading and two tables"
+
+duplicate_context="$tmp/duplicate-context.md"
+sed '/^| B | Owns B decisions/a| A | Owns duplicate A decisions. | [Model](context/another-a/model.md) |' "$valid" >"$duplicate_context"
+assert_invalid "$duplicate_context" "duplicate Bounded Context A"
 
 missing_model="$tmp/missing-model.md"
-sed '0,/^- \*\*Model:\*\*/{/^- \*\*Model:\*\*/d;}' "$valid" >"$missing_model"
-assert_invalid "$missing_model" "Model link"
+sed 's#\[Model\](context/a/model.md)#A Model#' "$valid" >"$missing_model"
+assert_invalid "$missing_model" "needs one context/<slug>/model.md link"
 
 bad_model="$tmp/bad-model.md"
-sed '0,/context\/a\/model\.md/s//context\/a\/README.md/' "$valid" >"$bad_model"
-assert_invalid "$bad_model" "Model link"
+sed 's#context/a/model.md#context/a/README.md#' "$valid" >"$bad_model"
+assert_invalid "$bad_model" "needs one context/<slug>/model.md link"
 
-mismatched_model="$tmp/mismatched-model.md"
-sed '0,/\[A\](context\/a\/model\.md)/s//[B](context\/a\/model.md)/' "$valid" >"$mismatched_model"
-assert_invalid "$mismatched_model" "matching Model link"
+unknown_context="$tmp/unknown-context.md"
+sed 's/^| A | B | A Facts |/| A | D | A Facts |/' "$valid" >"$unknown_context"
+assert_invalid "$unknown_context" "names an unknown Bounded Context"
 
-legacy_projection="$tmp/legacy-projection.md"
-sed '/^## Model Dependency Contracts$/i\
-#### Upstream Dependencies\
-' "$valid" >"$legacy_projection"
-assert_invalid "$legacy_projection" "unsupported context section"
+self_dependency="$tmp/self-dependency.md"
+sed 's/^| A | B | A Facts |/| A | A | A Facts |/' "$valid" >"$self_dependency"
+assert_invalid "$self_dependency" "self dependency A -> A"
 
-missing_contract="$tmp/missing-contract.md"
-awk '
-  $0 == "## Model Dependency Contracts" { print; skipping = 1; next }
-  !skipping { print }
-' "$valid" >"$missing_contract"
-assert_invalid "$missing_contract" "detail is missing for A -> B"
-
-wrong_contract_endpoint="$tmp/wrong-contract-endpoint.md"
-sed 's/^- \*\*Downstream:\*\* B$/- **Downstream:** C/' "$valid" >"$wrong_contract_endpoint"
-assert_invalid "$wrong_contract_endpoint" "are absent from Global View"
-
-duplicate_contract="$tmp/duplicate-contract.md"
-cat "$valid" >"$duplicate_contract"
-cat >>"$duplicate_contract" <<'EOF'
-
-### A-B Facts
-
-- **Upstream:** A
-- **Downstream:** B
-- **Published meaning:** Other A facts.
-- **Downstream reliance:** B relies on other facts.
-- **Local translation:** B translates other facts.
-- **Guarantee:** A owns the other publication.
-EOF
-assert_invalid "$duplicate_contract" "duplicate detail name A-B Facts"
-
-missing_contract_field="$tmp/missing-contract-field.md"
-sed '/^- \*\*Downstream reliance:\*\*/d' "$valid" >"$missing_contract_field"
-assert_invalid "$missing_contract_field" "must declare Downstream reliance exactly once"
-
-unknown_contract_field="$tmp/unknown-contract-field.md"
-sed '/^- \*\*Guarantee:\*\*/a\- **Legacy relation:** A directs B.' "$valid" >"$unknown_contract_field"
-assert_invalid "$unknown_contract_field" "unsupported field"
-
-interaction_view="$tmp/interaction-view.md"
-sed '/^## Bounded Contexts$/i\
-## Interaction View\
-' "$valid" >"$interaction_view"
-assert_invalid "$interaction_view" "expected exactly ## Global View, ## Bounded Contexts"
+duplicate_dependency="$tmp/duplicate-dependency.md"
+sed '/^| A | B | A Facts |/a| A | B | A Facts | B uses the same contract twice. |' "$valid" >"$duplicate_dependency"
+assert_invalid "$duplicate_dependency" "duplicate dependency A -> B for A Facts"
 
 cycle="$tmp/cycle.md"
-sed '/^    a --> b$/a\    b --> a' "$valid" >"$cycle"
-assert_invalid "$cycle" "reciprocal dependency"
+sed '/^| A | B | A Facts |/a| B | A | B Facts | A translates B Facts. |' "$valid" >"$cycle"
+assert_invalid "$cycle" "semantic dependencies must be acyclic"
 
-partnership="$tmp/partnership.md"
-sed '/^- \*\*Guarantee:\*\*/a\- **Collaboration pattern:** Partnership' "$valid" >"$partnership"
-assert_invalid "$partnership" "Partnership"
+diagram="$tmp/diagram.md"
+cat "$valid" >"$diagram"
+cat >>"$diagram" <<'EOF'
+
+```mermaid
+graph LR
+A --> B
+```
+EOF
+assert_invalid "$diagram" "Context Map must not contain diagrams"
+
+old_section="$tmp/old-section.md"
+sed '/^## Bounded Contexts$/i## Global View\n' "$valid" >"$old_section"
+assert_invalid "$old_section" "expected exactly ## Bounded Contexts then ## Semantic Dependencies"
 
 echo "PASS ddd-expert Context Map validator"

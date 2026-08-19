@@ -1,33 +1,19 @@
----
-context: Order
-model_revision: 1
-model_status: model_ready
----
+# Order Model
 
-# Order Domain Model
+## Purpose
 
-## Authority and Ownership
+Own order fulfillment and decide how captured payments affect eligibility.
 
-Order owns order fulfillment.
+## Essential Language
 
-## Failure and Recovery Semantics
+- **Record Payment:** Associate an authoritative captured payment with an Order.
 
-Recording a captured payment is idempotent.
+## Aggregate Roots
 
-## Context Dependencies
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Order | A customer's accepted purchase request. | Payment association and fulfillment eligibility change together. |
 
-Payment owns payment settlement and publishes the stable `PaymentCaptured`
-fact. Order consumes that fact, but the published payload is not part of the
-Order Domain model.
+## Business Rules
 
-## Model Realization
-
-Application records the accepted payment fact through the idempotent
-`RecordPayment` use case and remains transport-neutral. The inbound Integration
-Message boundary validates the producer-owned contract, translates it into
-Order language, and delegates once. Broker envelopes and generated contract
-types remain outside Application. The message Runtime owns acknowledgement and
-retry disposition.
-
-Boundary tests prove contract translation and one Application delegation;
-Application tests prove idempotent payment recording without transport types.
+- Recording the same captured payment more than once has one business effect.
