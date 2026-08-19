@@ -24,7 +24,7 @@ The failure was structural rather than a missing prompt reminder:
 
 EventStorming retains Scope, Workshop Events, Timeline, Commands, Roles and external authorities, Constraints and required next intents, Problems and ambiguity, Aggregates and core business objects, Bounded Contexts, and Context collaboration.
 
-The optimization applies to artifacts, not discussion quality. Workshop Events, temporary boards, alternatives, and diagrams remain in conversation. After the user confirms the integrated strategic model, EventStorming updates only current strategic authority:
+The optimization applies to artifacts, not discussion quality. EventStorming may maintain a lightweight text timeline, table, or arrow chain in the conversation when it clarifies a causal gap or boundary choice. The strategic model admits a concern only when it changes a business right, obligation, value, authority, decision, outcome, or required next action; implementation observations are evidence, while later design owns realization. After the user confirms the integrated strategic model, EventStorming updates only current strategic authority:
 
 - `docs/ddd-expert/context-map.md`;
 - `docs/ddd-expert/context/<context-slug>/model.md`.
@@ -52,7 +52,7 @@ Each behavior is one concise semantic sentence with subject, action, object, and
 
 Once the user confirms one complete Root slice, Tactical Design writes or replaces that section in `domain-objects.md` immediately. It preserves other confirmed Root slices and does not wait for every Root in the Bounded Context. Unconfirmed Roots remain conversation only.
 
-There are no UML or sequence diagrams, design iteration files, call graphs, generic mechanism sections, claims ledgers, or separate software-architecture artifact. Transaction, concurrency, recovery, or call direction is discussed only when a confirmed requirement makes it material, and the resulting domain constraint is expressed through the relevant object's state, behavior, or actual Domain Event.
+There are no UML or sequence diagrams, design iteration files, call graphs, generic mechanism sections, claims ledgers, or separate software-architecture artifact. Realization enters Tactical Design only when a confirmed requirement makes it material, and the resulting domain constraint is expressed through the relevant object's state, behavior, or actual Domain Event.
 
 ### Object behavior constrains implementation shape
 

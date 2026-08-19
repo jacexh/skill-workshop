@@ -27,7 +27,7 @@ Tactical Design uses the same relentless interview style. It works depth-first t
 
 Codify reads the accepted strategic model and current domain objects without editing either. Guard independently checks whether the implementation preserves their ownership and behavior.
 
-House Style supplies conditional realization rules only after the model establishes their conditions. It never invents a lifecycle, transaction, concurrency, recovery, or messaging requirement.
+House Style supplies conditional realization rules only after the model establishes their conditions. It realizes only requirements established by the accepted model and project authority.
 
 ## Artifacts
 
@@ -43,7 +43,7 @@ docs/ddd-expert/
 - `model.md`: context purpose, essential language, Aggregate Roots, and strategic business rules.
 - `domain-objects.md`: confirmed Root slices containing object definition, state, behavior, and actual Domain Events.
 
-Discussion boards, Workshop Events, rejected alternatives, diagrams, call sequences, implementation history, and workflow status are not artifacts.
+Only the accepted current-model files described above are workflow artifacts; workshop conversation and implementation history remain transient.
 
 ## Skill boundaries
 

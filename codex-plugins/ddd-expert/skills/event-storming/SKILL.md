@@ -41,7 +41,7 @@ Keep unresolved material uncertainty visible. Never manufacture business authori
 
 During discovery, maintain the lightest useful EventStorming board in the conversation: the current Workshop Event timeline, causing Commands and Roles, constraints and Hotspots, and candidate Aggregate and Bounded Context clusters. Update that working view when answers change instead of turning every intermediate state into a document.
 
-Use a compact text or Mermaid diagram when it makes a causal gap or boundary decision materially easier to inspect. Temporary boards, alternatives, and diagrams remain conversational working state; never write them to the repository or treat their notation as separate approval.
+Use a compact text timeline, table, or arrow chain only when it makes a causal gap or boundary decision materially easier to inspect. These working views and alternatives remain in the conversation; never write them to the repository or treat their notation as separate approval.
 
 ## The ten EventStorming steps
 
@@ -58,9 +58,9 @@ Use all ten steps in causal order during discovery. A thesis review may acknowle
 9. **Bounded Contexts**: separate language, authority, policy, lifecycle, and model purpose where they diverge.
 10. **Context collaboration**: identify semantic dependencies, named published contracts, translation, and downstream reliance.
 
-Workshop Events stay in the conversation as analytical evidence. They do not create a production event, persisted meeting record, or diagram. A local occurrence becomes a Domain Event only when the implemented domain needs that occurrence as a named fact; Tactical Design records it on the object that produces or consumes it.
+Workshop Events stay in the conversation as analytical evidence. A local occurrence becomes a Domain Event only when the implemented domain needs that occurrence as a named fact; Tactical Design records it on the object that produces or consumes it.
 
-Package, service, table, runtime component, team, and call direction are evidence, not strategic boundaries. Generic retry, transaction, concurrency, recovery, and deployment concerns do not enter the model unless a confirmed business requirement makes them material.
+Derive strategic boundaries from business language, authority, policy, lifecycle, and model purpose. Admit a concern only when it changes a business right, obligation, value, authority, decision, outcome, or required next action. Treat implementation observations as evidence about that business meaning; later design owns the realization.
 
 ## Current strategic artifacts
 
@@ -69,7 +69,7 @@ Persist only accepted current knowledge:
 - `docs/ddd-expert/context-map.md` owns the Bounded Context inventory and semantic dependencies.
 - `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, and strategic business rules.
 
-Keep Entities, object state, methods, implementation calls, and actual Domain Events out of `model.md`; Tactical Design owns them in `domain-objects.md`. Keep discussion history, rejected alternatives, workshop boards, diagrams, and implementation mechanics out of both strategic files.
+`model.md` remains strategic. Tactical Design records object definition, state, behavior, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
 
 ## Confirmation and writing
 
@@ -81,8 +81,6 @@ Present one compact integrated proposal:
 - strategic business rules;
 - semantic dependencies and named contracts;
 - remaining non-blocking uncertainty.
-
-Include the compact conversational board or diagram when it materially helps the user confirm the whole model. It remains transient and creates no additional artifact.
 
 Write nothing while that proposal is still changing. When the user explicitly confirms the integrated strategic model, update only `context-map.md` and affected `model.md` files whose current meaning changed. Write those files directly; there is no meeting-minutes lifecycle or cross-file staging ceremony.
 

@@ -219,7 +219,12 @@ expected_workflow_steps="$(printf '%s\n' \
 actual_workflow_steps="$(awk '/^## The ten EventStorming steps$/ { in_workflow = 1; next } /^## / { if (in_workflow) exit } in_workflow && /^[0-9]+\. \*\*/ { sub(/:.*/, ""); print }' "$event_storming_skill")"
 [ "$actual_workflow_steps" = "$expected_workflow_steps" ] || fail "EventStorming should preserve the ten causal steps in order"
 assert_contains "$event_storming_skill" 'Workshop Events stay in the conversation' "EventStorming should not persist workshop minutes"
-assert_contains "$event_storming_skill" 'Temporary boards, alternatives, and diagrams remain conversational working state; never write them to the repository' "EventStorming should preserve discussion quality without persisting its board"
+assert_contains "$event_storming_skill" 'compact text timeline, table, or arrow chain' "EventStorming should use a renderer-independent conversational board"
+assert_contains "$event_storming_skill" 'Admit a concern only when it changes a business right' "EventStorming should select concerns by business-observable meaning"
+if rg -ni 'mermaid|\b(retry|retries|transaction|transactions|concurrency|concurrent|recovery|deployment|idempotency|idempotent)\b' "$event_storming_skill" "$CLAUDE_ROOT/references/ddd-modeling.md" >/dev/null; then
+  rg -ni 'mermaid|\b(retry|retries|transaction|transactions|concurrency|concurrent|recovery|deployment|idempotency|idempotent)\b' "$event_storming_skill" "$CLAUDE_ROOT/references/ddd-modeling.md" >&2
+  fail "EventStorming guidance should not prime implementation mechanisms"
+fi
 assert_contains "$event_storming_skill" 'explicitly confirms the integrated strategic model' "EventStorming should require integrated confirmation"
 assert_contains "$event_storming_skill" '`context-map.md` and affected `model.md` files' "EventStorming should write only current strategic authority"
 

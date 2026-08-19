@@ -43,13 +43,12 @@ Use the complete causal sequence. Depth may vary with the scope; the sequence do
 - **[DDD Principle]** A past-tense occurrence may help explain the business without becoming a Domain Event.
 - **[DDD Principle]** A Domain Event is a selected local domain fact needed for a named reaction or as durable evidence of the occurrence itself.
 - **[House Rule]** Record an actual Domain Event with the object behavior that establishes or consumes it. Omit it when production code needs only the resulting state.
-- **[House Rule]** Keep provider attempts, retries, leases, logs, worker state, and transport notifications outside the Domain unless they change accepted business rights, obligations, value, or required action.
 - **[Heuristic]** Cross-context consumers rely on a producer-owned published contract, not the producer's internal Domain Event type.
 
 ## 4. Aggregate Roots and owned objects
 
 - **[DDD Principle]** An Aggregate is a consistency boundary. Its Root is the only external reference point for changing the Aggregate.
-- **[Heuristic]** Cluster facts that must be valid together immediately after one business intent. Do not group objects merely because one screen, table, request, or package touches them.
+- **[Heuristic]** Cluster facts that must be valid together immediately after one business intent; require a concrete invariant to justify the grouping.
 - **[Heuristic]** Ask which invariant cannot safely wait for a later reaction. If none exists, separate Aggregates may be more honest.
 - **[House Rule]** A candidate Root needs supported identity, authority, business rules, and an immediate consistency boundary. Record `No supported Aggregate` when evidence does not support one.
 - **[DDD Principle]** An Entity has identity across change. A Value Object is defined by its value.
@@ -60,16 +59,16 @@ Use the complete causal sequence. Depth may vary with the scope; the sequence do
 
 ## 5. Bounded Contexts
 
-- **[DDD Principle]** A Bounded Context is a boundary within which one model and language apply. It is not automatically a Subdomain, service, package, deployment, table group, or team.
+- **[DDD Principle]** A Bounded Context is a boundary within which one model and language apply. Its boundary is justified by distinct semantics, authority, policy, lifecycle, or model purpose.
 - **[Heuristic]** Consider a boundary when language, authority, policy, lifecycle, model purpose, change cadence, or organizational ownership diverges materially.
-- **[House Rule]** Name a context for supported business authority and purpose. Technical mechanisms do not become contexts without their own business model.
+- **[House Rule]** Name a context only when evidence supports a distinct business authority, purpose, and model.
 - **[Heuristic]** Similar code may represent shared domain knowledge, a shared technical module, or distinct local semantics. Compare language and authority before extracting reuse.
 - **[Heuristic]** Apply DRY to duplicated knowledge, not similar syntax. Balance cohesion, information hiding, coupling, and YAGNI.
 
 ## 6. Context Map
 
 - **[House Rule]** A semantic dependency is `Upstream -> Downstream`: the upstream owns a named published meaning that influences the downstream model.
-- **[DDD Principle]** Runtime request direction does not decide model ownership.
+- **[DDD Principle]** Model ownership follows semantic authority.
 - **[House Rule]** Record each dependency once with both endpoints, the named contract, and the downstream use or translation.
 - **[House Rule]** Keep the dependency graph acyclic. Rework authority or translation rather than recording reciprocal semantic ownership.
 - **[Heuristic]** No dependency row is better than a runtime-call arrow with no model influence.
@@ -78,7 +77,7 @@ Use the complete causal sequence. Depth may vary with the scope; the sequence do
 
 - **[House Rule]** Local answers are working decisions until the user sees and confirms the integrated strategic model.
 - **[House Rule]** Strategic confirmation covers scope, Bounded Contexts, Aggregate Roots, business rules, semantic dependencies, and visible uncertainty.
-- **[House Rule]** Current artifacts contain accepted knowledge, not discussion history, rejected alternatives, diagrams, or process status.
+- **[House Rule]** Current artifacts contain only accepted knowledge required by downstream work.
 - **[House Rule]** Tactical object design is confirmed one Aggregate Root at a time in depth-first order. Each confirmed Root slice may be persisted without waiting for unrelated Roots.
 - **[Heuristic]** When evidence defeats a conclusion, revisit the smallest dependent model that can restore a coherent explanation rather than patching local names.
 
