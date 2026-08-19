@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-19
-- Supersedes: the artifact lifecycle, meeting-minutes, diagram, BC Architecture, implementation-exploration, and design-reconciliation decisions in [ADR 0003](0003-event-storming-whole-model-confirmation.md), [ADR 0004](0004-model-ready-enters-codify-directly.md), [ADR 0005](0005-event-storming-minutes-and-current-models.md), [ADR 0007](0007-conditional-tactical-design-and-claims.md), and [ADR 0008](0008-design-artifacts-are-falsifiable-candidates.md)
+- Supersedes: the artifact lifecycle, meeting-minutes, diagram, BC Architecture, implementation-exploration, design-reconciliation, and Guard review-mechanics decisions in [ADR 0003](0003-event-storming-whole-model-confirmation.md), [ADR 0004](0004-model-ready-enters-codify-directly.md), [ADR 0005](0005-event-storming-minutes-and-current-models.md), [ADR 0006](0006-guard-is-a-semantic-structure-review.md), [ADR 0007](0007-conditional-tactical-design-and-claims.md), and [ADR 0008](0008-design-artifacts-are-falsifiable-candidates.md)
 - Retains: the complete EventStorming discussion method and integrated user confirmation from ADR 0003, conditional House Style, and the independent read-only Guard boundary from [ADR 0006](0006-guard-is-a-semantic-structure-review.md)
 
 ## Context
@@ -80,7 +80,7 @@ Codify reads the current strategic and domain-object artifacts as read-only sema
 
 Codify leaves one coherent realization of each accepted responsibility and removes obsolete parallel responsibility exposed by the change. It verifies the resulting code with tests and checks proportionate to the changed behavior and risk.
 
-Guard independently and read-only reviews the implementation against the current Context Map, Models, and Domain Object slices. It routes strategic contradictions to EventStorming, object-design contradictions to Tactical Design, and plain implementation drift to Codify. Guard never closes or mutates an artifact lifecycle because no such lifecycle exists.
+Guard independently and read-only reviews the implementation against the current Context Map, Models, and Domain Object slices. It also judges non-Domain abstractions introduced, materially changed, or required by the affected behavior. Model silence is implementation latitude rather than missing authority: project constraints and applicable House Style govern that space. An abstraction earns its cost when it hides present complexity, passes the deletion test, provides interface leverage and locality, and justifies its indirection, mapping, configuration, lifecycle, and test burden. Pattern names such as CQRS, Repository, or Job are neither requirements nor justification. Guard reports evidence-backed findings without workflow routing or terminal-state accounting, and never closes or mutates an artifact lifecycle because no such lifecycle exists.
 
 ## Consequences
 
@@ -89,5 +89,6 @@ Guard independently and read-only reviews the implementation against the current
 - Confirmation and writing happen per Aggregate Root, so long Bounded Context discussions do not defer all useful artifacts.
 - Current facts have one owner; conversation history remains outside downstream context.
 - Codify gains broad implementation latitude inside accepted semantics and resolves it through project and active-language House Style without a modeling return loop.
+- Guard catches both model drift and unjustified software abstractions without turning model silence or named patterns into a checklist.
 - Existing historical records remain repository history but are no longer required input for new work.
-- Automated checks validate the sparse file shapes, mirrored plugin content, one-question interaction boundary, pressure-led per-Root writing, House Style realization latitude, and method ownership without scoring a preferred domain model.
+- Automated checks validate the sparse file shapes, mirrored plugin content, one-question interaction boundary, pressure-led per-Root writing, House Style realization latitude, method ownership, and Guard's independent model-and-abstraction review without scoring a preferred domain model.

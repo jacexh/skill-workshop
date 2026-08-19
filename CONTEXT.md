@@ -90,10 +90,6 @@ _Avoid_: Workshop Event, provider notification, log entry
 A one-way `Upstream -> Downstream` Context Map relationship: the upstream owns a named published meaning that influences the downstream model. It is not runtime call direction.
 _Avoid_: request arrow, mutual ownership
 
-**Guard Review Unit**:
-One independently falsifiable accepted semantic responsibility and the minimum production evidence needed to judge its realization. Guard keeps it read-only and reports `clear`, `violation`, or `evidence_gap`.
-_Avoid_: file checklist, general bug hunt
-
 **Persistence House Style**:
 The part of House Style governing storage representation and operations across Aggregate persistence, read models, integration state, SQL, and schema evolution. It is an Infrastructure concern related to, but not owned by, the Domain Repository abstraction.
 _Avoid_: Repository table design, generic database guidance

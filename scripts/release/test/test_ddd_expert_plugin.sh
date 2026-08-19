@@ -294,13 +294,20 @@ assert_not_contains "$codify_skill" 'Work from Domain outward' "Codify should no
 assert_not_contains "$codify_skill" 'A free function' "Codify should leave detailed realization rules in House Style"
 assert_not_contains "$codify_skill" 'Provide Guard with' "Codify should not own a Guard handoff protocol"
 
-assert_contains "$guard_skill" '`docs/ddd-expert/context-map.md`, affected `model.md`, and `domain-objects.md`' "Guard should review the current model"
+assert_contains "$guard_skill" 'affected `model.md` and `domain-objects.md`, `docs/ddd-expert/context-map.md` when Context ownership or collaboration changes' "Guard should review only applicable current model authority"
 assert_contains "$guard_skill" 'one fresh, read-only agent context distinct from the implementer' "Guard should remain independent"
-assert_contains "$guard_skill" 'Route strategic contradictions to EventStorming' "Guard should route strategic defects"
-assert_contains "$guard_skill" 'Route object-definition, state, behavior, or Domain Event contradictions to Tactical Design' "Guard should route tactical defects"
-assert_contains "$guard_skill" 'Route implementation drift to Codify' "Guard should route code defects"
-assert_contains "$guard_skill" 'Guard never edits DDD artifacts' "Guard should remain read-only over design"
-assert_contains "$guard_skill" 'receiver-shaped free function' "Guard should detect behavior displaced from its object"
+assert_contains "$guard_skill" 'they are not a complete software design' "Guard should not treat sparse models as software inventories"
+assert_contains "$guard_skill" 'implementation latitude judged through project constraints and House Style, not missing authority' "Guard should judge unmodeled structure through House Style"
+assert_contains "$guard_skill" 'non-Domain abstraction introduced, materially changed, or required by the affected behavior' "Guard should review software abstractions in the changed realization"
+assert_contains "$guard_skill" 'whether deleting it would redistribute that complexity or simply remove it' "Guard should apply the deletion test"
+assert_contains "$guard_skill" 'whether a small stable interface creates leverage and locality' "Guard should judge abstraction depth"
+assert_contains "$guard_skill" 'indirection, mapping, configuration, lifecycle, and test cost are justified' "Guard should weigh accidental abstraction cost"
+assert_contains "$guard_skill" 'CQRS, Repository, or Job neither require nor justify an abstraction' "Guard should not infer abstraction quality from pattern names"
+assert_contains "$guard_skill" 'Review only: do not edit source, DDD artifacts, tests, or project state' "Guard should remain read-only over the reviewed change"
+assert_not_contains "$guard_skill" 'EventStorming' "Guard should not create a strategic workflow route"
+assert_not_contains "$guard_skill" 'Tactical Design' "Guard should not create a tactical workflow route"
+assert_not_contains "$guard_skill" 'Codify' "Guard should not create an implementation workflow route"
+assert_not_contains "$guard_skill" 'receiver-shaped free function' "Guard should leave detailed object-shape rules in House Style"
 
 if rg -n 'maintain-artifacts|architecture\.md|classDiagram|sequenceDiagram|model_revision|last_changed_by|draft fingerprint|SHA-256 fingerprint|draft -> ready|reconcil' \
   "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" "$CLAUDE_ROOT/templates" "$CODEX_ROOT/templates" >/dev/null; then
@@ -340,9 +347,10 @@ for retired_artifact in 'docs/ddd-expert/model.md' 'docs/ddd-expert/design.md'; 
 done
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Their silence about remaining software structure is implementation latitude' "codify should own design gaps outside the Domain contract"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Load only House Style guidance for the active language and code surfaces actually touched' "codify should apply House Style selectively"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '**Use question-led implementation depth**' "guard should deepen only from a falsifiable architecture question"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '`clear`, `violation`, or `evidence_gap`' "guard should use terminal verdicts"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'keep it read-only' "guard should keep review work read-only"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'Use question-led depth' "guard should deepen only from a concrete structural question"
+assert_not_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '`clear`, `violation`, or `evidence_gap`' "guard should not maintain terminal-state accounting"
+assert_not_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'review unit' "guard should not maintain review-unit machinery"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'fresh, read-only agent context' "guard should keep review work independent and read-only"
 
 if rg -n 'ddd-golang-(scaffold|domain|application|transport|cqrs|infrastructure|events-messages|taskqueue|runtime)\.md' \
   "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
@@ -351,8 +359,8 @@ fi
 assert_contains "$event_storming_skill" '../../references/ddd-modeling.md' "EventStorming should load strategic modeling guidance"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Go, start with' "codify should enter Go guidance through its router"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Python or TypeScript, load only the touched surfaces' "codify should load compact language guides selectively"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Go, use' "guard should enter Go guidance through its router"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Python or TypeScript, load only the sections owning each architecture unit' "guard should load compact language guides selectively"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Go, start with' "guard should enter Go guidance through its router"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Python or TypeScript, load only relevant sections' "guard should load compact language guides selectively"
 
 # Canonical reference inventory. Go uses a baseline/router plus focused leaves;
 # lower-frequency Python and TypeScript each use one compact language guide.
@@ -703,6 +711,7 @@ assert_contains "$ROOT/README.md" 'compares credible object compositions by pres
 assert_contains "$ROOT/README.md" 'actual Domain Events' "root README should distinguish production events"
 assert_contains "$ROOT/README.md" 'receiver-shaped free functions require a concrete ownership reason' "root README should bind behavior to methods"
 assert_contains "$ROOT/README.md" 'Codify treats the strategic model and domain-object slices as read-only semantic constraints, not a complete software design' "root README should define Codify implementation latitude"
+assert_contains "$ROOT/README.md" 'whether changed non-Domain abstractions earn their cost by reducing overall complexity under House Style' "root README should expose Guard abstraction review"
 
 sparse_adr="$ROOT/docs/adr/0009-sparse-current-ddd-artifacts.md"
 [ -f "$sparse_adr" ] || fail "sparse DDD workflow ADR missing"
@@ -717,6 +726,7 @@ assert_contains "$sparse_adr" 'definition;' "ADR should define object descriptio
 assert_contains "$sparse_adr" 'actual Domain Events.' "ADR should define production events"
 assert_contains "$sparse_adr" 'A behavior listed under a Root or Entity is normally realized as a method on that object' "ADR should define method ownership"
 assert_contains "$sparse_adr" 'Codify realizes the model through House Style' "ADR should define House Style realization"
+assert_contains "$sparse_adr" 'An abstraction earns its cost when it hides present complexity' "ADR should define Guard abstraction quality"
 assert_contains "$sparse_adr" 'There are no UML or sequence diagrams' "ADR should remove diagram artifacts"
 assert_contains "$sparse_adr" 'no such lifecycle exists' "ADR should remove artifact state machinery"
 
@@ -724,6 +734,7 @@ for superseded_adr in \
   0003-event-storming-whole-model-confirmation.md \
   0004-model-ready-enters-codify-directly.md \
   0005-event-storming-minutes-and-current-models.md \
+  0006-guard-is-a-semantic-structure-review.md \
   0007-conditional-tactical-design-and-claims.md \
   0008-design-artifacts-are-falsifiable-candidates.md; do
   assert_contains "$ROOT/docs/adr/$superseded_adr" 'Status: Superseded by [ADR 0009]' "$superseded_adr should no longer be current authority"
@@ -740,5 +751,6 @@ assert_contains "$ROOT/CONTEXT.md" 'the grammatical subject is the owning Root o
 assert_not_contains "$ROOT/CONTEXT.md" '**Modeling Contradiction**:' "shared vocabulary should not preserve a Codify return loop"
 assert_not_contains "$ROOT/CONTEXT.md" '**Bounded Context Architecture**:' "shared vocabulary should remove architecture artifact authority"
 assert_not_contains "$ROOT/CONTEXT.md" '**Tactical Design Claim**:' "shared vocabulary should remove claims machinery"
+assert_not_contains "$ROOT/CONTEXT.md" '**Guard Review Unit**:' "shared vocabulary should remove Guard state machinery"
 
 echo "  ddd-expert plugin: sparse strategic and tactical contracts correct"

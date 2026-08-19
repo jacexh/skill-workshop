@@ -1,81 +1,37 @@
 ---
 name: guard
-description: Use when concrete backend changes need an independent, read-only review for faithful realization of the accepted strategic and domain-object design.
+description: Use when concrete backend changes need an independent, read-only review of faithful domain-model realization and the quality of House Style software abstractions.
 ---
 
 # Guard
 
-Guard answers one bounded question: does this implementation realize the accepted domain model without moving or duplicating its responsibilities?
+Guard independently asks: does this complete backend change faithfully realize the accepted business model, and use House Style abstractions that reduce overall software complexity?
 
-Run Guard in one fresh, read-only agent context distinct from the implementer, keep it read-only, and avoid recursive review fan-out. Guard is a semantic-structure review, not a general bug hunt, test campaign, or operational probe.
+Run Guard in one fresh, read-only agent context distinct from the implementer. Review only: do not edit source, DDD artifacts, tests, or project state. This is a semantic-structure review, not a general bug hunt, verification campaign, or operational probe.
 
-## Governing evidence
+## Evidence
 
-Read the actual scoped content of:
+Read the user's scope, affected `model.md` and `domain-objects.md`, `docs/ddd-expert/context-map.md` when Context ownership or collaboration changes, the complete stable diff and relevant production code, governing project decisions, and the smallest applicable House Style sections.
 
-- `docs/ddd-expert/context-map.md`, affected `model.md`, and `domain-objects.md` as one current authority set;
-- the user's request and accepted Specs, PRDs, ADRs, or constraints that govern the slice;
-- the complete implementation diff and production symbols that realize the affected behavior;
-- the producer's verification receipts and snapshot identity, when supplied;
-- the smallest applicable House Style sections.
+DDD artifacts own accepted business meaning and Domain ownership; they are not a complete software design. Their silence about remaining software structure is implementation latitude judged through project constraints and House Style, not missing authority. Code and tests are implementation evidence, not authority that silently changes the model.
 
-The current artifacts own accepted meaning. Project decisions own only what they explicitly decide. House Style applies only when its stated condition is established. Code and tests are implementation evidence, not a source that silently changes the model.
+## Review
 
-A missing strategic fact blocks only that strategic judgment. A missing or contradictory object definition blocks only the affected tactical judgment. Continue reviewing independent responsibilities.
+Trace each affected accepted responsibility through the minimum production code needed to judge it. Compare semantic responsibility and state carriers, not names. A changed file is not automatically another review obligation. Use question-led depth: state the concrete structural question before expanding into adapter or runtime code, read the minimum evidence, and stop when it is answered.
 
-## Review focus
+Judge whether accepted business state, behavior, invariants, and actual Domain Events remain with their recorded owners, and whether outer coordination, persistence, transport, or runtime code preserves rather than duplicates those decisions.
 
-Start with the accepted domain behavior, then read outward only as needed:
+Also review each non-Domain abstraction introduced, materially changed, or required by the affected behavior. Ask what present complexity it hides; whether deleting it would redistribute that complexity or simply remove it; whether a small stable interface creates leverage and locality; and whether its indirection, mapping, configuration, lifecycle, and test cost are justified. Pattern names such as CQRS, Repository, or Job neither require nor justify an abstraction. Judge its placement and shape by project constraints and applicable House Style, without inventorying absent patterns.
 
-1. **Strategic boundary**: Bounded Context ownership, Aggregate Root identity, semantic context dependencies, and published contracts remain intact.
-2. **Domain objects**: accepted Roots and Entities own their recorded state and behavior; each listed Behavior appears on its owner's method surface; a receiver-shaped free function needs a concrete no-natural-owner reason; removed objects have no renamed responsibility carrier; actual Domain Events are produced or consumed by the recorded objects.
-3. **Application**: use-case context, authorization, transaction setup, and technical coordination do not take over Domain decisions.
-4. **Infrastructure and Interface**: adapters preserve inward semantic contracts and isolate database, provider, transport, and generated types.
-5. **Runtime**: composition connects the accepted owners when runtime wiring changed.
+## Findings
 
-A changed file is not automatically another review obligation. Group production symbols that implement one falsifiable semantic responsibility and judge that responsibility once.
+Report only concrete model-realization or abstraction-quality findings, ordered by impact. Each finding cites its governing model, project decision, or House Rule; the production file and line evidence; the consequence and root cause; and a correction direction. When a material fact is unavailable, state the exact uncertainty and the judgment it prevents.
 
-## Workflow
-
-1. Pin the immutable comparison base and complete target snapshot before trusting a handoff.
-2. Derive a finite set of review units from affected strategic clauses, domain-object descriptions, actual Domain Events, project decisions, and changed structural declarations.
-3. Give each independently falsifiable responsibility its own stable unit. Preserve its governing source and exact implementation evidence.
-4. Inspect each unit from Domain outward. Compare semantic responsibility and state carriers, not names alone.
-5. **Use question-led implementation depth**: before opening an adapter or runtime body, state the concrete semantic question it must answer. Read the minimum evidence and stop once answered.
-6. Consume producer verification receipts; do not rerun tests, builds, migrations, containers, databases, networks, or deployments.
-7. Recheck the pinned snapshot and governing sources, then assign every unit exactly one terminal state: `clear`, `violation`, or `evidence_gap`.
-
-Guard never edits DDD artifacts, source code, tests, or iteration state. A source drift makes execution incomplete; it does not authorize an update.
-
-## Judgment and routing
-
-- `clear`: implementation preserves the accepted responsibility.
-- `violation`: accepted meaning is clear and implementation is missing, misplaced, duplicated, or contradicted.
-- `evidence_gap`: required authority or implementation evidence is absent or contradictory.
-
-Route strategic contradictions to EventStorming. Route object-definition, state, behavior, or Domain Event contradictions to Tactical Design. Route implementation drift to Codify. A hard-to-reverse project-decision gap goes to the project's decision mechanism.
-
-Passing tests, matching package names, a Repository method, or absence of an old identifier cannot clear a unit by itself. Conversely, an ordinary SQL, provider, performance, UI, or edge-case suspicion is not a Guard finding unless it disproves a named semantic responsibility.
-
-Report non-clear findings in impact order. Each finding names:
-
-- terminal state and affected review unit;
-- governing artifact path and clause;
-- concrete production file and line evidence;
-- semantic impact and root cause;
-- correction route and direction.
-
-Say `No DDD structural findings` only when every unit is clear. This does not claim general code correctness.
-
-## Completion
-
-End only after every review unit has a terminal judgment. If source drift or
-execution failure prevents that, identify the last stable snapshot.
+Say `No DDD structural findings` when there are no such findings. This does not claim general code correctness.
 
 ## References
 
-- Use [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for strategic and object-boundary interpretation.
-- Start with relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md) for layer ownership, ports, Repository boundaries, and realization shape.
-- Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) only when actual Domain Events or cross-context collaboration are affected.
-- For Go, use [../../references/ddd-golang.md](../../references/ddd-golang.md) to route each architecture unit to only the layer or flow sections that own its seam.
-- For Python or TypeScript, load only the sections owning each architecture unit from [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
+- Use [../../references/ddd-modeling.md](../../references/ddd-modeling.md) only when strategic or object-boundary interpretation is needed.
+- Start with relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md), then load only House Style for code surfaces actually touched.
+- For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md). For Python or TypeScript, load only relevant sections of [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
+- Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) or [../../references/database.md](../../references/database.md) only when the affected behavior crosses those seams.
