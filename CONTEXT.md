@@ -58,6 +58,10 @@ _Avoid_: local answer, partial model approval
 The accepted current explanation of one Bounded Context: its purpose, essential language, Aggregate Roots, and strategic business rules. It excludes Entity details and implementation mechanisms.
 _Avoid_: meeting minutes, object catalogue, call graph
 
+**Strategic Business Rule**:
+One independently challengeable claim naming a governed business concept or collaboration, any material condition, and an accepted business decision, permission, transition, required outcome, or invariant. It supplies downstream business authority without assigning tactical behavior ownership or prescribing an implementation mechanism.
+_Avoid_: vague principle, object responsibility, technical mechanism
+
 **Aggregate Root**:
 The externally addressed owner of one immediate consistency boundary. It composes owned Entities and protects the state and rules that must remain valid together.
 _Avoid_: service class, table group, feature folder
@@ -66,16 +70,16 @@ _Avoid_: service class, table group, feature folder
 One confirmed Aggregate Root section in `domain-objects.md`, containing the Root and its owned Entities. Each object records only definition, state, behavior, and actual Domain Events.
 _Avoid_: UML, sequence document, implementation plan
 
-**Depth-first Tactical Design**:
-The interview order that completes one Aggregate Root and every Entity inside it before opening the next Root. Questions are asked one at a time with a recommended answer and a credible alternative.
-_Avoid_: list all Roots then fill objects, batch questionnaire
+**Pressure-led Tactical Design**:
+The interview order that completes one Aggregate Root at a time by following its smallest affected business-pressure slice. It expresses essential complexity as pressures traceable to Business Rules, probes candidate behavior ownership, and compares credible object compositions by pressure coverage and accidental design burden. Questions are asked one at a time with a recommended answer and a credible alternative.
+_Avoid_: Entity checklist, untraceable scenario, batch questionnaire
 
 **Per-Root Confirmation**:
 The user's acceptance of one complete Aggregate Root slice after its object composition and descriptions have been challenged. That slice may be written immediately without waiting for other Roots.
 _Avoid_: whole-context write barrier, incremental unconfirmed write
 
 **Behavior Description**:
-A concise domain sentence whose grammatical subject is the owning Root or Entity, whose verb and object state what it does, and whose result states the produced domain effect. It normally maps to a method on that object.
+A concise domain sentence whose subject, action, object, and result expose the concepts involved in one behavior. During design, varying the subject tests credible behavior owners; in the accepted design, the grammatical subject is the owning Root or Entity and normally maps to a method on that object.
 _Avoid_: responsibility heading, method signature, caller list
 
 **Actual Domain Event**:

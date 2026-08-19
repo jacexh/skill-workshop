@@ -1,4 +1,4 @@
-# ADR 0009: Sparse Current DDD Artifacts and Depth-First Tactical Design
+# ADR 0009: Sparse Current DDD Artifacts and Pressure-Led Tactical Design
 
 - Status: Accepted
 - Date: 2026-08-19
@@ -29,17 +29,27 @@ The optimization applies to artifacts, not discussion quality. EventStorming may
 - `docs/ddd-expert/context-map.md`;
 - `docs/ddd-expert/context/<context-slug>/model.md`.
 
-The Context Map contains only Bounded Contexts and semantic dependencies. A Model contains only purpose, essential language, Aggregate Roots, and strategic business rules. There are no meeting records, workflow statuses, revisions, historical links, or staged multi-file write protocol.
+The Context Map contains only Bounded Contexts and semantic dependencies. A Model contains only purpose, essential language, Aggregate Roots, and strategic business rules. Each Business Rule is one scenario-falsifiable claim that names its governed business concept or collaboration, material condition, and accepted decision, permission, transition, required outcome, or invariant. It does not assign tactical behavior ownership or prescribe an implementation mechanism. There are no meeting records, workflow statuses, revisions, historical links, or staged multi-file write protocol.
 
-### Tactical Design is a depth-first grilling interview
+### Tactical Design is a pressure-led, one-Root interview
 
-Tactical Design asks one question at a time, waits for the answer, gives a recommended answer and strongest credible alternative, and retrieves repository facts instead of asking the user. It proceeds depth-first:
+Tactical Design asks one question at a time, waits for the answer, gives a recommended answer and strongest credible alternative, and retrieves repository facts instead of asking the user. It works one Aggregate Root at a time:
 
 ```text
-Aggregate Root A -> Entity B -> Entity C -> Aggregate Root B
+Business Rules
+-> essential business pressures
+-> behavior ownership probes
+-> alternative object compositions
+-> confirmed Aggregate Root slice
 ```
 
-For each Root, it decides only the included Domain Entities and each object's:
+For the current Root or affected slice, Tactical Design groups interacting Business Rules into essential business pressures: the decisions, state transitions, required results, and invariants that the object model must realize. These pressures are the working expression of the Root's essential complexity, not a score. Every pressure remains traceable to confirmed authority. A pressure that cannot be traced, or a contradiction in that authority, returns to EventStorming rather than becoming new tactical meaning.
+
+Each pressure is explored through `<Subject> <acts on object>, producing <result>.` During exploration, different credible Subjects expose alternative behavior owners. Every material Subject, Object, and Result is resolved as a Root, owned Entity, Value Object, owned state, identity reference, external role or authority, semantic result, or actual Domain Event. This makes hidden concepts explicit without promoting every noun into an object.
+
+Tactical Design compares no new split with the strongest relevant split, merge, move, or deletion alternative under the same pressures. A viable candidate realizes every pressure and keeps the Root able to protect cross-object invariants. Among viable candidates, it prefers the composition that localizes decisions with their state while introducing less accidental complexity through exposed knowledge, coordination, duplicated state or decisions, identity and lifecycle, mapping, and test burden. A child Entity earns its place through Domain identity or lifecycle plus cohesive state, rules, or transitions whose deletion would spread decision knowledge elsewhere.
+
+For the accepted composition, Tactical Design records only the included Domain Entities and each retained object's:
 
 - definition;
 - state;
@@ -48,11 +58,11 @@ For each Root, it decides only the included Domain Entities and each object's:
 
 Identity is included in the object heading when meaningful. State expresses lifecycle. Behavior expresses responsibility. Direct effects are described by behavior; asynchronous effects are described by actual Domain Events.
 
-Each behavior is one concise semantic sentence with subject, action, object, and result. The described Root or Entity is the grammatical subject and behavior owner.
+Each behavior is one concise semantic sentence with subject, action, object, and result. The described Root or Entity is the grammatical subject and behavior owner. Meaningful Value Objects and references are named where they affect state or behavior; fields and methods are not inventoried.
 
-Once the user confirms one complete Root slice, Tactical Design writes or replaces that section in `domain-objects.md` immediately. It preserves other confirmed Root slices and does not wait for every Root in the Bounded Context. Unconfirmed Roots remain conversation only.
+Before confirmation, every pressure is assigned, every material behavior slot is resolved, every retained or changed object has a reason to exist, and the strongest credible alternative has been compared under the same pressures. Once the user confirms one complete Root slice, Tactical Design writes or replaces that section in `domain-objects.md` immediately. It preserves other confirmed Root slices and does not wait for every Root in the Bounded Context. Pressure sets, candidate assignments, alternatives, and burden comparisons remain conversation only.
 
-There are no UML or sequence diagrams, design iteration files, call graphs, generic mechanism sections, claims ledgers, or separate software-architecture artifact. Realization enters Tactical Design only when a confirmed requirement makes it material, and the resulting domain constraint is expressed through the relevant object's state, behavior, or actual Domain Event.
+There are no UML or sequence diagrams, design iteration files, call graphs, generic mechanism sections, claims ledgers, or separate software-architecture artifact. A realization concern enters Tactical Design only when a confirmed Business Rule changes the required ownership or guarantee, and the resulting domain constraint is expressed through the relevant object's state, behavior, or actual Domain Event.
 
 ### Object behavior constrains implementation shape
 
@@ -80,4 +90,4 @@ Guard independently and read-only reviews the implementation against the current
 - Current facts have one owner; conversation history remains outside downstream context.
 - Codify loses implementation-time design freedom and gains a clear stop-and-return boundary.
 - Existing historical records remain repository history but are no longer required input for new work.
-- Automated checks validate the sparse file shapes, mirrored plugin content, one-question interaction boundary, depth-first per-Root writing, and method ownership without scoring a preferred domain model.
+- Automated checks validate the sparse file shapes, mirrored plugin content, one-question interaction boundary, pressure-led per-Root writing, and method ownership without scoring a preferred domain model.

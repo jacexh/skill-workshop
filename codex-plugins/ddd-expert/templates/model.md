@@ -16,4 +16,4 @@
 
 ## Business Rules
 
-- <Strategic rule or invariant that shapes the model.>
+- **<Rule name>:** <Governed business concept or collaboration> <accepted decision, permission, transition, required outcome, or invariant> <when a material business condition applies>.

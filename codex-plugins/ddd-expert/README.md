@@ -23,7 +23,7 @@ $ddd-expert:guard
 
 EventStorming keeps its complete ten-step discussion method. It identifies Bounded Contexts and Aggregate Roots, asks one question at a time, and writes only accepted current strategic knowledge.
 
-Tactical Design uses the same relentless interview style. It works depth-first through one Aggregate Root and all of its Entities, then moves to the next Root. As soon as the user confirms one Root, it writes that Root's slice to `domain-objects.md`.
+Tactical Design uses the same relentless interview style. It works one Aggregate Root at a time, derives essential business pressures from confirmed Business Rules, uses behavior statements to expose candidate owners and concepts, and compares object compositions by pressure coverage and introduced design burden. As soon as the user confirms one Root, it writes that Root's slice to `domain-objects.md`.
 
 Codify reads the accepted strategic model and current domain objects without editing either. Guard independently checks whether the implementation preserves their ownership and behavior.
 

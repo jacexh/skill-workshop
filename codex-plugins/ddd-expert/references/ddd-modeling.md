@@ -16,6 +16,7 @@ description: Strategic DDD guidance for EventStorming, language, Aggregate Roots
 - **[DDD Principle]** Domain experts and accepted business authority decide business meaning. Code, tests, schemas, and package structure prove current implementation, not desired meaning.
 - **[Heuristic]** Use examples and counterexamples to test a model. A label that sounds like DDD is not evidence.
 - **[House Rule]** Keep analytical conversation separate from accepted current artifacts. Persist the smallest accepted model that downstream work needs.
+- **[House Rule]** A `model.md` Business Rule is one independently challengeable claim about an accepted business decision, permission, transition, required outcome, or invariant. Name the governed business concept or collaboration and any condition that changes the meaning. A concrete scenario must be able to contradict the rule, and downstream design must be able to use it without replaying the workshop. Do not assign tactical behavior ownership or prescribe an implementation mechanism in the rule.
 - **[House Rule]** Ask one material question at a time. Investigate facts available in the repository before asking the user to retrieve them.
 - **[Heuristic]** For each design decision, recommend one answer and explain the strongest credible alternative.
 
@@ -54,7 +55,9 @@ Use the complete causal sequence. Depth may vary with the scope; the sequence do
 - **[DDD Principle]** An Entity has identity across change. A Value Object is defined by its value.
 - **[Heuristic]** Identity or a distinct lifecycle alone may instead reveal an owned Entity rather than another Aggregate Root.
 - **[House Rule]** Owned Entities may hold distinct state and behavior inside the Root's consistency boundary. The Root composes their responsibilities; it does not have to absorb every behavior.
-- **[Heuristic]** Test each proposed object with split, merge, move, and deletion. Keep it only when it owns state or behavior that would otherwise be duplicated or misplaced.
+- **[Heuristic]** For the current Root or affected slice, group interacting Business Rules into essential business pressures: decisions, state transitions, required results, and invariants that the object model must realize. Keep every pressure traceable to its governing rules.
+- **[Heuristic]** Probe each pressure as `<Subject> <acts on object>, producing <result>.` Vary the Subject to test ownership and resolve each material target and result before preserving an object; a noun alone does not establish an Entity.
+- **[Heuristic]** Test each proposed object by reassigning the same pressures under the strongest relevant split, merge, move, or deletion alternative. Keep it when it localizes cohesive state and decisions that the alternative would duplicate or expose elsewhere.
 - **[House Rule]** Express an object's current design through definition, state, behavior, and actual Domain Events. Identity belongs in its heading when meaningful.
 
 ## 5. Bounded Contexts
@@ -78,7 +81,7 @@ Use the complete causal sequence. Depth may vary with the scope; the sequence do
 - **[House Rule]** Local answers are working decisions until the user sees and confirms the integrated strategic model.
 - **[House Rule]** Strategic confirmation covers scope, Bounded Contexts, Aggregate Roots, business rules, semantic dependencies, and visible uncertainty.
 - **[House Rule]** Current artifacts contain only accepted knowledge required by downstream work.
-- **[House Rule]** Tactical object design is confirmed one Aggregate Root at a time in depth-first order. Each confirmed Root slice may be persisted without waiting for unrelated Roots.
+- **[House Rule]** Tactical object design is confirmed one Aggregate Root at a time, following the smallest affected business-pressure slice rather than an Entity checklist. Each confirmed Root slice may be persisted without waiting for unrelated Roots.
 - **[Heuristic]** When evidence defeats a conclusion, revisit the smallest dependent model that can restore a coherent explanation rather than patching local names.
 
 ## Related references
