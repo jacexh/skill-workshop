@@ -15,7 +15,7 @@ docs/ddd-expert/
 
 - `context-map.md` owns the Bounded Context inventory and semantic dependencies.
 - `model.md` owns one context's purpose, essential language, Aggregate Roots, and strategic business rules.
-- `domain-objects.md` owns confirmed Aggregate Root slices: their Entities, definition, state, behavior, and actual Domain Events.
+- `domain-objects.md` owns confirmed Aggregate Root slices: their Entities, definition, Facts, Lifecycle State, behavior, and actual Domain Events.
 
 Candidates remain in conversation. These files contain no meeting transcript, design history, workflow status, diagrams, implementation sequence, or duplicated project decision.
 

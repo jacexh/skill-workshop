@@ -1,6 +1,6 @@
 ---
 name: tactical-design
-description: Use when a confirmed strategic model still needs a relentless, user-confirmed design of Aggregate internals, domain-object state, behavior, or actual Domain Events.
+description: Use when a confirmed strategic model still needs a relentless, user-confirmed design of Aggregate internals, domain-object Facts, Lifecycle State, behavior, or actual Domain Events.
 ---
 
 # Tactical Design
@@ -35,7 +35,7 @@ Work one Aggregate Root at a time. Within it, follow the smallest affected busin
 
 ## Derive essential business pressures
 
-For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, state transition, required result, or invariant that the object model must realize. Together, the pressures are the working expression of the Root's essential complexity, not a score or a claim that only one phrasing is possible. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
+For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, Lifecycle State transition, actual Domain Event, or invariant that the object model must realize. Together, the pressures are the working expression of the Root's essential complexity, not a score or a claim that only one phrasing is possible. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
 
 Every pressure names the governing Business Rules in the working conversation. Stories, specifications, and code may challenge whether those rules are complete, but they do not add confirmed business meaning here. When a material pressure cannot be traced to the Model or the rules contradict it, return the smallest contradiction to EventStorming. Keep the pressure set transient; it is reasoning input, not another artifact.
 
@@ -44,19 +44,28 @@ Every pressure names the governing Business Rules in the working conversation. S
 For each pressure, explore candidate responsibility with short behavior statements:
 
 ```text
-<Subject> <acts on object>, producing <result>.
+<Subject> <domain verb> <Object>.
 ```
 
 Treat the slots semantically:
 
 - **Subject** is the candidate behavior owner;
-- **act** is the current Domain behavior;
-- **object** is the Domain target or state the behavior acts on;
-- **result** is the resulting state, decision, value, or fact.
+- **domain verb** names the business action in the owning Bounded Context's language;
+- **Object** is the Domain target the behavior acts on.
 
-During exploration, vary the Subject when different owners are credible. Resolve every material Subject, Object, and Result as the current Root, an owned Entity, a Value Object, owned state, an identity reference to another Root, an external role or authority, a semantic result, or an actual Domain Event. Explicit resolution does not promote every noun into a Domain object.
+When a behavior transitions the object's Lifecycle State, name the transition:
 
-In the accepted design, the object whose behavior is described becomes the grammatical Subject and behavior owner. The sentence describes Domain meaning, not a method signature or call graph. An actual Domain Event names a fact that production code must emit or consume. Analytical Workshop Events never appear in `domain-objects.md`.
+```text
+<Subject> <domain verb> <Object>, transitioning <Lifecycle State name> from <before> to <after>.
+```
+
+Do not force this clause onto behavior that has no Lifecycle State transition. There is no universal result slot.
+
+During exploration, vary the Subject when different owners are credible. Resolve every material Subject and Object as the current Root, an owned Entity, a Value Object, a Fact owned by one of those objects, an identity reference to another Root, or an external role or authority, and name each Lifecycle State transition explicitly. Explicit resolution does not promote every noun into a Domain object.
+
+In the accepted design, the object whose behavior is described becomes the grammatical Subject and behavior owner. Name the behavior with an intention-revealing Domain verb phrase, not a technical implementation action. The sentence describes Domain meaning, not a method signature or call graph.
+
+When a candidate Domain Event appears, load the Domain Event rules in `ddd-collaboration.md` and apply their selection predicate. List a selected event separately as `<Event> — recorded by <Behavior>`; the entry contains no selection reason. Analytical Workshop Events never appear in `domain-objects.md`.
 
 ## Compare object compositions
 
@@ -66,7 +75,7 @@ For each candidate, map every pressure to a behavior owner and compare the desig
 
 Prefer the viable candidate that localizes each decision with the state it needs while exposing less knowledge and coordination. Keep a child Entity when it has Domain identity or lifecycle plus cohesive state, rules, or transitions, and merging it would concretely spread or duplicate decision knowledge. Otherwise use the simpler supported representation. The Root composes owned-object behavior; callers do not inspect internal state to reproduce its decisions.
 
-Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or guarantee. Express that constraint through the affected object's state, behavior, or actual Domain Event, or through the project's decision mechanism when it is a hard-to-reverse project choice.
+Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or guarantee. Express that constraint through the affected object's Facts, Lifecycle State, behavior, or actual Domain Event, or through the project's decision mechanism when it is a hard-to-reverse project choice.
 
 ## Complete the Root slice
 
@@ -74,15 +83,16 @@ For the accepted candidate, determine only:
 
 1. which Domain Entities belong inside the Root's consistency boundary;
 2. each retained object's business definition;
-3. each retained object's meaningful state;
-4. each retained object's behavior and semantic result;
-5. actual Domain Events that implementation produces or consumes.
+3. each retained object's Facts;
+4. each retained object's Lifecycle State, or that it has no explicit Lifecycle State;
+5. each retained object's behavior, including any Lifecycle State transition it makes;
+6. actual Domain Events recorded by a named behavior.
 
-Identity is written in the object heading when meaningful. State already expresses lifecycle. Behavior already expresses responsibility. Direct effects belong in behavior descriptions; asynchronous effects belong in actual Domain Events. Name material Value Objects and references where their meaning affects state or behavior, but do not inventory fields or methods. Do not add separate lifecycle, responsibility, collaboration, caller, or impact sections.
+Identity is written in the object heading when meaningful. Facts are the business-significant facts owned by the object and required to understand a Behavior or Invariant; they are neither a field inventory nor Domain Events. Lifecycle State records the object's named state-machine states and their Domain meaning. Use the concrete Domain name, such as `PlayerState` or `HandStatus`, rather than an unnamed lifecycle flag. Behavior already expresses responsibility and names a Lifecycle State transition when one occurs. Domain Events are listed separately and point to the behavior that records them; a Lifecycle State transition alone does not require an event. Name material Value Objects and references where their meaning affects Facts or behavior, but do not inventory fields or methods. Do not add separate responsibility, collaboration, caller, or impact sections.
 
 ## Per-Root confirmation and writing
 
-Show the complete compact slice for the current Aggregate Root and its Entities. Before asking for confirmation, verify that every pressure is traceable and assigned, every material Subject, Object, and Result is resolved, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
+Show the complete compact slice for the current Aggregate Root and its Entities. Before asking for confirmation, verify that every pressure is traceable and assigned, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
 
 Write one Aggregate Root slice as soon as the user confirms that Root. Update or replace only that Root's section in `docs/ddd-expert/context/<context-slug>/domain-objects.md`, preserving other confirmed Root slices. Never write an unconfirmed Aggregate Root. Do not wait for every Aggregate Root in the Bounded Context, and do not bundle unrelated files into the write.
 
@@ -100,4 +110,4 @@ implementation can begin, and report any blocker with current filesystem state.
 
 - Load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for Business Rule-to-pressure, Aggregate, and Entity boundary reasoning.
 - Load relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md) when Entity, Value Object, Domain Service, Repository, or layer ownership affects the object decision.
-- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) only when an actual Domain Event or cross-context contract is selected.
+- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) when a candidate Domain Event or cross-context contract appears.

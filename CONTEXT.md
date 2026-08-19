@@ -67,8 +67,16 @@ The externally addressed owner of one immediate consistency boundary. It compose
 _Avoid_: service class, table group, feature folder
 
 **Domain Object Slice**:
-One confirmed Aggregate Root section in `domain-objects.md`, containing the Root and its owned Entities. Each object records only definition, state, behavior, and actual Domain Events.
+One confirmed Aggregate Root section in `domain-objects.md`, containing the Root and its owned Entities. Each object records only definition, Facts, Lifecycle State, behavior, and actual Domain Events.
 _Avoid_: UML, sequence document, implementation plan
+
+**Object Facts**:
+The business-significant facts owned by a Root or Entity and required to understand a Behavior or Invariant. They appear under `Facts` and are neither a field inventory nor Domain Events.
+_Avoid_: all persisted fields, runtime snapshot, event history
+
+**Lifecycle State**:
+The named state-machine states owned by a Root or Entity and their Domain meaning. The object records `No explicit Lifecycle State` when none exists; behaviors name any transition using the concrete Domain state name.
+_Avoid_: unnamed lifecycle flag, ordinary fact change, inferred state machine
 
 **Pressure-led Tactical Design**:
 The interview order that completes one Aggregate Root at a time by following its smallest affected business-pressure slice. It expresses essential complexity as pressures traceable to Business Rules, probes candidate behavior ownership, and compares credible object compositions by pressure coverage and accidental design burden. Questions are asked one at a time with a recommended answer and a credible alternative.
@@ -79,11 +87,11 @@ The user's acceptance of one complete Aggregate Root slice after its object comp
 _Avoid_: whole-context write barrier, incremental unconfirmed write
 
 **Behavior Description**:
-A concise domain sentence whose subject, action, object, and result expose the concepts involved in one behavior. During design, varying the subject tests credible behavior owners; in the accepted design, the grammatical subject is the owning Root or Entity and normally maps to a method on that object.
+A concise Domain sentence in the form `<Subject> <domain verb> <Object>.` The verb names the business action in the owning Bounded Context's language. During design, varying the subject tests credible behavior owners; in the accepted design, the grammatical subject is the owning Root or Entity and normally maps to a method on that object. When the behavior transitions Lifecycle State, the sentence names the concrete state and its before/after values.
 _Avoid_: responsibility heading, method signature, caller list
 
 **Actual Domain Event**:
-A selected local domain fact that production code must emit or consume for a named reaction or as durable evidence of the occurrence. It is recorded with the object behavior that establishes or consumes it.
+A selected local Domain fact that production code must record for a named reaction or as durable evidence of the occurrence. In a Domain Object Slice it is listed separately as `<Event> — recorded by <Behavior>`; the selection reason is not part of the entry.
 _Avoid_: Workshop Event, provider notification, log entry
 
 **Semantic Dependency**:

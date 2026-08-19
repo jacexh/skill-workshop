@@ -41,7 +41,7 @@ docs/ddd-expert/
 
 - `context-map.md`: Bounded Contexts and semantic dependencies.
 - `model.md`: context purpose, essential language, Aggregate Roots, and strategic business rules.
-- `domain-objects.md`: confirmed Root slices containing object definition, state, behavior, and actual Domain Events.
+- `domain-objects.md`: confirmed Root slices containing object definition, Facts, Lifecycle State, behavior, and actual Domain Events.
 
 Only the accepted current-model files described above are workflow artifacts; workshop conversation and implementation history remain transient.
 

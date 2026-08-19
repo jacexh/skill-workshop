@@ -43,7 +43,7 @@ Use the complete causal sequence. Depth may vary with the scope; the sequence do
 
 - **[DDD Principle]** A past-tense occurrence may help explain the business without becoming a Domain Event.
 - **[DDD Principle]** A Domain Event is a selected local domain fact needed for a named reaction or as durable evidence of the occurrence itself.
-- **[House Rule]** Record an actual Domain Event with the object behavior that establishes or consumes it. Omit it when production code needs only the resulting state.
+- **[House Rule]** Treat a proposed production Domain Event as a candidate and apply the selection and ownership rules in `ddd-collaboration.md` before recording it in tactical design.
 - **[Heuristic]** Cross-context consumers rely on a producer-owned published contract, not the producer's internal Domain Event type.
 
 ## 4. Aggregate Roots and owned objects
@@ -55,10 +55,10 @@ Use the complete causal sequence. Depth may vary with the scope; the sequence do
 - **[DDD Principle]** An Entity has identity across change. A Value Object is defined by its value.
 - **[Heuristic]** Identity or a distinct lifecycle alone may instead reveal an owned Entity rather than another Aggregate Root.
 - **[House Rule]** Owned Entities may hold distinct state and behavior inside the Root's consistency boundary. The Root composes their responsibilities; it does not have to absorb every behavior.
-- **[Heuristic]** For the current Root or affected slice, group interacting Business Rules into essential business pressures: decisions, state transitions, required results, and invariants that the object model must realize. Keep every pressure traceable to its governing rules.
-- **[Heuristic]** Probe each pressure as `<Subject> <acts on object>, producing <result>.` Vary the Subject to test ownership and resolve each material target and result before preserving an object; a noun alone does not establish an Entity.
+- **[Heuristic]** For the current Root or affected slice, group interacting Business Rules into essential business pressures: decisions, Lifecycle State transitions, actual Domain Events, and invariants that the object model must realize. Keep every pressure traceable to its governing rules.
+- **[Heuristic]** Probe each pressure as `<Subject> <domain verb> <Object>.` Vary the Subject to test ownership, name any Lifecycle State transition that occurs, and resolve each material target before preserving an object. Name behavior with an intention-revealing Domain verb phrase rather than a technical implementation action; a noun alone does not establish an Entity.
 - **[Heuristic]** Test each proposed object by reassigning the same pressures under the strongest relevant split, merge, move, or deletion alternative. Keep it when it localizes cohesive state and decisions that the alternative would duplicate or expose elsewhere.
-- **[House Rule]** Express an object's current design through definition, state, behavior, and actual Domain Events. Identity belongs in its heading when meaningful.
+- **[House Rule]** Express an object's current design through definition, Facts, Lifecycle State, behavior, and actual Domain Events. Facts are business-significant facts owned by the object, not a field inventory or Domain Events. Lifecycle State records named state-machine states, or explicitly records that none exists. List each actual Domain Event separately and point it to the behavior that records it. Identity belongs in the object heading when meaningful.
 
 ## 5. Bounded Contexts
 

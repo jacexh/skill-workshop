@@ -58,7 +58,7 @@ Use all ten steps in causal order during discovery. A thesis review may acknowle
 9. **Bounded Contexts**: separate language, authority, policy, lifecycle, and model purpose where they diverge.
 10. **Context collaboration**: identify semantic dependencies, named published contracts, translation, and downstream reliance.
 
-Workshop Events stay in the conversation as analytical evidence. A local occurrence becomes a Domain Event only when the implemented domain needs that occurrence as a named fact; Tactical Design records it on the object that produces or consumes it.
+Workshop Events stay in the conversation as analytical evidence. A proposed production Domain Event remains a candidate until the Actual Domain Event rules select it; Tactical Design owns the object-level recording of any selected event.
 
 Derive strategic boundaries from business language, authority, policy, lifecycle, and model purpose. Admit a concern only when it changes a business right, obligation, value, authority, decision, outcome, or required next action. Treat implementation observations as evidence about that business meaning; later design owns the realization.
 
@@ -71,7 +71,7 @@ Persist only accepted current knowledge:
 - `docs/ddd-expert/context-map.md` owns the Bounded Context inventory and semantic dependencies.
 - `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, and strategic business rules.
 
-`model.md` remains strategic. Tactical Design records object definition, state, behavior, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
+`model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, behavior, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
 
 ## Confirmation and writing
 
@@ -102,3 +102,4 @@ when it owns the next step, and report any blocker with current filesystem state
 ## References
 
 - Load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for Workshop Event selection, language, Aggregate, Bounded Context, and Context Map reasoning.
+- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) when a candidate Domain Event or cross-context contract appears.
