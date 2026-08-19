@@ -1,99 +1,39 @@
 ---
 name: codify
-description: Use when accepted strategic and domain-object design must be implemented, tested, or mechanically repaired in the repository's backend house style.
+description: Use when accepted strategic and domain-object design must be realized as working backend code in the repository's project and active-language House Style.
 ---
 
 # Codify
 
-Implement the accepted domain model. Optimize for semantic completion of the requested slice, not the smallest local edit that leaves obsolete responsibilities alive.
+Implement the accepted domain model as working backend code. Complete the requested behavior using the repository's project and active-language House Style.
 
-## Authority
+## Contract
 
-Use this order when inputs disagree:
+Read the user's current scope, affected `model.md` and `domain-objects.md`, relevant project instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
 
-1. the user's current scope and explicit accepted decisions;
-2. affected `context-map.md`, `model.md`, and `domain-objects.md` content;
-3. accepted project Specs, PRDs, ADRs, and constraints;
-4. applicable conditional House Style;
-5. existing code and tests as evidence of current behavior.
+The DDD artifacts define accepted business meaning, Aggregate boundaries, and Domain-object state and behavior ownership. They are semantic constraints, not a complete software design. Their silence about remaining software structure is implementation latitude, not a missing modeling step.
 
-Code and tests do not silently override accepted object ownership. A new user request that changes business meaning or object design is a modeling input, not permission for Codify to improvise the model.
+Fill unspecified realization choices directly using accepted project constraints and applicable House Style, with repository code and tests as evidence for local integration. Introduce the software structure the requested behavior needs and apply House Style to that actual surface.
 
-Within each affected context, read `model.md` and `domain-objects.md` together: the first fixes the strategic boundary and the second fixes object ownership.
+DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
 
-DDD artifacts are read-only during Codify. Never edit `context-map.md`, `model.md`, or `domain-objects.md` to make implementation easier. When implementation evidence contradicts accepted authority, stop and route the contradiction:
+## Implement
 
-- changed business meaning, Bounded Context, Aggregate Root, or strategic rule -> EventStorming;
-- changed object definition, state, behavior, or actual Domain Event -> Tactical Design;
-- hard-to-reverse project decision -> the project's decision mechanism.
+Implement the complete requested slice across the code surfaces it actually needs. Leave one coherent realization of each accepted responsibility and remove obsolete parallel responsibility exposed by the change.
 
-Resume implementation only after the relevant authority is confirmed.
+Load only House Style guidance for the active language and code surfaces actually touched. Apply its relevant rules and make the remaining engineering choices directly.
 
-## Workflow
+## Verify
 
-### 1. **Preflight before edits**
-
-- Read the complete affected strategic and tactical sections.
-- Inspect repository instructions and the actual implementation path.
-- Pin the requested scope, comparison base, language, generated-code boundaries, and verification commands.
-- Map each accepted Root, Entity, behavior, state carrier, and Domain Event in scope to its intended production owner.
-- Identify objects and mechanisms whose responsibility is removed, not merely renamed.
-
-If a required `domain-objects.md` Root slice is absent or ambiguous, route to Tactical Design before coding.
-
-### 2. Implement the semantic slice
-
-Work from Domain outward:
-
-1. establish the accepted object structure end to end;
-2. implement state and behavior on the owning Root or Entity;
-3. implement actual Domain Event creation or consumption where selected;
-4. connect Application orchestration and required semantic ports;
-5. adapt Infrastructure, Interface, and Runtime only where the slice needs them.
-
-A Behavior listed under a Root or Entity is realized as a method on that object. A free function is appropriate only for construction, a pure calculation with no natural Domain owner, or a private algorithm behind an owning method. When a free function primarily accepts one Domain object to read or change its state, treat it as receiver-shaped evidence that the behavior belongs on that object's method surface; keep it free only with a concrete ownership reason.
-
-For object deletion or ownership migration, compare responsibilities and state carriers, not only identifiers. Remove obsolete fields, methods, types, compatibility projections, parallel paths, and tests that preserve the old responsibility. A renamed substitute is not deletion.
-
-Tests support the accepted design. A narrow green test does not justify retaining a forbidden object or duplicating its decision elsewhere. When a structural migration spans several files, make the complete accepted structure the next stable checkpoint, then return to small behavior cycles.
-
-Apply transaction, concurrency, recovery, messaging, or lifecycle House Rules only when the accepted design or project authority establishes their condition. Do not introduce them as generic completeness.
-
-### 3. Verify implementation evidence
-
-- Add or update high-signal tests at the behavior boundary changed by the slice.
-- Run the smallest focused check after each coherent edit.
-- Run the relevant package or module suite after the slice is connected.
-- Run the repository's broader required checks before handoff.
-- Inspect the final diff for semantic leftovers, generated artifacts, and unintended files.
-
-Record commands, exit status, concise results, and checks not run with the reason. Verification proves the implementation snapshot; it never modifies design authority.
-
-### 4. Handoff
-
-Provide Guard with a compact navigation note when independent review is requested:
-
-- immutable base and target or complete working-tree snapshot;
-- governing artifact paths and headings;
-- changed production symbols grouped by accepted Root behavior;
-- verification receipts;
-- known uncertainty that affects semantic review.
-
-Keep the handoff outside `docs/ddd-expert`. Do not predeclare Guard findings.
+Run repository tests and checks proportionate to the changed behavior and risk. Inspect the final diff to confirm the accepted behavior is realized, obsolete parallel responsibility is gone, and no unintended files are included.
 
 ## Completion
 
-End with the implemented behaviors, structural deletions, changed files, and
-verification receipts. If authority or execution prevents completion, stop at
-the contradiction or failure, cite its evidence, name EventStorming or Tactical
-Design when it owns the decision, and report current repository state.
+End with the implemented behavior, changed files, verification results, and residual risk. Completion requires the requested behavior, relevant House Style, and verification to agree in the final code.
 
 ## References
 
-- After surface classification, load the smallest relevant sections.
-- Infer the active language from the repository and accepted project choice.
-- For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md) and follow only the router leaves for touched Domain, Application, Transport, CQRS, Infrastructure, events/messages, taskqueue, Runtime, scaffold, or generated-code surfaces.
-- For Python or TypeScript, load only the sections for touched surfaces from [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
-- Load relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md) when domain ownership or realization shape must be checked.
-- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for actual Domain Event, message, or cross-context work.
-- Load [../../references/database.md](../../references/database.md) for schema, migration, index, SQL, or persistence work.
+- For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md) and follow only the branches for code actually touched.
+- For Python or TypeScript, load only the touched surfaces from [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
+- Load relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md) when Domain ownership or a layer boundary is being realized.
+- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for accepted event or cross-context work, and [../../references/database.md](../../references/database.md) for actual persistence or schema work.

@@ -115,4 +115,4 @@ Do not substitute Gin/Echo for Chi, grpc-go for ConnectRPC, GORM/sqlc for xorm, 
 | Internal task, polling, periodic work | Task queue plus every touched Layer Guide |
 | Fx/config/server/worker/goroutine/shutdown/telemetry | Runtime and Scaffold |
 
-If the change would alter confirmed business boundaries, consistency meaning, published contracts, or recovery semantics, return to EventStorming. Otherwise Codify selects the engineering realization from accepted project constraints, repository evidence, and the applicable House Rules.
+Codify selects the engineering realization from accepted project constraints, repository evidence, and the applicable House Rules while preserving confirmed business boundaries, consistency meaning, published contracts, and recovery semantics.

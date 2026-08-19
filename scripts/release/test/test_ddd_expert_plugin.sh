@@ -260,7 +260,7 @@ assert_contains "$tactical_design_skill" '<Subject> <acts on object>, producing 
 assert_contains "$tactical_design_skill" 'becomes the grammatical Subject and behavior owner' "Tactical Design should bind accepted behavior to an object"
 assert_not_contains "$tactical_design_skill" 'every Entity inside' "Tactical Design should not interview through an entity checklist"
 assert_contains "$tactical_design_skill" '`domain-objects.md`' "Tactical Design should own the current domain-object file"
-assert_contains "$tactical_design_skill" 'Codify never edits this file' "Tactical authority should stay stable during implementation"
+assert_not_contains "$tactical_design_skill" 'Codify' "Tactical Design should not prescribe implementation workflow"
 assert_contains "$tactical_design_skill" 'Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or guarantee' "Tactical Design should admit realization concerns through business authority"
 assert_not_contains "$tactical_design_skill" 'transaction, concurrency, recovery, or call direction' "Tactical Design should not prime speculative system mechanisms"
 
@@ -280,13 +280,19 @@ assert_not_contains "$artifact_layout_template" 'architecture.md' "artifact layo
 
 assert_contains "$codify_skill" '`model.md` and `domain-objects.md`' "Codify should consume strategic and tactical authority"
 assert_contains "$codify_skill" 'DDD artifacts are read-only during Codify' "Codify should not revise design while implementing"
-assert_contains "$codify_skill" 'stop and route the contradiction' "Codify should return contradictions to modeling"
-assert_contains "$codify_skill" 'compare responsibilities and state carriers, not only identifiers' "Codify should detect semantic renaming"
-assert_contains "$codify_skill" 'establish the accepted object structure end to end' "Codify should not preserve obsolete objects for local green tests"
-assert_contains "$codify_skill" 'A Behavior listed under a Root or Entity is realized as a method on that object' "Codify should project object behavior to a method"
-assert_contains "$codify_skill" 'construction, a pure calculation with no natural Domain owner, or a private algorithm behind an owning method' "Codify should narrowly bound free functions"
-assert_contains "$codify_skill" 'primarily accepts one Domain object to read or change its state' "Codify should detect receiver-shaped free functions"
-assert_contains "$codify_skill" 'Verify implementation evidence' "Codify should verify implementation"
+assert_contains "$codify_skill" 'semantic constraints, not a complete software design' "Codify should treat sparse design as constraints rather than an inventory"
+assert_contains "$codify_skill" 'implementation latitude, not a missing modeling step' "Codify should own unspecified software realization"
+assert_contains "$codify_skill" 'applicable House Style' "Codify should resolve realization through House Style"
+assert_contains "$codify_skill" 'code surfaces actually touched' "Codify should load House Style only for current work"
+assert_contains "$codify_skill" 'Implement the complete requested slice' "Codify should realize the accepted behavior coherently"
+assert_contains "$codify_skill" 'tests and checks proportionate to the changed behavior and risk' "Codify should verify proportionately"
+assert_not_contains "$codify_skill" 'stop and route' "Codify should not create a modeling return loop"
+assert_not_contains "$codify_skill" 'EventStorming' "Codify should not route back to strategic modeling"
+assert_not_contains "$codify_skill" 'Tactical Design' "Codify should not route back to tactical modeling"
+assert_not_contains "$codify_skill" 'Preflight before edits' "Codify should not impose a preflight checklist"
+assert_not_contains "$codify_skill" 'Work from Domain outward' "Codify should not prescribe implementation order"
+assert_not_contains "$codify_skill" 'A free function' "Codify should leave detailed realization rules in House Style"
+assert_not_contains "$codify_skill" 'Provide Guard with' "Codify should not own a Guard handoff protocol"
 
 assert_contains "$guard_skill" '`docs/ddd-expert/context-map.md`, affected `model.md`, and `domain-objects.md`' "Guard should review the current model"
 assert_contains "$guard_skill" 'one fresh, read-only agent context distinct from the implementer' "Guard should remain independent"
@@ -320,8 +326,8 @@ assert_contains "$CODEX_ROOT/README.md" 'one question at a time' "Codex README s
 assert_contains "$CODEX_ROOT/README.md" 'codex plugin marketplace upgrade skill-workshop-codex' "Codex README should upgrade by marketplace name"
 assert_contains "$CLAUDE_ROOT/README.md" 'verified implementation checkpoint' "Claude README should expose the Codify checkpoint"
 assert_contains "$CODEX_ROOT/README.md" 'verified implementation checkpoint' "Codex README should expose the Codify checkpoint"
-assert_contains "$CLAUDE_ROOT/README.md" 'House Style supplies conditional realization rules' "Claude README should bound House Style ownership"
-assert_contains "$CODEX_ROOT/README.md" 'House Style supplies conditional realization rules' "Codex README should bound House Style ownership"
+assert_contains "$CLAUDE_ROOT/README.md" 'House Style owns realization choices left open by the model' "Claude README should make House Style the realization default"
+assert_contains "$CODEX_ROOT/README.md" 'House Style owns realization choices left open by the model' "Codex README should make House Style the realization default"
 if rg -n -F 'docs/ddd/' "$CLAUDE_ROOT" "$CODEX_ROOT" >/dev/null; then
   rg -n -F 'docs/ddd/' "$CLAUDE_ROOT" "$CODEX_ROOT" >&2
   fail "ddd-expert should use docs/ddd-expert rather than the retired docs/ddd path"
@@ -332,8 +338,8 @@ for retired_artifact in 'docs/ddd-expert/model.md' 'docs/ddd-expert/design.md'; 
     fail "ddd-expert should keep artifacts under per-context directories rather than shared root files"
   fi
 done
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Use this order when inputs disagree' "codify should define authority order"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" '**Preflight before edits**' "codify should preflight before modifying code"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Their silence about remaining software structure is implementation latitude' "codify should own design gaps outside the Domain contract"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Load only House Style guidance for the active language and code surfaces actually touched' "codify should apply House Style selectively"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '**Use question-led implementation depth**' "guard should deepen only from a falsifiable architecture question"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '`clear`, `violation`, or `evidence_gap`' "guard should use terminal verdicts"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'keep it read-only' "guard should keep review work read-only"
@@ -344,7 +350,7 @@ if rg -n 'ddd-golang-(scaffold|domain|application|transport|cqrs|infrastructure|
 fi
 assert_contains "$event_storming_skill" '../../references/ddd-modeling.md' "EventStorming should load strategic modeling guidance"
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Go, start with' "codify should enter Go guidance through its router"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Python or TypeScript, load only the sections for touched surfaces' "codify should load compact language guides selectively"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Python or TypeScript, load only the touched surfaces' "codify should load compact language guides selectively"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Go, use' "guard should enter Go guidance through its router"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Python or TypeScript, load only the sections owning each architecture unit' "guard should load compact language guides selectively"
 
@@ -696,7 +702,7 @@ assert_contains "$ROOT/README.md" 'derives essential business pressures from con
 assert_contains "$ROOT/README.md" 'compares credible object compositions by pressure coverage and accidental design burden' "root README should expose Tactical Design tradeoffs"
 assert_contains "$ROOT/README.md" 'actual Domain Events' "root README should distinguish production events"
 assert_contains "$ROOT/README.md" 'receiver-shaped free functions require a concrete ownership reason' "root README should bind behavior to methods"
-assert_contains "$ROOT/README.md" 'Codify treats the strategic model and domain-object slices as read-only authority' "root README should prevent implementation-time design edits"
+assert_contains "$ROOT/README.md" 'Codify treats the strategic model and domain-object slices as read-only semantic constraints, not a complete software design' "root README should define Codify implementation latitude"
 
 sparse_adr="$ROOT/docs/adr/0009-sparse-current-ddd-artifacts.md"
 [ -f "$sparse_adr" ] || fail "sparse DDD workflow ADR missing"
@@ -710,7 +716,7 @@ assert_contains "$sparse_adr" 'writes or replaces that section in `domain-object
 assert_contains "$sparse_adr" 'definition;' "ADR should define object descriptions"
 assert_contains "$sparse_adr" 'actual Domain Events.' "ADR should define production events"
 assert_contains "$sparse_adr" 'A behavior listed under a Root or Entity is normally realized as a method on that object' "ADR should define method ownership"
-assert_contains "$sparse_adr" 'Codify and Guard do not edit design' "ADR should preserve stable design authority"
+assert_contains "$sparse_adr" 'Codify realizes the model through House Style' "ADR should define House Style realization"
 assert_contains "$sparse_adr" 'There are no UML or sequence diagrams' "ADR should remove diagram artifacts"
 assert_contains "$sparse_adr" 'no such lifecycle exists' "ADR should remove artifact state machinery"
 
@@ -731,6 +737,7 @@ assert_contains "$ROOT/CONTEXT.md" '**Per-Root Confirmation**:' "shared vocabula
 assert_contains "$ROOT/CONTEXT.md" '**Behavior Description**:' "shared vocabulary should define behavior sentences"
 assert_contains "$ROOT/CONTEXT.md" '**Actual Domain Event**:' "shared vocabulary should distinguish production events"
 assert_contains "$ROOT/CONTEXT.md" 'the grammatical subject is the owning Root or Entity and normally maps to a method on that object' "shared vocabulary should bind accepted behavior to methods"
+assert_not_contains "$ROOT/CONTEXT.md" '**Modeling Contradiction**:' "shared vocabulary should not preserve a Codify return loop"
 assert_not_contains "$ROOT/CONTEXT.md" '**Bounded Context Architecture**:' "shared vocabulary should remove architecture artifact authority"
 assert_not_contains "$ROOT/CONTEXT.md" '**Tactical Design Claim**:' "shared vocabulary should remove claims machinery"
 

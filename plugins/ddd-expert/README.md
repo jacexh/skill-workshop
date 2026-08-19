@@ -25,9 +25,9 @@ EventStorming keeps its complete ten-step discussion method. It identifies Bound
 
 Tactical Design uses the same relentless interview style. It works one Aggregate Root at a time, derives essential business pressures from confirmed Business Rules, uses behavior statements to expose candidate owners and concepts, and compares object compositions by pressure coverage and introduced design burden. As soon as the user confirms one Root, it writes that Root's slice to `domain-objects.md`.
 
-Codify reads the accepted strategic model and current domain objects without editing either. Guard independently checks whether the implementation preserves their ownership and behavior.
+Codify treats the accepted strategic model and current domain objects as read-only semantic constraints, then fills the required software structure through project and active-language House Style. Guard independently checks whether the implementation preserves their ownership and behavior.
 
-House Style supplies conditional realization rules only after the model establishes their conditions. It realizes only requirements established by the accepted model and project authority.
+House Style owns realization choices left open by the model and applies only to code the requested behavior needs. It does not extend accepted business meaning into a software-structure checklist.
 
 ## Artifacts
 
@@ -52,7 +52,7 @@ Only the accepted current-model files described above are workflow artifacts; wo
 - `/ddd-expert:codify`: implement accepted object slices and verify them.
 - `/ddd-expert:guard`: perform a fresh, read-only semantic review.
 
-An implementation contradiction stops Codify. Strategic contradictions return to EventStorming; object-definition, state, behavior, or actual Domain Event contradictions return to Tactical Design.
+Unspecified software design is Codify implementation latitude, resolved directly through project constraints and the active-language House Style.
 
 ## Templates
 

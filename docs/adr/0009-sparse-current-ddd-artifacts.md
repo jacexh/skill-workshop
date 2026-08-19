@@ -74,11 +74,11 @@ A behavior listed under a Root or Entity is normally realized as a method on tha
 
 A function that primarily accepts one Domain object to inspect or change its state is receiver-shaped design pressure and requires a concrete reason not to be a method.
 
-### Codify and Guard do not edit design
+### Codify realizes the model through House Style
 
-Codify reads the current strategic and domain-object artifacts as authority. It never changes them during implementation. When concrete evidence contradicts strategic meaning, Codify stops for EventStorming; when it contradicts object definition, state, behavior, or an actual Domain Event, Codify stops for Tactical Design. Implementation resumes only after the relevant authority is confirmed.
+Codify reads the current strategic and domain-object artifacts as read-only semantic constraints, not a complete software design. Their silence about remaining software structure is implementation latitude. Codify implements the requested behavior and fills that latitude directly through accepted project constraints and the active-language House Style, loading only guidance for code actually touched.
 
-Local tests and minimum-diff guidance cannot justify retaining a removed object, compatibility projection, parallel responsibility carrier, or receiver-shaped helper. Structural deletion is complete only when the old responsibility is gone, not renamed.
+Codify leaves one coherent realization of each accepted responsibility and removes obsolete parallel responsibility exposed by the change. It verifies the resulting code with tests and checks proportionate to the changed behavior and risk.
 
 Guard independently and read-only reviews the implementation against the current Context Map, Models, and Domain Object slices. It routes strategic contradictions to EventStorming, object-design contradictions to Tactical Design, and plain implementation drift to Codify. Guard never closes or mutates an artifact lifecycle because no such lifecycle exists.
 
@@ -88,6 +88,6 @@ Guard independently and read-only reviews the implementation against the current
 - Tactical Design produces a low-resolution object contract that is cheap to update and hard for Codify to reinterpret.
 - Confirmation and writing happen per Aggregate Root, so long Bounded Context discussions do not defer all useful artifacts.
 - Current facts have one owner; conversation history remains outside downstream context.
-- Codify loses implementation-time design freedom and gains a clear stop-and-return boundary.
+- Codify gains broad implementation latitude inside accepted semantics and resolves it through project and active-language House Style without a modeling return loop.
 - Existing historical records remain repository history but are no longer required input for new work.
-- Automated checks validate the sparse file shapes, mirrored plugin content, one-question interaction boundary, pressure-led per-Root writing, and method ownership without scoring a preferred domain model.
+- Automated checks validate the sparse file shapes, mirrored plugin content, one-question interaction boundary, pressure-led per-Root writing, House Style realization latitude, and method ownership without scoring a preferred domain model.

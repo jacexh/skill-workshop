@@ -90,10 +90,6 @@ _Avoid_: Workshop Event, provider notification, log entry
 A one-way `Upstream -> Downstream` Context Map relationship: the upstream owns a named published meaning that influences the downstream model. It is not runtime call direction.
 _Avoid_: request arrow, mutual ownership
 
-**Modeling Contradiction**:
-Concrete implementation or business evidence that conflicts with accepted strategic or domain-object authority. Codify stops; strategic conflicts are decided through EventStorming and object conflicts through Tactical Design before implementation resumes.
-_Avoid_: silent design edit, implementation convenience
-
 **Guard Review Unit**:
 One independently falsifiable accepted semantic responsibility and the minimum production evidence needed to judge its realization. Guard keeps it read-only and reports `clear`, `violation`, or `evidence_gap`.
 _Avoid_: file checklist, general bug hunt

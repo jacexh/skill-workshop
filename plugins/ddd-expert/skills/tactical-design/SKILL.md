@@ -88,8 +88,6 @@ Write one Aggregate Root slice as soon as the user confirms that Root. Update or
 
 After the write, continue with the next affected Root. `domain-objects.md` contains only current accepted Root slices. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
 
-Codify never edits this file. If implementation evidence contradicts an accepted object definition, state, behavior, or Domain Event, Codify stops and routes that contradiction back to Tactical Design. Resume the interview, confirm the corrected Root slice, update it here, and only then resume implementation.
-
 ## Completion
 
 End with the current Root outcome and cite any confirmed or updated slice. Ask
