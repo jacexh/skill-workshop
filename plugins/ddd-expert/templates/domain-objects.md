@@ -4,7 +4,7 @@
 
 ### <Root Name> — Aggregate Root (`<RootID>`)
 
-- **Definition:** <What this object represents in the domain.>
+- **Definition:** <What this object represents in the domain; include an essential way it operates only when that changes its meaning.>
 - **Facts:**
   - `<Fact name>` — <Business-significant fact owned by this object and required by a Behavior or Invariant.>
 - **Lifecycle State:**
@@ -16,7 +16,7 @@
 
 ### <Entity Name> — Entity (`<EntityID>`)
 
-- **Definition:** <What this Entity represents inside the Aggregate.>
+- **Definition:** <What this Entity represents inside the Aggregate; include an essential way it operates only when that changes its meaning.>
 - **Facts:**
   - `<Fact name>` — <Business-significant fact owned by this Entity and required by a Behavior or Invariant.>
 - **Lifecycle State:**

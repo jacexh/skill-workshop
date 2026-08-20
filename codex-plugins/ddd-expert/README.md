@@ -23,7 +23,7 @@ $ddd-expert:guard
 
 EventStorming keeps its complete ten-step discussion method. It identifies Bounded Contexts and Aggregate Roots, asks one question at a time, and writes only accepted current strategic knowledge.
 
-Tactical Design uses the same relentless interview style. It works one Aggregate Root at a time, derives essential business pressures from confirmed Business Rules, uses behavior statements to expose candidate owners and concepts, and compares object compositions by pressure coverage and introduced design burden. As soon as the user confirms one Root, it writes that Root's slice to `domain-objects.md`.
+Tactical Design uses the same relentless interview style. It works one Aggregate Root at a time, derives essential business pressures from confirmed Business Rules, and probes behavior ownership and object composition. Every candidate Entity proposal explains what the object is and how it operates, then introduces its Behaviors in Domain language at that first proposal rather than renaming technical placeholders during artifact writing. Simple operation stays concise, while an essential operating characteristic may become part of Definition. It records coherent Entity descriptions in `domain-objects.md` as the Root develops, then confirms the integrated Root and updates accepted changes across affected current DDD artifacts and project decisions.
 
 Codify treats the accepted strategic model and current domain objects as read-only semantic constraints, then fills the required software structure through project and active-language House Style. Guard independently checks whether the implementation preserves their ownership and behavior, and whether changed non-Domain abstractions reduce overall complexity under House Style.
 
@@ -41,7 +41,7 @@ docs/ddd-expert/
 
 - `context-map.md`: Bounded Contexts and semantic dependencies.
 - `model.md`: context purpose, essential language, Aggregate Roots, and strategic business rules.
-- `domain-objects.md`: confirmed Root slices containing object definition, Facts, Lifecycle State, behavior, and actual Domain Events.
+- `domain-objects.md`: confirmed current Root and Entity descriptions, grouped by Aggregate Root.
 
 Only the accepted current-model files described above are workflow artifacts; workshop conversation and implementation history remain transient.
 
