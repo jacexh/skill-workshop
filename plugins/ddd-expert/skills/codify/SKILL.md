@@ -15,13 +15,15 @@ The DDD artifacts define accepted business meaning, Aggregate boundaries, and Do
 
 Fill unspecified realization choices directly using accepted project constraints and applicable House Style, with repository code and tests as evidence for local integration. Introduce the software structure the requested behavior needs and apply House Style to that actual surface.
 
+Maintain a temporary, task-local trace from each affected model clause to its current and intended software responsibilities, affected implementation paths, and verification evidence.
+
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
 
 ## Implement
 
-Implement the complete requested slice across the code surfaces it actually needs. Leave one coherent realization of each accepted responsibility and remove obsolete parallel responsibility exposed by the change.
+Implement the complete requested slice across the code surfaces it actually needs. Let accepted Domain ownership and behavior drive the affected software structure: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
 
-Load only House Style guidance for the active language and code surfaces actually touched. Apply its relevant rules and make the remaining engineering choices directly.
+Load only House Style guidance for the active language and code surfaces actually touched. Apply its relevant rules to the remaining realization choices that preserve the accepted semantics.
 
 ## Verify
 
