@@ -65,6 +65,14 @@ During exploration, vary the Subject when different owners are credible. Resolve
 
 In the accepted design, the object whose behavior is described becomes the grammatical Subject and behavior owner. The sentence describes Domain meaning, not a method signature or call graph.
 
+When a Root exposes a capability by composing an owned Entity's behavior, connect the accepted Behavior entries with this optional Root form:
+
+```text
+<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.
+```
+
+`<Entity>.<Entity Behavior>` references the Entity-owned Domain behavior; it does not prescribe a method call. Keep the Root entry about aggregate capability and composition, and the Entity entry authoritative for its owned decision instead of repeating that decision under the Root. Use the ordinary Subject form when no owned behavior is composed.
+
 When a candidate Domain Event appears, load the Domain Event rules in `ddd-collaboration.md` and apply their selection predicate. List a selected event separately as `<Event> — recorded by <Behavior>`; the entry contains no selection reason. Analytical Workshop Events never appear in `domain-objects.md`.
 
 ## Compare object compositions

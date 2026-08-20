@@ -10,7 +10,7 @@
 - **Lifecycle State:**
   - `<State name>` — <State-machine meaning; write `No explicit Lifecycle State` when none exists.>
 - **Behavior:**
-  - `<Domain verb phrase>` — <Subject> <domain verb> <Object>[, transitioning <Lifecycle State name> from <before> to <after>].
+  - `<Domain verb phrase>` — <Root> <domain verb> <Object>[ by composing `<Entity>.<Behavior>`][, transitioning <Lifecycle State name> from <before> to <after>].
 - **Domain Events:**
   - `<Event name>` — recorded by `<Domain behavior name>`.
 

@@ -91,7 +91,7 @@ The user's acceptance of one integrated Aggregate Root slice after its object co
 _Avoid_: whole-context write barrier, unreviewed cross-artifact drift
 
 **Behavior Description**:
-A concise Domain sentence in the form `<Subject> <domain verb> <Object>.` During design, varying the subject tests credible behavior owners; in the accepted design, the grammatical subject is the owning Root or Entity and normally maps to a method on that object. When a Root composes an owned Entity's behavior, their descriptions distinguish the Root capability from the Entity-owned decision. When the behavior transitions Lifecycle State, the sentence names the concrete state and its before/after values.
+A concise Domain sentence in the form `<Subject> <domain verb> <Object>.` During design, varying the subject tests credible behavior owners; in the accepted design, the grammatical subject is the owning Root or Entity and normally maps to a method on that object. When a Root composes an owned Entity's behavior, its entry uses `<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.` to reference the Entity-owned decision without repeating it. When the behavior transitions Lifecycle State, the sentence names the concrete state and its before/after values.
 _Avoid_: responsibility heading, method signature, caller list
 
 **Actual Domain Event**:
