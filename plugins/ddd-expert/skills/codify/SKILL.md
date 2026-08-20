@@ -5,33 +5,31 @@ description: Use when accepted strategic and domain-object design must be realiz
 
 # Codify
 
-Implement the accepted domain model as working backend code. Complete the requested behavior using the repository's project and active-language House Style.
+Faithfully realize the accepted Domain model as working backend code. Complete the requested behavior using the repository's project and active-language House Style.
 
 ## Contract
 
-Read the user's current scope, affected `model.md` and `domain-objects.md`, relevant project instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
+Read the user's current scope, affected `model.md` and `domain-objects.md`, relevant project decisions and instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
 
 The DDD artifacts define accepted business meaning, Aggregate boundaries, and Domain-object state and behavior ownership. They are semantic constraints, not a complete software design. Their silence about remaining software structure is implementation latitude, not a missing modeling step.
 
-Fill unspecified realization choices directly using accepted project constraints and applicable House Style, with repository code and tests as evidence for local integration. Introduce the software structure the requested behavior needs and apply House Style to that actual surface.
-
-Maintain a temporary, task-local trace from each affected model clause to its current and intended software responsibilities, affected implementation paths, and verification evidence.
+Resolve unspecified realization choices through accepted project constraints and applicable House Style, using repository code and tests as integration evidence.
 
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
 
 ## Implement
 
-Implement the complete requested slice across the code surfaces it actually needs. Let accepted Domain ownership and behavior drive the affected software structure: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
+Implement the complete requested slice across the code surfaces it actually needs. Keep the accepted Domain model authoritative and derive the affected software structure from its ownership and behavior: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
 
 Load only House Style guidance for the active language and code surfaces actually touched. Apply its relevant rules to the remaining realization choices that preserve the accepted semantics.
 
 ## Verify
 
-Run repository tests and checks proportionate to the changed behavior and risk. Inspect the final diff to confirm the accepted behavior is realized, obsolete parallel responsibility is gone, and no unintended files are included.
+Run repository tests and checks proportionate to the changed behavior and risk. Inspect the final diff and verification evidence to confirm the accepted Domain model is coherently realized across the affected code, obsolete parallel responsibility is gone, and no unintended files are included.
 
 ## Completion
 
-End with the implemented behavior, changed files, verification results, and residual risk. Completion requires the requested behavior, relevant House Style, and verification to agree in the final code.
+End with the implemented behavior, changed files, verification results, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, relevant House Style, and verification agreeing in the final code.
 
 ## References
 
