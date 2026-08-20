@@ -56,9 +56,9 @@ Use the complete causal sequence. Depth may vary with the scope; the sequence do
 - **[Heuristic]** Identity or a distinct lifecycle alone may instead reveal an owned Entity rather than another Aggregate Root.
 - **[House Rule]** Owned Entities may hold distinct state and behavior inside the Root's consistency boundary. The Root composes their responsibilities; it does not have to absorb every behavior.
 - **[Heuristic]** For the current Root or affected slice, group interacting Business Rules into essential business pressures: decisions, Lifecycle State transitions, actual Domain Events, and invariants that the object model must realize. Keep every pressure traceable to its governing rules.
-- **[Heuristic]** Probe each pressure as `<Subject> <domain verb> <Object>.` Vary the Subject to test ownership, name any Lifecycle State transition that occurs, and resolve each material target before preserving an object. Name behavior with an intention-revealing Domain verb phrase rather than a technical implementation action; a noun alone does not establish an Entity.
+- **[Heuristic]** Probe each pressure as `<Subject> <domain verb> <Object>.` Vary the Subject to test ownership, name any Lifecycle State transition that occurs, and resolve each material target before preserving an object. A noun alone does not establish an Entity.
 - **[Heuristic]** Test each proposed object by reassigning the same pressures under the strongest relevant split, merge, move, or deletion alternative. Keep it when it localizes cohesive state and decisions that the alternative would duplicate or expose elsewhere.
-- **[House Rule]** Express an object's current design through definition, Facts, Lifecycle State, behavior, and actual Domain Events. Facts are business-significant facts owned by the object, not a field inventory or Domain Events. Lifecycle State records named state-machine states, or explicitly records that none exists. List each actual Domain Event separately and point it to the behavior that records it. Identity belongs in the object heading when meaningful.
+- **[House Rule]** Express an object's current design through definition, Facts, Lifecycle State, behavior, and actual Domain Events. Facts are business-significant facts owned by the object, not a field inventory or Domain Events. Lifecycle State records named state-machine states, or explicitly records that none exists. Definition includes an essential way the object operates only when it changes what the object represents. List each actual Domain Event separately and point it to the behavior that records it. Identity belongs in the object heading when meaningful.
 
 ## 5. Bounded Contexts
 
@@ -81,7 +81,7 @@ Use the complete causal sequence. Depth may vary with the scope; the sequence do
 - **[House Rule]** Local answers are working decisions until the user sees and confirms the integrated strategic model.
 - **[House Rule]** Strategic confirmation covers scope, Bounded Contexts, Aggregate Roots, business rules, semantic dependencies, and visible uncertainty.
 - **[House Rule]** Current artifacts contain only accepted knowledge required by downstream work.
-- **[House Rule]** Tactical object design is confirmed one Aggregate Root at a time, following the smallest affected business-pressure slice rather than an Entity checklist. Each confirmed Root slice may be persisted without waiting for unrelated Roots.
+- **[House Rule]** Tactical object design proceeds one Aggregate Root at a time, following the smallest affected business-pressure slice rather than an Entity checklist. A confirmed Entity description may be persisted while that Root interview continues; integrated Root confirmation completes the slice and applies accepted changes across affected current DDD artifacts and project decisions.
 - **[Heuristic]** When evidence defeats a conclusion, revisit the smallest dependent model that can restore a coherent explanation rather than patching local names.
 
 ## Related references
