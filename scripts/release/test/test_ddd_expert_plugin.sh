@@ -118,8 +118,9 @@ jq -e '.interface.developerName | length > 0' "$CODEX_ROOT/.codex-plugin/plugin.
 jq -e '.interface.defaultPrompt | length == 1 and all(.[]; contains("$ddd-expert:event-storming"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should use the single EventStorming modeling entry"
 jq -e '.interface.defaultPrompt | all(.[]; contains("user\u0027s purpose") and contains("Bounded Contexts") and contains("Aggregate Roots") and contains("domain objects") and contains("$ddd-expert:tactical-design") and contains("$ddd-expert:codify"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should expose the sparse modeling workflow"
 jq -e '.interface.defaultPrompt | all(.[]; contains("Facts") and contains("Lifecycle State") and (contains("definitions, state") | not))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should expose Facts and Lifecycle State separately"
+jq -e '.interface.defaultPrompt | all(.[]; contains("Capability Probe") and contains("Required Capabilities"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should expose capability modeling"
 jq -e '.interface.defaultPrompt | all(.[]; contains("classify every material causal continuation before choosing a collaboration mechanism"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should activate continuation classification"
-jq -e '.interface.longDescription | contains("strategic model") and contains("one question at a time") and contains("current domain-object design")' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should describe strategic and tactical authority"
+jq -e '.interface.longDescription | contains("strategic model") and contains("one question at a time") and contains("Capability Probe") and contains("current domain-object design")' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should describe strategic and tactical authority"
 jq -e '.interface.capabilities | index("Write")' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should declare artifact writes"
 [ ! -e "$CLAUDE_ROOT/hooks" ] || fail "Claude ddd-expert should not ship hooks"
 [ ! -e "$CODEX_ROOT/hooks" ] || fail "Codex ddd-expert should not ship hooks"
@@ -281,6 +282,13 @@ assert_contains "$tactical_design_skill" '<Subject> <domain verb> <Object>.' "Ta
 assert_contains "$tactical_design_skill" '<Subject> <domain verb> <Object>, transitioning <Lifecycle State name> from <before> to <after>.' "Lifecycle-changing behavior should name its transition"
 assert_contains "$tactical_design_skill" '<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.' "Root behavior should reference the Entity behavior it composes"
 assert_contains "$tactical_design_skill" 'it does not prescribe a method call' "Root-to-Entity behavior links should remain semantic"
+assert_contains "$tactical_design_skill" '### Capability Probe' "Tactical Design should classify external-authority needs inside behavior ownership"
+for outcome in '**Supplied Fact**' '**Required Capability**'; do
+  assert_contains "$tactical_design_skill" "$outcome" "Capability Probe missing $outcome"
+done
+assert_contains "$tactical_design_skill" 'Domain input, and result use' "Required Capability should preserve the Behavior-owned decision"
+assert_contains "$tactical_design_skill" 'outer composition supplies' "Required Capability should leave realization to composition"
+assert_matches "$tactical_design_skill" 'every external-authority need.*Capability Probe classification.*every Required Capability.*invoking Behavior.*business decision point.*Domain question or action.*guarantee' "Capability Probe should have an exhaustive Root completion criterion"
 assert_contains "$tactical_design_skill" 'Do this even when neither the user nor the existing model mentions an event' "Tactical Design should actively generate event candidates from causal continuations"
 assert_contains "$tactical_design_skill" 'required as durable Domain evidence even when no next intent exists' "Tactical Design should also discover durable-evidence events without a reaction"
 assert_contains "$tactical_design_skill" 'if the next intent cannot complete, is the preceding fact still a successful business fact?' "Tactical Design should ask the decisive continuation question"
@@ -321,6 +329,10 @@ assert_not_contains "$tactical_design_skill" 'transaction, concurrency, recovery
 for heading in '**Definition:**' '**Facts:**' '**Lifecycle State:**' '**Behavior:**' '**Domain Events:**'; do
   assert_contains "$domain_objects_template" "$heading" "domain-objects template missing $heading"
 done
+assert_contains "$domain_objects_template" '**Required Capabilities:**' "domain-objects template should record Domain-owned capabilities"
+for slot in '<Capability name>' '<Domain behavior name>' '<business decision point>' '<Domain question or action>' '<accepted business guarantee>'; do
+  assert_contains "$domain_objects_template" "$slot" "domain-object capability entry missing $slot"
+done
 assert_contains "$domain_objects_template" 'include an essential way it operates only when that changes its meaning' "domain-object Definition should carry only essential How"
 assert_not_contains "$domain_objects_template" '**Operating Mechanism:**' "domain objects should not require a separate How field"
 assert_contains "$domain_objects_template" '<Root> <domain verb> <Object>[ by composing `<Entity>.<Behavior>`][, transitioning <Lifecycle State name> from <before> to <after>].' "Root behavior should optionally reference a composed Entity behavior"
@@ -334,14 +346,18 @@ assert_not_contains "$domain_objects_template" 'required domain reaction or dura
 assert_contains "$tactical_design_skill" 'Analytical Workshop Events never appear in `domain-objects.md`' "Tactical Design should keep Workshop Events out of domain objects"
 assert_not_contains "$domain_objects_template" '**Responsibilities:**' "behavior should own responsibilities"
 assert_not_contains "$domain_objects_template" '**Lifecycle:**' "Lifecycle State should own lifecycle"
-assert_not_contains "$domain_objects_template" '**Collaboration:**' "behavior and Domain Events should express effects"
+assert_not_contains "$domain_objects_template" '**Collaboration:**' "named behaviors and capabilities should replace a generic collaboration section"
 
 assert_contains "$artifact_layout_template" 'domain-objects.md' "artifact layout should include current tactical authority"
+assert_contains "$artifact_layout_template" 'Required Capabilities where present' "artifact layout should include conditional Domain-owned capabilities"
 assert_contains "$artifact_layout_template" 'after its Entity confirmation' "artifact layout should expose Entity-level writes"
 assert_contains "$artifact_layout_template" 'after Root confirmation' "artifact layout should expose integrated Root writes"
 assert_contains "$ddd_modeling_reference" 'A confirmed Entity description may be persisted' "modeling reference should expose Entity-level writes"
 assert_contains "$ddd_modeling_reference" 'integrated Root confirmation completes the slice' "modeling reference should expose integrated Root writes"
 assert_contains "$ddd_modeling_reference" 'applies accepted changes across affected current DDD artifacts and project decisions' "modeling reference should expose Root-level synchronization"
+for term in 'Capability Probe' 'Required Capability'; do
+  assert_contains "$ddd_modeling_reference" "$term" "modeling reference missing $term"
+done
 assert_not_contains "$artifact_layout_template" 'event-storming/' "artifact layout should not retain meeting minutes"
 assert_not_contains "$artifact_layout_template" 'tactical-design/' "artifact layout should not retain design iterations"
 assert_not_contains "$artifact_layout_template" 'architecture.md' "artifact layout should not retain BC architecture files"
@@ -789,10 +805,11 @@ assert_contains "$ROOT/README.md" 'Domain/Application/Interface/Infrastructure/R
 assert_contains "$ROOT/README.md" 'Go names the physical Interface package `transport`' "root README should map Go transport to the shared Interface vocabulary"
 assert_contains "$ROOT/README.md" 'complete ten-step discussion method' "root README should preserve EventStorming discussion depth"
 assert_contains "$ROOT/README.md" 'derives essential business pressures from confirmed rules' "root README should expose Tactical Design inputs"
+assert_contains "$ROOT/README.md" 'Capability Probe' "root README should expose capability discovery"
 assert_contains "$ROOT/README.md" 'classifies every material causal continuation before choosing a collaboration mechanism' "root README should expose proactive continuation classification"
 assert_contains "$ROOT/README.md" 'its Domain Event becomes the causal handoff instead of an observation beside the original direct path' "root README should expose event-driven reaction decoupling"
 assert_contains "$ROOT/README.md" '<Subject> <domain verb> <Object>.' "root README should expose the current Behavior contract"
-assert_contains "$ROOT/README.md" 'definition, Facts, Lifecycle State, behavior, and actual Domain Events' "root README should expose the current domain-object artifact"
+assert_contains "$ROOT/README.md" 'definition, Facts, Lifecycle State, behavior, Required Capabilities where present, and actual Domain Events' "root README should expose the current domain-object artifact"
 assert_not_contains "$ROOT/README.md" 'subject-action-object-result' "root README should not advertise the removed result contract"
 assert_not_contains "$ROOT/README.md" "definition, state, behavior" "root README should distinguish Facts from Lifecycle State"
 assert_contains "$ROOT/README.md" 'compares credible object compositions by pressure coverage and accidental design burden' "root README should expose Tactical Design tradeoffs"
@@ -812,6 +829,9 @@ assert_contains "$sparse_adr" '-> essential business pressures' "ADR should defi
 assert_contains "$sparse_adr" 'what the object represents and how it operates' "ADR should require complete Entity proposals"
 assert_contains "$sparse_adr" 'at that first proposal' "ADR should require early Behavior naming"
 assert_contains "$sparse_adr" '<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.' "ADR should define Root-to-Entity behavior links"
+for term in 'Capability Probe' 'Required Capability'; do
+  assert_contains "$sparse_adr" "$term" "ADR missing $term"
+done
 assert_contains "$sparse_adr" 'This How remains conversational reasoning' "ADR should keep How out of the artifact schema"
 assert_contains "$sparse_adr" 'in the current conversation' "ADR should allow tactical refinement of strategic authority"
 assert_contains "$sparse_adr" '`<Object>.State`' "ADR should use owner-qualified generic lifecycle naming"
@@ -856,6 +876,7 @@ assert_contains "$ROOT/CONTEXT.md" '**Entity Confirmation**:' "shared vocabulary
 assert_contains "$ROOT/CONTEXT.md" '**Per-Root Confirmation**:' "shared vocabulary should define write granularity"
 assert_contains "$ROOT/CONTEXT.md" '**Behavior Description**:' "shared vocabulary should define behavior sentences"
 assert_contains "$ROOT/CONTEXT.md" '<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.' "shared vocabulary should define Root-to-Entity behavior links"
+assert_contains "$ROOT/CONTEXT.md" '**Domain-owned Required Capability**:' "shared vocabulary should define behavior-owned external capability contracts"
 assert_contains "$ROOT/CONTEXT.md" '**Actual Domain Event**:' "shared vocabulary should distinguish production events"
 assert_contains "$ROOT/CONTEXT.md" 'it is the causal handoff rather than an observation beside a direct producer-to-reaction path' "shared vocabulary should distinguish event causality from duplicate notification"
 assert_contains "$ROOT/CONTEXT.md" 'the grammatical subject is the owning Root or Entity and normally maps to a method on that object' "shared vocabulary should bind accepted behavior to methods"

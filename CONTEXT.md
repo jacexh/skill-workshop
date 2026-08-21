@@ -71,7 +71,7 @@ The externally addressed owner of one immediate consistency boundary. It compose
 _Avoid_: service class, table group, feature folder
 
 **Domain Object Slice**:
-One current Aggregate Root section in `domain-objects.md`, incrementally composed from confirmed object descriptions and completed by integrated Root confirmation. Each object records only definition, Facts, Lifecycle State, behavior, and actual Domain Events.
+One current Aggregate Root section in `domain-objects.md`, incrementally composed from confirmed object descriptions and completed by integrated Root confirmation. Each object records only definition, Facts, Lifecycle State, behavior, Required Capabilities where present, and actual Domain Events.
 _Avoid_: UML, sequence document, implementation plan
 
 **Object Facts**:
@@ -83,11 +83,11 @@ The named state-machine states owned by a Root or Entity and their Domain meanin
 _Avoid_: unnamed lifecycle flag, ordinary fact change, inferred state machine
 
 **Pressure-led Tactical Design**:
-The interview order that completes one Aggregate Root at a time by following its smallest affected business-pressure slice. It expresses essential complexity as pressures traceable to Business Rules, probes candidate behavior ownership, classifies every Material Causal Continuation before realization, and compares credible object compositions by pressure coverage and accidental design burden. Questions are asked one at a time with a recommended answer and a credible alternative.
+The interview order that completes one Aggregate Root at a time by following its smallest affected business-pressure slice. It expresses essential complexity as pressures traceable to Business Rules, probes candidate behavior ownership, applies the Capability Probe to external-authority needs, classifies every Material Causal Continuation before realization, and compares credible object compositions by pressure coverage and accidental design burden. Questions are asked one at a time with a recommended answer and a credible alternative.
 _Avoid_: Entity checklist, untraceable scenario, batch questionnaire
 
 **Entity Confirmation**:
-The user's acceptance of one coherent Entity description after its reason to exist, Facts, Lifecycle State, behavior, and place in the owning Root's composition have been challenged. Its current description may be written while the Root interview continues.
+The user's acceptance of one coherent Entity description after its reason to exist, Facts, Lifecycle State, behavior, Required Capabilities where present, and place in the owning Root's composition have been challenged. Its current description may be written while the Root interview continues.
 _Avoid_: per-answer write, isolated Entity inventory
 
 **Per-Root Confirmation**:
@@ -97,6 +97,9 @@ _Avoid_: whole-context write barrier, unreviewed cross-artifact drift
 **Behavior Description**:
 A concise Domain sentence in the form `<Subject> <domain verb> <Object>.` During design, varying the subject tests credible behavior owners; in the accepted design, the grammatical subject is the owning Root or Entity and normally maps to a method on that object. When a Root composes an owned Entity's behavior, its entry uses `<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.` to reference the Entity-owned decision without repeating it. When the behavior transitions Lifecycle State, the sentence names the concrete state and its before/after values.
 _Avoid_: responsibility heading, method signature, caller list
+
+**Domain-owned Required Capability**:
+A narrow Domain-language contract directly invoked by the Root or Entity Behavior that owns the authority consultation. Its entry names the Behavior, business decision point, Domain question or action, and accepted business guarantee; outer composition supplies its realization.
 
 **Actual Domain Event**:
 A local Domain fact selected through the Reaction Probe that production code must record. When selected for a named local reaction, it is the causal handoff rather than an observation beside a direct producer-to-reaction path. In a Domain Object Slice it is listed separately as `<Event> — recorded by <Behavior>`; the selection reason and consumer are not part of the entry.
