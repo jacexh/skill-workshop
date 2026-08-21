@@ -1,6 +1,6 @@
 ---
 name: tactical-design
-description: Use when a confirmed strategic model still needs a relentless, user-confirmed design of Aggregate internals, domain-object Facts, Lifecycle State, how objects operate, behavior, or actual Domain Events.
+description: Use when a confirmed strategic model still needs a relentless, user-confirmed design of Aggregate internals, domain-object Facts, Lifecycle State, how objects operate, behavior, Domain-owned capabilities, or actual Domain Events.
 ---
 
 # Tactical Design
@@ -35,7 +35,7 @@ Work one Aggregate Root at a time. Within it, follow the smallest affected busin
 
 ## Derive essential business pressures
 
-For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, Lifecycle State transition, actual Domain Event, or invariant that the object model must realize. Together, the pressures are the working expression of the Root's essential complexity, not a score or a claim that only one phrasing is possible. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
+For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, Lifecycle State transition, invariant, material external-authority need, or actual Domain Event that the object model must realize. Together, the pressures are the working expression of the Root's essential complexity, not a score or a claim that only one phrasing is possible. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
 
 Every pressure names the governing Business Rules in the working conversation. Stories, specifications, and code may challenge whether those rules are complete, but they add no confirmed business meaning until the user accepts it. When a material pressure cannot be traced to the Model or the rules contradict it, resolve the smallest strategic correction with the user before continuing and include it in the Root-level review. Keep the pressure set transient; it is reasoning input, not another artifact.
 
@@ -73,7 +73,21 @@ When a Root exposes a capability by composing an owned Entity's behavior, connec
 
 `<Entity>.<Entity Behavior>` references the Entity-owned Domain behavior; it does not prescribe a method call. Keep the Root entry about aggregate capability and composition, and the Entity entry authoritative for its owned decision instead of repeating that decision under the Root. Use the ordinary Subject form when no owned behavior is composed.
 
-When a candidate Domain Event appears, load the Domain Event rules in `ddd-collaboration.md` and apply their selection predicate. List a selected event separately as `<Event> — recorded by <Behavior>`; the entry contains no selection reason. Analytical Workshop Events never appear in `domain-objects.md`.
+### Capability Probe
+
+For each candidate Behavior, surface every current fact, decision, or action it needs from an external authority, then choose:
+
+- **Supplied Fact** — the caller supplies a Domain Fact or Value Object while preserving the Behavior's decision ownership, timing, authority, and guarantee.
+- **Required Capability** — the Behavior owns invocation timing, Domain input, and result use; it invokes a narrow Domain-language contract whose realization outer composition supplies.
+
+Record a Required Capability on its direct Behavior owner:
+
+```text
+**Required Capabilities:**
+- <Capability> — <Behavior> invokes it at <business decision point> to <Domain question or action>; guarantees <accepted authoritative observation, decision, authorization, reservation, or state change>.
+```
+
+For each candidate Behavior, follow any resulting fact that requires or enables a later Domain intent and establish whether the producing Behavior succeeds independently of that intent. An independently successful fact is a candidate Domain Event; apply the selection rules in `ddd-collaboration.md`. Record a selected event and its accepted local reactions with the [domain-object template](../../templates/domain-objects.md); the entry contains no selection reason. Analytical Workshop Events never appear in `domain-objects.md`.
 
 ## Compare object compositions
 
@@ -83,7 +97,7 @@ For each candidate, map every pressure to a behavior owner and compare the desig
 
 Prefer the viable candidate that localizes each decision with the state it needs while exposing less knowledge and coordination. Keep a child Entity when it has Domain identity or lifecycle plus cohesive state, rules, or transitions, and merging it would concretely spread or duplicate decision knowledge. Otherwise use the simpler supported representation. The Root composes owned-object behavior; callers do not inspect internal state to reproduce its decisions. Follow a retained Entity's behavior through any material Domain result that the Root or another owned object composes next. When the Root exposes the same capability, describe the Root's composition and the Entity's owned decision without duplicating that decision.
 
-Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or guarantee. Express that constraint through the affected object's Facts, Lifecycle State, behavior, or actual Domain Event, or through the project's decision mechanism when it is a hard-to-reverse project choice.
+Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or guarantee. Express that constraint through the affected object's Facts, Lifecycle State, behavior, Required Capability, or actual Domain Event, or through the project's decision mechanism when it is a hard-to-reverse project choice.
 
 ## Complete the Root slice
 
@@ -94,15 +108,16 @@ For the accepted candidate, determine only:
 3. each retained object's Facts;
 4. each retained object's Lifecycle State, or that it has no explicit Lifecycle State;
 5. each retained object's behavior, including any Lifecycle State transition it makes;
-6. actual Domain Events recorded by a named behavior.
+6. any Domain-owned Required Capabilities directly invoked by a named behavior;
+7. actual Domain Events recorded by a named behavior.
 
-Identity is written in the object heading when meaningful. Facts are the business-significant facts owned by the object and required to understand a Behavior or Invariant; they are neither a field inventory nor Domain Events. Lifecycle State records the object's named state-machine states and their Domain meaning. When the Domain has no distinct lifecycle term, qualify the generic `State` with its owner as `<Object>.State` instead of inventing a concatenated type-style name. Definition includes an essential operating characteristic only when it changes what the object represents; do not add a separate mechanism section. Behavior records the accepted Domain actions and any Lifecycle State transition. Domain Events are listed separately and point to the behavior that records them; a Lifecycle State transition alone does not require an event. Name material Value Objects and references where their meaning affects Facts or behavior, but do not inventory fields or methods. Do not add separate responsibility, collaboration, caller, or impact sections.
+Identity is written in the object heading when meaningful. Facts are the business-significant facts owned by the object and required to understand a Behavior or Invariant; they are neither a field inventory nor Domain Events. Lifecycle State records the object's named state-machine states and their Domain meaning. When the Domain has no distinct lifecycle term, qualify the generic `State` with its owner as `<Object>.State` instead of inventing a concatenated type-style name. Definition includes an essential operating characteristic only when it changes what the object represents; do not add a separate mechanism section. Behavior records the accepted Domain actions and any Lifecycle State transition. Domain Events are listed separately and point to the behavior that records them; a Lifecycle State transition alone does not require an event. Name material Value Objects and references where their meaning affects Facts, behavior, or a Required Capability, but do not inventory fields or methods. Do not add separate responsibility, collaboration, caller, or impact sections.
 
 ## Entity and Root confirmation
 
-When one retained Entity's definition, Facts, Lifecycle State, behavior, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. After the user confirms it, update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
+When one retained Entity's definition, Facts, Lifecycle State, behavior, any Required Capabilities, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. After the user confirms it, update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
 
-When the Root's composition is complete, show its integrated compact slice. Before asking for confirmation, verify that every pressure is traceable and assigned, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
+When the Root's composition is complete, show its integrated compact slice. Before asking for confirmation, verify that every pressure is traceable and assigned, every external-authority need has a Capability Probe classification, every Required Capability states its invoking Behavior, business decision point, Domain question or action, and guarantee, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every accepted local reaction names its Event Handler and Domain intent, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
 
 After the user confirms that Root, write or replace its complete section while preserving other accepted descriptions. At that Root confirmation, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Then continue with the next affected Root. `domain-objects.md` contains only current accepted object descriptions grouped by Root. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
 

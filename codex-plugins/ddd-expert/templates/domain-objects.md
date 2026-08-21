@@ -1,5 +1,7 @@
 # <Bounded Context> Domain Objects
 
+<!-- Include Required Capabilities for objects whose Behaviors directly invoke them. Add one Consumed by line per accepted local Event Handler. -->
+
 ## <Aggregate Root>
 
 ### <Root Name> — Aggregate Root (`<RootID>`)
@@ -11,8 +13,11 @@
   - `<State name>` — <State-machine meaning; write `No explicit Lifecycle State` when none exists.>
 - **Behavior:**
   - `<Domain verb phrase>` — <Root> <domain verb> <Object>[ by composing `<Entity>.<Behavior>`][, transitioning <Lifecycle State name> from <before> to <after>].
+- **Required Capabilities:**
+  - `<Capability name>` — `<Domain behavior name>` invokes it at <business decision point> to <Domain question or action>; guarantees <accepted business guarantee>.
 - **Domain Events:**
-  - `<Event name>` — recorded by `<Domain behavior name>`.
+  - `<Event name>` — recorded by `<Producing Domain behavior name>`.
+    - **Consumed by:** `<Event Handler>` — <Domain intent>.
 
 ### <Entity Name> — Entity (`<EntityID>`)
 
@@ -23,5 +28,8 @@
   - `<State name>` — <State-machine meaning; write `No explicit Lifecycle State` when none exists.>
 - **Behavior:**
   - `<Domain verb phrase>` — <Subject> <domain verb> <Object>[, transitioning <Lifecycle State name> from <before> to <after>].
+- **Required Capabilities:**
+  - `<Capability name>` — `<Domain behavior name>` invokes it at <business decision point> to <Domain question or action>; guarantees <accepted business guarantee>.
 - **Domain Events:**
-  - `<Event name>` — recorded by `<Domain behavior name>`.
+  - `<Event name>` — recorded by `<Producing Domain behavior name>`.
+    - **Consumed by:** `<Event Handler>` — <Domain intent>.

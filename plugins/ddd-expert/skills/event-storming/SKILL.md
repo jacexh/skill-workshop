@@ -52,7 +52,7 @@ Use all ten steps in causal order during discovery. A thesis review may acknowle
 3. **Timeline**: arrange the occurrences into replayable business-time sequences.
 4. **Commands**: identify the business intent that causes each material change.
 5. **Roles and external authorities**: identify who may decide or initiate the intent in business terms.
-6. **Constraints and required next intents**: expose authoritative facts, rules, and any occurrence that requires another business action.
+6. **Constraints and required next intents**: expose authoritative facts, rules, and any occurrence that requires or enables another business action; clarify whether the occurrence stands as a successful business fact independently of that action.
 7. **Problems and ambiguity**: make contradictions, assumptions, missing facts, and material Hotspots explicit.
 8. **Aggregates and core business objects**: cluster identity and immediate consistency around candidate Aggregate Roots; test a credible split, merge, or deletion.
 9. **Bounded Contexts**: separate language, authority, policy, lifecycle, and model purpose where they diverge.
@@ -71,7 +71,7 @@ Persist only accepted current knowledge:
 - `docs/ddd-expert/context-map.md` owns the Bounded Context inventory and semantic dependencies.
 - `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, and strategic business rules.
 
-`model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, behavior, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
+`model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, behavior, Required Capabilities where present, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
 
 ## Confirmation and writing
 
