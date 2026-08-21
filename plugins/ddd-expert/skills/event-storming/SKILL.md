@@ -52,7 +52,7 @@ Use all ten steps in causal order during discovery. A thesis review may acknowle
 3. **Timeline**: arrange the occurrences into replayable business-time sequences.
 4. **Commands**: identify the business intent that causes each material change.
 5. **Roles and external authorities**: identify who may decide or initiate the intent in business terms.
-6. **Constraints and required next intents**: expose authoritative facts, rules, and any occurrence that requires another business action.
+6. **Constraints and required next intents**: expose authoritative facts, rules, and any occurrence that requires or enables another business action. For each such pair, establish whether the first occurrence is already a successful business fact if the later action does not happen, or whether both belong to one required outcome.
 7. **Problems and ambiguity**: make contradictions, assumptions, missing facts, and material Hotspots explicit.
 8. **Aggregates and core business objects**: cluster identity and immediate consistency around candidate Aggregate Roots; test a credible split, merge, or deletion.
 9. **Bounded Contexts**: separate language, authority, policy, lifecycle, and model purpose where they diverge.
@@ -60,9 +60,11 @@ Use all ten steps in causal order during discovery. A thesis review may acknowle
 
 Workshop Events stay in the conversation as analytical evidence. A proposed production Domain Event remains a candidate until the Actual Domain Event rules select it; Tactical Design owns the object-level recording of any selected event.
 
+Whenever step 6 exposes a material next intent, keep the causing occurrence and the later intent visible as a causal pair even when nobody has proposed an event. Preserve their business success relationship for Tactical Design instead of collapsing them into one action or choosing a collaboration mechanism here.
+
 Derive strategic boundaries from business language, authority, policy, lifecycle, and model purpose. Admit a concern only when it changes a business right, obligation, value, authority, decision, outcome, or required next action. Treat implementation observations as evidence about that business meaning; later design owns the realization.
 
-Write only Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. Each rule is one independently challengeable claim: name the governed business concept or collaboration, any condition that changes the meaning, and the accepted business decision, permission, transition, required outcome, or invariant. State business meaning without assigning tactical behavior ownership or prescribing an implementation mechanism.
+Write only Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. Each rule is one independently challengeable claim: name the governed business concept or collaboration, any condition that changes the meaning, and the accepted business decision, permission, transition, required outcome, or invariant. When a material occurrence enables or requires a later intent, preserve whether the first occurrence stands as a successful fact without that later outcome. State business meaning without assigning tactical behavior ownership or prescribing an implementation mechanism.
 
 ## Current strategic artifacts
 

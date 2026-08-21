@@ -11,6 +11,7 @@ Turn confirmed Aggregate Roots and Business Rules into a sparse current domain-o
 confirmed Aggregate Root and Business Rules
 -> essential business pressures
 -> behavior probes and candidate concepts
+-> causal continuation classification
 -> alternative object compositions
 -> confirmed Entity descriptions as they close
 -> integrated Root confirmation and current artifacts
@@ -35,7 +36,7 @@ Work one Aggregate Root at a time. Within it, follow the smallest affected busin
 
 ## Derive essential business pressures
 
-For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, Lifecycle State transition, actual Domain Event, or invariant that the object model must realize. Together, the pressures are the working expression of the Root's essential complexity, not a score or a claim that only one phrasing is possible. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
+For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, Lifecycle State transition, invariant, accepted actual Domain Event, or material candidate occurrence and required next intent whose relationship the object model must resolve. A newly selected actual Domain Event may realize that relationship; do not assume it before classification. Together, the pressures are the working expression of the Root's essential complexity, not a score or a claim that only one phrasing is possible. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
 
 Every pressure names the governing Business Rules in the working conversation. Stories, specifications, and code may challenge whether those rules are complete, but they add no confirmed business meaning until the user accepts it. When a material pressure cannot be traced to the Model or the rules contradict it, resolve the smallest strategic correction with the user before continuing and include it in the Root-level review. Keep the pressure set transient; it is reasoning input, not another artifact.
 
@@ -73,7 +74,21 @@ When a Root exposes a capability by composing an owned Entity's behavior, connec
 
 `<Entity>.<Entity Behavior>` references the Entity-owned Domain behavior; it does not prescribe a method call. Keep the Root entry about aggregate capability and composition, and the Entity entry authoritative for its owned decision instead of repeating that decision under the Root. Use the ordinary Subject form when no owned behavior is composed.
 
-When a candidate Domain Event appears, load the Domain Event rules in `ddd-collaboration.md` and apply their selection predicate. List a selected event separately as `<Event> — recorded by <Behavior>`; the entry contains no selection reason. Analytical Workshop Events never appear in `domain-objects.md`.
+## Classify causal continuations
+
+For every behavior that establishes a material past-tense fact, actively scan the governing Business Rules and in-scope scenarios for a business action that the fact requires or enables. Also test whether the occurrence itself, rather than only its resulting state, is required as durable Domain evidence even when no next intent exists. Do this even when neither the user nor the existing model mentions an event. Treat a continuation as material only when it is needed to explain a business right, outcome, owner, guarantee, or observable failure; ordinary method chaining is not a causal continuation.
+
+State each candidate relationship in the working conversation without assuming that the first fact is independently complete:
+
+```text
+<Behavior> would establish <candidate past-tense fact>; <owner> must or may <next intent>.
+```
+
+If their success relationship is missing, ask the decisive business question: if the next intent cannot complete, is the preceding fact still a successful business fact? Give a recommended answer from the available evidence and the strongest credible alternative.
+
+Load the Reaction Probe and Domain Event rules in `ddd-collaboration.md` for every material continuation. Classify it as one success guarantee, an independent local reaction, a cross-context published fact, or no selected event before choosing a realization. Then restate when the fact becomes true: under one success guarantee it exists only after the composed required outcome succeeds; under an independent reaction or published fact it exists before the later intent. For a selected independent local reaction, recommend the event as the causal handoff to the separately owned next intent; do not retain a direct invocation from the producing behavior as the primary or parallel path. Apply the durable-occurrence evidence test independently rather than using it to split a success guarantee. Being inside one Aggregate or Bounded Context does not decide the classification. A callback, hook, sink, dispatcher, mailbox, or direct call is not evidence for one; these are realization choices only after the Domain relationship is accepted.
+
+Keep the classification and its reason in the conversation. List a selected event separately as `<Event> — recorded by <Behavior>`; the entry contains no selection reason or consumer. Model a resulting next intent separately under its own behavior owner. Analytical Workshop Events never appear in `domain-objects.md`.
 
 ## Compare object compositions
 
@@ -102,7 +117,7 @@ Identity is written in the object heading when meaningful. Facts are the busines
 
 When one retained Entity's definition, Facts, Lifecycle State, behavior, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. After the user confirms it, update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
 
-When the Root's composition is complete, show its integrated compact slice. Before asking for confirmation, verify that every pressure is traceable and assigned, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
+When the Root's composition is complete, show its integrated compact slice. Before asking for confirmation, verify that every pressure is traceable and assigned, every material causal continuation has an accepted classification, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
 
 After the user confirms that Root, write or replace its complete section while preserving other accepted descriptions. At that Root confirmation, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Then continue with the next affected Root. `domain-objects.md` contains only current accepted object descriptions grouped by Root. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
 
@@ -120,4 +135,4 @@ any blocker with current filesystem state.
 
 - Load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for Business Rule-to-pressure, Aggregate, and Entity boundary reasoning.
 - Load relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md) when Entity, Value Object, Domain Service, Repository, or layer ownership affects the object decision.
-- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) when a candidate Domain Event or cross-context contract appears.
+- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for every material causal continuation or cross-context contract.

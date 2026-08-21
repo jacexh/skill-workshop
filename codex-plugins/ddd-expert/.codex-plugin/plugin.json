@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "DDD Expert",
     "shortDescription": "Strategic and tactical DDD interviews",
-    "longDescription": "DDD workflow that builds a compact strategic model through EventStorming, then uses a relentless one question at a time Tactical Design interview to maintain the current domain-object design. Codify implements accepted object slices without changing design authority, and Guard reviews the result independently.",
+    "longDescription": "DDD workflow that builds a compact strategic model through EventStorming, then uses a relentless one question at a time Tactical Design interview to classify material causal continuations and maintain the current domain-object design. Codify implements accepted object slices without changing design authority, and Guard reviews the result independently.",
     "developerName": "xuhao",
     "category": "Productivity",
     "capabilities": [
@@ -23,7 +23,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use $ddd-expert:event-storming to clarify the user's purpose and identify confirmed Bounded Contexts and Aggregate Roots. Then use $ddd-expert:tactical-design to question domain objects depth-first, record coherent Entity descriptions as they close, and confirm the integrated Aggregate Root before $ddd-expert:codify implements its definitions, Facts, Lifecycle State, behavior, and actual Domain Events."
+      "Use $ddd-expert:event-storming to clarify the user's purpose and identify confirmed Bounded Contexts and Aggregate Roots. Then use $ddd-expert:tactical-design to question domain objects depth-first, classify every material causal continuation before choosing a collaboration mechanism, record coherent Entity descriptions as they close, and confirm the integrated Aggregate Root before $ddd-expert:codify implements its definitions, Facts, Lifecycle State, behavior, and actual Domain Events."
     ]
   },
   "skills": "./skills/"

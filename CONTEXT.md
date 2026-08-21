@@ -46,6 +46,10 @@ _Avoid_: generic Actor, IAM principal, transport identity
 A Bounded Context-local business intent required by an established Domain Event or Published Fact Contract. Dispatch and delivery mechanisms are not part of this meaning.
 _Avoid_: event handler wiring, automatic callback, transport subscription
 
+**Material Causal Continuation**:
+The candidate business relationship between an occurrence and a later intent when their success guarantee, owner, or observable failure changes the explanation of the scenario. Tactical Design classifies every such continuation through the Reaction Probe before deciding whether the occurrence is an independently established fact or choosing a software mechanism.
+_Avoid_: ordinary method chain, automatic event, callback-shaped business rule
+
 **Workshop Event**:
 A material past-tense business occurrence used during EventStorming discussion. It remains analytical conversation and does not by itself become a production Domain Event or permanent artifact.
 _Avoid_: automatic Domain Event, meeting record
@@ -79,7 +83,7 @@ The named state-machine states owned by a Root or Entity and their Domain meanin
 _Avoid_: unnamed lifecycle flag, ordinary fact change, inferred state machine
 
 **Pressure-led Tactical Design**:
-The interview order that completes one Aggregate Root at a time by following its smallest affected business-pressure slice. It expresses essential complexity as pressures traceable to Business Rules, probes candidate behavior ownership, and compares credible object compositions by pressure coverage and accidental design burden. Questions are asked one at a time with a recommended answer and a credible alternative.
+The interview order that completes one Aggregate Root at a time by following its smallest affected business-pressure slice. It expresses essential complexity as pressures traceable to Business Rules, probes candidate behavior ownership, classifies every Material Causal Continuation before realization, and compares credible object compositions by pressure coverage and accidental design burden. Questions are asked one at a time with a recommended answer and a credible alternative.
 _Avoid_: Entity checklist, untraceable scenario, batch questionnaire
 
 **Entity Confirmation**:
@@ -95,7 +99,7 @@ A concise Domain sentence in the form `<Subject> <domain verb> <Object>.` During
 _Avoid_: responsibility heading, method signature, caller list
 
 **Actual Domain Event**:
-A selected local Domain fact that production code must record for a named reaction or as durable evidence of the occurrence. In a Domain Object Slice it is listed separately as `<Event> — recorded by <Behavior>`; the selection reason is not part of the entry.
+A local Domain fact selected through the Reaction Probe that production code must record. When selected for a named local reaction, it is the causal handoff rather than an observation beside a direct producer-to-reaction path. In a Domain Object Slice it is listed separately as `<Event> — recorded by <Behavior>`; the selection reason and consumer are not part of the entry.
 _Avoid_: Workshop Event, provider notification, log entry
 
 **Semantic Dependency**:
