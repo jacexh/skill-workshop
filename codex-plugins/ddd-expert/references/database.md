@@ -5,13 +5,13 @@ description: Language-neutral MySQL persistence House Style for schemas, SQL, in
 
 # MySQL Persistence House Style
 
-Use this reference whenever the confirmed Model and implementation scope require MySQL persistence. Model ownership and consistency boundaries come first; this file then governs their physical representation.
+## Applies When
 
-## Authority and Applicability
-
-- **[DDD Principle]** A semantic or consistency property that persistence must preserve.
-- **[House Rule]** A mandatory implementation rule once its described scenario applies. For an uncovered capability, Codify derives the technology choice from accepted project constraints and repository evidence; do not silently choose another convention or library.
-- **[Heuristic]** A fact-finding or capacity signal. It helps decide whether a scenario applies; it is not permission to ignore an applicable House Rule.
+Load this leaf when new or materially changed code uses MySQL schema, SQL,
+migrations, persistence mapping, or local database transactions. Every rule is
+House Style for an already accepted persistence surface. Project-specific
+requirements may add stricter constraints; changing this baseline requires an
+explicit project technology decision.
 
 The adopted database is MySQL 8. The active language House Style selects the adapter, connection API, and UUIDv7 implementation. Verify the deployed MySQL minor version, InnoDB row format, SQL mode, topology, and migration tooling before relying on a version-dependent capability. That verification may select the supported execution mechanism; it does not weaken the schema and persistence rules below.
 
@@ -28,8 +28,8 @@ The adopted database is MySQL 8. The active language House Style selects the ada
 
 ## 1. Persistence Responsibilities
 
-- **[DDD Principle]** Tables are persistence representations, not Domain objects. An Aggregate may map to several tables, and a read model may project or join several sources.
-- **[DDD Principle]** The accepted Aggregate boundary determines atomic write ownership. A foreign key, shared table, or database transaction does not create an Aggregate boundary.
+- **[House Rule]** Tables are persistence representations, not Domain objects. An Aggregate may map to several tables, and a read model may project or join several sources.
+- **[House Rule]** The accepted Aggregate boundary determines atomic write ownership. A foreign key, shared table, or database transaction does not create an Aggregate boundary.
 - **[House Rule]** A command-side Repository persists exactly one Aggregate Root and its owned state. Its write owns one local transaction by default. Under the confirmed same-context, same-resource exception, several one-Root Repository adapters enlist in the same Application scope and one physical local database transaction; do not replace them with a multi-Root Repository.
 - **[House Rule]** Lists, pages, history, reports, statistics, cross-Aggregate composition, denormalized views, and optimized projections use an Application-owned QueryRepository. A focused read of one reasonably sized Aggregate may use its Domain Repository when full reconstitution is appropriate and no distinct read semantics exist.
 - **[House Rule]** Transport never queries tables or Repositories directly. Infrastructure owns persistence records, mappings, and adapters; Runtime owns the shared connection-pool or database-client lifecycle.
@@ -108,7 +108,7 @@ Check affected rows. Zero rows maps to the same stable concurrency-conflict erro
 | Unix-millisecond time | `bigint` |
 | Optimistic version | `int unsigned` |
 
-- **[DDD Principle]** Money includes amount, currency, and unit/exponent semantics. Storage must not silently assume two decimals for currencies or assets whose contract differs.
+- **[House Rule]** Persist money with its accepted amount, currency, and unit/exponent semantics; storage does not assume two decimal places.
 - **[House Rule]** `float` and `double` are prohibited for exact business values. Use integer units or `decimal`.
 - **[House Rule]** Integer signedness and capacity match the business range; do not use unsigned arithmetic when negative values are meaningful.
 
@@ -214,7 +214,7 @@ The legacy 767-byte/191-utf8mb4-character limit is not a MySQL 8 universal limit
 - **[House Rule]** Predicate values use the same type and collation as indexed columns; implicit conversion is prohibited.
 - **[House Rule]** Do not apply functions or expressions to an indexed column in a predicate when that prevents the required access path. Use a supported generated column when the derived value is an accepted query key.
 - **[House Rule]** An `IN` list contains no more than 50 values. Larger input is chunked or handled by an accepted bulk/query mechanism.
-- **[Heuristic]** `OR`, subqueries, joins, and full scans are evaluated with representative plans and row counts. Several application round trips are not automatically safer or faster than one owned-database join.
+- **[House Rule]** Evaluate `OR`, subqueries, joins, and full scans with representative plans and row counts; compare them with the actual alternative rather than assuming several application round trips are safer or faster.
 - **[House Rule]** A production read joins no more than three tables and never joins across databases. All selected columns are qualified through aliases.
 
 ### Pagination
@@ -248,7 +248,7 @@ Do not assume a row-constructor range such as `(created_at, id) < (?, ?)` will p
 
 ## 8. Transactions and Concurrency
 
-- **[DDD Principle]** Transaction scope implements an accepted consistency boundary; it does not define one.
+- **[House Rule]** Transaction scope implements the accepted consistency boundary supplied by project or DDD authority.
 - **[House Rule]** A confirmed multi-Root atomic use case stays inside one Bounded Context and one local database resource. Every participating one-Root Repository joins the same physical transaction so all writes commit or roll back together.
 - **[House Rule]** A Repository participating in an Application-owned scope neither begins, commits, nor rolls back a nested transaction. Without an outer scope, it retains its ordinary one-Root local transaction behavior.
 - **[House Rule]** Keep transactions short, acquire locks in stable primary-key order, and update by primary or unique keys where possible.
@@ -339,9 +339,8 @@ When a new non-null value cannot be assigned safely by a schema default, first a
 
 ## Related References
 
-- [`ddd-modeling.md`](ddd-modeling.md) for ownership, lifecycle, and Aggregate boundaries.
 - [`ddd-core.md`](ddd-core.md) for Repository, CQRS, and transaction semantics.
 - [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) for Go persistence-record conversion and Repository adapters.
 - [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) for Application QueryRepository contracts.
-- [`ddd-python.md`](ddd-python.md) for Python persistence mapping, conversion, and Repository adapters.
-- [`ddd-typescript.md`](ddd-typescript.md) for TypeScript persistence mapping, conversion, and Repository adapters.
+- [`ddd-python-infrastructure.md`](ddd-python-infrastructure.md) for Python persistence mapping, conversion, and Repository adapters.
+- [`ddd-typescript-infrastructure.md`](ddd-typescript-infrastructure.md) for TypeScript persistence mapping, conversion, and Repository adapters.

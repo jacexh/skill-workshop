@@ -56,7 +56,7 @@ Use all ten steps in causal order during discovery. A thesis review may acknowle
 7. **Problems and ambiguity**: make contradictions, assumptions, missing facts, and material Hotspots explicit.
 8. **Aggregates and core business objects**: cluster identity and immediate consistency around candidate Aggregate Roots; test a credible split, merge, or deletion.
 9. **Bounded Contexts**: separate language, authority, policy, lifecycle, and model purpose where they diverge.
-10. **Context collaboration**: identify semantic dependencies, named published contracts, translation, and downstream reliance.
+10. **Context collaboration**: identify semantic dependencies, named published contracts, translation, and downstream reliance. Use a published synchronous command/query when the caller needs an immediate authoritative answer, a producer-owned Published Fact Contract when another context relies on what occurred, and a receiver-owned Asynchronous Intent Contract when one context asks another authority to act later. Record each dependency once as `Upstream -> Downstream`; the upstream owns the named meaning, and the accepted map remains acyclic.
 
 Workshop Events stay in the conversation as analytical evidence. A proposed production Domain Event remains a candidate until the Actual Domain Event rules select it; Tactical Design owns the object-level recording of any selected event.
 
@@ -98,8 +98,3 @@ End with the current strategic result and the evidence supporting it. Ask the on
 decisive question when authority is missing, request explicit confirmation when
 the integrated proposal is still unconfirmed, name Tactical Design or Codify
 when it owns the next step, and report any blocker with current filesystem state.
-
-## References
-
-- Load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for Workshop Event selection, language, Aggregate, Bounded Context, and Context Map reasoning.
-- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) when a candidate Domain Event or cross-context contract appears.

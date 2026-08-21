@@ -5,6 +5,8 @@ description: Go multi-bounded-context House Style for project layout, package ow
 
 # Go Scaffold and Package Layout
 
+## Applies When
+
 Use this Platform Guide after bounded contexts and responsibilities are accepted. The tree shows ownership, not a requirement to create empty packages. Conditional packages appear only when the service implements that capability.
 
 ## Multi-BC Service Layout

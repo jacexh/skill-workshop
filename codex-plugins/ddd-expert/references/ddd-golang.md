@@ -5,9 +5,12 @@ description: Go DDD House Style baseline and navigation index for dependency bou
 
 # Go DDD House Style Baseline
 
-Load this baseline after the Model is confirmed. It does not decide Aggregate boundaries, consistency, or collaboration. It fixes how confirmed responsibilities are implemented in Go and routes detailed work to the smallest relevant Knowledge Leaf.
+## Applies When
 
-Every Go rule below realizes an already selected design. It applies only when its stated concern and lifecycle branch are established, preserving accepted Aggregate boundaries, state authority, and business sequencing.
+Load this router after the accepted design selects Go. Read this baseline, then
+load the smallest complete set of leaves covering the touched code surfaces.
+Every leaf realizes an already selected design while preserving accepted
+Aggregate boundaries, state authority, and business sequencing.
 
 ## Dependency Direction
 
@@ -39,7 +42,7 @@ Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xor
 
 | Responsibility | Load |
 |---|---|
-| Aggregate, Entity, Value Object, Domain Service, Repository contract, FSM | [`ddd-golang-domain.md`](ddd-golang-domain.md) |
+| Aggregate, Entity, Value Object, Domain Service, Repository contract | [`ddd-golang-domain.md`](ddd-golang-domain.md) |
 | Command, Query, Application service, `application.go`, assembler, transaction coordination | [`ddd-golang-application.md`](ddd-golang-application.md) |
 | ConnectRPC, Chi HTTP, message subscriber, task processor, error mapping | [`ddd-golang-transport.md`](ddd-golang-transport.md) |
 | xorm persistence, DO/convert, QueryRepository adapter, ACL/external adapter | [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) |
@@ -49,18 +52,25 @@ Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xor
 | End-to-end flow | Load |
 |---|---|
 | Read model separation, QueryRepository, projections | [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) |
-| Domain Events, published facts/intents, Kafka | [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) |
-| Internal task, processor, polling, periodic task, Asynq | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) |
+| Local Domain Event and same-context reaction | [`ddd-golang-events.md`](ddd-golang-events.md) |
+| Published fact/intent and provider-neutral message subscriber | [`ddd-golang-messages.md`](ddd-golang-messages.md) |
+| Internal task contract, processor, polling, periodic task | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) |
+| Accepted `components/fsm` lifecycle | [`ddd-golang-fsm.md`](ddd-golang-fsm.md) |
 
 ### Platform Guides
 
 | Platform concern | Load |
 |---|---|
 | Multi-BC layout, generated code, modules, tests | [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) |
-| Configuration, Fx, server/worker lifecycle, logging, telemetry, shutdown | [`ddd-golang-runtime.md`](ddd-golang-runtime.md) |
+| Configuration, Fx, server/worker lifecycle, logging, shutdown | [`ddd-golang-runtime.md`](ddd-golang-runtime.md) |
+| Kafka provider runtime | [`ddd-golang-kafka.md`](ddd-golang-kafka.md) |
+| Asynq provider runtime | [`ddd-golang-asynq.md`](ddd-golang-asynq.md) |
+| Accepted OpenTelemetry | [`ddd-golang-observability.md`](ddd-golang-observability.md) |
 | MySQL schema, SQL, indexes, locking, migrations | [`database.md`](database.md) |
 
-Use [`ddd-modeling.md`](ddd-modeling.md) for model discovery, [`ddd-core.md`](ddd-core.md) for the DDD + Clean Architecture baseline, and [`ddd-collaboration.md`](ddd-collaboration.md) for cross-Aggregate or cross-context design.
+Load [`ddd-core.md`](ddd-core.md) only for an affected cross-language
+object/layer realization and [`ddd-collaboration.md`](ddd-collaboration.md)
+only for an accepted published API, Domain Event, or Integration Message.
 
 ## Mandatory Adopted Stack
 
@@ -87,7 +97,8 @@ Use [`ddd-modeling.md`](ddd-modeling.md) for model discovery, [`ddd-core.md`](dd
 | Configuration | `github.com/go-jimu/components/config/loader` | Go service Runtime |
 | Distributed tracing | OpenTelemetry Go, OTLP, `connectrpc.com/otelconnect` | Tracing is accepted and a backend/collector is available |
 
-Do not substitute Gin/Echo for Chi, grpc-go for ConnectRPC, GORM/sqlc for xorm, Sarama for the go-jimu Kafka adapter, Zap for slog, or a project-local wrapper for an adopted go-jimu contract. A technology concern absent from this table remains uncovered until its choice is accepted and documented.
+The table is the implementation default for covered concerns. Changing a stack
+entry is a project technology decision rather than a per-use-case choice.
 
 ## Cross-cutting House Rules
 
@@ -110,8 +121,11 @@ Do not substitute Gin/Echo for Chi, grpc-go for ConnectRPC, GORM/sqlc for xorm, 
 | RPC/HTTP endpoint, message consumer, task processor | Transport plus the relevant Flow Guide |
 | Repository/QueryRepository implementation, DO/schema, external adapter | Infrastructure plus Database when persisted |
 | Confirmed multi-Root local atomic change | Domain, Application, Infrastructure, Database, Scaffold, and Runtime for composition |
-| Domain Event or Integration Message publication/consumption | Events/messages plus every touched Layer Guide |
-| Internal task, polling, periodic work | Task queue plus every touched Layer Guide |
-| Fx/config/server/worker/goroutine/shutdown/telemetry | Runtime and Scaffold |
+| Local Domain Event or same-context reaction | Events plus every touched Layer Guide |
+| Published fact or asynchronous intent | Messages plus every touched Layer Guide; Kafka only when it is the provider |
+| Internal task, polling, periodic work | Task Queue plus every touched Layer Guide; Asynq only when it is the provider |
+| Accepted FSM | Domain and FSM |
+| Fx/config/server/worker/goroutine/shutdown | Runtime and Scaffold |
+| Accepted OpenTelemetry | Observability plus the touched Transport/provider leaves |
 
 Codify selects the engineering realization from accepted project constraints, repository evidence, and the applicable House Rules while preserving confirmed business boundaries, consistency meaning, and published contracts.

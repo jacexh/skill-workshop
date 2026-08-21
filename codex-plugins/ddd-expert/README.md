@@ -67,20 +67,20 @@ Upgrade with `codex plugin marketplace upgrade skill-workshop-codex`.
 
 Canonical references live under `references/`:
 
-- `ddd-modeling.md` — EventStorming, language, Aggregate, Bounded Context, and Context Map reasoning
-- `ddd-core.md` — language-neutral tactical DDD and Clean Architecture
-- `ddd-collaboration.md` — published APIs, actual Domain Events, Integration Messages, and contract evolution
-- `ddd-golang.md` — Go/go-jimu house-style router and baseline
-- `ddd-golang-scaffold.md` — Go module layout, generated code, and composition
-- `ddd-golang-domain.md` — Go Domain objects, Repositories, events, and lifecycle
-- `ddd-golang-application.md` — Go commands, queries, transactions, ports, and assemblers
-- `ddd-golang-transport.md` — ConnectRPC/HTTP, subscriber, and task adapters
-- `ddd-golang-cqrs.md` — conditional Go QueryRepository and read-model flow
-- `ddd-golang-infrastructure.md` — Go persistence, conversion, ACL, and outbound adapters
-- `ddd-golang-events-messages.md` — Go Domain Event and Integration Message flows
-- `ddd-golang-taskqueue.md` — Go deferred work, scheduling, and Asynq runtime
-- `ddd-golang-runtime.md` — Go configuration, composition, lifecycle, and shutdown
-- `ddd-python.md` and `ddd-typescript.md` — compact language house styles
-- `database.md` — persistence and schema house style
+- `ddd-core.md` — language-neutral realization of accepted DDD objects and layers
+- `ddd-collaboration.md` — realization of accepted APIs, Domain Events, and Integration Messages
+- `database.md` — MySQL schema, SQL, migration, and persistence realization
+- `ddd-golang.md` — Go/go-jimu router and adopted-stack baseline
+- `ddd-golang-{scaffold,domain,application,transport,cqrs,infrastructure}.md` — Go structure and layer leaves
+- `ddd-golang-{events,messages,taskqueue}.md` — Go provider-neutral flow leaves
+- `ddd-golang-{fsm,kafka,asynq,observability,runtime}.md` — Go conditional mechanism and Runtime leaves
+- `ddd-python.md` — Python router and adopted-stack baseline
+- `ddd-python-{domain,application,transport,infrastructure}.md` — Python layer leaves
+- `ddd-python-{events-messages,taskqueue,fsm,runtime}.md` — Python conditional flow and Runtime leaves
+- `ddd-typescript.md` — TypeScript router and adopted-stack baseline
+- `ddd-typescript-{domain,application,transport,infrastructure}.md` — TypeScript layer leaves
+- `ddd-typescript-{events-messages,taskqueue,fsm,runtime}.md` — TypeScript conditional flow and Runtime leaves
 
-Project-specific facts remain in project documents. Generic references never encode one repository's expected model.
+References are House Style only: they show how an already accepted object or
+mechanism is written. EventStorming and Tactical Design remain the authorities
+for DDD design. Project-specific facts remain in project documents.

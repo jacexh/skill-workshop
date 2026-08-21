@@ -5,6 +5,8 @@ description: Go house style for ConnectRPC, conditional HTTP, Integration Messag
 
 # Go Transport Layer
 
+## Applies When
+
 Transport is the physical house-style name for inbound adapters. It maps one external or runtime-triggered contract to one protocol-neutral Application use case and maps the result back. It is separate from Application even when an older service combines both responsibilities.
 
 ## Inbound Contract
@@ -70,110 +72,22 @@ The generated service interface is implemented only here, never by `application.
 
 If a hand-written HTTP endpoint is accepted, place it under `transport/http` and route with `github.com/go-chi/chi/v5`. It follows the same map-once/delegate-once rule; do not introduce Gin, Echo or a second server lifecycle.
 
-## Integration Message Subscriber
+## Message and Task Adapters
 
-An accepted Integration Message consumer lives under `transport/messagesubscriber` and implements `github.com/go-jimu/components/ddd/message.Handler`:
+An accepted Integration Message consumer lives under
+transport/messagesubscriber and follows
+[ddd-golang-messages.md](ddd-golang-messages.md). It decodes one registered
+generated payload, maps it to one Application Command, delegates once, and
+returns the semantic result to the selected provider Runtime.
 
-```go
-package messagesubscriber
+An accepted internal task processor lives under transport/taskprocessor and
+follows [ddd-golang-taskqueue.md](ddd-golang-taskqueue.md). It decodes one
+provider-neutral protobuf task, maps it to one Application Command, delegates
+once, and returns the semantic result.
 
-import (
-	"context"
-	"fmt"
-
-	"github.com/go-jimu/components/ddd/message"
-	userintegrationv1 "example/gen/user/integration/v1"
-	"example/internal/business/notification/application"
-	"example/internal/business/notification/application/command"
-)
-
-type UserRegisteredSubscriber struct {
-	app *application.Application
-}
-
-var _ message.Handler = (*UserRegisteredSubscriber)(nil)
-
-func NewUserRegisteredSubscriber(
-	app *application.Application,
-) *UserRegisteredSubscriber {
-	return &UserRegisteredSubscriber{app: app}
-}
-
-func (*UserRegisteredSubscriber) Listening() []message.Kind {
-	return []message.Kind{message.KindOf(&userintegrationv1.UserRegisteredV1{})}
-}
-
-func (s *UserRegisteredSubscriber) Handle(
-	ctx context.Context,
-	integrationMessage message.Message,
-) error {
-	payload, ok := integrationMessage.Payload().(*userintegrationv1.UserRegisteredV1)
-	if !ok {
-		return fmt.Errorf("unexpected integration payload %T", integrationMessage.Payload())
-	}
-	return s.app.Commands.SendWelcomeNotification.Handle(ctx, command.SendWelcomeNotification{
-		UserID: payload.GetUserId(),
-		Name:   payload.GetName(),
-		Email:  payload.GetEmail(),
-	})
-}
-```
-
-The subscriber validates envelope/type facts required for mapping, extracts message/correlation metadata and delegates once. Business validity stays in Application/Domain. It returns the local use-case result to Kafka Runtime.
-
-The consuming context imports a producer-owned Published Fact Contract, or its own receiver-owned Asynchronous Intent Contract. It never imports another context's internal Domain Event. `message.Subscriber.Subscribe` is registration in `<context>.go`; `message.Runner.Run` and Kafka/franz-go remain under `internal/pkg/messagebus`.
-
-## Task Processor
-
-When the accepted implementation includes background execution, the owning context defines its protobuf schema under `proto/<context>/task/v1` and its semantic definition/constructor under `application/task`; the inbound adapter lives under `transport/taskprocessor` and implements `github.com/go-jimu/components/taskqueue.Processor`:
-
-```go
-package taskprocessor
-
-import (
-	"context"
-
-	notificationtaskv1 "example/gen/notification/task/v1"
-	"github.com/go-jimu/components/taskqueue"
-	"example/internal/business/notification/application"
-	"example/internal/business/notification/application/command"
-	notificationtask "example/internal/business/notification/application/task"
-)
-
-type SendWelcomeProcessor struct {
-	app *application.Application
-}
-
-var _ taskqueue.Processor = (*SendWelcomeProcessor)(nil)
-
-func NewSendWelcomeProcessor(
-	app *application.Application,
-) *SendWelcomeProcessor {
-	return &SendWelcomeProcessor{app: app}
-}
-
-func (p *SendWelcomeProcessor) TaskType() taskqueue.TaskType {
-	return notificationtask.SendWelcomeDefinition.Type
-}
-
-func (p *SendWelcomeProcessor) Process(
-	ctx context.Context,
-	queued taskqueue.Task,
-) error {
-	payload := &notificationtaskv1.SendWelcomeTaskV1{}
-	if err := taskqueue.DecodeProto(queued, payload); err != nil {
-		return err // malformed protobuf already wraps taskqueue.ErrSkipRetry
-	}
-	return p.app.Commands.SendWelcomeNotification.Handle(ctx, command.SendWelcomeNotification{
-		UserID: payload.GetUserId(),
-	})
-}
-```
-
-A processor handles one `TaskType` and delegates to one Application Command. Expected waiting enqueues an explicitly bounded delayed follow-up and completes the current task. Domain guards keep repeated execution at a stable business outcome.
-
-`<context>.go` contributes processor and periodic registration. `internal/pkg/taskqueue` owns the Asynq/Redis clients, worker, scheduler, worker middleware and Fx lifecycle. Periodic scheduling enqueues an ordinary task; it does not call a business service directly. External bounded contexts collaborate through Integration Messages, not another context's internal task contract.
-
+The Bounded Context module contributes subscriber and processor registrations.
+Kafka and Asynq provider construction, active loops, completion logging, and
+lifecycle remain in their provider leaves.
 ## Errors, Logging and Trace Context
 
 Transport maps stable errors to ConnectRPC/HTTP status or returns them to the provider boundary. It preserves the internal cause for the single execution logger.
