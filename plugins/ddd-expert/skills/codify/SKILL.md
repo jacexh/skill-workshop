@@ -21,7 +21,7 @@ DDD artifacts are read-only during Codify. Preserve their accepted semantic owne
 
 Implement the complete requested slice across the code surfaces it actually needs. Keep the accepted Domain model authoritative and derive the affected software structure from its ownership and behavior: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
 
-Load only House Style guidance for the active language and code surfaces actually touched. Apply its relevant rules to the remaining realization choices that preserve the accepted semantics.
+Use the active-language router to load the smallest complete House Style leaf set whose applicability covers every code surface actually touched. Apply those rules to the remaining realization choices that preserve the accepted semantics.
 
 ## Verify
 
@@ -33,7 +33,6 @@ End with the implemented behavior, changed files, verification results, and resi
 
 ## References
 
-- For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md) and follow only the branches for code actually touched.
-- For Python or TypeScript, load only the touched surfaces from [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
-- Load relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md) when Domain ownership or a layer boundary is being realized.
-- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for accepted event or cross-context work, and [../../references/database.md](../../references/database.md) for actual persistence or schema work.
+- Start with the active-language router: [Go](../../references/ddd-golang.md), [Python](../../references/ddd-python.md), or [TypeScript](../../references/ddd-typescript.md). Follow its exact mapping for every touched code surface.
+- Load [../../references/ddd-core.md](../../references/ddd-core.md) when an accepted Domain object or cross-language layer boundary is being realized.
+- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for an accepted published API, Domain Event, or Integration Message, and [../../references/database.md](../../references/database.md) for actual MySQL persistence, SQL, or schema work.

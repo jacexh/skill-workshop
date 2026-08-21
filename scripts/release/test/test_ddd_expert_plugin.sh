@@ -139,7 +139,17 @@ for skill in event-storming tactical-design codify guard; do
   [ -f "$codex_skill" ] || fail "Codex ddd-expert missing $skill skill"
   cmp -s "$claude_skill" "$codex_skill" || fail "Claude and Codex $skill skills should match"
   rg -q '^description: Use when ' "$claude_skill" || fail "$skill description should start with Use when"
-  assert_references_last "$claude_skill" "$skill"
+done
+
+for implementation_skill in codify guard; do
+  assert_references_last "$CLAUDE_ROOT/skills/$implementation_skill/SKILL.md" "$implementation_skill"
+done
+for design_skill in event-storming tactical-design; do
+  file="$CLAUDE_ROOT/skills/$design_skill/SKILL.md"
+  assert_not_contains "$file" '## References' "$design_skill should own its design rules directly"
+  if rg -n '\]\(\.\./\.\./references/' "$file" >/dev/null; then
+    fail "$design_skill should not load House Style references"
+  fi
 done
 
 expected_skill_inventory="$(printf '%s\n' codify event-storming guard tactical-design | sort)"
@@ -195,7 +205,6 @@ tactical_design_skill="$CLAUDE_ROOT/skills/tactical-design/SKILL.md"
 model_template="$CLAUDE_ROOT/templates/model.md"
 domain_objects_template="$CLAUDE_ROOT/templates/domain-objects.md"
 artifact_layout_template="$CLAUDE_ROOT/templates/artifact-layout.md"
-ddd_modeling_reference="$CLAUDE_ROOT/references/ddd-modeling.md"
 codify_skill="$CLAUDE_ROOT/skills/codify/SKILL.md"
 guard_skill="$CLAUDE_ROOT/skills/guard/SKILL.md"
 
@@ -223,14 +232,17 @@ actual_workflow_steps="$(awk '/^## The ten EventStorming steps$/ { in_workflow =
 [ "$actual_workflow_steps" = "$expected_workflow_steps" ] || fail "EventStorming should preserve the ten causal steps in order"
 assert_contains "$event_storming_skill" 'Workshop Events stay in the conversation' "EventStorming should not persist workshop minutes"
 assert_contains "$event_storming_skill" 'A proposed production Domain Event remains a candidate until the Actual Domain Event rules select it' "EventStorming should defer Domain Event selection to its normative rules"
-assert_contains "$event_storming_skill" '../../references/ddd-collaboration.md' "EventStorming should load collaboration rules for a candidate event or cross-context contract"
+assert_contains "$event_storming_skill" 'published synchronous command/query when the caller needs an immediate authoritative answer' "EventStorming should own synchronous collaboration selection"
+assert_contains "$event_storming_skill" 'producer-owned Published Fact Contract' "EventStorming should own published-fact selection"
+assert_contains "$event_storming_skill" 'receiver-owned Asynchronous Intent Contract' "EventStorming should own asynchronous-intent selection"
+assert_contains "$event_storming_skill" 'Upstream -> Downstream' "EventStorming should own Context Map direction"
 assert_not_contains "$event_storming_skill" 'produces or consumes' "EventStorming should not attach an event to a consumer"
 assert_contains "$event_storming_skill" 'compact text timeline, table, or arrow chain' "EventStorming should use a renderer-independent conversational board"
 assert_contains "$event_storming_skill" 'Admit a concern only when it changes a business right' "EventStorming should select concerns by business-observable meaning"
 assert_contains "$event_storming_skill" 'Each rule is one independently challengeable claim' "EventStorming should write falsifiable Business Rules"
 assert_contains "$event_storming_skill" 'without assigning tactical behavior ownership or prescribing an implementation mechanism' "EventStorming Business Rules should not pre-decide object design"
-if rg -ni 'mermaid|\b(retry|retries|transaction|transactions|concurrency|concurrent|recovery|deployment|idempotency|idempotent)\b' "$event_storming_skill" "$CLAUDE_ROOT/references/ddd-modeling.md" >/dev/null; then
-  rg -ni 'mermaid|\b(retry|retries|transaction|transactions|concurrency|concurrent|recovery|deployment|idempotency|idempotent)\b' "$event_storming_skill" "$CLAUDE_ROOT/references/ddd-modeling.md" >&2
+if rg -ni 'mermaid|\b(retry|retries|transaction|transactions|concurrency|concurrent|recovery|deployment|idempotency|idempotent)\b' "$event_storming_skill" >/dev/null; then
+  rg -ni 'mermaid|\b(retry|retries|transaction|transactions|concurrency|concurrent|recovery|deployment|idempotency|idempotent)\b' "$event_storming_skill" >&2
   fail "EventStorming guidance should not prime implementation mechanisms"
 fi
 assert_contains "$event_storming_skill" 'explicitly confirms the integrated strategic model' "EventStorming should require integrated confirmation"
@@ -330,12 +342,6 @@ assert_contains "$artifact_layout_template" 'domain-objects.md' "artifact layout
 assert_contains "$artifact_layout_template" 'Required Capabilities where present' "artifact layout should include conditional Domain-owned capabilities"
 assert_contains "$artifact_layout_template" 'after its Entity confirmation' "artifact layout should expose Entity-level writes"
 assert_contains "$artifact_layout_template" 'after Root confirmation' "artifact layout should expose integrated Root writes"
-assert_contains "$ddd_modeling_reference" 'A confirmed Entity description may be persisted' "modeling reference should expose Entity-level writes"
-assert_contains "$ddd_modeling_reference" 'integrated Root confirmation completes the slice' "modeling reference should expose integrated Root writes"
-assert_contains "$ddd_modeling_reference" 'applies accepted changes across affected current DDD artifacts and project decisions' "modeling reference should expose Root-level synchronization"
-for term in 'Capability Probe' 'Required Capability'; do
-  assert_contains "$ddd_modeling_reference" "$term" "modeling reference missing $term"
-done
 assert_not_contains "$artifact_layout_template" 'event-storming/' "artifact layout should not retain meeting minutes"
 assert_not_contains "$artifact_layout_template" 'tactical-design/' "artifact layout should not retain design iterations"
 assert_not_contains "$artifact_layout_template" 'architecture.md' "artifact layout should not retain BC architecture files"
@@ -345,7 +351,7 @@ assert_contains "$codify_skill" 'DDD artifacts are read-only during Codify' "Cod
 assert_contains "$codify_skill" 'semantic constraints, not a complete software design' "Codify should treat sparse design as constraints rather than an inventory"
 assert_contains "$codify_skill" 'implementation latitude, not a missing modeling step' "Codify should own unspecified software realization"
 assert_contains "$codify_skill" 'applicable House Style' "Codify should resolve realization through House Style"
-assert_contains "$codify_skill" 'code surfaces actually touched' "Codify should load House Style only for current work"
+assert_contains "$codify_skill" 'every code surface actually touched' "Codify should load House Style only for current work"
 assert_contains "$codify_skill" 'Implement the complete requested slice' "Codify should realize the accepted behavior coherently"
 assert_contains "$codify_skill" 'tests and checks proportionate to the changed behavior and risk' "Codify should verify proportionately"
 assert_not_contains "$codify_skill" 'stop and route' "Codify should not create a modeling return loop"
@@ -408,28 +414,27 @@ for retired_artifact in 'docs/ddd-expert/model.md' 'docs/ddd-expert/design.md'; 
   fi
 done
 assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Their silence about remaining software structure is implementation latitude' "codify should own design gaps outside the Domain contract"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Load only House Style guidance for the active language and code surfaces actually touched' "codify should apply House Style selectively"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'smallest complete House Style leaf set' "codify should apply House Style selectively"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'Use question-led depth' "guard should deepen only from a concrete structural question"
 assert_not_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" '`clear`, `violation`, or `evidence_gap`' "guard should not maintain terminal-state accounting"
 assert_not_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'review unit' "guard should not maintain review-unit machinery"
 assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'fresh, read-only agent context' "guard should keep review work independent and read-only"
 
-if rg -n 'ddd-golang-(scaffold|domain|application|transport|cqrs|infrastructure|events-messages|taskqueue|runtime)\.md' \
+if rg -n 'ddd-golang-[[:alnum:]-]+\.md' \
   "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
   fail "workflow skills should enter Go House Style through its router rather than link implementation leaves directly"
 fi
-assert_contains "$event_storming_skill" '../../references/ddd-modeling.md' "EventStorming should load strategic modeling guidance"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Go, start with' "codify should enter Go guidance through its router"
-assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'For Python or TypeScript, load only the touched surfaces' "codify should load compact language guides selectively"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Go, start with' "guard should enter Go guidance through its router"
-assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'For Python or TypeScript, load only relevant sections' "guard should load compact language guides selectively"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'Start with the active-language router' "codify should enter language guidance through its router"
+assert_contains "$CLAUDE_ROOT/skills/codify/SKILL.md" 'every touched code surface' "codify should route to a complete leaf set"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'Start with the active-language router' "guard should enter language guidance through its router"
+assert_contains "$CLAUDE_ROOT/skills/guard/SKILL.md" 'affected code surfaces' "guard should route to affected leaves"
 
-# Canonical reference inventory. Go uses a baseline/router plus focused leaves;
-# lower-frequency Python and TypeScript each use one compact language guide.
+# Canonical reference inventory. Every language uses a router plus focused
+# layer/flow/mechanism leaves.
 references=(
-  ddd-modeling.md
   ddd-core.md
   ddd-collaboration.md
+  database.md
   ddd-golang.md
   ddd-golang-scaffold.md
   ddd-golang-domain.md
@@ -437,12 +442,32 @@ references=(
   ddd-golang-transport.md
   ddd-golang-cqrs.md
   ddd-golang-infrastructure.md
-  ddd-golang-events-messages.md
+  ddd-golang-events.md
+  ddd-golang-messages.md
   ddd-golang-taskqueue.md
+  ddd-golang-fsm.md
+  ddd-golang-kafka.md
+  ddd-golang-asynq.md
+  ddd-golang-observability.md
   ddd-golang-runtime.md
-  database.md
   ddd-python.md
+  ddd-python-domain.md
+  ddd-python-application.md
+  ddd-python-transport.md
+  ddd-python-infrastructure.md
+  ddd-python-events-messages.md
+  ddd-python-taskqueue.md
+  ddd-python-fsm.md
+  ddd-python-runtime.md
   ddd-typescript.md
+  ddd-typescript-domain.md
+  ddd-typescript-application.md
+  ddd-typescript-transport.md
+  ddd-typescript-infrastructure.md
+  ddd-typescript-events-messages.md
+  ddd-typescript-taskqueue.md
+  ddd-typescript-fsm.md
+  ddd-typescript-runtime.md
 )
 
 expected_inventory="$(printf '%s\n' "${references[@]}" | sort)"
@@ -460,12 +485,12 @@ for reference in "${references[@]}"; do
   cmp -s "$claude_ref" "$codex_ref" || fail "Claude and Codex $reference references should match"
 done
 
-for retired_reference in ddd-agent-contract.md ddd-modeling-gates.md mysql.md; do
+for retired_reference in ddd-agent-contract.md ddd-modeling.md ddd-modeling-gates.md ddd-golang-events-messages.md mysql.md; do
   [ ! -e "$CLAUDE_ROOT/references/$retired_reference" ] || fail "Claude should not keep $retired_reference"
   [ ! -e "$CODEX_ROOT/references/$retired_reference" ] || fail "Codex should not keep $retired_reference"
 done
 
-if rg -n 'ddd-agent-contract\.md|ddd-modeling-gates\.md|mysql\.md' \
+if rg -n 'ddd-agent-contract\.md|ddd-modeling(-gates)?\.md|ddd-golang-events-messages\.md|mysql\.md' \
   "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" \
   "$CLAUDE_ROOT/references" "$CODEX_ROOT/references" >/dev/null; then
   fail "skills and references should not load retired reference files"
@@ -475,93 +500,81 @@ check_local_markdown_links "$CLAUDE_ROOT" "Claude"
 check_local_markdown_links "$CODEX_ROOT" "Codex"
 
 common_refs=(
-  "$CLAUDE_ROOT/references/ddd-modeling.md"
   "$CLAUDE_ROOT/references/ddd-core.md"
   "$CLAUDE_ROOT/references/ddd-collaboration.md"
   "$CLAUDE_ROOT/references/database.md"
 )
 language_refs=(
   "$CLAUDE_ROOT"/references/ddd-golang*.md
-  "$CLAUDE_ROOT/references/ddd-python.md"
-  "$CLAUDE_ROOT/references/ddd-typescript.md"
+  "$CLAUDE_ROOT"/references/ddd-python*.md
+  "$CLAUDE_ROOT"/references/ddd-typescript*.md
 )
 optimized_refs=(
   "${common_refs[@]}"
   "${language_refs[@]}"
 )
 
-# House Style references should keep the model's ordinary implementation path
-# salient instead of advertising uncommon coordination and recovery mechanisms.
+# House Style references keep ordinary implementation salient and do not
+# advertise uncommon coordination/recovery mechanisms.
 uncommon_reference_mechanism_pattern='\b(outbox|inbox|sagas?)\b|process[ -]manager|process[ -](crash|restart|failure)|transaction[ -]failure|(commit|rollback)[ -]failure|crash[ -](gap|loss|recovery)|panic[ -]recovery|durable[ -](handoff|delivery|progress|coordination)|recovery[ -](semantics|policy|mechanism|protocol)|reconciliation|manual repair|compensation'
 if rg -ni "$uncommon_reference_mechanism_pattern" "${optimized_refs[@]}" >/dev/null; then
-  rg -ni "$uncommon_reference_mechanism_pattern" \
-    "${optimized_refs[@]}" >&2
+  rg -ni "$uncommon_reference_mechanism_pattern" "${optimized_refs[@]}" >&2
   fail "references should not advertise uncommon coordination and recovery mechanisms"
 fi
 
-for reference in ddd-modeling.md ddd-core.md ddd-collaboration.md; do
+# References are implementation House Style, never another DDD design workflow.
+for reference in "${references[@]}"; do
   file="$CLAUDE_ROOT/references/$reference"
-  assert_contains "$file" '[DDD Principle]' "$reference should distinguish DDD principles"
-  assert_contains "$file" '[House Rule]' "$reference should distinguish house rules"
-  assert_contains "$file" '[Heuristic]' "$reference should distinguish heuristics"
+  assert_contains "$file" '## Applies When' "$reference should state its applicability"
 done
-assert_contains "$CLAUDE_ROOT/references/ddd-modeling.md" 'The Root composes their responsibilities; it does not have to absorb every behavior.' "strategic modeling should expose intra-Aggregate object responsibility"
-assert_contains "$CLAUDE_ROOT/references/ddd-modeling.md" 'Identity or a distinct lifecycle alone may instead reveal an owned Entity' "strategic modeling should not equate lifecycle difference with an Aggregate split"
-assert_contains "$CLAUDE_ROOT/references/ddd-modeling.md" 'apply the selection and ownership rules in `ddd-collaboration.md`' "strategic modeling should defer Domain Event authority to the collaboration reference"
-assert_contains "$CLAUDE_ROOT/references/ddd-collaboration.md" 'A Domain Event entry records the event and its producing behavior' "event collaboration rules should retain event production ownership"
-assert_not_contains "$CLAUDE_ROOT/references/ddd-collaboration.md" 'required domain result' "event collaboration rules should not restore the removed result slot"
-assert_contains "$CLAUDE_ROOT/references/ddd-collaboration.md" 'each accepted local reaction names its Event Handler and Domain intent' "event collaboration rules should link each handler to one Domain intent"
-
-if rg -ni 'evaluation evidence|evaluation fixture|eval fixture|scoring fixture|known evaluation' "${optimized_refs[@]}" >/dev/null; then
-  rg -ni 'evaluation evidence|evaluation fixture|eval fixture|scoring fixture|known evaluation' "${optimized_refs[@]}" >&2
-  fail "references should not contain evaluation-fixture material"
+if rg -n '\[DDD Principle\]|\[Heuristic\]|^## (The ten EventStorming steps|Probe behavior ownership|Compare object compositions|Relentless interview contract)' \
+  "${optimized_refs[@]}" >/dev/null; then
+  rg -n '\[DDD Principle\]|\[Heuristic\]|^## (The ten EventStorming steps|Probe behavior ownership|Compare object compositions|Relentless interview contract)' \
+    "${optimized_refs[@]}" >&2
+  fail "House Style references should not contain DDD selection or interview guidance"
 fi
-
-if rg -ni 'return(s|ed)? to `?(event-storming|codify|guard)`?|return-to-(event-storming|codify|guard)' "${optimized_refs[@]}" >/dev/null; then
-  rg -ni 'return(s|ed)? to `?(event-storming|codify|guard)`?|return-to-(event-storming|codify|guard)' "${optimized_refs[@]}" >&2
-  fail "references should expose missing authority while workflow skills own routing"
-fi
-
 if rg -n '\.\./skills/|skills/[[:alnum:]-]+/SKILL\.md' "${optimized_refs[@]}" >/dev/null; then
   fail "references should not link directly to workflow skill files"
 fi
-
-if rg -ni '^#{1,4}[[:space:]]+.*(Planning Workflow|Architecture Gate|Level [123]|Boundary Checklist|Mechanized Review Checks|DDD Tactical Design Reference|Key Principles Summary)' \
-  "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >/dev/null; then
-  rg -ni '^#{1,4}[[:space:]]+.*(Planning Workflow|Architecture Gate|Level [123]|Boundary Checklist|Mechanized Review Checks|DDD Tactical Design Reference|Key Principles Summary)' \
-    "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >&2
-  fail "language references should not retain planning workflows or review-checklist sediment"
+if rg -ni 'evaluation evidence|evaluation fixture|eval fixture|scoring fixture|known evaluation' "${optimized_refs[@]}" >/dev/null; then
+  fail "references should not contain evaluation-fixture material"
 fi
-
-if rg -ni 'active DDD workflow|workflow skill|workflow route|plan/spec must|apply the gates' \
-  "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >/dev/null; then
-  rg -ni 'active DDD workflow|workflow skill|workflow route|plan/spec must|apply the gates' \
-    "$CLAUDE_ROOT/references/ddd-python.md" "$CLAUDE_ROOT/references/ddd-typescript.md" >&2
-  fail "language references should not duplicate workflow contracts"
-fi
-
 if rg -ni '\b(FastAPI|Uvicorn|Pydantic|SQLAlchemy|Celery|Structlog|Fastify|TypeBox|Kysely|BullMQ|XState|Pino)\b' \
   "${common_refs[@]}" >/dev/null; then
-  rg -ni '\b(FastAPI|Uvicorn|Pydantic|SQLAlchemy|Celery|Structlog|Fastify|TypeBox|Kysely|BullMQ|XState|Pino)\b' \
-    "${common_refs[@]}" >&2
-  fail "common DDD and persistence references should not own language-framework choices"
+  fail "common references should not own language-framework choices"
 fi
 
-# The primary Go router reaches every layer, flow, and platform guide.
+core="$CLAUDE_ROOT/references/ddd-core.md"
+assert_contains "$core" 'The accepted strategic model and domain-object' "core should realize rather than select design"
+assert_contains "$core" 'design decide what exists and who owns it' "core should defer existence and ownership to accepted design"
+assert_contains "$core" '## Model-to-code Projection' "core should own implementation projection"
+assert_contains "$core" 'A public Domain method on the accepted owner' "core should realize accepted capability ownership"
+assert_contains "$core" 'Application defines the transaction scope' "core should preserve Application transaction ownership"
+assert_contains "$core" 'Domain code remains transaction-unaware' "core should keep transactions out of Domain"
+
+collaboration="$CLAUDE_ROOT/references/ddd-collaboration.md"
+assert_contains "$collaboration" 'EventStorming and Tactical Design decide which' "collaboration reference should defer selection to Skills"
+assert_contains "$collaboration" 'collaboration exists and what it means' "collaboration reference should not own collaboration selection"
+assert_contains "$collaboration" 'Record the event in the same Domain operation that establishes the fact' "collaboration reference should define event code shape"
+assert_contains "$collaboration" 'The producer owns the schema and generated namespace' "collaboration reference should define published-fact ownership"
+assert_contains "$collaboration" 'The receiver owns the schema and generated namespace' "collaboration reference should define asynchronous-intent ownership"
+
+# Every language router reaches every leaf.
 go_router="$CLAUDE_ROOT/references/ddd-golang.md"
-assert_contains "$go_router" 'Every Go rule below realizes an already selected design' "Go House Style should realize an accepted design"
-assert_contains "$go_router" 'preserving accepted Aggregate boundaries, state authority, and business sequencing' "Go House Style should preserve accepted model ownership"
-assert_contains "$go_router" 'a resident Aggregate remains the live authority and persists snapshots/checkpoints' "Go router should expose conditional resident persistence"
+python_guide="$CLAUDE_ROOT/references/ddd-python.md"
+typescript_guide="$CLAUDE_ROOT/references/ddd-typescript.md"
 for leaf in "$CLAUDE_ROOT"/references/ddd-golang-*.md; do
-  basename="$(basename "$leaf")"
-  assert_contains "$go_router" "$basename" "Go router missing $basename"
+  assert_contains "$go_router" "$(basename "$leaf")" "Go router missing $(basename "$leaf")"
 done
-if rg -n 'SchemaRegistry' "$CLAUDE_ROOT"/references/ddd-golang*.md >/dev/null; then
-  fail "Go references should keep one explicit task construction style"
-fi
-if rg -n 'SimpleStateContext' "$CLAUDE_ROOT"/references/ddd-golang*.md >/dev/null; then
-  fail "Go references should use the current FSM StateContext API"
-fi
+for leaf in "$CLAUDE_ROOT"/references/ddd-python-*.md; do
+  assert_contains "$python_guide" "$(basename "$leaf")" "Python router missing $(basename "$leaf")"
+done
+for leaf in "$CLAUDE_ROOT"/references/ddd-typescript-*.md; do
+  assert_contains "$typescript_guide" "$(basename "$leaf")" "TypeScript router missing $(basename "$leaf")"
+done
+assert_contains "$go_router" 'smallest complete set of leaves' "Go router should require progressive disclosure"
+assert_contains "$python_guide" 'smallest complete set of leaves' "Python router should require progressive disclosure"
+assert_contains "$typescript_guide" 'smallest complete set of leaves' "TypeScript router should require progressive disclosure"
 
 for adopted in \
   'go.uber.org/fx' \
@@ -582,61 +595,19 @@ for adopted in \
 do
   assert_contains "$go_router" "$adopted" "Go router missing adopted stack entry $adopted"
 done
-
-python_guide="$CLAUDE_ROOT/references/ddd-python.md"
-assert_contains "$python_guide" 'Accepted project authority or Tactical Design selects the lifecycle' "Python guide should defer lifecycle selection"
-assert_contains "$python_guide" 'resident Aggregate' "Python guide should admit resident authority"
 for adopted in \
-  'FastAPI' \
-  'Uvicorn' \
-  'Pydantic' \
-  'pydantic-settings' \
-  'SQLAlchemy' \
-  'mysqlclient' \
-  'grpcio' \
-  'confluent-kafka' \
-  'Celery' \
-  'OpenTelemetry Python SDK'
+  'FastAPI' 'Uvicorn' 'Pydantic' 'pydantic-settings' 'SQLAlchemy' \
+  'mysqlclient' 'grpcio' 'confluent-kafka' 'Celery' 'OpenTelemetry Python SDK'
 do
-  assert_contains "$python_guide" "$adopted" "Python guide missing adopted stack entry $adopted"
+  assert_contains "$python_guide" "$adopted" "Python router missing adopted stack entry $adopted"
 done
-
-typescript_guide="$CLAUDE_ROOT/references/ddd-typescript.md"
 for adopted in \
-  'Fastify' \
-  '@fastify/type-provider-typebox' \
-  '@connectrpc/connect-fastify' \
-  'typebox' \
-  'Kysely' \
-  'mysql2' \
-  '@confluentinc/kafka-javascript' \
-  'BullMQ' \
-  'XState' \
-  'OpenTelemetry JS'
+  'Fastify' '@fastify/type-provider-typebox' '@connectrpc/connect-fastify' \
+  'typebox' 'Kysely' 'mysql2' '@confluentinc/kafka-javascript' \
+  'BullMQ' 'XState' 'OpenTelemetry JS'
 do
-  assert_contains "$typescript_guide" "$adopted" "TypeScript guide missing adopted stack entry $adopted"
+  assert_contains "$typescript_guide" "$adopted" "TypeScript router missing adopted stack entry $adopted"
 done
-
-# High-value Go boundaries, intentionally sparse and independent of section numbers.
-core="$CLAUDE_ROOT/references/ddd-core.md"
-assert_contains "$core" 'It implements an already selected model while preserving its lifecycle, state authority, and business sequencing' "House Style should realize rather than model the system"
-assert_contains "$core" 'Apply a House Rule only after accepted project authority or Tactical Design has' "House Rules should be conditional on selected design"
-assert_contains "$core" '| Domain | Business language, behavior, invariants, lifecycle, policies, business sequencing' "Domain should own business sequencing"
-assert_contains "$core" '| Application | Use-case coordination, required context' "Application should own use-case coordination"
-assert_contains "$core" 'the invoked collaborator contract belongs to the Domain in Domain language' "Core guidance should keep domain-timed capability ownership inward"
-assert_contains "$core" 'When Application itself owns a use-case continuation, it may own a semantic outbound port' "Core guidance should distinguish Application-owned continuation"
-assert_contains "$core" 'The Root composes their collaboration and invariant boundary; it need not absorb every behavior' "Aggregate guidance should allow owned objects with distinct responsibilities"
-assert_contains "$core" 'resident Aggregate with checkpoint persistence may instead expose a snapshot/checkpoint contract selected by Tactical Design or project authority' "Repository guidance should not assume request-scoped persistence"
-assert_contains "$core" 'Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one Bounded Context and one local transactional resource.' "multi-Aggregate transactions should require confirmed Model authority and one local consistency scope"
-assert_contains "$core" '## Model-to-code Projection' "core guidance should own the shared semantic projection rules"
-assert_contains "$core" 'Projection preserves semantic ownership across abstraction levels. It is traceability, not name matching or one-to-one generation' "projection should be many-to-many rather than code generation"
-assert_contains "$core" 'An IAM principal or transport claim is not itself the Role' "projection should distinguish business authorization from identity mechanisms"
-assert_contains "$core" 'External authority may issue Command' "projection should preserve accepted non-human command sources"
-assert_contains "$core" 'A Command does not require a same-named class, handler, or Aggregate method' "projection should not force Command naming into code structure"
-assert_contains "$core" 'Keep its Integration Message and adapter realization distinct from the local Domain Event type' "projection should preserve local facts and wire contracts separately"
-assert_contains "$core" 'It creates no production event type, persistence, dispatch, or lasting artifact' "projection should leave analytical Workshop Events out of production code"
-assert_contains "$core" 'Do not create an exhaustive permanent projection' "implementation trace should remain sparse"
-assert_contains "$core" 'Keep this trace as temporary task evidence outside DDD artifacts' "implementation trace should not become authority"
 
 scaffold="$CLAUDE_ROOT/references/ddd-golang-scaffold.md"
 assert_contains "$scaffold" 'internal/business/' "Go scaffold should support multiple bounded contexts"
@@ -644,135 +615,133 @@ assert_contains "$scaffold" 'application.go' "Go scaffold should require applica
 assert_contains "$scaffold" 'assembler.go' "Go scaffold should require assembler.go"
 assert_contains "$scaffold" 'messagesubscriber/' "Go scaffold should separate message subscribers"
 assert_contains "$scaffold" 'taskprocessor/' "Go scaffold should separate task processors"
-assert_contains "$scaffold" 'convert.go' "Go scaffold should use convert.go for persistence mapping"
-assert_contains "$scaffold" 'gen/' "Go scaffold should place generated stubs under gen"
-assert_contains "$scaffold" 'private/v1/' "Go scaffold should separate deployment-private RPC contracts"
-assert_contains "$scaffold" 'public/v1/' "Go scaffold should separate externally supported RPC contracts"
-assert_contains "$scaffold" 'integration/v1/' "Go scaffold should separate Integration Message contracts"
-assert_contains "$scaffold" 'task/v1/' "Go scaffold should place durable Task schemas under proto"
+assert_contains "$scaffold" 'gen/' "Go scaffold should place generated code under gen"
 assert_contains "$scaffold" 'migrations/' "Go scaffold should use the canonical migration directory"
-assert_contains "$scaffold" 'internal/pkg/transaction' "Go scaffold should place the conditional transaction contract outside individual bounded contexts"
 
 application="$CLAUDE_ROOT/references/ddd-golang-application.md"
 assert_contains "$application" 'type Application struct' "Go Application should expose a grouped registry"
-assert_contains "$application" 'Commands Commands' "Go Application should group Command handlers"
-assert_matches "$application" '^[[:space:]]+Queries[[:space:]]+Queries' "Go Application should group Query handlers"
 assert_contains "$application" 'func AssembleUserDTO' "Go Application should define DTO-to-Entity mapping"
 assert_contains "$application" 'func AssembleUserEntity' "Go Application should define Entity-to-DTO mapping"
-assert_contains "$application" 'domain.NewUser' "new Domain objects should use a Domain Factory"
-assert_contains "$application" 'Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one bounded context and one local transactional resource.' "multi-Aggregate transactions should require confirmed Model authority and one local consistency scope"
-assert_contains "$application" 'Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback.' "Application should own use-case scope without owning transaction machinery"
-assert_contains "$application" 'internal/pkg/transaction/transactor.go' "Go Application should share one project-local provider-neutral Transactor contract"
-assert_contains "$application" 'Within(context.Context, func(context.Context) error) error' "Go Transactor should expose only a context-propagating callback"
-assert_contains "$application" 'Only when an accepted request-scoped post-commit dispatch flow exists' "Go Application tests should not invent event-dispatch paths"
+assert_contains "$application" 'Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback.' "Go Application should own transaction scope"
+assert_contains "$application" 'Within(context.Context, func(context.Context) error) error' "Go Transactor should expose a context callback"
 
 domain="$CLAUDE_ROOT/references/ddd-golang-domain.md"
 assert_contains "$domain" 'github.com/go-playground/validator/v10' "Go Domain should own business-data validation"
-assert_contains "$domain" 'It does not need to span multiple Aggregates' "Domain Service should not require cross-Aggregate work"
-assert_contains "$domain" 'does not save, control transactions' "Domain Services should neither persist Aggregates nor control transactions"
-assert_contains "$domain" 'Select one lifecycle from accepted project authority or Tactical Design. Persistence does not select it.' "Go Domain should defer lifecycle selection to design authority"
-assert_contains "$domain" '### Request-scoped Aggregate' "Go Domain should retain the scoped stale branch"
-assert_contains "$domain" '### Resident Aggregate with checkpoint persistence' "Go Domain should support resident runtime authority"
-assert_contains "$domain" 'writing a checkpoint does not replace or overwrite the resident instance' "Resident checkpoint persistence should preserve live authority"
-assert_contains "$domain" 'In an accepted request-scoped post-commit flow, only Application drains the collection' "Go Domain should scope persistence-gated event draining"
-assert_contains "$domain" 'remains the authority for Domain sequencing and live-state event handling' "Go Domain should preserve resident event authority"
-assert_contains "$domain" 'Domain owner or Domain Service may invoke a narrow Domain-owned collaborator' "Go Domain should preserve business timing with an inward-owned contract"
-assert_contains "$domain" 'core model is state polymorphism' "Go FSM guidance should model polymorphic state behavior"
-assert_contains "$domain" '*fsm.SimpleState' "Go FSM guidance should use the component base state"
-assert_contains "$domain" "current state's behavior" "Go FSM guidance should delegate business behavior to the current state"
-assert_contains "$domain" 'HasTransition' "Go FSM guidance should reject transition lookup as the behavior permission check"
-assert_contains "$domain" 'RegisterStateBuilder' "Go FSM guidance should require builders for transition targets"
+assert_contains "$domain" '### Request-scoped Aggregate' "Go Domain should retain request-scoped realization"
+assert_contains "$domain" '### Resident Aggregate with checkpoint persistence' "Go Domain should retain resident realization"
+assert_contains "$domain" 'ddd-golang-fsm.md' "Go Domain should route accepted FSM code to its leaf"
+
+fsm="$CLAUDE_ROOT/references/ddd-golang-fsm.md"
+assert_contains "$fsm" '*fsm.SimpleState' "Go FSM should use the component base state"
+assert_contains "$fsm" 'RegisterStateBuilder' "Go FSM should register transition targets"
+assert_contains "$fsm" 'Application calls Domain methods' "Go FSM should keep the library behind Domain behavior"
 
 cqrs="$CLAUDE_ROOT/references/ddd-golang-cqrs.md"
-assert_contains "$cqrs" 'Do not create a QueryRepository merely because an endpoint or method is named `Get`' "CQRS should not force focused Get reads through QueryRepository"
-assert_contains "$cqrs" 'Lists, pages, history, reports, statistics' "CQRS should route distinct read models through QueryRepository"
+assert_contains "$cqrs" 'leaf fixes Go placement and code shape; it does not decide whether a separate' "Go read-side reference should not select CQRS"
+assert_contains "$cqrs" 'type QueryRepository interface' "Go read side should define the Application port"
+assert_contains "$cqrs" 'Map query rows' "Go read side should map read rows directly"
+assert_contains "$cqrs" 'directly into Application read DTOs' "Go read side should return Application read DTOs"
 
 transport="$CLAUDE_ROOT/references/ddd-golang-transport.md"
 assert_contains "$transport" 'transport/connectrpc' "Go Transport should own ConnectRPC adapters"
-assert_contains "$transport" 'transport/messagesubscriber' "Go Transport should own Integration Message subscribers"
+assert_contains "$transport" 'transport/messagesubscriber' "Go Transport should own message subscribers"
 assert_contains "$transport" 'transport/taskprocessor' "Go Transport should own task processors"
-assert_contains "$transport" 'message.Subscriber.Subscribe' "Go Transport should separate subscriber registration"
-assert_contains "$transport" 'message.Runner.Run' "Go Runtime should own the message runner lifecycle"
-assert_contains "$transport" 'app.Commands' "Go Transport adapters should delegate through the Application registry"
-assert_contains "$transport" 'gen/user/public/v1' "Go Transport should use the external RPC contract namespace"
+assert_contains "$transport" 'h.application.Commands' "Go Transport should delegate through Application"
 
-events="$CLAUDE_ROOT/references/ddd-golang-events-messages.md"
-assert_contains "$events" 'Published Fact Contract' "Go messaging should define producer-owned facts"
-assert_contains "$events" 'It is an Integration Message contract' "Go messaging should classify published facts as Integration Messages"
-assert_contains "$events" 'Asynchronous Intent Contract' "Go messaging should define receiver-owned intents"
-assert_contains "$events" '## Post-commit In-process Dispatch' "Go messaging should define the accepted local event flow"
-assert_contains "$events" 'Domain behavior -> Repository.Save -> Events.Drain -> Dispatcher.DispatchAll' "Go messaging should make local dispatch order explicit"
-assert_contains "$events" 'app.Commands' "Go message subscribers should delegate through the Application registry"
+events="$CLAUDE_ROOT/references/ddd-golang-events.md"
+messages="$CLAUDE_ROOT/references/ddd-golang-messages.md"
+kafka="$CLAUDE_ROOT/references/ddd-golang-kafka.md"
+assert_contains "$events" 'Repository.Save -> Aggregate.Events.Drain -> Dispatcher.DispatchAll' "Go events should expose accepted dispatch order"
+assert_contains "$events" 'application/eventhandler/' "Go events should place same-context handlers"
+assert_contains "$messages" 'Published Fact Handler' "Go messages should define producer mapping"
+assert_contains "$messages" 'message.KindOf(payload)' "Go messages should use the adopted kind"
+assert_contains "$messages" 'transport/messagesubscriber/' "Go messages should place consumers in Transport"
+assert_contains "$kafka" 'jimukafka.NewConsumer' "Go Kafka should use the adopted adapter"
+assert_contains "$kafka" 'message.Runner' "Go Kafka should make runner ownership explicit"
 
 taskqueue="$CLAUDE_ROOT/references/ddd-golang-taskqueue.md"
-assert_contains "$taskqueue" 'application/task' "Go taskqueue should own task contracts in Application"
+asynq="$CLAUDE_ROOT/references/ddd-golang-asynq.md"
+assert_contains "$taskqueue" 'application/task' "Go taskqueue should own contracts in Application"
 assert_contains "$taskqueue" 'transport/taskprocessor' "Go taskqueue should own processors in Transport"
-assert_contains "$taskqueue" 'internal/pkg/taskqueue' "Go taskqueue should keep Asynq runtime technical"
-assert_contains "$taskqueue" 'app.Commands' "Go task processors should delegate through the Application registry"
-assert_contains "$taskqueue" 'proto/<context>/task/v1' "Go taskqueue should protect durable payload schemas with protobuf"
-assert_contains "$taskqueue" 'taskqueue.NewProtoTask' "Go task contracts should use the protobuf constructor"
-assert_contains "$taskqueue" 'taskqueue.DecodeProto' "Go task processors should use the protobuf decoder"
-assert_contains "$taskqueue" 'taskqueue.ProtoCodec' "Go task tests should verify codec metadata"
-assert_contains "$taskqueue" 'NewEnqueueOptions(options...).Validate()' "Go taskqueue guidance should validate provider-facing policy"
+assert_contains "$taskqueue" 'taskqueue.NewProtoTask' "Go taskqueue should use protobuf tasks"
+assert_contains "$taskqueue" 'taskqueue.DecodeProto' "Go taskqueue should decode protobuf tasks"
+assert_contains "$taskqueue" 'ddd-golang-asynq.md' "Go taskqueue should route provider runtime separately"
+assert_contains "$asynq" 'taskasynq.NewRedisWorker' "Go Asynq should use the adopted worker"
+assert_contains "$asynq" 'lifecycle hooks' "Go Asynq should own lifecycle wiring"
 if rg -n 'taskqueue\.(NewJSONTask|DecodeJSON)' "$CLAUDE_ROOT"/references/ddd-golang*.md >/dev/null; then
-  fail "Go taskqueue house style should not retain JSON task construction or decoding"
+  fail "Go taskqueue House Style should retain one protobuf construction style"
 fi
 
 infrastructure="$CLAUDE_ROOT/references/ddd-golang-infrastructure.md"
-assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure should own DO/Domain conversion"
+assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure should own conversion"
 assert_contains "$infrastructure" 'xorm.io/xorm' "Go Infrastructure should use the adopted ORM"
-assert_contains "$infrastructure" 'Prefer small Aggregates' "Go Infrastructure should keep small Aggregates as the default"
-assert_contains "$infrastructure" 'mutation journal keyed by Entity kind and identity' "Go Infrastructure should expose optional Aggregate change tracking"
-assert_contains "$infrastructure" 'It returns `engine.Context(ctx)` when no Application transaction is active and the current `*xorm.Session` inside the matching callback scope.' "transaction resolver should select the current local executor"
-assert_contains "$infrastructure" 'WithinOrJoin(context.Context, func(xorm.Interface) error) error' "multi-statement Repository operations should join or own a transaction without lifecycle ambiguity"
-assert_contains "$infrastructure" 'Prove commit and rollback with the real Repository adapters and MySQL, observing durable state from a fresh observer after the transaction boundary; static checks and fake Repository tests do not prove atomicity or enlistment.' "multi-Aggregate transaction guidance should require real-adapter integration evidence"
-assert_contains "$infrastructure" 'Do not log and return the same error' "Go Infrastructure should avoid duplicate error logs"
+assert_contains "$infrastructure" 'WithinOrJoin(context.Context, func(xorm.Interface) error) error' "Go Infrastructure should join the accepted local transaction"
 
 runtime="$CLAUDE_ROOT/references/ddd-golang-runtime.md"
+observability="$CLAUDE_ROOT/references/ddd-golang-observability.md"
 assert_contains "$runtime" 'Execution Completion Log' "Go Runtime should define completion-log ownership"
-assert_contains "$runtime" 'trace_id' "Go Runtime should define trace correlation fields"
-assert_contains "$runtime" 'request_id' "Go Runtime should define request correlation fields"
+assert_contains "$runtime" 'ddd-golang-observability.md' "Go Runtime should route OpenTelemetry separately"
+assert_contains "$observability" 'otelconnect.NewInterceptor' "Go observability should use the adopted Connect interceptor"
+assert_contains "$observability" 'TracerProvider.Shutdown' "Go observability should own provider shutdown"
 
-# Sparse compact-guide ownership sentinels. These protect architectural
-# boundaries and adopted entry points without snapshotting prose or line counts.
-assert_contains "$python_guide" 'application/application.py' "Python guide should expose the Application registry"
-assert_contains "$python_guide" 'application/assembler.py' "Python guide should own Application mapping"
-assert_contains "$python_guide" 'messagesubscriber/' "Python guide should separate message subscribers"
-assert_contains "$python_guide" 'taskprocessor/' "Python guide should separate task processors"
-assert_contains "$python_guide" 'gen/' "Python guide should isolate generated contracts"
+python_domain="$CLAUDE_ROOT/references/ddd-python-domain.md"
+python_application="$CLAUDE_ROOT/references/ddd-python-application.md"
+python_transport="$CLAUDE_ROOT/references/ddd-python-transport.md"
+python_infrastructure="$CLAUDE_ROOT/references/ddd-python-infrastructure.md"
+python_events="$CLAUDE_ROOT/references/ddd-python-events-messages.md"
+python_taskqueue="$CLAUDE_ROOT/references/ddd-python-taskqueue.md"
+python_fsm="$CLAUDE_ROOT/references/ddd-python-fsm.md"
+assert_contains "$python_domain" 'class UserRepository(Protocol)' "Python Domain should define Repository Protocols"
+assert_contains "$python_domain" 'resident lifecycle' "Python Domain should realize resident authority conditionally"
+assert_contains "$python_domain" 'def name(self) -> str:' "Python Domain sample should expose the state used by its assembler"
+assert_contains "$python_application" 'class Application' "Python Application should expose a registry"
+assert_contains "$python_application" 'assemble_user_dto' "Python Application should own DTO mapping"
+assert_contains "$python_transport" 'def create_router' "Python Transport should expose router factories"
+assert_contains "$python_infrastructure" 'class UserRepositoryAdapter' "Python Infrastructure should own persistence adapters"
+assert_contains "$python_infrastructure" 'Testcontainers' "Python persistence should require real provider evidence"
+assert_contains "$python_events" 'class PrepareProfileOnUserRegistered' "Python events should show one typed handler"
+assert_contains "$python_taskqueue" 'class SendWelcomeProcessor' "Python tasks should show one typed processor"
+assert_contains "$python_fsm" 'class OrderLifecycle(StateChart)' "Python FSM should show the adopted 3.2 API"
+assert_contains "$python_fsm" 'state_field="_status"' "Python FSM should bind the accepted Domain state field"
 
-assert_contains "$typescript_guide" 'application/application.ts' "TypeScript guide should expose the Application registry"
-assert_contains "$typescript_guide" 'src/business/' "TypeScript guide should organize bounded contexts before layers"
-assert_contains "$typescript_guide" 'transport/' "TypeScript guide should keep inbound adapters in Transport"
-assert_contains "$typescript_guide" 'infrastructure/persistence/convert.ts' "TypeScript guide should own persistence conversion"
-assert_contains "$typescript_guide" 'gen/' "TypeScript guide should isolate generated contracts"
-assert_contains "$typescript_guide" 'This example uses the request-scoped optimistic lifecycle' "TypeScript guide should scope stale behavior"
-assert_contains "$typescript_guide" 'resident Aggregate' "TypeScript guide should admit resident authority"
+typescript_domain="$CLAUDE_ROOT/references/ddd-typescript-domain.md"
+typescript_application="$CLAUDE_ROOT/references/ddd-typescript-application.md"
+typescript_transport="$CLAUDE_ROOT/references/ddd-typescript-transport.md"
+typescript_infrastructure="$CLAUDE_ROOT/references/ddd-typescript-infrastructure.md"
+typescript_events="$CLAUDE_ROOT/references/ddd-typescript-events-messages.md"
+typescript_taskqueue="$CLAUDE_ROOT/references/ddd-typescript-taskqueue.md"
+typescript_fsm="$CLAUDE_ROOT/references/ddd-typescript-fsm.md"
+assert_contains "$typescript_domain" 'export class User' "TypeScript Domain should expose behavior-rich classes"
+assert_contains "$typescript_domain" 'static reconstitute' "TypeScript Domain should distinguish existing state"
+assert_contains "$typescript_domain" 'state.version < 1' "TypeScript reconstitution should require persisted state"
+assert_contains "$typescript_application" 'export class Application' "TypeScript Application should expose a registry"
+assert_contains "$typescript_application" 'interface UserUnitOfWork' "TypeScript Application should own transaction scope"
+assert_contains "$typescript_transport" 'createUserConnectRoutes' "TypeScript Transport should own Connect routes"
+assert_contains "$typescript_infrastructure" 'type Executor = Kysely<Database> | Transaction<Database>' "TypeScript Infrastructure should bind repositories to the current executor"
+assert_contains "$typescript_events" 'class PrepareProfileOnUserRegistered' "TypeScript events should show one typed handler"
+assert_contains "$typescript_taskqueue" 'class SendWelcomeProcessor' "TypeScript tasks should show one typed processor"
+assert_contains "$typescript_fsm" 'setup({' "TypeScript FSM should show the adopted XState setup"
+assert_contains "$typescript_fsm" 'transition(orderLifecycle, current' "TypeScript FSM should keep machine transitions inside Domain"
 
 database="$CLAUDE_ROOT/references/database.md"
 assert_contains "$database" 'Every table governed by this profile' "database profile should define standard columns"
-for column in '`id` varchar(36)' '`version` int unsigned' '`created_at` bigint' '`updated_at` bigint' '`deleted_at` bigint'; do
-  assert_contains "$database" "$column" "database profile missing standard column $column"
-done
-assert_contains "$database" 'new in-memory Aggregate has version `0`' "database profile should define initial versions"
-assert_contains "$database" '### Request-scoped Optimistic Aggregate Lifecycle' "database profile should scope optimistic stale behavior"
-assert_contains "$database" 'Database House Style does not choose it over a resident Aggregate' "database profile should not make lifecycle decisions"
+assert_contains "$database" 'new in-memory Aggregate has version' "database profile should define initial versions"
+assert_contains "$database" '### Request-scoped Optimistic Aggregate Lifecycle' "database profile should scope optimistic lifecycle"
 assert_contains "$database" '### Resident Aggregate Checkpoints' "database profile should implement resident checkpoints conditionally"
-assert_contains "$database" 'checkpoint write never makes the resident instance stale' "database profile should preserve live authority"
-assert_contains "$database" 'Every participating one-Root Repository joins the same physical transaction so all writes commit or roll back together' "database guidance should require one physical transaction for the confirmed exception"
+assert_contains "$database" 'Every participating one-Root Repository joins the same physical transaction' "database guidance should require one physical local transaction"
 if rg -n 'xorm|go-sql-driver|github\.com/google/uuid|convert\.go|\*xorm' "$database" >/dev/null; then
-  rg -n 'xorm|go-sql-driver|github\.com/google/uuid|convert\.go|\*xorm' "$database" >&2
   fail "shared database profile should not own Go adapter choices"
 fi
-
 # Public documentation exposes the same final reference catalog.
 claude_reference_section="$(sed -n '/^## References$/,$p' "$CLAUDE_ROOT/README.md")"
 codex_reference_section="$(sed -n '/^## References$/,$p' "$CODEX_ROOT/README.md")"
 [ "$claude_reference_section" = "$codex_reference_section" ] || fail "Claude and Codex README reference catalogs should match"
-for reference in "${references[@]}"; do
-  assert_contains "$CLAUDE_ROOT/README.md" "\`$reference\`" "plugin README missing $reference"
+for router in ddd-golang.md ddd-python.md ddd-typescript.md; do
+  assert_contains "$CLAUDE_ROOT/README.md" "\`$router\`" "plugin README missing $router"
 done
-for retired_reference in ddd-agent-contract.md ddd-modeling-gates.md mysql.md; do
+assert_contains "$CLAUDE_ROOT/README.md" 'References are House Style only' "plugin README should define reference ownership"
+assert_contains "$CLAUDE_ROOT/README.md" 'EventStorming and Tactical Design remain the authorities' "plugin README should keep design in Skills"
+for retired_reference in ddd-agent-contract.md ddd-modeling.md ddd-modeling-gates.md ddd-golang-events-messages.md mysql.md; do
   ! rg -Fq -- "\`$retired_reference\`" "$CLAUDE_ROOT/README.md" || fail "plugin README lists retired $retired_reference"
 done
 

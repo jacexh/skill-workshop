@@ -1,16 +1,19 @@
 ---
 name: ddd-golang-taskqueue
-description: Go House Style for protobuf-backed internal task contracts, Transport task processors, provider-neutral enqueue policy, periodic triggers, and Asynq runtime wiring.
+description: Go House Style for protobuf-backed internal task contracts, Transport task processors, provider-neutral enqueue policy, and periodic triggers.
 ---
 
 # Go Task Queue
 
+## Applies When
+
 A Task Queue is an internal delivery mechanism for accepted deferred Application
 work. Once that code surface exists, use:
 
-- `github.com/go-jimu/components/taskqueue` for provider-neutral contracts;
-- `github.com/go-jimu/contrib/taskqueue/asynq` for the Asynq adapter;
-- `github.com/hibiken/asynq` only in `internal/pkg/taskqueue`.
+- `github.com/go-jimu/components/taskqueue` for provider-neutral contracts.
+
+Load the selected provider leaf separately; for Asynq, use
+[`ddd-golang-asynq.md`](ddd-golang-asynq.md).
 
 An external bounded context sends an Integration Message. It never enqueues
 another context's internal task directly.
@@ -297,48 +300,12 @@ currently due records inside the Application use case. `NewPeriodicTask`
 validates its schedule and policy and rejects `WithProcessAt` and `WithDeadline`
 because static absolute times become stale on repeated fires.
 
-## Asynq Runtime
+## Provider Runtime
 
-Only `internal/pkg/taskqueue` imports the adapter and provider:
-
-```go
-import (
-	"github.com/go-jimu/components/taskqueue"
-	taskasynq "github.com/go-jimu/contrib/taskqueue/asynq"
-	"github.com/hibiken/asynq"
-)
-```
-
-Runtime owns these real constructors and capabilities:
-
-```go
-client := taskasynq.NewRedisClient(redisOptions) // taskqueue.Enqueuer
-worker := taskasynq.NewRedisWorker(redisOptions, workerConfig)
-scheduler := taskasynq.NewRedisScheduler(redisOptions, schedulerOptions)
-
-if err := worker.Register(processor); err != nil {
-	return err
-}
-if err := scheduler.RegisterPeriodicTask(periodic); err != nil {
-	return err
-}
-```
-
-Here `redisOptions` is an `asynq.RedisConnOpt`, `workerConfig` is an
-`asynq.Config`, and `schedulerOptions` is `*asynq.SchedulerOpts`.
-
-`NewProtoTask` records `taskqueue.ProtoCodec` in the provider-neutral envelope.
-An adapter must preserve `TaskType`, payload bytes, and `PayloadCodec` before a
-consumer uses codec-selected `DecodePayload`. The house-style processor uses
-explicit `DecodeProto`, so the task schema and codec
-remain unambiguous even when an older provider envelope preserves only type and
-payload bytes.
-
-The BC module contributes `taskqueue.Processor` values
-and accepted `taskqueue.PeriodicTask` values. Runtime registers them before
-startup, closes the enqueue client, and manages worker/scheduler `Start` and
-`Shutdown` with Fx lifecycle hooks. `cmd/<service>/main.go` does not construct or
-register these objects.
+When the accepted provider is Asynq, load
+[`ddd-golang-asynq.md`](ddd-golang-asynq.md). This leaf remains the authority for
+provider-neutral task contracts, processors, enqueue policy, and periodic task
+values.
 
 ## Verification
 
@@ -353,7 +320,4 @@ register these objects.
 - Periodic tests assert `PeriodicTask` name, schedule, static task, and policy;
   they also reject absolute process/deadline options and do not reimplement
   Asynq cron compilation.
-- Runtime tests cover duplicate registration, worker/scheduler startup,
-  bounded shutdown, and disabled periodic producers not being registered.
-- Provider integration tests use Redis/Asynq when the change depends on actual
-  enqueue, retry, uniqueness, or scheduler behavior.
+- Runtime/provider verification follows the selected provider leaf.

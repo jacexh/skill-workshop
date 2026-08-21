@@ -11,7 +11,7 @@ Run Guard in one fresh, read-only agent context distinct from the implementer. R
 
 ## Evidence
 
-Read the user's scope, affected `model.md` and `domain-objects.md`, `docs/ddd-expert/context-map.md` when Context ownership or collaboration changes, the complete stable diff and relevant production code, governing project decisions, and the smallest applicable House Style sections.
+Read the user's scope, affected `model.md` and `domain-objects.md`, `docs/ddd-expert/context-map.md` when Context ownership or collaboration changes, the complete stable diff and relevant production code, governing project decisions, and the smallest complete House Style leaf set whose applicability covers the affected code surfaces.
 
 DDD artifacts own accepted business meaning and Domain ownership; they are not a complete software design. Their silence about remaining software structure is implementation latitude judged through project constraints and House Style, not missing authority. Code and tests are implementation evidence, not authority that silently changes the model.
 
@@ -31,7 +31,6 @@ Say `No DDD structural findings` when there are no such findings. This does not 
 
 ## References
 
-- Use [../../references/ddd-modeling.md](../../references/ddd-modeling.md) only when strategic or object-boundary interpretation is needed.
-- Start with relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md), then load only House Style for code surfaces actually touched.
-- For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md). For Python or TypeScript, load only relevant sections of [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
-- Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) or [../../references/database.md](../../references/database.md) only when the affected behavior crosses those seams.
+- Use [../../references/ddd-core.md](../../references/ddd-core.md) for affected Domain-object realization or cross-language layer boundaries.
+- Start with the active-language router: [Go](../../references/ddd-golang.md), [Python](../../references/ddd-python.md), or [TypeScript](../../references/ddd-typescript.md). Follow its exact mapping for the affected code surfaces.
+- Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for affected published APIs, Domain Events, or Integration Messages, and [../../references/database.md](../../references/database.md) for affected MySQL persistence, SQL, or schema.

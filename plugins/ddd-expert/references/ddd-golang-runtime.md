@@ -1,11 +1,14 @@
 ---
 name: ddd-golang-runtime
-description: Executable Go House Style for config loading, Fx composition and lifecycle, ConnectRPC/Chi servers, execution-boundary logging, shutdown, and conditional OpenTelemetry.
+description: Go House Style for config loading, Fx composition and lifecycle, ConnectRPC/Chi servers, execution-boundary logging, and shutdown.
 ---
 
 # Go Runtime
 
+## Applies When
+
 Runtime owns process configuration, shared technical resources, active loops, composition, startup, and shutdown. It contains no business policy. Shared runtime packages live under `internal/pkg/<capability>`; bounded contexts contribute modules, handlers, and adapters.
+
 ## Mandatory Runtime Stack
 
 For covered Go House Style concerns use:
@@ -15,9 +18,11 @@ For covered Go House Style concerns use:
 - ConnectRPC with `github.com/go-chi/chi/v5` for the shared RPC/HTTP server;
 - `github.com/samber/oops` when an external/runtime error first enters controlled code.
 Generated Protobuf and Connect files live under `gen/` and are never edited manually. Contract sources live under `proto/`. Runtime mounts generated handlers; Application never implements generated server interfaces.
+
 ## Component-Owned Configuration
 
 Each runtime component owns an Option/Config type and `Validate() error` beside its constructor. The process aggregates those types only for loading and Fx supply.
+
 ```go
 // cmd/user-api/main.go
 package main
@@ -29,13 +34,10 @@ import (
 
     "github.com/go-jimu/components/config/loader"
     "github.com/go-jimu/components/sloghelper"
-    "example/internal/business/notification"
     "example/internal/business/user"
     "example/internal/pkg"
     sharedconnect "example/internal/pkg/connectrpc"
     "example/internal/pkg/database"
-    "example/internal/pkg/eventbus"
-    "example/internal/pkg/messagebus"
     "github.com/samber/oops"
     "go.uber.org/fx"
 )
@@ -44,8 +46,6 @@ type Option struct {
     fx.Out
     Logger   sloghelper.Options   `json:"logger" yaml:"logger" toml:"logger"`
     MySQL    database.Option      `json:"mysql" yaml:"mysql" toml:"mysql"`
-    EventBus eventbus.Config      `json:"eventbus" yaml:"eventbus" toml:"eventbus"`
-    Kafka    messagebus.Option    `json:"kafka" yaml:"kafka" toml:"kafka"`
     Connect  sharedconnect.Option `json:"connect" yaml:"connect" toml:"connect"`
 }
 
@@ -63,24 +63,23 @@ func main() {
     slog.Info("configuration loaded",
         slog.String("connect_addr", option.Connect.Addr),
         slog.Int("mysql_port", option.MySQL.Port),
-        slog.Int("kafka_broker_count", len(option.Kafka.Brokers)),
     )
 
     app := fx.New(
         fx.Supply(option),
         fx.Provide(sloghelper.NewLog),
-        fx.Provide(eventbus.NewDispatcher),
         pkg.Module,
         user.Module,
-        notification.Module,
         fx.StartTimeout(15*time.Second),
         fx.StopTimeout(30*time.Second),
     )
     app.Run()
 }
 ```
+
 Each `cmd/<service>` loads only its own `configs/<service>` directory; never scan the shared `configs` parent in a multi-service repository. `loader.Load` automatically applies `JIMU_PROFILES_ACTIVE` after caller options. When profiles are supported, also pass `loader.WithConfigFilePrefix("app")`; an active profile without a prefix is invalid. Use `loader.WithEnvVarsPrefix("APP")` only when the repository wants a filtered flat environment source. Verify placeholder behavior against the adopted components version rather than inventing nested environment-key translation.
 Never log the aggregate Option, a resolved config map, DSN, password, token, API key, certificate/private key, cookie, secret-bearing URL, or full environment. Startup summaries are allow-list based: profile/source, enabled modules, non-secret listen addresses, counts, and a non-reversible config version/hash.
+
 ## Composition Boundaries
 
 `cmd/main.go` loads configuration, selects modules, sets process timeouts, and runs Fx. It does not construct Repositories, clients, generated handlers, or lifecycle loops individually.
@@ -92,7 +91,6 @@ package pkg
 import (
     sharedconnect "example/internal/pkg/connectrpc"
     "example/internal/pkg/database"
-    "example/internal/pkg/messagebus"
     "go.uber.org/fx"
 )
 
@@ -100,7 +98,6 @@ var Module = fx.Module(
     "internal.pkg",
     fx.Provide(sharedconnect.NewServer),
     fx.Provide(database.NewMySQLDriver),
-    fx.Provide(messagebus.NewKafka),
 )
 ```
 
@@ -112,11 +109,9 @@ package user
 
 import (
     connect "connectrpc.com/connect"
-    "github.com/go-jimu/components/ddd/event"
     "example/gen/user/public/v1/userv1connect"
     "example/internal/business/user/application"
     "example/internal/business/user/application/command"
-    "example/internal/business/user/application/eventhandler"
     "example/internal/business/user/application/query"
     "example/internal/business/user/infrastructure"
     userconnect "example/internal/business/user/transport/connectrpc"
@@ -131,13 +126,9 @@ var Module = fx.Module(
         infrastructure.NewUserQueryRepository,
         command.NewCreateUserHandler,
         query.NewGetUserHandler,
-        eventhandler.NewUserCreatedHandler,
         application.NewApplication,
         userconnect.NewHandler,
     ),
-    fx.Invoke(func(sub event.Subscriber, handler *eventhandler.UserCreatedHandler) {
-        sub.Subscribe(handler)
-    }),
     fx.Invoke(func(
         handler userv1connect.UserServiceHandler,
         server sharedconnect.Server,
@@ -276,7 +267,9 @@ func (s *server) serve() {
 }
 ```
 
-The Message Runner, task worker/scheduler, event dispatcher, poller, and telemetry exporter follow the same ownership rule: the package that creates the active resource owns its `fx.Lifecycle` hooks, goroutines, terminal errors, and bounded drain.
+Every optional active resource follows the same ownership rule: the package
+that creates it owns its `fx.Lifecycle` hooks, goroutines, terminal errors, and
+bounded drain. Provider-specific construction stays in the provider leaf.
 
 ## Execution Owner Logs And Errors
 
@@ -324,25 +317,13 @@ Encode dependencies so shutdown happens in this order:
 
 Fx lifecycle order follows the constructor dependency graph and hook registration, not the conceptual layer diagram. Every goroutine needs cancellation or Close plus a surfaced terminal-error path. Readiness becomes false before drain; deployment termination grace and pre-stop behavior must exceed the measured drain budget rather than a universal sleep value.
 
-## Conditional OpenTelemetry
+## Observability
 
-Do not add OTel merely because the library exists. It becomes mandatory only when accepted project observability constraints require distributed tracing and a backend is available.
-
-Runtime then owns OTLP exporter/resource/TracerProvider construction, global propagation, and `TracerProvider.Shutdown(ctx)` in `fx.Lifecycle`. Add `connectrpc.com/otelconnect` to global Connect interceptors using its verified constructor:
-
-```go
-func NewOTelConnectInterceptor() (connect.Interceptor, error) {
-    interceptor, err := otelconnect.NewInterceptor()
-    if err != nil {
-        return nil, oops.With("operation", "otelconnect.create").
-            Wrap(err)
-    }
-    return interceptor, nil
-}
-```
-
-Propagate trace context through accepted Integration Message/task headers, and include `trace_id`, `span_id`, and `request_id` in execution logs when present. The current in-memory `event.Dispatcher.DispatchAll` has no caller `context.Context`, so it cannot automatically continue the request span; do not put trace fields in a Domain Event to simulate propagation. Domain stays telemetry-free. If there is no accepted backend, sampling/retention decision, and shutdown owner, omit OTel rather than shipping a half-wired tracer.
+When accepted observability includes OpenTelemetry, load
+[`ddd-golang-observability.md`](ddd-golang-observability.md). Runtime remains the
+owner of logging and the execution boundary; the observability leaf owns the
+OTel-specific constructors and propagation shape.
 
 ## Verification
 
-Test component Option validation, loader defaults/profile behavior, secret-redacted startup logs, `fx.ValidateApp` composition, generated-handler registration, synchronous listener failure, unexpected Serve shutdown, request completion logging, runner reachability, cancellation, dependency-aware drain, and bounded stop. When OTel is active, test interceptor registration, propagation, exporter failure, and provider shutdown.
+Test component Option validation, loader defaults/profile behavior, secret-redacted startup logs, `fx.ValidateApp` composition, generated-handler registration, synchronous listener failure, unexpected Serve shutdown, request completion logging, runner reachability, cancellation, dependency-aware drain, and bounded stop. OTel verification follows the observability leaf when it applies.

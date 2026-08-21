@@ -87,7 +87,7 @@ Record a Required Capability on its direct Behavior owner:
 - <Capability> — <Behavior> invokes it at <business decision point> to <Domain question or action>; guarantees <accepted authoritative observation, decision, authorization, reservation, or state change>.
 ```
 
-For each candidate Behavior, follow any resulting fact that requires or enables a later Domain intent and establish whether the producing Behavior succeeds independently of that intent. An independently successful fact is a candidate Domain Event; apply the selection rules in `ddd-collaboration.md`. Record a selected event and its accepted local reactions with the [domain-object template](../../templates/domain-objects.md); the entry contains no selection reason. Analytical Workshop Events never appear in `domain-objects.md`.
+For each candidate Behavior, follow any resulting fact that requires or enables a later Domain intent and establish whether the producing Behavior succeeds independently of that intent. Select an actual Domain Event only when the accepted model needs a named local reaction to the occurrence or needs the occurrence itself, rather than merely the resulting state, as Domain evidence. Record the event and its accepted local reactions with the [domain-object template](../../templates/domain-objects.md); the entry contains no selection reason. Analytical Workshop Events never appear in `domain-objects.md`.
 
 ## Compare object compositions
 
@@ -96,6 +96,8 @@ Construct the smallest credible candidate set, including no new split and the st
 For each candidate, map every pressure to a behavior owner and compare the design burden it introduces: knowledge exposed to callers or the Root, cross-object coordination and ordering, duplicated state or decisions, additional identity and lifecycle, and extra mapping or test surface. Treat this burden as accidental complexity introduced by the candidate composition, not as an invitation to prescribe implementation techniques. A candidate remains viable only when it realizes every pressure and keeps the Root able to protect cross-object invariants.
 
 Prefer the viable candidate that localizes each decision with the state it needs while exposing less knowledge and coordination. Keep a child Entity when it has Domain identity or lifecycle plus cohesive state, rules, or transitions, and merging it would concretely spread or duplicate decision knowledge. Otherwise use the simpler supported representation. The Root composes owned-object behavior; callers do not inspect internal state to reproduce its decisions. Follow a retained Entity's behavior through any material Domain result that the Root or another owned object composes next. When the Root exposes the same capability, describe the Root's composition and the Entity's owned decision without duplicating that decision.
+
+Use a Value Object when Domain meaning, validity, and equality come from its attributes rather than identity. Use a Domain Service only for an accepted named Domain operation with no natural Entity or Value Object owner; it owns that Domain decision while Application retains loading, persistence, and transaction coordination.
 
 Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or guarantee. Express that constraint through the affected object's Facts, Lifecycle State, behavior, Required Capability, or actual Domain Event, or through the project's decision mechanism when it is a hard-to-reverse project choice.
 
@@ -130,9 +132,3 @@ object or boundary; after a Root write, name the next affected Root. Name any
 accepted strategic correction when a pressure could not be traced to prior
 authority, cite every required slice when implementation can begin, and report
 any blocker with current filesystem state.
-
-## References
-
-- Load [../../references/ddd-modeling.md](../../references/ddd-modeling.md) for Business Rule-to-pressure, Aggregate, and Entity boundary reasoning.
-- Load relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md) when Entity, Value Object, Domain Service, Repository, or layer ownership affects the object decision.
-- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) when a candidate Domain Event or cross-context contract appears.

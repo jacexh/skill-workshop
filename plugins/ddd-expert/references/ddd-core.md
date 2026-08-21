@@ -1,171 +1,152 @@
 ---
 name: ddd-core
-description: Integrated DDD and Clean Architecture baseline for layers, dependency direction, tactical building blocks, Repository, and conditional CQRS.
+description: Language-neutral House Style for realizing accepted DDD objects and layer boundaries in backend code.
 ---
 
-# DDD and Clean Architecture Core
+# DDD Code Realization
 
-This Knowledge Leaf integrates tactical DDD with Layered Architecture, the
-Dependency Rule, and ports-and-adapters boundaries. It distinguishes broadly
-accepted DDD meanings from this plugin's architecture House Style.
+## Applies When
 
-## Rule Strength
+Load this leaf when accepted DDD objects or cross-language layer boundaries are
+being implemented or reviewed. The accepted strategic model and domain-object
+design decide what exists and who owns it. This leaf fixes only its software
+shape; the active-language router fixes syntax, libraries, filenames, and exact
+verification commands.
 
-- **[DDD Principle]** A durable DDD meaning or boundary. Apply it through the accepted domain model rather than as a mechanical code rule.
-- **[House Rule]** A conditional code-realization or software-boundary constraint. It implements an already selected model while preserving its lifecycle, state authority, and business sequencing.
-- **[Heuristic]** A question or pressure signal. It invites investigation and never proves a conclusion alone.
+## Layer Placement
 
-Apply a House Rule only after accepted project authority or Tactical Design has
-established its condition. Codify may choose an implementation detail within
-accepted object ownership, but a generic reference never resolves a scenario-specific
-modeling question.
-
-## Navigation
-
-| Need | Section |
+| Accepted responsibility | Code owner |
 |---|---|
-| Dependency direction and layer ownership | Layered Architecture; Layer Responsibilities |
-| Trace confirmed Model meaning into software responsibilities | Model-to-code Projection |
-| Entity, Value Object, Aggregate, Domain Service, Domain Event | Tactical Building Blocks |
-| Write-side collection semantics | Repository |
-| Read-model separation | Conditional CQRS |
-| Semantic names and error ownership | Naming and Errors |
+| Business state, behavior, invariants, lifecycle, Domain facts, write Repository contract, Domain-timed collaborator contract | Domain |
+| Use-case coordination, required context, transaction scope, Application DTO, QueryRepository, Application-owned continuation port | Application |
+| External decoding, actor extraction, one Application delegation, public result/error mapping | Transport / Interface |
+| Persistence mapping, generated clients, provider adapters, broker and framework mechanisms | Infrastructure |
+| Composition, configuration, listeners, workers, shared clients, telemetry, startup and shutdown | Runtime / Platform |
 
-## 1. Layered Architecture and Dependency Rule
+Source dependencies point inward:
 
-Layer names describe responsibilities, not mandatory directories. The Go House
-Style names its physical Interface layer `transport`.
+```text
+Transport -> Application -> Domain
+Infrastructure -> Application and Domain contracts
+Runtime -> composition of all concrete implementations
+```
 
-| Layer | Owns |
-|---|---|
-| Domain | Business language, behavior, invariants, lifecycle, policies, business sequencing, Domain facts, write Repository contracts, and Domain-timed collaborator contracts |
-| Application | Use-case coordination, required context, transaction boundary, Application DTOs, QueryRepository and semantic outbound ports for Application-owned continuations |
-| Interface | Protocol translation, actor extraction, one Application delegation, response and error mapping |
-| Infrastructure | Persistence, external-service, broker, framework, generated-client/SDK, runtime, and outbound adapter mechanisms |
-
-- **[DDD Principle]** Domain behavior and language do not depend on UI, protocol, generated contract, database, broker, SDK, or framework concerns.
-- **[House Rule]** In backend code governed by this House Style, source dependencies point inward: Interface calls Application; Application uses Domain; Infrastructure implements contracts owned by Domain or Application.
-- **[House Rule]** Keep Application and Interface responsibilities distinct. Physical colocation does not permit protocol handlers to become use-case implementations.
-- **[House Rule]** Organize business code by Bounded Context before technical layer. Cross-context code must use an accepted collaboration contract rather than importing another context's internal Domain.
-- **[Heuristic]** Package names and import direction are useful evidence, but behavior and ownership determine whether a boundary is sound.
-
-## 2. Layer Responsibilities
-
-### Domain
-
-- **[DDD Principle]** Domain objects protect invariants through behavior; callers do not assign state to perform business transitions.
-- **[DDD Principle]** Domain signatures use Domain-owned language and types.
-- **[House Rule]** When creating a new Domain object, use a Domain Factory or creation function that establishes a valid initial state. Persistence restoration and mapping of already-valid state are separate concerns.
-- **[House Rule]** Domain code must not own logging, transactions, technical retries, goroutines, protocol mapping, persistence mapping, SDKs, or provider mechanics. When a Domain owner decides when a business capability is required, the invoked collaborator contract belongs to the Domain in Domain language; Application supplies its implementation and context, while Infrastructure performs any provider execution.
-
-### Application
-
-- **[DDD Principle]** Application coordinates a use case and delegates business decisions and business sequencing to the Domain owner.
-- **[House Rule]** A command coordinates required facts, Domain behavior, persistence, and accepted reactions without reimplementing Domain rules.
-- **[House Rule]** One command transaction mutates one Aggregate Root by default. Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one Bounded Context and one local transactional resource.
-- **[House Rule]** For that exception, Application defines the transaction scope, Infrastructure makes every participating Repository use one physical local transaction and owns begin, commit, and rollback, and Domain remains transaction-unaware. Each write Repository still owns exactly one Aggregate Root; the active language House Style defines the participation mechanism.
-- **[House Rule]** A query returns an Application read result without mutating business state.
-- **[House Rule]** When Application itself owns a use-case continuation, it may own a semantic outbound port whose contract exposes no provider, SDK, protocol, topology, or storage vocabulary. When Domain owns the call timing, Application instead supplies the Domain-owned collaborator implementation. Supplying execution never transfers the business timing decision.
-- **[Heuristic]** Many unrelated collaborators may indicate missing Domain behavior or an over-broad use case. No dependency count proves this alone.
-
-### Interface
-
-- **[House Rule]** Interface translates between an external contract and an Application contract.
-- **[House Rule]** An inbound adapter decodes and maps input, delegates once to Application, and maps the result or error; it does not introduce a second set of Domain validation rules.
-- **[House Rule]** Interface must not own Domain decisions, repositories, transactions, Aggregate mutation, or outbound mechanism orchestration.
-- **[House Rule]** Generated request and response types stop at Interface; Domain and Application use their own semantic types.
-
-### Infrastructure
-
-- **[House Rule]** Infrastructure implements inner contracts without moving mechanism vocabulary or business decisions inward.
-- **[House Rule]** Persistence rows, generated contracts, provider responses, Application DTOs, and Domain objects remain distinct when their owners or evolution rules differ; Infrastructure owns the required persistence and outbound translations.
-- **[House Rule]** Provider retry, topology, connection lifecycle, framework wiring, and runtime configuration remain in Infrastructure or the runtime platform boundary.
+Organize business code by Bounded Context before technical layer. Generated
+contracts, persistence rows, provider responses, Application DTOs, and Domain
+objects remain distinct types at their owning boundaries.
 
 ## Model-to-code Projection
 
-Projection preserves semantic ownership across abstraction levels. It is traceability, not name matching or one-to-one generation: one Model concept may require several collaborating symbols, and one cohesive symbol may connect several concepts.
+Use this table only after the corresponding model meaning is accepted.
 
-| Confirmed Model meaning | Technical realization responsibility |
+| Accepted model meaning | House Style realization |
 |---|---|
-| Bounded Context, Aggregate Root, Entity, or Value Object | Preserve the owning context, identity, lifecycle, invariant, and reference boundary in Domain types and their inward-facing contracts; do not infer a deployment unit. |
-| Business Role may issue Command | Interface extracts trusted identity or context; Application preserves the Role-to-Command authorization and maps technical claims to business meaning. A Domain owner decides any eligibility that depends on authoritative Domain state. An IAM principal or transport claim is not itself the Role. |
-| External authority may issue Command | An inbound Interface authenticates or validates the accepted source and translates its contract into the semantic Application use case. Preserve the authority relationship without turning a provider, protocol, or remote payload into a Domain type. |
-| Command | Enter through one semantic Application use case or equivalent application boundary. A Command does not require a same-named class, handler, or Aggregate method. |
-| Aggregate Capability | Realize the stable operation on the Root's intention-revealing Domain method surface. Internal helpers or several cohesive methods may realize one capability when Application does not choose a pre-state branch or reproduce the Root's decision. |
-| Selected Domain Event | Represent the local Domain fact and record it with the behavior that establishes it; Application owns the accepted dispatch timing. |
-| Published Fact Contract | Translate the selected Domain fact at the producing Application boundary into a stable Published Language. Keep its Integration Message and adapter realization distinct from the local Domain Event type. |
-| Event-triggered Command | Map the established fact or incoming contract through one consuming Interface adapter or local event boundary to one semantic Application use case, then to the accepted Capability or explicit coordination. |
-| Explicit coordination | Preserve the confirmed semantic owner. Application coordinates loading, context, transactions, and technical continuation; a Domain owner retains business sequencing when the rule belongs to its behavior. |
-| Analytical Workshop Event | Use it only while discussing the business outcome. It creates no production event type, persistence, dispatch, or lasting artifact. |
+| Bounded Context | One business module/package tree with no imports of another context's internals |
+| Aggregate Root | One Domain type exposing intention-revealing behavior and owning mutation of its accepted children |
+| Entity | A Domain type with explicit identity, continuity, named behavior, and mapping-safe read access |
+| Value Object | A valid-at-construction Domain value with value equality and immutable or defensive-copy semantics |
+| Domain Service | A named, mostly stateless Domain operation over Domain values, snapshots, or semantic capabilities |
+| Command | One semantic Application entry point; no same-named class is required when the language leaf uses another shape |
+| Aggregate Capability | A public Domain method on the accepted owner; private helpers may support it |
+| Domain Event | A local Domain fact recorded by the behavior that establishes it |
+| Published Fact Contract | A producer-owned generated contract mapped at the producing Application boundary |
+| Asynchronous Intent Contract | A receiver-owned generated contract reached through the sender's semantic port and Infrastructure adapter |
+| Event-triggered Command | One event/subscriber adapter mapping the established fact to one Application use case |
 
-- **[House Rule]** For DDD-backed implementation or review, cite the governing artifact clause beside the production symbols needed to prove the affected behavior. Do not create an exhaustive permanent projection.
-- **[House Rule]** Keep this trace as temporary task evidence outside DDD artifacts and implementation code; it never becomes another domain authority.
+For implementation evidence, cite the governing artifact clause beside the
+production symbols that realize the affected behavior. Keep that projection in
+the task or review report, not in DDD artifacts or source comments.
 
-## 3. Tactical Building Blocks
+## Domain Object Shape
 
-### Entity and Value Object
+### Aggregate Root and Entity
 
-- **[DDD Principle]** An Entity is distinguished by identity across change.
-- **[DDD Principle]** A Value Object is distinguished by its attributes, has no independent identity, and is replaced as a whole.
-- **[House Rule]** An Entity realization preserves its confirmed Domain meaning, identity and continuity, owning Aggregate Root, material lifecycle, behaviors, rules, and Domain references. A field list, table key, or storage row is not an Entity definition.
-- **[House Rule]** A Value Object realization preserves its confirmed Domain meaning, constituent Domain values, validity and construction rules, equality semantics, normalization or units when applicable, and meaningful Domain operations. DTO or persistence shape does not define equality or validity.
-- **[House Rule]** When a value has structural validity rules, establish them at Domain construction and prevent partially valid values from circulating.
-- **[Heuristic]** Importance, mutability, independent storage, or a table identifier does not by itself make an object an Entity or Aggregate Root.
+- Factories create valid new state and creation facts.
+- Reconstitution restores already-existing state, validates it, and records no
+  creation behavior or event.
+- Named Domain methods perform business transitions. Mapping accessors or
+  exported mapping fields expose existing state without becoming an alternate
+  mutation API.
+- The Root controls changes to owned Entities and retains identity-only
+  references to other Aggregate Roots.
+- Mutable inputs and outputs are copied at the Domain boundary.
+- Technical timestamps, protocol metadata, logging, transactions, provider
+  retries, and runtime lifecycle remain outside the Domain object.
 
-### Aggregate
+### Value Object
 
-- **[DDD Principle]** An Aggregate is a consistency and mutation boundary with one root.
-- **[DDD Principle]** External callers and Repositories address the root; the root protects invariants of owned Entities and Value Objects.
-- **[DDD Principle]** Owned objects may have distinct identities, lifecycles, rules, and change reasons inside one Aggregate. The Root composes their collaboration and invariant boundary; it need not absorb every behavior.
-- **[House Rule]** The implementation names the Root, every material owned Entity and Value Object, identity-only references to other Roots, the invariant each behavior preserves, and the immediate consistency boundary established by the confirmed Model.
-- **[Heuristic]** Prefer an owned object whose intention-revealing behavior localizes cohesive state and decisions so the Root can compose results without learning its internal decision steps. The object earns its place when deleting it would spread the same decision knowledge across the Root or callers rather than remove it.
-- **[House Rule]** A behavior assigned to a Root or Entity is exposed on that object's intention-revealing method surface. A free function is reserved for construction, ownerless pure calculation, or a private algorithm reached through the owning method; a function that mainly accepts one Domain object to inspect or mutate its state is receiver-shaped design pressure.
-- **[House Rule]** Reference another Aggregate Root by identity rather than retaining a mutable object graph across Aggregate boundaries.
-- **[House Rule]** A confirmed multi-Root transaction is an exceptional Application consistency scope; it does not merge the participating Aggregates or weaken either Root's invariant boundary.
-- **[Heuristic]** A shared ORM session, foreign key, or multi-table write is persistence evidence, not Aggregate-boundary evidence.
+- Construction establishes structural validity and normalization.
+- Equality uses the complete accepted value.
+- Mutation returns a replacement value; containers expose immutable values or
+  defensive copies.
+- Protocol and persistence representations are mapped outside Domain.
 
 ### Domain Service
 
-- **[DDD Principle]** A Domain Service expresses an important named Domain operation that does not naturally belong to an Entity or Value Object.
-- **[DDD Principle]** A Domain Service may involve one Aggregate, several Aggregates, or no Aggregate; crossing Aggregate boundaries is not a requirement.
-- **[House Rule]** When a Domain Service is used, keep it mostly stateless, name it in the Ubiquitous Language, accept Domain values or snapshots, and return a decision, value, error, or fact.
-- **[House Rule]** Application normally supplies required facts and time. A Domain Service may use a narrowly defined Domain-owned semantic collaborator, including a required Repository query capability, only when reducing the interaction to primitive precomputed data would erase Domain meaning. A query does not remove a time-of-check/time-of-use race; correctness that depends on concurrent state requires an accepted constraint, lock, isolation, or other consistency mechanism outside the Domain Service's control.
-- **[House Rule]** A Domain Service never saves Aggregates or controls a transaction. When a confirmed use case spans several roots, the service owns the named cross-Aggregate business rule and invokes public Aggregate behavior; Application loads and saves the roots and defines the transaction scope. The service or calculation alone does not authorize atomic persistence.
+- Use the accepted Ubiquitous Language for its type and operation names.
+- Accept Domain values, snapshots, authoritative facts, time, or a narrow
+  Domain-owned semantic collaborator.
+- Return a Domain decision, value, error, or fact.
+- Application supplies external facts and collaborator implementations.
+- Persistence, transaction control, logging, scheduling, and provider policy
+  stay outside the service.
 
-### Domain Event
+### Repository
 
-- **[DDD Principle]** A Domain Event is a selected past-tense fact in one Bounded Context's language.
-- **[DDD Principle]** Not every observed business fact needs to become a Domain Event, and a Domain Event is not automatically an external contract.
-- **[House Rule]** When Domain behavior records an event, record it with the state transition that establishes the fact and keep its payload in Domain language.
-- **[Heuristic]** Dispatch timing follows the accepted consistency model; DDD does not prescribe one universal before-commit or after-commit sequence.
+- Place one write Repository contract beside its Aggregate Root.
+- Use collection-shaped `Get` and `Save` operations unless the accepted
+  lifecycle and language leaf define a snapshot/checkpoint form.
+- Persist owned children through the Root boundary.
+- Expose stable not-found and concurrency outcomes in inner-layer language.
+- Keep SQL, sessions, transactions, cache keys, provider options, product lists,
+  histories, reports, and projections out of the write contract.
 
-## 4. Repository
+## Application and Transport Shape
 
-- **[DDD Principle]** A Repository presents collection-like access to Aggregate Roots and hides persistence mapping.
-- **[House Rule]** Define a write Repository contract for one Aggregate Root; persist owned children through that root's boundary.
-- **[House Rule]** For a request-scoped Aggregate loaded from durable state, use `Get` and `Save` as the minimal shape when they satisfy the accepted use cases. A resident Aggregate with checkpoint persistence may instead expose a snapshot/checkpoint contract selected by Tactical Design or project authority.
-- **[House Rule]** Product lists, reports, histories, summaries, and presentation projections do not belong on the write Repository.
-- **[Heuristic]** Workflow verbs, provider-shaped methods, product reads, and multi-root saves are pressure to inspect the model or placement; a method name alone is not proof.
-Whether a saved in-memory Aggregate remains usable is selected by the accepted lifecycle and concrete Repository/event contract, not by DDD or House Style. Request-scoped and resident Aggregates therefore have different valid realization rules.
+- A command handler loads required facts, invokes Domain behavior, persists the
+  accepted Root set, coordinates accepted reactions, and returns a minimal
+  immutable result.
+- A query handler returns an immutable Application read result and performs no
+  business mutation.
+- A focused read of one complete Aggregate may use its write Repository when
+  that path is already accepted. Accepted lists, pages, histories, reports,
+  partial fields, and composed projections use an Application-owned
+  QueryRepository returning Application read types.
+- An inbound adapter decodes and maps one external contract, delegates once to
+  Application, and maps the result or error. Generated types end at that
+  boundary.
 
-## 5. Conditional CQRS
+## Local Transaction Realization
 
-- **[DDD Principle]** DDD does not require CQRS, separate data stores, asynchronous projections, or Event Sourcing.
-- **[House Rule]** When a read needs lists, pagination, history, reporting, cross-Aggregate composition, partial fields, presentation-specific shape, or distinct performance, freshness, authorization, or source semantics, use an Application-owned QueryRepository/read facade that returns an Application read model.
-- **[House Rule]** When a read only returns one Aggregate's existing state, may load the complete Aggregate at acceptable cost, and has no distinct composition, presentation, performance, freshness, authorization, or source semantics, Application may use the Domain Repository and map a read-only result. It must not expose the Aggregate.
-- **[House Rule]** Interface never calls either Repository directly; every command and query enters through Application.
-- **[House Rule]** When CQRS is applicable, command-side Aggregate loading remains on the Domain Repository and read-side models remain on QueryRepository/read facades even if one table or adapter supports both.
-- **[Heuristic]** Create read ports around cohesive consumer semantics, not one interface per screen, RPC method, SQL statement, or minor filter.
+For an accepted command that saves one Root, the Repository may own one local
+transaction. For an accepted same-context command that saves several independent
+Roots atomically:
 
-## 6. Naming and Errors
+- Application defines the transaction scope;
+- Infrastructure owns begin, enlistment, commit, and rollback;
+- every participating Repository uses the same physical local transaction;
+- each write Repository still owns one Aggregate Root;
+- the scope uses one Bounded Context and one local transactional resource;
+- Domain code remains transaction-unaware.
 
-- **[DDD Principle]** Names express the owning context's Ubiquitous Language.
-- **[House Rule]** Commands use imperative intent, events use past-tense facts, and read models are named for consumer meaning.
-- **[DDD Principle]** Domain errors express rejected business decisions or preconditions without protocol or storage codes.
-- **[House Rule]** Interface maps semantic outcomes to public protocol responses; outer execution boundaries add technical context and log according to the language House Style.
+The active-language leaf defines the concrete participation mechanism and its
+integration evidence.
 
-## Related References
+## Naming and Errors
 
-- [ddd-modeling.md](ddd-modeling.md) for language, authority, lifecycle, and Aggregate-boundary reasoning.
-- [ddd-collaboration.md](ddd-collaboration.md) for published APIs, events, and Integration Messages.
-- [database.md](database.md) for Persistence House Style, schema, query, migration, and concurrency rules.
+- Commands use imperative intent; events use past-tense facts; read models use
+  consumer-facing meaning.
+- Domain errors name rejected business decisions or preconditions.
+- Application errors name stable use-case outcomes.
+- Transport maps semantic outcomes to public protocol responses.
+- Infrastructure translates a provider error once into a stable inner outcome
+  while preserving its cause.
+- The outer execution owner emits the completion log; inner layers log only an
+  independently useful semantic event.
+
+## Related Leaves
+
+- [ddd-collaboration.md](ddd-collaboration.md) for code realization of accepted
+  published APIs, Domain Events, and Integration Messages.
+- [database.md](database.md) for MySQL schema, SQL, migration, and persistence
+  realization.

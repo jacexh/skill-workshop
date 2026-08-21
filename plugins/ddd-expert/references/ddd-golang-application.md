@@ -1,9 +1,11 @@
 ---
 name: ddd-golang-application
-description: Go house style for the bounded-context Application entry point, command/query orchestration, DTO assembly, semantic transactions, Domain Event reactions and outbound ports.
+description: Go House Style for the bounded-context Application registry, command/query orchestration, DTO assembly, semantic transactions, and outbound ports.
 ---
 
 # Go Application Layer
+
+## Applies When
 
 Application implements use cases. It coordinates Domain behavior and semantic ports without knowing whether a caller is ConnectRPC, HTTP, an Integration Message or a task processor.
 
@@ -68,7 +70,6 @@ func NewApplication(
 package application
 
 import (
-	"github.com/go-jimu/components/ddd/event"
 	"example/internal/business/user/domain"
 )
 
@@ -86,7 +87,6 @@ func AssembleUserDTO(dto *User) *domain.User {
 	}
 	return &domain.User{
 		ID: dto.ID, Name: dto.Name, Email: dto.Email, Version: dto.Version,
-		Events: event.NewCollection(),
 	}
 }
 
@@ -108,18 +108,14 @@ Persistence mapping belongs in `infrastructure/convert.go` and follows the analo
 
 Place a command in `application/command/<use_case>.go`. The handler constructs or loads Domain state, calls Domain behavior and persists the accepted Aggregate. Do not repeat Domain validation on the command DTO.
 
-The following shape applies when the accepted use case includes post-commit Domain Event dispatch:
+Use this ordinary one-Root shape:
 
 ```go
 package command
 
 import (
 	"context"
-	"log/slog"
-	"time"
 
-	"github.com/go-jimu/components/ddd/event"
-	"github.com/go-jimu/components/sloghelper"
 	"example/internal/business/user/domain"
 )
 
@@ -134,21 +130,17 @@ type CreatedUser struct {
 
 type CreateUserHandler struct {
 	repository domain.Repository
-	dispatcher event.Dispatcher
 }
 
-func NewCreateUserHandler(
-	repository domain.Repository,
-	dispatcher event.Dispatcher,
-) *CreateUserHandler {
-	return &CreateUserHandler{repository: repository, dispatcher: dispatcher}
+func NewCreateUserHandler(repository domain.Repository) *CreateUserHandler {
+	return &CreateUserHandler{repository: repository}
 }
 
 func (h *CreateUserHandler) Handle(
 	ctx context.Context,
 	cmd CreateUser,
 ) (CreatedUser, error) {
-	user, err := domain.NewUser(cmd.Name, cmd.Email, time.Now().UTC())
+	user, err := domain.NewUser(cmd.Name, cmd.Email)
 	if err != nil {
 		return CreatedUser{}, err
 	}
@@ -156,22 +148,13 @@ func (h *CreateUserHandler) Handle(
 		return CreatedUser{}, err
 	}
 
-	// This example uses the request-scoped lifecycle: Save makes user stale.
-	result := CreatedUser{ID: user.ID, Name: user.Name, Email: user.Email}
-	if err = h.dispatcher.DispatchAll(user.Events.Drain()); err != nil {
-		// The state is committed. This handler owns the dispatcher error.
-		sloghelper.FromContext(ctx).WarnContext(
-			ctx, "domain event dispatch rejected",
-			slog.String("operation", "user.events.dispatch"),
-			slog.String("user_id", user.ID),
-			sloghelper.Error(err),
-		)
-	}
-	return result, nil
+	return CreatedUser{ID: user.ID, Name: user.Name, Email: user.Email}, nil
 }
 ```
 
-When no accepted same-context reaction exists, omit the dispatcher.
+When accepted local events exist, add their flow from
+[`ddd-golang-events.md`](ddd-golang-events.md). Published contracts use
+[`ddd-golang-messages.md`](ddd-golang-messages.md).
 
 A normal command changes one Aggregate. Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one bounded context and one local transactional resource. Without that complete authority, expose the missing consistency decision instead of hiding it in a transaction or multi-Root Repository.
 
@@ -206,35 +189,6 @@ All inbound reads delegate through `Application.Queries`. A focused read of one 
 
 Transport never calls a Domain Repository or QueryRepository directly.
 
-## Domain Event Handler and Published Fact
-
-A same-context reaction lives in `application/eventhandler/<fact>.go` and implements `event.Handler`. It is a follow-up transaction; it cannot roll back the producing command.
-
-When it publishes this context's accepted fact, Application may use the
-producer-owned generated contract and provider-neutral publisher directly.
-`UserCreated` remains the internal Domain Event; `UserRegisteredV1` is the
-producer-owned Published Fact Contract. It is an Integration Message contract
-whose protobuf value is used as the payload of `message.Message`:
-
-```go
-payload := &userintegrationv1.UserRegisteredV1{
-	UserId: created.UserID,
-	Name: created.Name,
-	Email: created.Email,
-}
-integrationMessage, err := message.New(
-	message.KindOf(payload),
-	payload,
-	message.WithKey(created.UserID),
-	message.WithOccurredAt(created.OccurredAt),
-)
-if err == nil {
-	err = h.publisher.Publish(ctx, integrationMessage)
-}
-```
-
-The full implementation imports `github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/ddd/message` and its own `example/gen/user/integration/v1` package. It must not import Kafka. Because `event.Handler.Handle` has no error result, this handler owns the publisher error. Use [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) for the complete event and message flow.
-
 ## Application Services, Ports and Transactions
 
 Use a named Application service only for meaningful use-case orchestration. It may coordinate Domain behavior, authorization, a read model, ACL, published fact or accepted background-work capability. It must not classify Domain state or become a provider facade.
@@ -252,7 +206,11 @@ Application owns what must commit together; Infrastructure owns how. A single-Ag
 - Application logs a business-semantic fact only when it has independent operational value. Durable evidence is a Domain Event, audit record or persisted state, not a log line.
 - Application becomes the execution logger only for a terminal flow with no outer observer or when it deliberately swallows a best-effort failure.
 
-Test handlers with real Domain objects and focused fakes for Repository, QueryRepository, ACL and outbound ports. Cover orchestration and stable errors. Only when an accepted request-scoped post-commit dispatch flow exists, cover persistence-before-dispatch. For a confirmed multi-Root use case, verify that one `Within` callback encloses every load, Domain decision, and save, but do not claim a fake Transactor proves physical enlistment or rollback. Do not reimplement Domain rules in Application tests.
+Test handlers with real Domain objects and focused fakes for Repository,
+QueryRepository, ACL, and outbound ports. Cover orchestration and stable errors.
+For a confirmed multi-Root use case, verify that one `Within` callback encloses
+every load, Domain decision, and save; physical enlistment belongs to the
+Infrastructure integration test. Event behavior follows the event leaf.
 
 ## File Shape
 

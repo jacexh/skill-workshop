@@ -5,6 +5,8 @@ description: Executable Go House Style for xorm/MySQL persistence, DO conversion
 
 # Go Infrastructure Layer
 
+## Applies When
+
 Infrastructure implements Domain/Application ports and owns external mechanisms. For MySQL persistence in this House Style, use `xorm.io/xorm` with `github.com/go-sql-driver/mysql`. Use `github.com/samber/oops` when an external error first enters controlled code.
 
 ## Responsibility And File Shape
@@ -63,9 +65,8 @@ Exported Domain fields are an intentional mapping surface. They permit a convert
 package infrastructure
 
 import (
-    "github.com/go-jimu/components/ddd/event"
-    "example/internal/business/user/application/query"
-    "example/internal/business/user/domain"
+	"example/internal/business/user/application/query"
+	"example/internal/business/user/domain"
     "github.com/samber/oops"
 )
 
@@ -89,10 +90,9 @@ func userFromDO(data *userDO) (*domain.User, error) {
         ID:             data.ID,
         Name:           data.Name,
         HashedPassword: append([]byte(nil), data.Password...),
-        Email:          data.Email,
-        Version:        data.Version,
-        Events:         event.NewCollection(),
-    }
+		Email:          data.Email,
+		Version:        data.Version,
+	}
     if err := user.Validate(); err != nil {
         return nil, err
     }
@@ -104,7 +104,10 @@ func userReadModelFromDO(data *userDO) query.User {
 }
 ```
 
-Conversion restores already-existing state. New Aggregate creation calls the Domain factory so initial invariants and creation events remain Domain-owned. Do not add reflection, unsafe setters, `Restore`, or `Rehydrate` only to hide explicit mapping.
+Conversion restores already-existing state. New Aggregate creation calls the
+Domain factory. When the accepted Aggregate records events, initialize its
+collection as specified by [ddd-golang-events.md](ddd-golang-events.md).
+Mapping remains explicit and uses no reflection or unsafe setters.
 
 ## Local Transaction Participation
 
@@ -235,89 +238,24 @@ func (r *userRepository) Save(ctx context.Context, user *domain.User) error {
 }
 ```
 
-This adapter example implements the request-scoped optimistic lifecycle: new Aggregates have in-memory `Version == 0`, stored rows begin at `1`, and updates compare and increment the loaded version atomically. `Save` does not refresh that loaded instance, so the caller may map its result and drain recorded events but must not expose its version as current or reuse it for another mutation. A resident-checkpoint adapter instead accepts the immutable snapshot and checkpoint token defined by its accepted design; it does not replace or roll back the live Aggregate.
+This adapter example implements the request-scoped optimistic lifecycle: new
+Aggregates have in-memory `Version == 0`, stored rows begin at `1`, and updates
+compare and increment the loaded version atomically. `Save` leaves that loaded
+instance stale; the caller may map its already-produced result and reloads for
+a later mutation. A resident-checkpoint adapter instead accepts the immutable
+snapshot and checkpoint token defined by its accepted design while the live
+Aggregate remains authoritative.
 
 When one accepted Aggregate maps to several tables, wrap its statements with the shared database `WithinOrJoin`: it joins an active Application scope or owns the complete local lifecycle when no scope exists. Do not let the Repository inspect ownership or call `Begin`, `Commit`, `Rollback`, or `Close` directly. A session is persistence machinery, not evidence that independent Aggregates share one consistency boundary.
 
-Prefer small Aggregates. When an accepted Aggregate nevertheless owns several Entity collections and commands usually change only a small subset, its root may maintain a non-persisted mutation journal keyed by Entity kind and identity so `Save` writes only the recorded changes; an Entity-level `Dirty` flag is a simpler update-only variant. This is an optional write-amplification optimization, not a Domain fact or concurrency mechanism; every owned change still advances the root version and commits atomically.
+## QueryRepository Adapter
 
-## QueryRepository Adapter — Conditional Resolver Form
-
-The example continues the conditional resolver form above. Without the confirmed multi-Root exception, inject `*xorm.Engine` and use `engine.Context(ctx)` instead. Product lists, pages, history, reports, projections, and optimized partial reads use an Application-owned QueryRepository. A focused read of exactly one reasonably sized Aggregate may use the Domain Repository only when the confirmed Model and request do not introduce distinct read semantics.
-
-```go
-package infrastructure
-
-import (
-    "context"
-
-    "example/internal/business/user/application/query"
-    "example/internal/business/user/domain"
-    "example/internal/pkg/database"
-    "github.com/samber/oops"
-)
-
-type userQueryRepository struct{ executors *database.ExecutorResolver }
-
-var _ query.Repository = (*userQueryRepository)(nil)
-
-func NewUserQueryRepository(executors *database.ExecutorResolver) query.Repository {
-    return &userQueryRepository{executors: executors}
-}
-
-func (r *userQueryRepository) Get(ctx context.Context, userID string) (query.User, error) {
-    executor, err := r.executors.Resolve(ctx)
-    if err != nil {
-        return query.User{}, oops.With("operation", "user.query.get.executor").Wrap(err)
-    }
-    data := new(userDO)
-    found, err := executor.
-        Cols("id", "name", "email").
-        Where("id = ? AND deleted_at = 0", userID).
-        Get(data)
-    if err != nil {
-        return query.User{}, oops.With("operation", "user.query.get").
-            With("user_id", userID).
-            Wrap(err)
-    }
-    if !found {
-        return query.User{}, oops.With("operation", "user.query.get").
-            With("user_id", userID).
-            Wrap(domain.ErrUserNotFound)
-    }
-    return userReadModelFromDO(data), nil
-}
-
-func (r *userQueryRepository) List(ctx context.Context, filter query.ListFilter) (query.UserPage, error) {
-    executor, err := r.executors.Resolve(ctx)
-    if err != nil {
-        return query.UserPage{}, oops.With("operation", "user.query.list.executor").Wrap(err)
-    }
-    rows := make([]userDO, 0, filter.PageSize)
-    session := executor.
-        Cols("id", "name", "email").
-        Where("deleted_at = 0")
-    if filter.NamePrefix != "" {
-        session = session.Where("name LIKE ?", filter.NamePrefix+"%")
-    }
-    err := session.Desc("created_at", "id").
-        Limit(filter.PageSize, (filter.Page-1)*filter.PageSize).
-        Find(&rows)
-    if err != nil {
-        return query.UserPage{}, oops.With("operation", "user.query.list").
-            Wrap(err)
-    }
-
-    users := make([]query.User, len(rows))
-    for index := range rows {
-        users[index] = userReadModelFromDO(&rows[index])
-    }
-    return query.UserPage{Users: users, Page: filter.Page, PageSize: filter.PageSize}, nil
-}
-```
-
-Outside an active Application scope, count and page queries may use separate xorm sessions. A current transaction is used sequentially. Use stable ordering with a tie-breaker and design indexes from the actual filter/order path.
-
+An accepted Go read side follows
+[ddd-golang-cqrs.md](ddd-golang-cqrs.md). Its xorm adapter receives the same
+ExecutorResolver form as the write adapter when an Application transaction
+scope exists; otherwise it receives the shared Engine. It selects explicit
+columns, uses stable indexed ordering, and maps directly to Application read
+types.
 ## Outbound Adapters
 
 Infrastructure maps semantic Application ports to external APIs, Kafka, cache, taskqueue, or other providers. Keep generated clients, credentials, topics, retry settings, and serialization here.
