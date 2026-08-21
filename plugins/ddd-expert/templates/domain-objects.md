@@ -1,6 +1,6 @@
 # <Bounded Context> Domain Objects
 
-<!-- Include Required Capabilities for objects whose Behaviors directly invoke them. -->
+<!-- Include Required Capabilities for objects whose Behaviors directly invoke them. Add one Consumed by line per accepted local Event Handler. -->
 
 ## <Aggregate Root>
 
@@ -16,7 +16,8 @@
 - **Required Capabilities:**
   - `<Capability name>` — `<Domain behavior name>` invokes it at <business decision point> to <Domain question or action>; guarantees <accepted business guarantee>.
 - **Domain Events:**
-  - `<Event name>` — recorded by `<Domain behavior name>`.
+  - `<Event name>` — recorded by `<Producing Domain behavior name>`.
+    - **Consumed by:** `<Event Handler>` — <Domain intent>.
 
 ### <Entity Name> — Entity (`<EntityID>`)
 
@@ -30,4 +31,5 @@
 - **Required Capabilities:**
   - `<Capability name>` — `<Domain behavior name>` invokes it at <business decision point> to <Domain question or action>; guarantees <accepted business guarantee>.
 - **Domain Events:**
-  - `<Event name>` — recorded by `<Domain behavior name>`.
+  - `<Event name>` — recorded by `<Producing Domain behavior name>`.
+    - **Consumed by:** `<Event Handler>` — <Domain intent>.

@@ -284,9 +284,8 @@ assert_contains "$tactical_design_skill" 'Domain input, and result use' "Require
 assert_contains "$tactical_design_skill" 'outer composition supplies' "Required Capability should leave realization to composition"
 assert_matches "$tactical_design_skill" 'every external-authority need.*Capability Probe classification.*every Required Capability.*invoking Behavior.*business decision point.*Domain question or action.*guarantee' "Capability Probe should have an exhaustive Root completion criterion"
 assert_contains "$tactical_design_skill" 'the entry contains no selection reason' "Domain Event entries should point to behavior without carrying rationale"
+assert_contains "$tactical_design_skill" '../../templates/domain-objects.md' "Tactical Design should use the domain-object event schema"
 assert_not_contains "$tactical_design_skill" '<result>' "Tactical Design should not require a universal result slot"
-assert_not_contains "$tactical_design_skill" 'consumed by <Behavior>' "Tactical Design should record the event-producing behavior only"
-assert_not_contains "$tactical_design_skill" 'record or consume' "Tactical Design should not invent an event-consumer entry"
 assert_contains "$tactical_design_skill" 'Facts are the business-significant facts owned by the object' "Tactical Design should define Facts without implying a runtime snapshot"
 assert_contains "$tactical_design_skill" 'Lifecycle State records the object' "Tactical Design should record state-machine states separately"
 assert_contains "$tactical_design_skill" '`<Object>.State`' "Tactical Design should qualify a generic lifecycle concept with its owner"
@@ -312,7 +311,11 @@ assert_contains "$domain_objects_template" 'include an essential way it operates
 assert_not_contains "$domain_objects_template" '**Operating Mechanism:**' "domain objects should not require a separate How field"
 assert_contains "$domain_objects_template" '<Root> <domain verb> <Object>[ by composing `<Entity>.<Behavior>`][, transitioning <Lifecycle State name> from <before> to <after>].' "Root behavior should optionally reference a composed Entity behavior"
 assert_contains "$domain_objects_template" '<Subject> <domain verb> <Object>[, transitioning <Lifecycle State name> from <before> to <after>].' "Entity behavior should use a Domain action and optional Lifecycle State transition"
-assert_contains "$domain_objects_template" '<Event name>` — recorded by `<Domain behavior name>' "domain-object events should point to the behavior that records them"
+assert_contains "$domain_objects_template" '<Event name>` — recorded by `<Producing Domain behavior name>' "domain-object events should point to the behavior that records them"
+assert_contains "$domain_objects_template" '**Consumed by:**' "domain-object events should list accepted local reactions"
+for slot in '<Event Handler>' '<Domain intent>'; do
+  assert_contains "$domain_objects_template" "$slot" "domain-object event reaction missing $slot"
+done
 assert_contains "$domain_objects_template" 'No explicit Lifecycle State' "domain objects without a state machine should say so"
 assert_not_contains "$domain_objects_template" '**State:**' "domain-object Facts and Lifecycle State should remain distinct"
 assert_not_contains "$domain_objects_template" 'Current Facts' "domain-object Facts should describe owned meaning rather than runtime snapshots"
@@ -496,10 +499,9 @@ done
 assert_contains "$CLAUDE_ROOT/references/ddd-modeling.md" 'The Root composes their responsibilities; it does not have to absorb every behavior.' "strategic modeling should expose intra-Aggregate object responsibility"
 assert_contains "$CLAUDE_ROOT/references/ddd-modeling.md" 'Identity or a distinct lifecycle alone may instead reveal an owned Entity' "strategic modeling should not equate lifecycle difference with an Aggregate split"
 assert_contains "$CLAUDE_ROOT/references/ddd-modeling.md" 'apply the selection and ownership rules in `ddd-collaboration.md`' "strategic modeling should defer Domain Event authority to the collaboration reference"
-assert_not_contains "$CLAUDE_ROOT/references/ddd-modeling.md" 'establishes or consumes' "strategic modeling should not attach an event to a consumer"
-assert_contains "$CLAUDE_ROOT/references/ddd-collaboration.md" 'A Domain Event entry records only the event and its producing behavior.' "event collaboration rules should keep the artifact entry minimal"
+assert_contains "$CLAUDE_ROOT/references/ddd-collaboration.md" 'A Domain Event entry records the event and its producing behavior' "event collaboration rules should retain event production ownership"
 assert_not_contains "$CLAUDE_ROOT/references/ddd-collaboration.md" 'required domain result' "event collaboration rules should not restore the removed result slot"
-assert_not_contains "$CLAUDE_ROOT/references/ddd-collaboration.md" 'producing or consuming object behavior' "event collaboration rules should identify only the producing behavior"
+assert_contains "$CLAUDE_ROOT/references/ddd-collaboration.md" 'each accepted local reaction names its Event Handler and Domain intent' "event collaboration rules should link each handler to one Domain intent"
 
 if rg -ni 'evaluation evidence|evaluation fixture|eval fixture|scoring fixture|known evaluation' "${optimized_refs[@]}" >/dev/null; then
   rg -ni 'evaluation evidence|evaluation fixture|eval fixture|scoring fixture|known evaluation' "${optimized_refs[@]}" >&2
@@ -834,7 +836,6 @@ assert_contains "$ROOT/CONTEXT.md" '<Root Behavior> — <Root> <domain verb> <Ob
 assert_contains "$ROOT/CONTEXT.md" '**Domain-owned Required Capability**:' "shared vocabulary should define behavior-owned external capability contracts"
 assert_contains "$ROOT/CONTEXT.md" '**Actual Domain Event**:' "shared vocabulary should distinguish production events"
 assert_contains "$ROOT/CONTEXT.md" 'the grammatical subject is the owning Root or Entity and normally maps to a method on that object' "shared vocabulary should bind accepted behavior to methods"
-assert_not_contains "$ROOT/CONTEXT.md" 'consumed by <Behavior>' "shared vocabulary should identify only the event-producing behavior"
 assert_not_contains "$ROOT/CONTEXT.md" '**Modeling Contradiction**:' "shared vocabulary should not preserve a Codify return loop"
 assert_not_contains "$ROOT/CONTEXT.md" '**Bounded Context Architecture**:' "shared vocabulary should remove architecture artifact authority"
 assert_not_contains "$ROOT/CONTEXT.md" '**Tactical Design Claim**:' "shared vocabulary should remove claims machinery"
