@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.16.7"
+    "version": "1.16.8"
   },
   "plugins": [
     {
@@ -44,7 +44,7 @@
       "name": "ddd-expert",
       "source": "./plugins/ddd-expert",
       "description": "Strategic EventStorming, sparse Tactical Design, implementation, and review",
-      "version": "1.16.7",
+      "version": "1.16.8",
       "author": {
         "name": "xuhao"
       },
