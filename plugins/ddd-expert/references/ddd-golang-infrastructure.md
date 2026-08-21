@@ -112,21 +112,19 @@ Ordinary one-Root commands need no shared transaction abstraction. When the conf
 
 Runtime constructs one resolver and one database Transactor over the same engine/resource identity, supplies the resolver to Repository adapters, and binds the adapter as `transaction.Transactor` for Command Handlers. Do not create one transaction implementation per bounded context.
 
-For one-statement operations, the local resolver exposes a shape equivalent to `Resolve(context.Context) (xorm.Interface, error)`. It returns `engine.Context(ctx)` when no Application transaction is declared, and the live current `*xorm.Session` when the callback context declares a transaction for that same resolver and database resource. If a context still carries a transaction declaration but its session is missing, mismatched, expired, or already closed, resolution returns a stable error and never falls back to the engine. Keep the typed context key, xorm session, resource identity, and lifecycle state private to `internal/pkg/database`.
+For one-statement operations, the local resolver exposes a shape equivalent to `Resolve(context.Context) (xorm.Interface, error)`. It returns `engine.Context(ctx)` when no Application transaction is active and the current `*xorm.Session` inside the matching callback scope. Keep the typed context key, xorm session, and resource identity private to `internal/pkg/database`.
 
-For a one-Root adapter operation that needs several statements, the same resolver exposes a shape equivalent to `WithinOrJoin(context.Context, func(xorm.Interface) error) error`. It has three states: a valid declaration joins the current Application transaction without owning its lifecycle; no declaration creates and owns one adapter-local transaction; a present but invalid declaration returns the stable participation error without invoking the callback or writing. `WithinOrJoin` is Infrastructure-only participation, not a nested Application `Within`. Transaction ownership never leaks to the Repository, so the adapter cannot accidentally commit or close an outer scope.
+For a one-Root adapter operation that needs several statements, the same resolver exposes a shape equivalent to `WithinOrJoin(context.Context, func(xorm.Interface) error) error`. It joins the current Application transaction without owning its lifecycle or creates one adapter-local transaction when no scope is active. `WithinOrJoin` is Infrastructure-only participation, not a nested Application `Within`.
 
 The xorm Transactor implementation:
 
-- creates one session, binds the input context before `Begin`, begins once, installs the private transaction declaration, binds the derived context to the session, and passes that context to the callback;
-- invokes the callback exactly once and never retries it internally;
-- commits only after a nil callback result, classifies a commit failure as outcome-unknown, and never retries it internally;
-- on a callback error, attempts rollback and returns both failures with the callback error primary when rollback also fails;
-- on panic, attempts rollback and re-panics the original value; an otherwise unreturnable rollback failure is an Infrastructure-owned suppressed failure and follows the Error And Logging Boundary below;
-- rejects nested `Within` by default rather than pretending to provide savepoints; and
-- invalidates the derived transaction state when the callback exits.
+- creates one session, begins once, installs the private transaction declaration, and passes the derived context to the callback;
+- invokes the callback exactly once;
+- commits after a nil callback result;
+- rolls back after a callback error; and
+- closes the owned session when the callback scope ends.
 
-The callback context is a scoped capability: pass it unchanged, use it sequentially, and never retain it or use it from a goroutine. A context with no transaction declaration is deliberately the ordinary one-Root path, so replacing the callback context with the original context or `context.Background()` cannot be distinguished from a legitimate call and will escape to auto-commit. This is a programming error, not a fail-closed case; exercise the real Handler in rollback tests so any such context loss makes the atomicity assertion fail.
+The callback context is a scoped capability: pass it unchanged, use it sequentially, and never retain it or use it from a goroutine.
 
 ## xorm Repository Adapter — Conditional Resolver Form
 
@@ -320,11 +318,9 @@ func (r *userQueryRepository) List(ctx context.Context, filter query.ListFilter)
 
 Outside an active Application scope, count and page queries may use separate xorm sessions. A current transaction is used sequentially. Use stable ordering with a tie-breaker and design indexes from the actual filter/order path.
 
-## Outbound Adapters And Outbox
+## Outbound Adapters
 
 Infrastructure maps semantic Application ports to external APIs, Kafka, cache, taskqueue, or other providers. Keep generated clients, credentials, topics, retry settings, and serialization here.
-
-If accepted state and publish intent must commit atomically, its Store resolves the same current executor as the participating Repositories, persists the outbox record in that local xorm transaction, and runs the relay from Runtime. Do not create an outbox-only transaction propagation path. This is conditional: do not introduce an outbox when best-effort loss is accepted or no durable handoff is required. The message flow guide owns envelope and delivery details.
 
 ## Error And Logging Boundary
 
@@ -336,6 +332,6 @@ If accepted state and publish intent must commit atomically, its Store resolves 
 
 ## Verification
 
-Use MySQL-backed integration tests for the selected Repository lifecycle and QueryRepository behavior. For request-scoped optimistic persistence, cover insert version `1`, comparison/increment, conflict mapping, rollback, and stale Save behavior. For resident checkpoints, cover snapshot persistence, token conflict, and the rule that checkpoint success or failure does not replace live authority. Also cover applicable filtering, conversion, deterministic query ordering, and first-boundary error preservation. Test Outbox behavior only when that design is active.
+Use MySQL-backed integration tests for the selected Repository lifecycle and QueryRepository behavior. For request-scoped optimistic persistence, cover insert version `1`, comparison/increment, conflict mapping, rollback, and stale Save behavior. For resident checkpoints, cover snapshot persistence, token conflict, and continued live authority. Also cover applicable filtering, conversion, deterministic query ordering, and first-boundary error preservation.
 
-Prove commit and rollback with the real Repository adapters and MySQL, observing durable state from a fresh observer after the transaction boundary; static checks and fake Repository tests do not prove atomicity or enlistment. For the multi-Root exception, prove both writes commit, a later Repository failure rolls both back, and a marked missing/mismatched/expired transaction fails without a write. Also cover commit failure, callback cancellation, panic, nested rejection, stable lock order, and the real Handler path so callback-context loss would break the rollback assertion.
+Prove commit and rollback with the real Repository adapters and MySQL, observing durable state from a fresh observer after the transaction boundary; static checks and fake Repository tests do not prove atomicity or enlistment. For the multi-Root exception, prove both writes commit and a later Repository error rolls both back through the real Handler path.

@@ -490,6 +490,15 @@ optimized_refs=(
   "${language_refs[@]}"
 )
 
+# House Style references should keep the model's ordinary implementation path
+# salient instead of advertising uncommon coordination and recovery mechanisms.
+uncommon_reference_mechanism_pattern='\b(outbox|inbox|sagas?)\b|process[ -]manager|process[ -](crash|restart|failure)|transaction[ -]failure|(commit|rollback)[ -]failure|crash[ -](gap|loss|recovery)|panic[ -]recovery|durable[ -](handoff|delivery|progress|coordination)|recovery[ -](semantics|policy|mechanism|protocol)|reconciliation|manual repair|compensation'
+if rg -ni "$uncommon_reference_mechanism_pattern" "${optimized_refs[@]}" >/dev/null; then
+  rg -ni "$uncommon_reference_mechanism_pattern" \
+    "${optimized_refs[@]}" >&2
+  fail "references should not advertise uncommon coordination and recovery mechanisms"
+fi
+
 for reference in ddd-modeling.md ddd-core.md ddd-collaboration.md; do
   file="$CLAUDE_ROOT/references/$reference"
   assert_contains "$file" '[DDD Principle]' "$reference should distinguish DDD principles"
@@ -540,7 +549,8 @@ fi
 
 # The primary Go router reaches every layer, flow, and platform guide.
 go_router="$CLAUDE_ROOT/references/ddd-golang.md"
-assert_contains "$go_router" 'Go House Style never chooses Aggregate boundaries, resident versus request-scoped state, business sequencing, or failure policy' "Go House Style should not make modeling decisions"
+assert_contains "$go_router" 'Every Go rule below realizes an already selected design' "Go House Style should realize an accepted design"
+assert_contains "$go_router" 'preserving accepted Aggregate boundaries, state authority, and business sequencing' "Go House Style should preserve accepted model ownership"
 assert_contains "$go_router" 'a resident Aggregate remains the live authority and persists snapshots/checkpoints' "Go router should expose conditional resident persistence"
 for leaf in "$CLAUDE_ROOT"/references/ddd-golang-*.md; do
   basename="$(basename "$leaf")"
@@ -609,7 +619,7 @@ done
 
 # High-value Go boundaries, intentionally sparse and independent of section numbers.
 core="$CLAUDE_ROOT/references/ddd-core.md"
-assert_contains "$core" 'It implements an already selected model; it does not create a Domain concept or choose lifecycle, state authority, business sequencing, or failure policy' "House Style should realize rather than model the system"
+assert_contains "$core" 'It implements an already selected model while preserving its lifecycle, state authority, and business sequencing' "House Style should realize rather than model the system"
 assert_contains "$core" 'Apply a House Rule only after accepted project authority or Tactical Design has' "House Rules should be conditional on selected design"
 assert_contains "$core" '| Domain | Business language, behavior, invariants, lifecycle, policies, business sequencing' "Domain should own business sequencing"
 assert_contains "$core" '| Application | Use-case coordination, required context' "Application should own use-case coordination"
@@ -663,9 +673,9 @@ assert_contains "$domain" 'does not save, control transactions' "Domain Services
 assert_contains "$domain" 'Select one lifecycle from accepted project authority or Tactical Design. Persistence does not select it.' "Go Domain should defer lifecycle selection to design authority"
 assert_contains "$domain" '### Request-scoped Aggregate' "Go Domain should retain the scoped stale branch"
 assert_contains "$domain" '### Resident Aggregate with checkpoint persistence' "Go Domain should support resident runtime authority"
-assert_contains "$domain" 'failed checkpoint does not implicitly roll back or overwrite its live state' "Resident checkpoint failure should not redefine live authority"
+assert_contains "$domain" 'writing a checkpoint does not replace or overwrite the resident instance' "Resident checkpoint persistence should preserve live authority"
 assert_contains "$domain" 'In an accepted request-scoped post-commit flow, only Application drains the collection' "Go Domain should scope persistence-gated event draining"
-assert_contains "$domain" 'House Style does not make checkpoint success the precondition for Domain sequencing or live-state event handling' "Go Domain should leave resident event timing to accepted design"
+assert_contains "$domain" 'remains the authority for Domain sequencing and live-state event handling' "Go Domain should preserve resident event authority"
 assert_contains "$domain" 'Domain owner or Domain Service may invoke a narrow Domain-owned collaborator' "Go Domain should preserve business timing with an inward-owned contract"
 assert_contains "$domain" 'core model is state polymorphism' "Go FSM guidance should model polymorphic state behavior"
 assert_contains "$domain" '*fsm.SimpleState' "Go FSM guidance should use the component base state"
@@ -690,8 +700,8 @@ events="$CLAUDE_ROOT/references/ddd-golang-events-messages.md"
 assert_contains "$events" 'Published Fact Contract' "Go messaging should define producer-owned facts"
 assert_contains "$events" 'It is an Integration Message contract' "Go messaging should classify published facts as Integration Messages"
 assert_contains "$events" 'Asynchronous Intent Contract' "Go messaging should define receiver-owned intents"
-assert_contains "$events" 'Use outbox only when confirmed recovery semantics or accepted project constraints require' "Go messaging should keep outbox conditional without a separate design gate"
-assert_contains "$events" 'does not supply an xorm Store' "Go messaging should not invent missing outbox adapters"
+assert_contains "$events" '## Post-commit In-process Dispatch' "Go messaging should define the accepted local event flow"
+assert_contains "$events" 'Domain behavior -> Repository.Save -> Events.Drain -> Dispatcher.DispatchAll' "Go messaging should make local dispatch order explicit"
 assert_contains "$events" 'app.Commands' "Go message subscribers should delegate through the Application registry"
 
 taskqueue="$CLAUDE_ROOT/references/ddd-golang-taskqueue.md"
@@ -713,9 +723,8 @@ assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure
 assert_contains "$infrastructure" 'xorm.io/xorm' "Go Infrastructure should use the adopted ORM"
 assert_contains "$infrastructure" 'Prefer small Aggregates' "Go Infrastructure should keep small Aggregates as the default"
 assert_contains "$infrastructure" 'mutation journal keyed by Entity kind and identity' "Go Infrastructure should expose optional Aggregate change tracking"
-assert_contains "$infrastructure" 'If a context still carries a transaction declaration but its session is missing, mismatched, expired, or already closed, resolution returns a stable error and never falls back to the engine.' "marked invalid transactions should fail closed instead of falling back"
+assert_contains "$infrastructure" 'It returns `engine.Context(ctx)` when no Application transaction is active and the current `*xorm.Session` inside the matching callback scope.' "transaction resolver should select the current local executor"
 assert_contains "$infrastructure" 'WithinOrJoin(context.Context, func(xorm.Interface) error) error' "multi-statement Repository operations should join or own a transaction without lifecycle ambiguity"
-assert_contains "$infrastructure" 'a present but invalid declaration returns the stable participation error without invoking the callback or writing' "join-or-own transaction helpers should reject marked invalid state"
 assert_contains "$infrastructure" 'Prove commit and rollback with the real Repository adapters and MySQL, observing durable state from a fresh observer after the transaction boundary; static checks and fake Repository tests do not prove atomicity or enlistment.' "multi-Aggregate transaction guidance should require real-adapter integration evidence"
 assert_contains "$infrastructure" 'Do not log and return the same error' "Go Infrastructure should avoid duplicate error logs"
 

@@ -5,9 +5,8 @@ description: Go House Style for protobuf-backed internal task contracts, Transpo
 
 # Go Task Queue
 
-A Task Queue is a conditional internal delivery mechanism for deferred
-Application work. Introduce it only when confirmed recovery semantics, latency
-requirements, or accepted project constraints require background execution. Once applicable, use:
+A Task Queue is an internal delivery mechanism for accepted deferred Application
+work. Once that code surface exists, use:
 
 - `github.com/go-jimu/components/taskqueue` for provider-neutral contracts;
 - `github.com/go-jimu/contrib/taskqueue/asynq` for the Asynq adapter;
@@ -40,14 +39,14 @@ internal/pkg/taskqueue/
 
 | Responsibility | Owner |
 |---|---|
-| Business eligibility, deadline, terminal state, compensation | Domain/Application |
+| Business eligibility, deadline, and terminal state | Domain/Application |
 | Versioned task payload schema | Owning context under `proto/<context>/task/v1` |
 | Task type, definition, and task construction | Application `task` package |
 | Enqueue accepted deferred work | Application through `taskqueue.Enqueuer` |
 | Decode one task and delegate to one command | Transport `taskprocessor` |
 | Redis, Asynq options, worker retry, concurrency, middleware, lifecycle | Runtime |
 | Provider-neutral periodic task and semantic schedule | BC assembly |
-| Asynq schedule registration, leadership, replica coordination, lifecycle | Runtime |
+| Asynq schedule registration and lifecycle | Runtime |
 
 Do not add project-local `JobQueue`, `TaskDispatcher`, or `AsynqClient` ports
 that duplicate `taskqueue.Enqueuer`, `Processor`, and the adopted adapter.
@@ -163,10 +162,6 @@ before calling `Enqueuer`. Zero values mean provider defaults; negative
 delay/retry/timeout/unique values and combining `WithDelay` with `WithProcessAt`
 are invalid.
 
-Direct enqueue after a database commit has a commit gap. Do not silently add a
-durable task/outbox mechanism. If state and task intent must be atomic, require
-confirmed durable-recovery semantics or an accepted persistence constraint first.
-
 ## Transport Task Processor
 
 A processor lives under `transport/taskprocessor`, implements one
@@ -239,22 +234,21 @@ Application explicitly creates the next delayed task and the current processor
 returns `nil` after that enqueue succeeds.
 
 Every polling flow must have a business deadline, a maximum semantic attempt,
-a terminal state, or an explicit exhaustion/compensation outcome. Provider
+or a terminal state. Provider
 retry count from `taskqueue.ExecutionInfoFromContext` is diagnostic metadata;
 it must not replace persisted workflow state or drive Domain decisions.
 
-Repeated tasks are expected. Use Domain guards, deterministic keys, natural
-convergence, or an accepted persistent idempotency mechanism. `WithUnique` is a
-bounded provider feature, not proof of business idempotency.
+Use Domain guards, deterministic keys, or natural convergence for repeated
+tasks. `WithUnique` is a bounded provider feature rather than a Domain rule.
 
 ## Periodic Tasks
 
 A periodic scheduler only enqueues a normal Internal Task Contract. It does not
 call an Application service or execute business logic itself. BC assembly owns
 the accepted provider-neutral periodic task, including its semantic cron and
-business timezone. Runtime owns Asynq registration, scheduler leadership,
-replica coordination, and lifecycle. Domain/Application owns business-visible
-due state, deadlines, pause/resume, catch-up, and compensation. When schedule
+business timezone. Runtime owns Asynq registration and lifecycle.
+Domain/Application owns business-visible
+due state, deadlines, pause/resume, and catch-up. When schedule
 values are deployment-configurable, Runtime supplies validated values to the BC
 provider without taking ownership of which business task the schedule triggers.
 
@@ -303,10 +297,6 @@ currently due records inside the Application use case. `NewPeriodicTask`
 validates its schedule and policy and rejects `WithProcessAt` and `WithDeadline`
 because static absolute times become stale on repeated fires.
 
-`PeriodicTask.Name()` is unique only within one scheduler instance. Multiple
-replicas still require one scheduler deployment, leader election, a distributed
-lock, or another accepted coordination mechanism.
-
 ## Asynq Runtime
 
 Only `internal/pkg/taskqueue` imports the adapter and provider:
@@ -349,12 +339,6 @@ and accepted `taskqueue.PeriodicTask` values. Runtime registers them before
 startup, closes the enqueue client, and manages worker/scheduler `Start` and
 `Shutdown` with Fx lifecycle hooks. `cmd/<service>/main.go` does not construct or
 register these objects.
-
-Install panic recovery and one completion-log boundary in Runtime middleware.
-`taskqueue.Recover()` is available. `taskqueue.Logging(logger)` is also
-available, but it currently emits both start and completion records with its
-own field format; use it only when that output matches the service logging
-contract, otherwise install the service's single-completion middleware once.
 
 ## Verification
 

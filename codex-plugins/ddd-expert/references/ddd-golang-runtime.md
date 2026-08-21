@@ -280,7 +280,7 @@ The Message Runner, task worker/scheduler, event dispatcher, poller, and telemet
 
 ## Execution Owner Logs And Errors
 
-Transport middleware owns one Execution Completion Log per inbound RPC/message/task. Runtime owns one for each terminal loop, scheduler tick, reconciliation run, or lifecycle operation it executes. Application does not duplicate that record; Infrastructure enriches and returns errors unless it owns retry, suppression, or a terminal operation.
+Transport middleware owns one Execution Completion Log per inbound RPC/message/task. Runtime owns one for each terminal loop, scheduler tick, or lifecycle operation it executes. Application does not duplicate that record; Infrastructure enriches and returns errors unless it owns suppression or a terminal operation.
 
 A Connect interceptor creates the request-scoped logger and records the final outcome:
 
@@ -319,7 +319,7 @@ Encode dependencies so shutdown happens in this order:
 1. stop accepting RPC/HTTP ingress and scheduled triggers;
 2. stop message consumers and task workers taking new work;
 3. drain or cancel in-flight executions according to their contract;
-4. drain accepted event/outbox/telemetry work within the Fx stop timeout;
+4. drain accepted event and telemetry work within the Fx stop timeout;
 5. close MySQL, broker, Redis, and other clients after their users stop.
 
 Fx lifecycle order follows the constructor dependency graph and hook registration, not the conceptual layer diagram. Every goroutine needs cancellation or Close plus a surfaced terminal-error path. Readiness becomes false before drain; deployment termination grace and pre-stop behavior must exceed the measured drain budget rather than a universal sleep value.

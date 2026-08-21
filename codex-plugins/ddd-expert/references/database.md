@@ -1,6 +1,6 @@
 ---
 name: database
-description: Language-neutral MySQL persistence house style for schemas, SQL, indexes, concurrency, migrations, read models, integration state, and scale mechanisms.
+description: Language-neutral MySQL persistence House Style for schemas, SQL, indexes, concurrency, migrations, and read models.
 ---
 
 # MySQL Persistence House Style
@@ -21,11 +21,10 @@ The adopted database is MySQL 8. The active language House Style selects the ada
 |---|---|
 | Repository, QueryRepository, and Runtime ownership | Persistence Responsibilities |
 | Table names, standard columns, and physical types | Naming, Storage, and Encoding; Standard Columns; Physical Types |
-| Aggregate, read-model, integration, and process tables | Role-Specific Table Shapes |
+| Aggregate and read-model tables | Role-Specific Table Shapes |
 | Indexes, query shape, writes, and pagination | Index Design; SQL Shape |
 | Optimistic/pessimistic concurrency | Transactions and Concurrency |
 | Safe schema change | Migrations |
-| Conditional scale mechanisms | Partitioning and Sharding |
 
 ## 1. Persistence Responsibilities
 
@@ -33,7 +32,6 @@ The adopted database is MySQL 8. The active language House Style selects the ada
 - **[DDD Principle]** The accepted Aggregate boundary determines atomic write ownership. A foreign key, shared table, or database transaction does not create an Aggregate boundary.
 - **[House Rule]** A command-side Repository persists exactly one Aggregate Root and its owned state. Its write owns one local transaction by default. Under the confirmed same-context, same-resource exception, several one-Root Repository adapters enlist in the same Application scope and one physical local database transaction; do not replace them with a multi-Root Repository.
 - **[House Rule]** Lists, pages, history, reports, statistics, cross-Aggregate composition, denormalized views, and optimized projections use an Application-owned QueryRepository. A focused read of one reasonably sized Aggregate may use its Domain Repository when full reconstitution is appropriate and no distinct read semantics exist.
-- **[House Rule]** Integration tables, idempotency records, projection checkpoints, and process state are introduced only by an accepted flow. Once introduced, they use this file's naming, standard columns, types, indexes, migration, and concurrency rules.
 - **[House Rule]** Transport never queries tables or Repositories directly. Infrastructure owns persistence records, mappings, and adapters; Runtime owns the shared connection-pool or database-client lifecycle.
 
 ### Language Adapter Boundary
@@ -71,7 +69,7 @@ For a partitioned or sharded physical table, the primary key may include the rou
 
 ## 3. Standard Columns and Lifecycle
 
-**[House Rule]** Every table governed by this profile, including Aggregate, owned-state, association, read-model, outbox, inbox, checkpoint, and process-state tables, contains these five standard columns:
+**[House Rule]** Every table governed by this profile contains these five standard columns:
 
 ```sql
 `id` varchar(36) NOT NULL COMMENT 'UUIDv7 primary identity',
@@ -84,7 +82,7 @@ For a partitioned or sharded physical table, the primary key may include the rou
 - **[House Rule]** Generate `id` as UUIDv7 before persistence through the accepted Domain creation path, or through the owning Application path for records that are not Domain objects, and store its canonical text in `varchar(36)`.
 - **[House Rule]** A new in-memory Aggregate has version `0`; its `INSERT` explicitly writes stored `version = 1`. Rows created outside an Aggregate also start at stored version `1`.
 - **[House Rule]** `created_at`, `updated_at`, and `deleted_at` use Unix milliseconds supplied by the application. `timestamp` and `datetime` are not used in this house style.
-- **[House Rule]** Active-row reads include `deleted_at = 0`. Reads of deleted data are explicit administrative, retention, audit, or recovery paths.
+- **[House Rule]** Active-row reads include `deleted_at = 0`. Reads of deleted data are explicit administrative, retention, audit, or restoration paths.
 - **[House Rule]** A soft delete is a version-checked update that sets `deleted_at`, `updated_at`, and increments `version`; it is not an unguarded flag update.
 - **[House Rule]** Append-only rows still insert the five columns. They remain at version `1` unless an accepted operational lifecycle updates them.
 
@@ -184,22 +182,6 @@ CREATE TABLE `order_summary` (
 - **[House Rule]** Projection consumers use a source version, message identity, or accepted checkpoint to make duplicate and out-of-order behavior explicit.
 - **[House Rule]** QueryRepository returns Application read DTOs and selects only required columns. It does not reconstitute Domain Entities for a projection path.
 
-### Integration and Process State
-
-These tables are conditional. Do not introduce them merely because the schema profile describes them.
-
-- **[House Rule]** When committed Aggregate state and publish intent must not diverge, an accepted outbox row is inserted in the same local database transaction as the Aggregate state. Its minimum business columns are `message_kind`, `message_version`, `payload`, `occurred_at`, `available_at`, `status`, `attempts`, and bounded error evidence in addition to the five standard columns.
-- **[House Rule]** When a local transactional consumer side effect must be idempotent, an accepted inbox/idempotency table enforces a consumer-scoped message or business key with a unique index and commits the record in the same local transaction. External RPC, broker, and file effects require a separate accepted idempotency or recovery protocol.
-- **[House Rule]** A durable Process Manager or orchestrated Saga stores its correlation key, process kind, current state, input/message checkpoint, next action or wake-up time, and terminal outcome in addition to the five standard columns. State changes use optimistic locking.
-- **[House Rule]** Pending-work scans use a concrete composite index that begins with equality state and availability predicates and ends with a deterministic tie-breaker such as `id`.
-- **[House Rule]** Retention or archival is explicit. Successful publication or process completion does not authorize immediate physical deletion when replay, audit, or incident diagnosis requires the row.
-
-```sql
-KEY `idx_status_available_at_id` (`status`, `available_at`, `id`),
-UNIQUE KEY `uniq_consumer_message` (`consumer`, `message_id`),
-UNIQUE KEY `uniq_process_correlation` (`process_kind`, `correlation_id`)
-```
-
 ## 6. Index Design
 
 ### Operational Caps
@@ -218,7 +200,7 @@ The legacy 767-byte/191-utf8mb4-character limit is not a MySQL 8 universal limit
 - **[House Rule]** Production join keys and high-frequency filter/order paths have compatible indexes with matching types and collations.
 - **[House Rule]** Composite index order follows the actual equality predicates, then range/order requirements, covering needs, and MySQL leftmost-prefix behavior. Do not put a column first merely because it has higher standalone selectivity.
 - **[House Rule]** Remove redundant indexes after accounting for leftmost prefixes and the InnoDB primary-key suffix on secondary indexes.
-- **[House Rule]** `deleted_at` is not a standalone index unless a concrete recycle, purge, audit, or recovery query uses it selectively. For ordinary active-row access it belongs in the composite index position supported by the full query.
+- **[House Rule]** `deleted_at` is not a standalone index unless a concrete recycle, purge, audit, or restoration query uses it selectively. For ordinary active-row access it belongs in the composite index position supported by the full query.
 - **[House Rule]** `updated_at` is indexed when CDC, incremental synchronization, or an operational scan uses it. `created_at` is indexed when an accepted ordering or range path uses it. Do not index every timestamp automatically.
 - **[House Rule]** Material new or changed queries include representative `EXPLAIN ANALYZE` or equivalent plan evidence before release.
 
@@ -267,10 +249,10 @@ Do not assume a row-constructor range such as `(created_at, id) < (?, ?)` will p
 ## 8. Transactions and Concurrency
 
 - **[DDD Principle]** Transaction scope implements an accepted consistency boundary; it does not define one.
-- **[House Rule]** A confirmed multi-Root atomic use case remains inside one Bounded Context and one local database resource. Every participating one-Root Repository joins the same physical transaction so all writes commit or roll back together; a cross-context, cross-database, or distributed transaction is not this exception.
+- **[House Rule]** A confirmed multi-Root atomic use case stays inside one Bounded Context and one local database resource. Every participating one-Root Repository joins the same physical transaction so all writes commit or roll back together.
 - **[House Rule]** A Repository participating in an Application-owned scope neither begins, commits, nor rolls back a nested transaction. Without an outer scope, it retains its ordinary one-Root local transaction behavior.
 - **[House Rule]** Keep transactions short, acquire locks in stable primary-key order, and update by primary or unique keys where possible.
-- **[House Rule]** HTTP, RPC, file, Kafka, and other external calls do not occur inside a database transaction. A flow that requires atomic durable handoff uses an accepted local record such as an outbox, not an open network call.
+- **[House Rule]** Keep HTTP, RPC, file, Kafka, and other external calls outside a database transaction.
 
 ### Request-scoped Optimistic Aggregate Lifecycle
 
@@ -293,18 +275,17 @@ WHERE id = ? AND version = ? AND deleted_at = 0;
 - **[House Rule]** The Repository checks affected rows. An update count other than one maps to a stable concurrency-conflict error; do not hide it as not-found or success.
 - **[House Rule]** Repository save does not increment the loaded in-memory Aggregate version. Under this branch, a successful save makes that instance stale: Application may assemble a result and drain recorded events, but must not expose the stale token, mutate, or save the instance again. A later transaction reloads it.
 - **[House Rule]** An Aggregate spanning several owned tables uses one local database transaction. All writes succeed or roll back together.
-- **[House Rule]** After a callback, rollback, or commit failure in this request-scoped multi-Root branch, discard the loaded Aggregate instances and staged events. Publish events only after commit; when durable handoff is required, persist the accepted outbox record in that transaction.
+- **[House Rule]** In this request-scoped multi-Root branch, publish events only after commit and keep loaded Aggregate instances scoped to the transaction callback.
 - **[House Rule]** The adapter binds the identity, loaded version, and active-row predicate, performs the increment in SQL, checks the affected-row count, and translates provider failures at its owned boundary. Language-specific syntax belongs in the active language House Style.
 
 ### Resident Aggregate Checkpoints
 
-When accepted design names a resident Aggregate as live authority, the database stores an immutable snapshot/checkpoint and optional checkpoint token. A checkpoint write never makes the resident instance stale and a database failure does not implicitly restore, replace, or overwrite live state. Durability, retry, recovery, and shutdown policy come from the accepted design; this reference only implements them.
+When accepted design names a resident Aggregate as live authority, the database stores an immutable snapshot/checkpoint and optional checkpoint token. A checkpoint write never makes the resident instance stale or replaces live state.
 
 ### Pessimistic Locking
 
 - **[House Rule]** Use `SELECT ... FOR UPDATE` only when accepted behavior requires a decision against current locked state and expected contention makes optimistic retry unsuitable.
 - **[House Rule]** Lock rows in stable primary-key order and keep the decision plus writes in the same local transaction.
-- **[House Rule]** After a deadlock or lock timeout, roll back and close the whole session, reload current Aggregate state, and rerun the complete use case only under an accepted bounded retry policy. Never retry only the failed SQL statement or continue using the prior transaction; otherwise return an explicit failure.
 
 ```sql
 SELECT id, balance, version
@@ -328,12 +309,12 @@ migrations/
 └── 004_contract_legacy_amount.sql
 ```
 
-- **[House Rule]** Migration files are ordered, immutable after deployment, and contain comments describing intent, compatibility, and recovery.
-- **[House Rule]** Every migration has a tested roll-forward path and an explicit rollback decision. Include a `DOWN` operation only when reversing it is data-safe; destructive reversal is not presented as reliable recovery.
+- **[House Rule]** Migration files are ordered, immutable after deployment, and contain comments describing intent, compatibility, and reversal.
+- **[House Rule]** Every migration has a tested roll-forward path and an explicit rollback decision. Include a `DOWN` operation only when reversing it is data-safe.
 - **[House Rule]** A deployed migration remains compatible with every application version that may run during the rollout.
 - **[House Rule]** Incompatible changes use expand -> backfill -> switch reads/writes -> contract. Large backfills are observable, restartable, and bounded below the 1000-row batch and 2000-row transaction caps.
 - **[House Rule]** Verify the exact MySQL minor version and operation before claiming `INSTANT`, `INPLACE`, or `LOCK=NONE`. Requested syntax is not proof that the server avoids a table rebuild or blocking lock.
-- **[House Rule]** Dry-run migration order and syntax against representative MySQL data, then record duration, locks, replication impact, affected rows, and recovery evidence.
+- **[House Rule]** Dry-run migration order and syntax against representative MySQL data, then record duration, locks, and affected rows.
 
 ```sql
 -- Expand: application versions can tolerate the new column.
@@ -349,39 +330,18 @@ ALTER TABLE sales_order
 
 When a new non-null value cannot be assigned safely by a schema default, first add a nullable expansion column, backfill in bounded batches, switch all writers, validate, then contract it to `NOT NULL`.
 
-## 10. Partitioning and Sharding
-
-Partitioning and sharding are conditional scale mechanisms. Do not introduce them without measured size, retention, locality, throughput, or operational evidence plus accepted project authority for the routing and operational commitment.
-
-### Sharding
-
-- **[House Rule]** The accepted topology contains no more than 1024 databases and 4096 physical tables.
-- **[House Rule]** Every sharded-table query includes the sharding key so one request does not silently fan out.
-- **[House Rule]** The sharding key participates in the physical primary key and has its own single-column index for routing. The logical UUIDv7 `id` remains explicit.
-- **[Heuristic]** At 5 million rows or 2 GiB in one physical shard table, perform a measured capacity review. This is an operational review threshold, not a universal MySQL storage limit and not an automatic instruction to reshard.
-
-### MySQL Partitioning
-
-MySQL requires every unique key on a partitioned table to include every column used by the partitioning expression.
-- **[House Rule]** A partitioned table contains no more than 1024 partitions including subpartitions, and production access paths include the partition key for pruning.
-- **[House Rule]** Verify representative plans prove partition pruning. A path that requires cross-partition fan-out requires accepted project authority for its read and scale commitment; Codify derives the concrete mechanism after that authority exists.
-- **[Heuristic]** At 2 GiB in one partition, review retention, scan cost, DDL behavior, backup, and recovery. File size alone does not select the next mechanism.
-
-## 11. Required Verification
+## 10. Required Verification
 
 - **[House Rule]** Repository integration tests run against MySQL and cover insert version `1`, update comparison/increment, affected-row conflict mapping, active-row filtering, owned-table rollback, and persistence-record/Domain conversion.
 - **[House Rule]** A multi-Root transaction integration test uses the real Repository adapters and database: a fresh observer sees both writes after commit, sees neither when a later save fails, and sees no write when transaction participation is rejected. Static checks, callback fakes, and mock Repositories do not prove one physical transaction.
 - **[House Rule]** QueryRepository integration tests cover real column selection, filters, stable ordering, pagination boundaries, and read-model mapping.
-- **[House Rule]** Applicable outbox, inbox, projection, or process-state tests cover atomic persistence, uniqueness/idempotency, duplicate delivery, out-of-order evidence, and pending-work index paths.
 - **[House Rule]** Schema review checks naming, five standard columns, types, comments, collation, index caps, redundant indexes, migration compatibility, and representative query plans.
 
 ## Related References
 
 - [`ddd-modeling.md`](ddd-modeling.md) for ownership, lifecycle, and Aggregate boundaries.
 - [`ddd-core.md`](ddd-core.md) for Repository, CQRS, and transaction semantics.
-- [`ddd-collaboration.md`](ddd-collaboration.md) for durable handoff, idempotency, and Process Manager semantics.
 - [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) for Go persistence-record conversion and Repository adapters.
 - [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) for Application QueryRepository contracts.
-- [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) for conditional outbox and consumer flows.
 - [`ddd-python.md`](ddd-python.md) for Python persistence mapping, conversion, and Repository adapters.
 - [`ddd-typescript.md`](ddd-typescript.md) for TypeScript persistence mapping, conversion, and Repository adapters.

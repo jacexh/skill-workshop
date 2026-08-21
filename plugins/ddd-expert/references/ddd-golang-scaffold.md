@@ -104,7 +104,7 @@ migrations/
   001_<change>.sql
 ```
 
-Do not add `api/`, `service.go`, `policy.go`, `state.go`, `processmanager/`, Outbox/Inbox folders, or provider directories merely because a future change might need them. Use Domain-language filenames and create conditional mechanisms only when confirmed semantics or accepted project constraints require their responsibility.
+Create directories only for current accepted responsibilities. Use Domain-language filenames for business code and capability names for provider directories.
 
 ## Required BC Files
 

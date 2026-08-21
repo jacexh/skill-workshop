@@ -69,7 +69,7 @@ Canonical references live under `references/`:
 
 - `ddd-modeling.md` — EventStorming, language, Aggregate, Bounded Context, and Context Map reasoning
 - `ddd-core.md` — language-neutral tactical DDD and Clean Architecture
-- `ddd-collaboration.md` — published APIs, actual Domain Events, messages, and conditional reliable delivery
+- `ddd-collaboration.md` — published APIs, actual Domain Events, Integration Messages, and contract evolution
 - `ddd-golang.md` — Go/go-jimu house-style router and baseline
 - `ddd-golang-scaffold.md` — Go module layout, generated code, and composition
 - `ddd-golang-domain.md` — Go Domain objects, Repositories, events, and lifecycle
