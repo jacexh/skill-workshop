@@ -21,10 +21,6 @@ Trace each affected accepted responsibility through the minimum production code 
 
 Judge whether accepted business state, behavior, invariants, and actual Domain Events remain with their recorded owners, and whether outer coordination, persistence, transport, or runtime code preserves rather than duplicates those decisions.
 
-For every changed material continuation from an established fact to a next intent, verify that the implementation preserves the accepted success relationship and owner. A direct call, callback, hook, sink, dispatcher, or mailbox cannot by itself prove that the continuation belongs to one success guarantee, an independent local reaction, or cross-context collaboration. Report code that silently invents that semantic choice as an unclassified business continuation; do not report a missing Domain Event merely because a follow-up exists.
-
-When an independent local reaction is accepted, verify that the event is the causal handoff to the next intent. A producer that also invokes the reaction behavior directly leaves an observational event beside the original coupled path and is not faithful realization.
-
 Also review each non-Domain abstraction introduced, materially changed, or required by the affected behavior. Ask what present complexity it hides; whether deleting it would redistribute that complexity or simply remove it; whether a small stable interface creates leverage and locality; and whether its indirection, mapping, configuration, lifecycle, and test cost are justified. Pattern names such as CQRS, Repository, or Job neither require nor justify an abstraction. Judge its placement and shape by project constraints and applicable House Style, without inventorying absent patterns.
 
 ## Findings
@@ -38,4 +34,4 @@ Say `No DDD structural findings` when there are no such findings. This does not 
 - Use [../../references/ddd-modeling.md](../../references/ddd-modeling.md) only when strategic or object-boundary interpretation is needed.
 - Start with relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md), then load only House Style for code surfaces actually touched.
 - For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md). For Python or TypeScript, load only relevant sections of [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
-- Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) when the affected behavior includes a material continuation, event, or cross-context seam. Use [../../references/database.md](../../references/database.md) only for an affected persistence seam.
+- Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) or [../../references/database.md](../../references/database.md) only when the affected behavior crosses those seams.

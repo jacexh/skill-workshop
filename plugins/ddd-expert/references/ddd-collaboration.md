@@ -57,19 +57,6 @@ collaboration governed by `ddd-expert`.
 
 ## 3. Domain Events
 
-### Reaction Probe
-
-A material causal continuation is a candidate relationship in which a business occurrence requires or enables another business intent whose ownership or success changes the explanation of the scenario. Do not claim that the occurrence is an independently established fact until the relationship is classified. Classify every such continuation before choosing a call or delivery mechanism:
-
-1. **One success guarantee:** if the later intent's failure means the producing behavior did not succeed or leaves its invariant false, compose both under that behavior's success boundary. The candidate fact is established only after the required outcome succeeds. Do not introduce an event merely to break a code dependency.
-2. **Independent local reaction:** if the preceding fact remains true and the producing behavior remains successful without the later intent, apply the Domain Event selection predicate below. When selected, the producing behavior records the event and does not directly invoke the reaction behavior; event handling initiates the separately owned next intent according to accepted dispatch and failure semantics.
-3. **Cross-context published fact:** if another Bounded Context relies on the producer's stable fact, define a Published Fact Contract. A local Domain Event exists only when the local model independently selects it.
-4. **No selected event:** if resulting state is sufficient and there is no named local reaction, need for durable evidence of the occurrence, or published meaning, keep ordinary behavior composition or sequencing without a Domain Event.
-
-Aggregate and Bounded Context membership do not decide this classification. Neither do in-process versus out-of-process execution or synchronous versus asynchronous delivery; those are realization consequences of the accepted business guarantee.
-
-Apply the durable-occurrence part of the Domain Event selection predicate independently. The occurrence itself may require durable Domain evidence even when no later intent exists or when a later intent belongs to the same success guarantee; recording that evidence does not by itself split the behaviors' success boundary.
-
 - **[DDD Principle]** A Domain Event is a selected past-tense fact in the language of one Bounded Context.
 - **[DDD Principle]** A modeled past-tense fact becomes a Domain Event only when the model needs either a named local reaction to the occurrence or the occurrence itself, not merely the resulting state, as durable domain evidence.
 - **[DDD Principle]** DDD does not prescribe one universal dispatch point before or after commit.
@@ -78,7 +65,6 @@ Apply the durable-occurrence part of the Domain Event selection predicate indepe
 - **[House Rule]** Strategic discovery may identify that an occurrence needs a local reaction or published meaning. Tactical object design records a selected actual Domain Event under the object behavior that records it. Provider delivery attempts, lease changes, retry notifications, worker status, and log records remain execution observations.
 - **[House Rule]** Keep a local Domain Event distinct from its producer-owned Published Fact Contract. They may use different names and payload meaning: the Domain Event is local Domain evidence, while an Integration Message realizes the consumer-visible contract across the boundary.
 - **[House Rule]** When an actual Domain Event or Published Fact Contract leads to a next intent, model that intent separately as a Command or behavior under its own Domain owner. A Domain Event entry records only the event and its producing behavior. Choose handlers, transport, delivery, and recovery only through accepted design authority.
-- **[House Rule]** When a local Domain Event is selected for a named reaction, do not also invoke that reaction directly from the producing behavior. The event is the causal handoff; Application dispatch and its handler initiate the next intent. This rule does not decide synchronous versus asynchronous or before-commit versus after-commit dispatch.
 - **[House Rule]** When an execution observation itself changes business eligibility, rights, or outcomes, the corresponding business fact and authority must be established before it is named as Domain behavior.
 - **[Heuristic]** Before-commit handlers participate in the command consistency boundary; after-commit in-process handlers create a crash gap; durable handoff adds persistence, replay, and idempotency obligations.
 - **[Heuristic]** Calling `Save` does not necessarily mean commit. Inspect the real transaction boundary before reasoning about timing.

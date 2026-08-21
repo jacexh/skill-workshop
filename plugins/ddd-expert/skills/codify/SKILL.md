@@ -13,10 +13,6 @@ Read the user's current scope, affected `model.md` and `domain-objects.md`, rele
 
 The DDD artifacts define accepted business meaning, Aggregate boundaries, and Domain-object state and behavior ownership. They are semantic constraints, not a complete software design. Their silence about remaining software structure is implementation latitude, not a missing modeling step.
 
-That latitude does not include inventing the business relationship between an established fact and a material next intent. Before introducing or preserving a direct call, callback, hook, sink, dispatcher, or mailbox for such a continuation, verify that accepted authority or the user's current decision already establishes whether later failure invalidates the producing behavior's success and who owns the next intent. If either answer is missing, state that exact semantic gap and leave the path unchanged; a software mechanism cannot supply the decision.
-
-When an independent local reaction is accepted, realize the recorded Domain Event as its causal handoff and initiate the next intent from event handling. Do not keep a direct producer-to-reaction invocation as a primary or parallel path; that would turn the event into an observational duplicate and restore the coupling the accepted reaction removed.
-
 Resolve unspecified realization choices through accepted project constraints and applicable House Style, using repository code and tests as integration evidence.
 
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
@@ -40,4 +36,4 @@ End with the implemented behavior, changed files, verification results, and resi
 - For Go, start with [../../references/ddd-golang.md](../../references/ddd-golang.md) and follow only the branches for code actually touched.
 - For Python or TypeScript, load only the touched surfaces from [../../references/ddd-python.md](../../references/ddd-python.md) or [../../references/ddd-typescript.md](../../references/ddd-typescript.md).
 - Load relevant sections of [../../references/ddd-core.md](../../references/ddd-core.md) when Domain ownership or a layer boundary is being realized.
-- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for event, material continuation, or cross-context work, and [../../references/database.md](../../references/database.md) for actual persistence or schema work.
+- Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for accepted event or cross-context work, and [../../references/database.md](../../references/database.md) for actual persistence or schema work.
