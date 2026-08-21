@@ -125,7 +125,7 @@ Under this branch, a successful `Save` makes that loaded instance stale. Applica
 
 ### Resident Aggregate with checkpoint persistence
 
-Under this branch, the long-lived in-memory Aggregate remains the live runtime authority across checkpoints. Serialize its behavior with the accepted mailbox, lock, or single-owner mechanism. Persistence receives an immutable snapshot/checkpoint; a successful checkpoint does not replace the resident instance, and a failed checkpoint does not implicitly roll back or overwrite its live state. A database version may be a checkpoint token rather than a Domain version. Exact durability, retry, recovery, and shutdown behavior belong to the accepted design, not this House Style.
+Under this branch, the long-lived in-memory Aggregate remains the live runtime authority across checkpoints. Serialize its behavior with the accepted mailbox, lock, or single-owner mechanism. Persistence receives an immutable snapshot/checkpoint; writing a checkpoint does not replace or overwrite the resident instance. A database version may be a checkpoint token rather than a Domain version.
 
 ## Entity and Value Object
 
@@ -199,11 +199,11 @@ Several independent root parameters, workflow verbs or table-shaped methods are 
 Use `github.com/go-jimu/components/ddd/event`. An internal Domain Event is a past-tense fact in this bounded context and is not an Integration Message contract.
 
 - The Aggregate records accepted facts in `event.Collection`.
-- In an accepted request-scoped post-commit flow, only Application drains the collection, once, after successful persistence. A resident Aggregate follows its separately accepted event/checkpoint policy; House Style does not make checkpoint success the precondition for Domain sequencing or live-state event handling.
+- In an accepted request-scoped post-commit flow, only Application drains the collection, once, after successful persistence. A resident Aggregate follows its separately accepted event/checkpoint policy and remains the authority for Domain sequencing and live-state event handling.
 - Infrastructure reconstitution initializes `event.NewCollection()` and never drains it.
 - Do not expose another bounded context to this event type.
 
-`Save -> Events.Drain() -> event.Dispatcher.DispatchAll()` is used only when confirmed recovery semantics and accepted project constraints permit a same-context, post-commit best-effort follow-up. `DispatchAll` accepts background work; it does not prove that handlers completed. Durable or recoverable delivery requires an appropriate Codify-selected mechanism; do not describe in-memory dispatch as reliable. The complete flow belongs to [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md).
+For an accepted request-scoped post-commit reaction, use `Save -> Events.Drain() -> event.Dispatcher.DispatchAll()`. The complete flow belongs to [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md).
 
 ## Lifecycle and FSM
 

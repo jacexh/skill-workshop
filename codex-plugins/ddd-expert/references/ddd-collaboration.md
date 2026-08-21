@@ -1,12 +1,12 @@
 ---
 name: ddd-collaboration
-description: Language-neutral DDD guidance for published APIs, Domain Events, Integration Messages, Process Managers, and conditionally adopted reliable delivery.
+description: Language-neutral DDD guidance for published APIs, Domain Events, Integration Messages, and compatible contract evolution.
 ---
 
 # DDD Collaboration
 
-Choose collaboration from language ownership, consistency, and failure semantics
-before selecting RPC, broker, scheduler, or storage mechanics.
+Choose collaboration from language ownership and the accepted need for an
+immediate reply or a later reaction before selecting transport mechanics.
 
 ## Rule Strength
 
@@ -25,8 +25,6 @@ collaboration governed by `ddd-expert`.
 | Immediate cross-context command/query | Published Synchronous APIs |
 | Local facts and dispatch timing | Domain Events |
 | Cross-context asynchronous contracts | Integration Messages |
-| Durable multi-step coordination | Process Managers and Orchestrated Sagas |
-| Handoff, idempotency, and recovery | Reliable Delivery |
 | Compatible published-language change | Contract Evolution |
 
 ## 1. Collaboration Choices
@@ -38,14 +36,12 @@ collaboration governed by `ddd-expert`.
 | Domain Event | One context reacts to a selected local past-tense fact |
 | Published Fact Contract | Other contexts consume a stable fact selected by the producing authority |
 | Asynchronous Intent Contract | A sender requests work from another authority without an immediate admission result |
-| Process Manager / Orchestrated Saga | Coordination itself has durable progress, correlation, timeout, retry, cancellation, or compensation |
 | Anti-Corruption Layer | External or upstream language must be translated into the local model |
 | Separate Ways | Integration cost exceeds its business value |
 
 - **[DDD Principle]** The authority for a contract's semantics controls its meaning and admissible change.
-- **[Heuristic]** Before choosing a mechanism, ask which inconsistency is tolerable, who retries, who compensates, and what proves completion.
-- **[Heuristic]** Synchronous calls add temporal and availability coupling; asynchronous delivery adds state, duplication, ordering, and recovery obligations.
-- **[House Rule]** Do not introduce Outbox, Inbox, Process Manager, Saga, or another reliability mechanism merely because collaboration is asynchronous. Adopt one only when confirmed recovery semantics or accepted project constraints expose its need; Codify then selects the prescribed House Style rather than an improvised substitute.
+- **[House Rule]** Use the direct collaboration form established by accepted business meaning: a published synchronous API for an immediate authoritative answer, a Domain Event for a selected local fact, or an Integration Message for an accepted cross-context contract.
+- **[Heuristic]** Synchronous calls require the receiver to answer now; asynchronous messages establish a separate consumer execution boundary.
 
 ## 2. Published Synchronous APIs
 
@@ -60,13 +56,11 @@ collaboration governed by `ddd-expert`.
 - **[DDD Principle]** A Domain Event is a selected past-tense fact in the language of one Bounded Context.
 - **[DDD Principle]** A modeled past-tense fact becomes a Domain Event only when the model needs either a named local reaction to the occurrence or the occurrence itself, not merely the resulting state, as durable domain evidence.
 - **[DDD Principle]** DDD does not prescribe one universal dispatch point before or after commit.
-- **[House Rule]** When a Domain Event is used, record it with the Domain behavior that establishes the fact; Application coordinates dispatch according to the accepted transaction and failure semantics.
-- **[House Rule]** When same-context post-commit follow-up is explicitly accepted as best effort, persistence succeeds before dispatch and dispatch failure cannot roll back the committed command. The language Flow Guide owns the executable sequence.
+- **[House Rule]** When a Domain Event is used, record it with the Domain behavior that establishes the fact; Application coordinates the dispatch point selected by the accepted use case.
 - **[House Rule]** Strategic discovery may identify that an occurrence needs a local reaction or published meaning. Tactical object design records a selected actual Domain Event under the object behavior that records it. Provider delivery attempts, lease changes, retry notifications, worker status, and log records remain execution observations.
 - **[House Rule]** Keep a local Domain Event distinct from its producer-owned Published Fact Contract. They may use different names and payload meaning: the Domain Event is local Domain evidence, while an Integration Message realizes the consumer-visible contract across the boundary.
-- **[House Rule]** When an actual Domain Event or Published Fact Contract leads to a next intent, model that intent separately as a Command or behavior under its own Domain owner. A Domain Event entry records the event and its producing behavior; each accepted local reaction names its Event Handler and Domain intent. Choose handlers, transport, delivery, and recovery only through accepted design authority.
+- **[House Rule]** When an actual Domain Event or Published Fact Contract leads to a next intent, model that intent separately as a Command or behavior under its own Domain owner. A Domain Event entry records the event and its producing behavior; each accepted local reaction names its Event Handler and Domain intent.
 - **[House Rule]** When an execution observation itself changes business eligibility, rights, or outcomes, the corresponding business fact and authority must be established before it is named as Domain behavior.
-- **[Heuristic]** Before-commit handlers participate in the command consistency boundary; after-commit in-process handlers create a crash gap; durable handoff adds persistence, replay, and idempotency obligations.
 - **[Heuristic]** Calling `Save` does not necessarily mean commit. Inspect the real transaction boundary before reasoning about timing.
 
 ## 4. Integration Messages
@@ -76,43 +70,12 @@ collaboration governed by `ddd-expert`.
 - **[House Rule]** An Asynchronous Intent Contract is owned by the receiving authority because it describes what that authority promises to consider or perform.
 - **[House Rule]** When publishing a fact, the producer translates a selected Domain fact into its own stable Published Language at the Application boundary.
 - **[House Rule]** When sending asynchronous intent, the sender translates its local intent through a semantic port or ACL into the receiver-owned contract; the sender Application does not treat the receiver's generated contract as its own model.
-- **[House Rule]** A consuming Interface adapter decodes the envelope and payload, maps them to one local Application command, and delegates once; Domain validity remains owned by the Domain. Provider acknowledgement, retry, offset, and dead-letter behavior remain outside Application.
+- **[House Rule]** A consuming Interface adapter decodes the envelope and payload, maps them to one local Application command, and delegates once; Domain validity remains owned by the Domain.
 - **[House Rule]** Integration Message payloads carry stable identity and the occurrence-time facts promised by the contract. They do not embed a full Aggregate or expose internal Domain types.
 - **[Heuristic]** Minimal payload means minimal for the promised collaboration, not the fewest possible fields.
-- **[Heuristic]** Assume duplicate delivery and define ordering only within the business scope that requires it; broker admission is not consumer completion.
+- **[Heuristic]** Define ordering only within the business scope that requires it.
 
-## 5. Process Managers and Orchestrated Sagas
-
-- **[DDD Principle]** A Process Manager owns coordination state for a multi-step process; it does not own participating Aggregates' invariants.
-- **[DDD Principle]** It reacts to outcomes, issues the next intent, correlates steps, and records completion, timeout, cancellation, or compensation.
-- **[House Rule]** In this House Style, an orchestrated Saga uses a Process Manager as its coordinator. A choreographed Saga consists of independent message reactions and is not given central coordination state merely because the word Saga is used.
-- **[House Rule]** Use a Process Manager only when the accepted collaboration has a durable coordination lifecycle that cannot be represented as one direct use case or an independent reaction.
-- **[House Rule]** When restart, delay, or duplicate delivery must not lose progress, persist the accepted process state and its idempotency evidence.
-- **[Heuristic]** A stateless Domain decision is a Domain Service or policy; a single asynchronous reaction does not by itself justify a Process Manager.
-
-## 6. Reliable Delivery
-
-### Outbox
-
-An Outbox atomically stores a publishable record with source state so publication can continue after the source transaction commits.
-- **[House Rule]** Use an Outbox only when confirmed recovery semantics or accepted project constraints require source-state commit and publishable handoff not to be lost independently. Once applicable, record both in the same local transaction and publish through a separate relay.
-- **[House Rule]** Do not keep a second direct-publish path for the same fact after the Outbox path is accepted.
-- **[Heuristic]** Relay delivery is normally at least once: publication may succeed before progress is recorded, so consumers still need an accepted idempotency strategy.
-
-### Inbox and Idempotency
-
-Idempotency means repeated processing has the same accepted business effect, not merely that a handler returns success twice.
-- **[House Rule]** When duplicate effects are material, use an accepted consumer-scoped message identity or business idempotency key and record it atomically with the same local transactional side effect. An external RPC, broker publish, or file write is not made atomic with MySQL by an Inbox row; it requires an accepted downstream-idempotency, Outbox, Process Manager, or recovery protocol.
-- **[House Rule]** Use an Inbox only when confirmed idempotency and recovery semantics require durable receipt or outcome tracking; natural idempotency or an Aggregate-owned business key may be sufficient in other cases.
-- **[Heuristic]** Global deduplication, per-consumer Inbox, and Aggregate-owned idempotency facts have different ownership, retention, and contention tradeoffs.
-
-### Failure and Recovery
-
-Retry, compensation, reconciliation, and manual repair are different business or operational commitments.
-Compensation is a new business action, not a technical rollback of an already committed external fact.
-- **[House Rule]** When reliable asynchronous delivery is accepted, distinguish transient retry from permanent rejection and make exhausted work observable and recoverable according to that design.
-
-## 7. Contract Evolution
+## 5. Contract Evolution
 
 Published contracts evolve under consumer-aware compatibility, deprecation, and ownership rules independent of internal Domain refactoring.
 - **[House Rule]** When evolving a published contract, prefer additive compatible change, tolerate unknown fields, and remove a field or version only after consumer evidence permits it.
@@ -122,4 +85,3 @@ Published contracts evolve under consumer-aware compatibility, deprecation, and 
 
 - [ddd-modeling.md](ddd-modeling.md) for authority, language, Bounded Contexts, and Context Maps.
 - [ddd-core.md](ddd-core.md) for layer ownership, ports, Repository, and conditional CQRS.
-- [database.md](database.md) for physical Outbox, Inbox, constraints, indexes, migrations, and concurrency rules.

@@ -108,7 +108,7 @@ Persistence mapping belongs in `infrastructure/convert.go` and follows the analo
 
 Place a command in `application/command/<use_case>.go`. The handler constructs or loads Domain state, calls Domain behavior and persists the accepted Aggregate. Do not repeat Domain validation on the command DTO.
 
-The following shape applies when confirmed recovery semantics permit post-commit best-effort Domain Event dispatch:
+The following shape applies when the accepted use case includes post-commit Domain Event dispatch:
 
 ```go
 package command
@@ -159,7 +159,7 @@ func (h *CreateUserHandler) Handle(
 	// This example uses the request-scoped lifecycle: Save makes user stale.
 	result := CreatedUser{ID: user.ID, Name: user.Name, Email: user.Email}
 	if err = h.dispatcher.DispatchAll(user.Events.Drain()); err != nil {
-		// The state is committed. This best-effort failure is swallowed and logged here.
+		// The state is committed. This handler owns the dispatcher error.
 		sloghelper.FromContext(ctx).WarnContext(
 			ctx, "domain event dispatch rejected",
 			slog.String("operation", "user.events.dispatch"),
@@ -171,7 +171,7 @@ func (h *CreateUserHandler) Handle(
 }
 ```
 
-Without confirmed best-effort follow-up semantics, omit the dispatcher. When durable handoff is required, use the prescribed outbox/task/process mechanism rather than adding a second direct-publish path.
+When no accepted same-context reaction exists, omit the dispatcher.
 
 A normal command changes one Aggregate. Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one bounded context and one local transactional resource. Without that complete authority, expose the missing consistency decision instead of hiding it in a transaction or multi-Root Repository.
 
@@ -196,9 +196,9 @@ The Command Handler receives `transaction.Transactor` and calls `Within`. Inside
 4. saves each root through its own Repository; and
 5. returns an error for any failed decision or save so Infrastructure rolls back the whole scope.
 
-Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback. The callback contains no RPC, Kafka, file operation, event publication, goroutine, or retry. A bounded whole-use-case retry is allowed only when confirmed policy requires it; every attempt starts a new scope and reloads all roots.
+Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback. The callback contains no RPC, Kafka, file operation, event publication, or goroutine.
 
-Do not publish Domain Events or return a successful result until `Within` has committed. An accepted outbox record is written by the same current transaction. Under this request-scoped multi-Root branch, a callback, rollback, or commit failure discards the loaded Aggregate instances and staged events. A resident Aggregate uses its separately accepted checkpoint/failure policy and is never silently treated as a transactional working copy.
+Publish Domain Events and return the successful result only after `Within` commits. Request-scoped Aggregate instances and staged events belong to that transaction scope. A resident Aggregate follows its accepted checkpoint policy rather than acting as a transactional working copy.
 
 ## Query Handler
 
@@ -233,7 +233,7 @@ if err == nil {
 }
 ```
 
-The full implementation imports `github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/ddd/message` and its own `example/gen/user/integration/v1` package. It must not import Kafka. Because `event.Handler.Handle` has no error result, this handler owns logging for a failure it cannot return. Do not treat direct publication as reliable delivery; use [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) for the mechanism Codify derives from confirmed delivery semantics and project constraints.
+The full implementation imports `github.com/go-jimu/components/ddd/event`, `github.com/go-jimu/components/ddd/message` and its own `example/gen/user/integration/v1` package. It must not import Kafka. Because `event.Handler.Handle` has no error result, this handler owns the publisher error. Use [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) for the complete event and message flow.
 
 ## Application Services, Ports and Transactions
 
@@ -241,9 +241,9 @@ Use a named Application service only for meaningful use-case orchestration. It m
 
 When Application owns the use-case continuation, place its outbound port beside the consuming use case. Name the semantic capability (`EligibilityProvider`, `ReserveCredit`, `CustomerIntentSender`), not the mechanism (`HTTPClient`, `BrokerPublisher`, `RedisStore`, `TxManager`). When Domain owns the call timing, keep the collaborator contract in Domain and let Application supply its implementation instead of duplicating it as an Application port. Do not wrap an already accepted provider-neutral go-jimu port with a same-shape local interface.
 
-The conditional `internal/pkg/transaction.Transactor` above is a shared technical execution contract, not a semantic outbound port. Do not duplicate it under each BC's `application`, call it `UnitOfWork`, expose Repository factories through it, or pass options, `*xorm.Session`, or another provider handle inward. Add isolation or retry controls only when confirmed semantics require them and the local contract defines their behavior.
+The conditional `internal/pkg/transaction.Transactor` above is a shared technical execution contract, not a semantic outbound port. Do not duplicate it under each BC's `application`, call it `UnitOfWork`, expose Repository factories through it, or pass options, `*xorm.Session`, or another provider handle inward. Add isolation controls only when the accepted local transaction contract defines them.
 
-Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction only when no Application scope is active; under an active scope it joins the current transaction. Confirmed state-plus-outbox atomicity uses the same participation seam; raw `xorm.Session` never enters Application.
+Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction only when no Application scope is active; under an active scope it joins the current transaction. Raw `xorm.Session` never enters Application.
 
 ## Errors, Logging and Tests
 
@@ -252,7 +252,7 @@ Application owns what must commit together; Infrastructure owns how. A single-Ag
 - Application logs a business-semantic fact only when it has independent operational value. Durable evidence is a Domain Event, audit record or persisted state, not a log line.
 - Application becomes the execution logger only for a terminal flow with no outer observer or when it deliberately swallows a best-effort failure.
 
-Test handlers with real Domain objects and focused fakes for Repository, QueryRepository, ACL and outbound ports. Cover orchestration and stable errors. Only when an accepted request-scoped post-commit dispatch flow exists, cover persistence-before-dispatch and committed-but-not-delivered behavior. For a confirmed multi-Root use case, verify that one `Within` callback encloses every load, Domain decision, and save, but do not claim a fake Transactor proves physical enlistment or rollback. Do not reimplement Domain rules in Application tests.
+Test handlers with real Domain objects and focused fakes for Repository, QueryRepository, ACL and outbound ports. Cover orchestration and stable errors. Only when an accepted request-scoped post-commit dispatch flow exists, cover persistence-before-dispatch. For a confirmed multi-Root use case, verify that one `Within` callback encloses every load, Domain decision, and save, but do not claim a fake Transactor proves physical enlistment or rollback. Do not reimplement Domain rules in Application tests.
 
 ## File Shape
 

@@ -337,9 +337,9 @@ class CreateUserHandler:
         return CreateUserResult(user_id=user.id)
 ```
 
-This baseline intentionally has no event machinery. When confirmed semantics permit a post-commit best-effort reaction, add the Aggregate event buffer and semantic dispatcher conditionally. Its adapter exposes one stable admitted dispatch-failure type; Application catches only that explicitly suppressed outcome, while programming and mapping defects reach the outer boundary. Durable handoff uses the house-style Outbox or process mechanism selected by Codify from confirmed recovery semantics and accepted project constraints.
+When the accepted use case includes a post-commit reaction, add the Aggregate event buffer and semantic dispatcher. Application saves the Aggregate, drains its events once, and handles the dispatcher result through the ordinary Application error and logging convention. Omit event machinery when the accepted design contains no reaction.
 
-Application owns what must commit together; Infrastructure owns how. A Repository may hide one local transaction. State plus Outbox needs an explicit atomic capability; raw `Session` never enters Application. Multi-root atomic pressure without the confirmed same-context, one-resource exception returns to modeling; this compact Python guide does not prescribe that exception's provider realization.
+Application owns what must commit together; Infrastructure owns how. A Repository may hide one local transaction; raw `Session` never enters Application. Multi-root atomic pressure without the confirmed same-context, one-resource exception returns to modeling; this compact Python guide does not prescribe that exception's provider realization.
 
 ### Queries and CQRS
 
@@ -479,21 +479,15 @@ External HTTP adapters receive a process-managed `httpx.Client`. ACLs translate 
 | React/publish a producer-owned fact | producing `application/eventhandlers` |
 | Send a receiver-owned intent | sender semantic port plus Infrastructure ACL |
 | Decode consumed contract/delegate | receiver `transport/messagesubscriber` |
-| Kafka poll, offsets, retry/DLQ, lifecycle | Infrastructure/Runtime |
+| Kafka poll, offsets, and lifecycle | Infrastructure/Runtime |
 
 A Domain Event is a frozen Domain dataclass, not Pydantic/Protobuf/Kafka, and never imported by another context. Producing Application may import its one producer-owned fact contract. Sender Infrastructure maps local semantics to receiver-owned intent.
 
-Post-commit best effort uses `save -> drain_events -> dispatch_all` only when crash loss and the request-scoped lifecycle are accepted. The Aggregate records the selected fact with its transition; Application drains once after save and catches only the stable admitted dispatch-failure type. Failure cannot roll back persistence; a state-changing handler reloads a fresh Aggregate in a new transaction. A resident Aggregate requires its own accepted event/checkpoint flow.
+An accepted request-scoped post-commit reaction uses `save -> drain_events -> dispatch_all`. The Aggregate records the selected fact with its transition; Application drains once after save, and a state-changing handler reloads a fresh Aggregate in a new transaction. A resident Aggregate follows its accepted event/checkpoint flow.
 
-Kafka uses synchronous `confluent-kafka` with explicit serializers. Runtime owns Producer callbacks, `poll()`/bounded `flush()`, Consumer group/rebalance, readiness and shutdown. Consumers set `enable.auto.commit=false` and `enable.auto.offset.store=false`; only after an accepted terminal processor disposition may Runtime either commit the explicit processed message/offsets, or store those accepted offsets locally and then explicitly commit the accepted batch during its bounded batch, rebalance, or shutdown policy. Retryable failure does not advance them. Consumers run in dedicated workers, never FastAPI request workers.
+Kafka uses synchronous `confluent-kafka` with explicit serializers. Runtime owns Producer callbacks, `poll()`/bounded `flush()`, Consumer group/rebalance, readiness and shutdown. Consumers set `enable.auto.commit=false` and `enable.auto.offset.store=false`; only after an accepted terminal processor disposition may Runtime either commit the explicit processed message/offsets, or store those accepted offsets locally and then explicitly commit the accepted batch during its bounded batch, rebalance, or shutdown policy. Unsuccessful processing leaves offsets uncommitted. Consumers run in dedicated workers, never FastAPI request workers.
 
 Queue admission, broker delivery and consumer completion are distinct; the adapter states its evidence. The envelope carries stable message identity, contract kind/version, occurrence time, and accepted correlation/trace headers. The payload carries only promised facts; source revision or ordering tokens appear only when accepted consumer semantics require them, never as an Aggregate dump.
-
-### Conditional Outbox and Idempotency
-
-Use Outbox only when state commit and publish intent must not diverge. Write both in one transaction, remove direct publish, follow `database.md`, and run a Runtime relay that waits for broker-delivery evidence. Assume duplicates.
-
-Define idempotency by business effect; add Inbox only when durable receipt/outcome is accepted. Kafka offsets are not atomic with MySQL. Key by the smallest business ordering scope; never promise global order.
 
 ## Task Queue
 
@@ -507,7 +501,7 @@ Use Celery only when confirmed semantics or accepted project constraints require
 
 Provider retry is for transient failure. Expected business waiting uses a bounded delayed follow-up, not an exception. Beat enqueues the same ordinary task; scheduler code has no business behavior.
 
-Define idempotency, timeout, attempts, exhaustion visibility and recovery before retry. Celery's experimental Kafka broker is prohibited; messages and tasks remain distinct.
+Define timeout, attempts, and exhaustion visibility in the accepted task policy. Celery's experimental Kafka broker is prohibited; messages and tasks remain distinct.
 
 ## Runtime
 
@@ -546,7 +540,7 @@ Stop inbound work, drain bounded in-flight work, flush Kafka/telemetry, close cl
 - Application: real handler/Domain behavior plus focused semantic fakes; avoid untyped mocks.
 - Transport: real external input, mapping, one delegation, errors and disposition; do not mock parsing.
 - Persistence: apply root migrations to real MySQL and verify the selected lifecycle. Request-scoped persistence covers version conflict, rollback, and stale instances; resident checkpoints cover snapshot/token behavior and continued live authority. Also verify mapping, active rows, and query order. SQLite/metadata creation are not evidence.
-- Messaging/tasks: compatibility, disposition, redelivery/idempotency, delivery failure, exhaustion and worker shutdown; accepted Outbox also verifies rollback and delivery-before-mark recovery.
+- Messaging/tasks: compatibility, disposition, worker execution, exhaustion, and worker shutdown.
 - Runtime: settings redaction, registrations/reachability, completion log and bounded start/drain/shutdown.
 
 Run `uv lock --check`, locked sync, Ruff, mypy strict and applicable tests. Report unrun external evidence and residual risk instead of a mock-only green check.

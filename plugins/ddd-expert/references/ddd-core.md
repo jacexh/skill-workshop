@@ -12,7 +12,7 @@ accepted DDD meanings from this plugin's architecture House Style.
 ## Rule Strength
 
 - **[DDD Principle]** A durable DDD meaning or boundary. Apply it through the accepted domain model rather than as a mechanical code rule.
-- **[House Rule]** A conditional code-realization or software-boundary constraint. It implements an already selected model; it does not create a Domain concept or choose lifecycle, state authority, business sequencing, or failure policy.
+- **[House Rule]** A conditional code-realization or software-boundary constraint. It implements an already selected model while preserving its lifecycle, state authority, and business sequencing.
 - **[Heuristic]** A question or pressure signal. It invites investigation and never proves a conclusion alone.
 
 Apply a House Rule only after accepted project authority or Tactical Design has
@@ -66,7 +66,7 @@ Style names its physical Interface layer `transport`.
 - **[House Rule]** For that exception, Application defines the transaction scope, Infrastructure makes every participating Repository use one physical local transaction and owns begin, commit, and rollback, and Domain remains transaction-unaware. Each write Repository still owns exactly one Aggregate Root; the active language House Style defines the participation mechanism.
 - **[House Rule]** A query returns an Application read result without mutating business state.
 - **[House Rule]** When Application itself owns a use-case continuation, it may own a semantic outbound port whose contract exposes no provider, SDK, protocol, topology, or storage vocabulary. When Domain owns the call timing, Application instead supplies the Domain-owned collaborator implementation. Supplying execution never transfers the business timing decision.
-- **[Heuristic]** Many unrelated collaborators may indicate missing Domain behavior, an over-broad use case, or durable process coordination. No dependency count proves this alone.
+- **[Heuristic]** Many unrelated collaborators may indicate missing Domain behavior or an over-broad use case. No dependency count proves this alone.
 
 ### Interface
 
@@ -92,10 +92,10 @@ Projection preserves semantic ownership across abstraction levels. It is traceab
 | External authority may issue Command | An inbound Interface authenticates or validates the accepted source and translates its contract into the semantic Application use case. Preserve the authority relationship without turning a provider, protocol, or remote payload into a Domain type. |
 | Command | Enter through one semantic Application use case or equivalent application boundary. A Command does not require a same-named class, handler, or Aggregate method. |
 | Aggregate Capability | Realize the stable operation on the Root's intention-revealing Domain method surface. Internal helpers or several cohesive methods may realize one capability when Application does not choose a pre-state branch or reproduce the Root's decision. |
-| Selected Domain Event | Represent the local Domain fact and record it with the behavior that establishes it; Application owns accepted dispatch timing and failure coordination. |
+| Selected Domain Event | Represent the local Domain fact and record it with the behavior that establishes it; Application owns the accepted dispatch timing. |
 | Published Fact Contract | Translate the selected Domain fact at the producing Application boundary into a stable Published Language. Keep its Integration Message and adapter realization distinct from the local Domain Event type. |
 | Event-triggered Command | Map the established fact or incoming contract through one consuming Interface adapter or local event boundary to one semantic Application use case, then to the accepted Capability or explicit coordination. |
-| Explicit coordination | Preserve the confirmed semantic owner. Application coordinates loading, context, transactions, and technical continuation; a Domain owner retains business sequencing when the rule belongs to its behavior. Introduce durable coordination only when accepted business or project authority requires durable progress state. |
+| Explicit coordination | Preserve the confirmed semantic owner. Application coordinates loading, context, transactions, and technical continuation; a Domain owner retains business sequencing when the rule belongs to its behavior. |
 | Analytical Workshop Event | Use it only while discussing the business outcome. It creates no production event type, persistence, dispatch, or lasting artifact. |
 
 - **[House Rule]** For DDD-backed implementation or review, cite the governing artifact clause beside the production symbols needed to prove the affected behavior. Do not create an exhaustive permanent projection.
@@ -131,14 +131,13 @@ Projection preserves semantic ownership across abstraction levels. It is traceab
 - **[House Rule]** When a Domain Service is used, keep it mostly stateless, name it in the Ubiquitous Language, accept Domain values or snapshots, and return a decision, value, error, or fact.
 - **[House Rule]** Application normally supplies required facts and time. A Domain Service may use a narrowly defined Domain-owned semantic collaborator, including a required Repository query capability, only when reducing the interaction to primitive precomputed data would erase Domain meaning. A query does not remove a time-of-check/time-of-use race; correctness that depends on concurrent state requires an accepted constraint, lock, isolation, or other consistency mechanism outside the Domain Service's control.
 - **[House Rule]** A Domain Service never saves Aggregates or controls a transaction. When a confirmed use case spans several roots, the service owns the named cross-Aggregate business rule and invokes public Aggregate behavior; Application loads and saves the roots and defines the transaction scope. The service or calculation alone does not authorize atomic persistence.
-- **[Heuristic]** Durable progress, timeout, retry, and compensation point toward an Application coordinator or Process Manager rather than a Domain Service.
 
 ### Domain Event
 
 - **[DDD Principle]** A Domain Event is a selected past-tense fact in one Bounded Context's language.
 - **[DDD Principle]** Not every observed business fact needs to become a Domain Event, and a Domain Event is not automatically an external contract.
 - **[House Rule]** When Domain behavior records an event, record it with the state transition that establishes the fact and keep its payload in Domain language.
-- **[Heuristic]** Dispatch timing and reliability follow the accepted consistency model; DDD does not prescribe one universal before-commit or after-commit sequence.
+- **[Heuristic]** Dispatch timing follows the accepted consistency model; DDD does not prescribe one universal before-commit or after-commit sequence.
 
 ## 4. Repository
 
@@ -168,5 +167,5 @@ Whether a saved in-memory Aggregate remains usable is selected by the accepted l
 ## Related References
 
 - [ddd-modeling.md](ddd-modeling.md) for language, authority, lifecycle, and Aggregate-boundary reasoning.
-- [ddd-collaboration.md](ddd-collaboration.md) for published APIs, events, Integration Messages, Process Managers, and reliable delivery choices.
+- [ddd-collaboration.md](ddd-collaboration.md) for published APIs, events, and Integration Messages.
 - [database.md](database.md) for Persistence House Style, schema, query, migration, and concurrency rules.

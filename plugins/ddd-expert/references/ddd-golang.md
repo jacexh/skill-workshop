@@ -7,7 +7,7 @@ description: Go DDD House Style baseline and navigation index for dependency bou
 
 Load this baseline after the Model is confirmed. It does not decide Aggregate boundaries, consistency, or collaboration. It fixes how confirmed responsibilities are implemented in Go and routes detailed work to the smallest relevant Knowledge Leaf.
 
-Every Go rule below realizes an already selected design. It applies only when its stated concern and lifecycle branch are established. Go House Style never chooses Aggregate boundaries, resident versus request-scoped state, business sequencing, or failure policy.
+Every Go rule below realizes an already selected design. It applies only when its stated concern and lifecycle branch are established, preserving accepted Aggregate boundaries, state authority, and business sequencing.
 
 ## Dependency Direction
 
@@ -49,7 +49,7 @@ Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xor
 | End-to-end flow | Load |
 |---|---|
 | Read model separation, QueryRepository, projections | [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) |
-| Domain Events, published facts/intents, Kafka, Outbox | [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) |
+| Domain Events, published facts/intents, Kafka | [`ddd-golang-events-messages.md`](ddd-golang-events-messages.md) |
 | Internal task, processor, polling, periodic task, Asynq | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) |
 
 ### Platform Guides
@@ -78,7 +78,6 @@ Use [`ddd-modeling.md`](ddd-modeling.md) for model discovery, [`ddd-core.md`](dd
 | Integration Messages | `github.com/go-jimu/components/ddd/message` | Cross-context asynchronous collaboration is accepted |
 | Kafka | `github.com/go-jimu/contrib/message/kafka` | Kafka delivery is accepted |
 | Kafka Runtime | `github.com/twmb/franz-go` | Kafka exists; import only from Runtime/provider code |
-| Outbox | `github.com/go-jimu/components/ddd/message/outbox` | Outbox is explicitly accepted |
 | Task Queue | `github.com/go-jimu/components/taskqueue` | Internal deferred work is accepted |
 | Asynq adapter | `github.com/go-jimu/contrib/taskqueue/asynq` | Asynq delivery is accepted |
 | Asynq Runtime | `github.com/hibiken/asynq` | Asynq exists; import only from Runtime/provider code |
@@ -115,4 +114,4 @@ Do not substitute Gin/Echo for Chi, grpc-go for ConnectRPC, GORM/sqlc for xorm, 
 | Internal task, polling, periodic work | Task queue plus every touched Layer Guide |
 | Fx/config/server/worker/goroutine/shutdown/telemetry | Runtime and Scaffold |
 
-Codify selects the engineering realization from accepted project constraints, repository evidence, and the applicable House Rules while preserving confirmed business boundaries, consistency meaning, published contracts, and recovery semantics.
+Codify selects the engineering realization from accepted project constraints, repository evidence, and the applicable House Rules while preserving confirmed business boundaries, consistency meaning, and published contracts.

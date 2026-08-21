@@ -119,15 +119,13 @@ func (s *UserRegisteredSubscriber) Handle(
 }
 ```
 
-The subscriber validates envelope/type facts required for mapping, extracts message/correlation metadata and delegates once. Business validity and idempotent state change stay in Application/Domain. A returned error is a message-level failure; Kafka Runtime owns commit, redelivery, retry and DLQ policy.
+The subscriber validates envelope/type facts required for mapping, extracts message/correlation metadata and delegates once. Business validity stays in Application/Domain. It returns the local use-case result to Kafka Runtime.
 
 The consuming context imports a producer-owned Published Fact Contract, or its own receiver-owned Asynchronous Intent Contract. It never imports another context's internal Domain Event. `message.Subscriber.Subscribe` is registration in `<context>.go`; `message.Runner.Run` and Kafka/franz-go remain under `internal/pkg/messagebus`.
 
-Outbox, Inbox, persistent idempotency, retry and DLQ are not implied by using messages. Add only mechanisms required by confirmed recovery semantics or accepted project constraints; Codify chooses their house-style realization.
-
 ## Task Processor
 
-Task Queue code exists only when confirmed recovery semantics, latency requirements, or accepted project constraints require background execution. The owning context defines its durable protobuf schema under `proto/<context>/task/v1` and its semantic definition/constructor under `application/task`; the inbound adapter lives under `transport/taskprocessor` and implements `github.com/go-jimu/components/taskqueue.Processor`:
+When the accepted implementation includes background execution, the owning context defines its protobuf schema under `proto/<context>/task/v1` and its semantic definition/constructor under `application/task`; the inbound adapter lives under `transport/taskprocessor` and implements `github.com/go-jimu/components/taskqueue.Processor`:
 
 ```go
 package taskprocessor
@@ -172,9 +170,9 @@ func (p *SendWelcomeProcessor) Process(
 }
 ```
 
-A processor handles one `TaskType` and delegates to one Application Command. Expected waiting is not a provider failure: enqueue an explicitly bounded delayed follow-up and complete the current task. Domain guards or an accepted persistent mechanism make repeated delivery converge.
+A processor handles one `TaskType` and delegates to one Application Command. Expected waiting enqueues an explicitly bounded delayed follow-up and completes the current task. Domain guards keep repeated execution at a stable business outcome.
 
-`<context>.go` contributes processor and periodic registration. `internal/pkg/taskqueue` owns the Asynq/Redis clients, worker, scheduler, retry middleware and Fx lifecycle. Periodic scheduling enqueues an ordinary task; it does not call a business service directly. External bounded contexts collaborate through Integration Messages, not another context's internal task contract.
+`<context>.go` contributes processor and periodic registration. `internal/pkg/taskqueue` owns the Asynq/Redis clients, worker, scheduler, worker middleware and Fx lifecycle. Periodic scheduling enqueues an ordinary task; it does not call a business service directly. External bounded contexts collaborate through Integration Messages, not another context's internal task contract.
 
 ## Errors, Logging and Trace Context
 
