@@ -22,7 +22,7 @@ Infrastructure -> Application and Domain contracts
 
 | Layer | Owns | Must not own |
 |---|---|---|
-| Domain | Aggregates, Entities, Value Objects, Domain Services, Domain Events, business sequencing, write Repository and Domain-timed collaborator contracts | protocol, persistence, logging, task/message provider mechanics, Runtime |
+| Domain | Aggregates, Entities, Value Objects, Domain Services, Domain Events, business sequencing, write Repository and Domain-owned Port contracts | protocol, persistence, logging, task/message provider mechanics, Runtime |
 | Application | Commands, Queries, use-case coordination/context, Application-owned semantic capabilities, `Application` registry, DTO assemblers, same-context reactions, internal task contracts | ConnectRPC/HTTP handlers, xorm, Kafka/Asynq clients, process lifecycle |
 | Transport | ConnectRPC/HTTP handlers, Integration Message subscribers, task processors, scheduled inbound triggers | Repositories, transactions, Aggregate mutation, provider runtimes |
 | Infrastructure | Repository/QueryRepository implementations, DO conversion, ACLs, external adapters | Domain decisions, inbound protocol handling, process lifecycle |
@@ -42,10 +42,10 @@ Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xor
 
 | Responsibility | Load |
 |---|---|
-| Aggregate, Entity, Value Object, Domain Service, Repository contract | [`ddd-golang-domain.md`](ddd-golang-domain.md) |
+| Aggregate, Entity, Value Object, Domain Service, Repository or Domain-owned Port contract | [`ddd-golang-domain.md`](ddd-golang-domain.md) |
 | Command, Query, Application service, `application.go`, assembler, transaction coordination | [`ddd-golang-application.md`](ddd-golang-application.md) |
 | ConnectRPC, Chi HTTP, message subscriber, task processor, error mapping | [`ddd-golang-transport.md`](ddd-golang-transport.md) |
-| xorm persistence, DO/convert, QueryRepository adapter, ACL/external adapter | [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) |
+| xorm persistence, DO/convert, QueryRepository adapter, Domain-owned Port implementation, ACL/external adapter | [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) |
 
 ### Flow Guides
 
@@ -68,9 +68,10 @@ Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xor
 | Accepted OpenTelemetry | [`ddd-golang-observability.md`](ddd-golang-observability.md) |
 | MySQL schema, SQL, indexes, locking, migrations | [`database.md`](database.md) |
 
-Load [`ddd-core.md`](ddd-core.md) only for an affected cross-language
-object/layer realization and [`ddd-collaboration.md`](ddd-collaboration.md)
-only for an accepted published API, Domain Event, or Integration Message.
+Load [`ddd-core.md`](ddd-core.md) for a Domain-owned Port or an affected
+cross-language object/layer realization and
+[`ddd-collaboration.md`](ddd-collaboration.md) only for an accepted published
+API, Domain Event, or Integration Message.
 
 ## Mandatory Adopted Stack
 
@@ -116,6 +117,7 @@ entry is a project technology decision rather than a per-use-case choice.
 | Change | Load in addition to this baseline |
 |---|---|
 | Domain behavior, invariant, lifecycle, Repository contract | Domain |
+| Domain-owned Port contract or implementation | Domain and Infrastructure; Runtime when composition changes |
 | Resident Aggregate, snapshot, or checkpoint persistence | Domain, Application, Infrastructure, and Runtime as actually affected |
 | Command/Query/use-case coordination, assembler | Application; CQRS when the read model separates |
 | RPC/HTTP endpoint, message consumer, task processor | Transport plus the relevant Flow Guide |

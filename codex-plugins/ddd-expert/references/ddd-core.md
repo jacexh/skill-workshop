@@ -17,10 +17,10 @@ verification commands.
 
 | Accepted responsibility | Code owner |
 |---|---|
-| Business state, behavior, invariants, lifecycle, Domain facts, write Repository contract, Domain-timed collaborator contract | Domain |
+| Business state, behavior, invariants, lifecycle, Domain facts, write Repository contract, Domain-owned Port contract | Domain |
 | Use-case coordination, required context, transaction scope, Application DTO, QueryRepository, Application-owned continuation port | Application |
 | External decoding, actor extraction, one Application delegation, public result/error mapping | Transport / Interface |
-| Persistence mapping, generated clients, provider adapters, broker and framework mechanisms | Infrastructure |
+| Persistence mapping, generated clients, Domain-owned Port implementations, provider adapters, broker and framework mechanisms | Infrastructure |
 | Composition, configuration, listeners, workers, shared clients, telemetry, startup and shutdown | Runtime / Platform |
 
 Source dependencies point inward:
@@ -45,7 +45,7 @@ Use this table only after the corresponding model meaning is accepted.
 | Aggregate Root | One Domain type exposing intention-revealing behavior and owning mutation of its accepted children |
 | Entity | A Domain type with explicit identity, continuity, named behavior, and mapping-safe read access |
 | Value Object | A valid-at-construction Domain value with value equality and immutable or defensive-copy semantics |
-| Domain Service | A named, mostly stateless Domain operation over Domain values, snapshots, or semantic capabilities |
+| Domain Service | A named, mostly stateless Domain operation over Domain values or snapshots |
 | Command | One semantic Application entry point; no same-named class is required when the language leaf uses another shape |
 | Aggregate Capability | A public Domain method on the accepted owner; private helpers may support it |
 | Domain Event | A local Domain fact recorded by the behavior that establishes it |
@@ -70,8 +70,8 @@ the task or review report, not in DDD artifacts or source comments.
 - The Root controls changes to owned Entities and retains identity-only
   references to other Aggregate Roots.
 - Mutable inputs and outputs are copied at the Domain boundary.
-- Technical timestamps, protocol metadata, logging, transactions, provider
-  retries, and runtime lifecycle remain outside the Domain object.
+- Technical timestamps, protocol metadata, logging, transactions, and runtime
+  lifecycle remain outside the Domain object.
 
 ### Value Object
 
@@ -84,12 +84,24 @@ the task or review report, not in DDD artifacts or source comments.
 ### Domain Service
 
 - Use the accepted Ubiquitous Language for its type and operation names.
-- Accept Domain values, snapshots, authoritative facts, time, or a narrow
-  Domain-owned semantic collaborator.
+- Accept Domain values, snapshots, authoritative facts, or time.
 - Return a Domain decision, value, error, or fact.
-- Application supplies external facts and collaborator implementations.
 - Persistence, transaction control, logging, scheduling, and provider policy
   stay outside the service.
+
+### Domain-owned Port
+
+A port belongs to the layer that owns its invocation. An Application-owned port
+continues a use case. Realize an accepted Domain-owned Port as a Domain contract
+invoked by its recorded Behavior, with an Infrastructure implementation supplied
+by Runtime composition; Application neither prefetches its result nor duplicates
+its contract. Name the contract for its Domain role with a `Port` suffix.
+Preserve the recorded Behavior as its invoker and each sparse Method's decision
+point and Domain result; the language leaf chooses the exact signature and
+injection. The implementation may compose
+one or more external sources and owns any accepted fulfillment policy. Domain
+behavior reasons only over a fulfilled Domain result; technical non-fulfillment
+remains an execution outcome unless the accepted model gives it Domain meaning.
 
 ### Repository
 

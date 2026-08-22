@@ -23,7 +23,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use $ddd-expert:event-storming to clarify the user's purpose and identify confirmed Bounded Contexts and Aggregate Roots. Then use $ddd-expert:tactical-design to question domain objects depth-first, apply the Capability Probe, record coherent Entity descriptions as they close, and confirm the integrated Aggregate Root before $ddd-expert:codify implements its definitions, Facts, Lifecycle State, behavior, Required Capabilities, and actual Domain Events."
+      "Use $ddd-expert:event-storming to clarify the user's purpose and identify confirmed Bounded Contexts and Aggregate Roots. Then use $ddd-expert:tactical-design to question domain objects depth-first, apply the Capability Probe, record coherent Entity descriptions as they close, and confirm the integrated Aggregate Root before $ddd-expert:codify implements its definitions, Facts, Lifecycle State, behavior, Domain-owned Ports, and actual Domain Events."
     ]
   },
   "skills": "./skills/"

@@ -118,7 +118,7 @@ jq -e '.interface.developerName | length > 0' "$CODEX_ROOT/.codex-plugin/plugin.
 jq -e '.interface.defaultPrompt | length == 1 and all(.[]; contains("$ddd-expert:event-storming"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should use the single EventStorming modeling entry"
 jq -e '.interface.defaultPrompt | all(.[]; contains("user\u0027s purpose") and contains("Bounded Contexts") and contains("Aggregate Roots") and contains("domain objects") and contains("$ddd-expert:tactical-design") and contains("$ddd-expert:codify"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should expose the sparse modeling workflow"
 jq -e '.interface.defaultPrompt | all(.[]; contains("Facts") and contains("Lifecycle State") and (contains("definitions, state") | not))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should expose Facts and Lifecycle State separately"
-jq -e '.interface.defaultPrompt | all(.[]; contains("Capability Probe") and contains("Required Capabilities"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should expose capability modeling"
+jq -e '.interface.defaultPrompt | all(.[]; contains("Capability Probe") and contains("Domain-owned Ports"))' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert default prompt should expose Domain-owned Port modeling"
 jq -e '.interface.longDescription | contains("strategic model") and contains("one question at a time") and contains("Capability Probe") and contains("current domain-object design")' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should describe strategic and tactical authority"
 jq -e '.interface.capabilities | index("Write")' "$CODEX_ROOT/.codex-plugin/plugin.json" >/dev/null || fail "Codex ddd-expert manifest should declare artifact writes"
 [ ! -e "$CLAUDE_ROOT/hooks" ] || fail "Claude ddd-expert should not ship hooks"
@@ -289,12 +289,16 @@ assert_contains "$tactical_design_skill" '<Subject> <domain verb> <Object>, tran
 assert_contains "$tactical_design_skill" '<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.' "Root behavior should reference the Entity behavior it composes"
 assert_contains "$tactical_design_skill" 'it does not prescribe a method call' "Root-to-Entity behavior links should remain semantic"
 assert_contains "$tactical_design_skill" '### Capability Probe' "Tactical Design should classify external-authority needs inside behavior ownership"
-for outcome in '**Supplied Fact**' '**Required Capability**'; do
+for outcome in '**Supplied Fact**' '**Domain-owned Port**'; do
   assert_contains "$tactical_design_skill" "$outcome" "Capability Probe missing $outcome"
 done
-assert_contains "$tactical_design_skill" 'Domain input, and result use' "Required Capability should preserve the Behavior-owned decision"
-assert_contains "$tactical_design_skill" 'outer composition supplies' "Required Capability should leave realization to composition"
-assert_matches "$tactical_design_skill" 'every external-authority need.*Capability Probe classification.*every Required Capability.*invoking Behavior.*business decision point.*Domain question or action.*guarantee' "Capability Probe should have an exhaustive Root completion criterion"
+assert_contains "$tactical_design_skill" 'Domain input, and result use' "Domain-owned Port should preserve the Behavior-owned decision"
+assert_contains "$tactical_design_skill" 'implementation outer composition supplies' "Domain-owned Port should leave realization to composition"
+assert_contains "$tactical_design_skill" 'concern about obtaining external data or handling its technical failure starts shaping a candidate Root or Entity' "Capability Probe should surface a hidden Port before fulfillment shapes the object"
+assert_contains "$tactical_design_skill" 'continue the object design from its fulfilled Domain result' "Capability Probe should resume from Domain semantics"
+assert_contains "$tactical_design_skill" 'contract name expresses its Domain role and ends in `Port`' "Domain-owned Port names should be recognizable by type"
+assert_contains "$tactical_design_skill" 'exact signatures, source topology, and' "Capability Probe should leave realization detail out of tactical artifacts"
+assert_matches "$tactical_design_skill" 'every external-authority need.*Capability Probe classification.*every Domain-owned Port Method.*Port-suffixed contract.*invoking Behavior.*business decision point.*Domain result' "Capability Probe should have an exhaustive Port completion criterion"
 assert_contains "$tactical_design_skill" 'the entry contains no selection reason' "Domain Event entries should point to behavior without carrying rationale"
 assert_contains "$tactical_design_skill" '../../templates/domain-objects.md' "Tactical Design should use the domain-object event schema"
 assert_not_contains "$tactical_design_skill" '<result>' "Tactical Design should not require a universal result slot"
@@ -309,16 +313,18 @@ assert_contains "$tactical_design_skill" 'becomes the grammatical Subject and be
 assert_not_contains "$tactical_design_skill" 'every Entity inside' "Tactical Design should not interview through an entity checklist"
 assert_contains "$tactical_design_skill" '`domain-objects.md`' "Tactical Design should own the current domain-object file"
 assert_not_contains "$tactical_design_skill" 'Codify' "Tactical Design should not prescribe implementation workflow"
-assert_contains "$tactical_design_skill" 'Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or guarantee' "Tactical Design should admit realization concerns through business authority"
+assert_contains "$tactical_design_skill" 'Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or Domain result' "Tactical Design should admit realization concerns through business authority"
 assert_not_contains "$tactical_design_skill" 'transaction, concurrency, recovery, or call direction' "Tactical Design should not prime speculative system mechanisms"
 
 for heading in '**Definition:**' '**Facts:**' '**Lifecycle State:**' '**Behavior:**' '**Domain Events:**'; do
   assert_contains "$domain_objects_template" "$heading" "domain-objects template missing $heading"
 done
-assert_contains "$domain_objects_template" '**Required Capabilities:**' "domain-objects template should record Domain-owned capabilities"
-for slot in '<Capability name>' '<Domain behavior name>' '<business decision point>' '<Domain question or action>' '<accepted business guarantee>'; do
-  assert_contains "$domain_objects_template" "$slot" "domain-object capability entry missing $slot"
+assert_contains "$domain_objects_template" '**Domain-owned Ports:**' "domain-objects template should record Domain-owned Ports"
+for slot in '<Domain role>Port' '<Method name>' '<Domain behavior name>' '<business decision point>' '<Domain result>'; do
+  assert_contains "$domain_objects_template" "$slot" "domain-object Port entry missing $slot"
 done
+assert_not_contains "$domain_objects_template" 'Required Capabilities' "domain-objects should not retain the superseded capability concept"
+assert_not_contains "$domain_objects_template" '<accepted business guarantee>' "Domain-owned Port Methods should remain sparse"
 assert_contains "$domain_objects_template" 'include an essential way it operates only when that changes its meaning' "domain-object Definition should carry only essential How"
 assert_not_contains "$domain_objects_template" '**Operating Mechanism:**' "domain objects should not require a separate How field"
 assert_contains "$domain_objects_template" '<Root> <domain verb> <Object>[ by composing `<Entity>.<Behavior>`][, transitioning <Lifecycle State name> from <before> to <after>].' "Root behavior should optionally reference a composed Entity behavior"
@@ -336,10 +342,10 @@ assert_not_contains "$domain_objects_template" 'required domain reaction or dura
 assert_contains "$tactical_design_skill" 'Analytical Workshop Events never appear in `domain-objects.md`' "Tactical Design should keep Workshop Events out of domain objects"
 assert_not_contains "$domain_objects_template" '**Responsibilities:**' "behavior should own responsibilities"
 assert_not_contains "$domain_objects_template" '**Lifecycle:**' "Lifecycle State should own lifecycle"
-assert_not_contains "$domain_objects_template" '**Collaboration:**' "named behaviors and capabilities should replace a generic collaboration section"
+assert_not_contains "$domain_objects_template" '**Collaboration:**' "named behaviors and Ports should replace a generic collaboration section"
 
 assert_contains "$artifact_layout_template" 'domain-objects.md' "artifact layout should include current tactical authority"
-assert_contains "$artifact_layout_template" 'Required Capabilities where present' "artifact layout should include conditional Domain-owned capabilities"
+assert_contains "$artifact_layout_template" 'Domain-owned Ports where present' "artifact layout should include conditional Domain-owned Ports"
 assert_contains "$artifact_layout_template" 'after its Entity confirmation' "artifact layout should expose Entity-level writes"
 assert_contains "$artifact_layout_template" 'after Root confirmation' "artifact layout should expose integrated Root writes"
 assert_not_contains "$artifact_layout_template" 'event-storming/' "artifact layout should not retain meeting minutes"
@@ -353,6 +359,8 @@ assert_contains "$codify_skill" 'implementation latitude, not a missing modeling
 assert_contains "$codify_skill" 'applicable House Style' "Codify should resolve realization through House Style"
 assert_contains "$codify_skill" 'every code surface actually touched' "Codify should load House Style only for current work"
 assert_contains "$codify_skill" 'Implement the complete requested slice' "Codify should realize the accepted behavior coherently"
+assert_contains "$codify_skill" 'ownership, behavior, and Domain-owned Ports' "Codify should preserve accepted Port authority"
+assert_contains "$codify_skill" 'Domain object, Domain-owned Port, or cross-language layer boundary' "Codify should load shared Port realization rules"
 assert_contains "$codify_skill" 'tests and checks proportionate to the changed behavior and risk' "Codify should verify proportionately"
 assert_not_contains "$codify_skill" 'stop and route' "Codify should not create a modeling return loop"
 assert_not_contains "$codify_skill" 'EventStorming' "Codify should not route back to strategic modeling"
@@ -371,6 +379,8 @@ assert_contains "$guard_skill" 'whether deleting it would redistribute that comp
 assert_contains "$guard_skill" 'whether a small stable interface creates leverage and locality' "Guard should judge abstraction depth"
 assert_contains "$guard_skill" 'indirection, mapping, configuration, lifecycle, and test cost are justified' "Guard should weigh accidental abstraction cost"
 assert_contains "$guard_skill" 'CQRS, Repository, or Job neither require nor justify an abstraction' "Guard should not infer abstraction quality from pattern names"
+assert_contains "$guard_skill" 'Port fulfillment stays behind Infrastructure implementations' "Guard should keep fulfillment outside Domain"
+assert_contains "$guard_skill" 'missing or violated Domain-owned Port boundary' "Guard should surface fulfillment invading Domain"
 assert_contains "$guard_skill" 'Review only: do not edit source, DDD artifacts, tests, or project state' "Guard should remain read-only over the reviewed change"
 assert_not_contains "$guard_skill" 'EventStorming' "Guard should not create a strategic workflow route"
 assert_not_contains "$guard_skill" 'Tactical Design' "Guard should not create a tactical workflow route"
@@ -382,6 +392,11 @@ if rg -n 'maintain-artifacts|architecture\.md|classDiagram|sequenceDiagram|model
   rg -n 'maintain-artifacts|architecture\.md|classDiagram|sequenceDiagram|model_revision|last_changed_by|draft fingerprint|SHA-256 fingerprint|draft -> ready|reconcil' \
     "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" "$CLAUDE_ROOT/templates" "$CODEX_ROOT/templates" >&2
   fail "ddd-expert should not retain the old artifact lifecycle or diagram workflow"
+fi
+
+if rg -n 'Required Capabilit|Domain-owned Required Capability|Domain-timed collaborator|Domain-owned semantic collaborator' \
+  "$CLAUDE_ROOT" "$CODEX_ROOT" "$ROOT/README.md" "$ROOT/CONTEXT.md" "$ROOT/docs/adr/0009-sparse-current-ddd-artifacts.md" >/dev/null; then
+  fail "ddd-expert should use Domain-owned Port as the single behavior-owned external-data contract"
 fi
 
 if rg -n '(\$|/)ddd-expert:' "$CLAUDE_ROOT/skills" "$CODEX_ROOT/skills" >/dev/null; then
@@ -549,6 +564,15 @@ assert_contains "$core" 'The accepted strategic model and domain-object' "core s
 assert_contains "$core" 'design decide what exists and who owns it' "core should defer existence and ownership to accepted design"
 assert_contains "$core" '## Model-to-code Projection' "core should own implementation projection"
 assert_contains "$core" 'A public Domain method on the accepted owner' "core should realize accepted capability ownership"
+assert_contains "$core" '### Domain-owned Port' "core should own the Port realization boundary"
+assert_contains "$core" 'A port belongs to the layer that owns its invocation' "core should distinguish port ownership by invocation"
+assert_contains "$core" 'Application neither prefetches its result nor duplicates' "core should prevent Application from stealing Domain-owned invocation"
+assert_contains "$core" 'Name the contract for its Domain role with a `Port` suffix' "core should preserve recognizable Domain-owned Port names"
+assert_contains "$core" 'Preserve the recorded Behavior as its invoker' "core should preserve Domain-owned invocation timing"
+assert_contains "$core" 'one or more external sources' "a Domain-owned Port implementation may compose sources"
+assert_contains "$core" 'owns any accepted fulfillment policy' "core should keep accepted fulfillment policy in the Port implementation"
+assert_contains "$core" 'behavior reasons only over a fulfilled Domain result' "core should keep fulfillment mechanics out of Domain behavior"
+assert_contains "$core" 'remains an execution outcome unless' "core should keep technical non-fulfillment out of Domain meaning"
 assert_contains "$core" 'Application defines the transaction scope' "core should preserve Application transaction ownership"
 assert_contains "$core" 'Domain code remains transaction-unaware' "core should keep transactions out of Domain"
 
@@ -575,6 +599,9 @@ done
 assert_contains "$go_router" 'smallest complete set of leaves' "Go router should require progressive disclosure"
 assert_contains "$python_guide" 'smallest complete set of leaves' "Python router should require progressive disclosure"
 assert_contains "$typescript_guide" 'smallest complete set of leaves' "TypeScript router should require progressive disclosure"
+for router in "$go_router" "$python_guide" "$typescript_guide"; do
+  assert_contains "$router" 'Domain-owned Port contract' "language router should reach complete Domain-owned Port realization"
+done
 
 for adopted in \
   'go.uber.org/fx' \
@@ -624,12 +651,17 @@ assert_contains "$application" 'func AssembleUserDTO' "Go Application should def
 assert_contains "$application" 'func AssembleUserEntity' "Go Application should define Entity-to-DTO mapping"
 assert_contains "$application" 'Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback.' "Go Application should own transaction scope"
 assert_contains "$application" 'Within(context.Context, func(context.Context) error) error' "Go Transactor should expose a context callback"
+assert_contains "$application" 'Name the contract for its semantic role with a `Port` suffix' "Go Application ports should be recognizable by type"
+assert_contains "$application" 'When a recorded Domain Behavior owns call timing, use its Domain-owned Port' "Go Application should preserve Domain-owned invocation"
+assert_not_contains "$application" 'let Application supply its implementation' "Go Application should not implement or prefetch a Domain-owned Port"
 
 domain="$CLAUDE_ROOT/references/ddd-golang-domain.md"
 assert_contains "$domain" 'github.com/go-playground/validator/v10' "Go Domain should own business-data validation"
 assert_contains "$domain" '### Request-scoped Aggregate' "Go Domain should retain request-scoped realization"
 assert_contains "$domain" '### Resident Aggregate with checkpoint persistence' "Go Domain should retain resident realization"
 assert_contains "$domain" 'ddd-golang-fsm.md' "Go Domain should route accepted FSM code to its leaf"
+assert_contains "$domain" 'Declare each accepted Domain-owned Port as a narrow interface' "Go Domain should define the Port contract"
+assert_contains "$domain" 'accepted sparse' "Go Domain should realize accepted Port Methods idiomatically"
 
 fsm="$CLAUDE_ROOT/references/ddd-golang-fsm.md"
 assert_contains "$fsm" '*fsm.SimpleState' "Go FSM should use the component base state"
@@ -676,6 +708,8 @@ infrastructure="$CLAUDE_ROOT/references/ddd-golang-infrastructure.md"
 assert_contains "$infrastructure" 'infrastructure/convert.go' "Go Infrastructure should own conversion"
 assert_contains "$infrastructure" 'xorm.io/xorm' "Go Infrastructure should use the adopted ORM"
 assert_contains "$infrastructure" 'WithinOrJoin(context.Context, func(xorm.Interface) error) error' "Go Infrastructure should join the accepted local transaction"
+assert_contains "$infrastructure" 'one or more external sources' "Go Infrastructure should allow composed Port fulfillment"
+assert_contains "$infrastructure" 'accepted fulfillment policy' "Go Infrastructure should own accepted Port stability"
 
 runtime="$CLAUDE_ROOT/references/ddd-golang-runtime.md"
 observability="$CLAUDE_ROOT/references/ddd-golang-observability.md"
@@ -694,11 +728,14 @@ python_fsm="$CLAUDE_ROOT/references/ddd-python-fsm.md"
 assert_contains "$python_domain" 'class UserRepository(Protocol)' "Python Domain should define Repository Protocols"
 assert_contains "$python_domain" 'resident lifecycle' "Python Domain should realize resident authority conditionally"
 assert_contains "$python_domain" 'def name(self) -> str:' "Python Domain sample should expose the state used by its assembler"
+assert_contains "$python_domain" 'Domain-owned Port as a narrow `Protocol`' "Python Domain should define the Port contract"
 assert_contains "$python_application" 'class Application' "Python Application should expose a registry"
 assert_contains "$python_application" 'assemble_user_dto' "Python Application should own DTO mapping"
 assert_contains "$python_transport" 'def create_router' "Python Transport should expose router factories"
 assert_contains "$python_infrastructure" 'class UserRepositoryAdapter' "Python Infrastructure should own persistence adapters"
 assert_contains "$python_infrastructure" 'Testcontainers' "Python persistence should require real provider evidence"
+assert_contains "$python_infrastructure" 'one or more provider/generated contracts' "Python Infrastructure should allow composed Port fulfillment"
+assert_contains "$python_infrastructure" 'accepted fulfillment policy' "Python Infrastructure should own accepted Port stability"
 assert_contains "$python_events" 'class PrepareProfileOnUserRegistered' "Python events should show one typed handler"
 assert_contains "$python_taskqueue" 'class SendWelcomeProcessor' "Python tasks should show one typed processor"
 assert_contains "$python_fsm" 'class OrderLifecycle(StateChart)' "Python FSM should show the adopted 3.2 API"
@@ -714,10 +751,13 @@ typescript_fsm="$CLAUDE_ROOT/references/ddd-typescript-fsm.md"
 assert_contains "$typescript_domain" 'export class User' "TypeScript Domain should expose behavior-rich classes"
 assert_contains "$typescript_domain" 'static reconstitute' "TypeScript Domain should distinguish existing state"
 assert_contains "$typescript_domain" 'state.version < 1' "TypeScript reconstitution should require persisted state"
+assert_contains "$typescript_domain" 'Domain-owned Port as a narrow interface' "TypeScript Domain should define the Port contract"
 assert_contains "$typescript_application" 'export class Application' "TypeScript Application should expose a registry"
 assert_contains "$typescript_application" 'interface UserUnitOfWork' "TypeScript Application should own transaction scope"
 assert_contains "$typescript_transport" 'createUserConnectRoutes' "TypeScript Transport should own Connect routes"
 assert_contains "$typescript_infrastructure" 'type Executor = Kysely<Database> | Transaction<Database>' "TypeScript Infrastructure should bind repositories to the current executor"
+assert_contains "$typescript_infrastructure" 'one or more provider/generated contracts' "TypeScript Infrastructure should allow composed Port fulfillment"
+assert_contains "$typescript_infrastructure" 'accepted fulfillment policy' "TypeScript Infrastructure should own accepted Port stability"
 assert_contains "$typescript_events" 'class PrepareProfileOnUserRegistered' "TypeScript events should show one typed handler"
 assert_contains "$typescript_taskqueue" 'class SendWelcomeProcessor' "TypeScript tasks should show one typed processor"
 assert_contains "$typescript_fsm" 'setup({' "TypeScript FSM should show the adopted XState setup"
@@ -753,7 +793,7 @@ assert_contains "$ROOT/README.md" 'complete ten-step discussion method' "root RE
 assert_contains "$ROOT/README.md" 'derives essential business pressures from confirmed rules' "root README should expose Tactical Design inputs"
 assert_contains "$ROOT/README.md" 'Capability Probe' "root README should expose capability discovery"
 assert_contains "$ROOT/README.md" '<Subject> <domain verb> <Object>.' "root README should expose the current Behavior contract"
-assert_contains "$ROOT/README.md" 'definition, Facts, Lifecycle State, behavior, Required Capabilities where present, and actual Domain Events' "root README should expose the current domain-object artifact"
+assert_contains "$ROOT/README.md" 'definition, Facts, Lifecycle State, behavior, Domain-owned Ports where present, and actual Domain Events' "root README should expose the current domain-object artifact"
 assert_not_contains "$ROOT/README.md" 'subject-action-object-result' "root README should not advertise the removed result contract"
 assert_not_contains "$ROOT/README.md" "definition, state, behavior" "root README should distinguish Facts from Lifecycle State"
 assert_contains "$ROOT/README.md" 'compares credible object compositions by pressure coverage and accidental design burden' "root README should expose Tactical Design tradeoffs"
@@ -773,7 +813,7 @@ assert_contains "$sparse_adr" '-> essential business pressures' "ADR should defi
 assert_contains "$sparse_adr" 'what the object represents and how it operates' "ADR should require complete Entity proposals"
 assert_contains "$sparse_adr" 'at that first proposal' "ADR should require early Behavior naming"
 assert_contains "$sparse_adr" '<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.' "ADR should define Root-to-Entity behavior links"
-for term in 'Capability Probe' 'Required Capability'; do
+for term in 'Capability Probe' 'Domain-owned Port'; do
   assert_contains "$sparse_adr" "$term" "ADR missing $term"
 done
 assert_contains "$sparse_adr" 'This How remains conversational reasoning' "ADR should keep How out of the artifact schema"
@@ -811,7 +851,8 @@ assert_contains "$ROOT/CONTEXT.md" '**Entity Confirmation**:' "shared vocabulary
 assert_contains "$ROOT/CONTEXT.md" '**Per-Root Confirmation**:' "shared vocabulary should define write granularity"
 assert_contains "$ROOT/CONTEXT.md" '**Behavior Description**:' "shared vocabulary should define behavior sentences"
 assert_contains "$ROOT/CONTEXT.md" '<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.' "shared vocabulary should define Root-to-Entity behavior links"
-assert_contains "$ROOT/CONTEXT.md" '**Domain-owned Required Capability**:' "shared vocabulary should define behavior-owned external capability contracts"
+assert_contains "$ROOT/CONTEXT.md" '**Domain-owned Port**:' "shared vocabulary should define behavior-owned external-data contracts"
+assert_contains "$ROOT/CONTEXT.md" '_Avoid_: Application-owned port, Domain Service, provider client' "shared vocabulary should distinguish Domain-owned Ports"
 assert_contains "$ROOT/CONTEXT.md" '**Actual Domain Event**:' "shared vocabulary should distinguish production events"
 assert_contains "$ROOT/CONTEXT.md" 'the grammatical subject is the owning Root or Entity and normally maps to a method on that object' "shared vocabulary should bind accepted behavior to methods"
 assert_not_contains "$ROOT/CONTEXT.md" '**Modeling Contradiction**:' "shared vocabulary should not preserve a Codify return loop"

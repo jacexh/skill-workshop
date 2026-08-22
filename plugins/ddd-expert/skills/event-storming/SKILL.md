@@ -71,7 +71,7 @@ Persist only accepted current knowledge:
 - `docs/ddd-expert/context-map.md` owns the Bounded Context inventory and semantic dependencies.
 - `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, and strategic business rules.
 
-`model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, behavior, Required Capabilities where present, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
+`model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, behavior, Domain-owned Ports where present, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
 
 ## Confirmation and writing
 

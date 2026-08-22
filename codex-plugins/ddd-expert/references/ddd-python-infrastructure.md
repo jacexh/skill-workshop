@@ -100,15 +100,17 @@ A QueryRepository selects explicit columns, applies stable indexed ordering,
 and constructs frozen Application DTOs explicitly. It does not reconstitute an
 Aggregate or return SQLAlchemy rows.
 
-Outbound ACLs translate local semantic contracts to provider/generated
-contracts. They receive a process-managed synchronous `httpx.Client` or other
-adopted client; Runtime owns credentials, pooling, timeouts, and provider
-configuration.
+Outbound ACLs fulfill Domain-owned and Application-owned ports by translating
+local semantic contracts to one or more provider/generated contracts. The
+adapter owns source composition and any accepted fulfillment policy. It receives
+a process-managed synchronous `httpx.Client` or other adopted client; Runtime
+owns credentials, pooling, client lifecycle, and policy configuration.
 
 ## Verification
 
 Apply root migrations to real MySQL. Verify conversion, insert version `1`,
 guarded update/conflict, transaction participation, active-row filtering,
 query ordering/cursor behavior, provider runtime types, and stable error
-translation. Use Testcontainers when physical MySQL behavior is part of the
-change.
+translation. For a changed Domain-owned Port implementation, verify its Domain
+result and any accepted fulfillment policy at the adapter boundary. Use
+Testcontainers when physical provider behavior is part of the change.

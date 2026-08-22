@@ -56,6 +56,7 @@ project technology decision.
 | Touched code surface | Load |
 |---|---|
 | Aggregate, Entity, Value Object, Domain Service, Repository | [ddd-typescript-domain.md](ddd-typescript-domain.md) |
+| Domain-owned Port contract, implementation, or composition | [ddd-typescript-domain.md](ddd-typescript-domain.md), [ddd-typescript-infrastructure.md](ddd-typescript-infrastructure.md), and [ddd-typescript-runtime.md](ddd-typescript-runtime.md) when composition changes |
 | Command, Query, registry, assembler, Unit of Work | [ddd-typescript-application.md](ddd-typescript-application.md) |
 | ConnectRPC, Fastify, subscriber, task processor | [ddd-typescript-transport.md](ddd-typescript-transport.md) |
 | Kysely/MySQL mapping, QueryRepository, outbound ACL | [ddd-typescript-infrastructure.md](ddd-typescript-infrastructure.md) and [database.md](database.md) for SQL/schema |
@@ -64,9 +65,9 @@ project technology decision.
 | Composition, configuration, Pino, telemetry, shutdown | [ddd-typescript-runtime.md](ddd-typescript-runtime.md) |
 | XState realization | [ddd-typescript-fsm.md](ddd-typescript-fsm.md) |
 
-Load [ddd-core.md](ddd-core.md) only for an affected cross-language object/layer
-shape and [ddd-collaboration.md](ddd-collaboration.md) only for an accepted
-collaboration contract.
+Load [ddd-core.md](ddd-core.md) for a Domain-owned Port or an affected
+cross-language object/layer shape, and [ddd-collaboration.md](ddd-collaboration.md)
+only for an accepted collaboration contract.
 
 ## Project Shape
 

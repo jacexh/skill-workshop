@@ -19,7 +19,7 @@ DDD artifacts are read-only during Codify. Preserve their accepted semantic owne
 
 ## Implement
 
-Implement the complete requested slice across the code surfaces it actually needs. Keep the accepted Domain model authoritative and derive the affected software structure from its ownership and behavior: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
+Implement the complete requested slice across the code surfaces it actually needs. Keep the accepted Domain model authoritative and derive the affected software structure from its ownership, behavior, and Domain-owned Ports: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
 
 Use the active-language router to load the smallest complete House Style leaf set whose applicability covers every code surface actually touched. Apply those rules to the remaining realization choices that preserve the accepted semantics.
 
@@ -34,5 +34,5 @@ End with the implemented behavior, changed files, verification results, and resi
 ## References
 
 - Start with the active-language router: [Go](../../references/ddd-golang.md), [Python](../../references/ddd-python.md), or [TypeScript](../../references/ddd-typescript.md). Follow its exact mapping for every touched code surface.
-- Load [../../references/ddd-core.md](../../references/ddd-core.md) when an accepted Domain object or cross-language layer boundary is being realized.
+- Load [../../references/ddd-core.md](../../references/ddd-core.md) when an accepted Domain object, Domain-owned Port, or cross-language layer boundary is being realized.
 - Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for an accepted published API, Domain Event, or Integration Message, and [../../references/database.md](../../references/database.md) for actual MySQL persistence, SQL, or schema work.

@@ -1,6 +1,6 @@
 ---
 name: ddd-typescript-domain
-description: TypeScript House Style for accepted Aggregate Roots, Entities, Value Objects, Domain Services, and Repository contracts.
+description: TypeScript House Style for accepted Aggregate Roots, Entities, Value Objects, Domain Services, Domain-owned Ports, and Repository contracts.
 ---
 
 # TypeScript Domain Layer
@@ -85,9 +85,14 @@ stale. For an accepted resident lifecycle, the live object remains authoritative
 and persistence accepts an immutable snapshot/checkpoint.
 
 A Domain Service is a named, mostly stateless operation over Domain values,
-snapshots, time, or accepted Domain-owned semantic collaborators. It returns a
-Domain decision, value, error, or fact. Provider execution and persistence stay
-outer.
+snapshots, authoritative facts, or time. It returns a Domain decision, value,
+error, or fact.
+
+## Domain-owned Port
+
+Declare each accepted Domain-owned Port as a narrow interface beside its direct
+Domain owner. Use idiomatic signatures and injection for its accepted sparse
+Methods.
 
 ## Repository Contract
 
@@ -108,5 +113,6 @@ and projections use an Application QueryRepository.
 ## Verification
 
 Test creation, reconstitution, invariants, transitions, Value Object equality,
-Domain Services, and accepted event recording with real objects. Type-level
-assertions supplement rather than replace runtime behavior evidence.
+Domain Services, accepted Domain-owned Ports with focused fakes, and accepted
+event recording with real objects. Type-level assertions supplement rather than
+replace runtime behavior evidence.

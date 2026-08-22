@@ -19,7 +19,7 @@ DDD artifacts own accepted business meaning and Domain ownership; they are not a
 
 Trace each affected accepted responsibility through the minimum production code needed to judge it. Compare semantic responsibility and state carriers, not names. A changed file is not automatically another review obligation. Use question-led depth: state the concrete structural question before expanding into adapter or runtime code, read the minimum evidence, and stop when it is answered.
 
-Judge whether accepted business state, behavior, invariants, and actual Domain Events remain with their recorded owners, and whether outer coordination, persistence, transport, or runtime code preserves rather than duplicates those decisions.
+Judge whether accepted business state, behavior, invariants, actual Domain Events, and Domain-owned Port contracts remain with their recorded owners, whether Port fulfillment stays behind Infrastructure implementations, and whether outer coordination, persistence, transport, or runtime code preserves rather than duplicates those decisions. Treat technical fulfillment policy or provider failure handling that shapes Domain code as evidence of a missing or violated Domain-owned Port boundary.
 
 Also review each non-Domain abstraction introduced, materially changed, or required by the affected behavior. Ask what present complexity it hides; whether deleting it would redistribute that complexity or simply remove it; whether a small stable interface creates leverage and locality; and whether its indirection, mapping, configuration, lifecycle, and test cost are justified. Pattern names such as CQRS, Repository, or Job neither require nor justify an abstraction. Judge its placement and shape by project constraints and applicable House Style, without inventorying absent patterns.
 
@@ -31,6 +31,6 @@ Say `No DDD structural findings` when there are no such findings. This does not 
 
 ## References
 
-- Use [../../references/ddd-core.md](../../references/ddd-core.md) for affected Domain-object realization or cross-language layer boundaries.
+- Use [../../references/ddd-core.md](../../references/ddd-core.md) for affected Domain-object realization, Domain-owned Ports, or cross-language layer boundaries.
 - Start with the active-language router: [Go](../../references/ddd-golang.md), [Python](../../references/ddd-python.md), or [TypeScript](../../references/ddd-typescript.md). Follow its exact mapping for the affected code surfaces.
 - Use [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for affected published APIs, Domain Events, or Integration Messages, and [../../references/database.md](../../references/database.md) for affected MySQL persistence, SQL, or schema.
