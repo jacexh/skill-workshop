@@ -95,7 +95,7 @@ A concise Domain sentence in the form `<Subject> <domain verb> <Object>.` During
 _Avoid_: responsibility heading, method signature, caller list
 
 **Domain-owned Port**:
-A narrow Domain-language external-data contract directly invoked by its owning Root or Entity Behavior. It groups sparse Methods that name their invoking Behavior, business decision point, and Domain result; Infrastructure fulfills the contract and outer composition supplies its implementation.
+A narrow Domain-language external-data contract directly invoked by its owning Root or Entity Behavior. Its name expresses that Domain role with a `Port` suffix, and it groups sparse Methods that name their invoking Behavior, business decision point, and Domain result; Infrastructure fulfills the contract and outer composition supplies its implementation.
 _Avoid_: Application-owned port, Domain Service, provider client
 
 **Actual Domain Event**:

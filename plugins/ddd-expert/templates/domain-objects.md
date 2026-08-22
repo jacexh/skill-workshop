@@ -14,7 +14,7 @@
 - **Behavior:**
   - `<Domain verb phrase>` — <Root> <domain verb> <Object>[ by composing `<Entity>.<Behavior>`][, transitioning <Lifecycle State name> from <before> to <after>].
 - **Domain-owned Ports:**
-  - `<Port name>`
+  - `<Domain role>Port`
     - `<Method name>` — `<Domain behavior name>` invokes it at <business decision point> to obtain <Domain result>.
 - **Domain Events:**
   - `<Event name>` — recorded by `<Producing Domain behavior name>`.
@@ -30,7 +30,7 @@
 - **Behavior:**
   - `<Domain verb phrase>` — <Subject> <domain verb> <Object>[, transitioning <Lifecycle State name> from <before> to <after>].
 - **Domain-owned Ports:**
-  - `<Port name>`
+  - `<Domain role>Port`
     - `<Method name>` — `<Domain behavior name>` invokes it at <business decision point> to obtain <Domain result>.
 - **Domain Events:**
   - `<Event name>` — recorded by `<Producing Domain behavior name>`.

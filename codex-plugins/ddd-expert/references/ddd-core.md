@@ -95,9 +95,10 @@ A port belongs to the layer that owns its invocation. An Application-owned port
 continues a use case. Realize an accepted Domain-owned Port as a Domain contract
 invoked by its recorded Behavior, with an Infrastructure implementation supplied
 by Runtime composition; Application neither prefetches its result nor duplicates
-its contract. Preserve the recorded Behavior as its invoker and each sparse
-Method's decision point and Domain result; the language leaf chooses the exact
-signature and injection. The implementation may compose
+its contract. Name the contract for its Domain role with a `Port` suffix.
+Preserve the recorded Behavior as its invoker and each sparse Method's decision
+point and Domain result; the language leaf chooses the exact signature and
+injection. The implementation may compose
 one or more external sources and owns any accepted fulfillment policy. Domain
 behavior reasons only over a fulfilled Domain result; technical non-fulfillment
 remains an execution outcome unless the accepted model gives it Domain meaning.

@@ -296,8 +296,9 @@ assert_contains "$tactical_design_skill" 'Domain input, and result use' "Domain-
 assert_contains "$tactical_design_skill" 'implementation outer composition supplies' "Domain-owned Port should leave realization to composition"
 assert_contains "$tactical_design_skill" 'concern about obtaining external data or handling its technical failure starts shaping a candidate Root or Entity' "Capability Probe should surface a hidden Port before fulfillment shapes the object"
 assert_contains "$tactical_design_skill" 'continue the object design from its fulfilled Domain result' "Capability Probe should resume from Domain semantics"
+assert_contains "$tactical_design_skill" 'contract name expresses its Domain role and ends in `Port`' "Domain-owned Port names should be recognizable by type"
 assert_contains "$tactical_design_skill" 'exact signatures, source topology, and' "Capability Probe should leave realization detail out of tactical artifacts"
-assert_matches "$tactical_design_skill" 'every external-authority need.*Capability Probe classification.*every Domain-owned Port Method.*Port.*invoking Behavior.*business decision point.*Domain result' "Capability Probe should have an exhaustive Port completion criterion"
+assert_matches "$tactical_design_skill" 'every external-authority need.*Capability Probe classification.*every Domain-owned Port Method.*Port-suffixed contract.*invoking Behavior.*business decision point.*Domain result' "Capability Probe should have an exhaustive Port completion criterion"
 assert_contains "$tactical_design_skill" 'the entry contains no selection reason' "Domain Event entries should point to behavior without carrying rationale"
 assert_contains "$tactical_design_skill" '../../templates/domain-objects.md' "Tactical Design should use the domain-object event schema"
 assert_not_contains "$tactical_design_skill" '<result>' "Tactical Design should not require a universal result slot"
@@ -319,7 +320,7 @@ for heading in '**Definition:**' '**Facts:**' '**Lifecycle State:**' '**Behavior
   assert_contains "$domain_objects_template" "$heading" "domain-objects template missing $heading"
 done
 assert_contains "$domain_objects_template" '**Domain-owned Ports:**' "domain-objects template should record Domain-owned Ports"
-for slot in '<Port name>' '<Method name>' '<Domain behavior name>' '<business decision point>' '<Domain result>'; do
+for slot in '<Domain role>Port' '<Method name>' '<Domain behavior name>' '<business decision point>' '<Domain result>'; do
   assert_contains "$domain_objects_template" "$slot" "domain-object Port entry missing $slot"
 done
 assert_not_contains "$domain_objects_template" 'Required Capabilities' "domain-objects should not retain the superseded capability concept"
@@ -566,6 +567,7 @@ assert_contains "$core" 'A public Domain method on the accepted owner' "core sho
 assert_contains "$core" '### Domain-owned Port' "core should own the Port realization boundary"
 assert_contains "$core" 'A port belongs to the layer that owns its invocation' "core should distinguish port ownership by invocation"
 assert_contains "$core" 'Application neither prefetches its result nor duplicates' "core should prevent Application from stealing Domain-owned invocation"
+assert_contains "$core" 'Name the contract for its Domain role with a `Port` suffix' "core should preserve recognizable Domain-owned Port names"
 assert_contains "$core" 'Preserve the recorded Behavior as its invoker' "core should preserve Domain-owned invocation timing"
 assert_contains "$core" 'one or more external sources' "a Domain-owned Port implementation may compose sources"
 assert_contains "$core" 'owns any accepted fulfillment policy' "core should keep accepted fulfillment policy in the Port implementation"
@@ -649,6 +651,7 @@ assert_contains "$application" 'func AssembleUserDTO' "Go Application should def
 assert_contains "$application" 'func AssembleUserEntity' "Go Application should define Entity-to-DTO mapping"
 assert_contains "$application" 'Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback.' "Go Application should own transaction scope"
 assert_contains "$application" 'Within(context.Context, func(context.Context) error) error' "Go Transactor should expose a context callback"
+assert_contains "$application" 'Name the contract for its semantic role with a `Port` suffix' "Go Application ports should be recognizable by type"
 assert_contains "$application" 'When a recorded Domain Behavior owns call timing, use its Domain-owned Port' "Go Application should preserve Domain-owned invocation"
 assert_not_contains "$application" 'let Application supply its implementation' "Go Application should not implement or prefetch a Domain-owned Port"
 

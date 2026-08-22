@@ -84,12 +84,13 @@ Record each Domain-owned Port under its direct Behavior owner and group its spar
 
 ```text
 **Domain-owned Ports:**
-- <Port>
+- <Domain role>Port
   - <Method> — <Behavior> invokes it at <business decision point> to obtain <Domain result>.
 ```
 
-Keep the entry at Domain resolution; exact signatures, source topology, and
-technical fulfillment policy remain realization choices.
+The contract name expresses its Domain role and ends in `Port`. Keep the entry
+at Domain resolution; exact signatures, source topology, and technical
+fulfillment policy remain realization choices.
 
 If concern about obtaining external data or handling its technical failure starts shaping a candidate Root or Entity, surface the hidden Domain-owned Port and continue the object design from its fulfilled Domain result.
 
@@ -125,7 +126,7 @@ Identity is written in the object heading when meaningful. Facts are the busines
 
 When one retained Entity's definition, Facts, Lifecycle State, behavior, any Domain-owned Ports, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. After the user confirms it, update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
 
-When the Root's composition is complete, show its integrated compact slice. Before asking for confirmation, verify that every pressure is traceable and assigned, every external-authority need has a Capability Probe classification, every Domain-owned Port Method names its Port, invoking Behavior, business decision point, and Domain result, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every accepted local reaction names its Event Handler and Domain intent, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
+When the Root's composition is complete, show its integrated compact slice. Before asking for confirmation, verify that every pressure is traceable and assigned, every external-authority need has a Capability Probe classification, every Domain-owned Port Method names its Port-suffixed contract, invoking Behavior, business decision point, and Domain result, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every accepted local reaction names its Event Handler and Domain intent, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
 
 After the user confirms that Root, write or replace its complete section while preserving other accepted descriptions. At that Root confirmation, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Then continue with the next affected Root. `domain-objects.md` contains only current accepted object descriptions grouped by Root. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
 
