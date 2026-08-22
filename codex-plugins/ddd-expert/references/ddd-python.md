@@ -59,6 +59,7 @@ is a project technology decision, not a per-use-case implementation choice.
 | Touched code surface | Load |
 |---|---|
 | Aggregate, Entity, Value Object, Domain Service, Repository | [ddd-python-domain.md](ddd-python-domain.md) |
+| Domain-owned Port contract, implementation, or composition | [ddd-python-domain.md](ddd-python-domain.md), [ddd-python-infrastructure.md](ddd-python-infrastructure.md), and [ddd-python-runtime.md](ddd-python-runtime.md) when composition changes |
 | Command, Query, Application registry, assembler, local transaction scope | [ddd-python-application.md](ddd-python-application.md) |
 | FastAPI, gRPC, subscriber, task processor | [ddd-python-transport.md](ddd-python-transport.md) |
 | SQLAlchemy, MySQL mapping, QueryRepository, outbound ACL | [ddd-python-infrastructure.md](ddd-python-infrastructure.md) and [database.md](database.md) for SQL/schema |
@@ -67,9 +68,9 @@ is a project technology decision, not a per-use-case implementation choice.
 | Process composition, configuration, logging, telemetry, shutdown | [ddd-python-runtime.md](ddd-python-runtime.md) |
 | `python-statemachine` realization | [ddd-python-fsm.md](ddd-python-fsm.md) |
 
-Load [ddd-core.md](ddd-core.md) only when cross-language object/layer shape is
-also in scope, and [ddd-collaboration.md](ddd-collaboration.md) only when an
-accepted collaboration contract is being realized.
+Load [ddd-core.md](ddd-core.md) for a Domain-owned Port or when cross-language
+object/layer shape is also in scope, and [ddd-collaboration.md](ddd-collaboration.md)
+only when an accepted collaboration contract is being realized.
 
 ## Project Shape
 

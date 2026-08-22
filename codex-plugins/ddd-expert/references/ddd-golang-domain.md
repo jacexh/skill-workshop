@@ -1,6 +1,6 @@
 ---
 name: ddd-golang-domain
-description: Go House Style for accepted Aggregate Roots, Entities, Value Objects, Domain Services, Repository contracts, validation, and lifecycle realization.
+description: Go House Style for accepted Aggregate Roots, Entities, Value Objects, Domain Services, Domain-owned Ports, Repository contracts, validation, and lifecycle realization.
 ---
 
 # Go Domain Layer
@@ -8,8 +8,9 @@ description: Go House Style for accepted Aggregate Roots, Entities, Value Object
 ## Applies When
 
 Load this leaf when accepted Go Aggregate Roots, Entities, Value Objects,
-Domain Services, or write Repository contracts are touched. Accepted design
-supplies their names, facts, lifecycle, behavior, invariants, and capabilities.
+Domain Services, Domain-owned Ports, or write Repository contracts are touched.
+Accepted design supplies their names, facts, lifecycle, behavior, invariants,
+and Port Methods.
 
 ## Aggregate Shape and Mapping Surface
 
@@ -94,7 +95,7 @@ creation. When accepted events exist, their collection initialization follows
 ## Mutation and Persistence Lifecycle
 
 - The Aggregate Root controls changes to owned Entities and enforces invariants synchronously.
-- Domain methods may change in-memory state and record Domain Events. They never save, publish, enqueue, log, start a goroutine or choose technical retry/provider policy. When they decide a capability is business-required, its collaborator contract is Domain-owned and uses Domain language; Application supplies the implementation and Infrastructure owns provider mechanics.
+- Domain methods may change in-memory state and record Domain Events. They never save, publish, enqueue, log, start a goroutine or choose technical retry/provider policy.
 - Persist owned Entities and Value Objects with their root unless the confirmed Model establishes an independent Aggregate.
 - Technical audit timestamps stay in the DO. Put time in Domain only when business behavior uses it, and pass the authoritative time into the operation when determinism matters.
 
@@ -159,7 +160,11 @@ func (AllocationService) Allocate(
 }
 ```
 
-Application normally supplies facts, participants, and semantic capabilities. A Domain owner or Domain Service may invoke a narrow Domain-owned collaborator when precomputing a primitive would erase the rule or its required timing. Application supplies that contract's implementation at the use-case boundary; provider vocabulary, context, retry mechanics, and external execution remain outside Domain. A query does not eliminate a time-of-check/time-of-use race, and a Domain collaborator never authorizes atomic persistence by itself.
+## Domain-owned Port
+
+Declare each accepted Domain-owned Port as a narrow interface beside its direct
+Domain owner. Use idiomatic signatures and injection for its accepted sparse
+Methods.
 
 ## Repository Contract
 
@@ -194,5 +199,5 @@ Generated contracts, ConnectRPC/Chi, xorm, Kafka, Asynq, Redis, Fx,
 
 Test Factories, `Validate`, Aggregate invariants, state transitions, Domain
 Service decisions, and accepted no-op behavior directly. Domain tests use real
-objects; an accepted semantic collaborator may use one focused fake. Event and
+objects; an accepted Domain-owned Port may use one focused fake. Event and
 FSM evidence follows their dedicated leaves.

@@ -7,7 +7,7 @@ description: Executable Go House Style for xorm/MySQL persistence, DO conversion
 
 ## Applies When
 
-Infrastructure implements Domain/Application ports and owns external mechanisms. For MySQL persistence in this House Style, use `xorm.io/xorm` with `github.com/go-sql-driver/mysql`. Use `github.com/samber/oops` when an external error first enters controlled code.
+Infrastructure implements Domain-owned and Application-owned ports and owns external mechanisms. For MySQL persistence in this House Style, use `xorm.io/xorm` with `github.com/go-sql-driver/mysql`. Use `github.com/samber/oops` when an external error first enters controlled code.
 
 ## Responsibility And File Shape
 
@@ -17,13 +17,14 @@ internal/business/<context>/infrastructure/
   convert.go               # pure DO <-> exported Domain/read-model mapping
   <aggregate>_repository.go
   <read_model>_query_repository.go
-  <capability>_adapter.go  # ACL or outbound provider adapter
+  <port>_adapter.go        # Domain-owned Port or outbound provider adapter
 ```
 
 - Data Objects describe persistence, not Domain behavior. Mandatory columns and physical types follow [database.md](database.md); this guide owns their Go mapping.
 - `convert.go` performs pure mechanical mapping. It does no I/O, logging, transaction control, authorization, or business decisions.
 - A Domain Repository adapter persists one Aggregate Root and its owned state.
 - A QueryRepository adapter implements an Application-owned read port and returns Application read models.
+- A Domain-owned Port adapter fulfills its Domain contract from one or more external sources.
 - Compile-time assertions make the implemented inward contract visible.
 - Shared engines and provider clients arrive from `internal/pkg`; a bounded-context adapter does not load config or open process-wide clients.
 - When the confirmed multi-Root exception exists, every participating Repository automatically resolves the current transaction executor from the callback context; Domain and Application never receive an xorm session.
@@ -258,7 +259,7 @@ columns, uses stable indexed ordering, and maps directly to Application read
 types.
 ## Outbound Adapters
 
-Infrastructure maps semantic Application ports to external APIs, Kafka, cache, taskqueue, or other providers. Keep generated clients, credentials, topics, retry settings, and serialization here.
+Infrastructure fulfills Domain-owned Ports and Application-owned ports through external APIs, Kafka, cache, taskqueue, or other providers. Keep source composition, generated clients, credentials, topics, serialization, and any accepted fulfillment policy here.
 
 ## Error And Logging Boundary
 
@@ -270,6 +271,6 @@ Infrastructure maps semantic Application ports to external APIs, Kafka, cache, t
 
 ## Verification
 
-Use MySQL-backed integration tests for the selected Repository lifecycle and QueryRepository behavior. For request-scoped optimistic persistence, cover insert version `1`, comparison/increment, conflict mapping, rollback, and stale Save behavior. For resident checkpoints, cover snapshot persistence, token conflict, and continued live authority. Also cover applicable filtering, conversion, deterministic query ordering, and first-boundary error preservation.
+Use MySQL-backed integration tests for the selected Repository lifecycle and QueryRepository behavior. For request-scoped optimistic persistence, cover insert version `1`, comparison/increment, conflict mapping, rollback, and stale Save behavior. For resident checkpoints, cover snapshot persistence, token conflict, and continued live authority. Also cover applicable filtering, conversion, deterministic query ordering, and first-boundary error preservation. For a changed Domain-owned Port implementation, verify its Domain result and any accepted fulfillment policy at the adapter boundary.
 
 Prove commit and rollback with the real Repository adapters and MySQL, observing durable state from a fresh observer after the transaction boundary; static checks and fake Repository tests do not prove atomicity or enlistment. For the multi-Root exception, prove both writes commit and a later Repository error rolls both back through the real Handler path.

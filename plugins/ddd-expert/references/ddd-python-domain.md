@@ -1,6 +1,6 @@
 ---
 name: ddd-python-domain
-description: Python House Style for accepted Aggregate Roots, Entities, Value Objects, Domain Services, and Repository contracts.
+description: Python House Style for accepted Aggregate Roots, Entities, Value Objects, Domain Services, Domain-owned Ports, and Repository contracts.
 ---
 
 # Python Domain Layer
@@ -148,12 +148,19 @@ persistence receives an immutable snapshot/checkpoint. Serialize live behavior
 through the accepted single-owner mechanism; a checkpoint token is a persistence
 detail.
 
-## Domain Service and Repository
+## Domain Service
 
 Domain Services are synchronous and mostly stateless. They accept Domain values,
-snapshots, time, and accepted semantic collaborators, then return Domain values,
-decisions, errors, or facts. Application supplies external facts and concrete
-collaborators.
+snapshots, authoritative facts, and time, then return Domain values, decisions,
+errors, or facts.
+
+## Domain-owned Port
+
+Declare each accepted Domain-owned Port as a narrow `Protocol` beside its direct
+Domain owner. Use idiomatic signatures and injection for its accepted sparse
+Methods.
+
+## Repository
 
 ```python
 from typing import Protocol
@@ -174,5 +181,4 @@ part of the accepted model.
 
 Test factories, reconstitution, invariants, transitions, Value Object equality,
 Domain Service decisions, and accepted event recording with real Domain
-objects. A focused fake is reserved for an accepted semantic Domain
-collaborator.
+objects. A focused fake is reserved for an accepted Domain-owned Port.

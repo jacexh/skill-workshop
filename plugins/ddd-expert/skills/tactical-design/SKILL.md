@@ -1,6 +1,6 @@
 ---
 name: tactical-design
-description: Use when a confirmed strategic model still needs a relentless, user-confirmed design of Aggregate internals, domain-object Facts, Lifecycle State, how objects operate, behavior, Domain-owned capabilities, or actual Domain Events.
+description: Use when a confirmed strategic model still needs a relentless, user-confirmed design of Aggregate internals, domain-object Facts, Lifecycle State, how objects operate, behavior, Domain-owned Ports, or actual Domain Events.
 ---
 
 # Tactical Design
@@ -75,17 +75,23 @@ When a Root exposes a capability by composing an owned Entity's behavior, connec
 
 ### Capability Probe
 
-For each candidate Behavior, surface every current fact, decision, or action it needs from an external authority, then choose:
+For each candidate Behavior, surface every piece of externally owned Domain data or authoritative answer it needs, then choose:
 
-- **Supplied Fact** — the caller supplies a Domain Fact or Value Object while preserving the Behavior's decision ownership, timing, authority, and guarantee.
-- **Required Capability** — the Behavior owns invocation timing, Domain input, and result use; it invokes a narrow Domain-language contract whose realization outer composition supplies.
+- **Supplied Fact** — the caller supplies a Domain Fact or Value Object while preserving the Behavior's decision ownership, timing, and authority.
+- **Domain-owned Port** — the Behavior owns invocation timing, Domain input, and result use; it invokes a sparse Method on a narrow Domain-language data contract whose implementation outer composition supplies.
 
-Record a Required Capability on its direct Behavior owner:
+Record each Domain-owned Port under its direct Behavior owner and group its sparse Methods:
 
 ```text
-**Required Capabilities:**
-- <Capability> — <Behavior> invokes it at <business decision point> to <Domain question or action>; guarantees <accepted authoritative observation, decision, authorization, reservation, or state change>.
+**Domain-owned Ports:**
+- <Port>
+  - <Method> — <Behavior> invokes it at <business decision point> to obtain <Domain result>.
 ```
+
+Keep the entry at Domain resolution; exact signatures, source topology, and
+technical fulfillment policy remain realization choices.
+
+If concern about obtaining external data or handling its technical failure starts shaping a candidate Root or Entity, surface the hidden Domain-owned Port and continue the object design from its fulfilled Domain result.
 
 For each candidate Behavior, follow any resulting fact that requires or enables a later Domain intent and establish whether the producing Behavior succeeds independently of that intent. Select an actual Domain Event only when the accepted model needs a named local reaction to the occurrence or needs the occurrence itself, rather than merely the resulting state, as Domain evidence. Record the event and its accepted local reactions with the [domain-object template](../../templates/domain-objects.md); the entry contains no selection reason. Analytical Workshop Events never appear in `domain-objects.md`.
 
@@ -99,7 +105,7 @@ Prefer the viable candidate that localizes each decision with the state it needs
 
 Use a Value Object when Domain meaning, validity, and equality come from its attributes rather than identity. Use a Domain Service only for an accepted named Domain operation with no natural Entity or Value Object owner; it owns that Domain decision while Application retains loading, persistence, and transaction coordination.
 
-Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or guarantee. Express that constraint through the affected object's Facts, Lifecycle State, behavior, Required Capability, or actual Domain Event, or through the project's decision mechanism when it is a hard-to-reverse project choice.
+Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or Domain result. Express that constraint through the affected object's Facts, Lifecycle State, behavior, Domain-owned Port Method, or actual Domain Event, or through the project's decision mechanism when it is a hard-to-reverse project choice.
 
 ## Complete the Root slice
 
@@ -110,16 +116,16 @@ For the accepted candidate, determine only:
 3. each retained object's Facts;
 4. each retained object's Lifecycle State, or that it has no explicit Lifecycle State;
 5. each retained object's behavior, including any Lifecycle State transition it makes;
-6. any Domain-owned Required Capabilities directly invoked by a named behavior;
+6. any Domain-owned Ports and sparse Methods directly invoked by a named behavior;
 7. actual Domain Events recorded by a named behavior.
 
-Identity is written in the object heading when meaningful. Facts are the business-significant facts owned by the object and required to understand a Behavior or Invariant; they are neither a field inventory nor Domain Events. Lifecycle State records the object's named state-machine states and their Domain meaning. When the Domain has no distinct lifecycle term, qualify the generic `State` with its owner as `<Object>.State` instead of inventing a concatenated type-style name. Definition includes an essential operating characteristic only when it changes what the object represents; do not add a separate mechanism section. Behavior records the accepted Domain actions and any Lifecycle State transition. Domain Events are listed separately and point to the behavior that records them; a Lifecycle State transition alone does not require an event. Name material Value Objects and references where their meaning affects Facts, behavior, or a Required Capability, but do not inventory fields or methods. Do not add separate responsibility, collaboration, caller, or impact sections.
+Identity is written in the object heading when meaningful. Facts are the business-significant facts owned by the object and required to understand a Behavior or Invariant; they are neither a field inventory nor Domain Events. Lifecycle State records the object's named state-machine states and their Domain meaning. When the Domain has no distinct lifecycle term, qualify the generic `State` with its owner as `<Object>.State` instead of inventing a concatenated type-style name. Definition includes an essential operating characteristic only when it changes what the object represents; do not add a separate mechanism section. Behavior records the accepted Domain actions and any Lifecycle State transition. Domain Events are listed separately and point to the behavior that records them; a Lifecycle State transition alone does not require an event. Name material Value Objects and references where their meaning affects Facts, behavior, or a Domain-owned Port Method, but do not inventory other fields or methods. Do not add separate responsibility, collaboration, caller, or impact sections.
 
 ## Entity and Root confirmation
 
-When one retained Entity's definition, Facts, Lifecycle State, behavior, any Required Capabilities, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. After the user confirms it, update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
+When one retained Entity's definition, Facts, Lifecycle State, behavior, any Domain-owned Ports, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. After the user confirms it, update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
 
-When the Root's composition is complete, show its integrated compact slice. Before asking for confirmation, verify that every pressure is traceable and assigned, every external-authority need has a Capability Probe classification, every Required Capability states its invoking Behavior, business decision point, Domain question or action, and guarantee, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every accepted local reaction names its Event Handler and Domain intent, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
+When the Root's composition is complete, show its integrated compact slice. Before asking for confirmation, verify that every pressure is traceable and assigned, every external-authority need has a Capability Probe classification, every Domain-owned Port Method names its Port, invoking Behavior, business decision point, and Domain result, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every accepted local reaction names its Event Handler and Domain intent, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
 
 After the user confirms that Root, write or replace its complete section while preserving other accepted descriptions. At that Root confirmation, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Then continue with the next affected Root. `domain-objects.md` contains only current accepted object descriptions grouped by Root. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
 

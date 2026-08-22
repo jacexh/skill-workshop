@@ -93,14 +93,17 @@ An accepted Unit of Work uses `db.transaction().execute` and constructs every
 participating Repository on the callback's `Transaction<Database>`.
 
 QueryRepositories select explicit columns, apply stable indexed order, and
-return readonly Application DTOs. Outbound adapters map one semantic port to
-one provider/generated contract; Platform owns credentials, client lifecycle,
-timeouts, and provider configuration. Preserve the first external error in
-`cause` while translating to a stable inner error.
+return readonly Application DTOs. Outbound adapters fulfill Domain-owned and
+Application-owned ports through one or more provider/generated contracts. The
+adapter owns source composition and any accepted fulfillment policy; Platform
+owns credentials, client lifecycle, and policy configuration. Preserve the
+first external error in `cause` while translating to a stable inner error.
 
 ## Verification
 
 Apply root migrations and run Repository/QueryRepository/Unit-of-Work evidence
 against Testcontainers MySQL. Cover mapping, insert version `1`, guarded update
 and conflict, complete transaction participation, active-row filtering, driver
-runtime types, query order/cursors, and stable error translation.
+runtime types, query order/cursors, and stable error translation. For a changed
+Domain-owned Port implementation, verify its Domain result and any accepted
+fulfillment policy at the adapter boundary.
