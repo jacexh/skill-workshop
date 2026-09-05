@@ -16,7 +16,7 @@ below define the additional fidelity required at integration boundaries.
 ## Integration Fidelity
 
 An integration claim needs these conditions unless a stated exception narrows
-the claim:
+the claim. Specify them for planned cases; verify them when executing:
 
 1. Run the production components that carry the stated risk together.
 2. Use production-like dependency injection, middleware, serialization,
@@ -56,9 +56,10 @@ Choose integration or contract evidence when lighter checks cannot catch:
 - security-sensitive paths such as path traversal, redaction, token scope,
   permission denial, or privilege escalation
 
-## Coverage Shape
+## Example Boundaries
 
-Cover scenario risks rather than repeating every unit branch:
+Include only the collaborators needed for the selected claim. These are examples
+of where risks can span components, not required full stacks for each case:
 
 - API entry: route + parsing + auth + service + repository + side effect
 - write path: command + transaction + event, message, or audit side effect
@@ -69,15 +70,15 @@ Cover scenario risks rather than repeating every unit branch:
 - migration path: current code reads historical data and writes the new shape
 - observability path: critical failure emits actionable diagnostic evidence
 
-## Environment Gate
+## Execution Environment
 
-- Run core integration tests in CI with pinned dependencies or controlled
-  containers.
+- Use the repository's integration runner and dependency setup. Pin or control
+  dependencies where variability affects the claim. Creating CI infrastructure
+  is separate work unless requested.
 - Keep data, accounts, ports, processes, and persistent state isolated from
   developer machines and other tests.
 - Report an unavailable dependency or conditionally skipped path as unexecuted
   evidence with residual risk.
 
-**Complete when:** the selected scenario set covers each distinct integration
-risk once, the controlled environment is reproducible, and every unavailable
-boundary is visible in the hand-off.
+**Complete when:** the selected boundary is reproducible or its setup remains a
+named design dependency, and unavailable execution is visible in the hand-off.

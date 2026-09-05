@@ -5,9 +5,12 @@ regression-protective tests at the right production boundary.
 
 ## Included skill
 
-- `designing-tests`: choose evidence from intent and observable risk, then use
-  Oracle / Seam / Control / Proof when a test is the narrowest reliable evidence.
+- `designing-tests`: choose evidence from intent and observable risk, then
+  derive cases from rules, data, histories, and failures; refine their Oracle /
+  Seam / Control / Proof and select a suite with explicit coverage gaps.
 
-The skill includes architecture, integration-quality, and hand-off references.
+The skill includes case derivation, architecture, integration-quality, and
+hand-off references. Design, implementation, and review have separate completion
+conditions.
 Its description handles discovery; the plugin does not intercept other workflow
 skills.

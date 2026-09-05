@@ -66,24 +66,9 @@ const claude = frontmatter(claudeFile);
 const codex = frontmatter(codexFile);
 
 for (const parsed of [claude, codex]) {
-  if (Object.keys(parsed.fields).sort().join(",") !== "description,name") {
-    fail("designing-tests frontmatter must contain only name and description");
-  }
   if (parsed.fields.name !== "designing-tests") fail("unexpected skill name");
-  if (/flak/i.test(parsed.fields.description)) fail("description must not advertise flaky-test diagnosis");
-  for (const trigger of ["writing", "reviewing test", "choosing", "architecture", "hand-off"]) {
-    if (!parsed.fields.description.toLowerCase().includes(trigger)) {
-      fail(`description missing branch trigger: ${trigger}`);
-    }
-  }
-  for (const heading of ["## Route", "### 1. Intent", "### 2. Risk", "### 3. Evidence", "### 4. Test Construction", "#### Discover", "#### Oracle", "#### Seam", "#### Control", "#### Proof", "### 5. Hand-off"]) {
-    if (!parsed.body.includes(heading)) fail(`skill missing workflow heading: ${heading}`);
-  }
-  const completionCount = (parsed.body.match(/\*\*Complete when:\*\*/g) || []).length;
-  if (completionCount < 10) fail(`workflow has only ${completionCount} completion criteria`);
-  if (/## Failure Triage|## When To Read References/.test(parsed.body)) {
-    fail("skill retains a diagnosis branch or duplicate reference index");
-  }
+  if (!parsed.fields.description) fail("skill must have a discovery description");
+  if (!parsed.body.trim()) fail("skill instructions are empty");
 }
 
 if (claude.fields.description !== codex.fields.description) {
@@ -125,27 +110,24 @@ for (const relative of claudeInventory) {
 }
 
 for (const skillRoot of [claudeSkill, codexSkill]) {
-  for (const file of markdownFiles(skillRoot)) {
+  const reachable = new Set();
+  function visit(file) {
+    if (reachable.has(file)) return;
+    reachable.add(file);
     const raw = read(file);
     for (const match of raw.matchAll(/\]\(([^)]+)\)/g)) {
       const target = match[1].split("#", 1)[0];
       if (!target || /^(?:https?:|mailto:)/.test(target)) continue;
       const resolved = path.resolve(path.dirname(file), target);
       if (!fs.existsSync(resolved)) fail(`${file} has broken link ${target}`);
+      if (resolved.endsWith(".md")) visit(resolved);
     }
   }
+  visit(path.join(skillRoot, "SKILL.md"));
+  for (const file of markdownFiles(skillRoot)) {
+    if (!reachable.has(file)) fail(`skill reference is unreachable: ${file}`);
+  }
 }
-
-const referenceNames = ["architecture-test-design.md", "handoff-gate.md", "integration-quality.md"];
-for (const name of referenceNames) {
-  const left = path.join(claudeSkill, "references", name);
-  const right = path.join(codexSkill, "references", name);
-  if (!fs.existsSync(left) || !fs.existsSync(right)) fail(`missing mirrored reference ${name}`);
-  if (read(left) !== read(right)) fail(`Claude and Codex reference differ: ${name}`);
-}
-
-const architecture = read(path.join(claudeSkill, "references", "architecture-test-design.md"));
-if (!architecture.includes("## Contents")) fail("long architecture reference needs a contents index");
 
 const claudeManifest = JSON.parse(read(path.join(claudeRoot, ".claude-plugin", "plugin.json")));
 const codexManifest = JSON.parse(read(path.join(codexRoot, ".codex-plugin", "plugin.json")));

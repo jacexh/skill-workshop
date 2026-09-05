@@ -23,7 +23,9 @@ Restart Codex after the marketplace upgrade.
 ## Capabilities
 
 - **`designing-tests` skill** — Intent / Risk / Evidence selection followed by
-  Oracle / Seam / Control / Proof when a test is justified
+  case derivation, Oracle / Seam / Control / Proof, and suite selection
+- **Case design reference** — derives input partitions, rule combinations, state
+  histories, and failure/recovery cases from the requested behavior
 - **Architecture reference** — turns design goals and sequence phases into
   traceable evidence or residual risk
 - **Integration reference** — protects database, transport, contract, and
