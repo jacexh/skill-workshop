@@ -271,6 +271,13 @@ Infrastructure fulfills Domain-owned Ports and Application-owned ports through e
 
 ## Verification
 
-Use MySQL-backed integration tests for the selected Repository lifecycle and QueryRepository behavior. For request-scoped optimistic persistence, cover insert version `1`, comparison/increment, conflict mapping, rollback, and stale Save behavior. For resident checkpoints, cover snapshot persistence, token conflict, and continued live authority. Also cover applicable filtering, conversion, deterministic query ordering, and first-boundary error preservation. For a changed Domain-owned Port implementation, verify its Domain result and any accepted fulfillment policy at the adapter boundary.
+For changed persistence or query behavior, use MySQL-backed integration evidence
+for the affected lifecycle, conversion, filtering, ordering, transaction, or
+error behavior. Under request-scoped optimistic persistence, exercise affected
+version/conflict and stale-Save semantics; under resident checkpoints, exercise
+affected snapshot/token and continued-live-authority semantics.
 
-Prove commit and rollback with the real Repository adapters and MySQL, observing durable state from a fresh observer after the transaction boundary; static checks and fake Repository tests do not prove atomicity or enlistment. For the multi-Root exception, prove both writes commit and a later Repository error rolls both back through the real Handler path.
+For a changed outbound adapter, verify its Domain result, contract translation,
+and affected fulfillment policy at that provider boundary. An outbound-only
+change does not require MySQL evidence. Reuse unaffected evidence; Guard reviews
+available results without executing this verification.

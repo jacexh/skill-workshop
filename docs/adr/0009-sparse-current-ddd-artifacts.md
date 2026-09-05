@@ -102,4 +102,18 @@ Guard independently and read-only reviews the implementation against the current
 - Codify gains broad implementation latitude inside accepted semantics and resolves it through project and active-language House Style without a modeling return loop.
 - Guard catches both model drift and unjustified software abstractions without turning model silence or named patterns into a checklist.
 - Existing historical records remain repository history but are no longer required input for new work.
-- Automated checks validate the sparse file shapes, mirrored plugin content, one-question interaction boundary, pressure-led Entity and Root writing, Domain behavior, Domain-owned Ports, and event-link contracts, House Style realization latitude, method ownership, and Guard's independent model-and-abstraction review without scoring a preferred domain model.
+- Automated checks validate packaging, mirrored resources, link reachability, and Context Map template/validator compatibility. They do not prove model behavior. Isolated forward trials cover execution, authorization reuse, scope, and artifact outcomes; their results are recorded separately from static checks.
+
+## Workflow clarification — 2026-09-05
+
+The plugin's shared workflow contract governs reuse of existing confirmation,
+explicitly delegated choices, instruction conflicts, and accepted project
+conventions. Entity and Root confirmation remain the default for unresolved
+design decisions; already confirmed content can be recorded directly. Selecting
+a programming language alone does not authorize replacing the project's stack.
+
+Design skills reach templates at the point of preparing descriptions or writing
+artifacts. Context Map writes finish with the shipped validator and affected
+Model-link checks. Field definitions live with the domain-object template.
+Codify scopes verification to the changed boundary; Guard reads available
+evidence without running installation or verification procedures from references.

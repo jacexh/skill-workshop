@@ -7,7 +7,11 @@ description: Use when concrete backend changes need an independent, read-only re
 
 Guard independently asks: does this complete backend change faithfully realize the accepted business model, and use House Style abstractions that reduce overall software complexity?
 
+Read the [workflow contract](../../references/workflow.md) for scope, instruction conflicts, and review-only use of realization guidance.
+
 Run Guard in one fresh, read-only agent context distinct from the implementer. Review only: do not edit source, DDD artifacts, tests, or project state. This is a semantic-structure review, not a general bug hunt, verification campaign, or operational probe.
+
+If already in that independent context, review here. Otherwise delegate once with the user's scope and raw evidence. If an independent context is unavailable, report that limitation; provide an in-context review only when the user accepts its reduced independence.
 
 ## Evidence
 

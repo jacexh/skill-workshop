@@ -23,11 +23,11 @@ Tactical Design -> current domain objects
 
 EventStorming keeps its complete ten-step discussion method. It identifies Bounded Contexts and Aggregate Roots, asks one question at a time, and writes only accepted current strategic knowledge.
 
-Tactical Design uses the same relentless interview style. It works one Aggregate Root at a time, derives essential business pressures from confirmed Business Rules, probes behavior ownership, and applies the Capability Probe to external-authority needs. The Capability Probe selects a Supplied Fact that preserves ownership and timing, or a Domain-owned Port when the Behavior owns invocation. Each Port groups sparse Methods that name their invoking Behavior, business decision point, and Domain result. Every candidate Entity proposal explains what the object is and how it operates, then introduces its Behaviors in Domain language at that first proposal rather than renaming technical placeholders during artifact writing. Simple operation stays concise, while an essential operating characteristic may become part of Definition. It records coherent Entity descriptions, including Domain-owned Ports where present, in `domain-objects.md` as the Root develops, then confirms the integrated Root and updates accepted changes across affected current DDD artifacts and project decisions.
+Tactical Design works one Aggregate Root at a time. It derives essential business pressures, probes behavior ownership and external authority, compares credible object compositions, and records confirmed current descriptions. Its skill and templates own the detailed process and field contract.
 
 Codify treats the accepted strategic model and current domain objects as read-only semantic constraints, then fills the required software structure through project and active-language House Style. Guard independently checks whether the implementation preserves their ownership and behavior, and whether changed non-Domain abstractions reduce overall complexity under House Style.
 
-House Style owns realization choices left open by the model and applies only to code the requested behavior needs. It does not extend accepted business meaning into a software-structure checklist.
+Start at the skill that owns the current request and reuse existing confirmations. Design-only and review-only requests end with their requested result. The [workflow contract](references/workflow.md) defines authorization, project-convention precedence, and proportionate verification. House Style supplies defaults for choices the project leaves open.
 
 ## Artifacts
 
@@ -54,6 +54,8 @@ Only the accepted current-model files described above are workflow artifacts; wo
 
 Unspecified software design is Codify implementation latitude, resolved directly through project constraints and the active-language House Style.
 
+Changed artifacts follow the [artifact write checks](templates/artifact-layout.md), including the Context Map validator. These check representation; accepted business meaning still requires review.
+
 ## Templates
 
 - `templates/artifact-layout.md`
@@ -65,6 +67,7 @@ Unspecified software design is Codify implementation latitude, resolved directly
 
 Canonical references live under `references/`:
 
+- `workflow.md` — shared scope, authorization, project conventions, and verification contract
 - `ddd-core.md` — language-neutral realization of accepted DDD objects and layers
 - `ddd-collaboration.md` — realization of accepted APIs, Domain Events, and Integration Messages
 - `database.md` — MySQL schema, SQL, migration, and persistence realization
@@ -79,6 +82,6 @@ Canonical references live under `references/`:
 - `ddd-typescript-{domain,application,transport,infrastructure}.md` — TypeScript layer leaves
 - `ddd-typescript-{events-messages,taskqueue,fsm,runtime}.md` — TypeScript conditional flow and Runtime leaves
 
-References are House Style only: they show how an already accepted object or
-mechanism is written. EventStorming and Tactical Design remain the authorities
-for DDD design. Project-specific facts remain in project documents.
+The workflow contract governs task execution. Realization references provide
+House Style for accepted objects and mechanisms. EventStorming and Tactical
+Design remain the authorities for DDD design; project facts stay in project documents.

@@ -101,9 +101,12 @@ first external error in `cause` while translating to a stable inner error.
 
 ## Verification
 
-Apply root migrations and run Repository/QueryRepository/Unit-of-Work evidence
-against Testcontainers MySQL. Cover mapping, insert version `1`, guarded update
-and conflict, complete transaction participation, active-row filtering, driver
-runtime types, query order/cursors, and stable error translation. For a changed
-Domain-owned Port implementation, verify its Domain result and any accepted
-fulfillment policy at the adapter boundary.
+For changed MySQL persistence or query behavior, apply root migrations and use
+Testcontainers MySQL to cover the affected mapping, version/conflict,
+transaction, filtering, runtime-type, ordering/cursor, or error-translation
+behavior.
+
+For a changed outbound adapter, verify its Domain result, contract translation,
+and affected fulfillment policy at that provider boundary. An outbound-only
+change does not require MySQL evidence. Reuse unaffected evidence; Guard reviews
+available results without executing this verification.

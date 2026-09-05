@@ -121,4 +121,39 @@ old_section="$tmp/old-section.md"
 sed '/^## Bounded Contexts$/i## Global View\n' "$valid" >"$old_section"
 assert_invalid "$old_section" "expected exactly ## Bounded Contexts then ## Semantic Dependencies"
 
-echo "PASS ddd-expert Context Map validator"
+# Exercise the shipped template with the real validator, including a map with
+# no dependencies. Handwritten fixtures above cover malformed output and cycles.
+node - "$ROOT" "$tmp" <<'NODE'
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
+const [root, scratch] = process.argv.slice(2);
+for (const track of ['plugins', 'codex-plugins']) {
+  const plugin = path.join(root, track, 'ddd-expert');
+  const template = fs.readFileSync(path.join(plugin, 'templates/context-map.md'), 'utf8');
+  const contextRow = template.split('\n').find(line => line.includes('| <Context> |'));
+  const dependencyRow = template.split('\n').find(line => line.includes('| <Upstream> |'));
+  assert.ok(contextRow && dependencyRow, 'template needs replaceable example rows');
+  const context = (name, slug) => contextRow
+    .replace('<Context>', name)
+    .replace('<Business authority and purpose in one sentence>', name + ' owns its accepted decisions.')
+    .replace('<context-slug>', slug);
+  const dependency = dependencyRow.replace('<Upstream>', 'Catalog').replace('<Downstream>', 'Sales')
+    .replace('<Named meaning owned by upstream>', 'Book Availability Query')
+    .replace('<How downstream interprets or relies on it>', 'Sales requires a sellable answer before acceptance.');
+  const cases = [
+    ['isolated', context('Catalog', 'catalog'), '', '1 contexts, 0 dependencies'],
+    ['collaboration', [context('Catalog', 'catalog'), context('Sales', 'sales')].join('\n'), dependency, '2 contexts, 1 dependencies'],
+  ];
+  for (const [name, contexts, dependencies, expected] of cases) {
+    const file = path.join(scratch, track + '-' + name + '.md');
+    fs.writeFileSync(file, template.replace(contextRow, contexts).replace(dependencyRow, dependencies));
+    const result = spawnSync(process.execPath, [path.join(plugin, 'scripts/validate-context-map.mjs'), file], { encoding: 'utf8' });
+    assert.equal(result.status, 0, name + ': ' + result.stderr);
+    assert.ok(result.stdout.includes(expected), name + ': ' + result.stdout);
+  }
+}
+NODE
+
+echo "PASS ddd-expert Context Map validator and shipped template compatibility"

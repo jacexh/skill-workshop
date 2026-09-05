@@ -7,6 +7,8 @@ description: Use when a backend story, business scenario, specification, or exis
 
 Discover the smallest strategic model that explains the business. The user owns domain decisions; the facilitator supplies repository evidence, counterexamples, and a recommended answer for each design fork.
 
+Read the [workflow contract](../../references/workflow.md) for scope, existing authorization, and instruction conflicts.
+
 ```text
 business purpose
 -> causal discussion
@@ -24,13 +26,14 @@ Choose the shortest useful entry:
 - **discovery** builds a model from a story or scenario;
 - **thesis review** tests an existing proposed model at its weakest assumption;
 - **model challenge** revisits a strategic conclusion contradicted by later concrete evidence.
+- **recording** writes a complete already-confirmed strategic model using the artifact steps below.
 
 An explanation request remains an explanation request. A local change inside an accepted model does not require repository-wide discovery.
 
 ## Conversation contract
 
 - Inspect relevant Specs, PRDs, ADRs, glossary entries, current DDD artifacts, code, and tests first. If a fact is available there, look it up instead of asking the user.
-- Ask one question at a time and wait for the answer. Each question must be capable of changing the current strategic model.
+- Ask one material unresolved question at a time. Each question must be capable of changing the current strategic model.
 - For a business fact, explain what evidence is missing. For a design choice, give a recommended answer, its reason, and the strongest credible alternative.
 - Treat disagreement and examples as evidence. Revise the model when they defeat the current explanation.
 - Stop when Bounded Context and Aggregate Root conclusions are supported and another question would not change them.
@@ -84,7 +87,9 @@ Present one compact integrated proposal:
 - semantic dependencies and named contracts;
 - remaining non-blocking uncertainty.
 
-Write nothing while that proposal is still changing. When the user explicitly confirms the integrated strategic model, update only `context-map.md` and affected `model.md` files whose current meaning changed. Write those files directly; there is no meeting-minutes lifecycle or cross-file staging ceremony.
+Reuse an already-confirmed integrated proposal. Otherwise obtain its confirmation under the workflow contract before writing.
+
+Before writing, read the [artifact layout and write checks](../../templates/artifact-layout.md), [Context Map template](../../templates/context-map.md), and [Model template](../../templates/model.md). Update only accepted current meaning that changed. Validate each changed Context Map with the linked script and verify affected Model links before declaring the write complete.
 
 Then classify the next step:
 
@@ -94,7 +99,4 @@ Then classify the next step:
 
 ## Completion
 
-End with the current strategic result and the evidence supporting it. Ask the one
-decisive question when authority is missing, request explicit confirmation when
-the integrated proposal is still unconfirmed, name Tactical Design or Codify
-when it owns the next step, and report any blocker with current filesystem state.
+End with the strategic result, supporting evidence, changed artifacts, and write-check results. If a material decision remains, ask the decisive question with the current proposal. Continue to Tactical Design or Codify only when that work is in scope.
