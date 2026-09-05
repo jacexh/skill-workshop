@@ -45,7 +45,9 @@ than test-case design.
 
 ## Verification
 
-- `test_designing_tests_plugin.sh` enforces the hookless package, workflow
-  completion criteria, valid links, metadata alignment, and byte parity.
+- `test_designing_tests_plugin.sh` enforces the hookless package, discoverable
+  references, valid links, metadata alignment, and byte parity.
+- Workflow quality is evaluated through scoped behavioral trials rather than
+  fixed headings or a count of completion criteria.
 - The auto-release workflow runs the complete release test harness before
   versioning or tagging.

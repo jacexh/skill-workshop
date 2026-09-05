@@ -1,56 +1,35 @@
-# Evidence Hand-off Gate
+# Verification Hand-off
 
-Use this before claiming behavior is complete, fixed, reviewed, or ready for a
-user to take over. Report observed evidence, not planned evidence.
+Use for executed work or a request to summarize verification. Scale the record
+to the task; a short result is enough for one risk. Group commands that support
+the same claim instead of repeating a fixed template per case.
 
-## Required Record
+## Evidence Record
 
-For each material risk, report:
+Report the evidence that exists and the material gaps:
 
-- `tested`: exact command, result, and regression protected
-- `checked`: exact build, lint, typecheck, static validation, syntax check,
-  schema check, dry-run, or smoke command and result
-- `not covered/skipped`: unavailable dependency, skipped path, manual-only path,
-  or unrun suite and the impact it leaves
-- `residual risk`: what can still break despite the observed evidence
+- Tests or checks: command or procedure, observed result, and claim supported.
+- Unexecuted or skipped evidence: affected claim and remaining impact.
+- Residual risk: what remains unproven within the requested scope.
 
-Run verification after the final edit. A command from an earlier state is not
-evidence for the current hand-off.
+Distinguish your own executions from user-supplied or previously recorded
+results. Identify the tested revision or relevant state when available; disclose
+uncertain provenance. Planned commands and skipped tests are not passing results.
 
-Skipped tests, unavailable services, and commands that were only planned do not
-count as passing evidence.
+Use the main skill's verification rule to decide whether a prior result remains
+applicable. A design-only hand-off may report planned evidence; a static review
+may assess adequacy without executing it. Label both accurately.
 
-**Complete when:** every planned evidence item has a final outcome, exact command
-and protected risk, or is named as unexecuted with residual impact.
+**Complete when:** the reader can tell what was observed, what was assessed or
+planned, which claims it supports, and which material gaps remain. Optional
+sections with no information can be omitted.
 
-## Final Answer Template
+## Architecture Evidence
 
-```text
-Verification evidence:
-- tested: <command and result> protects <risk>
-- checked: <command and result> protects <risk>
-- not covered/skipped: <reason> leaves <risk>
-- residual risk: <specific remaining gap>
-```
+For architecture work, attach evidence to in-scope claims rather than marking
+an entire design as proven. Distinguish measured behavior, static checks,
+assumptions, and unverified claims. Thresholds or recovery policies that have not
+been specified remain assumptions or open questions, not passing evidence.
 
-## Architecture Hand-off
-
-When validating an architecture plan, ADR, message flow, or sequence diagram,
-report claims separately:
-
-```text
-Architecture evidence:
-- proven: <claim> via <test or observed runtime evidence>
-- checked: <claim> via <static validation, dry-run, or smoke>
-- assumed: <claim> because <threshold or policy was not specified>
-- unproven: <claim> needs <load, contract, environment, or recovery evidence>
-
-Goal coverage:
-- <goal>: <evidence or none> / <residual risk>
-
-Skipped/unavailable:
-- <evidence or environment> -> <architecture risk left open>
-```
-
-**Complete when:** every architecture goal is proven, checked, assumed, or
-unproven; assumptions and unavailable evidence are never reported as passing.
+Reuse the design's claim-to-case mapping if present; add actual outcomes to it
+instead of producing another inventory.

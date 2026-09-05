@@ -1,187 +1,178 @@
 ---
 name: designing-tests
-description: Design verification evidence and high-signal tests. Use when writing or adding tests, reviewing test quality or coverage, choosing between tests and checks, dry-runs, smokes, or manual validation, deriving regression cases from architecture or sequence documents, or preparing verification hand-off evidence.
+description: Design regression test cases and choose reliable verification evidence. Use when designing or implementing tests, reviewing test coverage or quality, deriving cases from requirements or architecture, choosing verification methods, or reporting verification evidence.
 ---
 
 # Designing Tests
 
-Choose the cheapest reliable evidence for an observable regression. Use tests
-when they are the narrowest evidence that can fail for the same reason as
-production.
+Derive cases from behavior, then choose the cheapest evidence that can detect
+the target regression. A useful suite explains both what each case catches and
+why the selected cases protect the requested behavior.
 
-## Route
+## Route and Scope
 
-Choose the task path before doing the work:
+Infer the task from the request and existing authorization:
 
-- **Design or write tests:** run the full workflow.
-- **Review existing tests:** map each material claim through the workflow,
-  classify its proof, and report false confidence or missing evidence.
-- **Choose verification evidence:** run Intent, Risk, and Evidence; run Test
-  Construction only when `test` is selected.
-- **Architecture or sequence input:** first read
-  [references/architecture-test-design.md](references/architecture-test-design.md),
-  then feed its claims into Intent, Risk, and Evidence.
-- **Hand-off only:** read
-  [references/handoff-gate.md](references/handoff-gate.md) and report observed
-  evidence rather than planned evidence.
+- **Design:** deliver cases, expected outcomes, boundaries, and coverage gaps.
+  Execution is not a prerequisite for a completed design.
+- **Implement:** design or reuse cases, implement them, and run relevant checks.
+- **Review:** assess existing evidence against the requested claims; report
+  missing protection. A static review can finish from supplied artifacts.
+- **Choose evidence:** use Intent, Risk, and Evidence. Derive cases only when
+  tests are selected or needed to decide the boundary.
+- **Hand-off only:** summarize existing results using
+  [references/handoff-gate.md](references/handoff-gate.md).
 
-**Complete when:** the primary path is named and only its conditional references
-are loaded.
+Keep coverage obligations within the requested behavior and its affected
+contracts. User instructions take precedence over this skill's default workflow;
+a design, review, or evidence gap does not authorize implementation or new
+infrastructure. Continue independent work when an ambiguity affects only part of
+the task; ask only when the missing answer changes the required behavior or scope.
 
-## Workflow
+Architecture and sequence documents are inputs to any mode. When deriving claims
+from them, read [references/architecture-test-design.md](references/architecture-test-design.md).
 
-### 1. Intent
+## 1. Intent and Risk
 
-Identify the authority for each target behavior:
+Identify the target behavior and its authority: acceptance criteria, contract,
+issue, bug report, or design decision. If formal authority is absent, infer the
+public contract from callers and mark the inference as an assumption. Keep
+unknown behavior explicit rather than inventing expected outcomes.
 
-- Prefer a product spec, API contract, acceptance criterion, issue, bug report,
-  ADR, architecture document, message flow, or sequence diagram.
-- When formal authority is absent, infer intent from the public contract and
-  callers, and mark it as an `assumption`.
-- Surface unresolved high-risk ambiguity instead of silently choosing behavior.
+State the regression as: `If <behavior breaks>, <observable failure> occurs.`
+Prioritize by consequence and plausible exposure. Security, persistence, external
+contracts, and async work warrant attention where the change can affect them;
+their presence alone does not require a broader audit.
 
-**Complete when:** every target behavior has an authority or explicit
-assumption, and every unresolved high-risk ambiguity is named.
+**Complete when:** each in-scope claim has an authority or assumption and a
+failure consequence, or a reason it owns no independent risk.
 
-### 2. Risk
+## 2. Evidence
 
-State each observable regression:
+Inspect available production paths and existing tests enough to identify where
+the failure can occur and what is already protected. For design from documents,
+mark proposed boundaries that still need implementation discovery.
 
-`If <behavior breaks>, users or the system observe <failure>.`
+Choose the least costly sufficient evidence for each risk:
 
-Treat security and tenancy, persistence and migrations, external contracts,
-async state, deployment translation, and production-incident regressions as
-high-risk surfaces.
-
-A surface with no independently observable failure does not need its own test;
-record cheaper evidence when appropriate.
-
-**Complete when:** every target behavior has an observable regression, or is
-excluded with a reason that it owns no independent risk.
-
-### 3. Evidence
-
-Choose the lowest-cost reliable evidence:
-
-- `test`: unit, integration, API, seam, contract, component, or E2E
+- `test`: repeatable behavior or contract verification
 - `check`: build, typecheck, lint, syntax, static, or schema validation
-- `dry-run`: deployment, configuration, or script dry-run
-- `smoke`: narrow runtime exercise of a critical path
-- `manual`: explicit manual verification
+- `dry-run`: configuration, deployment, or script preview
+- `smoke`: narrow runtime exercise
+- `manual`: an explicit human verification procedure
 - `residual`: intentionally unverified or partially verified risk
 
-When selecting `test`, state why lighter evidence would miss the regression.
-When selecting lighter evidence for a high-risk surface, state why it is
-sufficient and what remains unproven.
+Explain why the chosen evidence detects the regression; for a test, identify
+what lighter evidence would miss. Reuse sufficient existing evidence.
 
-**Complete when:** every risk has one evidence choice or explicit residual risk,
-and every selected test has a reason lighter evidence is insufficient.
+**Complete when:** each risk has selected evidence or an explicit gap. A behavior
+with no test requirement can finish with lighter evidence.
 
-### 4. Test Construction
+## 3. Derive Cases
 
-Run this section only for selected or reviewed tests.
+For selected or reviewed tests, turn each rule into preconditions, an action,
+and observable expectations. Start with a representative allowed outcome and
+identify distinct rejection, boundary, or historical conditions that change it.
+Choose applicable derivation methods rather than a fixed quota of case types.
 
-#### Discover
+For input partitions, interacting rules, state histories, concurrency, or partial
+failure, read [references/case-design.md](references/case-design.md). Apply only
+the sections relevant to the behavior; simple contracts can use a single case.
 
-Inspect the production call path, nearest relevant tests, test runner and
-configuration, and existing fixtures or helpers. Run the focused baseline when
-the environment permits.
+A case should expose its input or prior state, action or event sequence, expected
+outcome, and the rule or regression it protects. Carry unknown policies as gaps;
+use conditional cases when their answer changes the expected outcome.
 
-**Complete when:** the production path under risk and the existing evidence
-around it are known, and baseline status is recorded or its absence explained.
+**Complete when:** candidates account for the relevant rule outcomes and their
+material interactions, with missing policy separated from missing coverage.
 
-#### Oracle
+## 4. Make Each Case Discriminating
 
-Derive the expected outcome from an authority independent of the implementation:
-an exact contract example, business invariant, before/after relation,
-independent calculation, or metamorphic property.
+### Oracle
 
-**Complete when:** every expected outcome is traceable to intent and
-distinguishes correct behavior from the named regression without copying the
-production algorithm.
+Derive expectations independently of the production algorithm: contract examples,
+business invariants, independent calculations, or justified metamorphic relations.
+Choose concrete values or properties that distinguish the named wrong outcome.
+A weak property such as “result is nonnegative” does not prove an exact amount.
 
-#### Seam
+Check the assertion dimensions the contract needs: returned result, required
+state changes, forbidden side effects, and consistency across related state.
+For example, an idempotent response may need both the original ID and evidence
+that no extra record or message was created.
 
-Choose the lowest boundary that can fail the way production fails:
+### Seam
 
-- pure function or reducer for rules and transitions
-- handler, API, or component for mapping and visible behavior
-- integration for cooperating production components
-- seam or contract for serialization, schema, route, topic, or client drift
-- E2E for a critical journey that lower boundaries cannot prove
+Use the narrowest boundary that includes the component carrying the claimed
+risk: function for local rules, handler or component for mapping and interaction,
+integration for cooperating components, contract for agreement across a seam,
+and E2E for a journey lower boundaries cannot prove.
 
-Keep the collaborator carrying the claimed risk inside the tested boundary.
-For integration, API, contract, seam, or E2E work, read
+Keep the risk carrier real; doubles may control other collaborators. For
+integration, API, contract, seam, or E2E cases, read
 [references/integration-quality.md](references/integration-quality.md).
 
-**Complete when:** the boundary is justified by the production failure mode and
-no test double replaces the collaborator carrying the claim.
+### Control
 
-#### Control
+Specify the clocks, inputs, schedules, and isolated resources needed to reproduce
+the case. For async work, synchronize on observable conditions within a bounded
+timeout. Preserve the failure mechanism while controlling nondeterminism, and
+clean up owned resources even after failure.
 
-Make the test repeatable while preserving the risky behavior:
+### Proof
 
-- Control clocks, randomness, identifiers, schedulers, and environment inputs.
-- Isolate data and resources from execution order, shared state, and developer
-  state.
-- Synchronize async completion on an observable condition under a bounded
-  timeout.
-- Seed or pin variable inputs and clean up owned state even after failure.
+Name a plausible defect that would fail each critical assertion. Assess proof
+relative to the stated claim:
 
-**Complete when:** every material nondeterministic input is controlled or named
-as residual risk, and resource isolation is explicit.
+- `real`: exercises the risk carrier with assertions that detect the regression
+- `shallow`: exercises relevant code but leaves a material part of the claim
+  unchecked; name the escaping defect
+- `fake`: asserts a substitute, copied algorithm, or fixture instead of the
+  claimed production behavior
 
-#### Proof
+A status, schema, or empty-body assertion can be sufficient when that is the
+contract. A passing test with a narrow claim does not prove a broader workflow.
+Keep this assessment separate from whether the case has actually been executed.
 
-Assert observable behavior, contract-visible state, durable state, messages, or
-meaningful side effects. Select the smallest cases that protect distinct risks;
-use boundary values, equivalence partitions, decision tables, state transitions,
-or pairwise sampling only when they expose a different failure.
+**Complete when:** each retained case has an independent oracle, a sufficient
+boundary, reproducible conditions, and discriminating assertions, or a named gap.
 
-Classify reviewed or selected tests:
+## 5. Select the Suite
 
-- `real`: reaches the risk carrier and fails when the target regression returns
-- `shallow`: proves shape, status, smoke behavior, or a heavily mocked path
-- `fake`: proves a double, copied logic, type, fixture, or constant rather than
-  production behavior
+Map in-scope rules, important interactions, transitions, and recovery obligations
+to cases or existing evidence. Use a small table only when it makes gaps clearer.
+For each candidate ask: “If removed, what protection is lost?” Merge cases with
+identical protection; preserve distinct boundaries or histories that catch
+different defects. One case can protect several obligations, and one obligation
+may need several cases. Coverage percentages alone do not establish sufficiency.
 
-For each critical assertion, name the defect or perturbation that would make it
-fail. For a bug fix, observe red-before-fix when practical. Duplicate a case
-across layers only when each layer catches a different failure mode.
+Prioritize high-consequence failures and known regressions. Under a time or
+environment limit, distinguish essential cases from deferred protection and name
+the remaining impact. Do not claim minimality merely from a small case count.
 
-**Complete when:** every critical risk has at least one `real` proof at the
-narrowest sufficient boundary, or an explicit evidence gap; implemented tests
-have an observed result.
+**Complete when:** each material obligation has a detecting case or explicit gap,
+and retained cases add distinct protection or have a stated reason to overlap.
 
-### 5. Hand-off
+## 6. Implement and Verify When Requested
 
-Report:
+For implementation, inspect the runner, relevant tests, and fixtures; run the
+focused baseline when available. Add cases through the chosen production boundary.
+For bug fixes, observe red-before-fix when practical; otherwise state the limit
+of the evidence. Execute the affected tests and required repository checks.
 
-- `tested`: command and risk protected
-- `checked`: command and risk protected
-- `not covered/skipped`: unavailable or unrun evidence and its impact
-- `residual risk`: what can still break
+After relevant code, configuration, or dependency changes invalidate a result,
+rerun affected verification. Once it passes, expand or repeat only for a new
+change, failure, or unresolved concern. Record unavailable evidence as a gap.
 
-Use [references/handoff-gate.md](references/handoff-gate.md) for the complete
-record.
+**Complete when:** implemented cases have observed results or named execution
+gaps, and the requested behavior is supported to the extent reported.
 
-**Complete when:** commands and outcomes reflect the final state, planned
-evidence is not presented as executed evidence, and every uncovered risk is
-visible.
+## Delivery
 
-## Evidence Plan
+Match the output to the task. A small design can be a few cases; a larger design
+can use `Claim | Given / When | Then | Boundary | Coverage gap`. Include controls
+or priorities where they affect implementation. Review findings should name the
+unprotected behavior and the smallest useful correction.
 
-Use one compact entry per distinct risk:
-
-```text
-Evidence Plan: <change or component>
-Intent: <authority or assumption>
-Risk: <breakage> -> <observable failure>
-Evidence: <test/check/dry-run/smoke/manual/residual> because <reason>
-
-Test construction, if selected:
-- <scenario>: Oracle <expected authority>; Seam <boundary>; Control <inputs>;
-  Proof <observable assertion and target regression>
-
-Residual: <unproven risk and impact>
-```
+For executed work or a verification hand-off, use
+[references/handoff-gate.md](references/handoff-gate.md). Label a design as planned
+and a static review as assessed; neither needs runtime evidence to be complete.
