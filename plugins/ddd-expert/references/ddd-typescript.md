@@ -48,8 +48,9 @@ source, generated output, and ordered SQL respectively.
 | State machine | XState 5 `setup()` | An FSM exists |
 | Telemetry | OpenTelemetry JS 2 and OTLP | Telemetry exists |
 
-Use the supported version line pinned by the repository. A stack change is a
-project technology decision.
+Accepted project decisions and repository pins take precedence over these
+defaults. Apply the workflow contract's project-convention rule before adopting
+a dependency or changing structure.
 
 ## Reference Map
 
@@ -101,5 +102,7 @@ technical dependencies and starts active loops.
 - Decode and narrow `unknown` at boundaries; keep `any`, non-null assertions,
   and unchecked casts out of hand-written production code.
 - Generated output is read-only and reproduced from contract source.
-- Run locked install, `tsc --noEmit`, typed ESLint, Prettier check, build, and
-  applicable Vitest suites.
+- For implementation changes, use configured typecheck, lint, format, build,
+  and affected test commands as required by the change. Run a locked install
+  only when dependencies changed or setup is needed. Guard reads existing
+  evidence.

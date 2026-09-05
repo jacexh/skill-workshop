@@ -108,9 +108,12 @@ owns credentials, pooling, client lifecycle, and policy configuration.
 
 ## Verification
 
-Apply root migrations to real MySQL. Verify conversion, insert version `1`,
-guarded update/conflict, transaction participation, active-row filtering,
-query ordering/cursor behavior, provider runtime types, and stable error
-translation. For a changed Domain-owned Port implementation, verify its Domain
-result and any accepted fulfillment policy at the adapter boundary. Use
-Testcontainers when physical provider behavior is part of the change.
+For changed MySQL persistence or query behavior, apply root migrations to real
+MySQL and cover the affected conversion, version/conflict, transaction,
+filtering, ordering/cursor, runtime-type, or error-translation behavior. Use
+Testcontainers when physical provider semantics carry the risk.
+
+For a changed outbound adapter, verify its Domain result, contract translation,
+and affected fulfillment policy at that provider boundary. An outbound-only
+change does not require MySQL evidence. Reuse unaffected evidence; Guard reviews
+available results without executing this verification.

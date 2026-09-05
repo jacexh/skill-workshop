@@ -73,9 +73,9 @@ cross-language object/layer realization and
 [`ddd-collaboration.md`](ddd-collaboration.md) only for an accepted published
 API, Domain Event, or Integration Message.
 
-## Mandatory Adopted Stack
+## Adopted Stack Defaults
 
-| Concern | Mandatory implementation | Applicability |
+| Concern | Default implementation | Applicability |
 |---|---|---|
 | Dependency injection and lifecycle | `go.uber.org/fx` | Go service Runtime |
 | RPC | `connectrpc.com/connect` | RPC API exists |
@@ -98,8 +98,10 @@ API, Domain Event, or Integration Message.
 | Configuration | `github.com/go-jimu/components/config/loader` | Go service Runtime |
 | Distributed tracing | OpenTelemetry Go, OTLP, `connectrpc.com/otelconnect` | Tracing is accepted and a backend/collector is available |
 
-The table is the implementation default for covered concerns. Changing a stack
-entry is a project technology decision rather than a per-use-case choice.
+The table supplies defaults for covered concerns left open by accepted project
+decisions. Apply the workflow contract's project-convention rule before adopting
+a dependency or reorganizing existing code. A language choice alone is not a
+stack migration.
 
 ## Cross-cutting House Rules
 

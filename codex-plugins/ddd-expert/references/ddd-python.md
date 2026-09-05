@@ -51,8 +51,9 @@ uses synchronous `Session`, and Kafka/Celery run in dedicated worker processes.
 | Tracing | OpenTelemetry Python SDK and OTLP | Tracing exists |
 | Provider evidence | Testcontainers for the adopted dependency | Physical provider semantics change |
 
-Use the supported version line pinned by the repository. A change to this table
-is a project technology decision, not a per-use-case implementation choice.
+Accepted project decisions and repository pins take precedence over these
+defaults. Apply the workflow contract's project-convention rule before adopting
+a dependency or changing structure.
 
 ## Reference Map
 
@@ -104,5 +105,7 @@ contain Application and Transport without a Domain or Infrastructure layer.
   frozen slotted dataclasses.
 - Inner semantic contracts use `typing.Protocol`.
 - Imports are side-effect free; Runtime starts resources and active loops.
-- Run `uv lock --check`, locked sync, `ruff check`, `ruff format --check`, mypy
-  strict, and the applicable pytest suites.
+- For implementation changes, use the repository's configured equivalents of
+  `ruff check`, `ruff format --check`, mypy, and affected pytest suites. Check
+  the lockfile and sync dependencies only when dependencies changed or setup is
+  needed to run those checks. Guard reads existing evidence.

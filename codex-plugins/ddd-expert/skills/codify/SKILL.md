@@ -7,6 +7,8 @@ description: Use when accepted strategic and domain-object design must be realiz
 
 Faithfully realize the accepted Domain model as working backend code. Complete the requested behavior using the repository's project and active-language House Style.
 
+Read the [workflow contract](../../references/workflow.md) for scope, existing authorization, project conventions, and verification.
+
 ## Contract
 
 Read the user's current scope, affected `model.md` and `domain-objects.md`, relevant project decisions and instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.

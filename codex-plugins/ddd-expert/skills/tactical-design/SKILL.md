@@ -1,11 +1,13 @@
 ---
 name: tactical-design
-description: Use when a confirmed strategic model still needs a relentless, user-confirmed design of Aggregate internals, domain-object Facts, Lifecycle State, how objects operate, behavior, Domain-owned Ports, or actual Domain Events.
+description: Use when accepted Aggregate Roots and business rules need tactical design of object ownership, behavior, or external-authority boundaries.
 ---
 
 # Tactical Design
 
 Turn confirmed Aggregate Roots and Business Rules into a sparse current domain-object design. The conversation is a relentless comparison of responsibility candidates, not an entity inventory. The user decides; the facilitator investigates facts, recommends answers, and attacks weak object boundaries.
+
+Read the [workflow contract](../../references/workflow.md) for scope, existing authorization, and instruction conflicts.
 
 ```text
 confirmed Aggregate Root and Business Rules
@@ -19,14 +21,14 @@ confirmed Aggregate Root and Business Rules
 
 ## Entry boundary
 
-Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, and Business Rules as business authority. Confirm which Aggregate Root is first and what implementation need makes its internals material.
+Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, and Business Rules as business authority. Start with the Root and affected slice identified by the request; ask only when that choice is materially ambiguous.
 
 If tactical refinement exposes a needed correction to business meaning, a Bounded Context boundary, Aggregate Root identity, or a strategic Business Rule, resolve it with the user in the current conversation and carry the accepted change into the Root-level artifact review. Do not force a workflow switch or leave the tactical model built on a known contradiction.
 
 ## Relentless interview contract
 
 - If a fact can be found in the repository, look it up instead of asking the user.
-- Ask one question at a time, wait for the answer, and resolve its dependent branch before moving sideways.
+- Ask one material unresolved question at a time and resolve its dependent branch before moving sideways.
 - Every decision question includes a recommended answer, concise reasoning, and the strongest credible alternative or deletion case.
 - Challenge both user proposals and agent proposals. An existing class or table proves current implementation, not the correct object boundary.
 - Stop asking when another answer would not change this Aggregate Root's business pressures, responsibility ownership, object composition, or descriptions.
@@ -80,21 +82,11 @@ For each candidate Behavior, surface every piece of externally owned Domain data
 - **Supplied Fact** — the caller supplies a Domain Fact or Value Object while preserving the Behavior's decision ownership, timing, and authority.
 - **Domain-owned Port** — the Behavior owns invocation timing, Domain input, and result use; it invokes a sparse Method on a narrow Domain-language data contract whose implementation outer composition supplies.
 
-Record each Domain-owned Port under its direct Behavior owner and group its sparse Methods:
-
-```text
-**Domain-owned Ports:**
-- <Domain role>Port
-  - <Method> — <Behavior> invokes it at <business decision point> to obtain <Domain result>.
-```
-
-The contract name expresses its Domain role and ends in `Port`. Keep the entry
-at Domain resolution; exact signatures, source topology, and technical
-fulfillment policy remain realization choices.
+For a Domain-owned Port, establish its direct Behavior owner, Domain-role name ending in `Port`, and sparse Methods with their business decision point and Domain result. Exact signatures, source topology, and technical fulfillment policy remain realization choices.
 
 If concern about obtaining external data or handling its technical failure starts shaping a candidate Root or Entity, surface the hidden Domain-owned Port and continue the object design from its fulfilled Domain result.
 
-For each candidate Behavior, follow any resulting fact that requires or enables a later Domain intent and establish whether the producing Behavior succeeds independently of that intent. Select an actual Domain Event only when the accepted model needs a named local reaction to the occurrence or needs the occurrence itself, rather than merely the resulting state, as Domain evidence. Record the event and its accepted local reactions with the [domain-object template](../../templates/domain-objects.md); the entry contains no selection reason. Analytical Workshop Events never appear in `domain-objects.md`.
+For each candidate Behavior, follow any resulting fact that requires or enables a later Domain intent and establish whether the producing Behavior succeeds independently of that intent. Select an actual Domain Event only when the accepted model needs a named local reaction to the occurrence or needs the occurrence itself, rather than merely the resulting state, as Domain evidence. Establish its recording Behavior and accepted local reactions. Analytical Workshop Events remain conversational evidence.
 
 ## Compare object compositions
 
@@ -110,25 +102,15 @@ Carry a realization concern into the design only when a confirmed Business Rule 
 
 ## Complete the Root slice
 
-For the accepted candidate, determine only:
-
-1. which Domain Entities belong inside the Root's consistency boundary;
-2. each retained object's business definition;
-3. each retained object's Facts;
-4. each retained object's Lifecycle State, or that it has no explicit Lifecycle State;
-5. each retained object's behavior, including any Lifecycle State transition it makes;
-6. any Domain-owned Ports and sparse Methods directly invoked by a named behavior;
-7. actual Domain Events recorded by a named behavior.
-
-Identity is written in the object heading when meaningful. Facts are the business-significant facts owned by the object and required to understand a Behavior or Invariant; they are neither a field inventory nor Domain Events. Lifecycle State records the object's named state-machine states and their Domain meaning. When the Domain has no distinct lifecycle term, qualify the generic `State` with its owner as `<Object>.State` instead of inventing a concatenated type-style name. Definition includes an essential operating characteristic only when it changes what the object represents; do not add a separate mechanism section. Behavior records the accepted Domain actions and any Lifecycle State transition. Domain Events are listed separately and point to the behavior that records them; a Lifecycle State transition alone does not require an event. Name material Value Objects and references where their meaning affects Facts, behavior, or a Domain-owned Port Method, but do not inventory other fields or methods. Do not add separate responsibility, collaboration, caller, or impact sections.
+Before presenting any Entity or Root description, read the [domain-object template](../../templates/domain-objects.md), including its field definitions. Use it for every object, whether or not it has Ports or Events. Record only the accepted objects and fields that carry this slice's business meaning.
 
 ## Entity and Root confirmation
 
-When one retained Entity's definition, Facts, Lifecycle State, behavior, any Domain-owned Ports, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. After the user confirms it, update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
+When one retained Entity's definition, Facts, Lifecycle State, behavior, any Domain-owned Ports, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. Use existing confirmation when it covers the proposed description; otherwise obtain confirmation under the workflow contract. Then update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
 
-When the Root's composition is complete, show its integrated compact slice. Before asking for confirmation, verify that every pressure is traceable and assigned, every external-authority need has a Capability Probe classification, every Domain-owned Port Method names its Port-suffixed contract, invoking Behavior, business decision point, and Domain result, every retained object's material Facts and Lifecycle State are recorded, every material Subject, Object, and Lifecycle State transition is resolved, every actual Domain Event points to the behavior that records it, every accepted local reaction names its Event Handler and Domain intent, every retained or changed object has a reason to exist, the strongest credible alternative was compared under the same pressures, and no remaining answer would change composition or ownership.
+When the Root's composition is complete, show its integrated compact slice. Before confirmation, verify that every pressure is traceable and assigned; every external-authority need has a Capability Probe classification; every material behavior owner, target, and Lifecycle State transition is resolved; every retained or changed object has a reason to exist; and the strongest credible alternative was compared under the same pressures. Check every description against the template, including Port Methods, recording Behaviors, and accepted local reactions. Complete when no material decision remains that would change composition or ownership.
 
-After the user confirms that Root, write or replace its complete section while preserving other accepted descriptions. At that Root confirmation, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Then continue with the next affected Root. `domain-objects.md` contains only current accepted object descriptions grouped by Root. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
+Use the workflow contract's confirmation rule for the integrated Root. Before any Entity or Root write, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write or replace accepted descriptions while preserving unrelated content. At that Root confirmation, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Run the write checks for changed artifacts, then continue with the next affected Root within the requested scope. `domain-objects.md` contains only current accepted object descriptions grouped by Root. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
 
 ## Completion
 
