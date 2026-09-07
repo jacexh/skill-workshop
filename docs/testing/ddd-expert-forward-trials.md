@@ -89,7 +89,7 @@ these recording trials do not evaluate interview quality.
 
 ### Recheck after restoring core methods inline
 
-The final layout keeps both core methods in their `SKILL.md` files and removes
+The layout tested at `f6d4061` keeps both core methods in their `SKILL.md` files and removes
 the two interview reference files. The observations above at `1919c7d` remain
 historical evidence for that layout, including its reference-loading behavior.
 
@@ -106,3 +106,17 @@ All 12 release checks and both tracks' four changed skill frontmatters passed.
 A one-time comparison confirmed that the extracted discovery and tactical method
 bodies are preserved inline. These trials confirm the exercised recording and
 continuation paths, not full interview quality or a performance improvement.
+
+### Conservative final scope
+
+The original Tactical Design introduction and seven-line workflow overview were
+restored verbatim, as were both skills' original discovery descriptions. The
+remaining design-skill changes clarify recording already-confirmed descriptions
+and completion within authorized scope. The existing interview methods and
+confirmation sequence remain in place.
+
+Static comparison verified the workflow overview and both original core method
+bodies against the pre-PR files. The 12-script release suite, four changed skill
+frontmatters, and diff checks passed. The `f6d4061` recording trials above were
+not rerun after this restoration; they are evidence for that tested revision,
+not proof of final-layout interview quality or automatic skill selection.

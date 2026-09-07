@@ -1,15 +1,23 @@
 ---
 name: tactical-design
-description: Refine accepted Aggregate Roots into object ownership and behavior, or record already-confirmed domain-object descriptions.
+description: Use when accepted Aggregate Roots and business rules need tactical design of object ownership, behavior, or external-authority boundaries.
 ---
 
 # Tactical Design
 
-Refine or record a sparse current domain-object design from confirmed Aggregate
-Roots and Business Rules. The user owns Domain decisions; reuse accepted
-descriptions and apply the interview method when decisions remain.
+Turn confirmed Aggregate Roots and Business Rules into a sparse current domain-object design. The conversation is a relentless comparison of responsibility candidates, not an entity inventory. The user decides; the facilitator investigates facts, recommends answers, and attacks weak object boundaries.
 
 Read the [workflow contract](../../references/workflow.md) for scope, existing authorization, and instruction conflicts.
+
+```text
+confirmed Aggregate Root and Business Rules
+-> essential business pressures
+-> behavior probes and candidate concepts
+-> alternative object compositions
+-> confirmed Entity descriptions as they close
+-> integrated Root confirmation and current artifacts
+-> next Root
+```
 
 ## Entry boundary
 

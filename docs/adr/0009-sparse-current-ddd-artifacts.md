@@ -98,7 +98,8 @@ Guard independently and read-only reviews the implementation against the current
 The skill entries keep their core discussion methods alongside shared authority,
 confirmation, artifact writes, and completion. EventStorming owns its complete
 ten-step method in `SKILL.md`; Tactical Design owns its pressure-led interview,
-Capability Probe, and composition comparison there. A recording branch skips
+workflow overview, Capability Probe, and composition comparison there.
+A recording branch skips
 reopening these decisions and proceeds directly to templates and write checks.
 New or contradictory business meaning still needs resolution.
 Entity and integrated Root confirmation remain unchanged; existing confirmation

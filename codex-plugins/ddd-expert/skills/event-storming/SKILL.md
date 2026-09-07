@@ -1,6 +1,6 @@
 ---
 name: event-storming
-description: Discover or challenge backend Bounded Contexts and Aggregate Roots, or record an already-confirmed strategic model.
+description: Use when a backend story, business scenario, specification, or existing domain model needs collaborative strategic discovery of Bounded Contexts and Aggregate Roots.
 ---
 
 # Event Storming
