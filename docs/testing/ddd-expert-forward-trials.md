@@ -57,3 +57,31 @@ code example, real external providers, or performance improvements. The adapter
 trial's fixture tests demonstrate that execution path only; they are not an
 additional plugin CI suite. Repeat relevant trials after changes to routing,
 confirmation, project precedence, or verification instructions.
+
+## Observed on 2026-09-07: focused guidance
+
+Three fresh evaluator contexts used isolated temporary projects and the changed
+Codex skill entries. They received only the user request, entry path, and raw
+fixture; this document and expected outcomes were excluded from their input.
+The coordinator inspected the produced files and independently reran the fixture
+checks. No trial touched a live provider or the plugin source.
+
+| Trial | Request and fixture | Observed outcome |
+|---|---|---|
+| Confirmed strategy recording | Empty project and the confirmed Catalog/Book, Sales/Order model above; record strategy only | Exactly Context Map and two Models. Validator: `valid Context Map: 2 contexts, 1 dependencies`; both Model links resolve. No renewed confirmation or tactical artifacts. Evaluator reported reading the workflow and templates without the discovery reference. |
+| Confirmed Root through implementation | Existing flat Python/unittest project; confirmed DisplayProfile with plain-string DisplayName, no children/state/Ports/Events, Rename trimming and rejecting blank names while preserving prior state; record and implement | Recorded the Root, entered Codify without another approval turn, and implemented the owning method. Existing tests changed from three `NotImplementedError` failures to three passes covering trim, identity, rejection, and sequential mutation. Evaluator reported no interview reference load. |
+| Fx provider registration | Existing Go/Fx root package with cached dependencies, GreetingPort provider and Application consumer; fix the incomplete graph | Added only `NewGreetingPort` to `fx.Provide`. Two existing tests changed from missing-dependency failures to passes, proving `fx.ValidateApp` and the resolved application's behavior. Evaluator reported loading Runtime without Server, Persistence, Transactions, or Scaffold. |
+
+Coordinator verification used the shipped Context Map validator,
+`python3 -m unittest discover -s tests -v`, and
+`GOPROXY=off GOSUMDB=off go test -count=1 ./...`. All passed. The existing release
+suite passed all 12 scripts; all eight skill frontmatters passed validation.
+The ordinary persistence guide's three Go snippets passed `gofmt` syntax parsing.
+
+These samples support the recording, authorized continuation, and focused Fx
+paths. They do not establish cross-model reliability, lower model token use or
+latency, MySQL transaction correctness, or executable completeness of the Go
+reference examples. SQL verification selection and ordinary/multi-Root example
+routing were inspected statically, not exercised against a database. The full
+discovery and tactical interview methods were preserved during extraction;
+these recording trials do not evaluate interview quality.

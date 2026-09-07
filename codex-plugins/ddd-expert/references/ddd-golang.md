@@ -38,40 +38,32 @@ Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xor
 
 ## Reference Map
 
-### Layer Guides
+Load each guide only for the code surface it covers. A cross-layer change needs
+all affected guides; a conditional mechanism needs its guide only when accepted.
 
-| Responsibility | Load |
+| Touched code surface | Load |
 |---|---|
-| Aggregate, Entity, Value Object, Domain Service, Repository or Domain-owned Port contract | [`ddd-golang-domain.md`](ddd-golang-domain.md) |
-| Command, Query, Application service, `application.go`, assembler, transaction coordination | [`ddd-golang-application.md`](ddd-golang-application.md) |
-| ConnectRPC, Chi HTTP, message subscriber, task processor, error mapping | [`ddd-golang-transport.md`](ddd-golang-transport.md) |
-| xorm persistence, DO/convert, QueryRepository adapter, Domain-owned Port implementation, ACL/external adapter | [`ddd-golang-infrastructure.md`](ddd-golang-infrastructure.md) |
+| Aggregate, Entity, Value Object, Domain Service, lifecycle, Repository or Domain-owned Port contract | [Domain](ddd-golang-domain.md) |
+| Command, Query, use-case coordination, Application registry or assembler | [Application](ddd-golang-application.md); [CQRS](ddd-golang-cqrs.md) for read-model separation |
+| RPC/HTTP endpoint, message subscriber, task processor, public error mapping | [Transport](ddd-golang-transport.md) plus the affected event/message/task flow below |
+| Domain-owned Port implementation or outbound ACL | [Infrastructure](ddd-golang-infrastructure.md); Domain for contract changes and Runtime for composition changes |
+| xorm Repository, Data Object, persistence conversion | [Infrastructure](ddd-golang-infrastructure.md), [Persistence](ddd-golang-persistence.md), and affected [Database](database.md) rules |
+| QueryRepository, projections, focused Aggregate reads | [CQRS](ddd-golang-cqrs.md); Infrastructure and Database for SQL/read mapping changes |
+| Resident Aggregate snapshots or checkpoints | Domain, Application, Persistence, and Runtime as actually affected |
+| Confirmed same-BC, one-resource multi-Root atomic change | [Transactions](ddd-golang-transactions.md) plus every affected layer; Database for persistence and Runtime for composition |
+| Local Domain Event or same-context reaction | [Events](ddd-golang-events.md) plus every affected layer |
+| Published fact or asynchronous intent | [Messages](ddd-golang-messages.md) plus every affected layer; [Kafka](ddd-golang-kafka.md) only for that provider |
+| Internal task, processor, polling, or periodic work | [Task Queue](ddd-golang-taskqueue.md) plus every affected layer; [Asynq](ddd-golang-asynq.md) only for that provider |
+| Accepted components/fsm lifecycle | Domain and [FSM](ddd-golang-fsm.md) |
+| Multi-BC layout, package/module structure, generated contracts, test placement | [Scaffold](ddd-golang-scaffold.md) |
+| Fx wiring, configuration, logging, active loops, startup or shutdown | [Runtime](ddd-golang-runtime.md); Scaffold when package/module structure changes |
+| Shared ConnectRPC/Chi listener or server lifecycle | Runtime and [Server](ddd-golang-server.md) |
+| Accepted OpenTelemetry | [Observability](ddd-golang-observability.md) plus affected Transport/provider guides |
+| MySQL schema, SQL, indexes, locking, or migrations | Affected [Database](database.md) rules |
 
-### Flow Guides
-
-| End-to-end flow | Load |
-|---|---|
-| Read model separation, QueryRepository, projections | [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md) |
-| Local Domain Event and same-context reaction | [`ddd-golang-events.md`](ddd-golang-events.md) |
-| Published fact/intent and provider-neutral message subscriber | [`ddd-golang-messages.md`](ddd-golang-messages.md) |
-| Internal task contract, processor, polling, periodic task | [`ddd-golang-taskqueue.md`](ddd-golang-taskqueue.md) |
-| Accepted `components/fsm` lifecycle | [`ddd-golang-fsm.md`](ddd-golang-fsm.md) |
-
-### Platform Guides
-
-| Platform concern | Load |
-|---|---|
-| Multi-BC layout, generated code, modules, tests | [`ddd-golang-scaffold.md`](ddd-golang-scaffold.md) |
-| Configuration, Fx, server/worker lifecycle, logging, shutdown | [`ddd-golang-runtime.md`](ddd-golang-runtime.md) |
-| Kafka provider runtime | [`ddd-golang-kafka.md`](ddd-golang-kafka.md) |
-| Asynq provider runtime | [`ddd-golang-asynq.md`](ddd-golang-asynq.md) |
-| Accepted OpenTelemetry | [`ddd-golang-observability.md`](ddd-golang-observability.md) |
-| MySQL schema, SQL, indexes, locking, migrations | [`database.md`](database.md) |
-
-Load [`ddd-core.md`](ddd-core.md) for a Domain-owned Port or an affected
-cross-language object/layer realization and
-[`ddd-collaboration.md`](ddd-collaboration.md) only for an accepted published
-API, Domain Event, or Integration Message.
+Load [ddd-core.md](ddd-core.md) for an affected Domain object, Domain-owned Port,
+or cross-language layer realization, and [ddd-collaboration.md](ddd-collaboration.md)
+only for an accepted published API, Domain Event, or Integration Message.
 
 ## Adopted Stack Defaults
 
@@ -113,23 +105,5 @@ stack migration.
 - Apply the lifecycle selected by accepted authority: a Repository-loaded request-scoped Aggregate becomes stale under the Domain guide's optimistic branch; a resident Aggregate remains the live authority and persists snapshots/checkpoints. Do not infer either branch from persistence technology.
 - Transport or Runtime owns one execution completion log. Application emits a separate business-semantic log only when it adds independent value or owns a terminal/suppressed outcome.
 - One bounded context never imports another context's `internal/business/<context>` packages. Collaborate through an accepted published contract, Integration Message, or ACL.
-
-## Change Router
-
-| Change | Load in addition to this baseline |
-|---|---|
-| Domain behavior, invariant, lifecycle, Repository contract | Domain |
-| Domain-owned Port contract or implementation | Domain and Infrastructure; Runtime when composition changes |
-| Resident Aggregate, snapshot, or checkpoint persistence | Domain, Application, Infrastructure, and Runtime as actually affected |
-| Command/Query/use-case coordination, assembler | Application; CQRS when the read model separates |
-| RPC/HTTP endpoint, message consumer, task processor | Transport plus the relevant Flow Guide |
-| Repository/QueryRepository implementation, DO/schema, external adapter | Infrastructure plus Database when persisted |
-| Confirmed multi-Root local atomic change | Domain, Application, Infrastructure, Database, Scaffold, and Runtime for composition |
-| Local Domain Event or same-context reaction | Events plus every touched Layer Guide |
-| Published fact or asynchronous intent | Messages plus every touched Layer Guide; Kafka only when it is the provider |
-| Internal task, polling, periodic work | Task Queue plus every touched Layer Guide; Asynq only when it is the provider |
-| Accepted FSM | Domain and FSM |
-| Fx/config/server/worker/goroutine/shutdown | Runtime and Scaffold |
-| Accepted OpenTelemetry | Observability plus the touched Transport/provider leaves |
 
 Codify selects the engineering realization from accepted project constraints, repository evidence, and the applicable House Rules while preserving confirmed business boundaries, consistency meaning, and published contracts.

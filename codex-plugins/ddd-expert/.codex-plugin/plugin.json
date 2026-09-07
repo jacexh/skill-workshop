@@ -23,7 +23,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use the DDD Expert skill that matches the current request and existing artifacts: $ddd-expert:event-storming for strategic discovery or recording an accepted model; $ddd-expert:tactical-design for unresolved object ownership and behavior; $ddd-expert:codify for implementing accepted design; $ddd-expert:guard for independent structural review. Reuse existing confirmations and complete only the requested work."
+      "Use the DDD Expert skill that matches the current request and existing artifacts: $ddd-expert:event-storming for strategic discovery or recording an accepted model; $ddd-expert:tactical-design for object ownership and behavior or recording accepted objects; $ddd-expert:codify for implementing accepted design; $ddd-expert:guard for independent structural review. Reuse existing confirmations and complete only the requested work."
     ]
   },
   "skills": "./skills/"

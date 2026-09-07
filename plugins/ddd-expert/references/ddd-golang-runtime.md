@@ -143,129 +143,11 @@ var Module = fx.Module(
 
 For multi-service repositories, expose named `internal/pkg` modules rather than copying provider lists across `cmd/<service>`. Use `fx.ValidateApp` in a wiring test to prove the graph is complete without starting providers.
 
-## ConnectRPC And Chi Lifecycle
+## Active Resource Ownership
 
-Bind the listener synchronously in `OnStart` so address errors fail startup. Serve in an owned goroutine. `OnStop` calls `http.Server.Shutdown`. An unexpected Serve failure is an Execution Owner failure and requests process shutdown.
-
-```go
-// internal/pkg/connectrpc/connectrpc.go
-package connectrpc
-
-import (
-    "context"
-    "errors"
-    "log/slog"
-    "net"
-    "net/http"
-    "strings"
-    "time"
-
-    connect "connectrpc.com/connect"
-    "github.com/go-chi/chi/v5"
-    "github.com/go-jimu/components/sloghelper"
-    "github.com/samber/oops"
-    "go.uber.org/fx"
-    "golang.org/x/net/http2"
-    "golang.org/x/net/http2/h2c"
-)
-
-type Option struct {
-    Addr string `json:"addr" yaml:"addr" toml:"addr"`
-}
-
-type Server interface {
-    GetGlobalInterceptors() []connect.Interceptor
-    Register(string, http.Handler)
-    Address() string
-}
-
-type server struct {
-    option       Option
-    logger       *slog.Logger
-    shutdowner   fx.Shutdowner
-    interceptors []connect.Interceptor
-    router       *chi.Mux
-    httpServer   *http.Server
-    listener     net.Listener
-}
-
-func NewServer(
-    lifecycle fx.Lifecycle,
-    shutdowner fx.Shutdowner,
-    option Option,
-    logger *slog.Logger,
-) (Server, error) {
-    if strings.TrimSpace(option.Addr) == "" {
-        return nil, errors.New("connectrpc address is required")
-    }
-
-    router := chi.NewRouter()
-    router.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-        w.WriteHeader(http.StatusOK)
-    })
-    result := &server{
-        option:       option,
-        logger:       logger,
-        shutdowner:   shutdowner,
-        interceptors: []connect.Interceptor{NewCarrier(logger).Intercept()},
-        router:       router,
-    }
-    result.httpServer = &http.Server{
-        Addr:              option.Addr,
-        Handler:           h2c.NewHandler(router, &http2.Server{}),
-        ReadHeaderTimeout: 3 * time.Second,
-        IdleTimeout:       60 * time.Second,
-        MaxHeaderBytes:    16 * 1024,
-    }
-
-    lifecycle.Append(fx.Hook{
-        OnStart: func(context.Context) error {
-            listener, err := net.Listen("tcp", option.Addr)
-            if err != nil {
-                return oops.With("operation", "connectrpc.listen").
-                    With("address", option.Addr).
-                    Wrap(err)
-            }
-            result.listener = listener
-            go result.serve()
-            return nil
-        },
-        OnStop: func(ctx context.Context) error {
-            return oops.Wrap(result.httpServer.Shutdown(ctx))
-        },
-    })
-    return result, nil
-}
-
-func (s *server) Register(pattern string, handler http.Handler) {
-    pattern = strings.TrimSuffix(pattern, "/")
-    s.router.Handle(pattern+"/*", handler)
-}
-
-func (s *server) GetGlobalInterceptors() []connect.Interceptor {
-    return append([]connect.Interceptor(nil), s.interceptors...)
-}
-
-func (s *server) Address() string {
-    if s.listener != nil {
-        return s.listener.Addr().String()
-    }
-    return s.option.Addr
-}
-
-func (s *server) serve() {
-    err := s.httpServer.Serve(s.listener)
-    if err == nil || errors.Is(err, http.ErrServerClosed) {
-        return
-    }
-    err = oops.With("operation", "connectrpc.serve").Wrap(err)
-    s.logger.Error("ConnectRPC server stopped unexpectedly", sloghelper.Error(err))
-    if shutdownErr := s.shutdowner.Shutdown(fx.ExitCode(1)); shutdownErr != nil {
-        s.logger.Error("failed to request shutdown",
-            sloghelper.Error(oops.Wrap(shutdownErr)))
-    }
-}
-```
+For changes to the shared RPC/HTTP server itself, read the
+[ConnectRPC and Chi server guide](ddd-golang-server.md). A change only to Fx
+providers uses the composition rules above.
 
 Every optional active resource follows the same ownership rule: the package
 that creates it owns its `fx.Lifecycle` hooks, goroutines, terminal errors, and
@@ -326,4 +208,17 @@ OTel-specific constructors and propagation shape.
 
 ## Verification
 
-Test component Option validation, loader defaults/profile behavior, secret-redacted startup logs, `fx.ValidateApp` composition, generated-handler registration, synchronous listener failure, unexpected Serve shutdown, request completion logging, runner reachability, cancellation, dependency-aware drain, and bounded stop. OTel verification follows the observability leaf when it applies.
+Select evidence for the changed runtime behavior and its affected dependencies:
+
+| Changed behavior | Evidence |
+|---|---|
+| Option validation, loading, or profiles | Affected validation and defaults/profile cases |
+| Configuration or startup logging | Affected allow-listed output and secret redaction |
+| Fx providers or dependency wiring | `fx.ValidateApp` composition; registration/reachability when those change |
+| Shared RPC/HTTP server | Affected cases in the server guide |
+| Execution logging | Affected completion outcome and error mapping |
+| Active loop or shutdown | Affected reachability, cancellation, dependency-aware drain, and bounded stop |
+| OpenTelemetry | Affected observability-leaf cases |
+
+Reuse valid unaffected evidence. Broaden only for new changes, failures, or an
+unresolved risk. Guard reads existing results without running this verification.

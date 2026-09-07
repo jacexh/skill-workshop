@@ -70,11 +70,16 @@ Changed artifacts follow the [artifact write checks](templates/artifact-layout.m
 Canonical references live under `references/`:
 
 - `workflow.md` — shared scope, authorization, project conventions, and verification contract
+- `event-storming-discovery.md` — ten-step discovery and challenge method, loaded only for strategic decisions
+- `tactical-design-interview.md` — pressure-led object interview, loaded only for unresolved tactical decisions
 - `ddd-core.md` — language-neutral realization of accepted DDD objects and layers
 - `ddd-collaboration.md` — realization of accepted APIs, Domain Events, and Integration Messages
 - `database.md` — MySQL schema, SQL, migration, and persistence realization
 - `ddd-golang.md` — Go/go-jimu router and adopted-stack baseline
 - `ddd-golang-{scaffold,domain,application,transport,cqrs,infrastructure}.md` — Go structure and layer leaves
+- `ddd-golang-persistence.md` — ordinary xorm mapping and one-Root Repository example
+- `ddd-golang-transactions.md` — conditional multi-Root local transaction scope and participation
+- `ddd-golang-server.md` — conditional shared ConnectRPC/Chi server lifecycle
 - `ddd-golang-{events,messages,taskqueue}.md` — Go provider-neutral flow leaves
 - `ddd-golang-{fsm,kafka,asynq,observability,runtime}.md` — Go conditional mechanism and Runtime leaves
 - `ddd-python.md` — Python router and adopted-stack baseline
