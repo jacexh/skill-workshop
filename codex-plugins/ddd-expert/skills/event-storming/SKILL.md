@@ -30,6 +30,11 @@ Choose the shortest useful entry:
 
 An explanation request remains an explanation request. A local change inside an accepted model does not require repository-wide discovery.
 
+For **recording**, use the accepted integrated proposal and proceed directly to
+the artifact steps below. Read affected current artifacts to preserve unrelated
+meaning. Ask only if missing or contradictory business meaning prevents an
+accurate write; formatting differences are resolved through the templates.
+
 ## Conversation contract
 
 - Inspect relevant Specs, PRDs, ADRs, glossary entries, current DDD artifacts, code, and tests first. If a fact is available there, look it up instead of asking the user.

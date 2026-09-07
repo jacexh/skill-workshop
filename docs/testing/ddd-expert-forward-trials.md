@@ -57,3 +57,66 @@ code example, real external providers, or performance improvements. The adapter
 trial's fixture tests demonstrate that execution path only; they are not an
 additional plugin CI suite. Repeat relevant trials after changes to routing,
 confirmation, project precedence, or verification instructions.
+
+## Observed on 2026-09-07: focused guidance
+
+At commit `1919c7d`, before the core methods were restored inline, three fresh
+evaluator contexts used isolated temporary projects and the changed Codex skill
+entries. They received only the user request, entry path, and raw
+fixture; this document and expected outcomes were excluded from their input.
+The coordinator inspected the produced files and independently reran the fixture
+checks. No trial touched a live provider or the plugin source.
+
+| Trial | Request and fixture | Observed outcome |
+|---|---|---|
+| Confirmed strategy recording | Empty project and the confirmed Catalog/Book, Sales/Order model above; record strategy only | Exactly Context Map and two Models. Validator: `valid Context Map: 2 contexts, 1 dependencies`; both Model links resolve. No renewed confirmation or tactical artifacts. Evaluator reported reading the workflow and templates without the discovery reference. |
+| Confirmed Root through implementation | Existing flat Python/unittest project; confirmed DisplayProfile with plain-string DisplayName, no children/state/Ports/Events, Rename trimming and rejecting blank names while preserving prior state; record and implement | Recorded the Root, entered Codify without another approval turn, and implemented the owning method. Existing tests changed from three `NotImplementedError` failures to three passes covering trim, identity, rejection, and sequential mutation. Evaluator reported no interview reference load. |
+| Fx provider registration | Existing Go/Fx root package with cached dependencies, GreetingPort provider and Application consumer; fix the incomplete graph | Added only `NewGreetingPort` to `fx.Provide`. Two existing tests changed from missing-dependency failures to passes, proving `fx.ValidateApp` and the resolved application's behavior. Evaluator reported loading Runtime without Server, Persistence, Transactions, or Scaffold. |
+
+Coordinator verification used the shipped Context Map validator,
+`python3 -m unittest discover -s tests -v`, and
+`GOPROXY=off GOSUMDB=off go test -count=1 ./...`. All passed. The existing release
+suite passed all 12 scripts; all eight skill frontmatters passed validation.
+The ordinary persistence guide's three Go snippets passed `gofmt` syntax parsing.
+
+These samples support the recording, authorized continuation, and focused Fx
+paths. They do not establish cross-model reliability, lower model token use or
+latency, MySQL transaction correctness, or executable completeness of the Go
+reference examples. SQL verification selection and ordinary/multi-Root example
+routing were inspected statically, not exercised against a database. The full
+discovery and tactical interview methods were preserved during extraction;
+these recording trials do not evaluate interview quality.
+
+### Recheck after restoring core methods inline
+
+The layout tested at `f6d4061` keeps both core methods in their `SKILL.md` files and removes
+the two interview reference files. The observations above at `1919c7d` remain
+historical evidence for that layout, including its reference-loading behavior.
+
+Two new independent contexts repeated confirmed strategy recording and confirmed
+Root recording through implementation with the same raw requests in fresh
+projects. Both completed without renewed confirmation. Strategy produced exactly
+Context Map plus Catalog and Sales Models; the validator returned
+`valid Context Map: 2 contexts, 1 dependencies`. Tactical Design recorded the
+Root and continued into Codify; the existing three Python tests changed from
+`NotImplementedError` failures to passes. The coordinator reread the artifacts,
+reran the validator, and ran `python3 -B -m unittest discover -s tests -v`.
+
+All 12 release checks and both tracks' four changed skill frontmatters passed.
+A one-time comparison confirmed that the extracted discovery and tactical method
+bodies are preserved inline. These trials confirm the exercised recording and
+continuation paths, not full interview quality or a performance improvement.
+
+### Conservative final scope
+
+The original Tactical Design introduction and seven-line workflow overview were
+restored verbatim, as were both skills' original discovery descriptions. The
+remaining design-skill changes clarify recording already-confirmed descriptions
+and completion within authorized scope. The existing interview methods and
+confirmation sequence remain in place.
+
+Static comparison verified the workflow overview and both original core method
+bodies against the pre-PR files. The 12-script release suite, four changed skill
+frontmatters, and diff checks passed. The `f6d4061` recording trials above were
+not rerun after this restoration; they are evidence for that tested revision,
+not proof of final-layout interview quality or automatic skill selection.

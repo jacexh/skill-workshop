@@ -93,6 +93,25 @@ Codify leaves one coherent realization of each accepted responsibility and remov
 
 Guard independently and read-only reviews the implementation against the current Context Map, Models, and Domain Object slices. It treats technical fulfillment policy or provider failure handling that shapes Domain code as evidence of a missing or violated Domain-owned Port boundary. It also judges non-Domain abstractions introduced, materially changed, or required by the affected behavior. Model silence is implementation latitude rather than missing authority: project constraints and applicable House Style govern that space. An abstraction earns its cost when it hides present complexity, passes the deletion test, provides interface leverage and locality, and justifies its indirection, mapping, configuration, lifecycle, and test burden. Pattern names such as CQRS, Repository, or Job are neither requirements nor justification. Guard reports evidence-backed findings without workflow routing or terminal-state accounting, and never closes or mutates an artifact lifecycle because no such lifecycle exists.
 
+### Load guidance for the current task
+
+The skill entries keep their core discussion methods alongside shared authority,
+confirmation, artifact writes, and completion. EventStorming owns its complete
+ten-step method in `SKILL.md`; Tactical Design owns its pressure-led interview,
+workflow overview, Capability Probe, and composition comparison there.
+A recording branch skips
+reopening these decisions and proceeds directly to templates and write checks.
+New or contradictory business meaning still needs resolution.
+Entity and integrated Root confirmation remain unchanged; existing confirmation
+or delegated choices follow the shared workflow contract. After requested design
+slices are complete, already-authorized implementation continues to Codify.
+
+House Style uses one Go reference map. Ordinary persistence, multi-Root
+transaction participation, and shared server lifecycle have separate guides so
+outbound adapters and Fx wiring load only applicable detail. Verification selects
+the changed behavior and affected boundaries, reusing valid unaffected evidence.
+The Application guide owns the canonical registry example.
+
 ## Consequences
 
 - EventStorming keeps the discussion depth that improved Aggregate Root discovery while artifact generation becomes small and direct.

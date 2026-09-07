@@ -25,6 +25,14 @@ Read the affected `context-map.md`, `model.md`, relevant project decisions, and 
 
 If tactical refinement exposes a needed correction to business meaning, a Bounded Context boundary, Aggregate Root identity, or a strategic Business Rule, resolve it with the user in the current conversation and carry the accepted change into the Root-level artifact review. Do not force a workflow switch or leave the tactical model built on a known contradiction.
 
+## Choose the current work
+
+For refinement or challenge, use the interview below to resolve ownership,
+behavior, composition, and external authority for the smallest affected Root slice.
+For recording a complete already-confirmed Entity or Root, proceed directly to
+"Complete the Root slice" and the write steps. Reuse its decisions; resolve only
+missing or contradictory business meaning that prevents a faithful write.
+
 ## Relentless interview contract
 
 - If a fact can be found in the repository, look it up instead of asking the user.
@@ -108,16 +116,25 @@ Before presenting any Entity or Root description, read the [domain-object templa
 
 When one retained Entity's definition, Facts, Lifecycle State, behavior, any Domain-owned Ports, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. Use existing confirmation when it covers the proposed description; otherwise obtain confirmation under the workflow contract. Then update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
 
-When the Root's composition is complete, show its integrated compact slice. Before confirmation, verify that every pressure is traceable and assigned; every external-authority need has a Capability Probe classification; every material behavior owner, target, and Lifecycle State transition is resolved; every retained or changed object has a reason to exist; and the strongest credible alternative was compared under the same pressures. Check every description against the template, including Port Methods, recording Behaviors, and accepted local reactions. Complete when no material decision remains that would change composition or ownership.
+For a newly designed Root, show its integrated compact slice when its composition is complete. Before confirmation, verify that every pressure is traceable and assigned; every external-authority need has a Capability Probe classification; every material behavior owner, target, and Lifecycle State transition is resolved; every retained or changed object has a reason to exist; and the strongest credible alternative was compared under the same pressures. Check every description against the template, including Port Methods, recording Behaviors, and accepted local reactions. Complete when no material decision remains that would change composition or ownership.
+
+For an already-confirmed Root, check the supplied description against the template
+and accepted authority. Resolve only material gaps that prevent a faithful write.
 
 Use the workflow contract's confirmation rule for the integrated Root. Before any Entity or Root write, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write or replace accepted descriptions while preserving unrelated content. At that Root confirmation, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Run the write checks for changed artifacts, then continue with the next affected Root within the requested scope. `domain-objects.md` contains only current accepted object descriptions grouped by Root. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
 
 ## Completion
 
-End with the current Entity or Root outcome and cite any confirmed or updated
-descriptions. Ask the one unresolved question or request confirmation of the
-exact proposed object or Root. After an Entity write, name the next unresolved
-object or boundary; after a Root write, name the next affected Root. Name any
-accepted strategic correction when a pressure could not be traced to prior
-authority, cite every required slice when implementation can begin, and report
-any blocker with current filesystem state.
+Ask the decisive question only while material business meaning remains unresolved;
+request confirmation only for proposed content not already covered by confirmation
+or delegated choices under the workflow contract. Otherwise write the accepted
+Entity or Root, run its affected write checks, and continue authorized work.
+
+After an Entity write, continue the current Root; after a Root write, continue
+with the next affected Root in scope. Once all requested slices are complete,
+continue to Codify when implementation is already in scope and the accepted
+slices cover it. A design-only request ends with the accepted result.
+
+Report confirmed or updated descriptions, any accepted strategic correction,
+write-check results, and remaining decisions or blockers with current filesystem
+state. Cite the required slices when implementation can begin.

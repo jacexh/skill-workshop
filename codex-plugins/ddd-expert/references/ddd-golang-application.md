@@ -156,32 +156,11 @@ When accepted local events exist, add their flow from
 [`ddd-golang-events.md`](ddd-golang-events.md). Published contracts use
 [`ddd-golang-messages.md`](ddd-golang-messages.md).
 
-A normal command changes one Aggregate. Only a confirmed Model may authorize one Application use case to save several independent Aggregate Roots atomically, and only within one bounded context and one local transactional resource. Without that complete authority, expose the missing consistency decision instead of hiding it in a transaction or multi-Root Repository.
-
-For the confirmed exception, define the provider-neutral contract once for the project rather than once per bounded context:
-
-```go
-// internal/pkg/transaction/transactor.go
-package transaction
-
-import "context"
-
-type Transactor interface {
-	Within(context.Context, func(context.Context) error) error
-}
-```
-
-The Command Handler receives `transaction.Transactor` and calls `Within`. Inside its callback it:
-
-1. passes the derived context unchanged to every participating Repository;
-2. loads and locks roots in stable identity order when locking is required;
-3. invokes the named Domain Service, which applies business rules through public Aggregate behavior;
-4. saves each root through its own Repository; and
-5. returns an error for any failed decision or save so Infrastructure rolls back the whole scope.
-
-Application defines the transaction scope; Infrastructure owns begin, enlistment, commit, and rollback. The callback contains no RPC, Kafka, file operation, event publication, or goroutine.
-
-Publish Domain Events and return the successful result only after `Within` commits. Request-scoped Aggregate instances and staged events belong to that transaction scope. A resident Aggregate follows its accepted checkpoint policy rather than acting as a transactional working copy.
+A normal command changes one Aggregate. For a confirmed same-context,
+one-resource multi-Root atomic change, load
+[the transaction guide](ddd-golang-transactions.md) for Application scope and
+Infrastructure participation. Domain meaning must establish that consistency
+boundary before it is implemented.
 
 ## Query Handler
 
@@ -195,8 +174,6 @@ Use a named Application service only for meaningful use-case orchestration. It m
 
 When Application owns the use-case continuation, place its outbound port beside the consuming use case. Name the contract for its semantic role with a `Port` suffix, such as `CreditReservationPort`; keep provider-mechanism names on Infrastructure implementations. When a recorded Domain Behavior owns call timing, use its Domain-owned Port; do not duplicate it here or prefetch its result. Do not wrap an already accepted provider-neutral go-jimu port with a same-shape local interface.
 
-The conditional `internal/pkg/transaction.Transactor` above is a shared technical execution contract, not a semantic outbound port. Do not duplicate it under each BC's `application`, call it `UnitOfWork`, expose Repository factories through it, or pass options, `*xorm.Session`, or another provider handle inward. Add isolation controls only when the accepted local transaction contract defines them.
-
 Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction only when no Application scope is active; under an active scope it joins the current transaction. Raw `xorm.Session` never enters Application.
 
 ## Errors, Logging and Tests
@@ -208,9 +185,8 @@ Application owns what must commit together; Infrastructure owns how. A single-Ag
 
 Test handlers with real Domain objects and focused fakes for Repository,
 QueryRepository, ACL, and outbound ports. Cover orchestration and stable errors.
-For a confirmed multi-Root use case, verify that one `Within` callback encloses
-every load, Domain decision, and save; physical enlistment belongs to the
-Infrastructure integration test. Event behavior follows the event leaf.
+Changed multi-Root behavior follows the transaction guide. Event behavior
+follows the event leaf.
 
 ## File Shape
 

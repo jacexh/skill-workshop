@@ -330,12 +330,29 @@ ALTER TABLE sales_order
 
 When a new non-null value cannot be assigned safely by a schema default, first add a nullable expansion column, backfill in bounded batches, switch all writers, validate, then contract it to `NOT NULL`.
 
-## 10. Required Verification
+## 10. Verification by Changed Behavior
 
-- **[House Rule]** Repository integration tests run against MySQL and cover insert version `1`, update comparison/increment, affected-row conflict mapping, active-row filtering, owned-table rollback, and persistence-record/Domain conversion.
-- **[House Rule]** A multi-Root transaction integration test uses the real Repository adapters and database: a fresh observer sees both writes after commit, sees neither when a later save fails, and sees no write when transaction participation is rejected. Static checks, callback fakes, and mock Repositories do not prove one physical transaction.
-- **[House Rule]** QueryRepository integration tests cover real column selection, filters, stable ordering, pagination boundaries, and read-model mapping.
-- **[House Rule]** Schema review checks naming, five standard columns, types, comments, collation, index caps, redundant indexes, migration compatibility, and representative query plans.
+Select the rows covering the changed behavior and affected boundaries. Reuse
+valid evidence for unaffected behavior; this table does not require a full
+persistence suite for every SQL or mapping edit. Persistence and SQL evidence
+uses real adapters and MySQL for the affected paths. Guard reads available evidence.
+
+| Changed behavior | Required evidence |
+|---|---|
+| Repository creation | Insert and stored version initialization for the affected creation path |
+| Reconstitution or persistence conversion | Round-trip mapping and validation of affected stored facts |
+| Request-scoped update or concurrency handling | Atomic version comparison/increment, conflict mapping, and stale-instance behavior |
+| Resident snapshot or checkpoint persistence | Snapshot/token behavior and continued live Aggregate authority under the accepted policy |
+| Deletion or active-row filtering | Affected write/read visibility through real adapters and MySQL |
+| One-Root multi-table persistence | Owned-table atomicity and rollback when a later statement fails |
+| Multi-Root transaction participation | Real Repository adapters and MySQL; a fresh observer sees both writes after commit, neither when a later save fails, and no write when participation is rejected |
+| QueryRepository SQL or mapping | Affected real column selection, filters, ordering, pagination boundaries, and read-model mapping; representative plan evidence for material query changes |
+| Schema or migration | Affected naming, standard columns, types, comments, collation, indexes, rollout compatibility, and migration execution/plan evidence |
+
+Static checks, callback fakes, and mock Repositories do not prove physical
+transaction participation. Broaden verification only for new changes, failures,
+or an unresolved risk. Correct failures caused by the requested change before
+reporting completion.
 
 ## Related References
 

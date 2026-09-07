@@ -135,45 +135,10 @@ One context never imports another context's `domain`, `application`, `transport`
 
 ## Application Registry
 
-`application/application.go` is a type-safe use-case registry, not a generated service implementation:
-
-```go
-package application
-
-import (
-	"example/internal/business/user/application/command"
-	"example/internal/business/user/application/query"
-)
-
-type Commands struct {
-	Create         *command.CreateUserHandler
-	ChangePassword *command.ChangePasswordHandler
-}
-
-type Queries struct {
-	Get  *query.GetUserHandler
-	List *query.ListUsersHandler
-}
-
-type Application struct {
-	Commands Commands
-	Queries  Queries
-}
-
-func NewApplication(
-	create *command.CreateUserHandler,
-	changePassword *command.ChangePasswordHandler,
-	get *query.GetUserHandler,
-	list *query.ListUsersHandler,
-) *Application {
-	return &Application{
-		Commands: Commands{Create: create, ChangePassword: changePassword},
-		Queries:  Queries{Get: get, List: list},
-	}
-}
-```
-
-It does not import ConnectRPC, HTTP, protobuf, xorm, Fx, Kafka, or Asynq. Transport selects one Handler from the registry and delegates once; do not add facade methods whose only body calls the same Handler.
+The [Application guide](ddd-golang-application.md) owns the canonical typed
+`Application.Commands` / `Application.Queries` registry and constructor.
+Transport selects one Handler from it and delegates once. Context modules
+compose that registry with the context's handlers and adapters.
 
 ## Bounded-context Module
 
