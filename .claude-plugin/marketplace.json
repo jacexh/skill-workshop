@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "A marketplace for Claude Code productivity and development plugins",
-    "version": "1.16.12"
+    "version": "1.16.13"
   },
   "plugins": [
     {
@@ -44,7 +44,7 @@
       "name": "ddd-expert",
       "source": "./plugins/ddd-expert",
       "description": "Strategic EventStorming, sparse Tactical Design, implementation, and review",
-      "version": "1.16.11",
+      "version": "1.16.13",
       "author": {
         "name": "xuhao"
       },
@@ -60,7 +60,7 @@
       "name": "designing-tests",
       "source": "./plugins/designing-tests",
       "description": "Evidence-first design for regression-protective tests, integration boundaries, architecture verification, and hand-off evidence",
-      "version": "1.16.12",
+      "version": "1.16.13",
       "author": {
         "name": "xuhao"
       },

@@ -1,6 +1,6 @@
 {
   "name": "designing-tests",
-  "version": "1.16.12",
+  "version": "1.16.13",
   "description": "Evidence-first design for regression-protective tests, integration boundaries, architecture verification, and hand-off evidence",
   "author": {
     "name": "xuhao"
