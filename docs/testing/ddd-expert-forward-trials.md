@@ -60,8 +60,9 @@ confirmation, project precedence, or verification instructions.
 
 ## Observed on 2026-09-07: focused guidance
 
-Three fresh evaluator contexts used isolated temporary projects and the changed
-Codex skill entries. They received only the user request, entry path, and raw
+At commit `1919c7d`, before the core methods were restored inline, three fresh
+evaluator contexts used isolated temporary projects and the changed Codex skill
+entries. They received only the user request, entry path, and raw
 fixture; this document and expected outcomes were excluded from their input.
 The coordinator inspected the produced files and independently reran the fixture
 checks. No trial touched a live provider or the plugin source.
@@ -85,3 +86,23 @@ reference examples. SQL verification selection and ordinary/multi-Root example
 routing were inspected statically, not exercised against a database. The full
 discovery and tactical interview methods were preserved during extraction;
 these recording trials do not evaluate interview quality.
+
+### Recheck after restoring core methods inline
+
+The final layout keeps both core methods in their `SKILL.md` files and removes
+the two interview reference files. The observations above at `1919c7d` remain
+historical evidence for that layout, including its reference-loading behavior.
+
+Two new independent contexts repeated confirmed strategy recording and confirmed
+Root recording through implementation with the same raw requests in fresh
+projects. Both completed without renewed confirmation. Strategy produced exactly
+Context Map plus Catalog and Sales Models; the validator returned
+`valid Context Map: 2 contexts, 1 dependencies`. Tactical Design recorded the
+Root and continued into Codify; the existing three Python tests changed from
+`NotImplementedError` failures to passes. The coordinator reread the artifacts,
+reran the validator, and ran `python3 -B -m unittest discover -s tests -v`.
+
+All 12 release checks and both tracks' four changed skill frontmatters passed.
+A one-time comparison confirmed that the extracted discovery and tactical method
+bodies are preserved inline. These trials confirm the exercised recording and
+continuation paths, not full interview quality or a performance improvement.

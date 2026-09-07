@@ -70,8 +70,6 @@ Changed artifacts follow the [artifact write checks](templates/artifact-layout.m
 Canonical references live under `references/`:
 
 - `workflow.md` — shared scope, authorization, project conventions, and verification contract
-- `event-storming-discovery.md` — ten-step discovery and challenge method, loaded only for strategic decisions
-- `tactical-design-interview.md` — pressure-led object interview, loaded only for unresolved tactical decisions
 - `ddd-core.md` — language-neutral realization of accepted DDD objects and layers
 - `ddd-collaboration.md` — realization of accepted APIs, Domain Events, and Integration Messages
 - `database.md` — MySQL schema, SQL, migration, and persistence realization

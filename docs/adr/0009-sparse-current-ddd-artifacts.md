@@ -95,10 +95,12 @@ Guard independently and read-only reviews the implementation against the current
 
 ### Load guidance for the current task
 
-The skill entries keep shared authority, confirmation, artifact writes, and
-completion. Discovery and tactical interviews live in conditional references;
-recording an already-confirmed description proceeds directly to templates and
-write checks. New or contradictory business meaning still needs resolution.
+The skill entries keep their core discussion methods alongside shared authority,
+confirmation, artifact writes, and completion. EventStorming owns its complete
+ten-step method in `SKILL.md`; Tactical Design owns its pressure-led interview,
+Capability Probe, and composition comparison there. A recording branch skips
+reopening these decisions and proceeds directly to templates and write checks.
+New or contradictory business meaning still needs resolution.
 Entity and integrated Root confirmation remain unchanged; existing confirmation
 or delegated choices follow the shared workflow contract. After requested design
 slices are complete, already-authorized implementation continues to Codify.
