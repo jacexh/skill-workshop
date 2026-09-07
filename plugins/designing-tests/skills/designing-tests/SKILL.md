@@ -5,9 +5,11 @@ description: Design regression test cases and choose reliable verification evide
 
 # Designing Tests
 
-Derive cases from behavior, then choose the cheapest evidence that can detect
-the target regression. A useful suite explains both what each case catches and
-why the selected cases protect the requested behavior.
+Identify the behavior and regression risk, then choose the least costly sufficient
+evidence, reusing valid existing evidence. When tests are needed or explicitly
+requested, derive cases from the behavior. An explicit test-design request enters
+case design without reopening whether tests are wanted. A useful suite explains
+what each case catches and why the selected cases protect the requested behavior.
 
 ## Route and Scope
 
@@ -163,8 +165,23 @@ After relevant code, configuration, or dependency changes invalidate a result,
 rerun affected verification. Once it passes, expand or repeat only for a new
 change, failure, or unresolved concern. Record unavailable evidence as a gap.
 
-**Complete when:** implemented cases have observed results or named execution
-gaps, and the requested behavior is supported to the extent reported.
+Resolve test, fixture, and setup failures that are within the authorized work;
+observing such a failure alone does not complete implementation. Change production
+code only when that work is in scope.
+
+Judge completion against the requested outcome:
+
+| Requested outcome | Completion evidence |
+|---|---|
+| Implement tests | Cases exercise the intended behavior and discriminate the target regressions; in-scope test/fixture/setup failures are resolved. Distinguish passing coverage from product defects exposed by the tests. |
+| Reproduce a defect only | The test reliably fails because of the target defect, rather than a fixture or environment error. Preserve that expected failure unless a product fix is also authorized. |
+| Fix a defect and prevent regression | The authorized defect is fixed and relevant checks pass; establish that the regression test distinguishes the defective behavior from the fix, or disclose the missing before-fix evidence. |
+
+**Complete when:** the requested outcome is established by observed evidence.
+If an external dependency or unavailable condition blocks it, report the completed
+portion, exact blocker, and unverified remainder as incomplete work. For a
+test-only request that exposes a product defect, deliver the reproducer and
+finding without expanding the task into an unauthorized production fix.
 
 ## Delivery
 
