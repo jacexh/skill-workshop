@@ -37,6 +37,8 @@ accurate write; formatting differences are resolved through the templates.
 
 ## Conversation contract
 
+Use the shared [design interview presentation](../../references/workflow.md#design-interview-presentation) for questions, recommendations, changes, and conflicts.
+
 - Inspect relevant Specs, PRDs, ADRs, glossary entries, current DDD artifacts, code, and tests first. If a fact is available there, look it up instead of asking the user. For changes to existing behavior, compare the accepted model, observed implementation, and requested outcome; focus discussion on affected differences and conflicts.
 - Ask one material unresolved question at a time about product goals, user scenarios, business rules, or strategic boundaries. A gap can merit an interview before its effect on Bounded Contexts or Aggregates is known. Wait for the answer before settling conclusions that depend on it.
 - For a business fact, explain what evidence is missing. For a design choice, give a recommended answer, its reason, and the strongest credible alternative.
