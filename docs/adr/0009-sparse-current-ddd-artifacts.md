@@ -46,7 +46,7 @@ Business Rules
 
 For the current Root or affected slice, Tactical Design groups interacting Business Rules into essential business pressures: the decisions, Lifecycle State transitions, material external-authority needs, actual Domain Events, and invariants that the object model must realize. These pressures are the working expression of the Root's essential complexity, not a score. Every pressure remains traceable to confirmed authority. When tactical refinement exposes a missing or contradictory strategic statement, Tactical Design resolves the smallest correction with the user in the current conversation and includes the accepted change in the Root-level artifact review.
 
-Whenever Tactical Design proposes a candidate Root or Entity, it explains together what the object represents and how it operates, then introduces its Behaviors in the owning Bounded Context's Domain language at that first proposal. If no precise verb follows from that account, the proposal remains open instead of receiving a technical placeholder name. Straightforward operation may take one sentence; material autonomous progress, external-decision boundaries, or owned-object result flow are followed far enough to discover connected Behaviors. This How remains conversational reasoning, while an operating characteristic essential to the object may be carried in its definition.
+Whenever Tactical Design proposes a candidate Root, Entity, or Domain Service, it explains together what the object represents and how it operates, then introduces its Behaviors in the owning Bounded Context's Domain language at that first proposal. If no precise verb follows from that account, the proposal remains open instead of receiving a technical placeholder name. Straightforward operation may take one sentence; material autonomous progress, external-decision boundaries, or owned-object result flow are followed far enough to discover connected Behaviors. This How remains conversational reasoning, while an operating characteristic essential to the object may be carried in its definition.
 
 Each pressure is explored through `<Subject> <domain verb> <Object>.` During exploration, different credible Subjects expose alternative behavior owners. When an accepted Root Behavior composes an owned Entity Behavior, it uses `<Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.` to reference the Entity-owned decision without repeating it. When the behavior transitions Lifecycle State, the sentence names the concrete state and its prior and next values. Every material Subject, Object, and transition is resolved without promoting every noun into an object.
 
@@ -54,7 +54,7 @@ For every Behavior that needs externally owned Domain data or an authoritative a
 
 Tactical Design compares no new split with the strongest relevant split, merge, move, or deletion alternative under the same pressures. A viable candidate realizes every pressure and keeps the Root able to protect cross-object invariants. Among viable candidates, it prefers the composition that localizes decisions with their state while introducing less accidental complexity through exposed knowledge, coordination, duplicated state or decisions, identity and lifecycle, mapping, and test burden. A child Entity earns its place through Domain identity or lifecycle plus cohesive state, rules, or transitions whose deletion would spread decision knowledge elsewhere.
 
-For the accepted composition, Tactical Design records only the included Domain Entities and each retained object's:
+For the accepted Aggregate composition, Tactical Design records the Root and retained Entities with each object's:
 
 - definition;
 - Facts;
@@ -65,7 +65,9 @@ For the accepted composition, Tactical Design records only the included Domain E
 
 Identity is included in the object heading when meaningful. Definition may include an essential way the object operates when it changes what the object represents. Facts are the business-significant facts owned by the object and required to understand a Behavior or Invariant; they are not a field inventory or Domain Events. Lifecycle State records named state-machine states and their Domain meaning, or explicitly records that none exists; a generic lifecycle concept is qualified by its owner as `<Object>.State`. Behavior expresses responsibility and names a Lifecycle State transition when one occurs. Domain-owned Ports group sparse Methods under the direct Behavior owner without prescribing implementation signatures. Actual Domain Events are listed separately and point to the behavior that records them; a Lifecycle State transition alone does not require an event.
 
-The described Root or Entity is the grammatical subject and behavior owner. Meaningful Value Objects and references are named where they affect Facts, Lifecycle State, or behavior; fields and methods are not inventoried.
+The described Root, Entity, or Domain Service is the grammatical subject and behavior owner. Meaningful Value Objects and references are named where they affect Facts, Lifecycle State, or behavior; fields and methods are not inventoried.
+
+An accepted named Domain operation without a natural Entity or Value Object owner is recorded once as a Domain Service at Bounded Context scope, alongside the Aggregate sections. Its compact description follows the Domain Service template; collaborating Roots reference its responsibility where needed. Service slices use the same pressure-led comparison, Capability Probe, confirmation, and write checks, reviewing only affected collaborator responsibilities. Application retains loading, persistence, and transaction coordination.
 
 A retained Entity becomes ready for confirmation when its definition, Facts, Lifecycle State, behavior, Domain-owned Ports where present, and place in the Root's composition form one coherent responsibility. Its behavior is followed through any material Domain result that the Root or another owned object composes next; a Root capability and an Entity-owned decision describe their relationship without duplicating the decision.
 
@@ -110,7 +112,11 @@ House Style uses one Go reference map. Ordinary persistence, multi-Root
 transaction participation, and shared server lifecycle have separate guides so
 outbound adapters and Fx wiring load only applicable detail. Verification selects
 the changed behavior and affected boundaries, reusing valid unaffected evidence.
-The Application guide owns the canonical registry example.
+The shared realization guide owns the compact Application shape: one entry per
+Bounded Context, named write methods that perform coordination, and consumer-shaped
+read models through query methods or cohesive query objects. Per-use-case Handler
+registries are no longer the default. Language guides own syntax and examples;
+existing project decisions still govern affected implementation work.
 
 ## Consequences
 

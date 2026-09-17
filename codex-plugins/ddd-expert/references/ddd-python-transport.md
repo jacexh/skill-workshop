@@ -22,7 +22,7 @@ parsing.
 
 Use ordinary `def` endpoints and create each `APIRouter` inside its factory.
 `Depends` supplies request concerns such as authentication input; Runtime
-supplies the Application registry to the router factory.
+supplies the Application instance to the router factory.
 
 ```python
 from fastapi import APIRouter, status
@@ -47,7 +47,7 @@ def create_router(application: Application) -> APIRouter:
 
     @router.post("", status_code=status.HTTP_201_CREATED)
     def create_user(request: CreateUserRequest) -> CreateUserResponse:
-        result = application.commands.create_user.handle(
+        result = application.create_user(
             CreateUser(name=request.name, email=request.email)
         )
         return CreateUserResponse(id=str(result.user_id))

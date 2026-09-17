@@ -51,12 +51,11 @@ internal/
         errors.go
 
       application/
-        application.go           # mandatory Commands/Queries registry
+        application.go           # Application dependencies and constructor
         assembler.go             # mandatory Application DTO <-> Domain mapping
-        command/                  # when Commands exist
-          <use_case>.go
-        query/                    # when Queries exist
-          <use_case>.go
+        <responsibility>.go       # named Application methods and input/result types
+        query/                    # distinct read semantics, when needed
+          <read_concern>.go
           repository.go          # when a QueryRepository is required
           dto.go
         eventhandler/             # when same-BC reactions exist
@@ -112,7 +111,7 @@ Create directories only for current accepted responsibilities. Use Domain-langua
 
 Every bounded context has:
 
-- `application/application.go`, whose `Application` groups all Command Handlers under `Commands` and all Query Handlers under `Queries`;
+- `application/application.go`, which defines the context's `Application` entry and constructor;
 - `application/assembler.go`, which owns only existing Application DTO/Domain Entity conversion;
 - `<context>.go`, which exposes the context's Fx module and registration wiring.
 
@@ -133,52 +132,13 @@ A BC may have Application and Transport without a Domain or Infrastructure packa
 
 One context never imports another context's `domain`, `application`, `transport`, or `infrastructure`. A same-process deployment does not erase a bounded-context boundary. Use an accepted published contract, Integration Message, or ACL.
 
-## Application Registry
+## Application Entry and Composition
 
-The [Application guide](ddd-golang-application.md) owns the canonical typed
-`Application.Commands` / `Application.Queries` registry and constructor.
-Transport selects one Handler from it and delegates once. Context modules
-compose that registry with the context's handlers and adapters.
-
-## Bounded-context Module
-
-`<context>.go` assembles the four layers and contributes registrations. It contains no use-case behavior:
-
-```go
-package user
-
-import (
-	connect "connectrpc.com/connect"
-	"example/gen/user/public/v1/userv1connect"
-	"example/internal/business/user/application"
-	"example/internal/business/user/application/command"
-	"example/internal/business/user/infrastructure"
-	userconnectrpc "example/internal/business/user/transport/connectrpc"
-	sharedconnectrpc "example/internal/pkg/connectrpc"
-	"go.uber.org/fx"
-)
-
-var Module = fx.Module(
-	"business.user",
-	fx.Provide(
-		infrastructure.NewUserRepository,
-		command.NewCreateUserHandler,
-		application.NewApplication,
-		userconnectrpc.NewHandler,
-	),
-	fx.Invoke(func(
-		handler userv1connect.UserServiceHandler,
-		server sharedconnectrpc.Server,
-	) {
-		server.Register(userv1connect.NewUserServiceHandler(
-			handler,
-			connect.WithInterceptors(server.GetGlobalInterceptors()...),
-		))
-	}),
-)
-```
-
-The same module may register Domain Event handlers, message payload factories/subscribers, task schemas/processors, and periodic task definitions. It does not construct Kafka/Asynq clients or start servers, consumers, workers, schedulers, and relays; those loops belong to `internal/pkg` Runtime modules.
+The [Application guide](ddd-golang-application.md) owns use-case methods,
+read-side entry shapes, and the constructor. `<context>.go` assembles the layers
+and contributes accepted Transport, event, and task registrations using the
+[Runtime composition example](ddd-golang-runtime.md#composition-boundaries). It contains
+no use-case behavior or active provider loops.
 
 ## Contracts and Generated Code
 

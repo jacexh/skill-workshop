@@ -78,9 +78,9 @@ func (s *UserRegisteredSubscriber) Handle(
 	if !ok {
 		return fmt.Errorf("unexpected payload for %s: %T", msg.Kind(), msg.Payload())
 	}
-	return s.app.Commands.SendWelcomeNotification.Handle(
+	return s.app.SendWelcomeNotification(
 		ctx,
-		command.SendWelcomeNotification{
+		application.SendWelcomeNotification{
 			UserID: payload.GetUserId(),
 			Name:   payload.GetName(),
 			Email:  payload.GetEmail(),

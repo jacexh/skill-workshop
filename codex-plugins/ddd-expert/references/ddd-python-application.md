@@ -1,53 +1,37 @@
 ---
 name: ddd-python-application
-description: Python House Style for Application registries, assemblers, commands, queries, and local transaction scopes.
+description: Python House Style for Application methods, assemblers, commands, queries, and local transaction scopes.
 ---
 
 # Python Application Layer
 
 ## Applies When
 
-Load this leaf when a Python use case, Application DTO, registry, assembler,
+Load this leaf when a Python use case, Application DTO, entry, assembler,
 QueryRepository, semantic outbound port, or transaction scope is touched.
 
 ## Placement
 
 Use `business/<context>/application/` with `application.py`, `assembler.py`,
-`commands/`, `queries/`, and conditional `eventhandlers/`, `task/`, or `ports/`
-directories. Application imports Domain and semantic inner contracts. Provider
-clients, protocol models, active loops, and SQLAlchemy sessions remain outer.
+and conditional `queries/`, `eventhandlers/`, `task/`, or `ports/` directories.
+Application imports Domain and semantic inner contracts. Provider clients,
+protocol models, active loops, and SQLAlchemy sessions remain outer.
 
-## Registry and Assembler
+## Application Entry and Assembler
 
-Every context exposes one immutable registry. It groups handlers without adding
-forwarding methods:
-
-```python
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True, slots=True)
-class Commands:
-    create_user: CreateUserHandler
-
-
-@dataclass(frozen=True, slots=True)
-class Queries:
-    get_user: GetUserHandler
-    list_users: ListUsersHandler
-
-
-@dataclass(frozen=True, slots=True)
-class Application:
-    commands: Commands
-    queries: Queries
-```
+Use one `Application` class in `application.py`, following the
+[shared Application shape](ddd-core.md#application-and-transport-shape).
+Its named methods implement use cases directly. Keep cohesive coordination
+helpers in responsibility-named modules when extraction earns its cost.
 
 Application DTOs are frozen slotted dataclasses. `assembler.py` maps existing
 DTO/Domain state and uses Domain reconstitution; creation calls the Domain
 Factory directly.
 
 ```python
+from dataclasses import dataclass
+
+
 @dataclass(frozen=True, slots=True)
 class UserDTO:
     id: UUID
@@ -82,16 +66,16 @@ external mapping, or business branch.
 
 ## Command and Transaction Shape
 
-Commands and results are immutable values. A handler loads required facts,
-calls named Domain behavior, saves the accepted Root set, coordinates accepted
+Commands and results are immutable values. An Application method loads required
+facts, calls named Domain behavior, saves the accepted Root set, coordinates accepted
 reactions, and returns a minimal result.
 
 ```python
-class CreateUserHandler:
+class Application:
     def __init__(self, repository: UserRepository) -> None:
         self._repository = repository
 
-    def handle(self, command: CreateUser) -> CreateUserResult:
+    def create_user(self, command: CreateUser) -> CreateUserResult:
         user = User.register(command.name, Email(command.email))
         self._repository.save(user)
         return CreateUserResult(user_id=user.id)
@@ -108,14 +92,14 @@ tasks exist, use [ddd-python-taskqueue.md](ddd-python-taskqueue.md).
 
 ## Query Shape
 
-A query handler always returns an immutable Application result. A focused
-accepted one-Root read may load the complete Aggregate and map it. Accepted
+An Application query method or cohesive query object returns an immutable read
+model. A focused accepted one-Root read may load the complete Aggregate and map it. Accepted
 lists, pages, histories, reports, partial fields, and projections use an
 Application-owned `QueryRepository` Protocol returning frozen read DTOs.
 
 ## Verification
 
-Exercise real handlers and Domain objects with small typed semantic fakes.
+Exercise real use cases and Domain objects with small typed semantic fakes.
 Verify mapping, call order that carries business meaning, transaction
 participation for every accepted Root, and immutable results. Provider behavior
 belongs to the Infrastructure integration test.

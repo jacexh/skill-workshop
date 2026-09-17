@@ -15,11 +15,13 @@ docs/ddd-expert/
 
 - `context-map.md` owns the Bounded Context inventory and semantic dependencies.
 - `model.md` owns one context's purpose, essential language, Aggregate Roots, and strategic business rules.
-- `domain-objects.md` owns confirmed current Root and Entity descriptions, grouped by Aggregate Root: definition, Facts, Lifecycle State, behavior, Domain-owned Ports where present, and actual Domain Events. A Definition may include an essential way the object operates when it changes the object's meaning.
+- `domain-objects.md` owns confirmed current Root, Entity, and Domain Service descriptions in the [domain-object template](domain-objects.md): Roots and their Entities are grouped by Aggregate, and Domain Services have a separate context-level section.
 
 Candidates remain in conversation. These files contain no meeting transcript, design history, workflow status, diagrams, implementation sequence, or duplicated project decision.
 
 EventStorming updates strategic files after integrated confirmation. Tactical Design updates an Entity description after its Entity confirmation while the Root interview continues; after Root confirmation, it completes that Root's section and applies accepted changes across affected current DDD artifacts and project decisions, preserving unrelated content. Codify and Guard treat all three artifact types as read-only.
+
+A Domain Service follows the same object confirmation and write checks. Completing its slice includes accepted changes to affected collaborator descriptions and strategic rules.
 
 ## Strategic rule writing
 

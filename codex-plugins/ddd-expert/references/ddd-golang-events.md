@@ -54,7 +54,7 @@ Drain once after successful persistence. The loaded request-scoped Aggregate
 may supply that command's result and drained events, then is stale. A handler
 that changes state enters a fresh Application command and transaction.
 
-`event.Dispatcher.DispatchAll` returns an error. The command handler returns or
+`event.Dispatcher.DispatchAll` returns an error. The Application method returns or
 classifies that error through the ordinary Application error convention.
 
 ```go
@@ -73,7 +73,7 @@ func (h *UserCreatedHandler) Handle(fact event.Event) {
 	if !ok {
 		return
 	}
-	h.app.Commands.PrepareProfile.Handle(context.Background(), command.PrepareProfile{
+	h.app.PrepareProfile(context.Background(), application.PrepareProfile{
 		UserID: created.UserID,
 	})
 }

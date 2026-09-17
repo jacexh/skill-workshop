@@ -13,9 +13,9 @@ subscriber, or task processor is touched.
 ## Adapter Contract
 
 An inbound adapter decodes its contract, extracts accepted actor/correlation
-facts, maps primitives, delegates once through `Application.commands` or
-`.queries`, and maps the result or stable error. Generated and framework types
-remain in Transport.
+facts, maps primitives, delegates once to an Application use-case method or query
+object, and maps the result or stable error. Generated and framework types remain
+in Transport.
 
 ## ConnectRPC Shape
 
@@ -30,7 +30,7 @@ export function createUserConnectRoutes(application: Application) {
   return (router: ConnectRouter): void => {
     router.service(UserService, {
       async createUser(request) {
-        const created = await application.commands.createUser.execute({
+        const created = await application.createUser({
           name: request.name,
           email: request.email,
         });

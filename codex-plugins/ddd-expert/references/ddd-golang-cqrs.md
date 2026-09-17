@@ -14,19 +14,16 @@ read side exists.
 
 ## Focused Aggregate Read
 
-An accepted focused read enters through `Application.Queries`, loads the full
+An accepted focused read uses a named Application method, loads the full
 Aggregate through its Domain Repository, and maps an immutable result. Transport
 receives the result rather than the Aggregate.
 
 ```go
-type GetUser struct {
-	repository domain.Repository
-}
-
-func (h *GetUser) Handle(ctx context.Context, id string) (UserDTO, error) {
-	user, err := h.repository.Get(ctx, id)
+// In package application, using the Application guide's repository field.
+func (a *Application) GetUser(ctx context.Context, id string) (*User, error) {
+	user, err := a.repository.Get(ctx, id)
 	if err != nil {
-		return UserDTO{}, err
+		return nil, err
 	}
 	return AssembleUserEntity(user), nil
 }
@@ -54,7 +51,8 @@ type QueryRepository interface {
 }
 ```
 
-Query handlers depend on that interface and return Application read types.
+Application query methods or cohesive query objects depend on that interface
+and return Application read types.
 Transport maps external filters/cursors to the Application filter, delegates
 once, and maps the result.
 

@@ -1,6 +1,6 @@
 ---
 name: ddd-golang-application
-description: Go House Style for the bounded-context Application registry, command/query orchestration, DTO assembly, semantic transactions, and outbound ports.
+description: Go House Style for the bounded-context Application entry, command/query orchestration, DTO assembly, semantic transactions, and outbound ports.
 ---
 
 # Go Application Layer
@@ -20,47 +20,30 @@ Two accepted, narrow exceptions do not collapse the layer boundary:
 
 Generated RPC types remain Transport. Kafka and Asynq types remain Runtime. A sender of an asynchronous intent calls a local semantic port; Infrastructure/ACL maps that intent to the receiving context's generated contract.
 
-## Mandatory `application.go`
+## Application Entry
 
-Every bounded context has `application/application.go`. It groups all Command and Query handlers exposed to inbound Transport adapters:
+Keep one `Application` type in `application/application.go`, following the
+[shared Application shape](ddd-core.md#application-and-transport-shape).
+Put its use-case methods and input/result types in files named for their cohesive
+responsibility, all in package `application`.
 
 ```go
 package application
 
-import (
-	"example/internal/business/user/application/command"
-	"example/internal/business/user/application/query"
-)
-
-type Commands struct {
-	Create         *command.CreateUserHandler
-	ChangePassword *command.ChangePasswordHandler
-}
-
-type Queries struct {
-	Get  *query.GetUserHandler
-	List *query.ListUsersHandler
-}
+import "example/internal/business/user/domain"
 
 type Application struct {
-	Commands Commands
-	Queries  Queries
+	repository domain.Repository
 }
 
-func NewApplication(
-	create *command.CreateUserHandler,
-	changePassword *command.ChangePasswordHandler,
-	get *query.GetUserHandler,
-	list *query.ListUsersHandler,
-) *Application {
-	return &Application{
-		Commands: Commands{Create: create, ChangePassword: changePassword},
-		Queries:  Queries{Get: get, List: list},
-	}
+func NewApplication(repository domain.Repository) *Application {
+	return &Application{repository: repository}
 }
 ```
 
-`NewApplication` only groups dependencies. It performs no I/O, transaction, event dispatch, runtime registration or forwarding facade work, and it does not import Fx. Domain Event handlers, message subscribers and task processors are registered separately by `<context>.go`.
+Add QueryRepository or cohesive query-object dependencies when the read side
+needs them. `NewApplication` only assigns dependencies; Runtime owns Fx wiring
+and separate event-handler, message-subscriber, and task-processor registration.
 
 ## Mandatory `assembler.go`
 
@@ -104,14 +87,14 @@ The assembler has no logging, I/O, transaction or business branch. It does not m
 
 Persistence mapping belongs in `infrastructure/convert.go` and follows the analogous `DO <-> Domain Entity` shape.
 
-## Command Handler
+## Command Methods
 
-Place a command in `application/command/<use_case>.go`. The handler constructs or loads Domain state, calls Domain behavior and persists the accepted Aggregate. Do not repeat Domain validation on the command DTO.
+A named Application method constructs or loads Domain state, calls Domain behavior and persists the accepted Aggregate. Domain owns validation of command-side business values.
 
 Use this ordinary one-Root shape:
 
 ```go
-package command
+package application
 
 import (
 	"context"
@@ -128,15 +111,7 @@ type CreatedUser struct {
 	ID, Name, Email string
 }
 
-type CreateUserHandler struct {
-	repository domain.Repository
-}
-
-func NewCreateUserHandler(repository domain.Repository) *CreateUserHandler {
-	return &CreateUserHandler{repository: repository}
-}
-
-func (h *CreateUserHandler) Handle(
+func (a *Application) CreateUser(
 	ctx context.Context,
 	cmd CreateUser,
 ) (CreatedUser, error) {
@@ -144,7 +119,7 @@ func (h *CreateUserHandler) Handle(
 	if err != nil {
 		return CreatedUser{}, err
 	}
-	if err = h.repository.Save(ctx, user); err != nil {
+	if err = a.repository.Save(ctx, user); err != nil {
 		return CreatedUser{}, err
 	}
 
@@ -162,9 +137,9 @@ one-resource multi-Root atomic change, load
 Infrastructure participation. Domain meaning must establish that consistency
 boundary before it is implemented.
 
-## Query Handler
+## Read Models
 
-All inbound reads delegate through `Application.Queries`. A focused read of one Aggregate may use the Domain Repository when full reconstitution is reasonable and no distinct read semantics result. A read that has a different model, composition, performance, freshness, source or authorization uses an Application QueryRepository. See [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md).
+Expose reads through named Application methods or a cohesive query object. Return Application read models suited to the consumer. A focused Aggregate read may use the Domain Repository; distinct list, search, report, or projection semantics use a QueryRepository. The [read-side guide](ddd-golang-cqrs.md) owns these shapes; neither a query nor its result requires a per-query Handler.
 
 Transport never calls a Domain Repository or QueryRepository directly.
 
@@ -179,11 +154,11 @@ Application owns what must commit together; Infrastructure owns how. A single-Ag
 ## Errors, Logging and Tests
 
 - Preserve stable Domain error identity with `errors.Is/As`; add `oops` context only when this layer contributes new diagnostics.
-- Command and Query handlers do not duplicate the Transport completion log.
+- Application methods do not duplicate the Transport completion log.
 - Application logs a business-semantic fact only when it has independent operational value. Durable evidence is a Domain Event, audit record or persisted state, not a log line.
 - Application becomes the execution logger only for a terminal flow with no outer observer or when it deliberately swallows a best-effort failure.
 
-Test handlers with real Domain objects and focused fakes for Repository,
+Test use cases with real Domain objects and focused fakes for Repository,
 QueryRepository, ACL, and outbound ports. Cover orchestration and stable errors.
 Changed multi-Root behavior follows the transaction guide. Event behavior
 follows the event leaf.
@@ -194,8 +169,8 @@ follows the event leaf.
 application/
   application.go
   assembler.go
-  command/<use_case>.go
-  query/<use_case>.go
+  <responsibility>.go          # Application methods and input/result types
+  query/                      # distinct read models/contracts or cohesive queries, when needed
   eventhandler/<fact>.go       # when same-BC reaction exists
   task/<task>.go               # TaskType, Definition, protobuf-backed constructor
 ```

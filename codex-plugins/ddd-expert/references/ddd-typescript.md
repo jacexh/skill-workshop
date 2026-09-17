@@ -58,7 +58,7 @@ a dependency or changing structure.
 |---|---|
 | Aggregate, Entity, Value Object, Domain Service, Repository | [ddd-typescript-domain.md](ddd-typescript-domain.md) |
 | Domain-owned Port contract, implementation, or composition | [ddd-typescript-domain.md](ddd-typescript-domain.md), [ddd-typescript-infrastructure.md](ddd-typescript-infrastructure.md), and [ddd-typescript-runtime.md](ddd-typescript-runtime.md) when composition changes |
-| Command, Query, registry, assembler, Unit of Work | [ddd-typescript-application.md](ddd-typescript-application.md) |
+| Command, Query, Application entry, assembler, Unit of Work | [ddd-typescript-application.md](ddd-typescript-application.md) |
 | ConnectRPC, Fastify, subscriber, task processor | [ddd-typescript-transport.md](ddd-typescript-transport.md) |
 | Kysely/MySQL mapping, QueryRepository, outbound ACL | [ddd-typescript-infrastructure.md](ddd-typescript-infrastructure.md) and [database.md](database.md) for SQL/schema |
 | Local Domain Event or Integration Message | [ddd-typescript-events-messages.md](ddd-typescript-events-messages.md) |

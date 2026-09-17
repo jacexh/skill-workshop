@@ -127,8 +127,8 @@ policies when the accepted workflow needs them:
 - `WithUnique` for bounded provider duplicate suppression.
 
 ```go
-// internal/business/document/application/command/request_review.go
-package command
+// internal/business/document/application/review.go
+package application
 
 import (
 	"context"
@@ -138,11 +138,11 @@ import (
 	applicationtask "example.com/service/internal/business/document/application/task"
 )
 
-type RequestReviewHandler struct {
+type Application struct {
 	enqueuer taskqueue.Enqueuer
 }
 
-func (h *RequestReviewHandler) enqueueReview(ctx context.Context, documentID string) error {
+func (a *Application) enqueueReview(ctx context.Context, documentID string) error {
 	queued, err := applicationtask.NewReviewDocument(documentID)
 	if err != nil {
 		return err
@@ -154,7 +154,7 @@ func (h *RequestReviewHandler) enqueueReview(ctx context.Context, documentID str
 	if err := taskqueue.NewEnqueueOptions(options...).Validate(); err != nil {
 		return err
 	}
-	return h.enqueuer.Enqueue(ctx, queued, options...)
+	return a.enqueuer.Enqueue(ctx, queued, options...)
 }
 ```
 
@@ -181,7 +181,6 @@ import (
 	documenttaskv1 "example.com/service/gen/document/task/v1"
 	"github.com/go-jimu/components/taskqueue"
 	"example.com/service/internal/business/document/application"
-	"example.com/service/internal/business/document/application/command"
 	applicationtask "example.com/service/internal/business/document/application/task"
 )
 
@@ -206,7 +205,7 @@ func (p *ReviewDocumentProcessor) Process(ctx context.Context, queued taskqueue.
 	if err := taskqueue.DecodeProto(queued, payload); err != nil {
 		return err
 	}
-	return p.app.Commands.ReviewDocument.Handle(ctx, command.ReviewDocument{
+	return p.app.ReviewDocument(ctx, application.ReviewDocument{
 		DocumentID: payload.GetDocumentId(),
 	})
 }

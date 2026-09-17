@@ -61,7 +61,7 @@ a dependency or changing structure.
 |---|---|
 | Aggregate, Entity, Value Object, Domain Service, Repository | [ddd-python-domain.md](ddd-python-domain.md) |
 | Domain-owned Port contract, implementation, or composition | [ddd-python-domain.md](ddd-python-domain.md), [ddd-python-infrastructure.md](ddd-python-infrastructure.md), and [ddd-python-runtime.md](ddd-python-runtime.md) when composition changes |
-| Command, Query, Application registry, assembler, local transaction scope | [ddd-python-application.md](ddd-python-application.md) |
+| Command, Query, Application entry, assembler, local transaction scope | [ddd-python-application.md](ddd-python-application.md) |
 | FastAPI, gRPC, subscriber, task processor | [ddd-python-transport.md](ddd-python-transport.md) |
 | SQLAlchemy, MySQL mapping, QueryRepository, outbound ACL | [ddd-python-infrastructure.md](ddd-python-infrastructure.md) and [database.md](database.md) for SQL/schema |
 | Local Domain Event or Integration Message | [ddd-python-events-messages.md](ddd-python-events-messages.md) |
