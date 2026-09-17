@@ -35,6 +35,8 @@ missing or contradictory business meaning that prevents a faithful write.
 
 ## Relentless interview contract
 
+Use the shared [design interview presentation](../../references/workflow.md#design-interview-presentation) for questions, recommendations, changes, and conflicts.
+
 - If a fact can be found in the repository, look it up instead of asking the user.
 - Ask one material unresolved question at a time and resolve its dependent branch before moving sideways.
 - Every decision question includes a recommended answer, concise reasoning, and the strongest credible alternative or deletion case.

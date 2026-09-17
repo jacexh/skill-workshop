@@ -21,6 +21,19 @@ Candidates remain in conversation. These files contain no meeting transcript, de
 
 EventStorming updates strategic files after integrated confirmation. Tactical Design updates an Entity description after its Entity confirmation while the Root interview continues; after Root confirmation, it completes that Root's section and applies accepted changes across affected current DDD artifacts and project decisions, preserving unrelated content. Codify and Guard treat all three artifact types as read-only.
 
+## Strategic rule writing
+
+Write each Model Business Rule as one independently challengeable claim: name the
+governed business concept or collaboration, its material conditions, and the
+accepted decision, permission, transition, required outcome, or invariant.
+Tactical behavior ownership belongs in `domain-objects.md`.
+
+Express the promised behavior or authority at the Model level. Technical concepts
+may be Domain language: "Stopping execution preserves the Session's persistent
+assets" is a domain guarantee; retaining a JuiceFS PVC is its current realization
+and belongs with project implementation decisions. Preserve a named technology
+when the accepted business contract itself depends on it.
+
 ## Write checks
 
 Before a strategic write, use the [Context Map](context-map.md) and
@@ -28,6 +41,11 @@ Before a strategic write, use the [Context Map](context-map.md) and
 [domain-object template](domain-objects.md). Keep template headings and table
 headers; descriptions and business vocabulary may use the user's language.
 Replace placeholders and omit inapplicable optional entries.
+
+For each added or revised Model rule, reread its whole entry against
+[Strategic rule writing](#strategic-rule-writing). Split, merge, or rewrite affected
+entries until each expresses one claim at that level, preserving accepted
+conditions, outcomes, and unrelated meaning.
 
 After writing, reread changed artifacts for accepted meaning and preservation of
 unaffected content. Check that each affected relative Model link resolves.
