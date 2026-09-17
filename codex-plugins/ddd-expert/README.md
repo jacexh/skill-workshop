@@ -41,7 +41,7 @@ docs/ddd-expert/
 
 - `context-map.md`: Bounded Contexts and semantic dependencies.
 - `model.md`: context purpose, essential language, Aggregate Roots, and strategic business rules.
-- `domain-objects.md`: confirmed current Root and Entity descriptions, grouped by Aggregate Root.
+- `domain-objects.md`: confirmed current Roots and Entities grouped by Aggregate Root, with an optional context-level Domain Services section.
 
 Only the accepted current-model files described above are workflow artifacts; workshop conversation and implementation history remain transient.
 

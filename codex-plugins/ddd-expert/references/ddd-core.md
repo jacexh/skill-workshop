@@ -115,11 +115,19 @@ remains an execution outcome unless the accepted model gives it Domain meaning.
 
 ## Application and Transport Shape
 
-- A command handler loads required facts, invokes Domain behavior, persists the
+Use one `Application` entry object per Bounded Context. Write use cases are
+named methods that perform coordination directly; related methods may share
+dependencies and files. Keep useful command/input values. Extract a collaborator
+when it isolates substantial coordination or independently varying dependencies,
+rather than allocating a Handler and registration per use case. Constructors
+receive dependencies; request state stays local to each call.
+
+- A command method loads required facts, invokes Domain behavior, persists the
   accepted Root set, coordinates accepted reactions, and returns a minimal
   immutable result.
-- A query handler returns an immutable Application read result and performs no
-  business mutation.
+- A query returns an immutable Application read model and performs no business
+  mutation. Expose it as an Application method or a cohesive query object;
+  a distinct result shape alone needs no separate Handler or read store.
 - A focused read of one complete Aggregate may use its write Repository when
   that path is already accepted. Accepted lists, pages, histories, reports,
   partial fields, and composed projections use an Application-owned

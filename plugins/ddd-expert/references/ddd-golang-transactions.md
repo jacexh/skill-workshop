@@ -24,7 +24,7 @@ type Transactor interface {
 }
 ```
 
-The Command Handler receives `transaction.Transactor` and calls `Within`. Inside its callback it:
+Application receives `transaction.Transactor` and calls `Within`. Inside its callback it:
 
 1. passes the derived context unchanged to every participating Repository;
 2. loads and locks roots in stable identity order when locking is required;
@@ -42,7 +42,7 @@ The conditional `internal/pkg/transaction.Transactor` is a shared technical exec
 
 Ordinary one-Root commands need no shared transaction abstraction. When the confirmed same-BC, one-resource exception exists, `internal/pkg/transaction` owns only the provider-neutral `Transactor` contract and `internal/pkg/database` owns its xorm implementation plus one executor resolver shared by every Repository adapter.
 
-Runtime constructs one resolver and one database Transactor over the same engine/resource identity, supplies the resolver to Repository adapters, and binds the adapter as `transaction.Transactor` for Command Handlers. Do not create one transaction implementation per bounded context.
+Runtime constructs one resolver and one database Transactor over the same engine/resource identity, supplies the resolver to Repository adapters, and binds the adapter as `transaction.Transactor` for Application use cases. Do not create one transaction implementation per bounded context.
 
 For one-statement operations, the local resolver exposes a shape equivalent to `Resolve(context.Context) (xorm.Interface, error)`. It returns `engine.Context(ctx)` when no Application transaction is active and the current `*xorm.Session` inside the matching callback scope. Keep the typed context key, xorm session, and resource identity private to `internal/pkg/database`.
 

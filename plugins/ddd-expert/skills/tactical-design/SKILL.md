@@ -1,6 +1,6 @@
 ---
 name: tactical-design
-description: Use when accepted Aggregate Roots and business rules need tactical design of object ownership, behavior, or external-authority boundaries.
+description: Use when accepted Aggregate Roots and business rules need tactical design of object ownership, Domain Services, behavior, or external-authority boundaries.
 ---
 
 # Tactical Design
@@ -28,9 +28,9 @@ If tactical refinement exposes a needed correction to business meaning, a Bounde
 ## Choose the current work
 
 For refinement or challenge, use the interview below to resolve ownership,
-behavior, composition, and external authority for the smallest affected Root slice.
-For recording a complete already-confirmed Entity or Root, proceed directly to
-"Complete the Root slice" and the write steps. Reuse its decisions; resolve only
+behavior, composition, and external authority for the smallest affected Root or Domain Service slice.
+For recording a complete already-confirmed Entity, Root, or Domain Service, proceed directly to
+"Complete the current slice" and the write steps. Reuse its decisions; resolve only
 missing or contradictory business meaning that prevents a faithful write.
 
 ## Relentless interview contract
@@ -45,6 +45,8 @@ Use the shared [design interview presentation](../../references/workflow.md#desi
 
 Work one Aggregate Root at a time. Within it, follow the smallest affected business-pressure slice; when a Root has no accepted slice, cover every Business Rule that shapes it. Account for every retained or changed object, but do not interview through an entity checklist or reopen unaffected objects without evidence.
 
+For a Domain Service slice, use its governing Business Rules and affected Roots as context for the same pressure-led comparison. Review only the collaborating Root behaviors whose responsibilities change.
+
 ## Derive essential business pressures
 
 For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, Lifecycle State transition, invariant, material external-authority need, or actual Domain Event that the object model must realize. Together, the pressures are the working expression of the Root's essential complexity, not a score or a claim that only one phrasing is possible. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
@@ -53,7 +55,7 @@ Every pressure names the governing Business Rules in the working conversation. S
 
 ## Probe behavior ownership
 
-Whenever proposing a candidate Root or Entity, explain together what it represents and how it operates, then introduce its candidate Behaviors immediately in the owning Bounded Context's Domain language. If no precise Domain verb follows from that account, keep clarifying the proposal instead of assigning a technical placeholder name.
+Whenever proposing a candidate Root, Entity, or Domain Service, explain together what it represents and how it operates, then introduce its candidate Behaviors immediately in the owning Bounded Context's Domain language. If no precise Domain verb follows from that account, keep clarifying the proposal instead of assigning a technical placeholder name.
 
 A straightforward object may need only one sentence. Where operation is material, follow how it makes Domain progress or produces a result, including any autonomous progress, external-decision boundary, or owned-object result flow. Use that account to discover and connect Behaviors rather than waiting for scenario-by-scenario probing to stall. Keep the How as conversational working reasoning, carrying only an operating characteristic essential to what the object is into its Definition.
 
@@ -73,7 +75,7 @@ When a behavior transitions the object's Lifecycle State, name the transition:
 
 Do not force this clause onto behavior that has no Lifecycle State transition. There is no universal result slot.
 
-During exploration, vary the Subject when different owners are credible. Resolve every material Subject and Object as the current Root, an owned Entity, a Value Object, a Fact owned by one of those objects, an identity reference to another Root, or an external role or authority, and name each Lifecycle State transition explicitly. Explicit resolution does not promote every noun into a Domain object.
+During exploration, vary the Subject when different owners are credible. Resolve every material Subject and Object as the current Root, an owned Entity, a Value Object, a Domain Service, a Fact owned by one of those objects, an identity reference to another Root, or an external role or authority, and name each Lifecycle State transition explicitly. Explicit resolution does not promote every noun into a Domain object.
 
 In the accepted design, the object whose behavior is described becomes the grammatical Subject and behavior owner. The sentence describes Domain meaning, not a method signature or call graph.
 
@@ -108,32 +110,36 @@ Prefer the viable candidate that localizes each decision with the state it needs
 
 Use a Value Object when Domain meaning, validity, and equality come from its attributes rather than identity. Use a Domain Service only for an accepted named Domain operation with no natural Entity or Value Object owner; it owns that Domain decision while Application retains loading, persistence, and transaction coordination.
 
+For a retained Domain Service, establish its Domain inputs, decision or result, and any collaboration through public Aggregate behavior. Apply the Capability Probe to its Behaviors. Record its responsibility once at Bounded Context scope using the template's Domain Service section; collaborating Root descriptions reference that responsibility where needed.
+
 Carry a realization concern into the design only when a confirmed Business Rule changes the required ownership or Domain result. Express that constraint through the affected object's Facts, Lifecycle State, behavior, Domain-owned Port Method, or actual Domain Event, or through the project's decision mechanism when it is a hard-to-reverse project choice.
 
-## Complete the Root slice
+## Complete the current slice
 
-Before presenting any Entity or Root description, read the [domain-object template](../../templates/domain-objects.md), including its field definitions. Use it for every object, whether or not it has Ports or Events. Record only the accepted objects and fields that carry this slice's business meaning.
+Before presenting any object description, read the [domain-object template](../../templates/domain-objects.md), including its field definitions. Use it for every object, whether or not it has Ports or Events. Record only the accepted objects and fields that carry this slice's business meaning.
 
-## Entity and Root confirmation
+## Object and Root confirmation
 
 When one retained Entity's definition, Facts, Lifecycle State, behavior, any Domain-owned Ports, and Root composition are coherent, show its complete compact description with any directly affected Root or owned-object wording. Use existing confirmation when it covers the proposed description; otherwise obtain confirmation under the workflow contract. Then update those descriptions in `docs/ddd-expert/context/<context-slug>/domain-objects.md` and continue the current Root. An Entity confirmation gathers the decisions that close its responsibility; individual answers remain conversational working state.
 
-For a newly designed Root, show its integrated compact slice when its composition is complete. Before confirmation, verify that every pressure is traceable and assigned; every external-authority need has a Capability Probe classification; every material behavior owner, target, and Lifecycle State transition is resolved; every retained or changed object has a reason to exist; and the strongest credible alternative was compared under the same pressures. Check every description against the template, including Port Methods, recording Behaviors, and accepted local reactions. Complete when no material decision remains that would change composition or ownership.
+For a Domain Service, present its complete template description with any affected collaborator wording once its decision ownership, inputs, result, and external-authority needs are resolved. Use the same confirmation and write steps, then continue the affected slice.
+
+For a newly designed Root, show its integrated compact slice when its composition is complete. Before confirming any newly designed slice, verify that every pressure is traceable and assigned; every external-authority need has a Capability Probe classification; every material behavior owner, target, and Lifecycle State transition is resolved; every retained or changed object has a reason to exist; and the strongest credible alternative was compared under the same pressures. Check every description against the template, including Port Methods, recording Behaviors, and accepted local reactions. Complete when no material decision remains that would change composition or ownership.
 
 For an already-confirmed Root, check the supplied description against the template
 and accepted authority. Resolve only material gaps that prevent a faithful write.
 
-Use the workflow contract's confirmation rule for the integrated Root. Before any Entity or Root write, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write or replace accepted descriptions while preserving unrelated content. At that Root confirmation, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Run the write checks for changed artifacts, then continue with the next affected Root within the requested scope. `domain-objects.md` contains only current accepted object descriptions grouped by Root. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
+Use the workflow contract's confirmation rule for the integrated Root. Before any object write, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write or replace accepted descriptions while preserving unrelated content. At completion of a Root or Domain Service slice, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Run the write checks for changed artifacts, then continue with the next affected slice within the requested scope. `domain-objects.md` contains only current accepted descriptions in the template's layout. Essential-pressure sets, candidate assignments, rejected alternatives, and design-burden comparisons remain conversational working state.
 
 ## Completion
 
 Ask the decisive question only while material business meaning remains unresolved;
 request confirmation only for proposed content not already covered by confirmation
 or delegated choices under the workflow contract. Otherwise write the accepted
-Entity or Root, run its affected write checks, and continue authorized work.
+object, run its affected write checks, and continue authorized work.
 
-After an Entity write, continue the current Root; after a Root write, continue
-with the next affected Root in scope. Once all requested slices are complete,
+After an object write, continue its current slice; after completing a slice, continue
+with the next affected slice in scope. Once all requested slices are complete,
 continue to Codify when implementation is already in scope and the accepted
 slices cover it. A design-only request ends with the accepted result.
 

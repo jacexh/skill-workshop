@@ -23,7 +23,7 @@ Infrastructure -> Application and Domain contracts
 | Layer | Owns | Must not own |
 |---|---|---|
 | Domain | Aggregates, Entities, Value Objects, Domain Services, Domain Events, business sequencing, write Repository and Domain-owned Port contracts | protocol, persistence, logging, task/message provider mechanics, Runtime |
-| Application | Commands, Queries, use-case coordination/context, Application-owned semantic capabilities, `Application` registry, DTO assemblers, same-context reactions, internal task contracts | ConnectRPC/HTTP handlers, xorm, Kafka/Asynq clients, process lifecycle |
+| Application | Commands, Queries, use-case coordination/context, Application-owned semantic capabilities, `Application` entry, DTO assemblers, same-context reactions, internal task contracts | ConnectRPC/HTTP handlers, xorm, Kafka/Asynq clients, process lifecycle |
 | Transport | ConnectRPC/HTTP handlers, Integration Message subscribers, task processors, scheduled inbound triggers | Repositories, transactions, Aggregate mutation, provider runtimes |
 | Infrastructure | Repository/QueryRepository implementations, DO conversion, ACLs, external adapters | Domain decisions, inbound protocol handling, process lifecycle |
 | Runtime | Fx composition, configuration, shared clients, servers, consumers, workers, schedulers, telemetry, shutdown | business rules and bounded-context language |
@@ -32,7 +32,7 @@ Application has three narrow, accepted provider-neutral exceptions:
 
 - a producing Application event handler may map a Domain Event to its own generated Integration Message contract and call `message.Publisher`;
 - an accepted internal task may define its durable payload schema under `proto/<context>/task/v1`, then use `components/taskqueue` and `Enqueuer` under `application/task`;
-- only for a confirmed same-BC, one-resource multi-Root transaction, a Command Handler may use the project-local `internal/pkg/transaction.Transactor` callback. Its xorm implementation and current-executor resolution remain in `internal/pkg/database`.
+- only for a confirmed same-BC, one-resource multi-Root transaction, an Application method may use the project-local `internal/pkg/transaction.Transactor` callback. Its xorm implementation and current-executor resolution remain in `internal/pkg/database`.
 
 Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xorm sessions, Fx, and active loops remain outside Application.
 
@@ -44,7 +44,7 @@ all affected guides; a conditional mechanism needs its guide only when accepted.
 | Touched code surface | Load |
 |---|---|
 | Aggregate, Entity, Value Object, Domain Service, lifecycle, Repository or Domain-owned Port contract | [Domain](ddd-golang-domain.md) |
-| Command, Query, use-case coordination, Application registry or assembler | [Application](ddd-golang-application.md); [CQRS](ddd-golang-cqrs.md) for read-model separation |
+| Command, Query, use-case coordination, Application entry or assembler | [Application](ddd-golang-application.md); [CQRS](ddd-golang-cqrs.md) for read-model separation |
 | RPC/HTTP endpoint, message subscriber, task processor, public error mapping | [Transport](ddd-golang-transport.md) plus the affected event/message/task flow below |
 | Domain-owned Port implementation or outbound ACL | [Infrastructure](ddd-golang-infrastructure.md); Domain for contract changes and Runtime for composition changes |
 | xorm Repository, Data Object, persistence conversion | [Infrastructure](ddd-golang-infrastructure.md), [Persistence](ddd-golang-persistence.md), and affected [Database](database.md) rules |
@@ -98,7 +98,7 @@ stack migration.
 ## Cross-cutting House Rules
 
 - Every bounded context exposes `application/application.go`, `application/assembler.go`, and `<context>.go` as described by the Scaffold guide.
-- `Application.Commands` contains every Command Handler; `Application.Queries` contains every Query Handler. Transport receives the registry and delegates once.
+- The [Application guide](ddd-golang-application.md) owns use-case methods and read-side entry shapes. Transport delegates to one such use case.
 - Application DTO/Domain Entity conversion lives in `application/assembler.go`. DO/Domain Entity conversion lives in `infrastructure/convert.go`.
 - Exported Domain fields are a mechanical mapping surface. New Aggregates use `domain.NewXxx` or another Domain Factory; outer layers do not assign fields to perform business changes.
 - Business data is validated in Domain. Application DTOs and DOs do not duplicate validator tags. Query filters/read models follow the CQRS guide.

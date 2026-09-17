@@ -14,8 +14,8 @@ logging, tracing, active loops, or shutdown is touched.
 
 `runtime/bootstrap.py` loads one `pydantic-settings` object, configures logging
 and accepted tracing, constructs process resources, then constructs Bounded
-Context adapters, handlers, registries, and Transport registrations. Use plain
-constructors and typed registries.
+Context adapters, Application instances, and accepted handler/Transport
+registrations. Use plain constructors.
 
 Create one Engine per database and one shared synchronous `httpx.Client` per
 compatible policy. Construct Kafka and Celery resources only in their dedicated

@@ -111,8 +111,6 @@ import (
     connect "connectrpc.com/connect"
     "example/gen/user/public/v1/userv1connect"
     "example/internal/business/user/application"
-    "example/internal/business/user/application/command"
-    "example/internal/business/user/application/query"
     "example/internal/business/user/infrastructure"
     userconnect "example/internal/business/user/transport/connectrpc"
     sharedconnect "example/internal/pkg/connectrpc"
@@ -123,9 +121,6 @@ var Module = fx.Module(
     "business.user",
     fx.Provide(
         infrastructure.NewUserRepository,
-        infrastructure.NewUserQueryRepository,
-        command.NewCreateUserHandler,
-        query.NewGetUserHandler,
         application.NewApplication,
         userconnect.NewHandler,
     ),

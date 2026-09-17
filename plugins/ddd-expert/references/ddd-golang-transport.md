@@ -36,7 +36,6 @@ import (
 	"example/gen/user/public/v1"
 	"example/gen/user/public/v1/userv1connect"
 	"example/internal/business/user/application"
-	"example/internal/business/user/application/command"
 )
 
 type Handler struct {
@@ -53,7 +52,7 @@ func (h *Handler) Create(
 	ctx context.Context,
 	request *connect.Request[userv1.CreateRequest],
 ) (*connect.Response[userv1.CreateResponse], error) {
-	result, err := h.application.Commands.Create.Handle(ctx, command.CreateUser{
+	result, err := h.application.CreateUser(ctx, application.CreateUser{
 		Name: request.Msg.GetName(),
 		Email: request.Msg.GetEmail(),
 	})
@@ -112,4 +111,4 @@ transport/
   taskprocessor/<task>.go       # only for accepted Task Queue
 ```
 
-Do not pre-create empty adapter directories. Test the real adapter with a focused fake Application handler. Cover mapping, one-call delegation, public error/outcome mapping, unexpected message/task payloads and returned retry/skip classification; do not retest Domain rules here.
+Do not pre-create empty adapter directories. Test the real adapter with a focused fake of its consumed Application contract. Cover mapping, one-call delegation, public error/outcome mapping, unexpected message/task payloads and returned retry/skip classification; do not retest Domain rules here.
