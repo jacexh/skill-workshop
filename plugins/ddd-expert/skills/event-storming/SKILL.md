@@ -37,23 +37,23 @@ accurate write; formatting differences are resolved through the templates.
 
 ## Conversation contract
 
-- Inspect relevant Specs, PRDs, ADRs, glossary entries, current DDD artifacts, code, and tests first. If a fact is available there, look it up instead of asking the user.
-- Ask one material unresolved question at a time. Each question must be capable of changing the current strategic model.
+- Inspect relevant Specs, PRDs, ADRs, glossary entries, current DDD artifacts, code, and tests first. If a fact is available there, look it up instead of asking the user. For changes to existing behavior, compare the accepted model, observed implementation, and requested outcome; focus discussion on affected differences and conflicts.
+- Ask one material unresolved question at a time about product goals, user scenarios, business rules, or strategic boundaries. A gap can merit an interview before its effect on Bounded Contexts or Aggregates is known. Wait for the answer before settling conclusions that depend on it.
 - For a business fact, explain what evidence is missing. For a design choice, give a recommended answer, its reason, and the strongest credible alternative.
 - Treat disagreement and examples as evidence. Revise the model when they defeat the current explanation.
-- Stop when Bounded Context and Aggregate Root conclusions are supported and another question would not change them.
+- Move to the integrated proposal when the scoped goals, key success and failure scenarios, business rules, and affected strategic boundaries are supported by evidence, and remaining uncertainty does not block the proposal.
 
 Keep unresolved material uncertainty visible. Never manufacture business authority from existing code or DDD terminology.
 
 ## Conversational board
 
-During discovery, maintain the lightest useful EventStorming board in the conversation: the current Workshop Event timeline, causing Commands and Roles, constraints and Hotspots, and candidate Aggregate and Bounded Context clusters. Update that working view when answers change instead of turning every intermediate state into a document.
+During discovery, maintain the lightest useful EventStorming board in the conversation: the current Workshop Event timeline, causing Commands and Roles, constraints and Hotspots, and candidate Aggregate and Bounded Context clusters. Show the working scenario or timeline as it develops so the user can correct missing or misunderstood meaning before the integrated proposal. When an answer changes it, show the affected part.
 
 Use a compact text timeline, table, or arrow chain only when it makes a causal gap or boundary decision materially easier to inspect. These working views and alternatives remain in the conversation; never write them to the repository or treat their notation as separate approval.
 
 ## The ten EventStorming steps
 
-Use all ten steps in causal order during discovery. A thesis review may acknowledge evidence already established and resume at the first step capable of changing the thesis.
+Use all ten steps in causal order during discovery. Advance through explicit interviews where material knowledge is missing, reusing established evidence where it already answers a step. Steps may span or share turns; advance when the step's conclusions have evidence and its blocking questions are answered. Revisit affected earlier conclusions when later answers change them. A thesis review may acknowledge evidence already established and resume at the first step capable of changing the thesis.
 
 1. **Scope**: establish the business outcome, affected parties and authorities, time horizon, included success scenarios, and exclusions.
 2. **Workshop Events**: identify material past-tense business occurrences without assuming they become production events.
@@ -70,7 +70,7 @@ Workshop Events stay in the conversation as analytical evidence. A proposed prod
 
 Derive strategic boundaries from business language, authority, policy, lifecycle, and model purpose. Admit a concern only when it changes a business right, obligation, value, authority, decision, outcome, or required next action. Treat implementation observations as evidence about that business meaning; later design owns the realization.
 
-Write only Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. Each rule is one independently challengeable claim: name the governed business concept or collaboration, any condition that changes the meaning, and the accepted business decision, permission, transition, required outcome, or invariant. State business meaning without assigning tactical behavior ownership or prescribing an implementation mechanism.
+Derive Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. When drafting or revising them, apply the [strategic rule writing guidance](../../templates/artifact-layout.md#strategic-rule-writing).
 
 ## Current strategic artifacts
 
