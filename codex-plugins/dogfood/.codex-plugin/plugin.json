@@ -1,0 +1,28 @@
+{
+  "name": "dogfood",
+  "description": "Explore web applications with agent-browser and report bugs with reproducible screenshots, videos, and steps",
+  "version": "0.1.0",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "dogfood",
+    "qa",
+    "exploratory-testing",
+    "agent-browser"
+  ],
+  "interface": {
+    "displayName": "Dogfood",
+    "shortDescription": "Explore web apps and capture reproducible bug reports",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "longDescription": "Explore a web application with agent-browser and save an evidence-based report with reproduction steps, screenshots, videos, and coverage limitations.",
+    "developerName": "xuhao",
+    "defaultPrompt": "Use $dogfood:dogfood to explore the target web application and report reproducible issues."
+  },
+  "skills": "./skills/"
+}
