@@ -1,0 +1,15 @@
+{
+  "name": "dogfood",
+  "description": "Explore web applications with agent-browser and report bugs with reproducible screenshots, videos, and steps",
+  "version": "0.1.0",
+  "author": {
+    "name": "xuhao"
+  },
+  "license": "Apache-2.0",
+  "keywords": [
+    "dogfood",
+    "qa",
+    "exploratory-testing",
+    "agent-browser"
+  ]
+}

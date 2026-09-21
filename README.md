@@ -21,6 +21,7 @@ Skill Workshop is a curated collection of plugins that enhance agentic software 
 /plugin install superpowers-architect@skill-workshop
 /plugin install ddd-expert@skill-workshop
 /plugin install designing-tests@skill-workshop
+/plugin install dogfood@skill-workshop
 ```
 
 ### Enable auto-update
@@ -84,6 +85,17 @@ Proof, with architecture, integration, and hand-off references on demand.
 - **Claude details:** [plugins/designing-tests/README.md](plugins/designing-tests/README.md)
 - **Codex details:** [codex-plugins/designing-tests/README.md](codex-plugins/designing-tests/README.md)
 
+### dogfood
+
+Explicitly invoked exploratory web QA using the external `agent-browser` CLI.
+Produces reports with reproduction steps, screenshots, videos, coverage limits,
+and separate unconfirmed observations. Adapted from ZCode and Vercel's
+agent-browser; the CLI and browser runtime must be installed separately.
+
+- **License:** Apache-2.0
+- **Claude details:** [plugins/dogfood/README.md](plugins/dogfood/README.md)
+- **Codex details:** [codex-plugins/dogfood/README.md](codex-plugins/dogfood/README.md)
+
 ---
 
 ## Repository Structure
@@ -99,12 +111,14 @@ Proof, with architecture, integration, and hand-off references on demand.
 │   ├── superpowers-memory/       # Claude track: project knowledge persistence
 │   ├── superpowers-architect/    # Architectural design patterns
 │   ├── ddd-expert/               # Standalone DDD/backend skills
-│   └── designing-tests/          # Test design guidance
+│   ├── designing-tests/          # Test design guidance
+│   └── dogfood/                  # Exploratory web QA and evidence reports
 ├── codex-plugins/
 │   ├── superpowers-memory/       # Codex track: project knowledge persistence
 │   ├── superpowers-architect/    # Codex track: architectural design patterns
 │   ├── ddd-expert/               # Codex track: standalone DDD/backend skills
-│   └── designing-tests/          # Codex track: test design guidance
+│   ├── designing-tests/          # Codex track: test design guidance
+│   └── dogfood/                  # Codex track: exploratory web QA
 ├── CONTEXT.md                    # Project glossary
 ├── docs/
 │   └── agents/                   # Agent workflow configuration
@@ -172,7 +186,7 @@ Plugins that declare lifecycle hooks require this feature in
 hooks = true
 ```
 
-`ddd-expert` and `designing-tests` are hookless and do not require this flag.
+`ddd-expert`, `designing-tests`, and `dogfood` are hookless and do not require this flag.
 
 Install the Codex plugins you need:
 
@@ -181,6 +195,7 @@ codex plugin add superpowers-memory@skill-workshop-codex
 codex plugin add superpowers-architect@skill-workshop-codex
 codex plugin add ddd-expert@skill-workshop-codex
 codex plugin add designing-tests@skill-workshop-codex
+codex plugin add dogfood@skill-workshop-codex
 ```
 
 Restart Codex after installing or upgrading plugins. Hook-bearing plugins load

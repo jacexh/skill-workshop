@@ -1,0 +1,7 @@
+interface:
+  display_name: "Dogfood"
+  short_description: "Explore web apps and capture reproducible bug reports"
+  default_prompt: "Use $dogfood to explore the target web app and report issues with evidence."
+
+policy:
+  allow_implicit_invocation: false
