@@ -17,6 +17,12 @@ The DDD artifacts define accepted business meaning, Aggregate boundaries, and Do
 
 Resolve unspecified realization choices through accepted project constraints and applicable House Style, using repository code and tests as integration evidence.
 
+Classify each gap the implementation exposes:
+
+- A software-shape choice, such as naming, layering, error types, persistence, or transaction scope, that changes no business right, obligation, authority, decision, outcome, or required next action: resolve it through project constraints and House Style.
+- A business-shaped gap with a conservative reading that contradicts no accepted statement and can later be reversed in one place: implement it under that stated assumption and continue. Prefer rejection over admission, the narrowest permission, and failing closed.
+- A contradiction between accepted statements, or a gap where every implementation would change an accepted Business Rule, consistency boundary, Domain-owned Port, or Domain Event: complete the rest of the slice, then raise it once as a ⚠️ **Conflict** under the workflow contract's presentation markers. The code realizes only the accepted statements.
+
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
 
 ## Implement
@@ -31,7 +37,7 @@ Run repository tests and checks proportionate to the changed behavior and risk. 
 
 ## Completion
 
-End with the implemented behavior, changed files, verification results, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, relevant House Style, and verification agreeing in the final code.
+End with the implemented behavior, changed files, verification results, stated assumptions, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, relevant House Style, and verification agreeing in the final code.
 
 ## References
 
