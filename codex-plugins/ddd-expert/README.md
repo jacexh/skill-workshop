@@ -21,11 +21,11 @@ $ddd-expert:guard
 
 ## Workflow
 
-EventStorming keeps its complete ten-step discussion method. It identifies Bounded Contexts and Aggregate Roots, asks one question at a time, and writes only accepted current strategic knowledge.
+EventStorming keeps its complete ten-step discussion method. It derives candidate Bounded Contexts and Aggregate Roots from the timeline, stresses each with probe questions whose every answer maps to a modeling action, asks one question at a time, and writes only accepted current strategic knowledge.
 
-Tactical Design works one Aggregate Root at a time. It derives essential business pressures, probes behavior ownership and external authority, compares credible object compositions, and records confirmed current descriptions. Its skill and templates own the detailed process and field contract.
+Tactical Design works one Aggregate Root at a time. It derives essential business pressures, attacks behavior ownership and external authority with ownership probes whose every answer maps to a design action, compares credible object compositions in one pressure-by-candidate table, and records confirmed current descriptions. Its skill and templates own the detailed process and field contract.
 
-Codify treats the accepted strategic model and current domain objects as read-only semantic constraints, then fills the required software structure through project and active-language House Style. Guard independently checks whether the implementation preserves their ownership and behavior, and whether changed non-Domain abstractions reduce overall complexity under House Style.
+Codify treats the accepted strategic model and current domain objects as read-only semantic constraints, then fills the required software structure through project and active-language House Style; a business-shaped gap is implemented under a stated conservative assumption, and only a genuine contradiction is raised to the user after the rest of the slice is complete. Guard independently checks whether the implementation preserves their ownership and behavior, whether Codify's stated assumptions hold, and whether changed non-Domain abstractions reduce overall complexity under House Style.
 
 Start at the skill that owns the current request and reuse existing confirmations. Design-only and review-only requests end with their requested result. The [workflow contract](references/workflow.md) defines authorization, project-convention precedence, and proportionate verification. House Style supplies defaults for choices the project leaves open.
 
@@ -70,6 +70,8 @@ Changed artifacts follow the [artifact write checks](templates/artifact-layout.m
 Canonical references live under `references/`:
 
 - `workflow.md` — shared scope, authorization, project conventions, and verification contract
+- `event-storming-example.md` — worked board, probe turn, and integrated proposal for EventStorming
+- `tactical-design-example.md` — worked pressure list, probe turn, comparison table, and confirmed description for Tactical Design
 - `ddd-core.md` — language-neutral realization of accepted DDD objects and layers
 - `ddd-collaboration.md` — realization of accepted APIs, Domain Events, and Integration Messages
 - `database.md` — MySQL schema, SQL, migration, and persistence realization

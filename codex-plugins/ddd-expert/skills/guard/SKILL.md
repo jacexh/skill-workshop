@@ -11,11 +11,11 @@ Read the [workflow contract](../../references/workflow.md) for scope, instructio
 
 Run Guard in one fresh, read-only agent context distinct from the implementer. Review only: do not edit source, DDD artifacts, tests, or project state. This is a semantic-structure review, not a general bug hunt, verification campaign, or operational probe.
 
-If already in that independent context, review here. Otherwise delegate once with the user's scope and raw evidence. If an independent context is unavailable, report that limitation; provide an in-context review only when the user accepts its reduced independence.
+If already in that independent context, review here. Otherwise delegate once through the host's isolated-agent mechanism: the delegation names this skill file to read first, the user's scope, the affected artifact paths, the diff base, and the assumptions Codify stated, and carries no conclusions. If an independent context is unavailable, report that limitation; provide an in-context review only when the user accepts its reduced independence.
 
 ## Evidence
 
-Read the user's scope, affected `model.md` and `domain-objects.md`, `docs/ddd-expert/context-map.md` when Context ownership or collaboration changes, the complete stable diff and relevant production code, governing project decisions, and the smallest complete House Style leaf set whose applicability covers the affected code surfaces.
+Read the user's scope, affected `model.md` and `domain-objects.md`, `docs/ddd-expert/context-map.md` when Context ownership or collaboration changes, the complete stable diff and relevant production code, the assumptions Codify stated at completion, governing project decisions, and the smallest complete House Style leaf set whose applicability covers the affected code surfaces.
 
 DDD artifacts own accepted business meaning and Domain ownership; they are not a complete software design. Their silence about remaining software structure is implementation latitude judged through project constraints and House Style, not missing authority. Code and tests are implementation evidence, not authority that silently changes the model.
 
@@ -23,7 +23,7 @@ DDD artifacts own accepted business meaning and Domain ownership; they are not a
 
 Trace each affected accepted responsibility through the minimum production code needed to judge it. Compare semantic responsibility and state carriers, not names. A changed file is not automatically another review obligation. Use question-led depth: state the concrete structural question before expanding into adapter or runtime code, read the minimum evidence, and stop when it is answered.
 
-Judge whether accepted business state, behavior, invariants, actual Domain Events, and Domain-owned Port contracts remain with their recorded owners, whether Port fulfillment stays behind Infrastructure implementations, and whether outer coordination, persistence, transport, or runtime code preserves rather than duplicates those decisions. Treat technical fulfillment policy or provider failure handling that shapes Domain code as evidence of a missing or violated Domain-owned Port boundary.
+Judge whether accepted business state, behavior, invariants, actual Domain Events, and Domain-owned Port contracts remain with their recorded owners, whether Port fulfillment stays behind Infrastructure implementations, and whether outer coordination, persistence, transport, or runtime code preserves rather than duplicates those decisions. Treat technical fulfillment policy or provider failure handling that shapes Domain code as evidence of a missing or violated Domain-owned Port boundary. Check each stated assumption: it contradicts no accepted statement and can be reversed in one place; otherwise it is a finding.
 
 Also review each non-Domain abstraction introduced, materially changed, or required by the affected behavior. Ask what present complexity it hides; whether deleting it would redistribute that complexity or simply remove it; whether a small stable interface creates leverage and locality; and whether its indirection, mapping, configuration, lifecycle, and test cost are justified. Pattern names such as CQRS, Repository, or Job neither require nor justify an abstraction. Judge its placement and shape by project constraints and applicable House Style, without inventorying absent patterns.
 
@@ -31,7 +31,7 @@ Also review each non-Domain abstraction introduced, materially changed, or requi
 
 Report only concrete model-realization or abstraction-quality findings, ordered by impact. Each finding cites its governing model, project decision, or House Rule; the production file and line evidence; the consequence and root cause; and a correction direction. When a material fact is unavailable, state the exact uncertainty and the judgment it prevents.
 
-Say `No DDD structural findings` when there are no such findings. This does not claim general code correctness.
+Say `No DDD structural findings` only after every Behavior, Lifecycle State transition, Domain-owned Port Method, and Domain Event of the affected objects in `domain-objects.md`, and each affected Business Rule, has been located in production code or reported as missing, and no finding resulted. This does not claim general code correctness.
 
 ## References
 
