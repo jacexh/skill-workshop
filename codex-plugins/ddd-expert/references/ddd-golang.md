@@ -97,9 +97,9 @@ stack migration.
 
 ## Cross-cutting House Rules
 
-- Every bounded context exposes `application/application.go`, `application/assembler.go`, and `<context>.go` as described by the Scaffold guide.
+- Every bounded context exposes `application/application.go` and `<context>.go` as described by the Scaffold guide; `application/assembler.go` exists when the context maps whole Domain Entities to or from Application DTOs.
 - The [Application guide](ddd-golang-application.md) owns use-case methods and read-side entry shapes. Transport delegates to one such use case.
-- Application DTO/Domain Entity conversion lives in `application/assembler.go`. DO/Domain Entity conversion lives in `infrastructure/convert.go`.
+- Whole Application DTO/Domain Entity conversion lives in `application/assembler.go`. DO/Domain Entity conversion lives in `infrastructure/convert.go`.
 - Exported Domain fields are a mechanical mapping surface. New Aggregates use `domain.NewXxx` or another Domain Factory; outer layers do not assign fields to perform business changes.
 - Business data is validated in Domain. Application DTOs and DOs do not duplicate validator tags. Query filters/read models follow the CQRS guide.
 - Apply the lifecycle selected by accepted authority: a Repository-loaded request-scoped Aggregate becomes stale under the Domain guide's optimistic branch; a resident Aggregate remains the live authority and persists snapshots/checkpoints. Do not infer either branch from persistence technology.

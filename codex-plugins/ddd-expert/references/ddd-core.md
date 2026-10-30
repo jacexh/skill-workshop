@@ -122,16 +122,32 @@ when it isolates substantial coordination or independently varying dependencies,
 rather than allocating a Handler and registration per use case. Constructors
 receive dependencies; request state stays local to each call.
 
+An **Application DTO** is any immutable, transport-neutral value crossing the
+Application boundary. Its role names it: a command or query input, a command
+result, or a query read model. Every role follows the same DTO rules; the role
+decides only the name and direction.
+
+An Application assembler holds pure mapping between whole Domain objects and
+Application DTOs. Create it when the context has such a mapping; a context
+without one has no assembler. A minimal result built from a few fields inside
+one use case stays in that use case.
+
 - A command method loads required facts, invokes Domain behavior, persists the
   accepted Root set, coordinates accepted reactions, and returns a minimal
   immutable result.
-- A query returns an immutable Application read model and performs no business
-  mutation. Expose it as an Application method or a cohesive query object;
-  a distinct result shape alone needs no separate Handler or read store.
+- A query returns an immutable read model and performs no business mutation.
+  Reads guard no invariant, so they skip Aggregate reconstitution and keep
+  list, filter, and projection methods out of the write Repository; that
+  separation is the reason for CQRS here, and it needs no per-query Handler,
+  bus, or separate read store.
+- Place a query as a method on the `Application` entry; a QueryRepository may be
+  an `Application` dependency. Move reads into a cohesive query object when
+  several of them share dependencies that no command method uses, such as a
+  QueryRepository or projection client.
 - A focused read of one complete Aggregate may use its write Repository when
   that path is already accepted. Accepted lists, pages, histories, reports,
   partial fields, and composed projections use an Application-owned
-  QueryRepository returning Application read types.
+  QueryRepository returning read models.
 - An inbound adapter decodes and maps one external contract, delegates once to
   Application, and maps the result or error. Generated types end at that
   boundary.

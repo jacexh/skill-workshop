@@ -31,7 +31,7 @@ func (a *Application) GetUser(ctx context.Context, id string) (*User, error) {
 
 ## QueryRepository Contract
 
-Place the contract and readonly DTOs under `application/query/` or
+Place the contract and its read models under `application/query/` or
 `application/queries/`. Group cohesive operations by consumer semantics.
 
 ```go
@@ -52,7 +52,7 @@ type QueryRepository interface {
 ```
 
 Application query methods or cohesive query objects depend on that interface
-and return Application read types.
+and return read models.
 Transport maps external filters/cursors to the Application filter, delegates
 once, and maps the result.
 
@@ -60,7 +60,7 @@ once, and maps the result.
 
 Implement the contract in `infrastructure/query_repository.go` with xorm. Select
 explicit columns, aliases, filters, and stable indexed order. Map query rows
-directly into Application read DTOs; do not reconstitute an Aggregate on this
+directly into read models; do not reconstitute an Aggregate on this
 path.
 
 ```go

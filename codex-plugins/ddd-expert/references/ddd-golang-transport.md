@@ -65,7 +65,7 @@ func (h *Handler) Create(
 }
 ```
 
-The generated service interface is implemented only here, never by `application.Application`. Keep protocol-to-command mapping explicit. A sibling `assembler.go` may map generated RPC messages and Application results; it does not replace `application/assembler.go`, which maps Application DTOs and Domain Entities.
+The generated service interface is implemented only here, never by `application.Application`. Keep protocol-to-command mapping explicit. A sibling `assembler.go` may map generated RPC messages and Application results; it never maps Domain Entities, which belong to `application/assembler.go` when that mapping exists.
 
 `<context>.go` registers `userv1connect.NewUserServiceHandler(handler, ...)` with the shared server. `internal/pkg/connectrpc` owns address binding, interceptors, start/stop and the single RPC completion log.
 

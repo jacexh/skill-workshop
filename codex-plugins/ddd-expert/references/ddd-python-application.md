@@ -12,8 +12,8 @@ QueryRepository, semantic outbound port, or transaction scope is touched.
 
 ## Placement
 
-Use `business/<context>/application/` with `application.py`, `assembler.py`,
-and conditional `queries/`, `eventhandlers/`, `task/`, or `ports/` directories.
+Use `business/<context>/application/` with `application.py` and conditional
+`assembler.py`, `queries/`, `eventhandlers/`, `task/`, or `ports/` directories.
 Application imports Domain and semantic inner contracts. Provider clients,
 protocol models, active loops, and SQLAlchemy sessions remain outer.
 
@@ -24,9 +24,10 @@ Use one `Application` class in `application.py`, following the
 Its named methods implement use cases directly. Keep cohesive coordination
 helpers in responsibility-named modules when extraction earns its cost.
 
-Application DTOs are frozen slotted dataclasses. `assembler.py` maps existing
-DTO/Domain state and uses Domain reconstitution; creation calls the Domain
-Factory directly.
+Application DTOs are frozen slotted dataclasses. When the
+[shared assembler rule](ddd-core.md#application-and-transport-shape) applies,
+`assembler.py` maps existing DTO/Domain state and uses Domain reconstitution;
+creation calls the Domain Factory directly.
 
 ```python
 from dataclasses import dataclass
@@ -92,10 +93,11 @@ tasks exist, use [ddd-python-taskqueue.md](ddd-python-taskqueue.md).
 
 ## Query Shape
 
-An Application query method or cohesive query object returns an immutable read
-model. A focused accepted one-Root read may load the complete Aggregate and map it. Accepted
+An Application query method, or a query object chosen by the
+[shared read-side rule](ddd-core.md#application-and-transport-shape), returns an
+immutable read model. A focused accepted one-Root read may load the complete Aggregate and map it. Accepted
 lists, pages, histories, reports, partial fields, and projections use an
-Application-owned `QueryRepository` Protocol returning frozen read DTOs.
+Application-owned `QueryRepository` Protocol returning frozen read models.
 
 ## Verification
 

@@ -17,8 +17,9 @@ Use one `Application` class in `application/application.ts`, following the
 Its named methods implement use cases directly. Extract cohesive collaborators
 into responsibility-named files when they isolate substantial coordination.
 
-`application/assembler.ts` maps existing Application DTO and Domain state.
-DTOs are `Readonly` values; new objects enter through the Domain Factory.
+When the [shared assembler rule](ddd-core.md#application-and-transport-shape)
+applies, `application/assembler.ts` maps existing Application DTO and Domain
+state. DTOs are `Readonly` values; new objects enter through the Domain Factory.
 
 ```ts
 export type UserDTO = Readonly<{
@@ -71,8 +72,9 @@ tasks use [ddd-typescript-taskqueue.md](ddd-typescript-taskqueue.md).
 
 ## Query Shape
 
-Expose reads as Application methods or a cohesive query object returning readonly
-read models. A focused Aggregate read may load and map the existing Root; lists,
+Expose reads as Application methods, or a query object chosen by the
+[shared read-side rule](ddd-core.md#application-and-transport-shape), returning
+readonly read models. A focused Aggregate read may load and map the existing Root; lists,
 search, reports, and other distinct read semantics use an asynchronous
 Application-owned QueryRepository. A read model needs no separate Handler or store.
 
