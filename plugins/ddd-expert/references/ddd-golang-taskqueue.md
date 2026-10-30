@@ -99,7 +99,6 @@ func NewReviewDocument(documentID string) (taskqueue.Task, error) {
 	return taskqueue.NewProtoTask(
 		ReviewDocumentDefinition,
 		&documenttaskv1.ReviewDocumentTaskV1{DocumentId: documentID},
-		taskqueue.WithKey(documentID),
 	)
 }
 ```
@@ -109,6 +108,15 @@ Build the envelope with the exported `Definition` through
 generated contract type. `TaskType` identifies the semantic payload schema;
 protobuf is the payload codec. Keep those concepts separate throughout
 Application, Transport, provider adapters, and tests.
+
+`taskqueue.WithID` assigns a caller-owned task identity, not an idempotency or
+ordering key. A provider rejects any enqueue while it still retains a task with
+that ID, including an archived failure, with an error matching
+`taskqueue.ErrDuplicateTask`. Assign an ID only when the accepted workflow wants
+that rejection, such as one in-flight task per identity, and handle
+`ErrDuplicateTask` as an expected outcome. Otherwise leave it unset so the
+provider assigns one; a reused business identifier such as a document ID would
+block every later task for that document while an earlier one is retained.
 
 The optional `Definition.Queue` is a provider-neutral lane. Set it only when an
 accepted operational constraint needs a named lane; otherwise leave it empty for
@@ -240,8 +248,10 @@ or a terminal state. Provider
 retry count from `taskqueue.ExecutionInfoFromContext` is diagnostic metadata;
 it must not replace persisted workflow state or drive Domain decisions.
 
-Use Domain guards, deterministic keys, or natural convergence for repeated
-tasks. `WithUnique` is a bounded provider feature rather than a Domain rule.
+Use Domain guards, deliberately assigned task IDs, or natural convergence for
+repeated tasks. `WithUnique` and `WithID` are bounded provider features rather
+than Domain rules. The provider ID of the running attempt comes from
+`taskqueue.ExecutionInfoFromContext`, not from `Task.ID()`.
 
 ## Periodic Tasks
 
@@ -297,7 +307,10 @@ accepts a positive `time.Duration` and rejects a location. A `PeriodicTask` has
 a static Task envelope and enqueue policy; resolve "today", current tenants, and
 currently due records inside the Application use case. `NewPeriodicTask`
 validates its schedule and policy and rejects `WithProcessAt` and `WithDeadline`
-because static absolute times become stale on repeated fires.
+because static absolute times become stale on repeated fires. It also rejects a
+task built with `WithID` (`taskqueue.ErrPeriodicTaskID`): a fixed ID would make
+every later fire conflict once one run was retained, silently stopping the
+schedule.
 
 ## Provider Runtime
 
@@ -309,14 +322,14 @@ values.
 ## Verification
 
 - Application task tests construct the real generated protobuf payload and
-  assert type, `ProtoCodec`, decoded fields, key, and provider-neutral enqueue
-  options, including invalid option combinations.
+  assert type, `ProtoCodec`, decoded fields, the task ID when one is assigned,
+  and provider-neutral enqueue options, including invalid option combinations.
 - Transport processor tests create tasks through
   `taskqueue.NewProtoTask`, execute the real processor, and assert one
   Application delegation, retry error, or `ErrSkipRetry` result.
 - Polling tests cover not-ready re-enqueue, deadline/exhaustion, duplicate
   execution, and terminal no-op behavior.
 - Periodic tests assert `PeriodicTask` name, schedule, static task, and policy;
-  they also reject absolute process/deadline options and do not reimplement
-  Asynq cron compilation.
+  they also reject absolute process/deadline options and task IDs, and do not
+  reimplement Asynq cron compilation.
 - Runtime/provider verification follows the selected provider leaf.

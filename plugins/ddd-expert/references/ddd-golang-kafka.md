@@ -36,6 +36,8 @@ and `kgo` options remain in Runtime/provider code. Application depends on
 `message.Subscriber.Subscribe` registers handlers. The Kafka consumer also
 implements `message.Runner`; Runtime starts `Run(ctx)`, observes its terminal
 error, owns cancellation, and closes the shared client after consumers stop.
+`Run` returns nil when ctx is canceled or expires; a non-nil error always means
+the consumer stopped abnormally.
 
 Register payload factories and handlers before starting the runner. Readiness
 becomes true only after required registrations and provider startup complete.
