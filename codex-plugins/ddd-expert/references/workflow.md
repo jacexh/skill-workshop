@@ -55,6 +55,12 @@ has left open. Existing repository conventions are integration evidence; preserv
 them unless the requested change requires a different realization. Selecting a
 language does not authorize a framework migration or unrelated reorganization.
 
+House Rules are deliberate defaults whose general tradeoffs are already
+accepted. When applying one to the case at hand conflicts with a DDD judgment
+specific to that case, state a ⚠️ **Conflict** first: the rule and its file, the
+competing judgment, and the consequence of each. Then follow the rule unless the
+user decides otherwise.
+
 Codify runs checks for changed behavior and affected boundaries, reusing valid
 existing evidence. Broaden verification only for new changes, failures, or an
 unresolved risk. Guard reads the applicable rules and available evidence; commands

@@ -52,7 +52,7 @@ internal/
 
       application/
         application.go           # Application dependencies and constructor
-        assembler.go             # mandatory Application DTO <-> Domain mapping
+        assembler.go             # when whole Application DTO <-> Domain mapping exists
         <responsibility>.go       # named Application methods and input/result types
         query/                    # distinct read semantics, when needed
           <read_concern>.go
@@ -87,7 +87,6 @@ internal/
     <context-b>/                  # sibling BC; same ownership rules
       application/
         application.go
-        assembler.go
       transport/
       <context-b>.go
 
@@ -112,8 +111,9 @@ Create directories only for current accepted responsibilities. Use Domain-langua
 Every bounded context has:
 
 - `application/application.go`, which defines the context's `Application` entry and constructor;
-- `application/assembler.go`, which owns only existing Application DTO/Domain Entity conversion;
 - `<context>.go`, which exposes the context's Fx module and registration wiring.
+
+Add `application/assembler.go` when the context maps whole Domain Entities to or from Application DTOs; it owns only that conversion.
 
 A BC may have Application and Transport without a Domain or Infrastructure package. Conversely, a model-only package does not gain Transport until it has an inbound contract. Mandatory files establish a stable entry point; optional directories express real responsibilities rather than architectural ceremony.
 

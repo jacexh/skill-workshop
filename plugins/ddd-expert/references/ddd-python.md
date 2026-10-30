@@ -85,7 +85,7 @@ src/<service>/
   main.py
   business/<context>/
     domain/
-    application/{application,assembler}.py
+    application/application.py
     transport/
     infrastructure/
   infrastructure/
@@ -94,7 +94,8 @@ tests/{unit,integration,contract}/
 ```
 
 Create only directories used by the accepted implementation. Every context has
-`application/application.py` and `application/assembler.py`; a context may
+`application/application.py`, plus `application/assembler.py` when it maps
+whole Domain objects to or from Application DTOs; a context may
 contain Application and Transport without a Domain or Infrastructure layer.
 
 ## Python Conventions

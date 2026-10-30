@@ -41,13 +41,14 @@ func NewApplication(repository domain.Repository) *Application {
 }
 ```
 
-Add QueryRepository or cohesive query-object dependencies when the read side
-needs them. `NewApplication` only assigns dependencies; Runtime owns Fx wiring
+Add a QueryRepository field when Application query methods need one, or a query
+object when the [read-side placement rule](ddd-core.md#application-and-transport-shape)
+selects one. `NewApplication` only assigns dependencies; Runtime owns Fx wiring
 and separate event-handler, message-subscriber, and task-processor registration.
 
-## Mandatory `assembler.go`
+## Conditional `assembler.go`
 
-`application/assembler.go` owns pure mapping between existing Application DTO state and Domain Entity state. Use the house naming consistently:
+When the context maps whole Domain Entities to or from Application DTOs, `application/assembler.go` owns that pure mapping, following the [shared assembler rule](ddd-core.md#application-and-transport-shape). Use the house naming consistently:
 
 ```go
 package application
@@ -139,7 +140,7 @@ boundary before it is implemented.
 
 ## Read Models
 
-Expose reads through named Application methods or a cohesive query object. Return Application read models suited to the consumer. A focused Aggregate read may use the Domain Repository; distinct list, search, report, or projection semantics use a QueryRepository. The [read-side guide](ddd-golang-cqrs.md) owns these shapes; neither a query nor its result requires a per-query Handler.
+Place reads by the [shared read-side rule](ddd-core.md#application-and-transport-shape): Application methods by default, a cohesive query object when several reads share dependencies no command uses. Return read models suited to the consumer. A focused Aggregate read may use the Domain Repository; distinct list, search, report, or projection semantics use a QueryRepository. The [read-side guide](ddd-golang-cqrs.md) owns these shapes; neither a query nor its result requires a per-query Handler.
 
 Transport never calls a Domain Repository or QueryRepository directly.
 
@@ -168,7 +169,7 @@ follows the event leaf.
 ```text
 application/
   application.go
-  assembler.go
+  assembler.go                 # when whole Entity <-> DTO mapping exists
   <responsibility>.go          # Application methods and input/result types
   query/                      # distinct read models/contracts or cohesive queries, when needed
   eventhandler/<fact>.go       # when same-BC reaction exists

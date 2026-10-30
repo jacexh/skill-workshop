@@ -180,7 +180,7 @@ CREATE TABLE `order_summary` (
 
 - **[House Rule]** A read-model table is shaped from its concrete filter, sort, display, freshness, and authorization semantics. It does not copy an Aggregate schema mechanically.
 - **[House Rule]** Projection consumers use a source version, message identity, or accepted checkpoint to make duplicate and out-of-order behavior explicit.
-- **[House Rule]** QueryRepository returns Application read DTOs and selects only required columns. It does not reconstitute Domain Entities for a projection path.
+- **[House Rule]** QueryRepository returns Application read models and selects only required columns. It does not reconstitute Domain Entities for a projection path.
 
 ## 6. Index Design
 
