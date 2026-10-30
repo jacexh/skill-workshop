@@ -32,9 +32,10 @@ Transport/Runtime extracts and injects W3C context across accepted HTTP, RPC,
 Integration Message, and task boundaries. Execution-completion logs include
 available `trace_id`, `span_id`, and `request_id` fields.
 
-The in-memory `event.Dispatcher.DispatchAll` has no caller `context.Context`.
-Represent business correlation in Domain facts and start or link technical spans
-outside Domain.
+Handlers of the in-memory `event.Dispatcher` receive a context detached from
+the `DispatchAll` caller. Copy trace and request identifiers from
+`event.SourceContext` in `event.WithContextFactory`, represent business
+correlation in Domain facts, and start or link technical spans outside Domain.
 
 ## Verification
 

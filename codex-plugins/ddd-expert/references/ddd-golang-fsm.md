@@ -13,9 +13,10 @@ Load this leaf only when Tactical Design or project authority already selected
 ## State Shape
 
 The Aggregate owns its current concrete state and implements
-`fsm.StateContext`. Define the business behavior interface in Domain, embed
-`*fsm.SimpleState` in a base state whose methods return Domain errors, and
-override only supported behaviors in concrete states.
+`fsm.StateContext`. Define the business behavior interface in Domain; its
+methods take the Aggregate as a parameter, so states hold only their label.
+Embed `*fsm.SimpleState` in a base state whose methods return Domain errors,
+and override only supported behaviors in concrete states.
 
 ```go
 const (
@@ -26,14 +27,18 @@ const (
 
 type orderState interface {
 	fsm.State
-	Pay(amount int) error
-	Cancel() error
+	Pay(order *Order, amount int) error
+	Cancel(order *Order) error
 }
 
 type baseOrderState struct{ *fsm.SimpleState }
 
-func (s *baseOrderState) Pay(int) error {
+func (s *baseOrderState) Pay(*Order, int) error {
 	return fmt.Errorf("%s cannot pay", s.Label())
+}
+
+func (s *baseOrderState) Cancel(*Order) error {
+	return fmt.Errorf("%s cannot cancel", s.Label())
 }
 
 type unpaidOrderState struct{ baseOrderState }
@@ -44,11 +49,10 @@ func newUnpaidOrderState() fsm.State {
 	}}
 }
 
-func (s *unpaidOrderState) Pay(amount int) error {
+func (s *unpaidOrderState) Pay(order *Order, amount int) error {
 	if amount <= 0 {
 		return ErrInvalidPaymentAmount
 	}
-	order := s.Context().(*Order)
 	order.paidAmount = amount
 	return nil
 }
@@ -66,10 +70,7 @@ type Order struct {
 }
 
 func NewOrder() *Order {
-	initial := newUnpaidOrderState().(orderState)
-	order := &Order{state: initial}
-	initial.SetContext(order)
-	return order
+	return &Order{state: newUnpaidOrderState().(orderState)}
 }
 
 func (o *Order) CurrentState() fsm.State { return o.state }
@@ -84,11 +85,11 @@ func (o *Order) SetState(next fsm.State) error {
 }
 
 func (o *Order) transition(action fsm.Action) error {
-	return fsm.Transit(o, fsm.MustGetStateMachine("order"), action)
+	return fsm.Transit(o, orderMachine, action)
 }
 
 func (o *Order) Pay(amount int) error {
-	if err := o.state.Pay(amount); err != nil {
+	if err := o.state.Pay(o, amount); err != nil {
 		return err
 	}
 	return o.transition(ActionPay)
@@ -97,22 +98,42 @@ func (o *Order) Pay(amount int) error {
 
 ## Registration and Persistence
 
-Call `RegisterStateBuilder` for every referenced label, add transitions, call
-`Check`, then publish the checked machine through `RegisterStateMachine`. Runtime code
-uses the frozen `RuntimeStateMachine` returned by `MustGetStateMachine`.
+Build the machine once in Domain: call `RegisterStateBuilder` for every
+referenced label, add transitions, and freeze it into a package-level variable
+with `fsm.MustFreeze`, which runs `Check` and panics on a miswired machine at
+startup.
+
+```go
+var orderMachine = fsm.MustFreeze(newOrderStateMachine())
+
+func newOrderStateMachine() fsm.StateMachine {
+	sm := fsm.NewStateMachine("order")
+	sm.RegisterStateBuilder(StateUnpaid, newUnpaidOrderState)
+	sm.RegisterStateBuilder(StatePaid, newPaidOrderState)
+	sm.AddTransition(StateUnpaid, StatePaid, ActionPay, nil)
+	return sm
+}
+```
 
 Concrete state behavior owns acceptance. `Condition` selects an edge after the
 behavior succeeds. Candidates for one `from + action` are evaluated in add
-order; the first match wins. `fsm.Transit` constructs the selected target, sets
-its Aggregate context, then delegates state assignment to `SetState`.
+order; the first match wins, so guarded edges come before an unguarded one.
+`fsm.Transit` builds the selected target and delegates state assignment to
+`SetState`. When edges exist but no condition matches, it returns a
+`*fsm.TransitionError` with `Guarded` set; register an explicit self-transition
+when staying in the current state is accepted behavior. A business method that
+returns an error, from the behavior or from `Transit`, leaves an Aggregate the
+caller discards.
 
 Application calls Domain methods such as `Pay` and `Cancel`. Infrastructure
-persists the state label and reconstitutes the matching concrete state with its
-Aggregate context; transition definitions remain code.
+persists the state label and reconstitutes the matching concrete state with
+`orderMachine.BuildState(label)` exposed through a Domain reconstitution
+function; transition definitions remain code.
 
 ## Verification
 
-Test the real registered machine through Aggregate methods. Cover builder and
-machine checks, supported behaviors, Domain rejections, condition order, state
-preservation without a matching edge, state-change event recording when
-accepted, and reconstitution from the persisted label.
+Test the real frozen machine through Aggregate methods. Cover builder and
+machine checks, supported behaviors, Domain rejections, condition order, the
+guarded `TransitionError` when no condition matches, accepted self-transitions,
+state-change event recording when accepted, and reconstitution from the
+persisted label.
