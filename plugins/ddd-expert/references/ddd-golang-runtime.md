@@ -77,7 +77,7 @@ func main() {
 }
 ```
 
-Each `cmd/<service>` loads only its own `configs/<service>` directory; never scan the shared `configs` parent in a multi-service repository. `loader.Load` automatically applies `JIMU_PROFILES_ACTIVE` after caller options. When profiles are supported, also pass `loader.WithConfigFilePrefix("app")`; an active profile without a prefix is invalid. Environment variables are not an override layer: configuration files reference them with `${NAME:default}` placeholders, resolved from the variable `<prefix>NAME`. Use `loader.WithEnvVarsPrefix("APP")` when the repository wants placeholders to read only `APP_`-prefixed variables, so `${MYSQL_DSN:...}` reads `APP_MYSQL_DSN`. Do not invent nested environment-key translation.
+Each `cmd/<service>` loads only its own `configs/<service>` directory; never scan the shared `configs` parent in a multi-service repository. `loader.Load` automatically applies `JIMU_PROFILES_ACTIVE` after caller options. When profiles are supported, also pass `loader.WithConfigFilePrefix("app")`; an active profile without a prefix is invalid. Environment variables reach configuration only through `${NAME:default}` placeholders in configuration files, resolved from the variable `<prefix>NAME`. Use `loader.WithEnvVarsPrefix("APP")` when the repository wants placeholders to read only `APP_`-prefixed variables, so `${MYSQL_DSN:...}` reads `APP_MYSQL_DSN`.
 Never log the aggregate Option, a resolved config map, DSN, password, token, API key, certificate/private key, cookie, secret-bearing URL, or full environment. Startup summaries are allow-list based: profile/source, enabled modules, non-secret listen addresses, counts, and a non-reversible config version/hash.
 
 ## Composition Boundaries

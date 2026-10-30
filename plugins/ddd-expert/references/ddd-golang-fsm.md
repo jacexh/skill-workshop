@@ -101,8 +101,7 @@ func (o *Order) Pay(amount int) error {
 Build the machine once in Domain: call `RegisterStateBuilder` for every
 referenced label, add transitions, and freeze it into a package-level variable
 with `fsm.MustFreeze`, which runs `Check` and panics on a miswired machine at
-startup. Do not use the deprecated `RegisterStateMachine` /
-`MustGetStateMachine` registry.
+startup.
 
 ```go
 var orderMachine = fsm.MustFreeze(newOrderStateMachine())

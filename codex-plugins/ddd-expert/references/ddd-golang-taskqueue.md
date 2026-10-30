@@ -109,8 +109,7 @@ generated contract type. `TaskType` identifies the semantic payload schema;
 protobuf is the payload codec. Keep those concepts separate throughout
 Application, Transport, provider adapters, and tests.
 
-`taskqueue.WithID` assigns a caller-owned task identity, not an idempotency or
-ordering key. A provider rejects any enqueue while it still retains a task with
+`taskqueue.WithID` assigns a caller-owned task identity. A provider rejects any enqueue while it still retains a task with
 that ID, including an archived failure, with an error matching
 `taskqueue.ErrDuplicateTask`. Assign an ID only when the accepted workflow wants
 that rejection, such as one in-flight task per identity, and handle
@@ -250,8 +249,7 @@ it must not replace persisted workflow state or drive Domain decisions.
 
 Use Domain guards, deliberately assigned task IDs, or natural convergence for
 repeated tasks. `WithUnique` and `WithID` are bounded provider features rather
-than Domain rules. The provider ID of the running attempt comes from
-`taskqueue.ExecutionInfoFromContext`, not from `Task.ID()`.
+than Domain rules.
 
 ## Periodic Tasks
 
