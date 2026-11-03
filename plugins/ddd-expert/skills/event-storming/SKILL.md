@@ -100,7 +100,7 @@ A probe is a question whose every answer maps to a modeling action. Ask it in th
 
 | Probe | Ask | Answer -> action |
 |---|---|---|
-| Reaction | After `<fact>`, which intent must follow, and which authority performs it? | A named intent: a Policy candidate in the deciding context. None: no Policy. |
+| Reaction | After `<fact>`, which intent must follow, and which authority performs it? | A named intent: a Policy candidate on the board. None: no Policy. |
 | Together or later | Must `<fact>` and `<intent>` succeed together? | Together: return to the aggregate probes for one consistency boundary. Later: a Policy. |
 | Memory | To react, must `<authority>` remember earlier progress? | Yes: a Process; make it an Aggregate Root candidate. No: a Policy. |
 | Failed reaction | If `<intent>` cannot complete, does `<fact>` still stand, and what follows? | Stands: the Policy's If sentence names the outcome. Does not stand: return to Together or later. |

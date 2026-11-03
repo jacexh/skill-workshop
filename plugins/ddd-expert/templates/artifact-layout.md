@@ -72,7 +72,7 @@ as a business occurrence in the same context, a Published Fact Contract, or a
 business time. Tactical Design selects the Domain Event that realizes a
 same-context occurrence. Write each Policy in the Model shape: one Event
 sentence, then one Unwanted sentence for the business outcome when the intent
-cannot complete. These two sentences are one Policy, not two rules. A Policy
+cannot complete. A Policy
 completes after its trigger, because a reaction that must succeed together
 with it belongs inside one consistency boundary; add `within <duration>` only
 when the business sets a limit.
@@ -101,8 +101,9 @@ For each added or revised entry, reread the whole entry against
 [Business rule writing](#business-rule-writing), and each Policy also against
 [Policy writing](#policy-writing). Split, merge, or rewrite
 affected entries until each Business Rule expresses one claim and each Policy
-keeps its Model shape in its home, preserving accepted
-conditions, outcomes, and unrelated meaning.
+keeps its Model shape in its home, preserving accepted conditions, outcomes,
+and unrelated meaning. A split found at write time returns to confirmation
+before the write.
 
 After writing, reread changed artifacts for accepted meaning and preservation of
 unaffected content. Check that each affected relative Model link resolves.

@@ -73,10 +73,11 @@ lifecycle-end probe places Visit Completed as the crossing point.
 - **Aggregate Roots**: `Schedule` — a doctor's day of slots; consistency:
   one confirmed appointment per slot at confirmation time. `Invoice` —
   a billable completed visit; consistency: one invoice per completed visit.
-- **Business Rules**: Single occupancy; Invoice requires completed visit.
+- **Business Rules**: Single occupancy; Invoice requires completed visit;
+  Invoice voiding.
 - **Dependency**: Scheduling -> Billing, Published Fact Contract
-  `VisitCompleted`, used by the Billing Policy Open billable visit.
-- **Policies**: Billing — Open billable visit.
+  `VisitCompleted`, used by the Billing Policy Open Invoice.
+- **Policies**: Billing — Open Invoice.
 - **Non-blocking uncertainty**: H1 cancellation after check-in.
 
 After confirmation, the Context Map and the two Model files are written from
@@ -84,11 +85,11 @@ their templates. Business Rules then read, for example:
 
 - **Single occupancy:** If a Slot already holds a confirmed Appointment, then
   the Schedule rejects another confirmation into that Slot.
-- **Invoice voiding:** If the actor is not a billing clerk, then Billing
-  rejects voiding an Invoice.
+- **Invoice voiding:** If the actor is not a billing clerk, then the Invoice
+  rejects voiding.
 
 and the Billing Model records the Policy that reacts to `VisitCompleted`:
 
-- **Open billable visit:** When Scheduling publishes `VisitCompleted`, Billing
-  opens a billable visit. If Billing cannot open it, then the completed Visit
-  stays unbilled for the billing clerk.
+- **Open Invoice:** When Scheduling publishes `VisitCompleted`, Billing opens
+  an Invoice for that Visit. If Billing cannot open the Invoice, then a billing
+  clerk issues it by hand.

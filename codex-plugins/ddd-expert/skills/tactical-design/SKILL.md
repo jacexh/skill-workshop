@@ -21,7 +21,7 @@ confirmed Aggregate Root and Business Rules
 
 ## Entry boundary
 
-Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, Business Rules, and Policies as business authority. Start with the Root and affected slice identified by the request; ask only when that choice is materially ambiguous.
+Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, Business Rules, Policies, and the Published Fact Contracts this context owns in `context-map.md` as business authority. Start with the Root and affected slice identified by the request; ask only when that choice is materially ambiguous.
 
 If tactical refinement exposes a needed correction to business meaning, a Bounded Context boundary, Aggregate Root identity, or a strategic Business Rule, resolve it with the user in the current conversation and carry the accepted change into the Root-level artifact review. Do not force a workflow switch or leave the tactical model built on a known contradiction.
 
@@ -51,7 +51,7 @@ Before the first pressure list or comparison of a refinement, read the [worked e
 
 For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, Lifecycle State transition, invariant, material external-authority need, or actual Domain Event that the object model must realize. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
 
-Every pressure names the governing Business Rules or Policies in the working conversation. Stories, specifications, and code may challenge whether those rules are complete, but they add no confirmed business meaning until the user accepts it. When a material pressure cannot be traced to the Model or the rules contradict it, resolve the smallest strategic correction with the user before continuing and include it in the Root-level review. Keep the pressure set transient; it is reasoning input, not another artifact.
+Every pressure names its governing Business Rules, Policies, or owned Published Fact Contract in the working conversation. Stories, specifications, and code may challenge whether those rules are complete, but they add no confirmed business meaning until the user accepts it. When a material pressure cannot be traced to the Model or the rules contradict it, resolve the smallest strategic correction with the user before continuing and include it in the Root-level review. Keep the pressure set transient; it is reasoning input, not another artifact.
 
 ## Probe behavior ownership
 
@@ -146,7 +146,7 @@ For a Domain Service, present its complete template description with any affecte
 
 For a newly designed Root, show its integrated compact slice when its composition is complete. Before confirming any newly designed slice, verify that:
 
-- every pressure is traceable to its Business Rules or Policies and assigned to one Behavior; each Behavior cites its Business Rules, and each Consumed by line cites its Policy;
+- every pressure is traceable to its Business Rules, Policies, or owned Published Fact Contract and assigned to one Behavior; each Behavior cites its Business Rules, and each Consumed by line cites its Policy;
 - every accepted decision rule is a Business Rule in `model.md`;
 - every Root and retained Entity states its identity, and its uniqueness scope where the business limits it;
 - every external-authority need is classified as Supplied Fact or Domain-owned Port, and every Supplied Fact names its owning authority;

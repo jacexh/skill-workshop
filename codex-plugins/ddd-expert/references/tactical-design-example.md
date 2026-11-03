@@ -13,7 +13,7 @@ use the user's language; artifacts follow their templates.
   the Schedule rejects another confirmation into that Slot.
 - **Release before start:** If the Slot start time has passed, then the
   Schedule rejects cancellation of its Appointment.
-- **Cancellation frees Slot:** When a receptionist cancels a confirmed
+- **Cancellation frees Slot:** When the Schedule cancels a confirmed
   Appointment, its Slot becomes free.
 
 ## Pressure list
@@ -22,6 +22,7 @@ use the user's language; artifacts follow their templates.
 P1 Reject a second confirmation into an occupied Slot at command time (Single occupancy)
 P2 Allow cancellation only before the Slot's start time; needs the current time (Release before start)
 P3 Slot occupancy moves Free -> Confirmed -> Free or Completed (Single occupancy, Cancellation frees Slot)
+P4 Record the completed visit that Billing relies on (Context Map: VisitCompleted)
 ```
 
 ## Probe turn

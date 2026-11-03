@@ -44,7 +44,8 @@ consistency and failure handling as technical convenience suggested.
    an Aggregate Root with its Lifecycle State, not as a Policy.
 6. EventStorming owns Policies through four Policy probes (Reaction, Together
    or later, Memory, Failed reaction). Its integrated proposal is ready only
-   when every required next intent is a Policy or a Process Aggregate Root.
+   when every required next intent is a Policy, a Process Aggregate Root, or
+   part of one consistency boundary.
    Tactical Design may surface a local reaction and records it as a Policy
    through its existing strategic-correction path. No separate skill is added.
 7. The dependency runs from Policy to Domain Event: an accepted Policy that
