@@ -25,6 +25,8 @@ Classify each gap the implementation exposes:
 
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
 
+The accepted Ubiquitous Language names the Domain code: each Essential Language term, Aggregate Root, Entity, Lifecycle State, Behavior, Domain-owned Port, and Domain Event keeps its accepted name and meaning in exactly one Domain carrier. A supporting Value Object or Entity that only realizes accepted meaning, such as `Money`, is implementation latitude; a concept that adds business meaning follows the gap classification above.
+
 ## Implement
 
 Implement the complete requested slice across the code surfaces it actually needs. Keep the accepted Domain model authoritative and derive the affected software structure from its ownership, behavior, and Domain-owned Ports: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
@@ -37,7 +39,7 @@ Run repository tests and checks proportionate to the changed behavior and risk. 
 
 ## Completion
 
-End with the implemented behavior, changed files, verification results, stated assumptions, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, relevant House Style, and verification agreeing in the final code.
+End with the implemented behavior, changed files, verification results, stated assumptions, Domain concepts introduced beyond the accepted artifacts, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, relevant House Style, and verification agreeing in the final code.
 
 ## References
 
