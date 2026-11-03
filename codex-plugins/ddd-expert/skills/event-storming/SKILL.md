@@ -12,7 +12,7 @@ Read the [workflow contract](../../references/workflow.md) for scope, existing a
 ```text
 business purpose
 -> causal discussion
--> probed Bounded Contexts and Aggregate Roots
+-> probed Bounded Contexts, Aggregate Roots, and Policies
 -> integrated confirmation
 -> current strategic artifacts
 ```
@@ -40,7 +40,7 @@ accurate write; formatting differences are resolved through the templates.
 Use the shared [design interview presentation](../../references/workflow.md#design-interview-presentation) for questions, recommendations, changes, and conflicts.
 
 - Inspect relevant Specs, PRDs, ADRs, glossary entries, current DDD artifacts, code, and tests first. If a fact is available there, look it up instead of asking the user. For changes to existing behavior, compare the accepted model, observed implementation, and requested outcome; focus discussion on affected differences and conflicts.
-- Ask one material unresolved question at a time. A question is material when its answer can change a Bounded Context, Aggregate Root, Business Rule, or semantic dependency, or blocks the current step's conclusion; otherwise state the assumption on the board and continue. Independent factual questions about one scenario may share a turn; a design decision stands alone. Wait for the answer before settling conclusions that depend on it.
+- Ask one material unresolved question at a time. A question is material when its answer can change a Bounded Context, Aggregate Root, Business Rule, Policy, or semantic dependency, or blocks the current step's conclusion; otherwise state the assumption on the board and continue. Independent factual questions about one scenario may share a turn; a design decision stands alone. Wait for the answer before settling conclusions that depend on it.
 - For a business fact, explain what evidence is missing. For a design choice, give a recommended answer, its reason, and the strongest credible alternative.
 - Treat disagreement and examples as evidence. Revise the model when they defeat the current explanation.
 - Move to the integrated proposal when the scoped goals, key success and failure scenarios, business rules, and affected strategic boundaries are supported by evidence, and remaining uncertainty does not block the proposal.
@@ -49,7 +49,7 @@ Keep unresolved material uncertainty visible. Never manufacture business authori
 
 ## Conversational board
 
-During discovery, maintain the lightest useful EventStorming board in the conversation: the current Workshop Event timeline with its pivotal events and Role swimlanes, causing Commands, constraints and Hotspots, probe results, and candidate Aggregate and Bounded Context clusters. Show the working scenario or timeline as it develops so the user can correct missing or misunderstood meaning before the integrated proposal. When an answer changes it, show the affected part. Re-render the whole board with the integrated proposal and whenever the earlier board is no longer in context.
+During discovery, maintain the lightest useful EventStorming board in the conversation: the current Workshop Event timeline with its pivotal events and Role swimlanes, causing Commands, constraints and Hotspots, candidate Policies, probe results, and candidate Aggregate and Bounded Context clusters. Show the working scenario or timeline as it develops so the user can correct missing or misunderstood meaning before the integrated proposal. When an answer changes it, show the affected part. Re-render the whole board with the integrated proposal and whenever the earlier board is no longer in context.
 
 Use a compact text timeline, table, or arrow chain only when it makes a causal gap or boundary decision materially easier to inspect. These working views and alternatives remain in the conversation; never write them to the repository or treat their notation as separate approval. Before showing the first board or probe turn of a discovery, thesis review, or model challenge, read the [worked example](../../references/event-storming-example.md) for the shape of a board, a probe turn, and an integrated proposal.
 
@@ -62,17 +62,17 @@ Use all ten steps in causal order during discovery. Advance through explicit int
 3. **Timeline**: arrange the occurrences into replayable business-time sequences. Mark the pivotal events where the business changes phase, responsibility, or authority, and group the occurrences into Role swimlanes; the resulting segments and lanes are the first boundary candidates.
 4. **Commands**: identify the business intent that causes each material change.
 5. **Roles and external authorities**: identify who may decide or initiate the intent in business terms; record each accepted permission as a Business Rule that names the Role.
-6. **Constraints and required next intents**: expose authoritative facts, rules, and any occurrence that requires or enables another business action; clarify whether the occurrence stands as a successful business fact independently of that action.
+6. **Constraints and required next intents**: expose authoritative facts, rules, and any occurrence that requires or enables another business action; clarify whether the occurrence stands as a successful business fact independently of that action. A required next intent follows without a new human decision; an action the occurrence only enables stays a Command that a Role chooses. Stress each required next intent with the [policy probes](#policy-probes) and keep the resulting Policy candidates on the board; step 10 assigns each one to its deciding context.
 7. **Problems and ambiguity**: make contradictions, assumptions, missing facts, and material Hotspots explicit.
 8. **Aggregates and core business objects**: cluster identity and immediate consistency around candidate Aggregate Roots. Stress each candidate with the [aggregate probes](#aggregate-probes), then compare the no-split candidate with the strongest split, merge, or deletion under the same probe answers before recommending one.
 9. **Bounded Contexts**: separate language, authority, policy, lifecycle, and model purpose where they diverge. Start from the timeline segments and swimlanes, stress each candidate with the [boundary probes](#boundary-probes), and keep a context only when at least one probe separates it from its neighbours.
-10. **Context collaboration**: identify semantic dependencies, named published contracts, translation, and downstream reliance. Use a published synchronous command/query when the caller needs an immediate authoritative answer, a producer-owned Published Fact Contract when another context relies on what occurred, and a receiver-owned Asynchronous Intent Contract when one context asks another authority to act later. Record each dependency once as `Upstream -> Downstream`; the upstream owns the named meaning, and the accepted map remains acyclic. When two contexts depend on each other, break the cycle by naming one authority for the shared meaning, replacing the reverse call with a Published Fact Contract, or splitting the shared concern into its own context.
+10. **Context collaboration**: identify semantic dependencies, named published contracts, translation, and downstream reliance. Use a published synchronous command/query when the caller needs an immediate authoritative answer, a producer-owned Published Fact Contract when another context relies on what occurred, and a receiver-owned Asynchronous Intent Contract when one context asks another authority to act later. Record each downstream reaction as a Policy of the downstream context: the consumer of a Published Fact Contract, or the sender that decides to use an Asynchronous Intent Contract. Record each dependency once as `Upstream -> Downstream`; the upstream owns the named meaning, and the accepted map remains acyclic. When two contexts depend on each other, break the cycle by naming one authority for the shared meaning, replacing the reverse call with a Published Fact Contract, or splitting the shared concern into its own context.
 
-Workshop Events stay in the conversation as analytical evidence. A proposed production Domain Event remains a candidate until the Actual Domain Event rules select it; Tactical Design owns the object-level recording of any selected event.
+Workshop Events stay in the conversation as analytical evidence. A proposed production Domain Event remains a candidate until the Actual Domain Event rules select it; Tactical Design owns the object-level recording of any selected event. A Policy names its same-context trigger as the business occurrence; an accepted Policy is the reason Tactical Design selects the Domain Event that realizes it.
 
 Derive strategic boundaries from business language, authority, policy, lifecycle, and model purpose. Admit a concern only when it changes a business right, obligation, value, authority, decision, outcome, or required next action. Treat implementation observations as evidence about that business meaning; later design owns the realization.
 
-Derive Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. When drafting or revising them, apply the [business rule writing guidance](../../templates/artifact-layout.md#business-rule-writing).
+Derive Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. When drafting or revising them, apply the [business rule writing guidance](../../templates/artifact-layout.md#business-rule-writing), and to Policies the [policy writing guidance](../../templates/artifact-layout.md#policy-writing).
 
 ## Probes
 
@@ -96,18 +96,27 @@ A probe is a question whose every answer maps to a modeling action. Ask it in th
 | Now or later | Is `<rule>` enforced when the command is accepted, or corrected afterwards? | Now: one Aggregate. Later: separate Aggregates plus a required next intent. |
 | Deletion | If `<candidate>` merges into `<Root>`, which decision becomes unclear? | A named decision: keep the candidate. None: merge it. |
 
+### Policy probes
+
+| Probe | Ask | Answer -> action |
+|---|---|---|
+| Reaction | After `<fact>`, which intent must follow, and which authority performs it? | A named intent: a Policy candidate in the deciding context. None: no Policy. |
+| Together or later | Must `<fact>` and `<intent>` succeed together? | Together: return to the aggregate probes for one consistency boundary. Later: a Policy. |
+| Memory | To react, must `<authority>` remember earlier progress? | Yes: a Process; make it an Aggregate Root candidate. No: a Policy. |
+| Failed reaction | If `<intent>` cannot complete, does `<fact>` still stand, and what follows? | Stands: the Policy's If sentence names the outcome. Does not stand: return to Together or later. |
+
 ## Current strategic artifacts
 
 Persist only accepted current knowledge:
 
 - `docs/ddd-expert/context-map.md` owns the Bounded Context inventory and semantic dependencies.
-- `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, and strategic business rules.
+- `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, strategic business rules, and Policies.
 
 `model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, behavior, Domain-owned Ports where present, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
 
 ## Confirmation and writing
 
-The integrated proposal is ready when every Bounded Context passed at least one boundary probe; every Aggregate Root passed the command-time invariant probe and states its consistency boundary; the no-split alternative was compared for each Root; each dependency is recorded once and the map is acyclic; and every remaining Hotspot is non-blocking. Until then, the next probe or missing fact is the current question.
+The integrated proposal is ready when every Bounded Context passed at least one boundary probe; every Aggregate Root passed the command-time invariant probe and states its consistency boundary; the no-split alternative was compared for each Root; every required next intent is a Policy, a Process Aggregate Root, or part of one consistency boundary; each dependency is recorded once and the map is acyclic; and every remaining Hotspot is non-blocking. Until then, the next probe or missing fact is the current question.
 
 Present one compact integrated proposal:
 
@@ -115,6 +124,7 @@ Present one compact integrated proposal:
 - Bounded Contexts, their purpose, and the probe that separates each;
 - Aggregate Roots and their consistency boundary;
 - strategic business rules;
+- Policies and their deciding context;
 - semantic dependencies and named contracts;
 - remaining non-blocking uncertainty.
 

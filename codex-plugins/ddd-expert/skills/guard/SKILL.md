@@ -23,7 +23,7 @@ DDD artifacts own accepted business meaning and Domain ownership; they are not a
 
 Trace each affected accepted responsibility through the minimum production code needed to judge it. Compare semantic responsibility and state carriers; a matching name alone does not prove realization. A changed file is not automatically another review obligation. Use question-led depth: state the concrete structural question before expanding into adapter or runtime code, read the minimum evidence, and stop when it is answered.
 
-Judge whether accepted business state, behavior, invariants, actual Domain Events, and Domain-owned Port contracts remain with their recorded owners, whether Port fulfillment stays behind Infrastructure implementations, and whether outer coordination, persistence, transport, or runtime code preserves rather than duplicates those decisions. Treat technical fulfillment policy or provider failure handling that shapes Domain code as evidence of a missing or violated Domain-owned Port boundary. Check each stated assumption: it contradicts no accepted statement and can be reversed in one place; otherwise it is a finding.
+Judge whether accepted business state, behavior, invariants, actual Domain Events, Policies, and Domain-owned Port contracts remain with their recorded owners, whether Port fulfillment stays behind Infrastructure implementations, and whether outer coordination, persistence, transport, or runtime code preserves rather than duplicates those decisions. Treat technical fulfillment policy or provider failure handling that shapes Domain code as evidence of a missing or violated Domain-owned Port boundary. For each affected Policy, check that the realized delivery keeps its stated failure outcome when the process stops or the reacting dependency fails. Check each stated assumption: it contradicts no accepted statement and can be reversed in one place; otherwise it is a finding.
 
 Each affected accepted concept keeps its Ubiquitous Language name and meaning in exactly one Domain carrier; a synonym, renamed Lifecycle State, or parallel carrier is a finding. A Domain concept Codify introduced is a finding only when it duplicates or redefines accepted meaning, or adds business meaning not stated as an assumption.
 
@@ -33,7 +33,7 @@ Also review each non-Domain abstraction introduced, materially changed, or requi
 
 Report only concrete model-realization or abstraction-quality findings, ordered by impact. Each finding cites its governing model, project decision, or House Rule; the production file and line evidence; the consequence and root cause; and a correction direction. When a material fact is unavailable, state the exact uncertainty and the judgment it prevents.
 
-Say `No DDD structural findings` only after every Behavior, Lifecycle State transition, Domain-owned Port Method, and Domain Event of the affected objects in `domain-objects.md`, and each affected Business Rule, has been located in production code or reported as missing, each named object was found under its accepted name, and no finding resulted. This does not claim general code correctness.
+Say `No DDD structural findings` only after every Behavior, Lifecycle State transition, Domain-owned Port Method, and Domain Event of the affected objects in `domain-objects.md`, and each affected Business Rule and Policy, has been located in production code or reported as missing, each named object was found under its accepted name, and no finding resulted. This does not claim general code correctness.
 
 ## References
 

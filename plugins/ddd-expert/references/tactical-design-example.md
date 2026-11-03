@@ -82,6 +82,8 @@ Definition until the Root is confirmed.
   - `Confirm Appointment` — Slot admits an Appointment, transitioning Slot.State from Free to Confirmed. Rules: `Single occupancy`.
   - `Release Appointment` — Slot frees its Appointment, using supplied `now` from the caller, transitioning Slot.State from Confirmed to Free. Rules: `Release before start`, `Cancellation frees Slot`.
   - `Complete Visit` — Slot records the completed visit, transitioning Slot.State from Confirmed to Completed.
+- **Domain Events:**
+  - `VisitCompleted` — recorded by `Complete Visit`; published as `VisitCompleted`.
 ```
 
 The Root entry then reads `Confirm Appointment — Schedule confirms an

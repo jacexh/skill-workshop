@@ -75,7 +75,8 @@ lifecycle-end probe places Visit Completed as the crossing point.
   a billable completed visit; consistency: one invoice per completed visit.
 - **Business Rules**: Single occupancy; Invoice requires completed visit.
 - **Dependency**: Scheduling -> Billing, Published Fact Contract
-  `VisitCompleted`, used to open a billable visit.
+  `VisitCompleted`, used by the Billing Policy Open billable visit.
+- **Policies**: Billing — Open billable visit.
 - **Non-blocking uncertainty**: H1 cancellation after check-in.
 
 After confirmation, the Context Map and the two Model files are written from
@@ -83,3 +84,9 @@ their templates. A Business Rule then reads, for example:
 
 - **Single occupancy:** If a Slot already holds a confirmed Appointment, then
   the Schedule rejects another confirmation into that Slot.
+
+and the Billing Model records the Policy that reacts to `VisitCompleted`:
+
+- **Open billable visit:** When Scheduling publishes `VisitCompleted`, Billing
+  opens a billable visit. If Billing cannot open it, then the completed Visit
+  stays unbilled for the billing clerk.

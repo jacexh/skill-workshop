@@ -21,7 +21,7 @@ Tactical Design -> current domain objects
 
 ## Workflow
 
-EventStorming keeps its complete ten-step discussion method. It derives candidate Bounded Contexts and Aggregate Roots from the timeline, stresses each with probe questions whose every answer maps to a modeling action, asks one question at a time, and writes only accepted current strategic knowledge.
+EventStorming keeps its complete ten-step discussion method. It derives candidate Bounded Contexts, Aggregate Roots, and Policies from the timeline, stresses each with probe questions whose every answer maps to a modeling action, asks one question at a time, and writes only accepted current strategic knowledge.
 
 Tactical Design works one Aggregate Root at a time. It derives essential business pressures, attacks identity, behavior ownership, and external authority with ownership probes whose every answer maps to a design action, compares credible object compositions in one pressure-by-candidate table, and records confirmed current descriptions. Its skill and templates own the detailed process and field contract.
 
@@ -40,7 +40,7 @@ docs/ddd-expert/
 ```
 
 - `context-map.md`: Bounded Contexts and semantic dependencies.
-- `model.md`: context purpose, essential language, Aggregate Roots, and every Business Rule as one EARS sentence.
+- `model.md`: context purpose, essential language, Aggregate Roots, every Business Rule as one EARS sentence, and the Policies the context decides.
 - `domain-objects.md`: confirmed current Roots and Entities grouped by Aggregate Root, with an optional context-level Domain Services section; each Behavior cites its Business Rules by name.
 
 Only the accepted current-model files described above are workflow artifacts; workshop conversation and implementation history remain transient.

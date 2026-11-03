@@ -11,7 +11,7 @@ Behavior is one sentence that uses the owning Root, Entity, or Domain Service as
 Name material Value Objects and identity references within the fields they explain. Keep descriptions to this schema.
 
 Include Domain-owned Ports only for direct Behavior invocations. Each Port-suffixed contract groups Methods naming the invoking Behavior, decision point, and Domain result; exact signatures and technical fulfillment belong to implementation.
-Include Domain Events only when selected by Tactical Design. Link each to its recording Behavior and add one Consumed by line per accepted local Event Handler and Domain intent. Keep event selection reasons and Workshop Events in the conversation.
+Include Domain Events only when selected by Tactical Design. Link each to its recording Behavior. Add one Consumed by line per same-context Policy in model.md that reacts to it, and name the Published Fact Contract it feeds, if any. Keep event selection reasons and Workshop Events in the conversation.
 Omit inapplicable Port/Event sections and the Entity example when the Root has no child Entity.
 
 Group Roots and their owned Entities by Aggregate. Record accepted Domain Services once under the optional context-level Domain Services heading, alongside the Aggregate sections. Each Service has a Definition and Behavior naming its material Domain inputs, decision or result, and collaborating objects or public Aggregate behaviors where needed. It has no Entity identity or owned lifecycle to fill in. Use the same optional Port/Event sections for its own direct invocations or recorded events. Omit the Domain Services section when none is accepted.
@@ -32,8 +32,8 @@ Group Roots and their owned Entities by Aggregate. Record accepted Domain Servic
   - `<Domain role>Port`
     - `<Method name>` — `<Domain behavior name>` invokes it at <business decision point> to obtain <Domain result>.
 - **Domain Events:**
-  - `<Event name>` — recorded by `<Producing Domain behavior name>`.
-    - **Consumed by:** `<Event Handler>` — <Domain intent>.
+  - `<Event name>` — recorded by `<Producing Domain behavior name>`[; published as `<Published Fact Contract>`].
+    - **Consumed by:** Policy `<Policy name>`.
 
 ### <Entity Name> — Entity (`<EntityID>`[, unique per <scope>])
 
@@ -48,8 +48,8 @@ Group Roots and their owned Entities by Aggregate. Record accepted Domain Servic
   - `<Domain role>Port`
     - `<Method name>` — `<Domain behavior name>` invokes it at <business decision point> to obtain <Domain result>.
 - **Domain Events:**
-  - `<Event name>` — recorded by `<Producing Domain behavior name>`.
-    - **Consumed by:** `<Event Handler>` — <Domain intent>.
+  - `<Event name>` — recorded by `<Producing Domain behavior name>`[; published as `<Published Fact Contract>`].
+    - **Consumed by:** Policy `<Policy name>`.
 
 ## Domain Services
 
