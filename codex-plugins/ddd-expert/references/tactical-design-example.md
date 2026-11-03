@@ -68,7 +68,7 @@ Written under a `## Schedule` heading that holds only the Root's accepted
 Definition until the Root is confirmed.
 
 ```markdown
-### Slot — Entity (`SlotTime`)
+### Slot — Entity (`SlotTime`, unique per Schedule)
 
 - **Definition:** One bookable time in a doctor's day that admits at most one confirmed Appointment.
 - **Facts:**
@@ -80,7 +80,7 @@ Definition until the Root is confirmed.
   - `Completed` — the visit took place; terminal.
 - **Behavior:**
   - `Confirm Appointment` — Slot admits an Appointment, transitioning Slot.State from Free to Confirmed. Rules: `Single occupancy`.
-  - `Release Appointment` — Slot frees its Appointment at the supplied current time, transitioning Slot.State from Confirmed to Free. Rules: `Release before start`, `Cancellation frees Slot`.
+  - `Release Appointment` — Slot frees its Appointment, using supplied `now` from the caller, transitioning Slot.State from Confirmed to Free. Rules: `Release before start`, `Cancellation frees Slot`.
   - `Complete Visit` — Slot records the completed visit, transitioning Slot.State from Confirmed to Completed.
 ```
 

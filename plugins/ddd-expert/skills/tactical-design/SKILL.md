@@ -97,6 +97,7 @@ A probe is a question whose every answer maps to a design action. Ask it against
 | Caller inspection | Would a caller have to read `<object>` state to reproduce this decision? | Yes: the decision is a Behavior of `<object>`. No: the caller may keep it. |
 | Concurrent change | Two callers change `<Entity A>` and `<Entity B>` under the same Root at once; must one fail? | Must fail: both stay under the Root. Both may succeed: the split is a credible candidate; raise it as a strategic correction when it moves Root identity. |
 | Deletion | If `<Entity>` merges into `<Root>`, which decision becomes unclear or duplicated? | A named decision: keep the Entity. None: merge it. |
+| Identity | Two `<objects>` share `<name or attributes>`; are they the same `<object>`, and within what scope can only one exist? | The distinguishing fact becomes the identity in the object heading; a business limit becomes its `unique per <scope>`. |
 | External authority | Does `<behavior>` need a Fact or answer another authority owns? | The caller can supply it at command time without changing decision ownership or timing: **Supplied Fact**, the default. The Behavior itself must choose when to ask and use the answer mid-decision: **Domain-owned Port**. |
 | Occurrence | Does the accepted model need a named local reaction to `<occurrence>`, or the occurrence itself as Domain evidence beyond the resulting state? | Yes: select an actual Domain Event, name its recording Behavior and accepted local reactions. No: the Workshop Event stays conversational. |
 
@@ -147,7 +148,8 @@ For a newly designed Root, show its integrated compact slice when its compositio
 
 - every pressure is traceable to its Business Rules, assigned to one Behavior, and cited by that Behavior;
 - every accepted decision rule is a Business Rule in `model.md`;
-- every external-authority need is classified as Supplied Fact or Domain-owned Port;
+- every Root and retained Entity states its identity, and its uniqueness scope where the business limits it;
+- every external-authority need is classified as Supplied Fact or Domain-owned Port, and every Supplied Fact names its owning authority;
 - every material behavior owner, target, and Lifecycle State transition is resolved;
 - every Lifecycle State is entered and left by a named Behavior, or is the initial or terminal state;
 - every retained or changed object has a reason to exist;

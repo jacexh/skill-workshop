@@ -61,7 +61,7 @@ Use all ten steps in causal order during discovery. Advance through explicit int
 2. **Workshop Events**: identify material past-tense business occurrences without assuming they become production events.
 3. **Timeline**: arrange the occurrences into replayable business-time sequences. Mark the pivotal events where the business changes phase, responsibility, or authority, and group the occurrences into Role swimlanes; the resulting segments and lanes are the first boundary candidates.
 4. **Commands**: identify the business intent that causes each material change.
-5. **Roles and external authorities**: identify who may decide or initiate the intent in business terms.
+5. **Roles and external authorities**: identify who may decide or initiate the intent in business terms; record each accepted permission as a Business Rule that names the Role.
 6. **Constraints and required next intents**: expose authoritative facts, rules, and any occurrence that requires or enables another business action; clarify whether the occurrence stands as a successful business fact independently of that action.
 7. **Problems and ambiguity**: make contradictions, assumptions, missing facts, and material Hotspots explicit.
 8. **Aggregates and core business objects**: cluster identity and immediate consistency around candidate Aggregate Roots. Stress each candidate with the [aggregate probes](#aggregate-probes), then compare the no-split candidate with the strongest split, merge, or deletion under the same probe answers before recommending one.

@@ -53,7 +53,9 @@ concrete scenario can contradict.
 | Unwanted | `If <condition>, then <concept> rejects ...` |
 | Optional | `Where <feature applies>, <concept> ...` |
 
-Split a claim that needs a second sentence into separate rules. Tactical
+Split a claim that needs a second sentence into separate rules. A permission
+rule names the Role that may act, for example: `If the caller is not the Mail
+recipient, then MailDelivery rejects Record read.` Tactical
 behavior ownership belongs in `domain-objects.md`, which cites the rule by name.
 
 Express the promised behavior or authority at the Model level. Technical concepts
