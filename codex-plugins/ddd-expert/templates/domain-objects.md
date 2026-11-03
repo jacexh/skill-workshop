@@ -2,11 +2,12 @@
 
 <!--
 Use only accepted current descriptions. Identity belongs in the object heading when meaningful.
+Write every field to artifact-layout.md "Artifact writing". Business Rule text lives in model.md; a Behavior cites it after "Rules:".
 
-Definition explains what the object represents; include an essential operating characteristic only when it changes that meaning.
-Facts are owned business facts needed by a Behavior or Invariant, not a field inventory.
+Definition explains what the object represents in one or two sentences; include an essential operating characteristic only when it changes that meaning.
+Facts are owned business facts needed by a Behavior or Invariant, one sentence each, not a field inventory.
 Lifecycle State names the state-machine states and their Domain meaning, or says "No explicit Lifecycle State". Qualify an otherwise generic State as <Object>.State.
-Behavior uses the owning Root, Entity, or Domain Service as Subject and names its Domain target. Include composition only when a Root composes an Entity-owned Behavior; include a transition only when it changes Lifecycle State.
+Behavior is one sentence that uses the owning Root, Entity, or Domain Service as Subject and names its Domain target, then cites its governing Business Rules. Include composition only when a Root composes an Entity-owned Behavior; include a transition only when it changes Lifecycle State.
 Name material Value Objects and identity references within the fields they explain. Keep descriptions to this schema.
 
 Include Domain-owned Ports only for direct Behavior invocations. Each Port-suffixed contract groups Methods naming the invoking Behavior, decision point, and Domain result; exact signatures and technical fulfillment belong to implementation.
@@ -26,7 +27,7 @@ Group Roots and their owned Entities by Aggregate. Record accepted Domain Servic
 - **Lifecycle State:**
   - `<State name>` — <State-machine meaning; write `No explicit Lifecycle State` when none exists.>
 - **Behavior:**
-  - `<Domain verb phrase>` — <Root> <domain verb> <Object>[ by composing `<Entity>.<Behavior>`][, transitioning <Lifecycle State name> from <before> to <after>].
+  - `<Domain verb phrase>` — <Root> <domain verb> <Object>[ by composing `<Entity>.<Behavior>`][, transitioning <Lifecycle State name> from <before> to <after>].[ Rules: `<Rule name>`[, `<Rule name>`].]
 - **Domain-owned Ports:**
   - `<Domain role>Port`
     - `<Method name>` — `<Domain behavior name>` invokes it at <business decision point> to obtain <Domain result>.
@@ -42,7 +43,7 @@ Group Roots and their owned Entities by Aggregate. Record accepted Domain Servic
 - **Lifecycle State:**
   - `<State name>` — <State-machine meaning; write `No explicit Lifecycle State` when none exists.>
 - **Behavior:**
-  - `<Domain verb phrase>` — <Subject> <domain verb> <Object>[, transitioning <Lifecycle State name> from <before> to <after>].
+  - `<Domain verb phrase>` — <Subject> <domain verb> <Object>[, transitioning <Lifecycle State name> from <before> to <after>].[ Rules: `<Rule name>`[, `<Rule name>`].]
 - **Domain-owned Ports:**
   - `<Domain role>Port`
     - `<Method name>` — `<Domain behavior name>` invokes it at <business decision point> to obtain <Domain result>.
@@ -56,4 +57,4 @@ Group Roots and their owned Entities by Aggregate. Record accepted Domain Servic
 
 - **Definition:** <Named Domain responsibility with no natural Entity or Value Object owner.>
 - **Behavior:**
-  - `<Domain verb phrase>` — <Service> <domain verb> <Domain target>; <material Domain inputs, decision or result, and collaboration where needed>.
+  - `<Domain verb phrase>` — <Service> <domain verb> <Domain target>; <material Domain inputs, decision or result, and collaboration where needed>.[ Rules: `<Rule name>`[, `<Rule name>`].]

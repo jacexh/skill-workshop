@@ -72,7 +72,7 @@ Workshop Events stay in the conversation as analytical evidence. A proposed prod
 
 Derive strategic boundaries from business language, authority, policy, lifecycle, and model purpose. Admit a concern only when it changes a business right, obligation, value, authority, decision, outcome, or required next action. Treat implementation observations as evidence about that business meaning; later design owns the realization.
 
-Derive Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. When drafting or revising them, apply the [strategic rule writing guidance](../../templates/artifact-layout.md#strategic-rule-writing).
+Derive Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. When drafting or revising them, apply the [business rule writing guidance](../../templates/artifact-layout.md#business-rule-writing).
 
 ## Probes
 

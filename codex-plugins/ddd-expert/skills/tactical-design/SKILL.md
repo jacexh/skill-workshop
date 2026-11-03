@@ -85,7 +85,7 @@ When a Root exposes a capability by composing an owned Entity's behavior, connec
 <Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.
 ```
 
-`<Entity>.<Entity Behavior>` references the Entity-owned Domain behavior; it does not prescribe a method call. Keep the Root entry about aggregate capability and composition, and the Entity entry authoritative for its owned decision instead of repeating that decision under the Root. Use the ordinary Subject form when no owned behavior is composed.
+`<Entity>.<Entity Behavior>` references the Entity-owned Domain behavior; it does not prescribe a method call. Keep the Root entry about aggregate capability and composition, and the Entity entry the owner of its decision, citing its Business Rules, instead of repeating that decision under the Root. Use the ordinary Subject form when no owned behavior is composed.
 
 ### Ownership probes
 
@@ -145,7 +145,8 @@ For a Domain Service, present its complete template description with any affecte
 
 For a newly designed Root, show its integrated compact slice when its composition is complete. Before confirming any newly designed slice, verify that:
 
-- every pressure is traceable to its Business Rules and assigned to one Behavior;
+- every pressure is traceable to its Business Rules, assigned to one Behavior, and cited by that Behavior;
+- every accepted decision rule is a Business Rule in `model.md`;
 - every external-authority need is classified as Supplied Fact or Domain-owned Port;
 - every material behavior owner, target, and Lifecycle State transition is resolved;
 - every Lifecycle State is entered and left by a named Behavior, or is the initial or terminal state;

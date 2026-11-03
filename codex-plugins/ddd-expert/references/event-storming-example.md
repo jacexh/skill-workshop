@@ -81,5 +81,5 @@ lifecycle-end probe places Visit Completed as the crossing point.
 After confirmation, the Context Map and the two Model files are written from
 their templates. A Business Rule then reads, for example:
 
-- **Single occupancy:** A Schedule Slot admits one confirmed Appointment; a
-  second confirmation into an occupied Slot is rejected at confirmation time.
+- **Single occupancy:** If a Slot already holds a confirmed Appointment, then
+  the Schedule rejects another confirmation into that Slot.

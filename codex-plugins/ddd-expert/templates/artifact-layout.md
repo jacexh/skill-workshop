@@ -14,8 +14,8 @@ docs/ddd-expert/
 ## Ownership
 
 - `context-map.md` owns the Bounded Context inventory and semantic dependencies.
-- `model.md` owns one context's purpose, essential language, Aggregate Roots, and strategic business rules.
-- `domain-objects.md` owns confirmed current Root, Entity, and Domain Service descriptions in the [domain-object template](domain-objects.md): Roots and their Entities are grouped by Aggregate, and Domain Services have a separate context-level section.
+- `model.md` owns one context's purpose, essential language, Aggregate Roots, and every Business Rule of the context.
+- `domain-objects.md` owns confirmed current Root, Entity, and Domain Service descriptions in the [domain-object template](domain-objects.md): Roots and their Entities are grouped by Aggregate, and Domain Services have a separate context-level section. A Behavior cites its governing Business Rules by name.
 
 Candidates remain in conversation. These files contain no meeting transcript, design history, workflow status, diagrams, implementation sequence, or duplicated project decision.
 
@@ -23,12 +23,38 @@ EventStorming updates strategic files after integrated confirmation. Tactical De
 
 A Domain Service follows the same object confirmation and write checks. Completing its slice includes accepted changes to affected collaborator descriptions and strategic rules.
 
-## Strategic rule writing
+## Artifact writing
 
-Write each Model Business Rule as one independently challengeable claim: name the
-governed business concept or collaboration, its material conditions, and the
-accepted decision, permission, transition, required outcome, or invariant.
-Tactical behavior ownership belongs in `domain-objects.md`.
+Write artifact content in English, in ASD-STE100 Simplified Technical English
+at about 80% strictness. Ubiquitous Language terms are the technical names;
+every other word keeps one meaning. Each sentence is active, has at most 25
+words, and states one fact, rule, or behavior.
+
+Each field records business meaning in the shape its template gives.
+Display, persistence, coordination, transport, migration history, and design
+rationale belong in project decisions or code.
+
+Each meaning has one home: a Business Rule in `model.md`, its owning Behavior in
+`domain-objects.md`, and a term definition in Essential Language. Other entries
+refer to that home by name. State each meaning as what holds or what happens.
+
+When a write touches an entry, rewrite the whole entry to this section.
+
+## Business rule writing
+
+Write each Business Rule as one sentence in an EARS pattern: one claim that a
+concrete scenario can contradict.
+
+| Pattern | Shape |
+|---|---|
+| Ubiquitous | `<Concept> <always holds or does> ...` |
+| Event | `When <trigger>, <concept> ...` |
+| State | `While <state>, <concept> ...` |
+| Unwanted | `If <condition>, then <concept> rejects ...` |
+| Optional | `Where <feature applies>, <concept> ...` |
+
+Split a claim that needs a second sentence into separate rules. Tactical
+behavior ownership belongs in `domain-objects.md`, which cites the rule by name.
 
 Express the promised behavior or authority at the Model level. Technical concepts
 may be Domain language: "Stopping execution preserves the Session's persistent
@@ -41,12 +67,13 @@ when the accepted business contract itself depends on it.
 Before a strategic write, use the [Context Map](context-map.md) and
 [Model](model.md) templates. Before an object write, use the
 [domain-object template](domain-objects.md). Keep template headings and table
-headers; descriptions and business vocabulary may use the user's language.
+headers; write content to [Artifact writing](#artifact-writing).
 Replace placeholders and omit inapplicable optional entries.
 
-For each added or revised Model rule, reread its whole entry against
-[Strategic rule writing](#strategic-rule-writing). Split, merge, or rewrite affected
-entries until each expresses one claim at that level, preserving accepted
+For each added or revised entry, reread the whole entry against
+[Artifact writing](#artifact-writing), and each Business Rule also against
+[Business rule writing](#business-rule-writing). Split, merge, or rewrite
+affected entries until each expresses one claim in its home, preserving accepted
 conditions, outcomes, and unrelated meaning.
 
 After writing, reread changed artifacts for accepted meaning and preservation of

@@ -40,8 +40,8 @@ docs/ddd-expert/
 ```
 
 - `context-map.md`: Bounded Contexts and semantic dependencies.
-- `model.md`: context purpose, essential language, Aggregate Roots, and strategic business rules.
-- `domain-objects.md`: confirmed current Roots and Entities grouped by Aggregate Root, with an optional context-level Domain Services section.
+- `model.md`: context purpose, essential language, Aggregate Roots, and every Business Rule as one EARS sentence.
+- `domain-objects.md`: confirmed current Roots and Entities grouped by Aggregate Root, with an optional context-level Domain Services section; each Behavior cites its Business Rules by name.
 
 Only the accepted current-model files described above are workflow artifacts; workshop conversation and implementation history remain transient.
 
@@ -56,7 +56,7 @@ Unspecified software design is Codify implementation latitude, resolved directly
 
 Upgrade with `codex plugin marketplace upgrade skill-workshop-codex`.
 
-Changed artifacts follow the [artifact write checks](templates/artifact-layout.md), including the Context Map validator. These check representation; accepted business meaning still requires review.
+Artifacts are written in English in ASD-STE100 style. Changed artifacts follow the [artifact write checks](templates/artifact-layout.md), including the Context Map validator. These check representation; accepted business meaning still requires review.
 
 ## Templates
 
