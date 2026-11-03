@@ -21,7 +21,7 @@ confirmed Aggregate Root and Business Rules
 
 ## Entry boundary
 
-Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, and Business Rules as business authority. Start with the Root and affected slice identified by the request; ask only when that choice is materially ambiguous.
+Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, Business Rules, Policies, and the Published Fact Contracts this context owns in `context-map.md` as business authority. Start with the Root and affected slice identified by the request; ask only when that choice is materially ambiguous.
 
 If tactical refinement exposes a needed correction to business meaning, a Bounded Context boundary, Aggregate Root identity, or a strategic Business Rule, resolve it with the user in the current conversation and carry the accepted change into the Root-level artifact review. Do not force a workflow switch or leave the tactical model built on a known contradiction.
 
@@ -51,7 +51,7 @@ Before the first pressure list or comparison of a refinement, read the [worked e
 
 For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, Lifecycle State transition, invariant, material external-authority need, or actual Domain Event that the object model must realize. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
 
-Every pressure names the governing Business Rules in the working conversation. Stories, specifications, and code may challenge whether those rules are complete, but they add no confirmed business meaning until the user accepts it. When a material pressure cannot be traced to the Model or the rules contradict it, resolve the smallest strategic correction with the user before continuing and include it in the Root-level review. Keep the pressure set transient; it is reasoning input, not another artifact.
+Every pressure names its governing Business Rules, Policies, or owned Published Fact Contract in the working conversation. Stories, specifications, and code may challenge whether those rules are complete, but they add no confirmed business meaning until the user accepts it. When a material pressure cannot be traced to the Model or the rules contradict it, resolve the smallest strategic correction with the user before continuing and include it in the Root-level review. Keep the pressure set transient; it is reasoning input, not another artifact.
 
 ## Probe behavior ownership
 
@@ -85,7 +85,7 @@ When a Root exposes a capability by composing an owned Entity's behavior, connec
 <Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.
 ```
 
-`<Entity>.<Entity Behavior>` references the Entity-owned Domain behavior; it does not prescribe a method call. Keep the Root entry about aggregate capability and composition, and the Entity entry authoritative for its owned decision instead of repeating that decision under the Root. Use the ordinary Subject form when no owned behavior is composed.
+`<Entity>.<Entity Behavior>` references the Entity-owned Domain behavior; it does not prescribe a method call. Keep the Root entry about aggregate capability and composition, and the Entity entry the owner of its decision, citing its Business Rules, instead of repeating that decision under the Root. Use the ordinary Subject form when no owned behavior is composed.
 
 ### Ownership probes
 
@@ -97,8 +97,9 @@ A probe is a question whose every answer maps to a design action. Ask it against
 | Caller inspection | Would a caller have to read `<object>` state to reproduce this decision? | Yes: the decision is a Behavior of `<object>`. No: the caller may keep it. |
 | Concurrent change | Two callers change `<Entity A>` and `<Entity B>` under the same Root at once; must one fail? | Must fail: both stay under the Root. Both may succeed: the split is a credible candidate; raise it as a strategic correction when it moves Root identity. |
 | Deletion | If `<Entity>` merges into `<Root>`, which decision becomes unclear or duplicated? | A named decision: keep the Entity. None: merge it. |
+| Identity | Two `<objects>` share `<name or attributes>`; are they the same `<object>`, and within what scope can only one exist? | The distinguishing fact becomes the identity in the object heading; a business limit becomes its `unique per <scope>`. |
 | External authority | Does `<behavior>` need a Fact or answer another authority owns? | The caller can supply it at command time without changing decision ownership or timing: **Supplied Fact**, the default. The Behavior itself must choose when to ask and use the answer mid-decision: **Domain-owned Port**. |
-| Occurrence | Does the accepted model need a named local reaction to `<occurrence>`, or the occurrence itself as Domain evidence beyond the resulting state? | Yes: select an actual Domain Event, name its recording Behavior and accepted local reactions. No: the Workshop Event stays conversational. |
+| Occurrence | Does an accepted same-context Policy react to `<occurrence>`, does this context publish it as a Published Fact Contract, or does the model need it as Domain evidence beyond the resulting state? | Yes: select an actual Domain Event, name its recording Behavior, cite each reacting same-context Policy, and name the Published Fact Contract it feeds. A newly found local reaction first becomes a Policy through a strategic correction. No: the Workshop Event stays conversational. |
 
 For a Domain-owned Port, establish its direct Behavior owner, Domain-role name ending in `Port`, and sparse Methods with their business decision point and Domain result. Exact signatures, source topology, and technical fulfillment policy remain realization choices. If concern about obtaining external data or handling its technical failure starts shaping a candidate Root or Entity, surface the hidden Domain-owned Port and continue the object design from its fulfilled Domain result.
 
@@ -131,7 +132,7 @@ Use a Domain Service only for an accepted named Domain operation with no natural
 
 A Domain Service slice uses the same interview: its governing Business Rules and affected Roots supply the pressures, its Behaviors pass the ownership probes, and its composition is compared against the strongest Entity or Root owner. Establish its Domain inputs, decision or result, and any collaboration through public Aggregate behavior. Review only the collaborating Root behaviors whose responsibilities change.
 
-Record it once at Bounded Context scope using the template's Domain Service section; collaborating Root descriptions reference that responsibility where needed. Confirmation and write steps are the same as for an Entity, and completing its slice includes accepted changes to affected collaborator descriptions and strategic rules.
+Record it once at Bounded Context scope using the template's Domain Service section; collaborating Root descriptions reference that responsibility where needed. Confirmation and write steps are the same as for an Entity, and completing its slice includes accepted changes to affected collaborator descriptions and Business Rules.
 
 ## Complete the current slice
 
@@ -145,13 +146,15 @@ For a Domain Service, present its complete template description with any affecte
 
 For a newly designed Root, show its integrated compact slice when its composition is complete. Before confirming any newly designed slice, verify that:
 
-- every pressure is traceable to its Business Rules and assigned to one Behavior;
-- every external-authority need is classified as Supplied Fact or Domain-owned Port;
+- every pressure is traceable to its Business Rules, Policies, or owned Published Fact Contract and assigned to one Behavior; each Behavior cites its Business Rules, and each Consumed by line cites its Policy;
+- every accepted decision rule is a Business Rule in `model.md`;
+- every Root and retained Entity states its identity, and its uniqueness scope where the business limits it;
+- every external-authority need is classified as Supplied Fact or Domain-owned Port, and every Supplied Fact names its owning authority;
 - every material behavior owner, target, and Lifecycle State transition is resolved;
 - every Lifecycle State is entered and left by a named Behavior, or is the initial or terminal state;
 - every retained or changed object has a reason to exist;
 - the strongest credible alternative was compared under the same pressures;
-- every description matches the template, including Port Methods, recording Behaviors, and accepted local reactions.
+- every description matches the template, including Port Methods, recording Behaviors, and reacting Policies.
 
 Complete when no material decision remains that would change composition or ownership.
 
