@@ -1,0 +1,7 @@
+interface:
+  display_name: "DDD Expert Ownership"
+  short_description: "Add the DDD artifact-ownership line to AGENTS.md"
+  default_prompt: "Use $ddd-expert:declare-ownership to add the DDD Expert artifact-ownership line to this repository's agent instructions."
+
+policy:
+  allow_implicit_invocation: false

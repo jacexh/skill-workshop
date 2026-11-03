@@ -9,17 +9,20 @@ use the user's language; artifacts follow their templates.
 
 - **Schedule** — a doctor's day of slots; consistency: one confirmed
   appointment per slot at confirmation time.
-- **Single occupancy:** A Schedule Slot admits one confirmed Appointment; a
-  second confirmation into an occupied Slot is rejected at confirmation time.
-- **Release before start:** A confirmed Appointment may be cancelled only
-  before the Slot's start time; cancellation frees the Slot.
+- **Single occupancy:** If a Slot already holds a confirmed Appointment, then
+  the Schedule rejects another confirmation into that Slot.
+- **Release before start:** If the Slot start time has passed, then the
+  Schedule rejects cancellation of its Appointment.
+- **Cancellation frees Slot:** When the Schedule cancels a confirmed
+  Appointment, its Slot becomes free.
 
 ## Pressure list
 
 ```text
 P1 Reject a second confirmation into an occupied Slot at command time (Single occupancy)
 P2 Allow cancellation only before the Slot's start time; needs the current time (Release before start)
-P3 Slot occupancy moves Free -> Confirmed -> Free or Completed (Single occupancy, Release before start)
+P3 Slot occupancy moves Free -> Confirmed -> Free or Completed (Single occupancy, Cancellation frees Slot)
+P4 Record the completed visit that Billing relies on (Context Map: VisitCompleted)
 ```
 
 ## Probe turn
@@ -66,7 +69,7 @@ Written under a `## Schedule` heading that holds only the Root's accepted
 Definition until the Root is confirmed.
 
 ```markdown
-### Slot — Entity (`SlotTime`)
+### Slot — Entity (`SlotTime`, unique per Schedule)
 
 - **Definition:** One bookable time in a doctor's day that admits at most one confirmed Appointment.
 - **Facts:**
@@ -77,9 +80,11 @@ Definition until the Root is confirmed.
   - `Confirmed` — one Appointment occupies the Slot.
   - `Completed` — the visit took place; terminal.
 - **Behavior:**
-  - `Confirm Appointment` — Slot admits an Appointment, transitioning Slot.State from Free to Confirmed; a second confirmation is rejected.
-  - `Release Appointment` — Slot frees its Appointment when the supplied current time is before StartTime, transitioning Slot.State from Confirmed to Free.
+  - `Confirm Appointment` — Slot admits an Appointment, transitioning Slot.State from Free to Confirmed. Rules: `Single occupancy`.
+  - `Release Appointment` — Slot frees its Appointment, using supplied `now` from the clinic clock, transitioning Slot.State from Confirmed to Free. Rules: `Release before start`, `Cancellation frees Slot`.
   - `Complete Visit` — Slot records the completed visit, transitioning Slot.State from Confirmed to Completed.
+- **Domain Events:**
+  - `VisitCompleted` — recorded by `Complete Visit`; published as `VisitCompleted`.
 ```
 
 The Root entry then reads `Confirm Appointment — Schedule confirms an

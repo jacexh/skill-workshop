@@ -6,7 +6,7 @@
 
 ## Essential Language
 
-- **<Term>:** <One concise meaning unique or important in this context.>
+- **<Term>:** <One sentence: the meaning unique or important in this context.>
 
 ## Aggregate Roots
 
@@ -16,4 +16,8 @@
 
 ## Business Rules
 
-- **<Rule name>:** <Governed business concept or collaboration> <accepted decision, permission, transition, required outcome, or invariant> <when a material business condition applies>.
+- **<Rule name>:** <One EARS sentence: [When <trigger>, | While <state>, | If <condition>, then | Where <feature applies>,] <concept> <accepted decision, permission, transition, outcome, or invariant>.>
+
+## Policies
+
+- **<Policy name>:** When <trigger fact or time>, <reacting concept> <intent>[ within <duration>]. If <intent> cannot complete, then <business outcome>.

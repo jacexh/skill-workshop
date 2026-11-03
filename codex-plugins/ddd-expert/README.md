@@ -9,6 +9,8 @@ codex plugin add ddd-expert@skill-workshop-codex
 ```
 
 ```text
+$ddd-expert:declare-ownership
+-> artifact-ownership line in AGENTS.md or CLAUDE.md
 $ddd-expert:event-storming
 EventStorming -> current strategic model
 $ddd-expert:tactical-design
@@ -21,11 +23,11 @@ $ddd-expert:guard
 
 ## Workflow
 
-EventStorming keeps its complete ten-step discussion method. It derives candidate Bounded Contexts and Aggregate Roots from the timeline, stresses each with probe questions whose every answer maps to a modeling action, asks one question at a time, and writes only accepted current strategic knowledge.
+EventStorming keeps its complete ten-step discussion method. It derives candidate Bounded Contexts, Aggregate Roots, and Policies from the timeline, stresses each with probe questions whose every answer maps to a modeling action, asks one question at a time, and writes only accepted current strategic knowledge.
 
-Tactical Design works one Aggregate Root at a time. It derives essential business pressures, attacks behavior ownership and external authority with ownership probes whose every answer maps to a design action, compares credible object compositions in one pressure-by-candidate table, and records confirmed current descriptions. Its skill and templates own the detailed process and field contract.
+Tactical Design works one Aggregate Root at a time. It derives essential business pressures, attacks identity, behavior ownership, and external authority with ownership probes whose every answer maps to a design action, compares credible object compositions in one pressure-by-candidate table, and records confirmed current descriptions. Its skill and templates own the detailed process and field contract.
 
-Codify treats the accepted strategic model and current domain objects as read-only semantic constraints, then fills the required software structure through project and active-language House Style; a business-shaped gap is implemented under a stated conservative assumption, and only a genuine contradiction is raised to the user after the rest of the slice is complete. Guard independently checks whether the implementation preserves their ownership and behavior, whether Codify's stated assumptions hold, and whether changed non-Domain abstractions reduce overall complexity under House Style.
+Codify treats the accepted strategic model and current domain objects as read-only semantic constraints, then fills the required software structure through project and active-language House Style; a business-shaped gap is implemented under a stated conservative assumption, and only a genuine contradiction is raised to the user after the rest of the slice is complete. Accepted concepts keep their Ubiquitous Language names in one carrier each; supporting Value Objects and Entities remain implementation latitude. Guard independently checks whether the implementation preserves their ownership, behavior, and vocabulary, whether Codify's stated assumptions hold, and whether changed non-Domain abstractions reduce overall complexity under House Style.
 
 Start at the skill that owns the current request and reuse existing confirmations. Design-only and review-only requests end with their requested result. The [workflow contract](references/workflow.md) defines authorization, project-convention precedence, and proportionate verification. House Style supplies defaults for choices the project leaves open.
 
@@ -40,8 +42,8 @@ docs/ddd-expert/
 ```
 
 - `context-map.md`: Bounded Contexts and semantic dependencies.
-- `model.md`: context purpose, essential language, Aggregate Roots, and strategic business rules.
-- `domain-objects.md`: confirmed current Roots and Entities grouped by Aggregate Root, with an optional context-level Domain Services section.
+- `model.md`: context purpose, essential language, Aggregate Roots, every Business Rule as one EARS sentence, and the Policies the context decides.
+- `domain-objects.md`: confirmed current Roots and Entities grouped by Aggregate Root, with an optional context-level Domain Services section; each Behavior cites its Business Rules by name.
 
 Only the accepted current-model files described above are workflow artifacts; workshop conversation and implementation history remain transient.
 
@@ -51,12 +53,13 @@ Only the accepted current-model files described above are workflow artifacts; wo
 - `$ddd-expert:tactical-design`: decide Aggregate internals and confirm one Root at a time.
 - `$ddd-expert:codify`: implement accepted object slices and verify them.
 - `$ddd-expert:guard`: perform a fresh, read-only review of model realization and abstraction quality.
+- `$ddd-expert:declare-ownership`: run once per repository, by explicit invocation only, to add a line to `AGENTS.md` or `CLAUDE.md` that tells every agent `docs/ddd-expert/` is accepted design changed only through EventStorming or Tactical Design.
 
 Unspecified software design is Codify implementation latitude, resolved directly through project constraints and the active-language House Style.
 
 Upgrade with `codex plugin marketplace upgrade skill-workshop-codex`.
 
-Changed artifacts follow the [artifact write checks](templates/artifact-layout.md), including the Context Map validator. These check representation; accepted business meaning still requires review.
+Artifacts are written in English in ASD-STE100 style. Changed artifacts follow the [artifact write checks](templates/artifact-layout.md), including the Context Map validator. These check representation; accepted business meaning still requires review.
 
 ## Templates
 

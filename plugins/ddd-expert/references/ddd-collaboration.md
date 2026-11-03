@@ -45,12 +45,14 @@ remain outside Domain and Application contracts.
 ## Local Domain Event Shape
 
 - Use a past-tense Domain name and an immutable payload containing the Domain
-  facts required by accepted local reactions.
+  facts required by the Policies that react to it.
 - Record the event in the same Domain operation that establishes the fact.
 - Keep transport names, topics, provider headers, offsets, trace identifiers,
   retry state, and log fields outside the event.
 - Application drains or captures events at the accepted transaction boundary
-  and dispatches each accepted reaction through its registered handler.
+  and dispatches each reacting Policy through its registered handler. When a
+  Policy's failure outcome must survive a process stop, use the durable event
+  or message flow of the active-language leaf instead of in-process dispatch.
 - A same-context handler maps the event to one named Domain intent or to one
   producer-owned fact contract.
 
