@@ -9,7 +9,10 @@ const path = require("node:path");
 const root = process.argv[2];
 const read = p => fs.readFileSync(p, "utf8");
 const json = p => JSON.parse(read(p));
-const skills = ["codify", "event-storming", "guard", "tactical-design"];
+const skills = ["codify", "declare-ownership", "event-storming", "guard", "tactical-design"];
+// declare-ownership is user-invoked; each host declares that in its own invocation mechanism.
+const claudeOnlyLine = "disable-model-invocation: true\n";
+const codexOnlyFile = "declare-ownership/agents/openai.yaml";
 const templates = ["artifact-layout.md", "context-map.md", "domain-objects.md", "model.md"];
 const tracks = ["plugins/ddd-expert", "codex-plugins/ddd-expert"];
 
@@ -98,14 +101,21 @@ for (const [index, track] of tracks.entries()) {
   }
 }
 
+const claudeDeclare = read(path.join(root, tracks[0], "skills/declare-ownership/SKILL.md"));
+assert.ok(claudeDeclare.includes("\n" + claudeOnlyLine), "Claude declare-ownership is user-invoked");
+assert.match(read(path.join(root, tracks[1], "skills", codexOnlyFile)), /allow_implicit_invocation: false/,
+  "Codex declare-ownership is user-invoked");
+
 // The two packages share semantic instructions and executable resources.
 for (const dir of ["skills", "references", "templates", "scripts"]) {
   const left = path.join(root, tracks[0], dir);
   const right = path.join(root, tracks[1], dir);
   const inventory = base => filesUnder(base).map(p => path.relative(base, p)).sort();
-  assert.deepEqual(inventory(left), inventory(right), dir + ": mirror inventory");
+  const rightInventory = inventory(right).filter(f => dir !== "skills" || f !== codexOnlyFile);
+  assert.deepEqual(inventory(left), rightInventory, dir + ": mirror inventory");
   for (const relative of inventory(left)) {
-    assert.equal(read(path.join(left, relative)), read(path.join(right, relative)), dir + "/" + relative + ": mirror content");
+    const leftText = read(path.join(left, relative)).replace(claudeOnlyLine, "");
+    assert.equal(leftText, read(path.join(right, relative)), dir + "/" + relative + ": mirror content");
   }
 }
 const claude = json(path.join(root, tracks[0], ".claude-plugin/plugin.json"));

@@ -70,6 +70,8 @@ Tactical Design is a relentless one-question-at-a-time interview. It works one A
 
 Codify treats the strategic model and domain-object slices as read-only semantic constraints, not a complete software design. It implements the requested behavior and fills the remaining software structure through project and active-language House Style, implementing business-shaped gaps under stated conservative assumptions and raising only genuine contradictions, loading guidance only for code actually touched. Domain/Application/Interface/Infrastructure/Runtime responsibilities remain explicit; Go names the physical Interface package `transport`. Guard independently reviews whether the implementation preserves the accepted model, whether Codify's stated assumptions hold, and whether changed non-Domain abstractions earn their cost by reducing overall complexity under House Style; it declares no findings only after every accepted responsibility of the affected objects is located or reported missing, and it does not modify code or DDD artifacts.
 
+Declare Ownership is an explicitly invoked skill that adds one line to the repository's `AGENTS.md` or `CLAUDE.md`, so agents and skills outside DDD Expert treat `docs/ddd-expert/` as accepted design. Claude declares it with `disable-model-invocation: true` and Codex with `agents/openai.yaml` `allow_implicit_invocation: false`.
+
 - **License:** MIT
 - **Claude details:** [plugins/ddd-expert/README.md](plugins/ddd-expert/README.md)
 - **Codex details:** [codex-plugins/ddd-expert/README.md](codex-plugins/ddd-expert/README.md)

@@ -9,6 +9,8 @@ A sparse DDD/backend workflow for Claude Code.
 ```
 
 ```text
+/ddd-expert:declare-ownership
+-> artifact-ownership line in AGENTS.md or CLAUDE.md
 /ddd-expert:event-storming
 EventStorming -> current strategic model
 /ddd-expert:tactical-design
@@ -51,6 +53,7 @@ Only the accepted current-model files described above are workflow artifacts; wo
 - `/ddd-expert:tactical-design`: decide Aggregate internals and confirm one Root at a time.
 - `/ddd-expert:codify`: implement accepted object slices and verify them.
 - `/ddd-expert:guard`: perform a fresh, read-only review of model realization and abstraction quality.
+- `/ddd-expert:declare-ownership`: run once per repository, by explicit invocation only, to add a line to `AGENTS.md` or `CLAUDE.md` that tells every agent `docs/ddd-expert/` is accepted design changed only through EventStorming or Tactical Design.
 
 Unspecified software design is Codify implementation latitude, resolved directly through project constraints and the active-language House Style.
 
