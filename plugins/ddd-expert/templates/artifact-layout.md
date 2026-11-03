@@ -21,13 +21,13 @@ Candidates remain in conversation. These files contain no meeting transcript, de
 
 EventStorming updates strategic files after integrated confirmation. Tactical Design updates an Entity description after its Entity confirmation while the Root interview continues; after Root confirmation, it completes that Root's section and applies accepted changes across affected current DDD artifacts and project decisions, preserving unrelated content. Codify and Guard treat all three artifact types as read-only.
 
-A Domain Service follows the same object confirmation and write checks. Completing its slice includes accepted changes to affected collaborator descriptions and strategic rules.
+A Domain Service follows the same object confirmation and write checks. Completing its slice includes accepted changes to affected collaborator descriptions and Business Rules.
 
 ## Artifact writing
 
 Write artifact content in English, in ASD-STE100 Simplified Technical English
-at about 80% strictness. Ubiquitous Language terms are the technical names;
-every other word keeps one meaning. Each sentence is active, has at most 25
+at about 80% strictness. Ubiquitous Language terms take the place of STE
+technical names; every other word keeps one meaning. Each sentence is active, has at most 25
 words, and states one fact, rule, or behavior.
 
 Each field records business meaning in the shape its template gives.
@@ -38,7 +38,7 @@ Each meaning has one home: a Business Rule or Policy in `model.md`, its owning
 Behavior in `domain-objects.md`, and a term definition in Essential Language. Other entries
 refer to that home by name. State each meaning as what holds or what happens.
 
-When a write touches an entry, rewrite the whole entry to this section.
+When a write changes an entry's meaning, rewrite that whole entry to this section. A rewrite that keeps every accepted condition and outcome is a wording change. A rewrite that splits, merges, or renames a Business Rule or Policy changes accepted content, so it needs confirmation under the workflow contract.
 
 ## Business rule writing
 

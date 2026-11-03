@@ -13,8 +13,8 @@ use the user's language; artifacts follow their templates.
   the Schedule rejects another confirmation into that Slot.
 - **Release before start:** If the Slot start time has passed, then the
   Schedule rejects cancellation of its Appointment.
-- **Cancellation frees Slot:** When a confirmed Appointment is cancelled, its
-  Slot becomes free.
+- **Cancellation frees Slot:** When a receptionist cancels a confirmed
+  Appointment, its Slot becomes free.
 
 ## Pressure list
 
@@ -80,7 +80,7 @@ Definition until the Root is confirmed.
   - `Completed` — the visit took place; terminal.
 - **Behavior:**
   - `Confirm Appointment` — Slot admits an Appointment, transitioning Slot.State from Free to Confirmed. Rules: `Single occupancy`.
-  - `Release Appointment` — Slot frees its Appointment, using supplied `now` from the caller, transitioning Slot.State from Confirmed to Free. Rules: `Release before start`, `Cancellation frees Slot`.
+  - `Release Appointment` — Slot frees its Appointment, using supplied `now` from the clinic clock, transitioning Slot.State from Confirmed to Free. Rules: `Release before start`, `Cancellation frees Slot`.
   - `Complete Visit` — Slot records the completed visit, transitioning Slot.State from Confirmed to Completed.
 - **Domain Events:**
   - `VisitCompleted` — recorded by `Complete Visit`; published as `VisitCompleted`.

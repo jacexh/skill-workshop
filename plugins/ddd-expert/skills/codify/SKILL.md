@@ -25,7 +25,7 @@ Classify each gap the implementation exposes:
 
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
 
-The accepted Ubiquitous Language names the Domain code: each Essential Language term, Aggregate Root, Entity, Lifecycle State, Behavior, Domain-owned Port, and Domain Event keeps its accepted name and meaning in exactly one Domain carrier. A supporting Value Object or Entity that only realizes accepted meaning, such as `Money`, is implementation latitude; a concept that adds business meaning follows the gap classification above.
+The accepted Ubiquitous Language names the Domain code: each accepted Aggregate Root, Entity, Value Object, Lifecycle State, Behavior, Domain-owned Port, and Domain Event keeps its accepted name and meaning in exactly one Domain carrier, and Domain code uses the Essential Language term for each concept it names. A supporting Value Object or Entity that only realizes accepted meaning, such as `Money`, is implementation latitude; a concept that adds business meaning follows the gap classification above.
 
 ## Implement
 

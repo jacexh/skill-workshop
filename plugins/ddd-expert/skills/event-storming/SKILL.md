@@ -110,7 +110,7 @@ A probe is a question whose every answer maps to a modeling action. Ask it in th
 Persist only accepted current knowledge:
 
 - `docs/ddd-expert/context-map.md` owns the Bounded Context inventory and semantic dependencies.
-- `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, strategic business rules, and Policies.
+- `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, Business Rules, and Policies.
 
 `model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, behavior, Domain-owned Ports where present, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
 
@@ -123,7 +123,7 @@ Present one compact integrated proposal:
 - scope and exclusions;
 - Bounded Contexts, their purpose, and the probe that separates each;
 - Aggregate Roots and their consistency boundary;
-- strategic business rules;
+- Business Rules;
 - Policies and their deciding context;
 - semantic dependencies and named contracts;
 - remaining non-blocking uncertainty.

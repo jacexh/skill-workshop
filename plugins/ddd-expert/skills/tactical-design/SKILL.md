@@ -132,7 +132,7 @@ Use a Domain Service only for an accepted named Domain operation with no natural
 
 A Domain Service slice uses the same interview: its governing Business Rules and affected Roots supply the pressures, its Behaviors pass the ownership probes, and its composition is compared against the strongest Entity or Root owner. Establish its Domain inputs, decision or result, and any collaboration through public Aggregate behavior. Review only the collaborating Root behaviors whose responsibilities change.
 
-Record it once at Bounded Context scope using the template's Domain Service section; collaborating Root descriptions reference that responsibility where needed. Confirmation and write steps are the same as for an Entity, and completing its slice includes accepted changes to affected collaborator descriptions and strategic rules.
+Record it once at Bounded Context scope using the template's Domain Service section; collaborating Root descriptions reference that responsibility where needed. Confirmation and write steps are the same as for an Entity, and completing its slice includes accepted changes to affected collaborator descriptions and Business Rules.
 
 ## Complete the current slice
 

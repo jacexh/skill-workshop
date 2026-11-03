@@ -80,10 +80,12 @@ lifecycle-end probe places Visit Completed as the crossing point.
 - **Non-blocking uncertainty**: H1 cancellation after check-in.
 
 After confirmation, the Context Map and the two Model files are written from
-their templates. A Business Rule then reads, for example:
+their templates. Business Rules then read, for example:
 
 - **Single occupancy:** If a Slot already holds a confirmed Appointment, then
   the Schedule rejects another confirmation into that Slot.
+- **Invoice voiding:** If the actor is not a billing clerk, then Billing
+  rejects voiding an Invoice.
 
 and the Billing Model records the Policy that reacts to `VisitCompleted`:
 

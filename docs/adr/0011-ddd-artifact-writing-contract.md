@@ -40,8 +40,10 @@ Codify then read long, mixed entries as its semantic constraint.
 4. Each field records business meaning only. Display, persistence,
    coordination, transport, migration history, and rationale belong in project
    decisions or code.
-5. A write that touches an entry rewrites the whole entry to this contract.
-   There is no separate migration step for existing artifacts.
+5. A write that changes an entry's meaning rewrites the whole entry to this
+   contract. A rewrite that splits, merges, or renames a Business Rule or
+   Policy needs confirmation; a wording-only rewrite does not. There is no
+   separate migration step for existing artifacts.
 
 The single source of these rules is the "Artifact writing" and "Business rule
 writing" sections of `templates/artifact-layout.md`.
@@ -50,8 +52,8 @@ writing" sections of `templates/artifact-layout.md`.
 
 - Behavior entries become short ownership statements; rule text is read in
   one place, so a rule change is a one-place edit.
-- Existing artifacts converge to the contract as their entries are touched.
-  Untouched entries keep the old style until then.
-- Artifacts written in another language must move to English when touched.
+- Existing artifacts converge to the contract as their entries change.
+  Unchanged entries keep the old style until then.
+- Artifacts written in another language move to English as their entries change.
 - The contract is still prose. Write checks reread entries against it, but no
   script enforces sentence length or field content yet.
