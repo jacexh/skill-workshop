@@ -29,113 +29,11 @@ library and Domain-focused packages only.
 - Value Objects use frozen slotted dataclasses, normalize in `__post_init__`,
   and have value equality.
 - Business datetimes are timezone-aware and normalized to UTC.
+- Aggregates declare `__slots__`, take keyword-only constructor arguments, and
+  validate in the constructor, so Factories and `reconstitute()` both validate.
+  A Factory assigns new identity with `uuid7()`.
 
-```python
-from dataclasses import dataclass
-from enum import Enum
-from typing import Self
-from uuid import UUID, uuid7
-
-
-class InvalidUserError(Exception):
-    pass
-
-
-class UserStatus(Enum):
-    PENDING = 1
-    ACTIVE = 2
-
-
-@dataclass(frozen=True, slots=True)
-class Email:
-    value: str
-
-    def __post_init__(self) -> None:
-        normalized = self.value.strip().lower()
-        if not normalized or "@" not in normalized:
-            raise InvalidUserError("invalid email")
-        object.__setattr__(self, "value", normalized)
-
-
-class User:
-    __slots__ = ("_id", "_name", "_email", "_status", "_version")
-
-    def __init__(
-        self,
-        *,
-        user_id: UUID,
-        name: str,
-        email: Email,
-        status: UserStatus,
-        version: int,
-    ) -> None:
-        self._id = user_id
-        self._name = name
-        self._email = email
-        self._status = status
-        self._version = version
-        self._validate()
-
-    @classmethod
-    def register(cls, name: str, email: Email) -> Self:
-        return cls(
-            user_id=uuid7(),
-            name=name.strip(),
-            email=email,
-            status=UserStatus.PENDING,
-            version=0,
-        )
-
-    @classmethod
-    def reconstitute(
-        cls,
-        *,
-        user_id: UUID,
-        name: str,
-        email: Email,
-        status: UserStatus,
-        version: int,
-    ) -> Self:
-        return cls(
-            user_id=user_id,
-            name=name,
-            email=email,
-            status=status,
-            version=version,
-        )
-
-    @property
-    def id(self) -> UUID:
-        return self._id
-
-    @property
-    def name(self) -> str:
-        return self._name
-
-    @property
-    def email(self) -> Email:
-        return self._email
-
-    @property
-    def status(self) -> UserStatus:
-        return self._status
-
-    @property
-    def version(self) -> int:
-        return self._version
-
-    def activate(self) -> None:
-        if self._status is UserStatus.ACTIVE:
-            return
-        self._status = UserStatus.ACTIVE
-
-    def _validate(self) -> None:
-        if not self._name or self._version < 0:
-            raise InvalidUserError("invalid user")
-```
-
-Sample validation is illustrative; production rules come from the accepted
-model. Pydantic and SQLAlchemy types remain outside Domain.
+Pydantic and SQLAlchemy types remain outside Domain.
 
 ## Lifecycle Realization
 
@@ -162,16 +60,8 @@ Methods.
 
 ## Repository
 
-```python
-from typing import Protocol
-from uuid import UUID
-
-
-class UserRepository(Protocol):
-    def get(self, user_id: UUID) -> User: ...
-
-    def save(self, user: User) -> None: ...
-```
+The write Repository `Protocol` exposes `get(root_id) -> Root` and
+`save(root) -> None`.
 
 Use plain `Enum` for closed Domain values and translate via `.value` at mapping
 boundaries. Use `IntEnum` or `StrEnum` only when primitive substitutability is

@@ -86,12 +86,6 @@ For a partitioned or sharded physical table, the primary key may include the rou
 - **[House Rule]** A soft delete is a version-checked update that sets `deleted_at`, `updated_at`, and increments `version`; it is not an unguarded flag update.
 - **[House Rule]** Append-only rows still insert the five columns. They remain at version `1` unless an accepted operational lifecycle updates them.
 
-```sql
-UPDATE sales_order
-SET deleted_at = ?, updated_at = ?, version = version + 1
-WHERE id = ? AND version = ? AND deleted_at = 0;
-```
-
 Check affected rows. Zero rows maps to the same stable concurrency-conflict error used by an Aggregate update.
 
 ## 4. Physical Types
@@ -131,52 +125,11 @@ Check affected rows. Zero rows maps to the same stable concurrency-conflict erro
 
 ### Aggregate Write Model
 
-```sql
-CREATE TABLE `sales_order` (
-  `id` varchar(36) NOT NULL COMMENT 'UUIDv7 primary identity',
-  `order_no` varchar(32) NOT NULL DEFAULT '' COMMENT 'Business order number',
-  `user_id` varchar(36) NOT NULL DEFAULT '' COMMENT 'Ordering user identity',
-  `merchant_id` varchar(36) NOT NULL DEFAULT '' COMMENT 'Merchant identity',
-  `status` tinyint unsigned NOT NULL DEFAULT '0' COMMENT 'Persisted order status code',
-  `amount_minor` bigint NOT NULL DEFAULT '0' COMMENT 'Amount in accepted minor units',
-  `currency` char(3) NOT NULL DEFAULT '' COMMENT 'ISO currency code',
-  `paid_at` bigint NOT NULL DEFAULT '0' COMMENT 'Payment time in Unix milliseconds; 0 means unpaid',
-  `remark` varchar(500) NOT NULL DEFAULT '' COMMENT 'Order remark',
-  `version` int unsigned NOT NULL DEFAULT '1' COMMENT 'Stored row version',
-  `created_at` bigint NOT NULL DEFAULT '0' COMMENT 'Creation time in Unix milliseconds',
-  `updated_at` bigint NOT NULL DEFAULT '0' COMMENT 'Last update time in Unix milliseconds',
-  `deleted_at` bigint NOT NULL DEFAULT '0' COMMENT 'Deletion time in Unix milliseconds; 0 means active',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_order_no` (`order_no`),
-  KEY `idx_user_id_deleted_at_created_at_id` (`user_id`, `deleted_at`, `created_at`, `id`),
-  KEY `idx_merchant_id_status_deleted_at` (`merchant_id`, `status`, `deleted_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Sales order Aggregate root';
-```
-
 - **[House Rule]** Owned child rows carry the root identity and a child identity or stable ordinal. Uniqueness and indexes reflect root ownership.
 - **[House Rule]** Infrastructure persistence records contain ORM mapping metadata and storage-only fields; Domain Entities contain neither ORM metadata nor storage timestamps.
 - **[House Rule]** The active language House Style owns explicit persistence-record/Domain conversion for existing data. New objects use a Domain Factory, not a persistence converter.
 
 ### CQRS Read Model
-
-```sql
-CREATE TABLE `order_summary` (
-  `id` varchar(36) NOT NULL COMMENT 'UUIDv7 projection row identity',
-  `order_id` varchar(36) NOT NULL DEFAULT '' COMMENT 'Source order identity',
-  `user_id` varchar(36) NOT NULL DEFAULT '' COMMENT 'Ordering user identity',
-  `display_status` varchar(24) NOT NULL DEFAULT '' COMMENT 'Display status',
-  `amount_minor` bigint NOT NULL DEFAULT '0' COMMENT 'Amount in accepted minor units',
-  `currency` char(3) NOT NULL DEFAULT '' COMMENT 'ISO currency code',
-  `source_version` int unsigned NOT NULL DEFAULT '0' COMMENT 'Last applied source version',
-  `version` int unsigned NOT NULL DEFAULT '1' COMMENT 'Projection row version',
-  `created_at` bigint NOT NULL DEFAULT '0' COMMENT 'Creation time in Unix milliseconds',
-  `updated_at` bigint NOT NULL DEFAULT '0' COMMENT 'Last projection time in Unix milliseconds',
-  `deleted_at` bigint NOT NULL DEFAULT '0' COMMENT 'Deletion time in Unix milliseconds; 0 means active',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_order_id` (`order_id`),
-  KEY `idx_user_id_deleted_at_created_at_id` (`user_id`, `deleted_at`, `created_at`, `id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Order list read model';
-```
 
 - **[House Rule]** A read-model table is shaped from its concrete filter, sort, display, freshness, and authorization semantics. It does not copy an Aggregate schema mechanically.
 - **[House Rule]** Projection consumers use a source version, message identity, or accepted checkpoint to make duplicate and out-of-order behavior explicit.
@@ -220,22 +173,8 @@ The legacy 767-byte/191-utf8mb4-character limit is not a MySQL 8 universal limit
 ### Pagination
 
 - **[House Rule]** Deep or unbounded traversal uses keyset pagination with a deterministic indexed order and unique tie-breaker.
+- **[House Rule]** Write the keyset predicate in expanded form, such as `created_at < ? OR (created_at = ? AND id < ?)` with `ORDER BY created_at DESC, id DESC`. A row-constructor range such as `(created_at, id) < (?, ?)` does not produce a full composite range seek on every MySQL 8 minor version; verify the target deployment with `EXPLAIN ANALYZE` or equivalent plan evidence.
 - **[House Rule]** Offset pagination is limited to accepted bounded or randomly addressable page ranges whose plan and latency meet the product requirement.
-
-```sql
-SELECT id, order_no, status, created_at
-FROM sales_order
-WHERE user_id = ?
-  AND deleted_at = 0
-  AND (
-    created_at < ?
-    OR (created_at = ? AND id < ?)
-  )
-ORDER BY created_at DESC, id DESC
-LIMIT 20;
-```
-
-Do not assume a row-constructor range such as `(created_at, id) < (?, ?)` will produce a full composite range seek on every MySQL 8 minor version. Use the expanded predicate above and verify the target deployment with `EXPLAIN ANALYZE` or equivalent supported plan evidence.
 
 ### Writes
 
@@ -258,20 +197,6 @@ Do not assume a row-constructor range such as `(created_at, id) < (?, ?)` will p
 
 This branch applies only when accepted design loads a fresh Aggregate per transaction. Database House Style does not choose it over a resident Aggregate.
 
-```sql
--- New in-memory Aggregate version == 0; stored row begins at 1.
-INSERT INTO sales_order (
-  id, order_no, user_id, merchant_id, status,
-  amount_minor, currency, paid_at, remark,
-  version, created_at, updated_at, deleted_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0);
-
--- Existing Aggregate update.
-UPDATE sales_order
-SET status = ?, updated_at = ?, version = version + 1
-WHERE id = ? AND version = ? AND deleted_at = 0;
-```
-
 - **[House Rule]** The Repository checks affected rows. An update count other than one maps to a stable concurrency-conflict error; do not hide it as not-found or success.
 - **[House Rule]** Repository save does not increment the loaded in-memory Aggregate version. Under this branch, a successful save makes that instance stale: Application may assemble a result and drain recorded events, but must not expose the stale token, mutate, or save the instance again. A later transaction reloads it.
 - **[House Rule]** An Aggregate spanning several owned tables uses one local database transaction. All writes succeed or roll back together.
@@ -287,46 +212,18 @@ When accepted design names a resident Aggregate as live authority, the database 
 - **[House Rule]** Use `SELECT ... FOR UPDATE` only when accepted behavior requires a decision against current locked state and expected contention makes optimistic retry unsuitable.
 - **[House Rule]** Lock rows in stable primary-key order and keep the decision plus writes in the same local transaction.
 
-```sql
-SELECT id, balance, version
-FROM account
-WHERE id IN (?, ?) AND deleted_at = 0
-ORDER BY id
-FOR UPDATE;
-```
-
 A row version or row lock protects local database state; it does not provide cross-service consistency.
 
 ## 9. Migrations
 
 ### Files and Ownership
 
-```text
-migrations/
-├── 001_create_sales_order.sql
-├── 002_add_order_lookup_index.sql
-├── 003_expand_order_currency.sql
-└── 004_contract_legacy_amount.sql
-```
-
-- **[House Rule]** Migration files are ordered, immutable after deployment, and contain comments describing intent, compatibility, and reversal.
+- **[House Rule]** Migration files live in `migrations/` as `NNN_<change>.sql`, such as `003_expand_order_currency.sql`. They are ordered, immutable after deployment, and contain comments describing intent, compatibility, and reversal.
 - **[House Rule]** Every migration has a tested roll-forward path and an explicit rollback decision. Include a `DOWN` operation only when reversing it is data-safe.
 - **[House Rule]** A deployed migration remains compatible with every application version that may run during the rollout.
 - **[House Rule]** Incompatible changes use expand -> backfill -> switch reads/writes -> contract. Large backfills are observable, restartable, and bounded below the 1000-row batch and 2000-row transaction caps.
 - **[House Rule]** Verify the exact MySQL minor version and operation before claiming `INSTANT`, `INPLACE`, or `LOCK=NONE`. Requested syntax is not proof that the server avoids a table rebuild or blocking lock.
 - **[House Rule]** Dry-run migration order and syntax against representative MySQL data, then record duration, locks, and affected rows.
-
-```sql
--- Expand: application versions can tolerate the new column.
-ALTER TABLE sales_order
-  ADD COLUMN channel varchar(16) NOT NULL DEFAULT '' COMMENT 'Ordering channel';
-
--- Add an index only after verifying algorithm support on the deployed server.
-ALTER TABLE sales_order
-  ADD INDEX idx_channel_created_at_id (channel, created_at, id),
-  ALGORITHM=INPLACE,
-  LOCK=NONE;
-```
 
 When a new non-null value cannot be assigned safely by a schema default, first add a nullable expansion column, backfill in bounded batches, switch all writers, validate, then contract it to `NOT NULL`.
 

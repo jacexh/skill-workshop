@@ -20,13 +20,6 @@ configs/
   <service>/
     defaults.yml
 
-docs/
-  ddd-expert/
-    context-map.md
-    context/
-      <context>/
-        model.md
-
 proto/
   <contract-owner>/
     private/v1/                 # deployment-private RPC contracts
@@ -63,24 +56,8 @@ internal/
         task/                     # only when background execution is required
           <task>.go               # TaskType, Definition, constructor
 
-      transport/                 # only for accepted inbound adapters
-        connectrpc/
-          handler.go
-          assembler.go            # generated contract <-> Application types
-          error.go
-        http/                     # hand-written HTTP, use Chi
-          handler.go
-        messagesubscriber/
-          <contract>.go
-        taskprocessor/
-          <task>.go
-
-      infrastructure/            # only when outbound/persistence adapters exist
-        do.go
-        convert.go                # DO <-> Domain Entity
-        <aggregate>_repository.go
-        <read_model>_query_repository.go
-        <receiver>_acl.go
+      transport/                 # only for accepted inbound adapters; files per Transport guide
+      infrastructure/            # only when outbound/persistence adapters exist; files per Infrastructure guide
 
       <context-a>.go              # mandatory BC Fx module
 

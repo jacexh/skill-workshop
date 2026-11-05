@@ -22,47 +22,10 @@ business state value and Domain data, then reconstitute the machine through a
 Domain factory. Opaque interpreter snapshots and provider/runtime metadata stay
 outside persistence contracts.
 
-```ts
-import { setup, transition } from "xstate";
-
-type OrderStatus = "unpaid" | "paid";
-
-const orderLifecycle = setup({
-  types: {
-    events: {} as { type: "pay"; amount: number },
-  },
-  guards: {
-    positiveAmount: ({ event }) => event.amount > 0,
-  },
-}).createMachine({
-  initial: "unpaid",
-  states: {
-    unpaid: {
-      on: {
-        pay: { target: "paid", guard: "positiveAmount" },
-      },
-    },
-    paid: {},
-  },
-});
-
-export class Order {
-  constructor(
-    private status: OrderStatus,
-    private paidAmount = 0,
-  ) {}
-
-  pay(amount: number): void {
-    const current = orderLifecycle.resolveState({ value: this.status });
-    const [next] = transition(orderLifecycle, current, { type: "pay", amount });
-    if (next.value === current.value || !next.matches("paid")) {
-      throw new InvalidOrderTransitionError();
-    }
-    this.status = "paid";
-    this.paidAmount = amount;
-  }
-}
-```
+A business method resolves the current state with
+`machine.resolveState({ value })`, computes the next state with the pure
+`transition()` function, raises a stable Domain error when the state is
+unchanged, and only then assigns state. The Aggregate starts no actor.
 
 ## Verification
 

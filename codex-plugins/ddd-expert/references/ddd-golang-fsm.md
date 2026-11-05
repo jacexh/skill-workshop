@@ -16,85 +16,15 @@ The Aggregate owns its current concrete state and implements
 `fsm.StateContext`. Define the business behavior interface in Domain; its
 methods take the Aggregate as a parameter, so states hold only their label.
 Embed `*fsm.SimpleState` in a base state whose methods return Domain errors,
-and override only supported behaviors in concrete states.
-
-```go
-const (
-	StateUnpaid fsm.StateLabel = "order.unpaid"
-	StatePaid   fsm.StateLabel = "order.paid"
-	ActionPay   fsm.Action     = "pay"
-)
-
-type orderState interface {
-	fsm.State
-	Pay(order *Order, amount int) error
-	Cancel(order *Order) error
-}
-
-type baseOrderState struct{ *fsm.SimpleState }
-
-func (s *baseOrderState) Pay(*Order, int) error {
-	return fmt.Errorf("%s cannot pay", s.Label())
-}
-
-func (s *baseOrderState) Cancel(*Order) error {
-	return fmt.Errorf("%s cannot cancel", s.Label())
-}
-
-type unpaidOrderState struct{ baseOrderState }
-
-func newUnpaidOrderState() fsm.State {
-	return &unpaidOrderState{baseOrderState{
-		SimpleState: fsm.NewSimpleState(StateUnpaid),
-	}}
-}
-
-func (s *unpaidOrderState) Pay(order *Order, amount int) error {
-	if amount <= 0 {
-		return ErrInvalidPaymentAmount
-	}
-	order.paidAmount = amount
-	return nil
-}
-```
+and override only supported behaviors in concrete states. Name labels
+`<aggregate>.<state>`, such as `order.unpaid`.
 
 ## Aggregate Shape
 
 Public business methods call current-state behavior first and then a private
-transition helper after that behavior succeeds.
-
-```go
-type Order struct {
-	state      orderState
-	paidAmount int
-}
-
-func NewOrder() *Order {
-	return &Order{state: newUnpaidOrderState().(orderState)}
-}
-
-func (o *Order) CurrentState() fsm.State { return o.state }
-
-func (o *Order) SetState(next fsm.State) error {
-	state, ok := next.(orderState)
-	if !ok {
-		return ErrInvalidOrderState
-	}
-	o.state = state
-	return nil
-}
-
-func (o *Order) transition(action fsm.Action) error {
-	return fsm.Transit(o, orderMachine, action)
-}
-
-func (o *Order) Pay(amount int) error {
-	if err := o.state.Pay(o, amount); err != nil {
-		return err
-	}
-	return o.transition(ActionPay)
-}
-```
+transition helper that calls `fsm.Transit` after that behavior succeeds.
+`SetState` accepts only the Domain state interface and returns a Domain error
+for any other state.
 
 ## Registration and Persistence
 
@@ -102,18 +32,6 @@ Build the machine once in Domain: call `RegisterStateBuilder` for every
 referenced label, add transitions, and freeze it into a package-level variable
 with `fsm.MustFreeze`, which runs `Check` and panics on a miswired machine at
 startup.
-
-```go
-var orderMachine = fsm.MustFreeze(newOrderStateMachine())
-
-func newOrderStateMachine() fsm.StateMachine {
-	sm := fsm.NewStateMachine("order")
-	sm.RegisterStateBuilder(StateUnpaid, newUnpaidOrderState)
-	sm.RegisterStateBuilder(StatePaid, newPaidOrderState)
-	sm.AddTransition(StateUnpaid, StatePaid, ActionPay, nil)
-	return sm
-}
-```
 
 Concrete state behavior owns acceptance. `Condition` selects an edge after the
 behavior succeeds. Candidates for one `from + action` are evaluated in add

@@ -48,6 +48,9 @@ source, generated output, and ordered SQL respectively.
 | State machine | XState 5 `setup()` | An FSM exists |
 | Telemetry | OpenTelemetry JS 2 and OTLP | Telemetry exists |
 
+Library APIs follow the documentation of the version pinned in `pnpm-lock.yaml`.
+The leaves state placement, ownership, and gotchas, not API usage.
+
 Accepted project decisions and repository pins take precedence over these
 defaults. Apply the workflow contract's project-convention rule before adopting
 a dependency or changing structure.

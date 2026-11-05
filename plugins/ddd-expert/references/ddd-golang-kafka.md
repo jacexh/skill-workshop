@@ -13,16 +13,8 @@ for provider-neutral contracts and registration.
 
 ## Adopted Adapter
 
-Only `internal/pkg/messagebus` imports:
-
-```go
-import (
-	jimukafka "github.com/go-jimu/contrib/message/kafka"
-	"github.com/twmb/franz-go/pkg/kgo"
-)
-```
-
-Construct the provider boundary with `jimukafka.NewClient`,
+Only `internal/pkg/messagebus` imports `github.com/go-jimu/contrib/message/kafka`
+(`jimukafka`) and `github.com/twmb/franz-go/pkg/kgo`. Construct the provider boundary with `jimukafka.NewClient`,
 `jimukafka.NewPublisher`, and `jimukafka.NewConsumer`. Supply the shared payload
 registry using `jimukafka.WithPayloadResolver(registry)` and pass an explicit
 `jimukafka.FailurePolicy` from validated project configuration.

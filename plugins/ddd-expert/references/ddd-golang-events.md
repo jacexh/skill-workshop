@@ -14,29 +14,9 @@ same-context event reaction. Use
 ## Placement and Event Shape
 
 Place event types in the producing Domain and handlers under the same context's
-`application/eventhandler/`.
-
-```go
-// internal/business/user/domain/event.go
-package domain
-
-import (
-	"time"
-
-	"github.com/go-jimu/components/ddd/event"
-)
-
-const EventKindUserCreated event.Kind = "user.created"
-
-type UserCreated struct {
-	UserID     string
-	Name       string
-	Email      string
-	OccurredAt time.Time
-}
-
-func (UserCreated) Kind() event.Kind { return EventKindUserCreated }
-```
+`application/eventhandler/`. An event is a Domain value type with an
+`OccurredAt` field and a value-receiver `Kind()` that returns a package constant
+such as `EventKindUserCreated event.Kind = "user.created"`.
 
 The Aggregate holds an `event.Events` field, changes state, then calls `Add`
 with the accepted fact. `event.Events` is ready at its zero value, so
@@ -58,27 +38,9 @@ that changes state enters a fresh Application command and transaction.
 only the wait for queue space. The Application method returns or classifies
 that error through the ordinary Application error convention.
 
-```go
-type UserCreatedHandler struct {
-	app *application.Application
-}
-
-var _ event.Handler = (*UserCreatedHandler)(nil)
-
-func (*UserCreatedHandler) Listening() []event.Kind {
-	return []event.Kind{domain.EventKindUserCreated}
-}
-
-func (h *UserCreatedHandler) Handle(ctx context.Context, fact event.Event) {
-	created, ok := fact.(domain.UserCreated)
-	if !ok {
-		return
-	}
-	h.app.PrepareProfile(ctx, application.PrepareProfile{
-		UserID: created.UserID,
-	})
-}
-```
+A handler holds the `*application.Application`, asserts `event.Handler` at
+compile time, lists its kinds in `Listening`, type-asserts the concrete event,
+ignores any other type, and delegates to one Application method.
 
 Because `event.Handler` has no error result and runs after the publisher has
 returned, a handler owns any result it suppresses and logs it once under the

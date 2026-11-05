@@ -25,64 +25,11 @@ This house style permits exported Domain fields so hand-written assemblers and c
 - mutable slices, maps and pointers are copied at the mapping boundary so a caller cannot mutate Aggregate state through an alias;
 - Domain structs may carry `validate` tags, but never protobuf, JSON, HTTP or ORM tags.
 
-The Aggregate still exposes intention-revealing methods for every business change:
+The Aggregate still exposes intention-revealing methods for every business change.
 
 A behavior confirmed under a Root or Entity belongs on that type's receiver. Keep a package function only for construction, an ownerless pure calculation, or a private algorithm called by the owning method. A function whose main argument is one Domain object and whose purpose is to inspect or change that object's state should normally be a method.
 
-```go
-package domain
-
-import (
-	"errors"
-	"fmt"
-	"strings"
-
-	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
-)
-
-var (
-	domainValidator = validator.New()
-	ErrInvalidUser  = errors.New("invalid user")
-)
-
-type User struct {
-	ID      string `validate:"required,uuid"`
-	Name    string `validate:"required,max=24"`
-	Email   string `validate:"required,email,max=48"`
-	Version int
-}
-
-// NewUser establishes valid initial state.
-func NewUser(name, email string) (*User, error) {
-	user := &User{
-		ID:    uuid.Must(uuid.NewV7()).String(),
-		Name:  strings.TrimSpace(name),
-		Email: strings.ToLower(strings.TrimSpace(email)),
-	}
-	if err := user.Validate(); err != nil {
-		return nil, err
-	}
-	return user, nil
-}
-
-func (u *User) Validate() error {
-	if err := domainValidator.Struct(u); err != nil {
-		return fmt.Errorf("%w: %v", ErrInvalidUser, err)
-	}
-	return nil
-}
-
-func (u *User) Rename(name string) error {
-	name = strings.TrimSpace(name)
-	if name == "" || len(name) > 24 {
-		return ErrInvalidUser
-	}
-	u.Name = name
-	return nil
-}
-
-```
+A Factory such as `NewUser` assigns a new UUIDv7 identity, normalizes its inputs, and returns the result of `Validate()`. `Validate()` runs one package-level `validator.New()` instance over the struct's `validate` tags and wraps any failure with the Aggregate's sentinel error, such as `ErrInvalidUser`, through `%w`. A behavior method such as `Rename` validates its own input and returns that sentinel before it changes state.
 
 `validator/v10` is the single validator for business data represented as a Domain Entity or Value Object. Application DTOs and persistence DOs do not duplicate its tags. Cross-field invariants, state transitions, authorization facts and external evidence remain explicit Domain code; tags do not replace them.
 
@@ -145,20 +92,6 @@ A responsible Domain Service:
 - does not save, control transactions, log, retry, schedule or depend on generated/provider APIs.
 
 When a confirmed same-context use case must change several independent roots atomically, the Domain Service owns the named cross-Aggregate business rule and applies it through those roots' public behavior. Application still loads and saves every root and defines the transaction scope. The presence of a Domain Service does not itself authorize the stronger consistency boundary.
-
-```go
-package domain
-
-type AllocationService struct{}
-
-func (AllocationService) Allocate(
-	demand Demand,
-	candidates []CapacitySnapshot,
-) (Allocation, error) {
-	// The decision is Domain logic; Application supplied the facts.
-	return chooseCapacity(demand, candidates)
-}
-```
 
 ## Domain-owned Port
 

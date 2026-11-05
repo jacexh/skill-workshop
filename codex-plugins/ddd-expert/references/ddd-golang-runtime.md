@@ -21,120 +21,18 @@ Generated Protobuf and Connect files live under `gen/` and are never edited manu
 
 ## Component-Owned Configuration
 
-Each runtime component owns an Option/Config type and `Validate() error` beside its constructor. The process aggregates those types only for loading and Fx supply.
+Each runtime component owns an Option/Config type and `Validate() error` beside its constructor. The process aggregates those types only for loading and Fx supply: its `Option` embeds `fx.Out` and holds one `json`/`yaml`/`toml`-tagged field per component Option, so `fx.Supply(option)` provides each one.
 
-```go
-// cmd/user-api/main.go
-package main
-
-import (
-    "log/slog"
-    "os"
-    "time"
-
-    "github.com/go-jimu/components/config/loader"
-    "github.com/go-jimu/components/sloghelper"
-    "example/internal/business/user"
-    "example/internal/pkg"
-    sharedconnect "example/internal/pkg/connectrpc"
-    "example/internal/pkg/database"
-    "github.com/samber/oops"
-    "go.uber.org/fx"
-)
-
-type Option struct {
-    fx.Out
-    Logger   sloghelper.Options   `json:"logger" yaml:"logger" toml:"logger"`
-    MySQL    database.Option      `json:"mysql" yaml:"mysql" toml:"mysql"`
-    Connect  sharedconnect.Option `json:"connect" yaml:"connect" toml:"connect"`
-}
-
-func main() {
-    var option Option
-    if err := loader.Load(
-        &option,
-        loader.WithConfigurationDirectory("./configs/user-api", "defaults"),
-    ); err != nil {
-        slog.Error("failed to load configuration", sloghelper.Error(oops.Wrap(err)))
-        os.Exit(1)
-    }
-
-    // Allow-list only non-secret startup facts. Never log option or its %+v form.
-    slog.Info("configuration loaded",
-        slog.String("connect_addr", option.Connect.Addr),
-        slog.Int("mysql_port", option.MySQL.Port),
-    )
-
-    app := fx.New(
-        fx.Supply(option),
-        fx.Provide(sloghelper.NewLog),
-        pkg.Module,
-        user.Module,
-        fx.StartTimeout(15*time.Second),
-        fx.StopTimeout(30*time.Second),
-    )
-    app.Run()
-}
-```
+`main` loads with `loader.WithConfigurationDirectory("./configs/<service>", "defaults")`, logs a load failure and exits non-zero, logs an allow-listed startup summary, then runs `fx.New` with the Option, `sloghelper.NewLog`, `pkg.Module`, the selected context modules, `fx.StartTimeout(15*time.Second)`, and `fx.StopTimeout(30*time.Second)`.
 
 Each `cmd/<service>` loads only its own `configs/<service>` directory; never scan the shared `configs` parent in a multi-service repository. `loader.Load` automatically applies `JIMU_PROFILES_ACTIVE` after caller options. When profiles are supported, also pass `loader.WithConfigFilePrefix("app")`; an active profile without a prefix is invalid. Environment variables reach configuration only through `${NAME:default}` placeholders in configuration files, resolved from the variable `<prefix>NAME`. Use `loader.WithEnvVarsPrefix("APP")` when the repository wants placeholders to read only `APP_`-prefixed variables, so `${MYSQL_DSN:...}` reads `APP_MYSQL_DSN`.
 Never log the aggregate Option, a resolved config map, DSN, password, token, API key, certificate/private key, cookie, secret-bearing URL, or full environment. Startup summaries are allow-list based: profile/source, enabled modules, non-secret listen addresses, counts, and a non-reversible config version/hash.
 
 ## Composition Boundaries
 
-`cmd/main.go` loads configuration, selects modules, sets process timeouts, and runs Fx. It does not construct Repositories, clients, generated handlers, or lifecycle loops individually.
+`cmd/main.go` loads configuration, selects modules, sets process timeouts, and runs Fx. It does not construct Repositories, clients, generated handlers, or lifecycle loops individually. `internal/pkg/module.go` exposes `pkg.Module`, an `fx.Module("internal.pkg", ...)` that provides shared technical resources such as the shared Connect server and MySQL driver.
 
-```go
-// internal/pkg/module.go
-package pkg
-
-import (
-    sharedconnect "example/internal/pkg/connectrpc"
-    "example/internal/pkg/database"
-    "go.uber.org/fx"
-)
-
-var Module = fx.Module(
-    "internal.pkg",
-    fx.Provide(sharedconnect.NewServer),
-    fx.Provide(database.NewMySQLDriver),
-)
-```
-
-A bounded-context module owns its providers and registrations. It may import generated Transport contracts from `gen/`; `cmd` does not.
-
-```go
-// internal/business/user/user.go
-package user
-
-import (
-    connect "connectrpc.com/connect"
-    "example/gen/user/public/v1/userv1connect"
-    "example/internal/business/user/application"
-    "example/internal/business/user/infrastructure"
-    userconnect "example/internal/business/user/transport/connectrpc"
-    sharedconnect "example/internal/pkg/connectrpc"
-    "go.uber.org/fx"
-)
-
-var Module = fx.Module(
-    "business.user",
-    fx.Provide(
-        infrastructure.NewUserRepository,
-        application.NewApplication,
-        userconnect.NewHandler,
-    ),
-    fx.Invoke(func(
-        handler userv1connect.UserServiceHandler,
-        server sharedconnect.Server,
-    ) {
-        server.Register(userv1connect.NewUserServiceHandler(
-            handler,
-            connect.WithInterceptors(server.GetGlobalInterceptors()...),
-        ))
-    }),
-)
-```
+A bounded-context module owns its providers and registrations. It may import generated Transport contracts from `gen/`; `cmd` does not. `<context>.go` exposes `fx.Module("business.<context>", ...)`: it provides the context's Repository adapters, `application.NewApplication`, and Transport handlers, and in `fx.Invoke` registers each generated Connect handler on the shared `Server` with `connect.WithInterceptors(server.GetGlobalInterceptors()...)`.
 
 For multi-service repositories, expose named `internal/pkg` modules rather than copying provider lists across `cmd/<service>`. Use `fx.ValidateApp` in a wiring test to prove the graph is complete without starting providers.
 
@@ -152,33 +50,7 @@ bounded drain. Provider-specific construction stays in the provider leaf.
 
 Transport middleware owns one Execution Completion Log per inbound RPC/message/task. Runtime owns one for each terminal loop, scheduler tick, or lifecycle operation it executes. Application does not duplicate that record; Infrastructure enriches and returns errors unless it owns suppression or a terminal operation.
 
-A Connect interceptor creates the request-scoped logger and records the final outcome:
-
-```go
-startedAt := time.Now()
-requestID := request.Header().Get("X-Request-ID")
-logger := root.With(slog.String("request_id", requestID))
-ctx = sloghelper.NewContext(ctx, logger)
-
-response, err := next(ctx, request)
-attrs := []any{
-    slog.String("operation", request.Spec().Procedure),
-    slog.Int64("duration_ms", time.Since(startedAt).Milliseconds()),
-}
-if err != nil {
-    logger.ErrorContext(ctx, "request complete",
-        append(attrs,
-            slog.String("outcome", "failed"),
-            slog.String("connect_code", connect.CodeOf(err).String()),
-            sloghelper.Error(err),
-        )...,
-    )
-    return response, err
-}
-logger.InfoContext(ctx, "request complete",
-    append(attrs, slog.String("outcome", "success"))...,
-)
-```
+A Connect interceptor creates the request-scoped logger from the `X-Request-ID` header as `request_id`, stores it with `sloghelper.NewContext`, and records one `request complete` entry with `operation` (the procedure), `duration_ms`, and `outcome`: `success` at Info, or `failed` at Error with `connect_code` and the error.
 
 At the first controlled boundary, enrich and wrap once with `oops.With(...).Wrap(providerErr)`; use `oops.Wrap(providerErr)` only when there is no owned context. Never wrap an already wrapped provider error again. Later layers add context only for new semantics, preserve `errors.Is/As`, and do not mechanically wrap or log-and-return the same error. Expected rejection is not an internal failure. Never log secret configuration, credentials, full payloads, or sensitive personal data.
 

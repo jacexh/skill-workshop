@@ -32,79 +32,29 @@ renames under the repository's breaking-change policy.
 ## Published Fact Handler
 
 The producing Application maps explicitly from its local event into its own
-generated contract and builds a `message.Message`:
-
-```go
-payload := &userintegrationv1.UserRegisteredV1{
-	UserId: fact.UserID,
-	Name:   fact.Name,
-	Email:  fact.Email,
-}
-msg, err := message.New(
-	message.KindOf(payload),
-	payload,
-	message.WithKey(fact.UserID),
-	message.WithOccurredAt(fact.OccurredAt),
-)
-if err == nil {
-	err = h.publisher.Publish(ctx, msg)
-}
-```
-
+generated contract, builds it with
+`message.New(message.KindOf(payload), payload, ...)`, sets
+`message.WithKey` to the accepted ordering identity and
+`message.WithOccurredAt` to the fact's occurrence time, and calls `Publish`.
 The payload contains the stable identities and facts promised by the contract.
 Envelope metadata carries message identity, occurrence time, and accepted
 correlation/trace fields.
 
 ## Subscriber Shape
 
-```go
-type UserRegisteredSubscriber struct {
-	app *application.Application
-}
-
-var _ message.Handler = (*UserRegisteredSubscriber)(nil)
-
-func (*UserRegisteredSubscriber) Listening() []message.Kind {
-	return []message.Kind{
-		message.KindOf(&userintegrationv1.UserRegisteredV1{}),
-	}
-}
-
-func (s *UserRegisteredSubscriber) Handle(
-	ctx context.Context,
-	msg message.Message,
-) error {
-	payload, ok := msg.Payload().(*userintegrationv1.UserRegisteredV1)
-	if !ok {
-		return fmt.Errorf("unexpected payload for %s: %T", msg.Kind(), msg.Payload())
-	}
-	return s.app.SendWelcomeNotification(
-		ctx,
-		application.SendWelcomeNotification{
-			UserID: payload.GetUserId(),
-			Name:   payload.GetName(),
-			Email:  payload.GetEmail(),
-		},
-	)
-}
-```
+A subscriber under `transport/messagesubscriber/` holds the
+`*application.Application`, asserts `message.Handler` at compile time, lists
+`message.KindOf` of its generated payload in `Listening`, type-asserts that
+payload, and maps its getters to one Application command. An unexpected
+payload type returns an error naming the kind and the type.
 
 Return the local use-case result to Runtime/provider code. The subscriber emits
 a log only for a separate business-semantic fact.
 
 ## Registration
 
-Register the generated payload factory and subscriber before the consumer loop:
-
-```go
-kind := message.KindOf(&userintegrationv1.UserRegisteredV1{})
-if err := registry.Register(kind, func() proto.Message {
-	return &userintegrationv1.UserRegisteredV1{}
-}); err != nil {
-	return err
-}
-return subscriber.Subscribe(handler)
-```
+Register the generated payload factory under its `message.KindOf` kind, then
+subscribe the handler, before the consumer loop starts.
 
 ## Verification
 

@@ -25,66 +25,19 @@ the production schema authority.
 
 Conversion is mechanical: select explicit fields, copy mutable values, translate
 enums, call Domain reconstitution/validation for existing state, and perform no
-I/O, logging, event creation, or business branch.
-
-```python
-def to_domain(row: UserRow) -> User:
-    return User.reconstitute(
-        user_id=UUID(row.id),
-        name=row.name,
-        email=Email(row.email),
-        status=UserStatus(row.status),
-        version=row.version,
-    )
-
-
-def to_mutable_values(user: User) -> dict[str, object]:
-    return {
-        "name": user.name,
-        "email": user.email.value,
-        "status": user.status.value,
-    }
-```
+I/O, logging, event creation, or business branch. Name the functions
+`to_domain()` (row to Domain through `reconstitute()`) and
+`to_mutable_values()` (Domain to business-mutable columns).
 
 ## Repository Shape
 
-Use synchronous SQLAlchemy 2 `Session`. `save()` covers insert and
-version-guarded update for the request-scoped optimistic lifecycle. SQL owns
-technical timestamps and the stored version increment.
-
-```python
-class UserRepositoryAdapter:
-    def __init__(self, sessions: sessionmaker[Session], now_millis: Callable[[], int]) -> None:
-        self._sessions = sessions
-        self._now_millis = now_millis
-
-    def save(self, user: User) -> None:
-        values = to_mutable_values(user)
-        now = self._now_millis()
-        with self._sessions.begin() as session:
-            if user.version == 0:
-                session.add(UserRow(
-                    id=str(user.id),
-                    **values,
-                    version=1,
-                    created_at=now,
-                    updated_at=now,
-                    deleted_at=0,
-                ))
-                return
-
-            result = session.execute(
-                update(UserRow)
-                .where(
-                    UserRow.id == str(user.id),
-                    UserRow.version == user.version,
-                    UserRow.deleted_at == 0,
-                )
-                .values(**values, version=UserRow.version + 1, updated_at=now)
-            )
-            if result.rowcount != 1:
-                raise ConcurrentModificationError(user.id)
-```
+Use synchronous SQLAlchemy 2 `Session`; each `save()` runs in one
+`sessions.begin()` block. For the request-scoped optimistic lifecycle, `save()`
+inserts when the in-memory version is `0`; otherwise it runs a version-guarded
+update that increments the stored version and raises the stable concurrency
+error unless exactly one row changed. Column values follow the
+[database.md](database.md) version and timestamp rules, with timestamps from an
+injected clock.
 
 Translate `IntegrityError`/`DBAPIError` once into stable inner errors while
 preserving the cause. Keep the stable concurrency error outside a broad provider

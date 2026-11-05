@@ -19,27 +19,9 @@ in Transport.
 
 ## ConnectRPC Shape
 
-Use Connect-ES 2 with generated descriptors under root `gen/`:
-
-```ts
-import type { ConnectRouter } from "@connectrpc/connect";
-import { UserService } from "../../../../../gen/user/v1/user_pb.js";
-import type { Application } from "../../application/application.js";
-
-export function createUserConnectRoutes(application: Application) {
-  return (router: ConnectRouter): void => {
-    router.service(UserService, {
-      async createUser(request) {
-        const created = await application.createUser({
-          name: request.name,
-          email: request.email,
-        });
-        return { user: created };
-      },
-    });
-  };
-}
-```
+Use Connect-ES 2 with generated descriptors under root `gen/`. A
+`create<Service>ConnectRoutes(application)` factory returns the
+`(router: ConnectRouter) => void` registration that Runtime mounts.
 
 Map stable Application errors to Connect codes in a Transport error module and
 map unknown errors to a non-leaking Internal response. A Transport assembler may
