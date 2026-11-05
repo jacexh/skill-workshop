@@ -129,7 +129,7 @@ Before the integrated proposal, revisit every assumption stated on the board, pl
 - volume, latency, audit, retention, or compliance expectations;
 - existing data, published APIs, or clients that must keep working.
 
-An answer that changes a business right, obligation, value, authority, decision, outcome, or required next action becomes a Business Rule or reopens the affected step. Every other answer is a **delivery constraint**: record it in the project's spec or issue when one exists, otherwise carry it in the conversation as Codify input. The sweep is complete when every board assumption and touched delivery dimension has become a Business Rule, a delivery constraint, or a non-blocking Hotspot.
+An answer that changes a business right, obligation, value, authority, decision, outcome, or required next action becomes a Business Rule or reopens the affected step. Every other answer is a **delivery constraint**: record it in the project's spec or issue when one exists, otherwise carry it in the conversation as Architecture Design and Codify input. The sweep is complete when every board assumption and touched delivery dimension has become a Business Rule, a delivery constraint, or a non-blocking Hotspot.
 
 ## Confirmation and writing
 

@@ -174,8 +174,9 @@ object, run its affected write checks, and continue authorized work.
 
 After an object write, continue its current slice; after completing a slice, continue
 with the next affected slice in scope. Once all requested slices are complete,
-continue to Architecture Design when the accepted slices change the context's
-components or technical mechanisms, and otherwise to Codify when
+continue to Architecture Design when the accepted slices add, rename, or remove
+a Root, Domain Service, Domain-owned Port, Domain Event, or a Policy that reacts
+to a Domain Event, and otherwise to Codify when
 implementation is already in scope and the accepted slices cover it. A design-only request ends with the accepted result.
 
 Report confirmed or updated descriptions, any accepted strategic correction,
