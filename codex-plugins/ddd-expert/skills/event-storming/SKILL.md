@@ -153,6 +153,7 @@ Before writing, read the [artifact layout and write checks](../../templates/arti
 Then classify the next step:
 
 - use Tactical Design when Aggregate internals or domain-object behavior still needs a decision in a Core or Supporting context;
+- use Architecture Design when the context's contracts, Policies, Integration Messages, or delivery constraints change its components or technical mechanisms;
 - use Codify when the accepted `domain-objects.md` already covers the change, or when a Generic context's Business Rules already determine it;
 - stop when the user requested design only.
 

@@ -10,7 +10,7 @@ Add one line to the repository's agent instruction file. Other skills never read
 ## The line
 
 ```markdown
-- `docs/ddd-expert/` holds the accepted DDD model. Change it only through DDD Expert EventStorming or Tactical Design after user confirmation; all other work reads it as authority.
+- `docs/ddd-expert/` holds the accepted DDD model. Change it only through DDD Expert EventStorming, Tactical Design, or Architecture Design after user confirmation; all other work reads it as authority.
 ```
 
 ## Steps

@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture</title>
+<!--
+DDD Expert architecture wireframe. Edit only the JSON block with
+id="architecture-data". The renderer below is fixed template code.
+-->
+<script type="application/json" id="architecture-data">
+{
+  "context": "<Bounded Context>",
+  "components": [
+    { "id": "app", "kind": "application", "name": "<Bounded Context> Application", "note": "<protocols>" },
+    { "id": "consumed", "kind": "integration-message", "name": "<Consumed message>" },
+    { "id": "handler", "kind": "event-handler", "name": "<Policy name>" },
+    { "id": "publisher", "kind": "application-port", "name": "<Fact>Publisher" },
+    { "id": "published", "kind": "integration-message", "name": "<Published Fact Contract>" },
+    { "id": "root", "kind": "aggregate-root", "name": "<Root Name>" },
+    { "id": "service", "kind": "domain-service", "name": "<Service Name>" },
+    { "id": "port", "kind": "domain-port", "name": "<Domain role>Port" },
+    { "id": "event", "kind": "domain-event", "name": "<Event name>" },
+    { "id": "repo", "kind": "repository", "name": "<Root Name>Repository" },
+    { "id": "repo-adapter", "kind": "adapter", "name": "<Root Name> repository", "note": "<technology>" },
+    { "id": "port-adapter", "kind": "adapter", "name": "<Domain role> ACL", "note": "<provider>" },
+    { "id": "publisher-adapter", "kind": "adapter", "name": "<Fact> publisher", "note": "<broker>" }
+  ],
+  "dependencies": [
+    { "from": "app", "to": "consumed" },
+    { "from": "app", "to": "root" },
+    { "from": "app", "to": "service" },
+    { "from": "app", "to": "repo" },
+    { "from": "root", "to": "port" },
+    { "from": "root", "to": "event" },
+    { "from": "handler", "to": "event" },
+    { "from": "handler", "to": "publisher" },
+    { "from": "publisher", "to": "published" },
+    { "from": "repo-adapter", "to": "repo" },
+    { "from": "port-adapter", "to": "port" },
+    { "from": "publisher-adapter", "to": "publisher" }
+  ],
+  "mechanisms": [
+    { "name": "<Mechanism>", "seam": "repo-adapter", "serves": "<delivery constraint or Policy>" }
+  ]
+}
+</script>
+<style>
+:root {
+  --bg: #f5f5f1;
+  --dots: #dcdcd4;
+  --fg: #1c2026;
+  --muted: #5d646e;
+  --card: #ffffff;
+  --line: #e1e1da;
+  --edge: #8a919a;
+  --shade: rgba(20, 24, 30, .07);
+  --mech: #c2570c;
+  --mech-bg: #fff3e8;
+  --application: #0d8478;
+  --application-bg: #e6f4f1;
+  --domain: #7440dd;
+  --domain-bg: #f1eafd;
+  --infrastructure: #8d6b10;
+  --infrastructure-bg: #f7f0de;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131518;
+    --dots: #24272c;
+    --fg: #e7e9ec;
+    --muted: #9aa1aa;
+    --card: #1c1f23;
+    --line: #2c3036;
+    --edge: #7f868f;
+    --shade: rgba(0, 0, 0, .35);
+    --mech: #f59e5b;
+    --mech-bg: #33241a;
+    --application: #4fc7b9;
+    --application-bg: #13282a;
+    --domain: #b48cff;
+    --domain-bg: #221b33;
+    --infrastructure: #d9b45a;
+    --infrastructure-bg: #29241a;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 32px 16px 56px;
+  background: var(--bg) radial-gradient(var(--dots) 1px, transparent 1.2px) 0 0 / 20px 20px;
+  color: var(--fg);
+  font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.head { margin-bottom: 8px; }
+h1 { font-size: 26px; letter-spacing: -.01em; margin: 0 0 4px; }
+.subtitle { color: var(--muted); margin: 0 0 4px; max-width: 72ch; }
+.stats { margin: 0; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.scroll { overflow-x: auto; padding-bottom: 8px; }
+.board { position: relative; display: flex; flex-direction: column; gap: 52px; width: max-content; min-width: 100%; padding-top: 44px; }
+.band {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px max-content;
+  min-height: 150px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--layer-bg), color-mix(in srgb, var(--layer-bg) 55%, var(--bg)));
+  border: 1px solid color-mix(in srgb, var(--layer) 22%, transparent);
+}
+.band-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--layer) 12%, transparent);
+  color: var(--layer);
+  font-weight: 650;
+  font-size: 12.5px;
+  letter-spacing: .04em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  border-radius: 0 15px 15px 0;
+}
+.band-items { display: grid; grid-auto-columns: 196px; column-gap: 22px; padding: 30px 18px 18px; align-items: start; }
+.box {
+  position: relative;
+  z-index: 2;
+  width: 196px;
+  background: var(--card);
+  border: 1.5px solid color-mix(in srgb, var(--layer) 70%, transparent);
+  border-radius: 4px;
+  padding: 9px 11px 10px;
+  box-shadow: 0 0 0 var(--ring, 0px) color-mix(in srgb, var(--layer) 30%, transparent),
+    0 1px 2px var(--shade), 0 8px 18px -10px var(--shade);
+  transition: opacity .15s, box-shadow .15s;
+}
+.box.contract { border-style: dashed; background: color-mix(in srgb, var(--card) 88%, var(--layer-bg)); }
+/* Each kind has one icon, coloured by its layer; the icon replaces kind text. */
+.icon { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.title { display: flex; gap: 7px; align-items: flex-start; }
+.title .icon { margin-top: 1px; color: var(--layer); }
+.name { font-weight: 650; font-size: 13.5px; line-height: 1.3; overflow-wrap: break-word; }
+.note { margin: 2px 0 0 23px; font-size: 12px; color: var(--muted); }
+.events { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.event {
+  display: flex;
+  gap: 5px;
+  align-items: flex-start;
+  font-size: 12px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  border: 1px dotted var(--domain);
+  background: color-mix(in srgb, var(--domain) 8%, var(--card));
+  color: var(--domain);
+  overflow-wrap: anywhere;
+  box-shadow: 0 0 0 var(--ring, 0px) color-mix(in srgb, currentColor 30%, transparent);
+  transition: box-shadow .15s;
+}
+.event .icon, .mechanism .icon { width: 13px; height: 13px; margin-top: 2px; }
+.event.message { border: 1px solid var(--application); border-radius: 5px; background: color-mix(in srgb, var(--application) 8%, var(--card)); color: var(--application); }
+.mechanism {
+  margin-top: 8px;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--mech) 25%, transparent);
+  border-left: 3px solid var(--mech);
+  border-radius: 6px;
+  background: var(--mech-bg);
+  font-size: 12px;
+}
+.mechanism b { display: flex; gap: 5px; color: var(--mech); font-weight: 650; }
+.mechanism span { display: block; color: var(--muted); }
+.board.focus .box:not(.hot) { opacity: .4; }
+.board.focus .hot { --ring: 3px; }
+svg.edges { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 1; }
+svg.edges.over { z-index: 3; }
+path.edge { fill: none; stroke: var(--edge); stroke-width: 1.5; stroke-linecap: round; opacity: .55; transition: opacity .15s, stroke-width .15s; }
+path.edge.implements { stroke: var(--infrastructure); stroke-dasharray: 6 4; }
+path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
+.board.focus path.edge { opacity: .06; }
+.board.focus path.edge.hot { opacity: 1; stroke-width: 2.2; }
+.panel { margin-top: 22px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.legend { display: flex; flex-wrap: wrap; gap: 16px 44px; }
+.legend h2 { margin: 0 0 8px; color: var(--layer, var(--muted)); font-size: 13px; font-weight: 650; }
+.legend ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; font-size: 12.5px; }
+.legend li { display: flex; align-items: center; gap: 9px; }
+.legend li > .icon { color: var(--layer); }
+.legend li > .icon.mech { color: var(--mech); }
+.legend .sample { flex: none; width: 36px; display: flex; justify-content: center; }
+.legend .swatch { width: 30px; height: 18px; border-radius: 4px; background: var(--card); border: 1.5px solid var(--edge); }
+.legend .swatch.contract { border-style: dashed; }
+.legend svg { overflow: visible; }
+</style>
+</head>
+<body>
+<header class="head">
+  <h1 id="title"></h1>
+  <p class="subtitle">Components by layer, their dependencies, and technical mechanisms on seams. Hover a component to trace its dependencies.</p>
+  <p class="stats" id="stats"></p>
+</header>
+<div class="scroll"><div class="board" id="board"></div></div>
+<section class="panel legend" id="legend">
+  <div>
+    <h2>Relations</h2>
+    <ul>
+      <li><span class="sample"><svg width="34" height="10"><path class="edge depends" d="M2,5 H30" marker-end="url(#arrow-depends)"/></svg></span>depends on</li>
+      <li><span class="sample"><svg width="34" height="10"><path class="edge implements" d="M2,5 H30" marker-end="url(#arrow-implements)"/></svg></span>implements, pointing inward</li>
+      <li><span class="sample"><svg width="34" height="10"><path class="edge reacts" d="M2,5 H30" marker-end="url(#arrow-reacts)"/></svg></span>reacts to event</li>
+      <li><span class="sample"><i class="swatch contract"></i></span>contract</li>
+      <li><span class="sample"><i class="swatch"></i></span>implementation</li>
+    </ul>
+  </div>
+</section>
+<script>
+(function () {
+  "use strict";
+  var data = JSON.parse(document.getElementById("architecture-data").textContent);
+  var KINDS = [
+    ["application", "application"], ["integration-message", "application"], ["event-handler", "application"], ["query-repository", "application"], ["application-port", "application"],
+    ["aggregate-root", "domain"], ["domain-service", "domain"], ["domain-port", "domain"], ["domain-event", "domain"], ["repository", "domain"],
+    ["adapter", "infrastructure"]
+  ];
+  var LAYER = {}, ORDER = {};
+  KINDS.forEach(function (k, i) { LAYER[k[0]] = k[1]; ORDER[k[0]] = i; });
+  var CONTRACT = { repository: true, "query-repository": true, "domain-port": true, "application-port": true };
+  // One line icon per kind on a 24-unit grid. A Port is a socket and its adapter a plug.
+  var ICONS = {
+    application: '<path d="M14 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M9 17l5-5-5-5"/><path d="M14 12H3"/>',
+    "event-handler": '<circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2"/><path d="M4.9 19.1a10 10 0 0 1 0-14.2"/>',
+    "integration-message": '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    "query-repository": '<ellipse cx="10" cy="5" rx="7" ry="2.5"/><path d="M3 5v12c0 1.4 3.1 2.5 7 2.5"/><path d="M17 5v4"/><path d="M3 11c0 1.4 3.1 2.5 7 2.5"/><circle cx="17" cy="16" r="3"/><path d="M19.2 18.2L21.5 20.5"/>',
+    "application-port": '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M9.5 8.5v4"/><path d="M14.5 8.5v4"/><path d="M10 16.5h4"/>',
+    "aggregate-root": '<path d="M12 2.5l8.5 4.75v9.5L12 21.5l-8.5-4.75v-9.5z"/><path d="M3.5 7.25L12 12l8.5-4.75"/><path d="M12 12v9.5"/>',
+    "domain-service": '<path d="M12 3v18"/><path d="M8 21h8"/><path d="M4 7h16"/><path d="M4 7l-2.5 6.5a2.5 2.5 0 0 0 5 0z"/><path d="M20 7l-2.5 6.5a2.5 2.5 0 0 0 5 0z"/>',
+    "domain-port": '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M9.5 8.5v4"/><path d="M14.5 8.5v4"/><path d="M10 16.5h4"/>',
+    "domain-event": '<path d="M13 2.5L4.5 13.5H11l-1 8 8.5-11H12z"/>',
+    repository: '<ellipse cx="12" cy="5" rx="8" ry="2.75"/><path d="M4 5v14c0 1.5 3.6 2.75 8 2.75s8-1.25 8-2.75V5"/><path d="M4 12c0 1.5 3.6 2.75 8 2.75s8-1.25 8-2.75"/>',
+    adapter: '<path d="M9 2.5v5"/><path d="M15 2.5v5"/><path d="M6 7.5h12v3.5a6 6 0 0 1-12 0z"/><path d="M12 17v4.5"/>',
+    mechanism: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/><circle cx="12" cy="12" r="6.5"/>'
+  };
+  var KIND_TEXT = {
+    application: "Application entry", "event-handler": "Event handler", "integration-message": "Integration Message",
+    "query-repository": "QueryRepository", "application-port": "Application Port",
+    "aggregate-root": "Aggregate Root", "domain-service": "Domain Service", "domain-port": "Domain-owned Port",
+    "domain-event": "Domain Event", repository: "Repository", adapter: "Adapter", mechanism: "Technical mechanism"
+  };
+  function icon(kind, cls) {
+    var holder = document.createElement("span");
+    holder.innerHTML = '<svg class="icon' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[kind] + "</svg>";
+    return holder.firstChild;
+  }
+  var BANDS = ["application", "domain", "infrastructure"];
+  var byId = {};
+  data.components.forEach(function (c, i) { c._index = i; byId[c.id] = c; });
+  var sorted = data.components.slice().sort(function (a, b) { return (ORDER[a.kind] - ORDER[b.kind]) || (a._index - b._index); });
+
+  function relationOf(d) {
+    var from = byId[d.from].kind, to = byId[d.to].kind;
+    if (from === "adapter" && CONTRACT[to]) return "implements";
+    if (to === "domain-event" && (from === "aggregate-root" || from === "domain-service")) return "records";
+    if (to === "domain-event" && from === "event-handler") return "reacts";
+    if (to === "integration-message") return "carries";
+    return "depends";
+  }
+
+  // A Domain Event is drawn inside the Root or Domain Service that records it. An Integration
+  // Message is drawn inside the component that translates it: the application entry, the
+  // publishing application-port, or the application-port adapter of an intent contract.
+  var ownerOf = {};
+  data.dependencies.forEach(function (d) {
+    var relation = relationOf(d);
+    if ((relation === "records" || relation === "carries") && ownerOf[d.to] === undefined) ownerOf[d.to] = d.from;
+  });
+
+  // Column layout: each contract opens a seam column with its adapters below it, so
+  // implements edges run vertically. Components outside a seam column fill the left.
+  var implementers = {};
+  data.dependencies.forEach(function (d) {
+    if (relationOf(d) === "implements") (implementers[d.to] = implementers[d.to] || []).push(d.from);
+  });
+  var seamMember = {};
+  sorted.forEach(function (c) {
+    if (!CONTRACT[c.kind]) return;
+    seamMember[c.id] = true;
+    (implementers[c.id] || []).forEach(function (a) { seamMember[a] = true; });
+  });
+  var column = {}, taken = {};
+  function place(c, col) {
+    var band = LAYER[c.kind];
+    taken[band] = taken[band] || {};
+    while (taken[band][col]) col++;
+    taken[band][col] = true;
+    column[c.id] = col;
+  }
+  sorted.forEach(function (c) {
+    if (!seamMember[c.id] && ownerOf[c.id] === undefined) place(c, 0);
+  });
+  var next = 0;
+  Object.keys(taken).forEach(function (band) { next = Math.max(next, Object.keys(taken[band]).length); });
+  var SEAM_ORDER = { repository: 0, "domain-port": 1, "query-repository": 2, "application-port": 3 };
+  sorted.filter(function (c) { return CONTRACT[c.kind]; }).sort(function (a, b) {
+    return (SEAM_ORDER[a.kind] - SEAM_ORDER[b.kind]) || (a._index - b._index);
+  }).forEach(function (c) {
+    var col = next, last = next;
+    place(c, col);
+    (implementers[c.id] || []).forEach(function (a) {
+      if (column[a] !== undefined) return;
+      place(byId[a], col);
+      last = Math.max(last, column[a]);
+    });
+    next = last + 1;
+  });
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  function wrapName(name) { return name.replace(/([a-z0-9])([A-Z])/g, "$1​$2"); }
+
+  document.getElementById("title").textContent = data.context;
+  document.getElementById("stats").textContent = [[data.components.length, "component"],
+    [data.dependencies.length, "dependency", "dependencies"], [data.mechanisms.length, "mechanism"]].map(function (s) {
+    return s[0] + " " + (s[0] === 1 ? s[1] : (s[2] || s[1] + "s"));
+  }).join(", ");
+  document.title = data.context + " Architecture";
+  var board = document.getElementById("board");
+  var nodes = {}, bandIndex = {};
+  BANDS.forEach(function (band, index) {
+    var members = sorted.filter(function (c) { return LAYER[c.kind] === band && column[c.id] !== undefined; });
+    if (!members.length) return;
+    var section = el("section", "band");
+    section.style.setProperty("--layer", "var(--" + band + ")");
+    section.style.setProperty("--layer-bg", "var(--" + band + "-bg)");
+    section.appendChild(el("div", "band-label", band.charAt(0).toUpperCase() + band.slice(1)));
+    var items = el("div", "band-items");
+    members.forEach(function (c) {
+      var box = el("div", "box" + (CONTRACT[c.kind] ? " contract" : ""));
+      box.title = KIND_TEXT[c.kind];
+      box.style.gridColumn = String(column[c.id] + 1);
+      box.style.gridRow = "1";
+      var title = el("div", "title");
+      title.appendChild(icon(c.kind));
+      title.appendChild(el("div", "name", wrapName(c.name)));
+      box.appendChild(title);
+      if (c.note) box.appendChild(el("div", "note", c.note));
+      var owned = sorted.filter(function (e) { return ownerOf[e.id] === c.id; });
+      if (owned.length) {
+        var list = el("div", "events");
+        owned.forEach(function (e) {
+          var chip = el("div", e.kind === "integration-message" ? "event message" : "event");
+          chip.title = KIND_TEXT[e.kind];
+          chip.appendChild(icon(e.kind));
+          chip.appendChild(el("span", null, wrapName(e.name)));
+          list.appendChild(chip);
+          nodes[e.id] = chip;
+          bandIndex[e.id] = index;
+          hover(chip, e.id);
+        });
+        box.appendChild(list);
+      }
+      data.mechanisms.filter(function (m) { return m.seam === c.id; }).forEach(function (m) {
+        var badge = el("div", "mechanism");
+        var head = el("b");
+        head.appendChild(icon("mechanism"));
+        head.appendChild(el("span", null, m.name));
+        badge.appendChild(head);
+        badge.appendChild(el("span", null, m.serves));
+        box.appendChild(badge);
+      });
+      nodes[c.id] = box;
+      bandIndex[c.id] = index;
+      hover(box, c.id);
+      items.appendChild(box);
+    });
+    section.appendChild(items);
+    board.appendChild(section);
+  });
+
+  var legend = document.getElementById("legend");
+  BANDS.forEach(function (band) {
+    var group = el("div");
+    group.style.setProperty("--layer", "var(--" + band + ")");
+    group.appendChild(el("h2", null, band.charAt(0).toUpperCase() + band.slice(1)));
+    var list = el("ul");
+    KINDS.filter(function (k) { return k[1] === band; }).map(function (k) { return k[0]; })
+      .concat(band === "infrastructure" ? ["mechanism"] : []).forEach(function (kind) {
+        var item = el("li");
+        item.appendChild(icon(kind, kind === "mechanism" ? "mech" : ""));
+        item.appendChild(document.createTextNode(KIND_TEXT[kind]));
+        list.appendChild(item);
+      });
+    group.appendChild(list);
+    legend.insertBefore(group, legend.lastElementChild);
+  });
+
+  var paths = [], focused = null;
+  function hover(node, id) {
+    node.addEventListener("mouseenter", function () { focus(id); });
+    // Leaving an event chip returns focus to its owner; leaving a box clears focus.
+    node.addEventListener("mouseleave", function () { focus(ownerOf[id] === undefined ? null : ownerOf[id]); });
+  }
+  // A box's focus includes the edges of the chips inside it; a lit chip also lights its owner.
+  function touches(nodeId, id) { return nodeId === id || ownerOf[nodeId] === id; }
+  function light(nodeId) {
+    nodes[nodeId].classList.add("hot");
+    if (ownerOf[nodeId] !== undefined) nodes[ownerOf[nodeId]].classList.add("hot");
+  }
+  function focus(id) {
+    focused = id;
+    board.classList.toggle("focus", id !== null);
+    Object.keys(nodes).forEach(function (key) { nodes[key].classList.remove("hot"); });
+    if (id !== null) light(id);
+    paths.forEach(function (entry) {
+      var hot = id !== null && (touches(entry.from, id) || touches(entry.to, id));
+      entry.path.classList.toggle("hot", hot);
+      if (hot) { light(entry.from); light(entry.to); }
+    });
+  }
+
+  var NS = "http://www.w3.org/2000/svg";
+  // Edges into an event chip are drawn above the boxes, because the chip sits inside its owner.
+  function edgeLayer(cls) {
+    var layer = document.createElementNS(NS, "svg");
+    layer.setAttribute("class", cls);
+    board.appendChild(layer);
+    return layer;
+  }
+  var edges = edgeLayer("edges");
+  var overEdges = edgeLayer("edges over");
+  function marker(id, color, shape) {
+    var m = document.createElementNS(NS, "marker");
+    m.setAttribute("id", id);
+    m.setAttribute("viewBox", "0 0 10 10");
+    m.setAttribute("refX", "9");
+    m.setAttribute("refY", "5");
+    m.setAttribute("markerWidth", "7");
+    m.setAttribute("markerHeight", "7");
+    m.setAttribute("orient", "auto-start-reverse");
+    var tip = document.createElementNS(NS, "path");
+    if (shape === "hollow") {
+      tip.setAttribute("d", "M1,1 L9,5 L1,9 z");
+      tip.setAttribute("style", "fill: var(--bg); stroke: " + color + "; stroke-width: 1.4");
+    } else if (shape === "open") {
+      tip.setAttribute("d", "M1,1 L9,5 L1,9");
+      tip.setAttribute("style", "fill: none; stroke: " + color + "; stroke-width: 1.6");
+    } else {
+      tip.setAttribute("d", "M0,0 L10,5 L0,10 z");
+      tip.setAttribute("style", "fill: " + color + "; stroke: none");
+    }
+    m.appendChild(tip);
+    return m;
+  }
+  var defs = document.createElementNS(NS, "defs");
+  defs.appendChild(marker("arrow-depends", "var(--edge)", "filled"));
+  defs.appendChild(marker("arrow-implements", "var(--infrastructure)", "hollow"));
+  defs.appendChild(marker("arrow-reacts", "var(--application)", "open"));
+
+  function draw() {
+    [edges, overEdges].forEach(function (layer) {
+      while (layer.lastChild) layer.removeChild(layer.lastChild);
+      layer.setAttribute("width", board.scrollWidth);
+      layer.setAttribute("height", board.scrollHeight);
+    });
+    paths = [];
+    edges.appendChild(defs);
+    var origin = board.getBoundingClientRect();
+    data.dependencies.forEach(function (d) {
+      var relation = relationOf(d);
+      if ((relation === "records" || relation === "carries") && ownerOf[d.to] === d.from) return;
+      var a = nodes[d.from], b = nodes[d.to];
+      if (!a || !b) return;
+      var ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      var ax, ay, bx, by, pathData;
+      if (bandIndex[d.from] === bandIndex[d.to]) {
+        // Same band: arc over the top edges so the line never passes behind a neighbouring box.
+        ax = ra.left + ra.width * 0.65 - origin.left;
+        bx = rb.left + rb.width * 0.35 - origin.left;
+        ay = ra.top - origin.top;
+        by = rb.top - origin.top;
+        var lift = 22 + Math.min(40, Math.abs(bx - ax) / 12);
+        pathData = "M" + ax + "," + ay + " C" + ax + "," + (Math.min(ay, by) - lift) + " " +
+          bx + "," + (Math.min(ay, by) - lift) + " " + bx + "," + by;
+      } else {
+        var down = bandIndex[d.to] > bandIndex[d.from];
+        ax = ra.left + ra.width / 2 - origin.left;
+        bx = rb.left + rb.width / 2 - origin.left;
+        ay = (down ? ra.bottom : ra.top) - origin.top;
+        by = (down ? rb.top : rb.bottom) - origin.top;
+        var bend = Math.max(28, Math.abs(by - ay) / 2);
+        pathData = "M" + ax + "," + ay + " C" + ax + "," + (ay + (down ? bend : -bend)) + " " +
+          bx + "," + (by + (down ? -bend : bend)) + " " + bx + "," + by;
+      }
+      var path = document.createElementNS(NS, "path");
+      path.setAttribute("d", pathData);
+      path.setAttribute("class", "edge " + relation);
+      path.setAttribute("marker-end", "url(#arrow-" + (relation === "records" ? "depends" : relation) + ")");
+      (ownerOf[d.to] !== undefined ? overEdges : edges).appendChild(path);
+      paths.push({ from: d.from, to: d.to, path: path });
+    });
+    // A redraw replaces every edge, so it restores the current focus.
+    if (focused !== null) focus(focused);
+  }
+  draw();
+  window.addEventListener("resize", draw);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>
+</body>
+</html>

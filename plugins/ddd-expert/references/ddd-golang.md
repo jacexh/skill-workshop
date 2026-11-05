@@ -25,7 +25,7 @@ Infrastructure -> Application and Domain contracts
 | Domain | Aggregates, Entities, Value Objects, Domain Services, Domain Events, business sequencing, write Repository and Domain-owned Port contracts | protocol, persistence, logging, task/message provider mechanics, Runtime |
 | Application | Commands, Queries, use-case coordination/context, Application-owned semantic capabilities, `Application` entry, DTO assemblers, same-context reactions, internal task contracts | ConnectRPC/HTTP handlers, xorm, Kafka/Asynq clients, process lifecycle |
 | Transport | ConnectRPC/HTTP handlers, Integration Message subscribers, task processors, scheduled inbound triggers | Repositories, transactions, Aggregate mutation, provider runtimes |
-| Infrastructure | Repository/QueryRepository implementations, DO conversion, ACLs, external adapters | Domain decisions, inbound protocol handling, process lifecycle |
+| Infrastructure | Repository and QueryRepository adapters, DO conversion, ACLs, Port adapters | Domain decisions, inbound protocol handling, process lifecycle |
 | Runtime | Fx composition, configuration, shared clients, servers, consumers, workers, schedulers, telemetry, shutdown | business rules and bounded-context language |
 
 Application has three narrow, accepted provider-neutral exceptions:

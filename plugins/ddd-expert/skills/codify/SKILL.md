@@ -11,7 +11,7 @@ Read the [workflow contract](../../references/workflow.md) for scope, existing a
 
 ## Contract
 
-Read the user's current scope, any delivery constraints confirmed by the EventStorming assumption sweep, affected `model.md` and `domain-objects.md`, relevant project decisions and instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
+Read the user's current scope, any delivery constraints confirmed by the EventStorming assumption sweep, affected `model.md` and `domain-objects.md`, the affected `architecture.html` when it exists, relevant project decisions and instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
 
 The DDD artifacts define accepted business meaning, Aggregate boundaries, Policies, and Domain-object state and behavior ownership. They are semantic constraints, not a complete software design. Their silence about remaining software structure is implementation latitude, not a missing modeling step.
 
@@ -24,6 +24,8 @@ Classify each gap the implementation exposes:
 - A contradiction between accepted statements, or a gap where every implementation would change an accepted Business Rule, Policy, consistency boundary, Domain-owned Port, or Domain Event: complete the rest of the slice, then raise it once as a ⚠️ **Conflict** under the workflow contract's presentation markers. The code realizes only the accepted statements.
 
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
+
+When `architecture.html` exists, realize its core design as [Architecture writing](../../templates/artifact-layout.md#architecture-writing) defines it. Add a component the change needs beyond the drawing under House Style, and report it at completion. A change that must remove, move, or rewire a drawn component, dependency, or mechanism seam is a ⚠️ **Conflict** under the gap classification above.
 
 The accepted Ubiquitous Language names the Domain code: each accepted Aggregate Root, Entity, Value Object, Lifecycle State, Behavior, Domain-owned Port, and Domain Event keeps its accepted name and meaning in exactly one Domain carrier, and Domain code uses the Essential Language term for each concept it names. A supporting Value Object or Entity that only realizes accepted meaning, such as `Money`, is implementation latitude; a concept that adds business meaning follows the gap classification above.
 
@@ -41,7 +43,7 @@ Run repository tests and checks proportionate to the changed behavior and risk. 
 
 ## Completion
 
-End with the implemented behavior, changed files, verification results, stated assumptions, Domain concepts introduced beyond the accepted artifacts, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, every delivery constraint, relevant House Style, and verification agreeing in the final code.
+End with the implemented behavior, changed files, verification results, stated assumptions, Domain concepts introduced beyond the accepted artifacts, components added beyond `architecture.html`, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, every delivery constraint, relevant House Style, and verification agreeing in the final code.
 
 ## References
 
