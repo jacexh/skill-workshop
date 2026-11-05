@@ -72,7 +72,8 @@ lifecycle-end probe places Visit Completed as the crossing point.
   it, the doctor only records completion.
 - **Subdomains**: Scheduling is Core (differentiation probe: same-day
   confirmation is how the clinic wins patients); Billing is Generic (standard
-  invoicing, no clinic-specific advantage), so it skips Tactical Design.
+  invoicing, no clinic-specific advantage), so it skips Tactical Design and
+  goes to Architecture Design for its `VisitCompleted` subscriber.
 - **Aggregate Roots**: `Schedule` — a doctor's day of slots; consistency:
   one confirmed appointment per slot at confirmation time. `Invoice` —
   a billable completed visit; consistency: one invoice per completed visit.
@@ -81,10 +82,12 @@ lifecycle-end probe places Visit Completed as the crossing point.
 - **Dependency**: Scheduling -> Billing, Published Fact Contract
   `VisitCompleted`, used by the Billing Policy Open Invoice.
 - **Policies**: Billing — Open Invoice.
-- **Delivery constraints** (assumption sweep; Codify input):
+- **Delivery constraints** (assumption sweep; Architecture Design and Codify
+  input):
   reception sees the doctor's open slots before confirming; existing online
   booking links keep working.
-- **Non-blocking uncertainty**: H1 cancellation after check-in.
+- **Open decisions**: H1 cancellation after check-in — default: rejected;
+  Tactical Design settles it when it designs cancellation.
 
 After confirmation, the Context Map and the two Model files are written from
 their templates. The Scheduling Model's Subdomain then reads
