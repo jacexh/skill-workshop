@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-11-03
 - Refines: the Model and domain-object content rules in [ADR 0009](0009-sparse-current-ddd-artifacts.md)
+- Amended by: [ADR 0014](0014-architecture-design-wireframe.md) (the business-meaning-only rule covers the Markdown artifacts, not `architecture.html`)
 
 ## Context
 

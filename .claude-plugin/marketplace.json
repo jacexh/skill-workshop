@@ -43,7 +43,7 @@
     {
       "name": "ddd-expert",
       "source": "./plugins/ddd-expert",
-      "description": "Strategic EventStorming, sparse Tactical Design, implementation, and review",
+      "description": "Strategic EventStorming, sparse Tactical Design, architecture design, implementation, and review",
       "version": "1.18.2",
       "author": {
         "name": "xuhao"

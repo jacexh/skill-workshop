@@ -93,8 +93,8 @@ An accepted Unit of Work uses `db.transaction().execute` and constructs every
 participating Repository on the callback's `Transaction<Database>`.
 
 QueryRepositories select explicit columns, apply stable indexed order, and
-return readonly Application DTOs. Outbound adapters fulfill Domain-owned and
-Application-owned ports through one or more provider/generated contracts. The
+return readonly Application DTOs. Outbound adapters fulfill Domain-owned Ports and
+Application Ports through one or more provider/generated contracts. The
 adapter owns source composition and any accepted fulfillment policy; Platform
 owns credentials, client lifecycle, and policy configuration. Preserve the
 first external error in `cause` while translating to a stable inner error.

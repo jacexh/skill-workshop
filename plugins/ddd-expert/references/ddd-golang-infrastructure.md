@@ -7,7 +7,7 @@ description: Go adapter boundaries and routing for persistence, transactions, ou
 
 ## Applies When
 
-Infrastructure implements Domain-owned and Application-owned ports and owns external mechanisms. For MySQL persistence in this House Style, use `xorm.io/xorm` with `github.com/go-sql-driver/mysql`. Use `github.com/samber/oops` when an external error first enters controlled code.
+Infrastructure implements Domain-owned Ports and Application Ports and owns external mechanisms. For MySQL persistence in this House Style, use `xorm.io/xorm` with `github.com/go-sql-driver/mysql`. Use `github.com/samber/oops` when an external error first enters controlled code.
 
 ## Responsibility And File Shape
 
@@ -41,7 +41,7 @@ internal/business/<context>/infrastructure/
 
 ## Outbound Adapters
 
-Infrastructure fulfills Domain-owned Ports and Application-owned ports through external APIs, Kafka, cache, taskqueue, or other providers. Keep source composition, generated clients, credentials, topics, serialization, and any accepted fulfillment policy here.
+Infrastructure fulfills Domain-owned Ports and Application Ports through external APIs, Kafka, cache, taskqueue, or other providers. Keep source composition, generated clients, credentials, topics, serialization, and any accepted fulfillment policy here.
 
 ## Error And Logging Boundary
 

@@ -9,11 +9,11 @@ const path = require("node:path");
 const root = process.argv[2];
 const read = p => fs.readFileSync(p, "utf8");
 const json = p => JSON.parse(read(p));
-const skills = ["codify", "declare-ownership", "event-storming", "guard", "tactical-design"];
+const skills = ["architecture-design", "codify", "declare-ownership", "event-storming", "guard", "tactical-design"];
 // declare-ownership is user-invoked; each host declares that in its own invocation mechanism.
 const claudeOnlyLine = "disable-model-invocation: true\n";
 const codexOnlyFile = "declare-ownership/agents/openai.yaml";
-const templates = ["artifact-layout.md", "context-map.md", "domain-objects.md", "model.md"];
+const templates = ["architecture.html", "artifact-layout.md", "context-map.md", "domain-objects.md", "model.md"];
 const tracks = ["plugins/ddd-expert", "codex-plugins/ddd-expert"];
 
 function filesUnder(dir) {
