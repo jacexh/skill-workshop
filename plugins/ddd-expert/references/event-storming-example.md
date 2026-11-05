@@ -82,7 +82,7 @@ lifecycle-end probe places Visit Completed as the crossing point.
 - **Dependency**: Scheduling -> Billing, Published Fact Contract
   `VisitCompleted`, used by the Billing Policy Open Invoice.
 - **Policies**: Billing — Open Invoice.
-- **Delivery constraints** (assumption sweep, not written to DDD artifacts):
+- **Delivery constraints** (assumption sweep; Codify input):
   reception sees the doctor's open slots before confirming; existing online
   booking links keep working.
 - **Non-blocking uncertainty**: H1 cancellation after check-in.

@@ -15,7 +15,7 @@ Read the user's current scope, any delivery constraints confirmed by the EventSt
 
 The DDD artifacts define accepted business meaning, Aggregate boundaries, Policies, and Domain-object state and behavior ownership. They are semantic constraints, not a complete software design. Their silence about remaining software structure is implementation latitude, not a missing modeling step.
 
-Delivery constraints are accepted requirements on the realization. Satisfy them; do not replace them with assumptions. Resolve unspecified realization choices through accepted project constraints and applicable House Style, using repository code and tests as integration evidence.
+Resolve unspecified realization choices through accepted project constraints and applicable House Style, using repository code and tests as integration evidence.
 
 Classify each gap the implementation exposes:
 
@@ -41,7 +41,7 @@ Run repository tests and checks proportionate to the changed behavior and risk. 
 
 ## Completion
 
-End with the implemented behavior, changed files, verification results, stated assumptions, Domain concepts introduced beyond the accepted artifacts, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, relevant House Style, and verification agreeing in the final code.
+End with the implemented behavior, changed files, verification results, stated assumptions, Domain concepts introduced beyond the accepted artifacts, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, every delivery constraint, relevant House Style, and verification agreeing in the final code.
 
 ## References
 

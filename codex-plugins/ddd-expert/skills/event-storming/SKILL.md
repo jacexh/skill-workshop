@@ -122,16 +122,14 @@ Persist only accepted current knowledge:
 
 ## Assumption sweep
 
-Strategic materiality keeps the model small, but the requirements it filtered out still shape the delivered behavior. Before the integrated proposal, revisit every assumption stated on the board, plus each of these delivery dimensions that the scoped scenarios touch:
+Before the integrated proposal, revisit every assumption stated on the board, plus each of these delivery dimensions that the scoped scenarios touch:
 
 - the information a Role needs before issuing a Command;
 - the acceptance scenarios that would show the scope is done;
 - volume, latency, audit, retention, or compliance expectations;
 - existing data, published APIs, or clients that must keep working.
 
-Skip any item that evidence already answers. Ask the rest one at a time, using the same presentation as the other questions in this interview.
-
-An answer that changes a business right, obligation, value, authority, decision, outcome, or required next action becomes a Business Rule or reopens the affected step. Every other answer is a **delivery constraint**. Delivery constraints are never written to DDD artifacts. Record them in the project's spec or issue when one exists; otherwise carry them in the conversation as Codify input.
+An answer that changes a business right, obligation, value, authority, decision, outcome, or required next action becomes a Business Rule or reopens the affected step. Every other answer is a **delivery constraint**: record it in the project's spec or issue when one exists, otherwise carry it in the conversation as Codify input. The sweep is complete when every board assumption and touched delivery dimension has become a Business Rule, a delivery constraint, or a non-blocking Hotspot.
 
 ## Confirmation and writing
 
