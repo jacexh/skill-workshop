@@ -149,8 +149,10 @@ text field is written in English.
 The drawn components, dependencies, and mechanism seams are **core design**.
 Implementation keeps each drawn component in its layer with its
 responsibility, each drawn dependency, and each mechanism on its seam. Detail
-inside a component follows House Style. Implementation reports each component
-it adds beyond the drawing, and Architecture Design records it.
+inside a component follows House Style. When the active-language router
+realizes a drawn kind with an adopted library contract or provider adapter,
+that contract or adapter is the drawn component. Implementation reports each
+component it adds beyond the drawing, and Architecture Design records it.
 
 ## Write checks
 

@@ -25,7 +25,7 @@ Classify each gap the implementation exposes:
 
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
 
-When `architecture.html` exists, realize its core design as [Architecture writing](../../templates/artifact-layout.md#architecture-writing) defines it: each drawn component becomes the code surface its kind names, each drawn dependency a source dependency, and each mechanism sits on its seam. Add a component or mechanism the change needs beyond the drawing under House Style, and report it at completion. A change that must remove, move, or rewire a drawn component, dependency, or mechanism seam is a ⚠️ **Conflict** under the gap classification above.
+When `architecture.html` exists, read [Architecture writing](../../templates/artifact-layout.md#architecture-writing) and realize its core design. Add a component or mechanism the change needs beyond the drawing under House Style, and report it at completion. A change that must remove, move, or rewire a drawn component, dependency, or mechanism seam is a ⚠️ **Conflict** under the gap classification above.
 
 The accepted Ubiquitous Language names the Domain code: each accepted Aggregate Root, Entity, Value Object, Lifecycle State, Behavior, Domain-owned Port, and Domain Event keeps its accepted name and meaning in exactly one Domain carrier, and Domain code uses the Essential Language term for each concept it names. A supporting Value Object or Entity that only realizes accepted meaning, such as `Money`, is implementation latitude; a concept that adds business meaning follows the gap classification above.
 

@@ -65,6 +65,19 @@ Load [ddd-core.md](ddd-core.md) for an affected Domain object, Domain-owned Port
 or cross-language layer realization, and [ddd-collaboration.md](ddd-collaboration.md)
 only for an accepted published API, Domain Event, or Integration Message.
 
+## Drawn Components
+
+Two `application-port` kinds in `architecture.html` are adopted go-jimu
+contracts. Application depends on the contract directly; Runtime composes its
+adapter from the provider leaf.
+
+| Drawn component | Go realization |
+|---|---|
+| Publisher `application-port` | `message.Publisher` |
+| Its `adapter` | the provider publisher in `internal/pkg/messagebus`; [Kafka](ddd-golang-kafka.md) when Kafka applies |
+| Task enqueue `application-port` | `taskqueue.Enqueuer` |
+| Its `adapter` | the provider client in `internal/pkg/taskqueue`; [Asynq](ddd-golang-asynq.md) when Asynq applies |
+
 ## Adopted Stack Defaults
 
 | Concern | Default implementation | Applicability |
@@ -89,6 +102,11 @@ only for an accepted published API, Domain Event, or Integration Message.
 | Error enrichment | `github.com/samber/oops` | Errors cross a controlled boundary |
 | Configuration | `github.com/go-jimu/components/config/loader` | Go service Runtime |
 | Distributed tracing | OpenTelemetry Go, OTLP, `connectrpc.com/otelconnect` | Tracing is accepted and a backend/collector is available |
+
+Library APIs and behavior, including error identity and failure outcomes,
+follow the documentation of the version pinned in `go.mod`, read through
+`go doc` or the module source. The leaves state house choices that hold across
+library versions: placement, ownership, and when to use an API.
 
 The table supplies defaults for covered concerns left open by accepted project
 decisions. Apply the workflow contract's project-convention rule before adopting

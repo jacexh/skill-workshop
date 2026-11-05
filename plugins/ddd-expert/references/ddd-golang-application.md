@@ -27,61 +27,20 @@ Keep one `Application` type in `application/application.go`, following the
 Put its use-case methods and input/result types in files named for their cohesive
 responsibility, all in package `application`.
 
-```go
-package application
-
-import "example/internal/business/user/domain"
-
-type Application struct {
-	repository domain.Repository
-}
-
-func NewApplication(repository domain.Repository) *Application {
-	return &Application{repository: repository}
-}
-```
-
-Add a QueryRepository field when Application query methods need one, or a query
-object when the [read-side placement rule](ddd-core.md#application-and-transport-shape)
-selects one. `NewApplication` only assigns dependencies; Runtime owns Fx wiring
-and separate event-handler, message-subscriber, and task-processor registration.
+`NewApplication` receives each dependency, such as the Domain Repository, as a
+parameter and only assigns it to an unexported field. Add a QueryRepository
+field when Application query methods need one, or a query object when the
+[read-side placement rule](ddd-core.md#application-and-transport-shape) selects
+one. Runtime owns Fx wiring and separate event-handler, message-subscriber, and
+task-processor registration.
 
 ## Conditional `assembler.go`
 
-When the context maps whole Domain Entities to or from Application DTOs, `application/assembler.go` owns that pure mapping, following the [shared assembler rule](ddd-core.md#application-and-transport-shape). Use the house naming consistently:
+When the context maps whole Domain Entities to or from Application DTOs, `application/assembler.go` owns that pure mapping, following the [shared assembler rule](ddd-core.md#application-and-transport-shape). The DTO type carries the Entity's name in package `application`, such as `application.User`. Use the house naming consistently; each function returns `nil` for a `nil` input:
 
 ```go
-package application
-
-import (
-	"example/internal/business/user/domain"
-)
-
-type User struct {
-	ID      string
-	Name    string
-	Email   string
-	Version int
-}
-
-// AssembleUserDTO maps existing DTO state; it is not a creation path.
-func AssembleUserDTO(dto *User) *domain.User {
-	if dto == nil {
-		return nil
-	}
-	return &domain.User{
-		ID: dto.ID, Name: dto.Name, Email: dto.Email, Version: dto.Version,
-	}
-}
-
-func AssembleUserEntity(entity *domain.User) *User {
-	if entity == nil {
-		return nil
-	}
-	return &User{
-		ID: entity.ID, Name: entity.Name, Email: entity.Email, Version: entity.Version,
-	}
-}
+func AssembleUserDTO(dto *User) *domain.User       // existing DTO state -> Entity
+func AssembleUserEntity(entity *domain.User) *User // Entity -> DTO
 ```
 
 The assembler has no logging, I/O, transaction or business branch. It does not map protobuf or DO types. DTO-to-Entity assembly is for existing data and is followed by Domain validation before behavior. A create-user use case calls `domain.NewUser(...)`; it never calls `AssembleUserDTO` to bypass Factory rules or creation events. Under the request-scoped lifecycle, an assembled post-`Save` `Version` is stale and must not be returned as the current persistence concurrency token.
@@ -92,41 +51,11 @@ Persistence mapping belongs in `infrastructure/convert.go` and follows the analo
 
 A named Application method constructs or loads Domain state, calls Domain behavior and persists the accepted Aggregate. Domain owns validation of command-side business values.
 
-Use this ordinary one-Root shape:
-
-```go
-package application
-
-import (
-	"context"
-
-	"example/internal/business/user/domain"
-)
-
-type CreateUser struct {
-	Name  string
-	Email string
-}
-
-type CreatedUser struct {
-	ID, Name, Email string
-}
-
-func (a *Application) CreateUser(
-	ctx context.Context,
-	cmd CreateUser,
-) (CreatedUser, error) {
-	user, err := domain.NewUser(cmd.Name, cmd.Email)
-	if err != nil {
-		return CreatedUser{}, err
-	}
-	if err = a.repository.Save(ctx, user); err != nil {
-		return CreatedUser{}, err
-	}
-
-	return CreatedUser{ID: user.ID, Name: user.Name, Email: user.Email}, nil
-}
-```
+In the ordinary one-Root shape, the method takes `(ctx, cmd)` with an input
+type named for its intent, such as `CreateUser`, and returns a minimal result
+type, such as `CreatedUser`, built from the saved Aggregate. A create command
+calls the Domain Factory, saves through the Repository, and returns the zero
+result with any error.
 
 When accepted local events exist, add their flow from
 [`ddd-golang-events.md`](ddd-golang-events.md). Published contracts use

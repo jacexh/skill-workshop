@@ -21,73 +21,20 @@ Kysely table interfaces describe adapter types; ordered `migrations/*.sql` are
 the schema authority. DECIMAL and unsafe BIGINT values remain strings until an
 explicit boundary conversion.
 
-```ts
-import type { Selectable } from "kysely";
-
-export type UserDO = Pick<
-  Selectable<UserTable>,
-  "id" | "name" | "email" | "version"
->;
-
-export function convertUserDO(row: UserDO): User {
-  return User.reconstitute({ ...row });
-}
-
-export function convertUserEntity(user: User) {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-  } as const;
-}
-```
-
 Conversion performs explicit mechanical mapping, copies mutable values, and
-calls Domain reconstitution for existing state.
+calls Domain reconstitution for existing state. The row type `<Object>DO` is a
+`Pick` of the selected `Selectable` columns; `convert<Object>DO()` maps a row to
+Domain and `convert<Object>Entity()` maps Domain to writable columns.
 
 ## Repository and Unit of Work
 
-The Repository accepts either a pool executor or the transaction supplied by
-the Unit of Work:
-
-```ts
-type Executor = Kysely<Database> | Transaction<Database>;
-
-export class KyselyUserRepository implements UserRepository {
-  constructor(
-    private readonly db: Executor,
-    private readonly nowMillis: () => number,
-  ) {}
-
-  async save(user: User): Promise<void> {
-    const data = convertUserEntity(user);
-    const now = this.nowMillis();
-    if (user.version === 0) {
-      await this.db.insertInto("user").values({
-        ...data,
-        version: 1,
-        created_at: now,
-        updated_at: now,
-        deleted_at: 0,
-      }).executeTakeFirstOrThrow();
-      return;
-    }
-
-    const result = await this.db.updateTable("user").set({
-      name: data.name,
-      email: data.email,
-      version: sql<number>`version + 1`,
-      updated_at: now,
-    }).where("id", "=", user.id)
-      .where("version", "=", user.version)
-      .where("deleted_at", "=", 0)
-      .executeTakeFirst();
-    if (result.numUpdatedRows !== 1n) {
-      throw new ConcurrentModificationError(user.id);
-    }
-  }
-}
-```
+The Repository accepts an executor typed `Kysely<Database> |
+Transaction<Database>`: the pool, or the transaction supplied by the Unit of
+Work. For the request-scoped optimistic lifecycle, `save()` inserts when the
+in-memory version is `0`; otherwise it runs a version-guarded update that
+increments the stored version and raises the stable concurrency error unless
+exactly one row changed. Column values follow the [database.md](database.md)
+version and timestamp rules, with timestamps from an injected clock.
 
 An accepted Unit of Work uses `db.transaction().execute` and constructs every
 participating Repository on the callback's `Transaction<Database>`.

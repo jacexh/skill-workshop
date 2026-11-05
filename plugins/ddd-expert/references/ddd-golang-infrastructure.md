@@ -18,6 +18,7 @@ internal/business/<context>/infrastructure/
   <aggregate>_repository.go
   <read_model>_query_repository.go
   <port>_adapter.go        # Domain-owned Port or outbound provider adapter
+  <receiver>_acl.go        # outbound ACL to another context
 ```
 
 - Data Objects describe persistence, not Domain behavior. Mandatory columns and physical types follow [database.md](database.md); the persistence guide owns their Go mapping.

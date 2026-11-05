@@ -25,86 +25,48 @@ lives under `gen/<owner>/integration/v1/`.
 | Register generated payload factory and subscriber | receiver Bounded Context module |
 | Provider client and active loop | Runtime; see [ddd-golang-kafka.md](ddd-golang-kafka.md) when Kafka applies |
 
-`message.KindOf(payload)` uses the Protobuf full name. `message.Message.Key`
-is the provider-neutral ordering/routing group. Treat contract package/message
-renames under the repository's breaking-change policy.
+A contract package or message rename changes its `message.KindOf` kind; treat
+it under the repository's breaking-change policy.
 
 ## Published Fact Handler
 
 The producing Application maps explicitly from its local event into its own
-generated contract and builds a `message.Message`:
-
-```go
-payload := &userintegrationv1.UserRegisteredV1{
-	UserId: fact.UserID,
-	Name:   fact.Name,
-	Email:  fact.Email,
-}
-msg, err := message.New(
-	message.KindOf(payload),
-	payload,
-	message.WithKey(fact.UserID),
-	message.WithOccurredAt(fact.OccurredAt),
-)
-if err == nil {
-	err = h.publisher.Publish(ctx, msg)
-}
-```
-
+generated contract, builds it with
+`message.New(message.KindOf(payload), payload, ...)`, sets
+`message.WithKey` to the accepted ordering identity and
+`message.WithOccurredAt` to the fact's occurrence time, and calls `Publish`.
 The payload contains the stable identities and facts promised by the contract.
 Envelope metadata carries message identity, occurrence time, and accepted
 correlation/trace fields.
 
 ## Subscriber Shape
 
+A subscriber under `transport/messagesubscriber/` maps one generated payload
+to one Application command:
+
 ```go
-type UserRegisteredSubscriber struct {
-	app *application.Application
-}
+// internal/business/notification/transport/messagesubscriber/user_registered.go
+type UserRegisteredSubscriber struct{ app *application.Application }
 
 var _ message.Handler = (*UserRegisteredSubscriber)(nil)
 
 func (*UserRegisteredSubscriber) Listening() []message.Kind {
-	return []message.Kind{
-		message.KindOf(&userintegrationv1.UserRegisteredV1{}),
-	}
+	return []message.Kind{message.KindOf(&userintegrationv1.UserRegisteredV1{})}
 }
 
-func (s *UserRegisteredSubscriber) Handle(
-	ctx context.Context,
-	msg message.Message,
-) error {
+func (s *UserRegisteredSubscriber) Handle(ctx context.Context, msg message.Message) error {
 	payload, ok := msg.Payload().(*userintegrationv1.UserRegisteredV1)
 	if !ok {
 		return fmt.Errorf("unexpected payload for %s: %T", msg.Kind(), msg.Payload())
 	}
-	return s.app.SendWelcomeNotification(
-		ctx,
-		application.SendWelcomeNotification{
-			UserID: payload.GetUserId(),
-			Name:   payload.GetName(),
-			Email:  payload.GetEmail(),
-		},
-	)
+	return s.app.SendWelcomeNotification(ctx, application.SendWelcomeNotification{
+		UserID: payload.GetUserId(),
+	})
 }
 ```
 
 Return the local use-case result to Runtime/provider code. The subscriber emits
 a log only for a separate business-semantic fact.
-
-## Registration
-
-Register the generated payload factory and subscriber before the consumer loop:
-
-```go
-kind := message.KindOf(&userintegrationv1.UserRegisteredV1{})
-if err := registry.Register(kind, func() proto.Message {
-	return &userintegrationv1.UserRegisteredV1{}
-}); err != nil {
-	return err
-}
-return subscriber.Subscribe(handler)
-```
 
 ## Verification
 

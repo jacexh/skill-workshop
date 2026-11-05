@@ -15,33 +15,15 @@ and mapping contract.
 ## Local Event Shape
 
 Domain Events are readonly Domain values and remain inside their producing
-context. The Aggregate records the event with its transition. For an accepted
-request-scoped post-commit flow, Application captures/drains events within the
-Unit of Work and dispatches after `execute` resolves.
+context. An event carries the affected identities, the established facts, and
+its occurrence time. The Aggregate records the event with its transition. For
+an accepted request-scoped post-commit flow, Application captures/drains events
+within the Unit of Work and dispatches after `execute` resolves.
 
 Place same-context handlers under `application/event-handlers/`. A producing
 handler may import its own producer-owned generated fact type and maps fields
-explicitly.
-
-```ts
-export type UserRegistered = Readonly<{
-  userId: string;
-  name: string;
-  email: string;
-  occurredAtMillis: number;
-}>;
-
-export class PrepareProfileOnUserRegistered {
-  constructor(private readonly prepareProfile: PrepareProfileHandler) {}
-
-  async execute(event: UserRegistered): Promise<void> {
-    await this.prepareProfile.execute({
-      userId: event.userId,
-      name: event.name,
-    });
-  }
-}
-```
+explicitly. Name a handler `<Reaction>On<Event>`, such as
+`PrepareProfileOnUserRegistered`.
 
 Composition registers the handler against the concrete event type. Provider
 envelopes remain outside this local handler.

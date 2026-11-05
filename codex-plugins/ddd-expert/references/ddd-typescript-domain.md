@@ -22,56 +22,11 @@ Factories establish valid new state. `reconstitute()` restores and validates
 existing state without creation behavior. Application supplies an explicit UTC
 instant when a business operation needs time.
 
-```ts
-import { v7 as uuidv7 } from "uuid";
-
-type UserState = Readonly<{
-  id: string;
-  name: string;
-  email: string;
-  version: number;
-}>;
-
-export class User {
-  #state: UserState;
-
-  private constructor(state: UserState) {
-    User.validate(state);
-    this.#state = { ...state };
-  }
-
-  static create(input: Readonly<{ name: string; email: string }>): User {
-    return new User({ ...input, id: uuidv7(), version: 0 });
-  }
-
-  static reconstitute(state: UserState): User {
-    if (!Number.isSafeInteger(state.version) || state.version < 1) {
-      throw new InvalidUserError();
-    }
-    return new User(state);
-  }
-
-  get id(): string { return this.#state.id; }
-  get name(): string { return this.#state.name; }
-  get email(): string { return this.#state.email; }
-  get version(): number { return this.#state.version; }
-
-  rename(name: string): void {
-    const next = { ...this.#state, name: name.trim() };
-    User.validate(next);
-    this.#state = next;
-  }
-
-  private static validate(state: UserState): void {
-    if (state.id.length === 0 || state.name.length === 0) {
-      throw new InvalidUserError();
-    }
-    if (!Number.isSafeInteger(state.version) || state.version < 0) {
-      throw new InvalidUserError();
-    }
-  }
-}
-```
+Every state runs one validation: the private constructor validates for
+Factories and `reconstitute()`, and a behavior validates its next state before
+replacing `#state`, so a rejected change leaves the object unchanged. A Factory
+assigns new identity with UUIDv7 and version `0`; `reconstitute()` rejects a
+version below `1`.
 
 Value Objects are immutable values with valid-at-construction factories and
 explicit value equality. Protocol decoding and persistence conversion remain at
@@ -96,19 +51,9 @@ Methods.
 
 ## Repository Contract
 
-```ts
-import type { User } from "./user.js";
-
-export interface UserRepository {
-  get(id: string): Promise<User | null>;
-  save(user: User): Promise<void>;
-}
-
-export class ConcurrentModificationError extends Error {}
-```
-
-Place one write interface beside each accepted Root. Lists, reports, histories,
-and projections use an Application QueryRepository.
+Place one write interface beside each accepted Root, with `get(id)` resolving
+`null` for a missing Root, `save(root)`, and its concurrency error. Lists,
+reports, histories, and projections use an Application QueryRepository.
 
 ## Verification
 

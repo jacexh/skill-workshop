@@ -26,44 +26,11 @@ Command-side business data reaches a Domain Factory or reconstituted Entity and 
 
 When an RPC API exists, use ConnectRPC. Deployment-private contracts live under `proto/<context>/private/v1`; externally supported contracts with their stronger authentication and compatibility obligations live under `proto/<context>/public/v1`. Generated messages and stubs mirror the source path directly under `gen/`, the adapter lives under `transport/connectrpc`, and shared HTTP server/interceptor lifecycle lives under `internal/pkg/connectrpc`.
 
-```go
-package connectrpc
-
-import (
-	"context"
-
-	"connectrpc.com/connect"
-	"example/gen/user/public/v1"
-	"example/gen/user/public/v1/userv1connect"
-	"example/internal/business/user/application"
-)
-
-type Handler struct {
-	application *application.Application
-}
-
-var _ userv1connect.UserServiceHandler = (*Handler)(nil)
-
-func NewHandler(app *application.Application) userv1connect.UserServiceHandler {
-	return &Handler{application: app}
-}
-
-func (h *Handler) Create(
-	ctx context.Context,
-	request *connect.Request[userv1.CreateRequest],
-) (*connect.Response[userv1.CreateResponse], error) {
-	result, err := h.application.CreateUser(ctx, application.CreateUser{
-		Name: request.Msg.GetName(),
-		Email: request.Msg.GetEmail(),
-	})
-	if err != nil {
-		return nil, mapError(err)
-	}
-	return connect.NewResponse(&userv1.CreateResponse{
-		User: &userv1.User{Id: result.ID, Name: result.Name, Email: result.Email},
-	}), nil
-}
-```
+The `Handler` type holds `*application.Application`, asserts the generated
+interface at compile time with `var _ userv1connect.UserServiceHandler =
+(*Handler)(nil)`, and `NewHandler` returns that interface. Each RPC method maps
+`request.Msg` to one Application input, delegates once, maps errors through
+`mapError` in `error.go`, and wraps the mapped result in `connect.NewResponse`.
 
 The generated service interface is implemented only here, never by `application.Application`. Keep protocol-to-command mapping explicit. A sibling `assembler.go` may map generated RPC messages and Application results; it never maps Domain Entities, which belong to `application/assembler.go` when that mapping exists.
 

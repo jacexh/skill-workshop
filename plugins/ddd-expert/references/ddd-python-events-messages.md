@@ -14,21 +14,8 @@ cross-language ownership and mapping contract.
 ## Local Event Shape
 
 Place immutable event values in the producing Domain and handlers under the
-same context's `application/eventhandlers/`.
-
-```python
-from dataclasses import dataclass
-from datetime import datetime
-from uuid import UUID
-
-
-@dataclass(frozen=True, slots=True)
-class UserRegistered:
-    user_id: UUID
-    name: str
-    email: str
-    occurred_at: datetime
-```
+same context's `application/eventhandlers/`. An event carries the affected
+identities, the established facts, and its occurrence time.
 
 The Aggregate records the event with the accepted transition. For an accepted
 request-scoped post-commit reaction, Application uses
@@ -37,18 +24,8 @@ Application command and transaction. A resident Aggregate follows its accepted
 live event/checkpoint flow.
 
 One handler consumes one concrete event and delegates to one named Application
-use case:
-
-```python
-class PrepareProfileOnUserRegistered:
-    def __init__(self, prepare_profile: PrepareProfileHandler) -> None:
-        self._prepare_profile = prepare_profile
-
-    def handle(self, event: UserRegistered) -> None:
-        self._prepare_profile.handle(
-            PrepareProfile(user_id=event.user_id, name=event.name)
-        )
-```
+use case. Name it `<Reaction>On<Event>`, such as
+`PrepareProfileOnUserRegistered`.
 
 Runtime/composition registers the handler explicitly. The handler does not
 inspect provider envelopes or reach into an Aggregate's state.

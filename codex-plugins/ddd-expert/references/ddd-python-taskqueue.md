@@ -37,14 +37,6 @@ class SendWelcomeTask:
 
 class TaskEnqueuer(Protocol):
     def enqueue(self, task: SendWelcomeTask) -> None: ...
-
-
-class SendWelcomeProcessor:
-    def __init__(self, send_welcome: SendWelcomeHandler) -> None:
-        self._send_welcome = send_welcome
-
-    def process(self, task: SendWelcomeTask) -> None:
-        self._send_welcome.handle(SendWelcome(user_id=task.user_id))
 ```
 
 Infrastructure converts `SendWelcomeTask` to the Celery payload. Transport

@@ -61,61 +61,32 @@ under the matching `gen/<context>/task/v1` path. A Task may remain queued across
 deployments, so protobuf field numbers and the repository's Buf breaking check
 protect its persisted shape. The payload carries stable identifiers and
 immutable facts needed to invoke the use case; it does not carry Aggregates,
-Data Objects, provider metadata, or Asynq types.
-
-```protobuf
-// proto/document/task/v1/review_document.proto
-syntax = "proto3";
-
-package document.task.v1;
-
-option go_package = "example.com/service/gen/document/task/v1;documenttaskv1";
-
-message ReviewDocumentTaskV1 {
-  string document_id = 1;
-}
-```
+Data Objects, provider metadata, or Asynq types. Name the message
+`<Task>TaskV1` in package `<context>.task.v1`.
 
 Application owns the semantic `TaskType`, provider-neutral `Definition`, and
 constructor that builds the protobuf-backed envelope:
 
 ```go
 // internal/business/document/application/task/review_document.go
-package task
-
-import (
-	documenttaskv1 "example.com/service/gen/document/task/v1"
-	"github.com/go-jimu/components/taskqueue"
-)
-
 const ReviewDocumentType taskqueue.TaskType = "document.review.v1"
 
-var ReviewDocumentDefinition = taskqueue.Definition{
-	Type:  ReviewDocumentType,
-	Queue: "document",
-}
+var ReviewDocumentDefinition = taskqueue.Definition{Type: ReviewDocumentType}
 
 func NewReviewDocument(documentID string) (taskqueue.Task, error) {
-	return taskqueue.NewProtoTask(
-		ReviewDocumentDefinition,
-		&documenttaskv1.ReviewDocumentTaskV1{DocumentId: documentID},
-	)
+	return taskqueue.NewProtoTask(ReviewDocumentDefinition,
+		&documenttaskv1.ReviewDocumentTaskV1{DocumentId: documentID})
 }
 ```
 
-Build the envelope with the exported `Definition` through
-`taskqueue.NewProtoTask`, and decode it with `taskqueue.DecodeProto` into the
-generated contract type. `TaskType` identifies the semantic payload schema;
+Transport decodes it with `taskqueue.DecodeProto` into the generated contract
+type. `TaskType` identifies the semantic payload schema;
 protobuf is the payload codec. Keep those concepts separate throughout
 Application, Transport, provider adapters, and tests.
 
-`taskqueue.WithID` assigns a caller-owned task identity. A provider rejects any enqueue while it still retains a task with
-that ID, including an archived failure, with an error matching
-`taskqueue.ErrDuplicateTask`. Assign an ID only when the accepted workflow wants
-that rejection, such as one in-flight task per identity, and handle
-`ErrDuplicateTask` as an expected outcome. Otherwise leave it unset so the
-provider assigns one; a reused business identifier such as a document ID would
-block every later task for that document while an earlier one is retained.
+Assign `taskqueue.WithID` only when the accepted workflow wants one in-flight
+task per identity, and handle `taskqueue.ErrDuplicateTask` as an expected
+outcome. Otherwise leave the ID unset so the provider assigns one.
 
 The optional `Definition.Queue` is a provider-neutral lane. Set it only when an
 accepted operational constraint needs a named lane; otherwise leave it empty for
@@ -124,84 +95,36 @@ the runtime default.
 ## Enqueue from Application
 
 Application may directly depend on `taskqueue.Enqueuer` and the provider-neutral
-task contract. It may use the component's provider-neutral
-policies when the accepted workflow needs them:
-
-- `WithDelay` or `WithProcessAt` for an explicit future attempt;
-- `WithMaxRetry` for provider failure attempts;
-- `WithTimeout` for one execution attempt;
-- `WithDeadline` for the last acceptable provider attempt;
-- `WithUnique` for bounded provider duplicate suppression.
+task contract. It sets a provider-neutral enqueue option only when the accepted
+workflow needs that policy, and validates the options before calling
+`Enqueuer`:
 
 ```go
-// internal/business/document/application/review.go
-package application
-
-import (
-	"context"
-	"time"
-
-	"github.com/go-jimu/components/taskqueue"
-	applicationtask "example.com/service/internal/business/document/application/task"
-)
-
-type Application struct {
-	enqueuer taskqueue.Enqueuer
+queued, err := applicationtask.NewReviewDocument(documentID)
+if err != nil {
+	return err
 }
-
-func (a *Application) enqueueReview(ctx context.Context, documentID string) error {
-	queued, err := applicationtask.NewReviewDocument(documentID)
-	if err != nil {
-		return err
-	}
-	options := []taskqueue.EnqueueOption{
-		taskqueue.WithMaxRetry(3),
-		taskqueue.WithTimeout(2*time.Minute),
-	}
-	if err := taskqueue.NewEnqueueOptions(options...).Validate(); err != nil {
-		return err
-	}
-	return a.enqueuer.Enqueue(ctx, queued, options...)
+options := []taskqueue.EnqueueOption{taskqueue.WithMaxRetry(3)}
+if err := taskqueue.NewEnqueueOptions(options...).Validate(); err != nil {
+	return err
 }
+return a.enqueuer.Enqueue(ctx, queued, options...)
 ```
 
 These options are delivery policy, not Domain truth. Asynq queue names, Redis
 configuration, `asynq.Option`, and worker retry metadata remain in Runtime.
-Validate the options through `taskqueue.NewEnqueueOptions(...).Validate()`
-before calling `Enqueuer`. Zero values mean provider defaults; negative
-delay/retry/timeout/unique values and combining `WithDelay` with `WithProcessAt`
-are invalid.
 
 ## Transport Task Processor
 
 A processor lives under `transport/taskprocessor`, implements one
 `taskqueue.Processor`, decodes with `taskqueue.DecodeProto`, maps to one
-Application Command, and delegates once.
+Application Command, and delegates once:
 
 ```go
 // internal/business/document/transport/taskprocessor/review_document.go
-package taskprocessor
-
-import (
-	"context"
-
-	documenttaskv1 "example.com/service/gen/document/task/v1"
-	"github.com/go-jimu/components/taskqueue"
-	"example.com/service/internal/business/document/application"
-	applicationtask "example.com/service/internal/business/document/application/task"
-)
-
-type ReviewDocumentProcessor struct {
-	app *application.Application
-}
+type ReviewDocumentProcessor struct{ app *application.Application }
 
 var _ taskqueue.Processor = (*ReviewDocumentProcessor)(nil)
-
-func NewReviewDocumentProcessor(
-	app *application.Application,
-) *ReviewDocumentProcessor {
-	return &ReviewDocumentProcessor{app: app}
-}
 
 func (*ReviewDocumentProcessor) TaskType() taskqueue.TaskType {
 	return applicationtask.ReviewDocumentType
@@ -212,24 +135,17 @@ func (p *ReviewDocumentProcessor) Process(ctx context.Context, queued taskqueue.
 	if err := taskqueue.DecodeProto(queued, payload); err != nil {
 		return err
 	}
-	return p.app.ReviewDocument(ctx, application.ReviewDocument{
-		DocumentID: payload.GetDocumentId(),
-	})
+	return p.app.ReviewDocument(ctx, application.ReviewDocument{DocumentID: payload.GetDocumentId()})
 }
 ```
 
-`taskqueue.DecodeProto` returns errors matching `taskqueue.ErrSkipRetry`
-for malformed protobuf.
-The Asynq adapter translates an error matching `taskqueue.ErrSkipRetry` to
-`asynq.SkipRetry`, so Transport can reject a permanently invalid delivery
-without importing Asynq.
+The processor returns:
 
-Outcome rules:
-
-- `nil`: the Application use case completed or reached an accepted stable no-op;
-- ordinary non-nil error: the attempt failed and provider retry policy may run;
-- error matching `taskqueue.ErrSkipRetry`: the delivery is permanently invalid
-  or unsupported and provider retry must stop.
+- `nil` when the Application use case completed or reached an accepted stable
+  no-op;
+- an ordinary error when a later attempt may succeed;
+- an error wrapping `taskqueue.ErrSkipRetry` when the delivery is permanently
+  invalid or unsupported.
 
 Business eligibility, transaction control, and Domain validation stay in the
 Application/Domain path. The processor does not query repositories to decide
@@ -262,53 +178,13 @@ due state, deadlines, pause/resume, and catch-up. When schedule
 values are deployment-configurable, Runtime supplies validated values to the BC
 provider without taking ownership of which business task the schedule triggers.
 
-Use the real provider-neutral schedule API:
+The BC module provider builds the `taskqueue.PeriodicTask` with
+`taskqueue.CronSchedule` or `taskqueue.IntervalSchedule`, a stable name such as
+`billing.evaluate_due_invoices.daily`, and its enqueue policy.
 
-```go
-// internal/business/billing/billing.go (BC module provider)
-package billing
-
-import (
-	"time"
-
-	"github.com/go-jimu/components/taskqueue"
-	applicationtask "example.com/service/internal/business/billing/application/task"
-)
-
-func NewDailyInvoiceCheck() (taskqueue.PeriodicTask, error) {
-	schedule, err := taskqueue.CronSchedule(
-		"0 2 * * *",
-		taskqueue.WithLocation("Asia/Taipei"),
-	)
-	if err != nil {
-		return taskqueue.PeriodicTask{}, err
-	}
-
-	queued, err := applicationtask.NewEvaluateDueInvoices()
-	if err != nil {
-		return taskqueue.PeriodicTask{}, err
-	}
-	return taskqueue.NewPeriodicTask(
-		"billing.evaluate_due_invoices.daily",
-		schedule,
-		queued,
-		taskqueue.WithUnique(23*time.Hour),
-		taskqueue.WithMaxRetry(3),
-	)
-}
-```
-
-`CronSchedule` accepts a standard five-field expression and optional IANA
-location, but validates only the portable five-field shape; the provider adapter
-owns cron dialect details such as field ranges and names. `IntervalSchedule`
-accepts a positive `time.Duration` and rejects a location. A `PeriodicTask` has
-a static Task envelope and enqueue policy; resolve "today", current tenants, and
-currently due records inside the Application use case. `NewPeriodicTask`
-validates its schedule and policy and rejects `WithProcessAt` and `WithDeadline`
-because static absolute times become stale on repeated fires. It also rejects a
-task built with `WithID` (`taskqueue.ErrPeriodicTaskID`): a fixed ID would make
-every later fire conflict once one run was retained, silently stopping the
-schedule.
+A `PeriodicTask` repeats one static Task envelope and policy on every fire, so
+the Application use case resolves "today", current tenants, and currently due
+records when it runs.
 
 ## Provider Runtime
 
@@ -327,7 +203,5 @@ values.
   Application delegation, retry error, or `ErrSkipRetry` result.
 - Polling tests cover not-ready re-enqueue, deadline/exhaustion, duplicate
   execution, and terminal no-op behavior.
-- Periodic tests assert `PeriodicTask` name, schedule, static task, and policy;
-  they also reject absolute process/deadline options and task IDs, and do not
-  reimplement Asynq cron compilation.
+- Periodic tests assert `PeriodicTask` name, schedule, static task, and policy.
 - Runtime/provider verification follows the selected provider leaf.

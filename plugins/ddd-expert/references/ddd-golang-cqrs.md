@@ -15,41 +15,18 @@ read side exists.
 ## Focused Aggregate Read
 
 An accepted focused read uses a named Application method, loads the full
-Aggregate through its Domain Repository, and maps an immutable result. Transport
-receives the result rather than the Aggregate.
-
-```go
-// In package application, using the Application guide's repository field.
-func (a *Application) GetUser(ctx context.Context, id string) (*User, error) {
-	user, err := a.repository.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	return AssembleUserEntity(user), nil
-}
-```
+Aggregate through its Domain Repository, and maps an immutable result with the
+assembler, such as `AssembleUserEntity`. Transport receives the result rather
+than the Aggregate.
 
 ## QueryRepository Contract
 
 Place the contract and its read models under `application/query/` or
 `application/queries/`. Group cohesive operations by consumer semantics.
 
-```go
-type UserListItem struct {
-	ID     string
-	Name   string
-	Status int
-}
-
-type UserPage struct {
-	Items      []UserListItem
-	NextCursor string
-}
-
-type QueryRepository interface {
-	ListUsers(context.Context, ListUsersFilter) (UserPage, error)
-}
-```
+Each operation takes a filter value, such as `ListUsersFilter`, and returns a
+consumer-named read model, such as `UserPage` with its `Items` and
+`NextCursor`.
 
 Application query methods or cohesive query objects depend on that interface
 and return read models.
@@ -63,23 +40,8 @@ explicit columns, aliases, filters, and stable indexed order. Map query rows
 directly into read models; do not reconstitute an Aggregate on this
 path.
 
-```go
-func (r *QueryRepository) ListUsers(
-	ctx context.Context,
-	filter query.ListUsersFilter,
-) (query.UserPage, error) {
-	rows := make([]userListRow, 0, filter.Limit+1)
-	err := r.executor(ctx).Table("user").
-		Cols("id", "name", "status").
-		Where("deleted_at = 0").
-		Asc("id").Limit(filter.Limit+1).
-		Find(&rows)
-	if err != nil {
-		return query.UserPage{}, oops.With("operation", "user.list").Wrap(err)
-	}
-	return mapUserPage(rows, filter.Limit), nil
-}
-```
+Read `Limit+1` rows to derive the next cursor, filter accepted deletion state,
+and wrap a provider error once with `oops` and an `operation` attribute.
 
 Projection writers, when accepted, live in Infrastructure and consume the
 accepted event/message contract. The read store and freshness behavior follow

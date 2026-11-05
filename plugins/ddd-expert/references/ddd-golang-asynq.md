@@ -13,48 +13,16 @@ contract and processor shape.
 
 ## Imports and Constructors
 
-Only `internal/pkg/taskqueue` imports the adapter and provider:
+Only `internal/pkg/taskqueue` imports the adapter
+`github.com/go-jimu/contrib/taskqueue/asynq` and `github.com/hibiken/asynq`.
+Runtime constructs the adapter's Redis client, worker, and scheduler, and owns
+Redis addresses, credentials, lanes, concurrency, provider attempts,
+middleware, health, and timeouts.
 
-```go
-import (
-	"github.com/go-jimu/components/taskqueue"
-	taskasynq "github.com/go-jimu/contrib/taskqueue/asynq"
-	"github.com/hibiken/asynq"
-)
-```
+## Registration
 
-Runtime constructs the adopted capabilities:
-
-```go
-client := taskasynq.NewRedisClient(redisOptions)
-worker := taskasynq.NewRedisWorker(redisOptions, workerConfig)
-scheduler := taskasynq.NewRedisScheduler(redisOptions, schedulerOptions)
-
-if err := worker.Register(processor); err != nil {
-	return err
-}
-if err := scheduler.RegisterPeriodicTask(periodic); err != nil {
-	return err
-}
-```
-
-`redisOptions` is `asynq.RedisConnOpt`, `workerConfig` is `asynq.Config`, and
-`schedulerOptions` is `*asynq.SchedulerOpts`. Runtime owns Redis addresses,
-credentials, lanes, concurrency, provider attempts, middleware, health, and
-timeouts.
-
-## Envelope and Registration
-
-The adapter preserves `TaskType`, payload bytes, and `PayloadCodec` from the
-provider-neutral envelope. House-style processors use explicit `DecodeProto`.
-
-`Task.ID()` maps to `asynq.TaskID`. asynq scopes an ID to its queue and keeps it
-while the task is pending, scheduled, active, retrying, or archived; the
-adapter sets no `asynq.Retention`, so completion frees it. A conflicting
-enqueue returns an error matching both `taskqueue.ErrDuplicateTask` and
-`asynq.ErrTaskIDConflict`. On the worker `Task.ID()` is empty; processors and
-Runtime logging read the asynq-assigned or producer-set ID from
-`taskqueue.ExecutionInfo.TaskID()`.
+Processors and Runtime logging read the task identity from
+`taskqueue.ExecutionInfoFromContext`.
 
 Bounded Context modules contribute `taskqueue.Processor` and accepted
 `taskqueue.PeriodicTask` values. Runtime registers them before startup and

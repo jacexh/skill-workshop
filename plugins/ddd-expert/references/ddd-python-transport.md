@@ -22,38 +22,8 @@ parsing.
 
 Use ordinary `def` endpoints and create each `APIRouter` inside its factory.
 `Depends` supplies request concerns such as authentication input; Runtime
-supplies the Application instance to the router factory.
-
-```python
-from fastapi import APIRouter, status
-from pydantic import BaseModel, ConfigDict
-
-
-class CreateUserRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True)
-
-    name: str
-    email: str
-
-
-class CreateUserResponse(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    id: str
-
-
-def create_router(application: Application) -> APIRouter:
-    router = APIRouter(prefix="/users", tags=["users"])
-
-    @router.post("", status_code=status.HTTP_201_CREATED)
-    def create_user(request: CreateUserRequest) -> CreateUserResponse:
-        result = application.create_user(
-            CreateUser(name=request.name, email=request.email)
-        )
-        return CreateUserResponse(id=str(result.user_id))
-
-    return router
-```
+supplies the Application instance to the router factory. Request models set
+`extra="forbid"` and `frozen=True`; response models set `frozen=True`.
 
 Each endpoint has an explicit return type and response schema. Error mapping
 uses stable public codes and safe details.

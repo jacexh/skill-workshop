@@ -25,47 +25,8 @@ as `pay()` or `cancel()` and do not call the library dispatcher directly.
 - Translate `TransitionNotAllowed` into a stable Domain error at that boundary.
 - Persist the accepted business state value, not an opaque machine snapshot.
 - Keep callbacks synchronous and I/O-free.
-
-```python
-from enum import Enum
-
-from statemachine import StateChart
-from statemachine.exceptions import TransitionNotAllowed
-from statemachine.states import States
-
-
-class OrderStatus(Enum):
-    UNPAID = "unpaid"
-    PAID = "paid"
-
-
-class OrderLifecycle(StateChart):
-    allow_event_without_transition = False
-    catch_errors_as_events = False
-
-    states = States.from_enum(
-        OrderStatus,
-        initial=OrderStatus.UNPAID,
-        use_enum_instance=True,
-    )
-    pay = states.UNPAID.to(states.PAID)
-
-
-class Order:
-    def __init__(self, status: OrderStatus) -> None:
-        self._status = status
-        self._paid_amount = 0
-
-    def pay(self, amount: int) -> None:
-        if amount <= 0:
-            raise InvalidPaymentAmountError()
-        lifecycle = OrderLifecycle(model=self, state_field="_status")
-        try:
-            lifecycle.send("pay")
-        except TransitionNotAllowed as error:
-            raise InvalidOrderTransitionError() from error
-        self._paid_amount = amount
-```
+- Check business preconditions before sending the event, and change state
+  outside the lifecycle field only after the transition succeeds.
 
 ## Verification
 

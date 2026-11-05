@@ -14,33 +14,12 @@ same-context event reaction. Use
 ## Placement and Event Shape
 
 Place event types in the producing Domain and handlers under the same context's
-`application/eventhandler/`.
-
-```go
-// internal/business/user/domain/event.go
-package domain
-
-import (
-	"time"
-
-	"github.com/go-jimu/components/ddd/event"
-)
-
-const EventKindUserCreated event.Kind = "user.created"
-
-type UserCreated struct {
-	UserID     string
-	Name       string
-	Email      string
-	OccurredAt time.Time
-}
-
-func (UserCreated) Kind() event.Kind { return EventKindUserCreated }
-```
+`application/eventhandler/`. An event is a Domain value type with an
+`OccurredAt` field and a value-receiver `Kind()` that returns a package constant
+such as `EventKindUserCreated event.Kind = "user.created"`.
 
 The Aggregate holds an `event.Events` field, changes state, then calls `Add`
-with the accepted fact. `event.Events` is ready at its zero value, so
-reconstitution needs no initialization and records no creation event.
+with the accepted fact. Reconstitution records no creation event.
 
 ## Request-scoped Dispatch Shape
 
@@ -54,14 +33,15 @@ Drain once after successful persistence. The loaded request-scoped Aggregate
 may supply that command's result and drained events, then is stale. A handler
 that changes state enters a fresh Application command and transaction.
 
-`event.Dispatcher.DispatchAll(ctx, events)` returns an error; its ctx bounds
-only the wait for queue space. The Application method returns or classifies
-that error through the ordinary Application error convention.
+The Application method returns or classifies a `DispatchAll` error through the
+ordinary Application error convention.
+
+A handler type-asserts its concrete event, ignores any other type, and
+delegates to one Application method:
 
 ```go
-type UserCreatedHandler struct {
-	app *application.Application
-}
+// internal/business/user/application/eventhandler/user_created.go
+type UserCreatedHandler struct{ app *application.Application }
 
 var _ event.Handler = (*UserCreatedHandler)(nil)
 
@@ -74,24 +54,20 @@ func (h *UserCreatedHandler) Handle(ctx context.Context, fact event.Event) {
 	if !ok {
 		return
 	}
-	h.app.PrepareProfile(ctx, application.PrepareProfile{
-		UserID: created.UserID,
-	})
+	if err := h.app.PrepareProfile(ctx, application.PrepareProfile{UserID: created.UserID}); err != nil {
+		// suppressed result: log once under the Application logging convention
+	}
 }
 ```
 
-Because `event.Handler` has no error result and runs after the publisher has
-returned, a handler owns any result it suppresses and logs it once under the
-Application logging convention. Its ctx is detached from the caller's
-cancellation, deadline, and values; trace propagation into it follows
+A handler owns any result it suppresses and logs it once under the
+Application logging convention. Trace propagation into its ctx follows
 [ddd-golang-observability.md](ddd-golang-observability.md). Domain event
 payloads carry business correlation only; technical trace context stays outer.
 
-The in-memory dispatcher handles events on several workers at once, so handlers
-are safe for concurrent use. Order holds only within one key: events with the
-same key are handled one at a time in acceptance order. When the accepted
-design needs per-Aggregate order, the event implements `event.Keyed` with the
-Aggregate identity, or Runtime supplies `event.WithKeyFunc`.
+When the accepted design needs per-Aggregate order, the event implements
+`event.Keyed` with the Aggregate identity, or Runtime supplies
+`event.WithKeyFunc`.
 
 For a producer-owned published fact, the handler shape continues in
 [ddd-golang-messages.md](ddd-golang-messages.md).

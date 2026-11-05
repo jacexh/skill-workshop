@@ -51,6 +51,9 @@ uses synchronous `Session`, and Kafka/Celery run in dedicated worker processes.
 | Tracing | OpenTelemetry Python SDK and OTLP | Tracing exists |
 | Provider evidence | Testcontainers for the adopted dependency | Physical provider semantics change |
 
+Library APIs follow the documentation of the version pinned in `uv.lock`. The
+leaves state placement, ownership, and gotchas, not API usage.
+
 Accepted project decisions and repository pins take precedence over these
 defaults. Apply the workflow contract's project-convention rule before adopting
 a dependency or changing structure.

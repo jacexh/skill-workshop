@@ -20,47 +20,13 @@ into responsibility-named files when they isolate substantial coordination.
 When the [shared assembler rule](ddd-core.md#application-and-transport-shape)
 applies, `application/assembler.ts` maps existing Application DTO and Domain
 state. DTOs are `Readonly` values; new objects enter through the Domain Factory.
-
-```ts
-export type UserDTO = Readonly<{
-  id: string;
-  name: string;
-  email: string;
-  version: number;
-}>;
-
-export function assembleUserDTO(dto: UserDTO): User {
-  return User.reconstitute({ ...dto });
-}
-
-export function assembleUserEntity(user: User): UserDTO {
-  return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    version: user.version,
-  };
-}
-```
+Name the functions `assemble<Object>DTO()` (DTO to Domain) and
+`assemble<Object>Entity()` (Domain to DTO).
 
 ## Command and Unit of Work
 
 Commands and results use readonly structural types. An Application method
 coordinates the use case and calls named Domain behavior.
-
-```ts
-export class Application {
-  constructor(private readonly users: UserRepository) {}
-
-  async createUser(
-    command: Readonly<{ name: string; email: string }>,
-  ): Promise<Readonly<{ id: string }>> {
-    const user = User.create(command);
-    await this.users.save(user);
-    return { id: user.id };
-  }
-}
-```
 
 For an accepted multi-Root local transaction, Application defines the Unit of
 Work callback. Infrastructure supplies every participating Repository from the

@@ -13,16 +13,8 @@ for provider-neutral contracts and registration.
 
 ## Adopted Adapter
 
-Only `internal/pkg/messagebus` imports:
-
-```go
-import (
-	jimukafka "github.com/go-jimu/contrib/message/kafka"
-	"github.com/twmb/franz-go/pkg/kgo"
-)
-```
-
-Construct the provider boundary with `jimukafka.NewClient`,
+Only `internal/pkg/messagebus` imports `github.com/go-jimu/contrib/message/kafka`
+(`jimukafka`) and `github.com/twmb/franz-go/pkg/kgo`. Construct the provider boundary with `jimukafka.NewClient`,
 `jimukafka.NewPublisher`, and `jimukafka.NewConsumer`. Supply the shared payload
 registry using `jimukafka.WithPayloadResolver(registry)` and pass an explicit
 `jimukafka.FailurePolicy` from validated project configuration.
@@ -36,8 +28,6 @@ and `kgo` options remain in Runtime/provider code. Application depends on
 `message.Subscriber.Subscribe` registers handlers. The Kafka consumer also
 implements `message.Runner`; Runtime starts `Run(ctx)`, observes its terminal
 error, owns cancellation, and closes the shared client after consumers stop.
-`Run` returns nil when ctx is canceled or expires; a non-nil error always means
-the consumer stopped abnormally.
 
 Register payload factories and handlers before starting the runner. Readiness
 becomes true only after required registrations and provider startup complete.

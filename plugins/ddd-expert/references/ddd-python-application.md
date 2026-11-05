@@ -27,40 +27,9 @@ helpers in responsibility-named modules when extraction earns its cost.
 Application DTOs are frozen slotted dataclasses. When the
 [shared assembler rule](ddd-core.md#application-and-transport-shape) applies,
 `assembler.py` maps existing DTO/Domain state and uses Domain reconstitution;
-creation calls the Domain Factory directly.
-
-```python
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True, slots=True)
-class UserDTO:
-    id: UUID
-    name: str
-    email: str
-    status: int
-    version: int
-
-
-def assemble_user_dto(dto: UserDTO) -> User:
-    return User.reconstitute(
-        user_id=dto.id,
-        name=dto.name,
-        email=Email(dto.email),
-        status=UserStatus(dto.status),
-        version=dto.version,
-    )
-
-
-def assemble_user_entity(user: User) -> UserDTO:
-    return UserDTO(
-        id=user.id,
-        name=user.name,
-        email=user.email.value,
-        status=user.status.value,
-        version=user.version,
-    )
-```
+creation calls the Domain Factory directly. Name the functions
+`assemble_<object>_dto()` (DTO to Domain) and `assemble_<object>_entity()`
+(Domain to DTO).
 
 Assemblers are pure mapping functions with no I/O, transaction control,
 external mapping, or business branch.
@@ -70,17 +39,6 @@ external mapping, or business branch.
 Commands and results are immutable values. An Application method loads required
 facts, calls named Domain behavior, saves the accepted Root set, coordinates accepted
 reactions, and returns a minimal result.
-
-```python
-class Application:
-    def __init__(self, repository: UserRepository) -> None:
-        self._repository = repository
-
-    def create_user(self, command: CreateUser) -> CreateUserResult:
-        user = User.register(command.name, Email(command.email))
-        self._repository.save(user)
-        return CreateUserResult(user_id=user.id)
-```
 
 For an accepted multi-Root local transaction, Application owns a semantic
 transaction callback/Unit of Work contract. Infrastructure supplies every

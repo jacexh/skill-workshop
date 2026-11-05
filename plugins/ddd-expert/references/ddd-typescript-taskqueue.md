@@ -30,14 +30,6 @@ export type SendWelcomeTask = Readonly<{ userId: string }>;
 export interface TaskEnqueuer {
   enqueue(task: SendWelcomeTask): Promise<void>;
 }
-
-export class SendWelcomeProcessor {
-  constructor(private readonly sendWelcome: SendWelcomeHandler) {}
-
-  async execute(task: SendWelcomeTask): Promise<void> {
-    await this.sendWelcome.execute({ userId: task.userId });
-  }
-}
 ```
 
 Infrastructure maps `SendWelcomeTask` to BullMQ job data. Transport decodes
