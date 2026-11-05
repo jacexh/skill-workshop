@@ -20,7 +20,7 @@ lives under `gen/<owner>/integration/v1/`.
 | Responsibility | Placement |
 |---|---|
 | Map a local event to a producer-owned fact | producing `application/eventhandler/` |
-| Send a receiver-owned intent | sender Application port plus Infrastructure ACL |
+| Send a receiver-owned intent | sender Application Port plus Infrastructure ACL |
 | Decode and delegate an incoming message | receiver `transport/messagesubscriber/` |
 | Register generated payload factory and subscriber | receiver Bounded Context module |
 | Provider client and active loop | Runtime; see [ddd-golang-kafka.md](ddd-golang-kafka.md) when Kafka applies |

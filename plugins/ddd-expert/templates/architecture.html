@@ -12,36 +12,59 @@ id="architecture-data". The renderer below is fixed template code.
 {
   "context": "<Bounded Context>",
   "components": [
-    { "id": "app", "kind": "application", "name": "<Bounded Context> Application", "note": "<protocols>" },
-    { "id": "consumed", "kind": "integration-message", "name": "<Consumed message>" },
-    { "id": "handler", "kind": "event-handler", "name": "<Policy name>" },
-    { "id": "publisher", "kind": "application-port", "name": "<Fact>Publisher" },
-    { "id": "published", "kind": "integration-message", "name": "<Published Fact Contract>" },
-    { "id": "root", "kind": "aggregate-root", "name": "<Root Name>" },
-    { "id": "service", "kind": "domain-service", "name": "<Service Name>" },
-    { "id": "port", "kind": "domain-port", "name": "<Domain role>Port" },
-    { "id": "event", "kind": "domain-event", "name": "<Event name>" },
-    { "id": "repo", "kind": "repository", "name": "<Root Name>Repository" },
-    { "id": "repo-adapter", "kind": "adapter", "name": "<Root Name> repository", "note": "<technology>" },
-    { "id": "port-adapter", "kind": "adapter", "name": "<Domain role> ACL", "note": "<provider>" },
-    { "id": "publisher-adapter", "kind": "adapter", "name": "<Fact> publisher", "note": "<broker>" }
+    {"id": "subscriber", "kind": "inbound-adapter", "name": "<Upstream> subscriber", "note": "<broker>"},
+    {"id": "consumed", "kind": "integration-message", "name": "<Consumed message>", "contract": "published-fact", "counterpart": "<Upstream context>"},
+    {"id": "worker", "kind": "inbound-adapter", "name": "<Task> processor"},
+    {"id": "task", "kind": "task", "name": "<Task name>"},
+    {"id": "periodic-processor", "kind": "inbound-adapter", "name": "<Periodic task> processor"},
+    {"id": "periodic", "kind": "task", "name": "<Periodic task name>", "schedule": "<cron and timezone>"},
+    {"id": "app", "kind": "application", "name": "<Bounded Context> Application"},
+    {"id": "handler", "kind": "event-handler", "name": "<Policy name>"},
+    {"id": "publisher", "kind": "application-port", "name": "Publisher"},
+    {"id": "intent-port", "kind": "application-port", "name": "<Intent sender role>Port"},
+    {"id": "enqueuer", "kind": "application-port", "name": "TaskEnqueuer"},
+    {"id": "root", "kind": "aggregate-root", "name": "<Root Name>"},
+    {"id": "service", "kind": "domain-service", "name": "<Service Name>"},
+    {"id": "port", "kind": "domain-port", "name": "<Domain role>Port"},
+    {"id": "event", "kind": "domain-event", "name": "<Event name>"},
+    {"id": "repo", "kind": "repository", "name": "<Root Name>Repository"},
+    {"id": "repo-adapter", "kind": "adapter", "name": "<Root Name> repository", "note": "<technology>"},
+    {"id": "port-adapter", "kind": "adapter", "name": "<Domain role> ACL", "note": "<provider>"},
+    {"id": "publisher-adapter", "kind": "adapter", "name": "Message publisher", "note": "<broker>"},
+    {"id": "intent-adapter", "kind": "adapter", "name": "<Downstream> ACL", "note": "<broker>"},
+    {"id": "task-queue", "kind": "adapter", "name": "Task queue", "note": "<queue technology>"},
+    {"id": "published", "kind": "integration-message", "name": "<Published Fact Contract>", "contract": "published-fact", "counterpart": "<Downstream contexts>"},
+    {"id": "intent", "kind": "integration-message", "name": "<Asynchronous Intent Contract>", "contract": "intent", "counterpart": "<Downstream context>"}
   ],
   "dependencies": [
-    { "from": "app", "to": "consumed" },
-    { "from": "app", "to": "root" },
-    { "from": "app", "to": "service" },
-    { "from": "app", "to": "repo" },
-    { "from": "root", "to": "port" },
-    { "from": "root", "to": "event" },
-    { "from": "handler", "to": "event" },
-    { "from": "handler", "to": "publisher" },
-    { "from": "publisher", "to": "published" },
-    { "from": "repo-adapter", "to": "repo" },
-    { "from": "port-adapter", "to": "port" },
-    { "from": "publisher-adapter", "to": "publisher" }
+    {"from": "subscriber", "to": "app"},
+    {"from": "subscriber", "to": "consumed"},
+    {"from": "worker", "to": "app"},
+    {"from": "worker", "to": "task"},
+    {"from": "app", "to": "root"},
+    {"from": "app", "to": "service"},
+    {"from": "app", "to": "repo"},
+    {"from": "app", "to": "intent-port"},
+    {"from": "app", "to": "enqueuer"},
+    {"from": "root", "to": "port"},
+    {"from": "root", "to": "event"},
+    {"from": "handler", "to": "event"},
+    {"from": "handler", "to": "publisher"},
+    {"from": "repo-adapter", "to": "repo"},
+    {"from": "port-adapter", "to": "port"},
+    {"from": "publisher-adapter", "to": "publisher"},
+    {"from": "publisher-adapter", "to": "published"},
+    {"from": "intent-adapter", "to": "intent-port"},
+    {"from": "intent-adapter", "to": "intent"},
+    {"from": "task-queue", "to": "enqueuer"},
+    {"from": "task-queue", "to": "task"},
+    {"from": "periodic-processor", "to": "app"},
+    {"from": "periodic-processor", "to": "periodic"},
+    {"from": "app", "to": "task"},
+    {"from": "task-queue", "to": "periodic"}
   ],
   "mechanisms": [
-    { "name": "<Mechanism>", "seam": "repo-adapter", "serves": "<delivery constraint or Policy>" }
+    {"name": "<Mechanism>", "seam": "repo-adapter", "serves": "<delivery constraint or Policy>"}
   ]
 }
 </script>
@@ -63,6 +86,11 @@ id="architecture-data". The renderer below is fixed template code.
   --domain-bg: #f1eafd;
   --infrastructure: #8d6b10;
   --infrastructure-bg: #f7f0de;
+  --transport: #3a6ea8;
+  --transport-bg: #e9f0f8;
+  --message: #c0386b;
+  --message-bg: #fcecf2;
+  --frame: #b9bcc2;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -83,6 +111,11 @@ id="architecture-data". The renderer below is fixed template code.
     --domain-bg: #221b33;
     --infrastructure: #d9b45a;
     --infrastructure-bg: #29241a;
+    --transport: #7fb0ec;
+    --transport-bg: #16212e;
+    --message: #f27aa4;
+    --message-bg: #341a27;
+    --frame: #4a4f57;
     color-scheme: dark;
   }
 }
@@ -99,7 +132,32 @@ h1 { font-size: 26px; letter-spacing: -.01em; margin: 0 0 4px; }
 .subtitle { color: var(--muted); margin: 0 0 4px; max-width: 72ch; }
 .stats { margin: 0; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .scroll { overflow-x: auto; padding-bottom: 8px; }
-.board { position: relative; display: flex; flex-direction: column; gap: 52px; width: max-content; min-width: 100%; padding-top: 44px; }
+.board { position: relative; display: flex; flex-direction: column; gap: 34px; width: max-content; min-width: 100%; padding-top: 12px; }
+.frame { position: relative; display: flex; flex-direction: column; gap: 52px; padding: 22px 12px 12px; border: 1.5px solid var(--frame); border-radius: 22px; }
+.frame-label { position: absolute; top: -10px; left: 24px; padding: 0 8px; background: var(--bg); color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.strip { display: grid; grid-template-columns: 40px max-content; margin: 0 13.5px; }
+.strip .band-label { color: var(--message); background: none; font-size: 12px; }
+.strip-items { display: grid; grid-auto-columns: 196px; column-gap: 22px; padding: 0 18px; }
+.strip-cell { display: flex; flex-direction: column; gap: 8px; }
+.msg {
+  --layer: var(--message);
+  position: relative;
+  z-index: 2;
+  width: 196px;
+  padding: 6px 10px 7px;
+  border: 1.5px solid var(--message);
+  border-radius: 9px;
+  background: var(--message-bg);
+  box-shadow: 0 0 0 var(--ring, 0px) color-mix(in srgb, var(--message) 30%, transparent), 0 1px 2px var(--shade);
+  transition: opacity .15s, box-shadow .15s;
+}
+.msg.theirs { border-style: dashed; background: var(--card); }
+.msg .title .icon { color: var(--message); }
+.board.focus .msg:not(.hot) { opacity: .4; }
+path.edge.flow { stroke: var(--message); stroke-width: 1.8; }
+path.edge.enqueues { stroke: var(--message); stroke-dasharray: 2 4; }
+.legend .swatch.ours { border-color: var(--message); background: var(--message-bg); }
+.legend .swatch.theirs { border: 1.5px dashed var(--message); }
 .band {
   position: relative;
   display: grid;
@@ -122,7 +180,7 @@ h1 { font-size: 26px; letter-spacing: -.01em; margin: 0 0 4px; }
   transform: rotate(180deg);
   border-radius: 0 15px 15px 0;
 }
-.band-items { display: grid; grid-auto-columns: 196px; column-gap: 22px; padding: 30px 18px 18px; align-items: start; }
+.band-items { display: grid; row-gap: 26px; grid-auto-columns: 196px; column-gap: 22px; padding: 30px 18px 18px; align-items: start; }
 .box {
   position: relative;
   z-index: 2;
@@ -158,7 +216,6 @@ h1 { font-size: 26px; letter-spacing: -.01em; margin: 0 0 4px; }
   transition: box-shadow .15s;
 }
 .event .icon, .mechanism .icon { width: 13px; height: 13px; margin-top: 2px; }
-.event.message { border: 1px solid var(--application); border-radius: 5px; background: color-mix(in srgb, var(--application) 8%, var(--card)); color: var(--application); }
 .mechanism {
   margin-top: 8px;
   padding: 5px 8px;
@@ -178,6 +235,11 @@ path.edge { fill: none; stroke: var(--edge); stroke-width: 1.5; stroke-linecap: 
 path.edge.implements { stroke: var(--infrastructure); stroke-dasharray: 6 4; }
 path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
 .board.focus path.edge { opacity: .06; }
+/* Dependency and reaction lines appear on hover; structural lines stay. */
+.board:not(.show-all) path.edge.depends, .board:not(.show-all) path.edge.reacts,
+.board:not(.show-all) path.edge.enqueues { opacity: 0; }
+.toggle { display: inline-flex; gap: 6px; align-items: center; margin-top: 8px; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+.toggle input { accent-color: var(--fg); margin: 0; }
 .board.focus path.edge.hot { opacity: 1; stroke-width: 2.2; }
 .panel { margin-top: 22px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
 .legend { display: flex; flex-wrap: wrap; gap: 16px 44px; }
@@ -195,8 +257,9 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
 <body>
 <header class="head">
   <h1 id="title"></h1>
-  <p class="subtitle">Components by layer, their dependencies, and technical mechanisms on seams. Hover a component to trace its dependencies.</p>
+  <p class="subtitle">Messages arrive through Transport and leave below Infrastructure. Components by layer, their dependencies, and technical mechanisms on seams. Hover a component to see its dependencies.</p>
   <p class="stats" id="stats"></p>
+  <label class="toggle"><input type="checkbox" id="show-all">Show all dependencies</label>
 </header>
 <div class="scroll"><div class="board" id="board"></div></div>
 <section class="panel legend" id="legend">
@@ -206,8 +269,18 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
       <li><span class="sample"><svg width="34" height="10"><path class="edge depends" d="M2,5 H30" marker-end="url(#arrow-depends)"/></svg></span>depends on</li>
       <li><span class="sample"><svg width="34" height="10"><path class="edge implements" d="M2,5 H30" marker-end="url(#arrow-implements)"/></svg></span>implements, pointing inward</li>
       <li><span class="sample"><svg width="34" height="10"><path class="edge reacts" d="M2,5 H30" marker-end="url(#arrow-reacts)"/></svg></span>reacts to event</li>
+      <li><span class="sample"><svg width="34" height="10"><path class="edge flow" d="M2,5 H30" marker-end="url(#arrow-flow)"/></svg></span>message flow across the boundary</li>
+      <li><span class="sample"><svg width="34" height="10"><path class="edge enqueues" d="M2,5 H30" marker-end="url(#arrow-enqueues)"/></svg></span>enqueues a task</li>
       <li><span class="sample"><i class="swatch contract"></i></span>contract</li>
       <li><span class="sample"><i class="swatch"></i></span>implementation</li>
+    </ul>
+  </div>
+  <div>
+    <h2 style="color: var(--message)">Integration Messages</h2>
+    <ul>
+      <li><span class="sample"><i class="swatch ours"></i></span>our contract: others conform to it</li>
+      <li><span class="sample"><i class="swatch theirs"></i></span>their contract: we translate it</li>
+      <li><span class="sample"><svg class="icon" viewBox="0 0 24 24" style="color: var(--message)"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5"/></svg></span>Task: queued and processed inside this context</li>
     </ul>
   </div>
 </section>
@@ -216,7 +289,8 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
   "use strict";
   var data = JSON.parse(document.getElementById("architecture-data").textContent);
   var KINDS = [
-    ["application", "application"], ["integration-message", "application"], ["event-handler", "application"], ["query-repository", "application"], ["application-port", "application"],
+    ["inbound-adapter", "transport"],
+    ["application", "application"], ["integration-message", "boundary"], ["task", "boundary"], ["event-handler", "application"], ["query-repository", "application"], ["application-port", "application"],
     ["aggregate-root", "domain"], ["domain-service", "domain"], ["domain-port", "domain"], ["domain-event", "domain"], ["repository", "domain"],
     ["adapter", "infrastructure"]
   ];
@@ -225,8 +299,10 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
   var CONTRACT = { repository: true, "query-repository": true, "domain-port": true, "application-port": true };
   // One line icon per kind on a 24-unit grid. A Port is a socket and its adapter a plug.
   var ICONS = {
-    application: '<path d="M14 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M9 17l5-5-5-5"/><path d="M14 12H3"/>',
+    "inbound-adapter": '<path d="M14 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M9 17l5-5-5-5"/><path d="M14 12H3"/>',
+    application: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M10 6.5h4.5a2.5 2.5 0 0 1 2.5 2.5v5"/>',
     "event-handler": '<circle cx="12" cy="12" r="2"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4"/><path d="M7.8 16.2a6 6 0 0 1 0-8.4"/><path d="M19.1 4.9a10 10 0 0 1 0 14.2"/><path d="M4.9 19.1a10 10 0 0 1 0-14.2"/>',
+    task: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2.5h5"/>',
     "integration-message": '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
     "query-repository": '<ellipse cx="10" cy="5" rx="7" ry="2.5"/><path d="M3 5v12c0 1.4 3.1 2.5 7 2.5"/><path d="M17 5v4"/><path d="M3 11c0 1.4 3.1 2.5 7 2.5"/><circle cx="17" cy="16" r="3"/><path d="M19.2 18.2L21.5 20.5"/>',
     "application-port": '<rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M9.5 8.5v4"/><path d="M14.5 8.5v4"/><path d="M10 16.5h4"/>',
@@ -239,7 +315,7 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
     mechanism: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/><circle cx="12" cy="12" r="6.5"/>'
   };
   var KIND_TEXT = {
-    application: "Application entry", "event-handler": "Event handler", "integration-message": "Integration Message",
+    "inbound-adapter": "Inbound adapter", application: "Application entry", "event-handler": "Event handler", "integration-message": "Integration Message", task: "Task",
     "query-repository": "QueryRepository", "application-port": "Application Port",
     "aggregate-root": "Aggregate Root", "domain-service": "Domain Service", "domain-port": "Domain-owned Port",
     "domain-event": "Domain Event", repository: "Repository", adapter: "Adapter", mechanism: "Technical mechanism"
@@ -249,7 +325,7 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
     holder.innerHTML = '<svg class="icon' + (cls ? " " + cls : "") + '" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[kind] + "</svg>";
     return holder.firstChild;
   }
-  var BANDS = ["application", "domain", "infrastructure"];
+  var BANDS = ["transport", "application", "domain", "infrastructure"];
   var byId = {};
   data.components.forEach(function (c, i) { c._index = i; byId[c.id] = c; });
   var sorted = data.components.slice().sort(function (a, b) { return (ORDER[a.kind] - ORDER[b.kind]) || (a._index - b._index); });
@@ -259,18 +335,35 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
     if (from === "adapter" && CONTRACT[to]) return "implements";
     if (to === "domain-event" && (from === "aggregate-root" || from === "domain-service")) return "records";
     if (to === "domain-event" && from === "event-handler") return "reacts";
-    if (to === "integration-message") return "carries";
+    if (to === "task" && (from === "application" || from === "event-handler")) return "enqueues";
+    if (to === "integration-message" || to === "task") return "carries";
     return "depends";
   }
 
-  // A Domain Event is drawn inside the Root or Domain Service that records it. An Integration
-  // Message is drawn inside the component that translates it: the application entry, the
-  // publishing application-port, or the application-port adapter of an intent contract.
-  var ownerOf = {};
+  // A Domain Event is drawn inside the Root or Domain Service that records it. Integration
+  // Messages and tasks are drawn as tokens on the boundary, beside the adapter that carries them.
+  var ownerOf = {}, carrier = {}, queueOf = {}, enqueuers = {};
   data.dependencies.forEach(function (d) {
     var relation = relationOf(d);
-    if ((relation === "records" || relation === "carries") && ownerOf[d.to] === undefined) ownerOf[d.to] = d.from;
+    if (relation === "records" && ownerOf[d.to] === undefined) ownerOf[d.to] = d.from;
+    if (relation === "enqueues") (enqueuers[d.to] = enqueuers[d.to] || []).push(d.from);
+    if (relation !== "carries") return;
+    // A task is delivered by the task queue adapter and carried in by its task processor.
+    if (byId[d.to].kind === "task" && byId[d.from].kind === "adapter") queueOf[d.to] = d.from;
+    else carrier[d.to] = d.from;
   });
+  // The task processors of a queue head the queue's seam column.
+  var processorsOf = {}, isProcessor = {};
+  Object.keys(queueOf).forEach(function (task) {
+    if (!carrier[task]) return;
+    (processorsOf[queueOf[task]] = processorsOf[queueOf[task]] || []).push(carrier[task]);
+    isProcessor[carrier[task]] = true;
+  });
+  // An Integration Message sits on the boundary: inbound above the inbound adapter that
+  // receives it, outbound below the adapter that sends it. Ownership follows from
+  // contract type and direction.
+  function inbound(m) { return byId[carrier[m.id]] && byId[carrier[m.id]].kind === "inbound-adapter"; }
+  function ours(m) { return m.kind === "task" || (m.contract === "published-fact") !== inbound(m); }
 
   // Column layout: each contract opens a seam column with its adapters below it, so
   // implements edges run vertically. Components outside a seam column fill the left.
@@ -293,22 +386,38 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
     column[c.id] = col;
   }
   sorted.forEach(function (c) {
-    if (!seamMember[c.id] && ownerOf[c.id] === undefined) place(c, 0);
+    if (!seamMember[c.id] && !isProcessor[c.id] && ownerOf[c.id] === undefined && c.kind !== "integration-message" && c.kind !== "task") place(c, 0);
   });
-  var next = 0;
-  Object.keys(taken).forEach(function (band) { next = Math.max(next, Object.keys(taken[band]).length); });
+  // Each seam column (a contract, its adapters, and any worker of its queue) takes the leftmost
+  // column that is free in every band it spans, so implements edges stay vertical without
+  // pushing every seam past the widest band.
   var SEAM_ORDER = { repository: 0, "domain-port": 1, "query-repository": 2, "application-port": 3 };
+  function free(bands, col) { return bands.every(function (b) { return !(taken[b] && taken[b][col]); }); }
+  function reserve(bands, col) { bands.forEach(function (b) { taken[b] = taken[b] || {}; taken[b][col] = true; }); }
   sorted.filter(function (c) { return CONTRACT[c.kind]; }).sort(function (a, b) {
     return (SEAM_ORDER[a.kind] - SEAM_ORDER[b.kind]) || (a._index - b._index);
   }).forEach(function (c) {
-    var col = next, last = next;
-    place(c, col);
+    var members = [c];
     (implementers[c.id] || []).forEach(function (a) {
       if (column[a] !== undefined) return;
-      place(byId[a], col);
-      last = Math.max(last, column[a]);
+      members.push(byId[a]);
+      (processorsOf[a] || []).forEach(function (p) { if (column[p] === undefined) members.push(byId[p]); });
     });
-    next = last + 1;
+    var levels = members.map(function (m) { return BANDS.indexOf(LAYER[m.kind]); });
+    var span = BANDS.slice(Math.min.apply(null, levels), Math.max.apply(null, levels) + 1);
+    var col = 0;
+    while (!free(span, col)) col++;
+    reserve(span, col);
+    var used = {};
+    members.forEach(function (m) {
+      var band = LAYER[m.kind];
+      if (!used[band]) { used[band] = true; column[m.id] = col; return; }
+      // A second adapter of the same contract takes the next free column in its own band.
+      var extra = col + 1;
+      while (!free([band], extra)) extra++;
+      reserve([band], extra);
+      column[m.id] = extra;
+    });
   });
 
   function el(tag, cls, text) {
@@ -327,6 +436,56 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
   document.title = data.context + " Architecture";
   var board = document.getElementById("board");
   var nodes = {}, bandIndex = {};
+  function messagesOf(isInbound) {
+    return sorted.filter(function (m) {
+      return (m.kind === "integration-message" || m.kind === "task") && carrier[m.id] && inbound(m) === isInbound;
+    });
+  }
+  // Place message tokens in cells aligned with their carrier's column.
+  function placeTokens(messages, items, isInbound, row, index) {
+    var cells = {};
+    messages.forEach(function (m) {
+      var col = column[carrier[m.id]];
+      if (!cells[col]) {
+        cells[col] = el("div", "strip-cell");
+        cells[col].style.gridColumn = String(col + 1);
+        cells[col].style.gridRow = row;
+        cells[col].style.justifyContent = isInbound ? "flex-end" : "flex-start";
+        items.appendChild(cells[col]);
+      }
+      var token = el("div", "msg " + (ours(m) ? "ours" : "theirs"));
+      token.title = m.kind === "task" ? "Task inside this context" : "Integration Message, " + (ours(m) ? "our" : "their") + " contract";
+      var title = el("div", "title");
+      title.appendChild(icon(m.kind));
+      title.appendChild(el("div", "name", wrapName(m.name)));
+      token.appendChild(title);
+      var kind = m.contract === "intent" ? "Intent" : "Published Fact", source = "";
+      if (m.kind === "task") {
+        kind = m.schedule ? "Periodic task: " + m.schedule : "Task";
+        if (!m.schedule && enqueuers[m.id]) source = " from " + enqueuers[m.id].map(function (id) { return byId[id].name; }).join(", ");
+      } else if (m.counterpart) {
+        source = (isInbound ? " from " : " to ") + m.counterpart;
+      }
+      token.appendChild(el("div", "note", kind + source));
+      cells[col].appendChild(token);
+      nodes[m.id] = token;
+      bandIndex[m.id] = index;
+      hover(token, m.id);
+    });
+  }
+  function strip() {
+    var messages = messagesOf(false);
+    if (!messages.length) return;
+    var section = el("section", "strip");
+    section.appendChild(el("div", "band-label", "Outbound"));
+    var items = el("div", "strip-items");
+    placeTokens(messages, items, false, "1", 99);
+    section.appendChild(items);
+    board.appendChild(section);
+  }
+  var frame = el("div", "frame");
+  frame.appendChild(el("span", "frame-label", data.context + " boundary"));
+  board.appendChild(frame);
   BANDS.forEach(function (band, index) {
     var members = sorted.filter(function (c) { return LAYER[c.kind] === band && column[c.id] !== undefined; });
     if (!members.length) return;
@@ -335,11 +494,14 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
     section.style.setProperty("--layer-bg", "var(--" + band + "-bg)");
     section.appendChild(el("div", "band-label", band.charAt(0).toUpperCase() + band.slice(1)));
     var items = el("div", "band-items");
+    var arriving = band === "transport" ? messagesOf(true) : [];
+    // Half a band above the adapters, so the flow edge runs straight down to its receiver.
+    if (arriving.length) placeTokens(arriving, items, true, "1", index - 0.5);
     members.forEach(function (c) {
       var box = el("div", "box" + (CONTRACT[c.kind] ? " contract" : ""));
       box.title = KIND_TEXT[c.kind];
       box.style.gridColumn = String(column[c.id] + 1);
-      box.style.gridRow = "1";
+      box.style.gridRow = arriving.length ? "2" : "1";
       var title = el("div", "title");
       title.appendChild(icon(c.kind));
       title.appendChild(el("div", "name", wrapName(c.name)));
@@ -349,7 +511,7 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
       if (owned.length) {
         var list = el("div", "events");
         owned.forEach(function (e) {
-          var chip = el("div", e.kind === "integration-message" ? "event message" : "event");
+          var chip = el("div", "event");
           chip.title = KIND_TEXT[e.kind];
           chip.appendChild(icon(e.kind));
           chip.appendChild(el("span", null, wrapName(e.name)));
@@ -375,8 +537,9 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
       items.appendChild(box);
     });
     section.appendChild(items);
-    board.appendChild(section);
+    frame.appendChild(section);
   });
+  strip();
 
   var legend = document.getElementById("legend");
   BANDS.forEach(function (band) {
@@ -456,6 +619,8 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
   defs.appendChild(marker("arrow-depends", "var(--edge)", "filled"));
   defs.appendChild(marker("arrow-implements", "var(--infrastructure)", "hollow"));
   defs.appendChild(marker("arrow-reacts", "var(--application)", "open"));
+  defs.appendChild(marker("arrow-flow", "var(--message)", "filled"));
+  defs.appendChild(marker("arrow-enqueues", "var(--message)", "open"));
 
   function draw() {
     [edges, overEdges].forEach(function (layer) {
@@ -468,12 +633,25 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
     var origin = board.getBoundingClientRect();
     data.dependencies.forEach(function (d) {
       var relation = relationOf(d);
-      if ((relation === "records" || relation === "carries") && ownerOf[d.to] === d.from) return;
-      var a = nodes[d.from], b = nodes[d.to];
+      if (relation === "records" && ownerOf[d.to] === d.from) return;
+      // A message edge follows the flow: from an inbound message, or to an outbound one.
+      var fromId = d.from, toId = d.to;
+      var loop = relation === "carries" && queueOf[d.to] === d.from;
+      if (relation === "carries") {
+        relation = "flow";
+        if (!loop && inbound(byId[d.to])) { fromId = d.to; toId = d.from; }
+      }
+      var a = nodes[fromId], b = nodes[toId];
       if (!a || !b) return;
       var ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
       var ax, ay, bx, by, pathData;
-      if (bandIndex[d.from] === bandIndex[d.to]) {
+      if (loop) {
+        var gx = Math.max(ra.right, rb.right) + 11 - origin.left;
+        ax = ra.right - origin.left; ay = ra.top + 18 - origin.top;
+        bx = rb.right - origin.left; by = rb.top + rb.height / 2 - origin.top;
+        pathData = "M" + ax + "," + ay + " H" + (gx - 6) + " Q" + gx + "," + ay + " " + gx + "," + (ay - 6) +
+          " V" + (by + 6) + " Q" + gx + "," + by + " " + (gx - 6) + "," + by + " H" + bx;
+      } else if (bandIndex[fromId] === bandIndex[toId]) {
         // Same band: arc over the top edges so the line never passes behind a neighbouring box.
         ax = ra.left + ra.width * 0.65 - origin.left;
         bx = rb.left + rb.width * 0.35 - origin.left;
@@ -483,7 +661,7 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
         pathData = "M" + ax + "," + ay + " C" + ax + "," + (Math.min(ay, by) - lift) + " " +
           bx + "," + (Math.min(ay, by) - lift) + " " + bx + "," + by;
       } else {
-        var down = bandIndex[d.to] > bandIndex[d.from];
+        var down = bandIndex[toId] > bandIndex[fromId];
         ax = ra.left + ra.width / 2 - origin.left;
         bx = rb.left + rb.width / 2 - origin.left;
         ay = (down ? ra.bottom : ra.top) - origin.top;
@@ -503,6 +681,9 @@ path.edge.reacts { stroke: var(--application); stroke-dasharray: 8 3 1.5 3; }
     if (focused !== null) focus(focused);
   }
   draw();
+  document.getElementById("show-all").addEventListener("change", function (event) {
+    board.classList.toggle("show-all", event.target.checked);
+  });
   window.addEventListener("resize", draw);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
 })();

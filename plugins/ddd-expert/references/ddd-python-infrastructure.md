@@ -100,7 +100,7 @@ A QueryRepository selects explicit columns, applies stable indexed ordering,
 and constructs frozen Application DTOs explicitly. It does not reconstitute an
 Aggregate or return SQLAlchemy rows.
 
-Outbound ACLs fulfill Domain-owned and Application-owned ports by translating
+Outbound ACLs fulfill Domain-owned Ports and Application Ports by translating
 local semantic contracts to one or more provider/generated contracts. The
 adapter owns source composition and any accepted fulfillment policy. It receives
 a process-managed synchronous `httpx.Client` or other adopted client; Runtime

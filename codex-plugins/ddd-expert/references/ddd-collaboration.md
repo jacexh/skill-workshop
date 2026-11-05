@@ -21,8 +21,8 @@ mapping, and verification of its code realization.
 | Record a local Domain Event | Producing Domain behavior |
 | Dispatch a local Domain Event | Producing Application boundary |
 | Handle a same-context Domain Event | Producing context's Application event handler |
-| Translate a Published Fact Contract | Producing context's Application event handler |
-| Send an Asynchronous Intent | Sending Application semantic port plus Infrastructure ACL |
+| Translate a Published Fact Contract | Producing context's Application event handler, sending through the context's publisher Application Port |
+| Send an Asynchronous Intent | Sending Application Port plus Infrastructure ACL |
 | Decode an Integration Message | Receiving Transport subscriber |
 | Broker clients, polling, acknowledgement, registration, and lifecycle | Infrastructure / Runtime |
 
@@ -69,7 +69,7 @@ remain outside Domain and Application contracts.
 ### Asynchronous Intent Contract
 
 - The receiver owns the schema and generated namespace.
-- The sender's Application calls a local semantic port.
+- The sender's Application calls a local Application Port.
 - The sender's Infrastructure ACL maps local intent to the receiver-owned
   generated contract.
 

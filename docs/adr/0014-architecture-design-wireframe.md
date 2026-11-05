@@ -37,28 +37,40 @@ records business meaning" now applies only to the Markdown artifacts.
 
 ### Content
 
-The drawing has three layers: Application, Domain, and Infrastructure. It has
-eleven component kinds, listed in `artifact-layout.md`.
+The drawing has four layers inside the context boundary: Transport,
+Application, Domain, and Infrastructure. It has thirteen component kinds,
+listed in `artifact-layout.md`.
 
+- Transport holds asynchronous entries only: Integration Message subscribers
+  and task processors. Each delegates once to the Application entry. Synchronous request and response APIs are part of the Application
+  entry and are not drawn, because they add boxes without design decisions.
+- Integration Messages show the context's collaboration surface. A consumed
+  message sits in Transport above the subscriber that receives it. A sent
+  message sits outside the boundary, below the adapter that sends it, so the
+  data other contexts consume stays visible. Each message names its contract
+  type and counterpart, and the drawing derives whose contract it is: this
+  context owns the Published Fact Contracts it sends and the Asynchronous
+  Intent Contracts it receives.
+- A task is an Internal Task Contract the context queues for itself, as the
+  task queue leaves define it. The context's one task enqueue port and its
+  queue adapter form a seam column, each task processor heads that column,
+  and each task names the component that enqueues it or its schedule.
 - The Domain layer carries names only, and `domain-objects.md` stays the home
   of their meaning. A validator cross-checks Root, Domain Service,
   Domain-owned Port, and Domain Event names against it.
 - Each Domain Event sits inside the Root or Domain Service that records it.
-- An Integration Message sits inside the component that translates it: the
-  Application entry for a consumed message, the Application Port for a
-  Published Fact Contract this context sends, and that port's adapter for
-  another context's Asynchronous Intent Contract. The Application Port speaks
-  this context's language only.
 - Each contract has at least one outbound adapter beneath it, and every
   adapter implements a contract.
-- Each technical mechanism sits on its seam (the Application entry or an
-  adapter) and names the delivery constraint or Policy it serves.
+- Each technical mechanism sits on its seam (the Application entry, an inbound
+  adapter, or an adapter) and names the delivery constraint or Policy it
+  serves.
 - The relation type of each edge is derived from the component kinds, so edges
-  carry no labels.
+  carry no labels. Dependency lines appear on hover or on request; contract,
+  message, and task lines stay visible.
 
-The drawing deliberately leaves out callers, a separate Transport layer,
-external systems and other contexts as boxes, use-case or Command mapping, and
-sequences. Entry protocols and providers appear in component notes.
+The drawing deliberately leaves out callers, external systems and other
+contexts as boxes, use-case or Command mapping, and sequences. Other contexts
+appear only as message counterparts, and providers appear in component notes.
 
 Terms follow the industry consensus and the References:
 

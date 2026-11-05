@@ -40,14 +40,16 @@ Derive every component from its source:
 |---|---|
 | `aggregate-root`, `domain-service`, `domain-port`, `domain-event` | `domain-objects.md`; without it, the Aggregate Roots in `model.md` and the existing code |
 | `repository` and its `adapter` | one per Aggregate Root (ddd-core Repository) |
-| `application` | one entry per Bounded Context (ddd-core Application and Transport Shape); its note lists the entry protocols |
+| `inbound-adapter` | each subscriber of a consumed Integration Message and each task processor; synchronous request and response APIs are part of the `application` entry |
+| `application` | one entry per Bounded Context (ddd-core Application and Transport Shape) |
 | `event-handler` | each Policy in `model.md` that reacts to a same-context Domain Event, and each translation of a Domain Event into a Published Fact Contract ([ddd-collaboration.md](../../references/ddd-collaboration.md)) |
-| `integration-message` | each Integration Message in `context-map.md` this context consumes or sends, carried by the component that translates it ([ddd-collaboration.md](../../references/ddd-collaboration.md)): the `application` entry for a consumed message, the `application-port` for a Published Fact Contract it sends, and that port's `adapter` for another context's Asynchronous Intent Contract |
+| `integration-message` | each Integration Message in `context-map.md` this context consumes or sends, with its contract type and counterpart ([ddd-collaboration.md](../../references/ddd-collaboration.md)): the `inbound-adapter` that consumes it, or the `adapter` of the `application-port` that sends it |
+| `task`, with one task enqueue `application-port` and its `adapter` per context | each deferred, polling, or periodic Internal Task Contract, per the active-language task queue leaf |
 | `query-repository` and its `adapter` | lists, pages, histories, reports, and projections that a delivery constraint or existing code needs |
-| `application-port` and its `adapter` | each Asynchronous Intent Contract or Published Fact Contract this context sends, and each Application-owned continuation port |
+| `application-port` and its `adapter` | one publisher for every Published Fact Contract this context sends, one per Asynchronous Intent sender role (its adapter is the ACL), and each other Application Port |
 | mechanism | each delivery constraint on volume, latency, or availability, on its seam per ddd-core Technical Mechanisms; each Policy failure outcome that needs durable delivery, per ddd-collaboration.md |
 
-A Policy that a Published Fact Contract or business time triggers is an entry point of the `application` entry, not a separate component. An entry mechanism such as a rate limit sits on the `application` entry; every other mechanism sits on an `adapter`.
+A Policy that a Published Fact Contract triggers enters through its subscriber, and one that business time triggers enters through the processor of a periodic `task`. An entry mechanism sits on the `application` entry for synchronous APIs or on its `inbound-adapter`; every other mechanism sits on an `adapter`.
 
 Draw each dependency in a direction that Architecture writing allows.
 
@@ -59,7 +61,8 @@ Present the design only when all of these hold:
 
 - every component traces to an accepted artifact, a House Style rule, a delivery constraint, or existing code;
 - every delivery constraint on volume, latency, or availability has a mechanism on a seam, or is listed as needing none;
-- every same-context Policy has an `event-handler` that depends on its Domain Event, and every other Policy is an entry point of the `application` entry;
+- every same-context Policy has an `event-handler` that depends on its Domain Event, and every other Policy has an `inbound-adapter`;
+- every Integration Message in `context-map.md` that this context consumes or sends is drawn with its counterpart;
 - the [Architecture validator](../../scripts/validate-architecture.mjs) passes on the draft.
 
 ## Design review

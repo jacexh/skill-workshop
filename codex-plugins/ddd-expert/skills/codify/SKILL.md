@@ -13,7 +13,7 @@ Read the [workflow contract](../../references/workflow.md) for scope, existing a
 
 Read the user's current scope, any delivery constraints confirmed by the EventStorming assumption sweep, affected `model.md` and `domain-objects.md`, the affected `architecture.html` when it exists, relevant project decisions and instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
 
-The DDD artifacts define accepted business meaning, Aggregate boundaries, Policies, and Domain-object state and behavior ownership. They are semantic constraints, not a complete software design. Their silence about remaining software structure is implementation latitude, not a missing modeling step.
+The Markdown DDD artifacts define accepted business meaning, Aggregate boundaries, Policies, and Domain-object state and behavior ownership; they are semantic constraints. `architecture.html`, when it exists, fixes the outer structure as **core design**. Software structure that neither records is implementation latitude, not a missing modeling step.
 
 Resolve unspecified realization choices through accepted project constraints and applicable House Style, using repository code and tests as integration evidence.
 
@@ -25,13 +25,13 @@ Classify each gap the implementation exposes:
 
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
 
-When `architecture.html` exists, realize its core design as [Architecture writing](../../templates/artifact-layout.md#architecture-writing) defines it. Add a component the change needs beyond the drawing under House Style, and report it at completion. A change that must remove, move, or rewire a drawn component, dependency, or mechanism seam is a ⚠️ **Conflict** under the gap classification above.
+When `architecture.html` exists, realize its core design as [Architecture writing](../../templates/artifact-layout.md#architecture-writing) defines it: each drawn component becomes the code surface its kind names, each drawn dependency a source dependency, and each mechanism sits on its seam. Add a component the change needs beyond the drawing under House Style, and report it at completion. A change that must remove, move, or rewire a drawn component, dependency, or mechanism seam is a ⚠️ **Conflict** under the gap classification above.
 
 The accepted Ubiquitous Language names the Domain code: each accepted Aggregate Root, Entity, Value Object, Lifecycle State, Behavior, Domain-owned Port, and Domain Event keeps its accepted name and meaning in exactly one Domain carrier, and Domain code uses the Essential Language term for each concept it names. A supporting Value Object or Entity that only realizes accepted meaning, such as `Money`, is implementation latitude; a concept that adds business meaning follows the gap classification above.
 
 ## Implement
 
-Implement the complete requested slice across the code surfaces it actually needs. Keep the accepted Domain model authoritative and derive the affected software structure from its ownership, behavior, and Domain-owned Ports: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
+Implement the complete requested slice across the code surfaces it actually needs. Keep the accepted Domain model authoritative and the core design in place. Derive the remaining affected software structure from the model's ownership, behavior, and Domain-owned Ports: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
 
 Realize each affected Policy from its trigger to its reaction and its stated failure outcome. The outcome selects the delivery mechanism: an in-process handler loses a reaction when the process stops, so an outcome that must survive a stop or a failed dependency needs a durable House Style mechanism.
 
@@ -43,7 +43,7 @@ Run repository tests and checks proportionate to the changed behavior and risk. 
 
 ## Completion
 
-End with the implemented behavior, changed files, verification results, stated assumptions, Domain concepts introduced beyond the accepted artifacts, components added beyond `architecture.html`, and residual risk. Completion requires the accepted Domain model to be faithfully realized, with the requested behavior, every delivery constraint, relevant House Style, and verification agreeing in the final code.
+End with the implemented behavior, changed files, verification results, stated assumptions, Domain concepts introduced beyond the accepted artifacts, components added beyond `architecture.html`, and residual risk. Completion requires the accepted Domain model and any core design to be faithfully realized, with the requested behavior, every delivery constraint, relevant House Style, and verification agreeing in the final code.
 
 ## References
 

@@ -38,34 +38,47 @@ write_fixture() {
 VALID='{
   "context": "Scheduling",
   "components": [
-    { "id": "app", "kind": "application", "name": "Scheduling Application", "note": "HTTP API" },
-    { "id": "leave", "kind": "integration-message", "name": "DoctorLeaveApproved" },
+    { "id": "sub", "kind": "inbound-adapter", "name": "Staffing subscriber", "note": "Kafka" },
+    { "id": "leave", "kind": "integration-message", "name": "DoctorLeaveApproved", "contract": "published-fact", "counterpart": "Staffing" },
+    { "id": "worker", "kind": "inbound-adapter", "name": "Hold expiry processor" },
+    { "id": "expire", "kind": "task", "name": "ExpireHold" },
+    { "id": "app", "kind": "application", "name": "Scheduling Application" },
     { "id": "handler", "kind": "event-handler", "name": "Publish VisitCompleted" },
     { "id": "pub", "kind": "application-port", "name": "VisitCompletedPublisher" },
-    { "id": "pub-msg", "kind": "integration-message", "name": "VisitCompleted" },
+    { "id": "hold", "kind": "application-port", "name": "TaskEnqueuer" },
     { "id": "schedule", "kind": "aggregate-root", "name": "Schedule" },
     { "id": "referral", "kind": "domain-port", "name": "ReferralPort" },
     { "id": "done", "kind": "domain-event", "name": "VisitCompleted" },
     { "id": "repo", "kind": "repository", "name": "ScheduleRepository" },
     { "id": "repo-a", "kind": "adapter", "name": "Schedule repository", "note": "MySQL" },
     { "id": "referral-a", "kind": "adapter", "name": "Referral ACL" },
-    { "id": "pub-a", "kind": "adapter", "name": "VisitCompleted publisher", "note": "Kafka" }
+    { "id": "pub-a", "kind": "adapter", "name": "VisitCompleted publisher", "note": "Kafka" },
+    { "id": "queue-a", "kind": "adapter", "name": "Task queue", "note": "Redis" },
+    { "id": "pub-msg", "kind": "integration-message", "name": "VisitCompleted", "contract": "published-fact", "counterpart": "Billing" }
   ],
   "dependencies": [
-    { "from": "app", "to": "leave" },
+    { "from": "sub", "to": "app" },
+    { "from": "sub", "to": "leave" },
+    { "from": "worker", "to": "app" },
+    { "from": "worker", "to": "expire" },
     { "from": "app", "to": "schedule" },
     { "from": "app", "to": "repo" },
+    { "from": "app", "to": "hold" },
+    { "from": "app", "to": "expire" },
     { "from": "schedule", "to": "referral" },
     { "from": "schedule", "to": "done" },
     { "from": "handler", "to": "done" },
     { "from": "handler", "to": "pub" },
-    { "from": "pub", "to": "pub-msg" },
     { "from": "repo-a", "to": "repo" },
     { "from": "referral-a", "to": "referral" },
-    { "from": "pub-a", "to": "pub" }
+    { "from": "pub-a", "to": "pub" },
+    { "from": "pub-a", "to": "pub-msg" },
+    { "from": "queue-a", "to": "hold" },
+    { "from": "queue-a", "to": "expire" }
   ],
   "mechanisms": [
     { "name": "Rate limit", "seam": "app", "serves": "Booking burst" },
+    { "name": "Consumer concurrency limit", "seam": "sub", "serves": "Staffing replays" },
     { "name": "Transactional outbox", "seam": "pub-a", "serves": "Billing relies on every VisitCompleted" }
   ]
 }'
@@ -86,7 +99,7 @@ DOMAIN_OBJECTS='# Scheduling Domain Objects
 
 write_fixture "$tmp/valid" "$VALID"
 printf '%s' "$DOMAIN_OBJECTS" >"$tmp/valid/domain-objects.md"
-expected='valid Architecture: 12 components, 11 dependencies, 2 mechanisms; Domain names match domain-objects.md'
+expected='valid Architecture: 17 components, 18 dependencies, 3 mechanisms; Domain names match domain-objects.md'
 actual="$(node "$CLAUDE_VALIDATOR" "$tmp/valid/architecture.html")" || fail "validator rejected valid architecture"
 [ "$actual" = "$expected" ] || fail "unexpected valid output: $actual"
 [ "$(node "$CODEX_VALIDATOR" "$tmp/valid/architecture.html")" = "$expected" ] ||
@@ -100,10 +113,19 @@ node "$CLAUDE_VALIDATOR" "$tmp/no-objects/architecture.html" | grep -Fq "no doma
 INTENT="$(VALID="$VALID" python3 -c 'import json,os; d=json.loads(os.environ["VALID"])
 d["components"] += [{"id":"notice","kind":"application-port","name":"ConfirmationNoticePort"},
   {"id":"notice-a","kind":"adapter","name":"Notification ACL"},
-  {"id":"intent","kind":"integration-message","name":"SendAppointmentNotice"}]
+  {"id":"intent","kind":"integration-message","name":"SendAppointmentNotice","contract":"intent","counterpart":"Notification"}]
 d["dependencies"] += [{"from":"notice-a","to":"notice"},{"from":"notice-a","to":"intent"}]
 print(json.dumps(d))')"
 write_fixture "$tmp/intent" "$INTENT"
+# A periodic task has a schedule instead of an enqueuing component.
+PERIODIC="$(VALID="$VALID" python3 -c 'import json,os; d=json.loads(os.environ["VALID"])
+d["components"] += [{"id":"noshow-p","kind":"inbound-adapter","name":"No-show processor"},
+  {"id":"noshow","kind":"task","name":"MarkNoShows","schedule":"daily 23:00 Asia/Shanghai"}]
+d["dependencies"] += [{"from":"noshow-p","to":"app"},{"from":"noshow-p","to":"noshow"},{"from":"queue-a","to":"noshow"}]
+print(json.dumps(d))')"
+write_fixture "$tmp/periodic" "$PERIODIC"
+node "$CLAUDE_VALIDATOR" "$tmp/periodic/architecture.html" >/dev/null ||
+  fail "validator rejected a periodic task with a schedule"
 node "$CLAUDE_VALIDATOR" "$tmp/intent/architecture.html" >/dev/null ||
   fail "validator rejected an intent message carried by an application-port adapter"
 
@@ -128,15 +150,27 @@ assert_invalid duplicate-id 'd["components"][1]["id"]="app"' 'duplicate componen
 assert_invalid unknown-target 'd["dependencies"].append({"from":"app","to":"ghost"})' 'unknown component "ghost"'
 assert_invalid outward 'd["dependencies"].append({"from":"schedule","to":"app"})' 'points from domain to application'
 assert_invalid domain-to-infra 'd["dependencies"].append({"from":"schedule","to":"repo-a"})' 'points from domain to infrastructure'
+assert_invalid transport-to-domain 'd["dependencies"].append({"from":"sub","to":"repo"})' 'points from transport to domain'
+assert_invalid inbound-bypasses-entry 'd["dependencies"]=[x for x in d["dependencies"] if x!={"from":"sub","to":"app"}]+[{"from":"sub","to":"handler"}]' 'inbound-adapter "sub" needs exactly one dependency on the application entry'
+assert_invalid inbound-delegates-twice 'd["dependencies"].append({"from":"sub","to":"handler"})' 'inbound-adapter "sub" needs exactly one dependency on the application entry'
 assert_invalid contract-without-adapter 'd["dependencies"]=[x for x in d["dependencies"] if x["from"]!="repo-a"]; d["components"]=[c for c in d["components"] if c["id"]!="repo-a"]' 'repository "repo" has no implementing adapter'
 assert_invalid idle-adapter 'd["components"].append({"id":"idle","kind":"adapter","name":"Idle"})' 'adapter "idle" implements no contract'
-assert_invalid orphan-message 'd["dependencies"]=[x for x in d["dependencies"] if x["to"]!="leave"]' 'integration-message "leave" needs exactly one dependency'
-assert_invalid message-on-repository-adapter 'd["dependencies"]=[x for x in d["dependencies"] if x["to"]!="leave"]+[{"from":"repo-a","to":"leave"}]' 'integration-message "leave" needs exactly one dependency'
-assert_invalid two-owners 'd["dependencies"].append({"from":"pub","to":"leave"})' 'integration-message "leave" needs exactly one dependency'
-assert_invalid mechanism-on-domain 'd["mechanisms"].append({"name":"Cache","seam":"repo","serves":"Reads"})' 'a mechanism sits on the application entry or an adapter'
+assert_invalid orphan-message 'd["components"].append({"id":"stray","kind":"integration-message","name":"Stray","contract":"intent","counterpart":"Billing"})' 'integration-message "stray" needs exactly one dependency'
+assert_invalid message-on-repository-adapter 'd["components"].append({"id":"stray","kind":"integration-message","name":"Stray","contract":"intent","counterpart":"Billing"}); d["dependencies"].append({"from":"repo-a","to":"stray"})' 'integration-message "stray" needs exactly one dependency'
+assert_invalid message-on-application-port 'd["dependencies"]=[x for x in d["dependencies"] if x["to"]!="pub-msg"]+[{"from":"pub","to":"pub-msg"}]' 'integration-message "pub-msg" needs exactly one dependency'
+assert_invalid two-carriers 'd["dependencies"].append({"from":"pub-a","to":"leave"})' 'integration-message "leave" needs exactly one dependency'
+assert_invalid message-without-contract 'del d["components"][1]["contract"]' 'contract must be one of published-fact, intent'
+assert_invalid message-without-counterpart 'del d["components"][1]["counterpart"]' 'counterpart must be a non-empty string'
+assert_invalid counterpart-on-component 'd["components"][4]["counterpart"]="Billing"' 'application takes no contract or counterpart'
+assert_invalid task-without-queue 'd["dependencies"]=[x for x in d["dependencies"] if x!={"from":"queue-a","to":"expire"}]' 'task "expire" needs one application-port adapter that delivers it'
+assert_invalid task-without-source 'd["dependencies"]=[x for x in d["dependencies"] if x!={"from":"app","to":"expire"}]' 'task "expire" needs an application or event-handler that enqueues it, or a schedule'
+assert_invalid task-from-domain 'd["dependencies"].append({"from":"schedule","to":"expire"})' 'points from domain to boundary'
+assert_invalid schedule-on-message 'd["components"][1]["schedule"]="hourly"' 'integration-message takes no schedule'
+assert_invalid idle-inbound-adapter 'd["components"].append({"id":"idle-in","kind":"inbound-adapter","name":"Idle"}); d["dependencies"].append({"from":"idle-in","to":"app"})' 'inbound-adapter "idle-in" receives no integration-message or task'
+assert_invalid mechanism-on-domain 'd["mechanisms"].append({"name":"Cache","seam":"repo","serves":"Reads"})' 'a mechanism sits on the application entry, an inbound-adapter, or an adapter'
 assert_invalid mechanism-unknown-seam 'd["mechanisms"][0]["seam"]="ghost"' 'unknown seam "ghost"'
 assert_invalid undrawn-event 'd["components"]=[c for c in d["components"] if c["id"]!="done"]; d["dependencies"]=[x for x in d["dependencies"] if x["to"]!="done"]' 'domain-event "VisitCompleted" from domain-objects.md is not drawn'
-assert_invalid unknown-root 'd["components"][5]["name"]="Calendar"' 'aggregate-root "Calendar" is not in domain-objects.md'
+assert_invalid unknown-root '[c.update(name="Calendar") for c in d["components"] if c["id"]=="schedule"]' 'aggregate-root "Calendar" is not in domain-objects.md'
 
 write_fixture "$tmp/no-block" '{}'
 sed -i 's/architecture-data/other-data/' "$tmp/no-block/architecture.html"

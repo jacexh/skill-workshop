@@ -17,7 +17,7 @@ If already in that independent context, review here. Otherwise delegate once thr
 
 Read the user's scope, affected `model.md` and `domain-objects.md`, the affected `architecture.html` when it exists, `docs/ddd-expert/context-map.md` when Context ownership or collaboration changes, the complete stable diff and relevant production code, the assumptions, introduced Domain concepts, and added architecture components Codify stated at completion, governing project decisions, and the smallest complete House Style leaf set whose applicability covers the affected code surfaces.
 
-DDD artifacts own accepted business meaning and Domain ownership; they are not a complete software design. Their silence about remaining software structure is implementation latitude judged through project constraints and House Style, not missing authority. Code and tests are implementation evidence, not authority that silently changes the model.
+The Markdown DDD artifacts own accepted business meaning and Domain ownership. `architecture.html`, when it exists, owns the core design of the outer structure. Software structure that neither records is implementation latitude judged through project constraints and House Style, not missing authority. Code and tests are implementation evidence, not authority that silently changes the model.
 
 ## Review
 
@@ -29,13 +29,13 @@ When `architecture.html` exists, code that removes, moves, or rewires a drawn co
 
 Each affected accepted Aggregate Root, Entity, Value Object, Lifecycle State, Behavior, Domain-owned Port, and Domain Event keeps its Ubiquitous Language name and meaning in exactly one Domain carrier, and Domain code uses the Essential Language term for each concept it names; a synonym, renamed Lifecycle State, or parallel carrier is a finding. A Domain concept Codify introduced is a finding only when it duplicates or redefines accepted meaning, or adds business meaning not stated as an assumption.
 
-Also review each non-Domain abstraction introduced, materially changed, or required by the affected behavior. Ask what present complexity it hides; whether deleting it would redistribute that complexity or simply remove it; whether a small stable interface creates leverage and locality; and whether its indirection, mapping, configuration, lifecycle, and test cost are justified. Pattern names such as CQRS, Repository, or Job neither require nor justify an abstraction. Judge its placement and shape by project constraints and applicable House Style, without inventorying absent patterns.
+Also review each non-Domain abstraction introduced, materially changed, or required by the affected behavior. Ask what present complexity it hides; whether deleting it would redistribute that complexity or simply remove it; whether a small stable interface creates leverage and locality; and whether its indirection, mapping, configuration, lifecycle, and test cost are justified. Pattern names such as CQRS, Repository, or Task Queue neither require nor justify an abstraction. For a component drawn in `architecture.html`, review its inner shape; the confirmed drawing settles its existence. Judge its placement and shape by project constraints and applicable House Style, without inventorying absent patterns.
 
 ## Findings
 
 Report only concrete model-realization or abstraction-quality findings, ordered by impact. Each finding cites its governing model, project decision, or House Rule; the production file and line evidence; the consequence and root cause; and a correction direction. When a material fact is unavailable, state the exact uncertainty and the judgment it prevents.
 
-Say `No DDD structural findings` only after every Behavior, Lifecycle State transition, Domain-owned Port Method, and Domain Event of the affected objects in `domain-objects.md`, and each affected Business Rule and Policy, has been located in production code or reported as missing, each located object, Lifecycle State, Behavior, Port Method, and Domain Event carries its accepted name, and no finding resulted. This does not claim general code correctness.
+Say `No DDD structural findings` only after every Behavior, Lifecycle State transition, Domain-owned Port Method, and Domain Event of the affected objects in `domain-objects.md`, and each affected Business Rule and Policy, has been located in production code or reported as missing, each located object, Lifecycle State, Behavior, Port Method, and Domain Event carries its accepted name, each drawn component, dependency, and mechanism seam the change touches has been located in production code or reported as missing, and no finding resulted. This does not claim general code correctness.
 
 ## References
 

@@ -18,7 +18,7 @@ verification commands.
 | Accepted responsibility | Code owner |
 |---|---|
 | Business state, behavior, invariants, lifecycle, Domain facts, write Repository contract, Domain-owned Port contract | Domain |
-| Use-case coordination, required context, transaction scope, Application DTO, QueryRepository, Application-owned continuation port | Application |
+| Use-case coordination, required context, transaction scope, Application DTO, QueryRepository, Application Port | Application |
 | External decoding, actor extraction, one Application delegation, public result/error mapping | Transport / Interface |
 | Persistence mapping, generated clients, Repository and Port adapters, ACLs, broker and framework mechanisms | Infrastructure |
 | Composition, configuration, listeners, workers, shared clients, telemetry, startup and shutdown | Runtime / Platform |
@@ -50,8 +50,8 @@ Use this table only after the corresponding model meaning is accepted.
 | Aggregate Capability | A public Domain method on the accepted owner; private helpers may support it |
 | Domain Event | A local Domain fact recorded by the behavior that establishes it |
 | Published Fact Contract | A producer-owned generated contract mapped at the producing Application boundary |
-| Asynchronous Intent Contract | A receiver-owned generated contract reached through the sender's semantic port and Infrastructure adapter |
-| Event-triggered Command | One event/subscriber adapter mapping the established fact to one Application use case |
+| Asynchronous Intent Contract | A receiver-owned generated contract reached through the sender's Application Port and Infrastructure adapter |
+| Event-triggered Command | One inbound adapter, an Integration Message subscriber, mapping the established fact to one Application use case |
 
 For implementation evidence, cite the governing artifact clause beside the
 production symbols that realize the affected behavior. Keep that projection in
@@ -91,8 +91,9 @@ the task or review report, not in DDD artifacts or source comments.
 
 ### Domain-owned Port
 
-A port belongs to the layer that owns its invocation. An Application-owned port
-continues a use case. Realize an accepted Domain-owned Port as a Domain contract
+A port belongs to the layer that owns its invocation. An **Application Port** is
+Application-owned and continues a use case: the context's publisher, an intent
+sender, the task enqueue port, or another continuation. Realize an accepted Domain-owned Port as a Domain contract
 invoked by its recorded Behavior, with an Infrastructure adapter supplied
 by Runtime composition; Application neither prefetches its result nor duplicates
 its contract. Name the contract for its Domain role with a `Port` suffix.
@@ -149,8 +150,9 @@ one use case stays in that use case.
   that path is already accepted. Accepted lists, pages, histories, reports,
   partial fields, and composed projections use an Application-owned
   QueryRepository returning read models.
-- An inbound adapter decodes and maps one external contract, delegates once to
-  Application, and maps the result or error. Generated types end at that
+- An inbound adapter (a request handler, an Integration Message subscriber, or
+  a task processor) decodes and maps one external contract or task, delegates
+  once to Application, and maps the result or error. Generated types end at that
   boundary.
 
 ## Technical Mechanisms

@@ -59,7 +59,7 @@ inspect provider envelopes or reach into an Aggregate's state.
   root `gen/<owner>/`.
 - A producing Application handler may import its producer-owned Published Fact
   generated type and maps from the local event explicitly.
-- An intent sender calls a local Application port; Infrastructure imports and
+- An intent sender calls a local Application Port; Infrastructure imports and
   maps the receiver-owned generated type.
 - A receiver subscriber under `transport/messagesubscriber/` decodes one
   generated type and delegates to one Application command.

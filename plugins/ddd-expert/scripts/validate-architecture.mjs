@@ -24,9 +24,9 @@ function invalid(message) {
 }
 
 const LAYER_OF_KIND = {
+  "inbound-adapter": "transport",
   application: "application",
   "event-handler": "application",
-  "integration-message": "application",
   "query-repository": "application",
   "application-port": "application",
   "aggregate-root": "domain",
@@ -35,18 +35,24 @@ const LAYER_OF_KIND = {
   "domain-event": "domain",
   repository: "domain",
   adapter: "infrastructure",
+  // Integration Messages and tasks cross the drawing's boundary rather than sit in a layer.
+  "integration-message": "boundary",
+  task: "boundary",
 };
 
 // Allowed dependency directions: source layer -> target layers.
 const ALLOWED = {
-  application: ["application", "domain"],
+  transport: ["application", "boundary"],
+  application: ["application", "domain", "boundary"],
   domain: ["domain"],
-  infrastructure: ["application", "domain"],
+  infrastructure: ["application", "domain", "boundary"],
+  boundary: [],
 };
+const CONTRACT_TYPES = ["published-fact", "intent"];
 
 const CONTRACT_KINDS = ["repository", "query-repository", "domain-port", "application-port"];
-// The application entry carries entry-point mechanisms such as Transport middleware.
-const SEAM_KINDS = ["application", "adapter"];
+// Entry mechanisms sit on the application entry or an inbound adapter; others on an adapter.
+const SEAM_KINDS = ["application", "inbound-adapter", "adapter"];
 const CHECKED_DOMAIN_KINDS = ["aggregate-root", "domain-service", "domain-port", "domain-event"];
 
 const blocks = [...source.matchAll(
@@ -82,12 +88,25 @@ for (const key of ["components", "dependencies", "mechanisms"]) {
 const components = new Map();
 data.components.forEach((component, index) => {
   const label = `component ${index + 1}`;
-  only(component, ["id", "kind", "name", "note"], label);
+  only(component, ["id", "kind", "name", "note", "contract", "counterpart", "schedule"], label);
   const id = text(component.id, `${label} id`);
   const kind = text(component.kind, `${label} kind`);
   text(component.name, `${label} name`);
   if (component.note !== undefined) text(component.note, `${label} note`);
   if (!LAYER_OF_KIND[kind]) invalid(`${label} has unknown kind "${kind}"`);
+  if (kind === "integration-message") {
+    if (!CONTRACT_TYPES.includes(component.contract)) {
+      invalid(`${label} contract must be one of ${CONTRACT_TYPES.join(", ")}`);
+    }
+    text(component.counterpart, `${label} counterpart`);
+  } else if (component.contract !== undefined || component.counterpart !== undefined) {
+    invalid(`${label} ${kind} takes no contract or counterpart`);
+  }
+  if (kind === "task") {
+    if (component.schedule !== undefined) text(component.schedule, `${label} schedule`);
+  } else if (component.schedule !== undefined) {
+    invalid(`${label} ${kind} takes no schedule`);
+  }
   if (components.has(id)) invalid(`duplicate component id "${id}"`);
   components.set(id, { ...component, layer: LAYER_OF_KIND[kind] });
 });
@@ -129,22 +148,51 @@ for (const component of components.values()) {
   }
 }
 
-// An Integration Message is carried by exactly one owner, the component that translates it:
-// the application entry that consumes it, the application-port that sends this context's
-// Published Fact Contract, or an application-port adapter that maps intent to another
-// context's Asynchronous Intent Contract.
-const applicationPortAdapters = new Set([...edges].map((key) => key.split("\u0000"))
+const pairs = [...edges].map((key) => key.split("\u0000"));
+const applicationPortAdapters = new Set(pairs
   .filter(([from, to]) => components.get(from).kind === "adapter" && components.get(to).kind === "application-port")
   .map(([from]) => from));
-function carriesMessages(component) {
-  return ["application", "application-port"].includes(component.kind) || applicationPortAdapters.has(component.id);
+function kindOf(id) { return components.get(id).kind; }
+
+// An inbound adapter delegates once: one dependency on the application entry, plus the
+// message or task it receives.
+for (const component of components.values()) {
+  if (component.kind !== "inbound-adapter") continue;
+  const delegations = pairs.filter(([from, to]) => from === component.id && LAYER_OF_KIND[kindOf(to)] !== "boundary");
+  if (delegations.length !== 1 || kindOf(delegations[0][1]) !== "application") {
+    invalid(`inbound-adapter "${component.id}" needs exactly one dependency on the application entry`);
+  }
+  if (!pairs.some(([from, to]) => from === component.id && LAYER_OF_KIND[kindOf(to)] === "boundary")) {
+    invalid(`inbound-adapter "${component.id}" receives no integration-message or task`);
+  }
 }
+
+// An Integration Message crosses the boundary at the component that receives or sends it:
+// an inbound adapter, or the adapter of an application-port.
 for (const component of components.values()) {
   if (component.kind !== "integration-message") continue;
-  const touching = [...edges].map((key) => key.split("\u0000")).filter(([from, to]) => from === component.id || to === component.id);
-  const owners = touching.filter(([from, to]) => to === component.id && carriesMessages(components.get(from)));
-  if (owners.length !== 1 || touching.length !== 1) {
-    invalid(`integration-message "${component.id}" needs exactly one dependency, from the application entry, an application-port, or an application-port adapter`);
+  const carriers = pairs.filter(([, to]) => to === component.id).map(([from]) => from);
+  if (carriers.length !== 1 ||
+    !(kindOf(carriers[0]) === "inbound-adapter" || applicationPortAdapters.has(carriers[0]))) {
+    invalid(`integration-message "${component.id}" needs exactly one dependency, from an inbound-adapter or an application-port adapter`);
+  }
+}
+
+// A task stays inside the context. The adapter of the task enqueue port delivers it, one
+// task processor (an inbound-adapter) consumes it, and an application or event-handler
+// enqueues it, or its schedule makes it a periodic task.
+for (const component of components.values()) {
+  if (component.kind !== "task") continue;
+  const carriers = pairs.filter(([, to]) => to === component.id).map(([from]) => from);
+  const queues = carriers.filter((id) => applicationPortAdapters.has(id));
+  const processors = carriers.filter((id) => kindOf(id) === "inbound-adapter");
+  const producers = carriers.filter((id) => ["application", "event-handler"].includes(kindOf(id)));
+  if (queues.length !== 1 || processors.length !== 1 ||
+    queues.length + processors.length + producers.length !== carriers.length) {
+    invalid(`task "${component.id}" needs one application-port adapter that delivers it and one inbound-adapter that processes it`);
+  }
+  if (producers.length === 0 && component.schedule === undefined) {
+    invalid(`task "${component.id}" needs an application or event-handler that enqueues it, or a schedule`);
   }
 }
 
@@ -156,7 +204,7 @@ data.mechanisms.forEach((mechanism, index) => {
   const seam = components.get(text(mechanism.seam, `${label} seam`));
   if (!seam) invalid(`${label} references unknown seam "${mechanism.seam}"`);
   if (!SEAM_KINDS.includes(seam.kind)) {
-    invalid(`${label} sits on ${seam.kind} "${seam.id}"; a mechanism sits on the application entry or an adapter`);
+    invalid(`${label} sits on ${seam.kind} "${seam.id}"; a mechanism sits on the application entry, an inbound-adapter, or an adapter`);
   }
 });
 

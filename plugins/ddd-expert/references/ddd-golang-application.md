@@ -7,7 +7,7 @@ description: Go House Style for the bounded-context Application entry, command/q
 
 ## Applies When
 
-Application implements use cases. It coordinates Domain behavior and semantic ports without knowing whether a caller is ConnectRPC, HTTP, an Integration Message or a task processor.
+Application implements use cases. It coordinates Domain behavior and ports without knowing whether a caller is ConnectRPC, HTTP, an Integration Message or a task processor.
 
 ## Boundary and Allowed Exceptions
 
@@ -18,7 +18,7 @@ Two accepted, narrow exceptions do not collapse the layer boundary:
 - a producer-side `application/eventhandler` may map its own Domain Event to the same bounded context's generated Published Fact Contract under `gen/<context>/integration/...` and publish it through `github.com/go-jimu/components/ddd/message.Publisher`;
 - after Task Queue has been accepted, `application/task` may import its own generated `gen/<context>/task/v1` payload schema and use `github.com/go-jimu/components/taskqueue` types such as `Definition` and `Enqueuer` to construct protobuf-backed tasks.
 
-Generated RPC types remain Transport. Kafka and Asynq types remain Runtime. A sender of an asynchronous intent calls a local semantic port; Infrastructure/ACL maps that intent to the receiving context's generated contract.
+Generated RPC types remain Transport. Kafka and Asynq types remain Runtime. A sender of an asynchronous intent calls a local Application Port; Infrastructure/ACL maps that intent to the receiving context's generated contract.
 
 ## Application Entry
 
@@ -148,7 +148,7 @@ Transport never calls a Domain Repository or QueryRepository directly.
 
 Use a named Application service only for meaningful use-case orchestration. It may coordinate Domain behavior, authorization, a read model, ACL, published fact or accepted background-work capability. It must not classify Domain state or become a provider facade.
 
-When Application owns the use-case continuation, place its outbound port beside the consuming use case. Name the contract for its semantic role with a `Port` suffix, such as `CreditReservationPort`; keep provider-mechanism names on Infrastructure implementations. When a recorded Domain Behavior owns call timing, use its Domain-owned Port; do not duplicate it here or prefetch its result. Do not wrap an already accepted provider-neutral go-jimu port with a same-shape local interface.
+When Application owns the use-case continuation, place its Application Port beside the consuming use case. Name the contract for its semantic role with a `Port` suffix, such as `CreditReservationPort`; keep provider-mechanism names on Infrastructure implementations. When a recorded Domain Behavior owns call timing, use its Domain-owned Port; do not duplicate it here or prefetch its result. Do not wrap an already accepted provider-neutral go-jimu port with a same-shape local interface.
 
 Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction only when no Application scope is active; under an active scope it joins the current transaction. Raw `xorm.Session` never enters Application.
 

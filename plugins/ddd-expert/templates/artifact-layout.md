@@ -102,34 +102,45 @@ text field is written in English.
 | Field | Content |
 |---|---|
 | `context` | The Bounded Context name |
-| `components[]` | `id`, `kind`, `name`, and an optional `note` for entry protocols, technology, or provider |
+| `components[]` | `id`, `kind`, `name`, and an optional `note` for technology or provider; an `integration-message` also has `contract` (`published-fact` or `intent`) and `counterpart` (the other context or contexts); a periodic `task` also has `schedule` (cron and timezone) |
 | `dependencies[]` | `from` and `to` component ids; the arrow means "depends on" |
-| `mechanisms[]` | `name`, `seam` (the `application` entry or an `adapter` id), and `serves` (the delivery constraint or Policy it realizes) |
+| `mechanisms[]` | `name`, `seam` (the `application` entry, an `inbound-adapter`, or an `adapter` id), and `serves` (the delivery constraint or Policy it realizes) |
 
-| Layer | Kinds |
+| Place | Kinds |
 |---|---|
-| Application | `application`, `integration-message`, `event-handler`, `query-repository`, `application-port` |
+| Transport | `inbound-adapter` |
+| Application | `application`, `event-handler`, `query-repository`, `application-port` |
 | Domain | `aggregate-root`, `domain-service`, `domain-port`, `domain-event`, `repository` |
 | Infrastructure | `adapter` |
+| Boundary | `integration-message`, `task` |
 
-- `application` is the context's Application entry. Its note lists entry
-  protocols, and it carries entry mechanisms such as Transport rate limits.
+- `inbound-adapter` is an asynchronous entry: an Integration Message
+  subscriber or a task processor. It depends on the `application` entry once
+  and on the message or task it receives. Synchronous request and response
+  APIs are part of the `application` entry and are not drawn.
+- `application` is the context's Application entry. It carries entry
+  mechanisms of its synchronous APIs, such as a rate limit.
 - `event-handler` reacts to a same-context Domain Event: a Policy, or the
-  translation of the event into a Published Fact Contract. A Policy triggered
-  by a Published Fact Contract or by business time is an entry point of the
-  `application` entry.
-- `integration-message` is carried by exactly one owner, the component that
-  translates it: the `application` entry that consumes it, the
-  `application-port` that sends this context's Published Fact Contract, or the
-  `adapter` of an `application-port` that maps local intent to another
-  context's Asynchronous Intent Contract. It is drawn inside its owner.
+  translation of the event into a Published Fact Contract.
+- `integration-message` crosses the context boundary at the one component
+  that receives or sends it: the `inbound-adapter` that consumes it, or the
+  `adapter` of the `application-port` that sends it. Its `contract` and its
+  direction decide whose contract it is: this context owns the Published Fact
+  Contracts it sends and the Asynchronous Intent Contracts it receives.
+- `task` is an Internal Task Contract: deferred, polling, or periodic work this
+  context queues for itself. The context has one task enqueue
+  `application-port`, and its `adapter` delivers every task. One task
+  processor processes each task. The `application` entry or `event-handler`
+  that enqueues a task depends on it; a `schedule` instead makes it a periodic
+  task that the task queue enqueues on that schedule.
 - `adapter` is an outbound adapter. It implements at least one contract
   (`repository`, `query-repository`, `domain-port`, or `application-port`),
   and every contract has an adapter. Its note names the technology, provider,
   or other context behind it.
-- Dependencies point Application to Application or Domain, Domain to Domain,
-  and Infrastructure to Application or Domain. A Root or Domain Service
-  depends on each Domain Event it records.
+- Dependencies point Transport to Application, Application to Application or
+  Domain, Domain to Domain, and Infrastructure to Application or Domain.
+  Transport and Infrastructure components also depend on the messages and
+  tasks they carry, and Application components on the tasks they enqueue. A Root or Domain Service depends on each Domain Event it records.
 - Domain components carry names only. `domain-objects.md` holds their meaning,
   and the drawn Root, Domain Service, Domain-owned Port, and Domain Event names
   equal its names. Entities, Value Objects, DTOs, mappers, and helpers stay
