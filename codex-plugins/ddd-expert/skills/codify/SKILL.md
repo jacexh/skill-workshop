@@ -19,7 +19,7 @@ Resolve unspecified realization choices through accepted project constraints and
 
 Classify each gap the implementation exposes:
 
-- A software-shape choice, such as naming, layering, error types, persistence, or transaction scope, that changes no business right, obligation, authority, decision, outcome, or required next action: resolve it through project constraints and House Style.
+- A software-shape choice, such as naming, layering, error types, persistence, transaction scope, or a technical mechanism for a delivery constraint, that changes no business right, obligation, authority, decision, outcome, or required next action: resolve it through project constraints and House Style.
 - A business-shaped gap with a conservative reading that contradicts no accepted statement and can later be reversed in one place: implement it under that stated assumption and continue. Prefer rejection over admission, the narrowest permission, and failing closed.
 - A contradiction between accepted statements, or a gap where every implementation would change an accepted Business Rule, Policy, consistency boundary, Domain-owned Port, or Domain Event: complete the rest of the slice, then raise it once as a ⚠️ **Conflict** under the workflow contract's presentation markers. The code realizes only the accepted statements.
 
@@ -46,5 +46,5 @@ End with the implemented behavior, changed files, verification results, stated a
 ## References
 
 - Start with the active-language router: [Go](../../references/ddd-golang.md), [Python](../../references/ddd-python.md), or [TypeScript](../../references/ddd-typescript.md). Follow its exact mapping for every touched code surface.
-- Load [../../references/ddd-core.md](../../references/ddd-core.md) when an accepted Domain object, Domain-owned Port, or cross-language layer boundary is being realized.
+- Load [../../references/ddd-core.md](../../references/ddd-core.md) when an accepted Domain object, Domain-owned Port, cross-language layer boundary, or technical mechanism is being realized.
 - Load [../../references/ddd-collaboration.md](../../references/ddd-collaboration.md) for an accepted published API, Domain Event, or Integration Message, and [../../references/database.md](../../references/database.md) for actual MySQL persistence, SQL, or schema work.
