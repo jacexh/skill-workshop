@@ -23,6 +23,8 @@ confirmed Aggregate Root and Business Rules
 
 Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, Business Rules, Policies, and the Published Fact Contracts this context owns in `context-map.md` as business authority. Start with the Root and affected slice identified by the request; ask only when that choice is materially ambiguous.
 
+Scale the design to the context's Subdomain. A Core or Supporting context receives the interview below; a Model without a Subdomain classification is treated the same way. A Generic context goes to Codify by default, which realizes its Business Rules with the simplest representation, or an existing solution, that satisfies them. Design a Generic Root only when the user asks for it or when a Business Rule makes its object ownership a material decision; if that reveals differentiating rules, raise reclassification as a strategic correction.
+
 If tactical refinement exposes a needed correction to business meaning, a Bounded Context boundary, Aggregate Root identity, or a strategic Business Rule, resolve it with the user in the current conversation and carry the accepted change into the Root-level artifact review. Do not force a workflow switch or leave the tactical model built on a known contradiction.
 
 ## Choose the current work

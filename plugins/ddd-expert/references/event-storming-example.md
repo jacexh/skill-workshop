@@ -70,6 +70,10 @@ lifecycle-end probe places Visit Completed as the crossing point.
   probe separates it from Billing), Billing (owns invoices; veto probe: only
   billing may void an invoice). Care folded into Scheduling: no probe separated
   it, the doctor only records completion.
+- **Subdomains**: Scheduling is Core (differentiation probe: same-day
+  confirmation is how the clinic wins patients); Billing is Generic (standard
+  invoicing, no clinic-specific advantage), so it goes to Codify without
+  Tactical Design.
 - **Aggregate Roots**: `Schedule` — a doctor's day of slots; consistency:
   one confirmed appointment per slot at confirmation time. `Invoice` —
   a billable completed visit; consistency: one invoice per completed visit.
@@ -78,10 +82,15 @@ lifecycle-end probe places Visit Completed as the crossing point.
 - **Dependency**: Scheduling -> Billing, Published Fact Contract
   `VisitCompleted`, used by the Billing Policy Open Invoice.
 - **Policies**: Billing — Open Invoice.
+- **Delivery constraints** (assumption sweep; Codify input):
+  reception sees the doctor's open slots before confirming; existing online
+  booking links keep working.
 - **Non-blocking uncertainty**: H1 cancellation after check-in.
 
 After confirmation, the Context Map and the two Model files are written from
-their templates. Business Rules then read, for example:
+their templates. The Scheduling Model's Subdomain then reads
+`Core — same-day confirmation is how the clinic wins patients.`, and Business
+Rules read, for example:
 
 - **Single occupancy:** If a Slot already holds a confirmed Appointment, then
   the Schedule rejects another confirmation into that Slot.
