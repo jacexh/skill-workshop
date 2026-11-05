@@ -103,9 +103,10 @@ adapter from the provider leaf.
 | Configuration | `github.com/go-jimu/components/config/loader` | Go service Runtime |
 | Distributed tracing | OpenTelemetry Go, OTLP, `connectrpc.com/otelconnect` | Tracing is accepted and a backend/collector is available |
 
-Library APIs follow the documentation of the version pinned in `go.mod`, read
-through `go doc` or the module source. The leaves state placement, ownership,
-and gotchas, not API usage.
+Library APIs and behavior, including error identity and failure outcomes,
+follow the documentation of the version pinned in `go.mod`, read through
+`go doc` or the module source. The leaves state house choices that hold across
+library versions: placement, ownership, and when to use an API.
 
 The table supplies defaults for covered concerns left open by accepted project
 decisions. Apply the workflow contract's project-convention rule before adopting

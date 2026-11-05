@@ -25,9 +25,8 @@ lives under `gen/<owner>/integration/v1/`.
 | Register generated payload factory and subscriber | receiver Bounded Context module |
 | Provider client and active loop | Runtime; see [ddd-golang-kafka.md](ddd-golang-kafka.md) when Kafka applies |
 
-`message.KindOf(payload)` uses the Protobuf full name. `message.Message.Key`
-is the provider-neutral ordering/routing group. Treat contract package/message
-renames under the repository's breaking-change policy.
+A contract package or message rename changes its `message.KindOf` kind; treat
+it under the repository's breaking-change policy.
 
 ## Published Fact Handler
 
@@ -68,11 +67,6 @@ func (s *UserRegisteredSubscriber) Handle(ctx context.Context, msg message.Messa
 
 Return the local use-case result to Runtime/provider code. The subscriber emits
 a log only for a separate business-semantic fact.
-
-## Registration
-
-Register the generated payload factory under its `message.KindOf` kind, then
-subscribe the handler, before the consumer loop starts.
 
 ## Verification
 

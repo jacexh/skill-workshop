@@ -84,13 +84,9 @@ type. `TaskType` identifies the semantic payload schema;
 protobuf is the payload codec. Keep those concepts separate throughout
 Application, Transport, provider adapters, and tests.
 
-`taskqueue.WithID` assigns a caller-owned task identity. A provider rejects any enqueue while it still retains a task with
-that ID, including an archived failure, with an error matching
-`taskqueue.ErrDuplicateTask`. Assign an ID only when the accepted workflow wants
-that rejection, such as one in-flight task per identity, and handle
-`ErrDuplicateTask` as an expected outcome. Otherwise leave it unset so the
-provider assigns one; a reused business identifier such as a document ID would
-block every later task for that document while an earlier one is retained.
+Assign `taskqueue.WithID` only when the accepted workflow wants one in-flight
+task per identity, and handle `taskqueue.ErrDuplicateTask` as an expected
+outcome. Otherwise leave the ID unset so the provider assigns one.
 
 The optional `Definition.Queue` is a provider-neutral lane. Set it only when an
 accepted operational constraint needs a named lane; otherwise leave it empty for
@@ -99,16 +95,9 @@ the runtime default.
 ## Enqueue from Application
 
 Application may directly depend on `taskqueue.Enqueuer` and the provider-neutral
-task contract. It may use the component's provider-neutral
-policies when the accepted workflow needs them:
-
-- `WithDelay` or `WithProcessAt` for an explicit future attempt;
-- `WithMaxRetry` for provider failure attempts;
-- `WithTimeout` for one execution attempt;
-- `WithDeadline` for the last acceptable provider attempt;
-- `WithUnique` for bounded provider duplicate suppression.
-
-Validate the options before calling `Enqueuer`:
+task contract. It sets a provider-neutral enqueue option only when the accepted
+workflow needs that policy, and validates the options before calling
+`Enqueuer`:
 
 ```go
 queued, err := applicationtask.NewReviewDocument(documentID)
@@ -124,9 +113,6 @@ return a.enqueuer.Enqueue(ctx, queued, options...)
 
 These options are delivery policy, not Domain truth. Asynq queue names, Redis
 configuration, `asynq.Option`, and worker retry metadata remain in Runtime.
-Zero values mean provider defaults; negative
-delay/retry/timeout/unique values and combining `WithDelay` with `WithProcessAt`
-are invalid.
 
 ## Transport Task Processor
 
@@ -153,18 +139,13 @@ func (p *ReviewDocumentProcessor) Process(ctx context.Context, queued taskqueue.
 }
 ```
 
-`taskqueue.DecodeProto` returns errors matching `taskqueue.ErrSkipRetry`
-for malformed protobuf.
-The Asynq adapter translates an error matching `taskqueue.ErrSkipRetry` to
-`asynq.SkipRetry`, so Transport can reject a permanently invalid delivery
-without importing Asynq.
+The processor returns:
 
-Outcome rules:
-
-- `nil`: the Application use case completed or reached an accepted stable no-op;
-- ordinary non-nil error: the attempt failed and provider retry policy may run;
-- error matching `taskqueue.ErrSkipRetry`: the delivery is permanently invalid
-  or unsupported and provider retry must stop.
+- `nil` when the Application use case completed or reached an accepted stable
+  no-op;
+- an ordinary error when a later attempt may succeed;
+- an error wrapping `taskqueue.ErrSkipRetry` when the delivery is permanently
+  invalid or unsupported.
 
 Business eligibility, transaction control, and Domain validation stay in the
 Application/Domain path. The processor does not query repositories to decide
@@ -201,17 +182,9 @@ The BC module provider builds the `taskqueue.PeriodicTask` with
 `taskqueue.CronSchedule` or `taskqueue.IntervalSchedule`, a stable name such as
 `billing.evaluate_due_invoices.daily`, and its enqueue policy.
 
-`CronSchedule` accepts a standard five-field expression and optional IANA
-location, but validates only the portable five-field shape; the provider adapter
-owns cron dialect details such as field ranges and names. `IntervalSchedule`
-accepts a positive `time.Duration` and rejects a location. A `PeriodicTask` has
-a static Task envelope and enqueue policy; resolve "today", current tenants, and
-currently due records inside the Application use case. `NewPeriodicTask`
-validates its schedule and policy and rejects `WithProcessAt` and `WithDeadline`
-because static absolute times become stale on repeated fires. It also rejects a
-task built with `WithID` (`taskqueue.ErrPeriodicTaskID`): a fixed ID would make
-every later fire conflict once one run was retained, silently stopping the
-schedule.
+A `PeriodicTask` repeats one static Task envelope and policy on every fire, so
+the Application use case resolves "today", current tenants, and currently due
+records when it runs.
 
 ## Provider Runtime
 
@@ -230,7 +203,5 @@ values.
   Application delegation, retry error, or `ErrSkipRetry` result.
 - Polling tests cover not-ready re-enqueue, deadline/exhaustion, duplicate
   execution, and terminal no-op behavior.
-- Periodic tests assert `PeriodicTask` name, schedule, static task, and policy;
-  they also reject absolute process/deadline options and task IDs, and do not
-  reimplement Asynq cron compilation.
+- Periodic tests assert `PeriodicTask` name, schedule, static task, and policy.
 - Runtime/provider verification follows the selected provider leaf.

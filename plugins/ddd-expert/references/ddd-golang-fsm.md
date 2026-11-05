@@ -28,18 +28,13 @@ for any other state.
 
 ## Registration and Persistence
 
-Build the machine once in Domain: call `RegisterStateBuilder` for every
-referenced label, add transitions, and freeze it into a package-level variable
-with `fsm.MustFreeze`, which runs `Check` and panics on a miswired machine at
-startup.
+Build the machine once in Domain and freeze it with `fsm.MustFreeze` into a
+package-level variable.
 
-Concrete state behavior owns acceptance. `Condition` selects an edge after the
-behavior succeeds. Candidates for one `from + action` are evaluated in add
-order; the first match wins, so guarded edges come before an unguarded one.
-`fsm.Transit` builds the selected target and delegates state assignment to
-`SetState`. When edges exist but no condition matches, it returns a
-`*fsm.TransitionError` with `Guarded` set; register an explicit self-transition
-when staying in the current state is accepted behavior. A business method that
+Concrete state behavior owns acceptance; a `Condition` only selects among the
+edges of one `from + action`. Add guarded edges before an unguarded one.
+Register an explicit self-transition when staying in the current state is
+accepted behavior. A business method that
 returns an error, from the behavior or from `Transit`, leaves an Aggregate the
 caller discards.
 
