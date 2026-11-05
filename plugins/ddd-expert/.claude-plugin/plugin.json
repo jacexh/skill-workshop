@@ -1,7 +1,7 @@
 {
   "name": "ddd-expert",
   "description": "Strategic EventStorming, sparse Tactical Design, architecture design, implementation, and review",
-  "version": "1.18.3",
+  "version": "1.18.4",
   "author": {
     "name": "xuhao"
   },
