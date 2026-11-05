@@ -84,7 +84,7 @@ Application owns what must commit together; Infrastructure owns how. A single-Ag
 ## Errors, Logging and Tests
 
 - Preserve stable Domain error identity with `errors.Is/As`; add `oops` context only when this layer contributes new diagnostics.
-- Application methods do not duplicate the Transport completion log.
+- Application methods leave the call log to their caller.
 - Application logs a business-semantic fact only when it has independent operational value. Durable evidence is a Domain Event, audit record or persisted state, not a log line.
 - Application becomes the execution logger only for a terminal flow with no outer observer or when it deliberately swallows a best-effort failure.
 

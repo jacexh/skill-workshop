@@ -20,8 +20,9 @@ Add the `connectrpc.com/otelconnect` interceptor to the global Connect
 interceptors, wrapping its construction error once with `oops`.
 
 Transport/Runtime extracts and injects W3C context across accepted HTTP, RPC,
-Integration Message, and task boundaries. Execution-completion logs include
-available `trace_id`, `span_id`, and `request_id` fields.
+Integration Message, and task boundaries. Every caller and delivery log
+includes the available `trace_id`, `span_id`, and `request_id` fields from its
+ctx.
 
 Runtime copies trace and request identifiers into in-memory `event.Dispatcher`
 handlers from `event.SourceContext` in `event.WithContextFactory`. Represent business

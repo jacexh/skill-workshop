@@ -32,13 +32,11 @@ error, owns cancellation, and closes the shared client after consumers stop.
 Register payload factories and handlers before starting the runner. Readiness
 becomes true only after required registrations and provider startup complete.
 
-## Ordering and Logging
+## Ordering
 
 Use a stable `message.Message.Key` for the accepted ordering scope and include a
 monotonic version/sequence only when the accepted consumer contract contains
-that meaning. The Runtime execution owner emits one completion record with safe
-operation, outcome, duration, message identity, attempt/disposition, and
-available trace/correlation fields.
+that meaning.
 
 When OpenTelemetry is present, Runtime injects/extracts context through provider
 headers according to [ddd-golang-observability.md](ddd-golang-observability.md).

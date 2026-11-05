@@ -121,7 +121,7 @@ stack migration.
 - Exported Domain fields are a mechanical mapping surface. New Aggregates use `domain.NewXxx` or another Domain Factory; outer layers do not assign fields to perform business changes.
 - Business data is validated in Domain. Application DTOs and DOs do not duplicate validator tags. Query filters/read models follow the CQRS guide.
 - Apply the lifecycle selected by accepted authority: a Repository-loaded request-scoped Aggregate becomes stale under the Domain guide's optimistic branch; a resident Aggregate remains the live authority and persists snapshots/checkpoints. Do not infer either branch from persistence technology.
-- Transport or Runtime owns one execution completion log. Application emits a separate business-semantic log only when it adds independent value or owns a terminal/suppressed outcome.
+- The caller of an Application use case logs that call once: Transport middleware for a synchronous request; the Domain Event handler, message subscriber, or task processor for asynchronous work. go-jimu components and provider adapters log delivery. A level states business meaning: Error marks a business failure that nothing recovers. Application emits a separate business-semantic log only when it adds independent value or owns a terminal/suppressed outcome.
 - One bounded context never imports another context's `internal/business/<context>` packages. Collaborate through an accepted published contract, Integration Message, or ACL.
 
 Codify selects the engineering realization from accepted project constraints, repository evidence, and the applicable House Rules while preserving confirmed business boundaries, consistency meaning, and published contracts.

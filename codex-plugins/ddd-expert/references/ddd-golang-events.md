@@ -55,13 +55,12 @@ func (h *UserCreatedHandler) Handle(ctx context.Context, fact event.Event) {
 		return
 	}
 	if err := h.app.PrepareProfile(ctx, application.PrepareProfile{UserID: created.UserID}); err != nil {
-		// suppressed result: log once under the Application logging convention
+		// suppressed result: the handler logs it as the caller
 	}
 }
 ```
 
-A handler owns any result it suppresses and logs it once under the
-Application logging convention. Trace propagation into its ctx follows
+Trace propagation into a handler's ctx follows
 [ddd-golang-observability.md](ddd-golang-observability.md). Domain event
 payloads carry business correlation only; technical trace context stays outer.
 
