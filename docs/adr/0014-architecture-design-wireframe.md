@@ -93,18 +93,18 @@ The skill works in five steps:
 4. List the decisions that are not derived and the assumptions. The user
    challenges the draft, the skill revises it, and the user confirms before
    the write.
-5. In a recording branch, add the components that Codify reported.
+5. In a recording branch, add the components and mechanisms that Codify reported.
 
 ### Binding
 
 The drawn components, dependencies, and mechanism seams are core design.
 
 - Codify keeps the core design. Detail inside a component is Codify latitude.
-- Codify reports components it adds beyond the drawing, next to the Domain
-  concepts it introduces.
+- Codify reports components and mechanisms it adds beyond the drawing, next to
+  the Domain concepts it introduces.
 - A change that must remove, move, or rewire core design is a ⚠️ Conflict.
-- Guard reports a violation of core design, and an added component that Codify
-  did not report.
+- Guard reports a violation of core design, and an added component or mechanism
+  that Codify did not report.
 
 ## Why this differs from ADR 0007
 

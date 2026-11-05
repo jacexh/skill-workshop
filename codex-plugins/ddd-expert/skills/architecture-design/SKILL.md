@@ -1,6 +1,6 @@
 ---
 name: architecture-design
-description: Use when a Bounded Context needs its software architecture designed, reviewed, or recorded as components by layer, dependencies, and technical mechanisms on seams, including components that Codify reported.
+description: Use when a Bounded Context needs its software architecture designed, reviewed, or recorded as components by layer, dependencies, and technical mechanisms on seams, including components and mechanisms that Codify reported.
 ---
 
 # Architecture Design
@@ -31,7 +31,7 @@ Work on one Bounded Context at a time. Read:
 
 For House Style, read [ddd-core.md](../../references/ddd-core.md) and the active-language router: [Go](../../references/ddd-golang.md), [Python](../../references/ddd-python.md), or [TypeScript](../../references/ddd-typescript.md).
 
-For **recording**, the components and dependencies come from a Codify completion report or an already confirmed design. Show the additions on the rendered drawing, obtain confirmation under the workflow contract unless it already covers them, and proceed to [Write](#write). An existing drawing changes only where the report or confirmation reaches.
+For **recording**, the components, dependencies, and mechanisms come from a Codify completion report or an already confirmed design. Show the additions on the rendered drawing, obtain confirmation under the workflow contract unless it already covers them, and proceed to [Write](#write). An existing drawing changes only where the report or confirmation reaches.
 
 ## Derive the complete design
 

@@ -19,13 +19,13 @@ Resolve unspecified realization choices through accepted project constraints and
 
 Classify each gap the implementation exposes:
 
-- A software-shape choice, such as naming, layering, error types, persistence, transaction scope, or a technical mechanism for a delivery constraint, that changes no business right, obligation, authority, decision, outcome, or required next action: resolve it through project constraints and House Style.
+- A software-shape choice, such as naming, layering, error types, persistence, transaction scope, or a technical mechanism for a delivery constraint that no drawn mechanism serves, that changes no business right, obligation, authority, decision, outcome, or required next action: resolve it through project constraints and House Style.
 - A business-shaped gap with a conservative reading that contradicts no accepted statement and can later be reversed in one place: implement it under that stated assumption and continue. Prefer rejection over admission, the narrowest permission, and failing closed.
-- A contradiction between accepted statements, or a gap where every implementation would change an accepted Business Rule, Policy, consistency boundary, Domain-owned Port, or Domain Event: complete the rest of the slice, then raise it once as a ⚠️ **Conflict** under the workflow contract's presentation markers. The code realizes only the accepted statements.
+- A contradiction between accepted statements, or a gap where every implementation would change an accepted Business Rule, Policy, consistency boundary, Domain-owned Port, or Domain Event: complete the rest of the slice, then raise it once as a ⚠️ **Conflict** under the workflow contract's presentation markers. The code realizes only the accepted statements. The user resolves the Conflict as a [correction](../../references/workflow.md#progressive-refinement) through the step that owns the contradicted artifact: EventStorming for `context-map.md` or `model.md`, Tactical Design for `domain-objects.md`, Architecture Design for `architecture.html`. Codify then resumes from the corrected artifact.
 
 DDD artifacts are read-only during Codify. Preserve their accepted semantic ownership while changing the implementation around it.
 
-When `architecture.html` exists, realize its core design as [Architecture writing](../../templates/artifact-layout.md#architecture-writing) defines it: each drawn component becomes the code surface its kind names, each drawn dependency a source dependency, and each mechanism sits on its seam. Add a component the change needs beyond the drawing under House Style, and report it at completion. A change that must remove, move, or rewire a drawn component, dependency, or mechanism seam is a ⚠️ **Conflict** under the gap classification above.
+When `architecture.html` exists, realize its core design as [Architecture writing](../../templates/artifact-layout.md#architecture-writing) defines it: each drawn component becomes the code surface its kind names, each drawn dependency a source dependency, and each mechanism sits on its seam. Add a component or mechanism the change needs beyond the drawing under House Style, and report it at completion. A change that must remove, move, or rewire a drawn component, dependency, or mechanism seam is a ⚠️ **Conflict** under the gap classification above.
 
 The accepted Ubiquitous Language names the Domain code: each accepted Aggregate Root, Entity, Value Object, Lifecycle State, Behavior, Domain-owned Port, and Domain Event keeps its accepted name and meaning in exactly one Domain carrier, and Domain code uses the Essential Language term for each concept it names. A supporting Value Object or Entity that only realizes accepted meaning, such as `Money`, is implementation latitude; a concept that adds business meaning follows the gap classification above.
 
@@ -33,7 +33,7 @@ The accepted Ubiquitous Language names the Domain code: each accepted Aggregate 
 
 Implement the complete requested slice across the code surfaces it actually needs. Keep the accepted Domain model authoritative and the core design in place. Derive the remaining affected software structure from the model's ownership, behavior, and Domain-owned Ports: preserve outer structures that support them, reshape those that obscure or duplicate them, and remove obsolete parallel responsibility exposed by the change.
 
-Realize each affected Policy from its trigger to its reaction and its stated failure outcome. The outcome selects the delivery mechanism: an in-process handler loses a reaction when the process stops, so an outcome that must survive a stop or a failed dependency needs a durable House Style mechanism.
+Realize each affected Policy from its trigger to its reaction and its stated failure outcome. When `architecture.html` draws a mechanism for the Policy, realize that mechanism. Otherwise the outcome selects the delivery mechanism: an in-process handler loses a reaction when the process stops, so an outcome that must survive a stop or a failed dependency needs a durable House Style mechanism.
 
 Use the active-language router to load the smallest complete House Style leaf set whose applicability covers every code surface actually touched. Apply those rules to the remaining realization choices that preserve the accepted semantics.
 
@@ -43,7 +43,7 @@ Run repository tests and checks proportionate to the changed behavior and risk. 
 
 ## Completion
 
-End with the implemented behavior, changed files, verification results, stated assumptions, Domain concepts introduced beyond the accepted artifacts, components added beyond `architecture.html`, and residual risk. Completion requires the accepted Domain model and any core design to be faithfully realized, with the requested behavior, every delivery constraint, relevant House Style, and verification agreeing in the final code.
+End with the implemented behavior, changed files, verification results, stated assumptions, including each open decision realized under its default, Domain concepts introduced beyond the accepted artifacts, components and mechanisms added beyond `architecture.html`, and residual risk. Completion requires the accepted Domain model and any core design to be faithfully realized, with the requested behavior, every delivery constraint, relevant House Style, and verification agreeing in the final code.
 
 ## References
 
