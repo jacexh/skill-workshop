@@ -7,8 +7,8 @@ description: Language-neutral House Style for realizing accepted DDD objects and
 
 ## Applies When
 
-Load this leaf when accepted DDD objects or cross-language layer boundaries are
-being implemented or reviewed. The accepted strategic model and domain-object
+Load this leaf when accepted DDD objects, cross-language layer boundaries, or
+technical mechanisms are being implemented or reviewed. The accepted strategic model and domain-object
 design decide what exists and who owns it. This leaf fixes only its software
 shape; the active-language router fixes syntax, libraries, filenames, and exact
 verification commands.
@@ -110,8 +110,9 @@ remains an execution outcome unless the accepted model gives it Domain meaning.
   lifecycle and language leaf define a snapshot/checkpoint form.
 - Persist owned children through the Root boundary.
 - Expose stable not-found and concurrency outcomes in inner-layer language.
-- Keep SQL, sessions, transactions, cache keys, provider options, product lists,
-  histories, reports, and projections out of the write contract.
+- The write contract speaks Aggregate language only. SQL, sessions,
+  transactions, cache keys, and provider options live in its implementation;
+  product lists, histories, reports, and projections belong to a QueryRepository.
 
 ## Application and Transport Shape
 
@@ -151,6 +152,30 @@ one use case stays in that use case.
 - An inbound adapter decodes and maps one external contract, delegates once to
   Application, and maps the result or error. Generated types end at that
   boundary.
+
+## Technical Mechanisms
+
+A technical mechanism realizes a delivery constraint such as volume, latency,
+or availability without changing accepted meaning: caching, retry, circuit
+breaking, rate limiting, batching, or read replicas. Place it inside the
+implementation behind the existing seam that owns the affected access, and
+compose it in Runtime, for example as a wrapping implementation of the same
+contract. Domain objects, Repository and Port contracts, and the Application
+coordination order stay as they are.
+
+| Mechanism | Seam | Constraint |
+|---|---|---|
+| Aggregate read cache | Write Repository implementation | `Get` reads through the cache and `Save` invalidates it; the concurrency check stays against the source of truth |
+| Read model cache | QueryRepository implementation | Freshness follows the accepted delivery constraint |
+| External call cache, retry, circuit breaker | Port or adapter implementation | Technical non-fulfillment stays an execution outcome |
+| Protocol rate limit or request deduplication | Transport middleware or Runtime | Business idempotency belongs to the accepted model |
+
+When a mechanism fits behind no existing seam unless a contract, the
+coordination order, or accepted behavior changes, it changes accepted
+semantics: raise a ⚠️ **Conflict** before implementing it.
+
+A delivery mechanism that a Policy's failure outcome selects follows
+[ddd-collaboration.md](ddd-collaboration.md), not this section.
 
 ## Local Transaction Realization
 
