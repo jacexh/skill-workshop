@@ -65,14 +65,22 @@ Data Objects, provider metadata, or Asynq types. Name the message
 `<Task>TaskV1` in package `<context>.task.v1`.
 
 Application owns the semantic `TaskType`, provider-neutral `Definition`, and
-constructor that builds the protobuf-backed envelope, named
-`<Task>Type` (a versioned value such as `"document.review.v1"`),
-`<Task>Definition`, and `New<Task>(...) (taskqueue.Task, error)` in
-`application/task`.
+constructor that builds the protobuf-backed envelope:
 
-Build the envelope with the exported `Definition` through
-`taskqueue.NewProtoTask`, and decode it with `taskqueue.DecodeProto` into the
-generated contract type. `TaskType` identifies the semantic payload schema;
+```go
+// internal/business/document/application/task/review_document.go
+const ReviewDocumentType taskqueue.TaskType = "document.review.v1"
+
+var ReviewDocumentDefinition = taskqueue.Definition{Type: ReviewDocumentType}
+
+func NewReviewDocument(documentID string) (taskqueue.Task, error) {
+	return taskqueue.NewProtoTask(ReviewDocumentDefinition,
+		&documenttaskv1.ReviewDocumentTaskV1{DocumentId: documentID})
+}
+```
+
+Transport decodes it with `taskqueue.DecodeProto` into the generated contract
+type. `TaskType` identifies the semantic payload schema;
 protobuf is the payload codec. Keep those concepts separate throughout
 Application, Transport, provider adapters, and tests.
 
@@ -100,10 +108,23 @@ policies when the accepted workflow needs them:
 - `WithDeadline` for the last acceptable provider attempt;
 - `WithUnique` for bounded provider duplicate suppression.
 
+Validate the options before calling `Enqueuer`:
+
+```go
+queued, err := applicationtask.NewReviewDocument(documentID)
+if err != nil {
+	return err
+}
+options := []taskqueue.EnqueueOption{taskqueue.WithMaxRetry(3)}
+if err := taskqueue.NewEnqueueOptions(options...).Validate(); err != nil {
+	return err
+}
+return a.enqueuer.Enqueue(ctx, queued, options...)
+```
+
 These options are delivery policy, not Domain truth. Asynq queue names, Redis
 configuration, `asynq.Option`, and worker retry metadata remain in Runtime.
-Validate the options through `taskqueue.NewEnqueueOptions(...).Validate()`
-before calling `Enqueuer`. Zero values mean provider defaults; negative
+Zero values mean provider defaults; negative
 delay/retry/timeout/unique values and combining `WithDelay` with `WithProcessAt`
 are invalid.
 
@@ -111,9 +132,26 @@ are invalid.
 
 A processor lives under `transport/taskprocessor`, implements one
 `taskqueue.Processor`, decodes with `taskqueue.DecodeProto`, maps to one
-Application Command, and delegates once. It asserts `taskqueue.Processor` at
-compile time, returns the Application task constant from `TaskType()`, and
-returns a `DecodeProto` error unchanged.
+Application Command, and delegates once:
+
+```go
+// internal/business/document/transport/taskprocessor/review_document.go
+type ReviewDocumentProcessor struct{ app *application.Application }
+
+var _ taskqueue.Processor = (*ReviewDocumentProcessor)(nil)
+
+func (*ReviewDocumentProcessor) TaskType() taskqueue.TaskType {
+	return applicationtask.ReviewDocumentType
+}
+
+func (p *ReviewDocumentProcessor) Process(ctx context.Context, queued taskqueue.Task) error {
+	payload := &documenttaskv1.ReviewDocumentTaskV1{}
+	if err := taskqueue.DecodeProto(queued, payload); err != nil {
+		return err
+	}
+	return p.app.ReviewDocument(ctx, application.ReviewDocument{DocumentID: payload.GetDocumentId()})
+}
+```
 
 `taskqueue.DecodeProto` returns errors matching `taskqueue.ErrSkipRetry`
 for malformed protobuf.

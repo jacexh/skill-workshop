@@ -42,11 +42,29 @@ correlation/trace fields.
 
 ## Subscriber Shape
 
-A subscriber under `transport/messagesubscriber/` holds the
-`*application.Application`, asserts `message.Handler` at compile time, lists
-`message.KindOf` of its generated payload in `Listening`, type-asserts that
-payload, and maps its getters to one Application command. An unexpected
-payload type returns an error naming the kind and the type.
+A subscriber under `transport/messagesubscriber/` maps one generated payload
+to one Application command:
+
+```go
+// internal/business/notification/transport/messagesubscriber/user_registered.go
+type UserRegisteredSubscriber struct{ app *application.Application }
+
+var _ message.Handler = (*UserRegisteredSubscriber)(nil)
+
+func (*UserRegisteredSubscriber) Listening() []message.Kind {
+	return []message.Kind{message.KindOf(&userintegrationv1.UserRegisteredV1{})}
+}
+
+func (s *UserRegisteredSubscriber) Handle(ctx context.Context, msg message.Message) error {
+	payload, ok := msg.Payload().(*userintegrationv1.UserRegisteredV1)
+	if !ok {
+		return fmt.Errorf("unexpected payload for %s: %T", msg.Kind(), msg.Payload())
+	}
+	return s.app.SendWelcomeNotification(ctx, application.SendWelcomeNotification{
+		UserID: payload.GetUserId(),
+	})
+}
+```
 
 Return the local use-case result to Runtime/provider code. The subscriber emits
 a log only for a separate business-semantic fact.

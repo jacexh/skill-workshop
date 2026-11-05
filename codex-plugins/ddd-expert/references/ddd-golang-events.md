@@ -38,9 +38,29 @@ that changes state enters a fresh Application command and transaction.
 only the wait for queue space. The Application method returns or classifies
 that error through the ordinary Application error convention.
 
-A handler holds the `*application.Application`, asserts `event.Handler` at
-compile time, lists its kinds in `Listening`, type-asserts the concrete event,
-ignores any other type, and delegates to one Application method.
+A handler type-asserts its concrete event, ignores any other type, and
+delegates to one Application method:
+
+```go
+// internal/business/user/application/eventhandler/user_created.go
+type UserCreatedHandler struct{ app *application.Application }
+
+var _ event.Handler = (*UserCreatedHandler)(nil)
+
+func (*UserCreatedHandler) Listening() []event.Kind {
+	return []event.Kind{domain.EventKindUserCreated}
+}
+
+func (h *UserCreatedHandler) Handle(ctx context.Context, fact event.Event) {
+	created, ok := fact.(domain.UserCreated)
+	if !ok {
+		return
+	}
+	if err := h.app.PrepareProfile(ctx, application.PrepareProfile{UserID: created.UserID}); err != nil {
+		// suppressed result: log once under the Application logging convention
+	}
+}
+```
 
 Because `event.Handler` has no error result and runs after the publisher has
 returned, a handler owns any result it suppresses and logs it once under the
