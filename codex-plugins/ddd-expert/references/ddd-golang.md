@@ -65,6 +65,19 @@ Load [ddd-core.md](ddd-core.md) for an affected Domain object, Domain-owned Port
 or cross-language layer realization, and [ddd-collaboration.md](ddd-collaboration.md)
 only for an accepted published API, Domain Event, or Integration Message.
 
+## Drawn Components
+
+Two `application-port` kinds in `architecture.html` are adopted go-jimu
+contracts. Application depends on the contract directly; Runtime composes its
+adapter from the provider leaf.
+
+| Drawn component | Go realization |
+|---|---|
+| Publisher `application-port` | `message.Publisher` |
+| Its `adapter` | the provider publisher in `internal/pkg/messagebus`; [Kafka](ddd-golang-kafka.md) when Kafka applies |
+| Task enqueue `application-port` | `taskqueue.Enqueuer` |
+| Its `adapter` | the provider client in `internal/pkg/taskqueue`; [Asynq](ddd-golang-asynq.md) when Asynq applies |
+
 ## Adopted Stack Defaults
 
 | Concern | Default implementation | Applicability |
