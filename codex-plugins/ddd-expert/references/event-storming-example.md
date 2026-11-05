@@ -72,8 +72,7 @@ lifecycle-end probe places Visit Completed as the crossing point.
   it, the doctor only records completion.
 - **Subdomains**: Scheduling is Core (differentiation probe: same-day
   confirmation is how the clinic wins patients); Billing is Generic (standard
-  invoicing, no clinic-specific advantage), so it goes to Codify without
-  Tactical Design.
+  invoicing, no clinic-specific advantage), so it skips Tactical Design.
 - **Aggregate Roots**: `Schedule` — a doctor's day of slots; consistency:
   one confirmed appointment per slot at confirmation time. `Invoice` —
   a billable completed visit; consistency: one invoice per completed visit.

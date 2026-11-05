@@ -26,6 +26,7 @@ Work on one Bounded Context at a time. Read:
 - the context's `model.md`, and its `domain-objects.md` when it exists;
 - any existing `architecture.html`;
 - confirmed delivery constraints and relevant project decisions;
+- open decisions handed on by earlier steps, from the spec or the conversation;
 - the context's existing code.
 
 For House Style, read [ddd-core.md](../../references/ddd-core.md) and the active-language router: [Go](../../references/ddd-golang.md), [Python](../../references/ddd-python.md), or [TypeScript](../../references/ddd-typescript.md).
@@ -55,6 +56,8 @@ Draw each dependency in a direction that Architecture writing allows.
 
 Some facts are missing from the repository and have no House Style or code default. When such a fact would change a component, dependency, or mechanism, ask the user before presenting. Ask one question per turn. Decide design choices yourself and show them in the review. When a fact has a default you are not sure of, use the default and list it as an assumption.
 
+Settle each open decision whose evidence the design supplies. When the design exposes a fact or contradiction that changes `context-map.md`, `model.md`, or `domain-objects.md`, such as a hidden Domain-owned Port or a Domain Event that no Policy or Published Fact Contract needs, make it a [correction](../../references/workflow.md#progressive-refinement) before drawing on it.
+
 ## Self-check
 
 Present the design only when all of these hold:
@@ -70,13 +73,14 @@ Present the design only when all of these hold:
 Render the draft from the [architecture template](../../templates/architecture.html) to a temporary file outside the repository, and give the user its path. When the user cannot open local files, serve the draft over HTTP and give its URL. Beside it, list:
 
 - each component, dependency, or mechanism that is not derived directly from an accepted artifact, with its reason;
-- each assumption.
+- each assumption;
+- each open decision this design settles, and each one it hands on to Codify with its default.
 
 Treat each user question or challenge as review input. Answer it from the sources above, revise the draft when the challenge holds, and render again. Review ends when the user confirms the design.
 
 ## Write
 
-Before writing, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write `docs/ddd-expert/context/<context-slug>/architecture.html` from the template, and change only its JSON data block. Run the Architecture validator. If it fails, correct the representation and run it again.
+Before writing, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write `docs/ddd-expert/context/<context-slug>/architecture.html` from the template, and change only its JSON data block. Run the Architecture validator. If it fails, correct the drawing and run it again; a Domain name mismatch that the drawing cannot resolve is a correction to `domain-objects.md`.
 
 ## Completion
 

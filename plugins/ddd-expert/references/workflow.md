@@ -13,6 +13,42 @@ Choose the requested work from the current evidence: explain, discover, refine,
 implement, or review. Enter the skill that owns it. A design or review request
 ends with that result; implementation proceeds when it is in the user's scope.
 
+## Step order
+
+The steps run in this order: EventStorming, Tactical Design, Architecture
+Design, then Codify; Guard reviews Codify's result. When a step completes,
+continue to the first later step whose entry condition holds for the whole
+change in scope, including what earlier steps accepted, and skip each step
+whose condition does not hold. A design-only request ends with the last design
+step that applies.
+
+| Step | Entry condition |
+| --- | --- |
+| Tactical Design | Aggregate internals or domain-object behavior still need a decision, within Tactical Design's Subdomain scaling. |
+| Architecture Design | The change adds, renames, or removes a Root, Domain Service, Domain-owned Port, or Domain Event, or adds, removes, or changes a Policy, an Integration Message the context consumes or sends, or a delivery constraint. |
+| Codify | Implementation is in scope. |
+
+## Progressive refinement
+
+The design steps clarify the design progressively. Each step settles the
+decisions it owns and has evidence for, and writes only those as accepted
+content.
+
+- **Open decision**: a decision whose evidence a later step owns. Hand it on
+  with its default, stated as an assumption: record it in the project's spec
+  or issue when one exists, otherwise in the conversation hand-off. The step
+  that reaches its evidence settles it. Artifacts hold only accepted content.
+- **Correction**: when Tactical Design or Architecture Design finds a fact or
+  contradiction that changes an earlier artifact, present it as a ⚠️
+  **Conflict** with the proposed 🔄 **Change** and obtain confirmation. Write
+  it in the current step under the owning skill's template, writing guidance,
+  and write checks, then revisit the accepted content after it that the
+  correction affects. A correction rests on a business fact or contradiction;
+  a realization preference stays within the current step.
+- Codify implements an open decision that reaches it under its stated default
+  and reports it as an assumption. Codify and Guard leave the artifacts
+  unchanged and report contradictions.
+
 ## Decisions and confirmation
 
 Investigate repository facts before asking. Ask one material unresolved question

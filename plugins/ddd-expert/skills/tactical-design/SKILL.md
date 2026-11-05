@@ -23,9 +23,9 @@ confirmed Aggregate Root and Business Rules
 
 Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, Business Rules, Policies, and the Published Fact Contracts this context owns in `context-map.md` as business authority. Start with the Root and affected slice identified by the request; ask only when that choice is materially ambiguous.
 
-Scale the design to the context's Subdomain. A Core or Supporting context receives the interview below; a Model without a Subdomain classification is treated the same way. A Generic context goes to Codify by default, which realizes its Business Rules with the simplest representation, or an existing solution, that satisfies them. Design a Generic Root only when the user asks for it or when a Business Rule makes its object ownership a material decision; if that reveals differentiating rules, raise reclassification as a strategic correction.
+Scale the design to the context's Subdomain. A Core or Supporting context receives the interview below; a Model without a Subdomain classification is treated the same way. A Generic context skips this interview by default and continues by the [step order](../../references/workflow.md#step-order); Codify realizes its Business Rules with the simplest representation, or an existing solution, that satisfies them. Design a Generic Root only when the user asks for it or when a Business Rule makes its object ownership a material decision; if that reveals differentiating rules, raise reclassification as a strategic correction.
 
-If tactical refinement exposes a needed correction to business meaning, a Bounded Context boundary, Aggregate Root identity, or a strategic Business Rule, resolve it with the user in the current conversation and carry the accepted change into the Root-level artifact review. Do not force a workflow switch or leave the tactical model built on a known contradiction.
+If tactical refinement exposes a needed correction to business meaning, a Bounded Context boundary, Aggregate Root identity, or a strategic Business Rule, make it as a [correction](../../references/workflow.md#progressive-refinement) in the current conversation and carry the accepted change into the Root-level artifact review, so the tactical model rests on no known contradiction.
 
 ## Choose the current work
 
@@ -151,14 +151,14 @@ For a newly designed Root, show its integrated compact slice when its compositio
 - every pressure is traceable to its Business Rules, Policies, or owned Published Fact Contract and assigned to one Behavior; each Behavior cites its Business Rules, and each Consumed by line cites its Policy;
 - every accepted decision rule is a Business Rule in `model.md`;
 - every Root and retained Entity states its identity, and its uniqueness scope where the business limits it;
-- every external-authority need is classified as Supplied Fact or Domain-owned Port, and every Supplied Fact names its owning authority;
+- every external-authority need is classified as Supplied Fact or Domain-owned Port, and every Supplied Fact names its owning authority; a need whose timing only the Architecture Design entries reveal takes the Supplied Fact default and is handed on as an open decision;
 - every material behavior owner, target, and Lifecycle State transition is resolved;
 - every Lifecycle State is entered and left by a named Behavior, or is the initial or terminal state;
 - every retained or changed object has a reason to exist;
 - the strongest credible alternative was compared under the same pressures;
 - every description matches the template, including Port Methods, recording Behaviors, and reacting Policies.
 
-Complete when no material decision remains that would change composition or ownership.
+Complete when every material decision that would change composition or ownership is settled, or is an [open decision](../../references/workflow.md#progressive-refinement) whose evidence a later step owns.
 
 For an already-confirmed Root, check the supplied description against the template
 and accepted authority. Resolve only material gaps that prevent a faithful write.
@@ -174,10 +174,7 @@ object, run its affected write checks, and continue authorized work.
 
 After an object write, continue its current slice; after completing a slice, continue
 with the next affected slice in scope. Once all requested slices are complete,
-continue to Architecture Design when the accepted slices add, rename, or remove
-a Root, Domain Service, Domain-owned Port, Domain Event, or a Policy that reacts
-to a Domain Event, and otherwise to Codify when
-implementation is already in scope and the accepted slices cover it. A design-only request ends with the accepted result.
+continue by the [step order](../../references/workflow.md#step-order).
 
 Report confirmed or updated descriptions, any accepted strategic correction,
 write-check results, and remaining decisions or blockers with current filesystem

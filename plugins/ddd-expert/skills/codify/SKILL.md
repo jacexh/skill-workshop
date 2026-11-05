@@ -11,7 +11,7 @@ Read the [workflow contract](../../references/workflow.md) for scope, existing a
 
 ## Contract
 
-Read the user's current scope, any delivery constraints confirmed by the EventStorming assumption sweep, affected `model.md` and `domain-objects.md`, the affected `architecture.html` when it exists, relevant project decisions and instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
+Read the user's current scope, any delivery constraints confirmed by the EventStorming assumption sweep, open decisions handed on by earlier steps, affected `model.md` and `domain-objects.md`, the affected `architecture.html` when it exists, relevant project decisions and instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
 
 The Markdown DDD artifacts define accepted business meaning, Aggregate boundaries, Policies, and Domain-object state and behavior ownership; they are semantic constraints. `architecture.html`, when it exists, fixes the outer structure as **core design**. Software structure that neither records is implementation latitude, not a missing modeling step.
 

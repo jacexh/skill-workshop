@@ -126,10 +126,10 @@ Before the integrated proposal, revisit every assumption stated on the board, pl
 
 - the information a Role needs before issuing a Command;
 - the acceptance scenarios that would show the scope is done;
-- volume, latency, audit, retention, or compliance expectations;
+- volume, latency, availability, audit, retention, or compliance expectations;
 - existing data, published APIs, or clients that must keep working.
 
-An answer that changes a business right, obligation, value, authority, decision, outcome, or required next action becomes a Business Rule or reopens the affected step. Every other answer is a **delivery constraint**: record it in the project's spec or issue when one exists, otherwise carry it in the conversation as Architecture Design and Codify input. The sweep is complete when every board assumption and touched delivery dimension has become a Business Rule, a delivery constraint, or a non-blocking Hotspot.
+An answer that changes a business right, obligation, value, authority, decision, outcome, or required next action becomes a Business Rule or reopens the affected step. Every other answer is a **delivery constraint**: record it in the project's spec or issue when one exists, otherwise carry it in the conversation as Architecture Design and Codify input. The sweep is complete when every board assumption and touched delivery dimension has become a Business Rule, a delivery constraint, or a non-blocking Hotspot handed on as an [open decision](../../references/workflow.md#progressive-refinement).
 
 ## Confirmation and writing
 
@@ -144,19 +144,12 @@ Present one compact integrated proposal:
 - Policies and their deciding context;
 - semantic dependencies and named contracts;
 - delivery constraints from the assumption sweep;
-- remaining non-blocking uncertainty.
+- open decisions, each with its default and the step that settles it.
 
 Reuse an already-confirmed integrated proposal. Otherwise obtain its confirmation under the workflow contract before writing.
 
 Before writing, read the [artifact layout and write checks](../../templates/artifact-layout.md), [Context Map template](../../templates/context-map.md), and [Model template](../../templates/model.md). Update only accepted current meaning that changed. Validate each changed Context Map with the linked script and verify affected Model links before declaring the write complete.
 
-Then classify the next step:
-
-- use Tactical Design when Aggregate internals or domain-object behavior still needs a decision in a Core or Supporting context;
-- use Architecture Design when the context's contracts, Policies, Integration Messages, or delivery constraints change its components or technical mechanisms;
-- use Codify when the accepted `domain-objects.md` already covers the change, or when a Generic context's Business Rules already determine it;
-- stop when the user requested design only.
-
 ## Completion
 
-End with the strategic result, supporting evidence, changed artifacts, and write-check results. If a material decision remains, ask the decisive question with the current proposal. Continue to Tactical Design or Codify only when that work is in scope.
+End with the strategic result, supporting evidence, changed artifacts, and write-check results. If a material decision remains, ask the decisive question with the current proposal. Then continue by the [step order](../../references/workflow.md#step-order).
