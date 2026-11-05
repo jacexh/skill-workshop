@@ -48,7 +48,7 @@ bounded drain. Provider-specific construction stays in the provider leaf.
 
 ## Execution Owner Logs And Errors
 
-Transport middleware owns one Execution Completion Log per inbound RPC/message/task. Runtime owns one for each terminal loop, scheduler tick, or lifecycle operation it executes. Application does not duplicate that record; Infrastructure enriches and returns errors unless it owns suppression or a terminal operation.
+The router's caller rule decides who logs an execution. Runtime passes the process logger to every go-jimu component and provider adapter, and owns one log for each lifecycle operation it executes itself. Infrastructure enriches and returns errors unless it owns suppression or a terminal operation.
 
 A Connect interceptor creates the request-scoped logger from the `X-Request-ID` header as `request_id`, stores it with `sloghelper.NewContext`, and records one `request complete` entry with `operation` (the procedure), `duration_ms`, and `outcome`: `success` at Info, or `failed` at Error with `connect_code` and the error.
 

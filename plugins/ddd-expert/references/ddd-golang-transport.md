@@ -52,15 +52,13 @@ provider-neutral protobuf task, maps it to one Application Command, delegates
 once, and returns the semantic result.
 
 The Bounded Context module contributes subscriber and processor registrations.
-Kafka and Asynq provider construction, active loops, completion logging, and
-lifecycle remain in their provider leaves.
+Kafka and Asynq provider construction, active loops, and lifecycle remain in
+their provider leaves.
 ## Errors, Logging and Trace Context
 
 Transport maps stable errors to ConnectRPC/HTTP status or returns them to the provider boundary. It preserves the internal cause for the single execution logger.
 
 - ConnectRPC/HTTP middleware owns end-to-end duration and completion.
-- A message subscriber never records generic delivery completion because its return precedes provider commit. It may record only an independently valuable business-semantic fact; the post-commit provider boundary owns delivery success and terminal failure.
-- Task worker middleware owns task completion and duration.
 - Do not log an error and return it unless this adapter is the terminal owner.
 
 When OpenTelemetry is available and accepted, Transport extracts/creates trace context and passes `context.Context` unchanged. Completion logs may include `trace_id`, `span_id` and `request_id`; async boundaries also retain their own `message_id` or `task_id`. Domain remains telemetry-free.

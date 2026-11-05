@@ -48,7 +48,7 @@ Infrastructure fulfills Domain-owned Ports and Application Ports through externa
 
 - At the first controlled boundary, enrich and wrap once with `oops.With(...).Wrap(providerErr)`; use `oops.Wrap(providerErr)` only when there is no owned context. Never wrap an already wrapped provider error again.
 - Preserve `errors.Is/As` and stable Domain/Application errors. Later layers add context only when they add new semantics.
-- Do not log and return the same error. Transport or Runtime owns the Execution Completion Log.
+- Return an error unlogged; the caller of the use case logs the outcome.
 - Infrastructure logs only when it suppresses/retries an error or owns a terminal provider operation.
 - Never attach passwords, DSNs, tokens, message payloads, or unbounded SQL values to errors or logs.
 

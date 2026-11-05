@@ -29,11 +29,7 @@ Bounded Context modules contribute `taskqueue.Processor` and accepted
 manages client close plus worker/scheduler `Start` and `Shutdown` through Fx
 lifecycle hooks.
 
-## Logging and Verification
-
-Runtime owns one task completion record with operation, outcome, duration,
-task identity, task type, attempt, and safe correlation fields. Application
-logs only an independently useful business fact.
+## Verification
 
 Provider integration tests use Redis/Asynq for registration, envelope/codec
 preservation, enqueue options, routing, uniqueness, attempt policy, scheduler

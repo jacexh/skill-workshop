@@ -65,9 +65,6 @@ func (s *UserRegisteredSubscriber) Handle(ctx context.Context, msg message.Messa
 }
 ```
 
-Return the local use-case result to Runtime/provider code. The subscriber emits
-a log only for a separate business-semantic fact.
-
 ## Verification
 
 Use real generated Protobuf values and `message.Message`. Test contract
