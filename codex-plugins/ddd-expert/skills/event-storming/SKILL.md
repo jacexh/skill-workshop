@@ -40,7 +40,7 @@ accurate write; formatting differences are resolved through the templates.
 Use the shared [design interview presentation](../../references/workflow.md#design-interview-presentation) for questions, recommendations, changes, and conflicts.
 
 - Inspect relevant Specs, PRDs, ADRs, glossary entries, current DDD artifacts, code, and tests first. If a fact is available there, look it up instead of asking the user. For changes to existing behavior, compare the accepted model, observed implementation, and requested outcome; focus discussion on affected differences and conflicts.
-- Ask one material unresolved question at a time. A question is material when its answer can change a Bounded Context, Aggregate Root, Business Rule, Policy, or semantic dependency, or blocks the current step's conclusion; otherwise state the assumption on the board and continue. Independent factual questions about one scenario may share a turn; a design decision stands alone. Wait for the answer before settling conclusions that depend on it.
+- Ask one material unresolved question at a time. A question is material when its answer can change a Bounded Context, Aggregate Root, Business Rule, Policy, or semantic dependency, or blocks the current step's conclusion; otherwise state the assumption on the board and continue; the [assumption sweep](#assumption-sweep) revisits it before the integrated proposal. Factual questions and design decisions alike are asked one per turn. Wait for the answer before settling conclusions that depend on it.
 - For a business fact, explain what evidence is missing. For a design choice, give a recommended answer, its reason, and the strongest credible alternative.
 - Treat disagreement and examples as evidence. Revise the model when they defeat the current explanation.
 - Move to the integrated proposal when the scoped goals, key success and failure scenarios, business rules, and affected strategic boundaries are supported by evidence, and remaining uncertainty does not block the proposal.
@@ -65,7 +65,7 @@ Use all ten steps in causal order during discovery. Advance through explicit int
 6. **Constraints and required next intents**: expose authoritative facts, rules, and any occurrence that requires or enables another business action; clarify whether the occurrence stands as a successful business fact independently of that action. A required next intent follows without a new human decision; an action the occurrence only enables stays a Command that a Role chooses. Stress each required next intent with the [policy probes](#policy-probes) and keep the resulting Policy candidates on the board; step 10 assigns each one to its deciding context.
 7. **Problems and ambiguity**: make contradictions, assumptions, missing facts, and material Hotspots explicit.
 8. **Aggregates and core business objects**: cluster identity and immediate consistency around candidate Aggregate Roots. Stress each candidate with the [aggregate probes](#aggregate-probes), then compare the no-split candidate with the strongest split, merge, or deletion under the same probe answers before recommending one.
-9. **Bounded Contexts**: separate language, authority, policy, lifecycle, and model purpose where they diverge. Start from the timeline segments and swimlanes, stress each candidate with the [boundary probes](#boundary-probes), and keep a context only when at least one probe separates it from its neighbours.
+9. **Bounded Contexts**: separate language, authority, policy, lifecycle, and model purpose where they diverge. Start from the timeline segments and swimlanes, stress each candidate with the [boundary probes](#boundary-probes), and keep a context only when at least one probe separates it from its neighbours. Classify each accepted context with the [subdomain probe](#subdomain-probe).
 10. **Context collaboration**: identify semantic dependencies, named published contracts, translation, and downstream reliance. Use a published synchronous command/query when the caller needs an immediate authoritative answer, a producer-owned Published Fact Contract when another context relies on what occurred, and a receiver-owned Asynchronous Intent Contract when one context asks another authority to act later. Record each downstream reaction as a Policy of the downstream context: the consumer of a Published Fact Contract, or the sender that decides to use an Asynchronous Intent Contract. Record each dependency once as `Upstream -> Downstream`; the upstream owns the named meaning, and the accepted map remains acyclic. When two contexts depend on each other, break the cycle by naming one authority for the shared meaning, replacing the reverse call with a Published Fact Contract, or splitting the shared concern into its own context.
 
 Workshop Events stay in the conversation as analytical evidence. A proposed production Domain Event remains a candidate until the Actual Domain Event rules select it; Tactical Design owns the object-level recording of any selected event. A Policy names its same-context trigger as the business occurrence; an accepted Policy is the reason Tactical Design selects the Domain Event that realizes it.
@@ -86,6 +86,12 @@ A probe is a question whose every answer maps to a modeling action. Ask it in th
 | Veto | Who may refuse or reverse `<command>`? | Independent authorities: separate contexts, the refusing authority upstream. One authority: one context. |
 | Lifecycle end | After `<pivotal event>`, who still cares about `<object>` and for what? | A different party with a new purpose: the object crosses a boundary and the downstream consumes a Published Fact Contract. The same party: same context. |
 | Model purpose | What question does each party need `<object>` to answer? | Different questions: different contexts. The same question: one context. |
+
+### Subdomain probe
+
+| Probe | Ask | Answer -> action |
+|---|---|---|
+| Differentiation | If an off-the-shelf product or a competitor handled `<context purpose>` exactly the same way, would the business lose an advantage? | Yes: **Core**. No, but the rules are specific to this business: **Supporting**. No, and the problem is commonly solved elsewhere: **Generic**. |
 
 ### Aggregate probes
 
@@ -110,22 +116,36 @@ A probe is a question whose every answer maps to a modeling action. Ask it in th
 Persist only accepted current knowledge:
 
 - `docs/ddd-expert/context-map.md` owns the Bounded Context inventory and semantic dependencies.
-- `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, Business Rules, and Policies.
+- `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, Subdomain classification, essential language, Aggregate Roots, Business Rules, and Policies.
 
 `model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, behavior, Domain-owned Ports where present, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
 
+## Assumption sweep
+
+Strategic materiality keeps the model small, but the requirements it filtered out still shape the delivered behavior. Before the integrated proposal, revisit every assumption stated on the board, plus each of these delivery dimensions that the scoped scenarios touch:
+
+- the information a Role needs before issuing a Command;
+- the acceptance scenarios that would show the scope is done;
+- volume, latency, audit, retention, or compliance expectations;
+- existing data, published APIs, or clients that must keep working.
+
+Skip any item that evidence already answers. Ask the rest one at a time, using the same presentation as the other questions in this interview.
+
+An answer that changes a business right, obligation, value, authority, decision, outcome, or required next action becomes a Business Rule or reopens the affected step. Every other answer is a **delivery constraint**. Delivery constraints are never written to DDD artifacts. Record them in the project's spec or issue when one exists; otherwise carry them in the conversation as Codify input.
+
 ## Confirmation and writing
 
-The integrated proposal is ready when every Bounded Context passed at least one boundary probe; every Aggregate Root passed the command-time invariant probe and states its consistency boundary; the no-split alternative was compared for each Root; every required next intent is a Policy, a Process Aggregate Root, or part of one consistency boundary; each dependency is recorded once and the map is acyclic; and every remaining Hotspot is non-blocking. Until then, the next probe or missing fact is the current question.
+The integrated proposal is ready when the assumption sweep is complete; every Bounded Context passed at least one boundary probe and has a Subdomain classification; every Aggregate Root passed the command-time invariant probe and states its consistency boundary; the no-split alternative was compared for each Root; every required next intent is a Policy, a Process Aggregate Root, or part of one consistency boundary; each dependency is recorded once and the map is acyclic; and every remaining Hotspot is non-blocking. Until then, the next probe or missing fact is the current question.
 
 Present one compact integrated proposal:
 
 - scope and exclusions;
-- Bounded Contexts, their purpose, and the probe that separates each;
+- Bounded Contexts, their purpose, Subdomain classification, and the probe that separates each;
 - Aggregate Roots and their consistency boundary;
 - Business Rules;
 - Policies and their deciding context;
 - semantic dependencies and named contracts;
+- delivery constraints from the assumption sweep;
 - remaining non-blocking uncertainty.
 
 Reuse an already-confirmed integrated proposal. Otherwise obtain its confirmation under the workflow contract before writing.
@@ -134,8 +154,8 @@ Before writing, read the [artifact layout and write checks](../../templates/arti
 
 Then classify the next step:
 
-- use Tactical Design when Aggregate internals or domain-object behavior still needs a decision;
-- use Codify when the accepted `domain-objects.md` already covers the change;
+- use Tactical Design when Aggregate internals or domain-object behavior still needs a decision in a Core or Supporting context;
+- use Codify when the accepted `domain-objects.md` already covers the change, or when a Generic context's Business Rules already determine it;
 - stop when the user requested design only.
 
 ## Completion

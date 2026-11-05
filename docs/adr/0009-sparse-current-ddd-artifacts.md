@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-19
+- Amended by: [ADR 0013](0013-subdomain-scaled-design-and-assumption-sweep.md) (Model Subdomain classification and the EventStorming assumption sweep)
 - Supersedes: the artifact lifecycle, meeting-minutes, diagram, BC Architecture, implementation-exploration, design-reconciliation, and Guard review-mechanics decisions in [ADR 0003](0003-event-storming-whole-model-confirmation.md), [ADR 0004](0004-model-ready-enters-codify-directly.md), [ADR 0005](0005-event-storming-minutes-and-current-models.md), [ADR 0006](0006-guard-is-a-semantic-structure-review.md), [ADR 0007](0007-conditional-tactical-design-and-claims.md), and [ADR 0008](0008-design-artifacts-are-falsifiable-candidates.md)
 - Retains: the complete EventStorming discussion method and integrated user confirmation from ADR 0003, conditional House Style, and the independent read-only Guard boundary from [ADR 0006](0006-guard-is-a-semantic-structure-review.md)
 

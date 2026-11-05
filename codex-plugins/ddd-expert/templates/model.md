@@ -4,6 +4,10 @@
 
 <What business authority this context owns and why it exists.>
 
+## Subdomain
+
+<Core | Supporting | Generic> — <The business differentiation, or its absence, that sets this classification.>
+
 ## Essential Language
 
 - **<Term>:** <One sentence: the meaning unique or important in this context.>

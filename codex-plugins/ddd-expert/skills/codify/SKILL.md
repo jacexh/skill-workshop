@@ -11,11 +11,11 @@ Read the [workflow contract](../../references/workflow.md) for scope, existing a
 
 ## Contract
 
-Read the user's current scope, affected `model.md` and `domain-objects.md`, relevant project decisions and instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
+Read the user's current scope, any delivery constraints confirmed by the EventStorming assumption sweep, affected `model.md` and `domain-objects.md`, relevant project decisions and instructions, and the implementation and tests. Read `context-map.md` when cross-context meaning is affected.
 
 The DDD artifacts define accepted business meaning, Aggregate boundaries, Policies, and Domain-object state and behavior ownership. They are semantic constraints, not a complete software design. Their silence about remaining software structure is implementation latitude, not a missing modeling step.
 
-Resolve unspecified realization choices through accepted project constraints and applicable House Style, using repository code and tests as integration evidence.
+Delivery constraints are accepted requirements on the realization. Satisfy them; do not replace them with assumptions. Resolve unspecified realization choices through accepted project constraints and applicable House Style, using repository code and tests as integration evidence.
 
 Classify each gap the implementation exposes:
 

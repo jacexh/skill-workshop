@@ -55,6 +55,12 @@ has left open. Existing repository conventions are integration evidence; preserv
 them unless the requested change requires a different realization. Selecting a
 language does not authorize a framework migration or unrelated reorganization.
 
+Record a design or implementation choice through the project's decision
+mechanism only when it is hard to reverse, would surprise a future reader
+without its context, and resulted from a real trade-off. When the project has
+no such mechanism, offer to create an ADR under `docs/adr/` before relying on
+the choice.
+
 House Rules are deliberate defaults whose general tradeoffs are already
 accepted. When applying one to the case at hand conflicts with a DDD judgment
 specific to that case, state a ⚠️ **Conflict** first: the rule and its file, the

@@ -23,9 +23,9 @@ Tactical Design -> current domain objects
 
 ## Workflow
 
-EventStorming keeps its complete ten-step discussion method. It derives candidate Bounded Contexts, Aggregate Roots, and Policies from the timeline, stresses each with probe questions whose every answer maps to a modeling action, asks one question at a time, and writes only accepted current strategic knowledge.
+EventStorming keeps its complete ten-step discussion method. It derives candidate Bounded Contexts, Aggregate Roots, and Policies from the timeline, stresses each with probe questions whose every answer maps to a modeling action, asks one question at a time, and writes only accepted current strategic knowledge. It classifies each context as a Core, Supporting, or Generic Subdomain. Before the integrated proposal, an assumption sweep asks one question at a time about every board assumption and the touched delivery dimensions: read needs, acceptance scenarios, non-functional expectations, and compatibility. Answers that change business meaning become Business Rules. The rest become delivery constraints for Codify and are never written to DDD artifacts.
 
-Tactical Design works one Aggregate Root at a time. It derives essential business pressures, attacks identity, behavior ownership, and external authority with ownership probes whose every answer maps to a design action, compares credible object compositions in one pressure-by-candidate table, and records confirmed current descriptions. Its skill and templates own the detailed process and field contract.
+Tactical Design works one Aggregate Root at a time. It derives essential business pressures, attacks identity, behavior ownership, and external authority with ownership probes whose every answer maps to a design action, compares credible object compositions in one pressure-by-candidate table, and records confirmed current descriptions. A Generic context skips Tactical Design by default and goes to Codify from its Business Rules. Its skill and templates own the detailed process and field contract.
 
 Codify treats the accepted strategic model and current domain objects as read-only semantic constraints, then fills the required software structure through project and active-language House Style; a business-shaped gap is implemented under a stated conservative assumption, and only a genuine contradiction is raised to the user after the rest of the slice is complete. Accepted concepts keep their Ubiquitous Language names in one carrier each; supporting Value Objects and Entities remain implementation latitude. Guard independently checks whether the implementation preserves their ownership, behavior, and vocabulary, whether Codify's stated assumptions hold, and whether changed non-Domain abstractions reduce overall complexity under House Style.
 
@@ -42,7 +42,7 @@ docs/ddd-expert/
 ```
 
 - `context-map.md`: Bounded Contexts and semantic dependencies.
-- `model.md`: context purpose, essential language, Aggregate Roots, every Business Rule as one EARS sentence, and the Policies the context decides.
+- `model.md`: context purpose, Subdomain classification, essential language, Aggregate Roots, every Business Rule as one EARS sentence, and the Policies the context decides.
 - `domain-objects.md`: confirmed current Roots and Entities grouped by Aggregate Root, with an optional context-level Domain Services section; each Behavior cites its Business Rules by name.
 
 Only the accepted current-model files described above are workflow artifacts; workshop conversation and implementation history remain transient.
