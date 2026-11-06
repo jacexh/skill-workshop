@@ -36,7 +36,7 @@ The adopted database is MySQL 8. The active language House Style selects the ada
 
 ### Language Adapter Boundary
 
-- **[House Rule]** Runtime validates the DSN, opens and verifies the database client, configures bounded connection pools, and closes it during shutdown.
+- **[House Rule]** Runtime validates the DSN, opens and verifies the database client, configures bounded connection pools, and keeps the client usable until every execution entry point has drained.
 - **[House Rule]** Bounded-context Infrastructure receives an initialized database capability; it does not load configuration or open a process-wide connection. Application opens an accepted multi-Root scope through a provider-neutral callback, while Infrastructure resolves the current provider executor and owns its transaction lifecycle.
 - **[House Rule]** Use ordered SQL migrations for production schema changes. ORM metadata creation, auto-sync, and schema-push features are not deployment mechanisms.
 - **[House Rule]** Bind external values through the adopted adapter's parameter API. Never build SQL by concatenating input.

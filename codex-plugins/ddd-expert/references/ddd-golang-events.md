@@ -33,8 +33,9 @@ Drain once after successful persistence. The loaded request-scoped Aggregate
 may supply that command's result and drained events, then is stale. A handler
 that changes state enters a fresh Application command and transaction.
 
-The Application method returns or classifies a `DispatchAll` error through the
-ordinary Application error convention.
+The Aggregate is already saved when `DispatchAll` runs, so a dispatch error
+means only that the follow-ups will not run: the Application method returns the
+saved outcome, and the dropped events are reported once.
 
 A handler type-asserts its concrete event, ignores any other type, and
 delegates to one Application method:

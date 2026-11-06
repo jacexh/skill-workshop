@@ -25,9 +25,10 @@ Processors and Runtime logging read the task identity from
 `taskqueue.ExecutionInfoFromContext`.
 
 Bounded Context modules contribute `taskqueue.Processor` and accepted
-`taskqueue.PeriodicTask` values. Runtime registers them before startup and
-manages client close plus worker/scheduler `Start` and `Shutdown` through Fx
-lifecycle hooks.
+`taskqueue.PeriodicTask` values. Runtime registers them before startup. The
+worker and scheduler are entry points whose `Start` and `Shutdown` the Runtime
+orders with the others; the enqueue client stays usable until the event
+dispatcher drains, because handlers enqueue through it.
 
 ## Verification
 

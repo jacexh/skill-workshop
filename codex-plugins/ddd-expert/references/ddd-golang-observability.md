@@ -7,26 +7,33 @@ description: Go House Style for accepted OpenTelemetry construction, Connect int
 
 ## Applies When
 
-Load this leaf only when the accepted Go service observability stack includes
-OpenTelemetry, an OTLP destination, and a Runtime shutdown owner.
+Load this leaf only when the accepted Go service stack includes OpenTelemetry.
 
 ## Runtime Shape
 
-Runtime owns OTLP exporter, Resource, `TracerProvider`, global propagation, and
-`TracerProvider.Shutdown(ctx)` through `fx.Lifecycle`. Configure telemetry before
-constructing instrumented clients and servers.
+Runtime owns the Resource, `TracerProvider`, W3C propagation, and
+`TracerProvider.Shutdown(ctx)` through `fx.Lifecycle`, configured by the
+standard `OTEL_*` environment. Spans export over OTLP only when an endpoint is
+configured, so trace IDs correlate logs without a collector. Instrumented
+servers and clients take the provider as a dependency, so it is built before
+them and shuts down after them, flushing their spans.
 
-Add the `connectrpc.com/otelconnect` interceptor to the global Connect
-interceptors, wrapping its construction error once with `oops`.
+The trace ID is the correlation identity of one piece of work across RPCs,
+Domain Events, messages, tasks, and services. The process log handler adds
+`trace_id` and `span_id` from a record's ctx, so code correlates by logging
+with the ctx of its work. Business code starts no spans; Domain represents
+business correlation in Domain facts.
 
-Transport/Runtime extracts and injects W3C context across accepted HTTP, RPC,
-Integration Message, and task boundaries. Every caller and delivery log
-includes the available `trace_id`, `span_id`, and `request_id` fields from its
-ctx.
+## Boundaries
 
-Runtime copies trace and request identifiers into in-memory `event.Dispatcher`
-handlers from `event.SourceContext` in `event.WithContextFactory`. Represent business
-correlation in Domain facts, and start or link technical spans outside Domain.
+- RPC: the `connectrpc.com/otelconnect` server interceptor is outermost in the
+  shared `connect.Server` chain, so the access log is written inside the RPC's
+  span. It continues the caller's `traceparent` and skips health checks; the
+  gateway owns the trust boundary for external traffic.
+- Domain Event: `event.WithContextFactory` continues the span context from
+  `event.SourceContext` in the handler ctx.
+- Integration Message and task: the publisher injects trace context into
+  provider headers, and the consumer's handlers continue it.
 
 ## Verification
 

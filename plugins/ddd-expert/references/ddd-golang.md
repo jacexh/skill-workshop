@@ -57,7 +57,7 @@ all affected guides; a conditional mechanism needs its guide only when accepted.
 | Accepted components/fsm lifecycle | Domain and [FSM](ddd-golang-fsm.md) |
 | Multi-BC layout, package/module structure, generated contracts, test placement | [Scaffold](ddd-golang-scaffold.md) |
 | Fx wiring, configuration, logging, active loops, startup or shutdown | [Runtime](ddd-golang-runtime.md); Scaffold when package/module structure changes |
-| Shared ConnectRPC/Chi listener or server lifecycle | Runtime and [Server](ddd-golang-server.md) |
+| Shared ConnectRPC listener, health, or server lifecycle | Runtime and [Server](ddd-golang-server.md) |
 | Accepted OpenTelemetry | [Observability](ddd-golang-observability.md) plus affected Transport/provider guides |
 | MySQL schema, SQL, indexes, locking, or migrations | Affected [Database](database.md) rules |
 
@@ -83,8 +83,9 @@ adapter from the provider leaf.
 | Concern | Default implementation | Applicability |
 |---|---|---|
 | Dependency injection and lifecycle | `go.uber.org/fx` | Go service Runtime |
-| RPC | `connectrpc.com/connect` | RPC API exists |
-| HTTP routing | `github.com/go-chi/chi/v5` | ConnectRPC mounting or hand-written HTTP exists |
+| RPC | `connectrpc.com/connect/v2` | RPC API exists |
+| RPC health checks | `connectrpc.com/grpchealth/v2` | RPC API exists |
+| HTTP routing | standard library `http.ServeMux` | ConnectRPC mounting or hand-written HTTP exists |
 | Contract toolchain | Buf, Protobuf, `google.golang.org/protobuf` | RPC, Integration Message, or durable Task payload contract exists; output is `gen/` |
 | Business-data validation | `github.com/go-playground/validator/v10` | Domain Entity or Value Object validation |
 | ORM | `xorm.io/xorm` | MySQL persistence or QueryRepository exists |
@@ -101,7 +102,7 @@ adapter from the provider leaf.
 | Logging | `log/slog` and `github.com/go-jimu/components/sloghelper` | Every Go service |
 | Error enrichment | `github.com/samber/oops` | Errors cross a controlled boundary |
 | Configuration | `github.com/go-jimu/components/config/loader` | Go service Runtime |
-| Distributed tracing | OpenTelemetry Go, OTLP, `connectrpc.com/otelconnect` | Tracing is accepted and a backend/collector is available |
+| Distributed tracing | OpenTelemetry Go, OTLP, `connectrpc.com/otelconnect` | Tracing is accepted |
 
 Library APIs and behavior, including error identity and failure outcomes,
 follow the documentation of the version pinned in `go.mod`, read through
