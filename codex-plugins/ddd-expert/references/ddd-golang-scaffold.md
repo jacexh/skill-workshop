@@ -69,7 +69,7 @@ internal/
 
   pkg/
     module.go                     # shared Runtime module selection
-    connectrpc/                   # ConnectRPC/Chi server and interceptors
+    connectrpc/                   # ConnectRPC server, interceptors, and health
     transaction/                  # conditional provider-neutral Within contract
     database/                     # xorm lifecycle; tx adapter/resolver when confirmed
     eventbus/                     # in-memory Domain Event dispatcher

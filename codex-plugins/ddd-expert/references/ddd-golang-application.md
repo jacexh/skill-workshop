@@ -11,7 +11,7 @@ Application implements use cases. It coordinates Domain behavior and ports witho
 
 ## Boundary and Allowed Exceptions
 
-Application owns transport-neutral commands, queries, results and DTOs. It must not import ConnectRPC/Chi, RPC generated types, xorm sessions, Kafka, Asynq, Redis, Fx or server lifecycle APIs.
+Application owns transport-neutral commands, queries, results and DTOs. It must not import ConnectRPC, RPC generated types, xorm sessions, Kafka, Asynq, Redis, Fx or server lifecycle APIs.
 
 Two accepted, narrow exceptions do not collapse the layer boundary:
 

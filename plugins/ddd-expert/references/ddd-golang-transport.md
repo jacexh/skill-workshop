@@ -29,14 +29,14 @@ When an RPC API exists, use ConnectRPC. Deployment-private contracts live under 
 The `Handler` type holds `*application.Application`, asserts the generated
 interface at compile time with `var _ userv1connect.UserServiceHandler =
 (*Handler)(nil)`, and `NewHandler` returns that interface. Each RPC method maps
-`request.Msg` to one Application input, delegates once, maps errors through
-`mapError` in `error.go`, and wraps the mapped result in `connect.NewResponse`.
+the request message to one Application input, delegates once, maps errors
+through `mapError` in `error.go`, and returns the mapped response message.
 
 The generated service interface is implemented only here, never by `application.Application`. Keep protocol-to-command mapping explicit. A sibling `assembler.go` may map generated RPC messages and Application results; it never maps Domain Entities, which belong to `application/assembler.go` when that mapping exists.
 
-`<context>.go` registers `userv1connect.NewUserServiceHandler(handler, ...)` with the shared server. `internal/pkg/connectrpc` owns address binding, interceptors, start/stop and the single RPC completion log.
+`<context>.go` registers the handler with `userv1connect.RegisterUserServiceHandler` on the shared server's `connect.Server`. `internal/pkg/connectrpc` owns the listener, interceptors, health, start/stop and the single RPC completion log.
 
-If a hand-written HTTP endpoint is accepted, place it under `transport/http` and route with `github.com/go-chi/chi/v5`. It follows the same map-once/delegate-once rule; do not introduce Gin, Echo or a second server lifecycle.
+If a hand-written HTTP endpoint is accepted, place it under `transport/http` and mount it on the shared listener's `http.ServeMux` with method and path patterns. It follows the same map-once/delegate-once rule and shares the one server lifecycle.
 
 ## Message and Task Adapters
 
@@ -56,7 +56,7 @@ Kafka and Asynq provider construction, active loops, and lifecycle remain in
 their provider leaves.
 ## Errors, Logging and Trace Context
 
-Transport maps stable errors to ConnectRPC/HTTP status or returns them to the provider boundary. It preserves the internal cause for the single execution logger.
+Transport maps stable errors to ConnectRPC/HTTP status or returns them to the provider boundary. Outcomes the client can act on carry the error's message; every other error becomes `internal` with a fixed message. The original error stays the unsent cause for `errors.Is` and the single execution logger.
 
 - ConnectRPC/HTTP middleware owns end-to-end duration and completion.
 - Do not log an error and return it unless this adapter is the terminal owner.

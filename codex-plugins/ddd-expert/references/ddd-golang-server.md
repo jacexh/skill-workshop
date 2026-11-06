@@ -1,36 +1,51 @@
-# Go ConnectRPC and Chi Server
+# Go ConnectRPC Server
 
-Read for changes to the shared RPC/HTTP server, listener, handler registration,
-or server lifecycle. Fx-only provider registration uses the Runtime guide.
-The [Runtime guide](ddd-golang-runtime.md) owns process configuration, logging,
-and dependency-aware shutdown.
+Read for changes to the shared RPC/HTTP listener, handler registration, health
+reporting, or server lifecycle. Fx-only provider registration uses the Runtime
+guide. The [Runtime guide](ddd-golang-runtime.md) owns process configuration,
+execution logging, and dependency-aware shutdown.
 
-## ConnectRPC And Chi Lifecycle
+## One Listener
 
-Bind the listener synchronously in `OnStart` so address errors fail startup. Serve in an owned goroutine. `OnStop` calls `http.Server.Shutdown`. An unexpected Serve failure is an Execution Owner failure and requests process shutdown.
+`internal/pkg/connectrpc` owns one listener and one `connect.Server` for every
+contract the process serves. Public and private name a contract's audience and
+compatibility promise through its proto package; the gateway's route allowlist
+decides which procedures leave the deployment, and the platform owns caller
+identity between services.
 
-The shared server lives in `internal/pkg/connectrpc`. Its `Option` carries a
-required `Addr`. Other packages depend on this interface:
+Its `Option` carries the listen `Addr` and a `ShutdownDelay`. Bounded contexts
+depend on a narrow `Server` interface that exposes the `connect.Server` for the
+generated `Register*Handler` calls and the bound `Address()`. The shared
+interceptor chain is set once when that `connect.Server` is built.
 
-```go
-type Server interface {
-    GetGlobalInterceptors() []connect.Interceptor
-    Register(string, http.Handler)
-    Address() string
-}
-```
+Route with the standard library `http.ServeMux` and serve HTTP/1.1 plus
+unencrypted HTTP/2, so Connect, gRPC, and gRPC-Web clients and gRPC probes reach
+the same port. Give the `http.Server` header-read, idle, and header-size limits.
 
-`NewServer` builds a Chi router with a `/healthz` route, serves it through
-`h2c` with `ReadHeaderTimeout` 3s, `IdleTimeout` 60s, and `MaxHeaderBytes`
-16 KiB, and starts the global interceptors with the logging carrier.
-`Register` mounts a handler at its pattern plus `/*`, `GetGlobalInterceptors`
-returns a copy, and `Address` returns the bound listener address after start.
-A listen error is wrapped with the operation and address. In the serve
-goroutine, `http.ErrServerClosed` is a normal stop; any other error is wrapped,
-logged, and passed to `fx.Shutdowner.Shutdown(fx.ExitCode(1))`.
+## Health
+
+Register `grpc.health.v1.Health` on the shared `connect.Server`. A named
+liveness service reports SERVING for as long as the process runs. The empty
+service name reports readiness: SERVING once the listener is bound,
+NOT_SERVING from the moment shutdown begins. Health checks bypass the execution
+log.
+
+## Lifecycle
+
+Contexts register handlers in Fx invokes, before the start hook. The start hook
+mounts every registered procedure, binds the listener synchronously so address
+errors fail startup, and serves in an owned goroutine. `http.ErrServerClosed`
+is a normal stop; any other Serve error is wrapped, logged once, and requests
+process shutdown with exit code 1.
+
+The stop hook reports readiness NOT_SERVING, keeps serving for `ShutdownDelay`
+so load balancers stop routing, then calls `http.Server.Shutdown`. The stop ctx
+bounds the delay and the drain together, so both count against the Fx stop
+timeout.
 
 ## Verification
 
 Exercise the server behavior changed: handler registration and reachability,
-synchronous listener failure, unexpected Serve shutdown, or bounded HTTP drain.
-Reuse unaffected evidence. Guard reads existing results.
+readiness and liveness status, synchronous listener failure, unexpected Serve
+shutdown, or the delayed and bounded drain. Reuse unaffected evidence. Guard
+reads existing results.

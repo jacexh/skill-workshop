@@ -1,6 +1,6 @@
 ---
 name: ddd-golang-runtime
-description: Go House Style for config loading, Fx composition and lifecycle, ConnectRPC/Chi servers, execution-boundary logging, and shutdown.
+description: Go House Style for config loading, Fx composition and lifecycle, the shared ConnectRPC server, execution-boundary logging, and shutdown.
 ---
 
 # Go Runtime
@@ -15,7 +15,7 @@ For covered Go House Style concerns use:
 - `github.com/go-jimu/components/config/loader` for configuration;
 - `go.uber.org/fx` for dependency injection and lifecycle;
 - `log/slog` with `github.com/go-jimu/components/sloghelper` for structured logs;
-- ConnectRPC with `github.com/go-chi/chi/v5` for the shared RPC/HTTP server;
+- `connectrpc.com/connect/v2` on one standard-library `http.ServeMux` listener for the shared RPC/HTTP server;
 - `github.com/samber/oops` when an external/runtime error first enters controlled code.
 Generated Protobuf and Connect files live under `gen/` and are never edited manually. Contract sources live under `proto/`. Runtime mounts generated handlers; Application never implements generated server interfaces.
 
@@ -32,14 +32,14 @@ Never log the aggregate Option, a resolved config map, DSN, password, token, API
 
 `cmd/main.go` loads configuration, selects modules, sets process timeouts, and runs Fx. It does not construct Repositories, clients, generated handlers, or lifecycle loops individually. `internal/pkg/module.go` exposes `pkg.Module`, an `fx.Module("internal.pkg", ...)` that provides shared technical resources such as the shared Connect server and MySQL driver.
 
-A bounded-context module owns its providers and registrations. It may import generated Transport contracts from `gen/`; `cmd` does not. `<context>.go` exposes `fx.Module("business.<context>", ...)`: it provides the context's Repository adapters, `application.NewApplication`, and Transport handlers, and in `fx.Invoke` registers each generated Connect handler on the shared `Server` with `connect.WithInterceptors(server.GetGlobalInterceptors()...)`.
+A bounded-context module owns its providers and registrations. It may import generated Transport contracts from `gen/`; `cmd` does not. `<context>.go` exposes `fx.Module("business.<context>", ...)`: it provides the context's Repository adapters, `application.NewApplication`, and Transport handlers, and in `fx.Invoke` registers each generated Connect handler on the shared `Server`'s `connect.Server` through its generated `Register*Handler` function, which applies the shared interceptor chain.
 
 For multi-service repositories, expose named `internal/pkg` modules rather than copying provider lists across `cmd/<service>`. Use `fx.ValidateApp` in a wiring test to prove the graph is complete without starting providers.
 
 ## Active Resource Ownership
 
 For changes to the shared RPC/HTTP server itself, read the
-[ConnectRPC and Chi server guide](ddd-golang-server.md). A change only to Fx
+[ConnectRPC server guide](ddd-golang-server.md). A change only to Fx
 providers uses the composition rules above.
 
 Every optional active resource follows the same ownership rule: the package
@@ -50,7 +50,7 @@ bounded drain. Provider-specific construction stays in the provider leaf.
 
 The router's caller rule decides who logs an execution. Runtime passes the process logger to every go-jimu component and provider adapter, and owns one log for each lifecycle operation it executes itself. Infrastructure enriches and returns errors unless it owns suppression or a terminal operation.
 
-A Connect interceptor creates the request-scoped logger from the `X-Request-ID` header as `request_id`, stores it with `sloghelper.NewContext`, and records one `request complete` entry with `operation` (the procedure), `duration_ms`, and `outcome`: `success` at Info, or `failed` at Error with `connect_code` and the error.
+The shared Connect interceptor wraps every unary and streaming RPC except health checks. It creates the request-scoped logger from the `X-Request-ID` header as `request_id`, generating one when the header is absent, stores it with `sloghelper.NewContext`, recovers a handler panic as `internal`, and records one `request complete` entry with `operation` (the procedure), `elapsed_ms`, `outcome`, and `connect_code`. The level follows what the code means for the service: client-caused outcomes at Info, transient service or dependency failures at Warn, server faults at Error. A failure entry logs the cause behind the `*connect.Error`, not the message sent to the client.
 
 At the first controlled boundary, enrich and wrap once with `oops.With(...).Wrap(providerErr)`; use `oops.Wrap(providerErr)` only when there is no owned context. Never wrap an already wrapped provider error again. Later layers add context only for new semantics, preserve `errors.Is/As`, and do not mechanically wrap or log-and-return the same error. Expected rejection is not an internal failure. Never log secret configuration, credentials, full payloads, or sensitive personal data.
 
@@ -83,7 +83,7 @@ Select evidence for the changed runtime behavior and its affected dependencies:
 | Configuration or startup logging | Affected allow-listed output and secret redaction |
 | Fx providers or dependency wiring | `fx.ValidateApp` composition; registration/reachability when those change |
 | Shared RPC/HTTP server | Affected cases in the server guide |
-| Execution logging | Affected completion outcome and error mapping |
+| Execution logging | Affected completion outcome, level, and error mapping |
 | Active loop or shutdown | Affected reachability, cancellation, dependency-aware drain, and bounded stop |
 | OpenTelemetry | Affected observability-leaf cases |
 

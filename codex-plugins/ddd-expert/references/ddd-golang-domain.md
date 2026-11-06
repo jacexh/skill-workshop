@@ -127,7 +127,7 @@ For an accepted `components/fsm` lifecycle, load
 
 Domain imports the standard library and applicable Domain-focused packages such
 as `validator/v10`, `google/uuid`, `components/ddd/event`, and `components/fsm`.
-Generated contracts, ConnectRPC/Chi, xorm, Kafka, Asynq, Redis, Fx,
+Generated contracts, ConnectRPC, xorm, Kafka, Asynq, Redis, Fx,
 `internal/pkg`, Infrastructure, and another context's internals remain outer.
 
 Test Factories, `Validate`, Aggregate invariants, state transitions, Domain

@@ -16,8 +16,8 @@ Runtime owns OTLP exporter, Resource, `TracerProvider`, global propagation, and
 `TracerProvider.Shutdown(ctx)` through `fx.Lifecycle`. Configure telemetry before
 constructing instrumented clients and servers.
 
-Add the `connectrpc.com/otelconnect` interceptor to the global Connect
-interceptors, wrapping its construction error once with `oops`.
+Add the `connectrpc.com/otelconnect` server interceptor to the shared
+`connect.Server` interceptor chain, wrapping its construction error once with `oops`.
 
 Transport/Runtime extracts and injects W3C context across accepted HTTP, RPC,
 Integration Message, and task boundaries. Every caller and delivery log
