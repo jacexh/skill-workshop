@@ -89,7 +89,7 @@ Canonical references live under `references/`:
 - `ddd-golang.md` — Go/go-jimu router and adopted-stack baseline
 - `ddd-golang-{scaffold,domain,application,transport,cqrs,infrastructure}.md` — Go structure and layer leaves
 - `ddd-golang-persistence.md` — ordinary xorm mapping and one-Root Repository example
-- `ddd-golang-transactions.md` — conditional multi-Root local transaction scope and participation
+- `ddd-golang-transactions.md` — conditional local transaction scope (multi-Root change or Outbox dispatch) and participation
 - `ddd-golang-server.md` — conditional shared ConnectRPC server, health, and lifecycle
 - `ddd-golang-{events,messages,taskqueue}.md` — Go provider-neutral flow leaves
 - `ddd-golang-{fsm,kafka,asynq,observability,runtime}.md` — Go conditional mechanism and Runtime leaves

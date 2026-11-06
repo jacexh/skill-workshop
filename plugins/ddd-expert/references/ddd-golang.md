@@ -32,7 +32,7 @@ Application has three narrow, accepted provider-neutral exceptions:
 
 - a producing Application event handler may map a Domain Event to its own generated Integration Message contract and call `message.Publisher`;
 - an accepted internal task may define its durable payload schema under `proto/<context>/task/v1`, then use `components/taskqueue` and `Enqueuer` under `application/task`;
-- only for a confirmed same-BC, one-resource multi-Root transaction, an Application method may use the project-local `internal/pkg/transaction.Transactor` callback. Its xorm implementation and current-executor resolution remain in `internal/pkg/database`.
+- only for a confirmed same-BC, one-resource multi-Root transaction or an Outbox dispatch, an Application method may call `Within` on `transaction.Transactor`. The database's transaction Manager and session resolution stay in Runtime and Infrastructure.
 
 Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xorm sessions, Fx, and active loops remain outside Application.
 
@@ -50,7 +50,7 @@ all affected guides; a conditional mechanism needs its guide only when accepted.
 | xorm Repository, Data Object, persistence conversion | [Infrastructure](ddd-golang-infrastructure.md), [Persistence](ddd-golang-persistence.md), and affected [Database](database.md) rules |
 | QueryRepository, projections, focused Aggregate reads | [CQRS](ddd-golang-cqrs.md); Infrastructure and Database for SQL/read mapping changes |
 | Resident Aggregate snapshots or checkpoints | Domain, Application, Persistence, and Runtime as actually affected |
-| Confirmed same-BC, one-resource multi-Root atomic change | [Transactions](ddd-golang-transactions.md) plus every affected layer; Database for persistence and Runtime for composition |
+| Confirmed same-BC, one-resource multi-Root atomic change, or Outbox dispatch | [Transactions](ddd-golang-transactions.md) plus every affected layer; Database for persistence and Runtime for composition |
 | Local Domain Event or same-context reaction | [Events](ddd-golang-events.md) plus every affected layer |
 | Published fact or asynchronous intent | [Messages](ddd-golang-messages.md) plus every affected layer; [Kafka](ddd-golang-kafka.md) only for that provider |
 | Internal task, processor, polling, or periodic work | [Task Queue](ddd-golang-taskqueue.md) plus every affected layer; [Asynq](ddd-golang-asynq.md) only for that provider |
@@ -92,6 +92,8 @@ adapter from the provider leaf.
 | MySQL driver | `github.com/go-sql-driver/mysql` | MySQL Runtime exists |
 | UUID identity | `github.com/google/uuid`, UUIDv7 | A new UUID identity is required |
 | Domain Events | `github.com/go-jimu/components/ddd/event` | Aggregate records same-context facts |
+| Must-run Domain Event handlers | `github.com/go-jimu/components/ddd/event/outbox`, `github.com/go-jimu/contrib/event/outbox/xorm` | A Policy's failure outcome must survive a process stop |
+| Local transactions | `github.com/go-jimu/components/transaction`, `github.com/go-jimu/contrib/transaction/xorm` | A use case runs in `Within` |
 | Integration Messages | `github.com/go-jimu/components/ddd/message` | Cross-context asynchronous collaboration is accepted |
 | Kafka | `github.com/go-jimu/contrib/message/kafka` | Kafka delivery is accepted |
 | Kafka Runtime | `github.com/twmb/franz-go` | Kafka exists; import only from Runtime/provider code |

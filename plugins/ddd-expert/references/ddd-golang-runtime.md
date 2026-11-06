@@ -44,9 +44,9 @@ providers uses the composition rules above.
 
 Every optional active resource follows the same ownership rule: the package
 that creates it owns its start and stop behavior, goroutines, terminal errors,
-and bounded drain. An entry point or the event dispatcher exposes its hook for
-`pkg.Lifecycle` to order, as [Shutdown](#shutdown) describes. Provider-specific
-construction stays in the provider leaf.
+and bounded drain. An entry point, the event dispatcher, or the Outbox exposes
+its hook for `pkg.Lifecycle` to order, as [Shutdown](#shutdown) describes.
+Provider-specific construction stays in the provider leaf.
 
 ## Execution Owner Logs And Errors
 
@@ -68,8 +68,10 @@ bounded by its own timeout; only the end of the Fx stop timeout abandons it.
    graceful `Shutdown`, task workers and schedulers. They hand no work to one
    another in-process, so their relative order is free.
 2. The Domain Event dispatcher closes last: every entry point may raise Domain
-   Events, and `Close` drains their follow-ups until idle. It is the one step
-   that loses work when time runs out.
+   Events, and `Close` drains their follow-ups until idle. With an Outbox,
+   `Close` also stops the Relay, and the records it does not finish stay
+   pending in the database. Best-effort handlers are the only work lost when
+   time runs out.
 3. The process exits. Connection pools such as MySQL and Redis stay open. A
    client closes only when closing completes work, such as flushing telemetry
    or leaving a consumer group, and only after every user of it has stopped.
@@ -77,8 +79,8 @@ bounded by its own timeout; only the end of the Fx stop timeout abandons it.
 Constructors register the hooks of the resources they open. The entry-point
 and dispatcher order has no constructor edge to carry it, so
 `internal/pkg/lifecycle.go` exposes `pkg.Lifecycle`, listed after every
-bounded-context module, which appends those hooks in start order (dispatcher,
-then entry points); Fx stops them in reverse.
+bounded-context module, which appends those hooks in start order (dispatcher
+or Relay, then entry points); Fx stops them in reverse.
 
 Fx runs stop hooks one after another on one deadline, so the readiness delay,
 request drain, handler timeouts, and dispatcher drain add up within the Fx stop

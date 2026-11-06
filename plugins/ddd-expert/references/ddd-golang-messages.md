@@ -37,7 +37,8 @@ generated contract, builds it with
 `message.WithOccurredAt` to the fact's occurrence time, and calls `Publish`.
 The payload contains the stable identities and facts promised by the contract.
 Envelope metadata carries message identity, occurrence time, and accepted
-correlation/trace fields.
+correlation/trace fields. A must-run handler sets `message.WithID` to its
+delivery key, the same on every retry, so consumers deduplicate by it.
 
 ## Subscriber Shape
 
