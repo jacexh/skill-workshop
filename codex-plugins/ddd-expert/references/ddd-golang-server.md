@@ -38,10 +38,11 @@ errors fail startup, and serves in an owned goroutine. `http.ErrServerClosed`
 is a normal stop; any other Serve error is wrapped, logged once, and requests
 process shutdown with exit code 1.
 
-The stop hook reports readiness NOT_SERVING, keeps serving for `ShutdownDelay`
-so load balancers stop routing, then calls `http.Server.Shutdown`. The stop ctx
-bounds the delay and the drain together, so both count against the Fx stop
-timeout.
+The server is an entry point; the Runtime orders its hooks (see
+[Shutdown](ddd-golang-runtime.md#shutdown)). The stop hook reports readiness
+NOT_SERVING, keeps serving for `ShutdownDelay` so load balancers stop routing,
+then calls `http.Server.Shutdown`. The stop ctx bounds the delay and the drain
+together, so both count against the Fx stop timeout.
 
 ## Verification
 

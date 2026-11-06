@@ -23,7 +23,7 @@ Generated Protobuf and Connect files live under `gen/` and are never edited manu
 
 Each runtime component owns an Option/Config type and `Validate() error` beside its constructor. The process aggregates those types only for loading and Fx supply: its `Option` embeds `fx.Out` and holds one `json`/`yaml`/`toml`-tagged field per component Option, so `fx.Supply(option)` provides each one.
 
-`main` loads with `loader.WithConfigurationDirectory("./configs/<service>", "defaults")`, logs a load failure and exits non-zero, logs an allow-listed startup summary, then runs `fx.New` with the Option, `sloghelper.NewLog`, `pkg.Module`, the selected context modules, `fx.StartTimeout(15*time.Second)`, and `fx.StopTimeout(30*time.Second)`.
+`main` loads with `loader.WithConfigurationDirectory("./configs/<service>", "defaults")`, logs a load failure and exits non-zero, logs an allow-listed startup summary, then runs `fx.New` with the Option, `sloghelper.NewLog`, `pkg.Module`, the selected context modules, `pkg.Lifecycle`, `fx.StartTimeout(15*time.Second)`, and `fx.StopTimeout(30*time.Second)`.
 
 Each `cmd/<service>` loads only its own `configs/<service>` directory; never scan the shared `configs` parent in a multi-service repository. When profiles are supported, also pass `loader.WithConfigFilePrefix("app")`. Use `loader.WithEnvVarsPrefix("APP")` when the repository wants `${NAME:default}` placeholders to read only `APP_`-prefixed variables.
 Never log the aggregate Option, a resolved config map, DSN, password, token, API key, certificate/private key, cookie, secret-bearing URL, or full environment. Startup summaries are allow-list based: profile/source, enabled modules, non-secret listen addresses, counts, and a non-reversible config version/hash.
@@ -43,8 +43,10 @@ For changes to the shared RPC/HTTP server itself, read the
 providers uses the composition rules above.
 
 Every optional active resource follows the same ownership rule: the package
-that creates it owns its `fx.Lifecycle` hooks, goroutines, terminal errors, and
-bounded drain. Provider-specific construction stays in the provider leaf.
+that creates it owns its start and stop behavior, goroutines, terminal errors,
+and bounded drain. An entry point or the event dispatcher exposes its hook for
+`pkg.Lifecycle` to order, as [Shutdown](#shutdown) describes. Provider-specific
+construction stays in the provider leaf.
 
 ## Execution Owner Logs And Errors
 
@@ -54,17 +56,34 @@ The shared Connect interceptor wraps every unary and streaming RPC except health
 
 At the first controlled boundary, enrich and wrap once with `oops.With(...).Wrap(providerErr)`; use `oops.Wrap(providerErr)` only when there is no owned context. Never wrap an already wrapped provider error again. Later layers add context only for new semantics, preserve `errors.Is/As`, and do not mechanically wrap or log-and-return the same error. Expected rejection is not an internal failure. Never log secret configuration, credentials, full payloads, or sensitive personal data.
 
-## Shutdown Ordering
+## Shutdown
 
-Encode dependencies so shutdown happens in this order:
+Shutdown drains the process's execution entry points so every running
+execution reaches its end: committed or rolled back, acknowledged or left for
+redelivery. Running work finishes on a context the stop does not cancel,
+bounded by its own timeout; only the end of the Fx stop timeout abandons it.
 
-1. stop accepting RPC/HTTP ingress and scheduled triggers;
-2. stop message consumers and task workers taking new work;
-3. drain or cancel in-flight executions according to their contract;
-4. drain accepted event and telemetry work within the Fx stop timeout;
-5. close MySQL, broker, Redis, and other clients after their users stop.
+1. Entry points stop taking work and finish what is running: the RPC/HTTP
+   server after readiness turns NOT_SERVING, message consumers through their
+   graceful `Shutdown`, task workers and schedulers. They hand no work to one
+   another in-process, so their relative order is free.
+2. The Domain Event dispatcher closes last: every entry point may raise Domain
+   Events, and `Close` drains their follow-ups until idle. It is the one step
+   that loses work when time runs out.
+3. The process exits. Connection pools such as MySQL and Redis stay open. A
+   client closes only when closing completes work, such as flushing telemetry
+   or leaving a consumer group, and only after every user of it has stopped.
 
-Fx lifecycle order follows the constructor dependency graph and hook registration, not the conceptual layer diagram. Every goroutine needs cancellation or Close plus a surfaced terminal-error path. Readiness becomes false before drain; deployment termination grace and pre-stop behavior must exceed the measured drain budget rather than a universal sleep value.
+Constructors register the hooks of the resources they open. The entry-point
+and dispatcher order has no constructor edge to carry it, so
+`internal/pkg/lifecycle.go` exposes `pkg.Lifecycle`, listed after every
+bounded-context module, which appends those hooks in start order (dispatcher,
+then entry points); Fx stops them in reverse.
+
+Fx runs stop hooks one after another on one deadline, so the readiness delay,
+request drain, handler timeouts, and dispatcher drain add up within the Fx stop
+timeout, which stays below the deployment's termination grace. Every goroutine
+needs cancellation or Close plus a surfaced terminal-error path.
 
 ## Observability
 
@@ -84,7 +103,7 @@ Select evidence for the changed runtime behavior and its affected dependencies:
 | Fx providers or dependency wiring | `fx.ValidateApp` composition; registration/reachability when those change |
 | Shared RPC/HTTP server | Affected cases in the server guide |
 | Execution logging | Affected completion outcome, level, and error mapping |
-| Active loop or shutdown | Affected reachability, cancellation, dependency-aware drain, and bounded stop |
+| Active loop or shutdown | Affected reachability, app-level start/stop order, running work finishing on a graceful stop, and bounded stop |
 | OpenTelemetry | Affected observability-leaf cases |
 
 Reuse valid unaffected evidence. Broaden only for new changes, failures, or an

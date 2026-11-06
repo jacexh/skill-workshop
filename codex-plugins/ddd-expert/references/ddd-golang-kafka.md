@@ -26,8 +26,11 @@ and `kgo` options remain in Runtime/provider code. Application depends on
 ## Registration and Lifecycle
 
 `message.Subscriber.Subscribe` registers handlers. The Kafka consumer also
-implements `message.Runner`; Runtime starts `Run(ctx)`, observes its terminal
-error, owns cancellation, and closes the shared client after consumers stop.
+implements `message.Runner`; Runtime starts `Run(ctx)` and observes its terminal
+error. The consumer is an entry point: stopping calls its `Shutdown(ctx)`, which
+lets running handlers finish and commit, and waits for `Run` to return. The
+shared client closes after the event dispatcher drains, because handlers publish
+through it; closing it leaves the consumer group.
 
 Register payload factories and handlers before starting the runner. Readiness
 becomes true only after required registrations and provider startup complete.
