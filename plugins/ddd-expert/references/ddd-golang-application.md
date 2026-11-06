@@ -62,10 +62,10 @@ When accepted local events exist, add their flow from
 [`ddd-golang-messages.md`](ddd-golang-messages.md).
 
 A normal command changes one Aggregate. For a confirmed same-context,
-one-resource multi-Root atomic change, load
-[the transaction guide](ddd-golang-transactions.md) for Application scope and
-Infrastructure participation. Domain meaning must establish that consistency
-boundary before it is implemented.
+one-resource multi-Root atomic change, or a use case that dispatches to the
+Outbox, load [the transaction guide](ddd-golang-transactions.md) for
+Application scope and Infrastructure participation. Domain meaning must
+establish a multi-Root consistency boundary before it is implemented.
 
 ## Read Models
 

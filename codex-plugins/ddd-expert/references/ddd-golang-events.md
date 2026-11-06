@@ -9,7 +9,8 @@ description: Go House Style for accepted local Domain Events, collections, dispa
 
 Load this leaf only when the accepted design contains a local Domain Event or a
 same-context event reaction. Use
-`github.com/go-jimu/components/ddd/event`.
+`github.com/go-jimu/components/ddd/event`, and
+`github.com/go-jimu/components/ddd/event/outbox` for must-run handlers.
 
 ## Placement and Event Shape
 
@@ -21,24 +22,51 @@ such as `EventKindUserCreated event.Kind = "user.created"`.
 The Aggregate holds an `event.Events` field, changes state, then calls `Add`
 with the accepted fact. Reconstitution records no creation event.
 
-## Request-scoped Dispatch Shape
+An event that a must-run handler listens to is stored as JSON until the handler
+succeeds, so its `json` tags are a stored contract that evolves by the "Events"
+rules of `go doc github.com/go-jimu/components/ddd/event/outbox`. Keep it thin:
+identities, plus the occurrence facts the handler cannot read from current
+state.
 
-For an accepted request-scoped post-commit reaction, Application uses:
+## Handler Kinds
+
+The reacting Policy's failure outcome
+([ddd-collaboration.md](ddd-collaboration.md#local-domain-event-shape)) decides
+the handler kind:
+
+- **Best-effort**: losing the reaction on a process stop is accepted. The
+  handler implements `event.Handler` and subscribes to the in-memory
+  `event.InMemoryDispatcher`.
+- **Must-run**: the reaction must survive a process stop. The handler
+  implements `outbox.Handler` and subscribes to the Outbox. The Relay runs it
+  after commit until it succeeds, at least once.
+
+A request-scoped Aggregate dispatches once, after successful persistence:
 
 ```text
-Repository.Save -> Aggregate.Events.Drain -> Dispatcher.DispatchAll
+best-effort only:  Repository.Save -> Aggregate.Events.Drain -> Dispatcher.DispatchAll
+with an Outbox:    Within( Repository.Save -> Aggregate.Events.Drain -> Outbox.DispatchAll )
 ```
 
-Drain once after successful persistence. The loaded request-scoped Aggregate
-may supply that command's result and drained events, then is stale. A handler
-that changes state enters a fresh Application command and transaction.
+Without an Outbox, the Aggregate is already saved when `DispatchAll` runs. A
+dispatch error then means only that the follow-ups will not run: the
+Application method returns the saved outcome, and the dropped events are
+reported once.
 
-The Aggregate is already saved when `DispatchAll` runs, so a dispatch error
-means only that the follow-ups will not run: the Application method returns the
-saved outcome, and the dropped events are reported once.
+Once an Outbox exists, it is the only dispatcher of the use cases on its
+database. It hands committed events to best-effort handlers too. A use case that
+raises events runs in `Within` ([ddd-golang-transactions.md](ddd-golang-transactions.md)),
+and a dispatch error rolls the transaction back and is returned.
 
-A handler type-asserts its concrete event, ignores any other type, and
-delegates to one Application method:
+The loaded Aggregate may supply that command's result and drained events, then
+is stale. A handler that changes state enters a fresh Application command and
+transaction.
+
+## Handler Shape
+
+A handler type-asserts its concrete event and delegates to one Application
+method. A best-effort handler ignores any other type and logs the result it
+suppresses:
 
 ```go
 // internal/business/user/application/eventhandler/user_created.go
@@ -61,20 +89,32 @@ func (h *UserCreatedHandler) Handle(ctx context.Context, fact event.Event) {
 }
 ```
 
+A must-run handler returns its error to the Relay and follows the "Handlers"
+contract of the outbox package. Handle may run more than once, so write it as a
+reconciler: it reads the Aggregate's current state and applies it with a version
+check.
+
 Trace propagation into a handler's ctx follows
 [ddd-golang-observability.md](ddd-golang-observability.md). Domain event
 payloads carry business correlation only; technical trace context stays outer.
 
-When the accepted design needs per-Aggregate order, the event implements
-`event.Keyed` with the Aggregate identity, or Runtime supplies
-`event.WithKeyFunc`.
+A best-effort handler that needs per-Aggregate order uses `event.Keyed` with the
+Aggregate identity, or Runtime supplies `event.WithKeyFunc`. A must-run
+reconciler needs no order across transactions.
 
 For a producer-owned published fact, the handler shape continues in
 [ddd-golang-messages.md](ddd-golang-messages.md).
 
 ## Registration and Verification
 
-The Bounded Context module registers every handler before serving work. Test
-state change and event recording with real Aggregates, then test dispatch and
-handler mapping with the real event value. Composition evidence proves that
-every accepted handler is registered and reachable.
+The Bounded Context module subscribes every handler, and registers every event
+type a must-run handler listens to, before serving work. The Outbox table ships
+as a migration.
+
+Test state change and event recording with real Aggregates, then test dispatch
+and handler mapping with the real event value. With an Outbox, show that the use
+case saves and dispatches in one committed transaction and rolls back on a
+dispatch error. On a real database, show that the record commits and rolls back
+with the Aggregate, and that a must-run handler's effect is the same on every
+attempt. Composition evidence proves that every accepted handler is registered
+and reachable.

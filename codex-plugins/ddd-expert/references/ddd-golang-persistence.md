@@ -63,15 +63,13 @@ Aggregate remains authoritative.
 
 When one Aggregate maps to several tables, its Repository owns a local session
 and transaction around all statements, rolling back on failure and closing the
-session. When a confirmed multi-Root Application scope exists, load
-[transaction participation](ddd-golang-transactions.md) and use its resolver
-and `WithinOrJoin` form so the Repository joins that scope.
+session. When the database has a transaction Manager, the adapter instead
+follows [Repository participation](ddd-golang-transactions.md#repository-participation).
 
 ## QueryRepository Adapter
 
 An accepted Go read side follows
-[ddd-golang-cqrs.md](ddd-golang-cqrs.md). Its xorm adapter receives the same
-ExecutorResolver form as the write adapter when an Application transaction
-scope exists; otherwise it receives the shared Engine. It selects explicit
+[ddd-golang-cqrs.md](ddd-golang-cqrs.md). Its xorm adapter resolves its
+session like the write adapter on the same database. It selects explicit
 columns, uses stable indexed ordering, and maps directly to Application read
 types.

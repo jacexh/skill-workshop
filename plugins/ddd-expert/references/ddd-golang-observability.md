@@ -31,7 +31,8 @@ business correlation in Domain facts.
   span. It continues the caller's `traceparent` and skips health checks; the
   gateway owns the trust boundary for external traffic.
 - Domain Event: `event.WithContextFactory` continues the span context from
-  `event.SourceContext` in the handler ctx.
+  `event.SourceContext` in the handler ctx, and must-run handlers continue it
+  through `outbox.WithTrace`.
 - Integration Message and task: the publisher injects trace context into
   provider headers, and the consumer's handlers continue it.
 

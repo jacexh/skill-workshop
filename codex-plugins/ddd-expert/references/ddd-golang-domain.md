@@ -23,7 +23,7 @@ This house style permits exported Domain fields so hand-written assemblers and c
 - new Aggregates are created through `domain.NewXxx` or another Domain-named Factory, never by copying a DTO into a struct literal;
 - `application/assembler.go` may map existing Application DTO state; `infrastructure/convert.go` may reconstitute persisted DO state;
 - mutable slices, maps and pointers are copied at the mapping boundary so a caller cannot mutate Aggregate state through an alias;
-- Domain structs may carry `validate` tags, but never protobuf, JSON, HTTP or ORM tags.
+- Domain structs may carry `validate` tags, but never protobuf, HTTP or ORM tags. JSON tags appear only on Domain Events the Outbox stores ([ddd-golang-events.md](ddd-golang-events.md)).
 
 The Aggregate still exposes intention-revealing methods for every business change.
 

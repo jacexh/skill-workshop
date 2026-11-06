@@ -56,7 +56,7 @@ Kafka and Asynq provider construction, active loops, and lifecycle remain in
 their provider leaves.
 ## Errors, Logging and Trace Context
 
-Transport maps stable errors to ConnectRPC/HTTP status or returns them to the provider boundary. Outcomes the client can act on carry the error's message; every other error becomes `internal` with a fixed message. The original error stays the unsent cause for `errors.Is` and the single execution logger.
+Transport maps stable errors to ConnectRPC/HTTP status or returns them to the provider boundary. Outcomes the client can act on carry the error's message; every other error becomes `internal` with a fixed message. The original error stays the unsent cause for `errors.Is` and the single execution logger. A transaction conflict is retryable (`aborted`); an unknown transaction outcome (`unknown`) tells the client the write may have happened.
 
 - ConnectRPC/HTTP middleware owns end-to-end duration and completion.
 - Do not log an error and return it unless this adapter is the terminal owner.
