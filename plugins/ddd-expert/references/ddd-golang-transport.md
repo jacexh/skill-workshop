@@ -61,7 +61,7 @@ Transport maps stable errors to ConnectRPC/HTTP status or returns them to the pr
 - ConnectRPC/HTTP middleware owns end-to-end duration and completion.
 - Do not log an error and return it unless this adapter is the terminal owner.
 
-When OpenTelemetry is available and accepted, Transport extracts/creates trace context and passes `context.Context` unchanged. Completion logs may include `trace_id`, `span_id` and `request_id`; async boundaries also retain their own `message_id` or `task_id`. Domain remains telemetry-free.
+Transport passes `context.Context` unchanged; accepted trace context follows [ddd-golang-observability.md](ddd-golang-observability.md). Async boundaries also log their own `message_id` or `task_id`. Domain remains telemetry-free.
 
 ## File Shape and Verification
 

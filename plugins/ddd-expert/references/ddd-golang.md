@@ -102,7 +102,7 @@ adapter from the provider leaf.
 | Logging | `log/slog` and `github.com/go-jimu/components/sloghelper` | Every Go service |
 | Error enrichment | `github.com/samber/oops` | Errors cross a controlled boundary |
 | Configuration | `github.com/go-jimu/components/config/loader` | Go service Runtime |
-| Distributed tracing | OpenTelemetry Go, OTLP, `connectrpc.com/otelconnect` | Tracing is accepted and a backend/collector is available |
+| Distributed tracing | OpenTelemetry Go, OTLP, `connectrpc.com/otelconnect` | Tracing is accepted |
 
 Library APIs and behavior, including error identity and failure outcomes,
 follow the documentation of the version pinned in `go.mod`, read through
