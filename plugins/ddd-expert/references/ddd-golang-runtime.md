@@ -103,7 +103,7 @@ Select evidence for the changed runtime behavior and its affected dependencies:
 | Fx providers or dependency wiring | `fx.ValidateApp` composition; registration/reachability when those change |
 | Shared RPC/HTTP server | Affected cases in the server guide |
 | Execution logging | Affected completion outcome, level, and error mapping |
-| Active loop or shutdown | Affected reachability, app-level start/stop order, running work finishing on a graceful stop, and bounded stop |
+| Active loop or shutdown | Affected reachability, running work finishing on a graceful stop, and bounded stop |
 | OpenTelemetry | Affected observability-leaf cases |
 
 Reuse valid unaffected evidence. Broaden only for new changes, failures, or an
