@@ -1,89 +1,79 @@
 #!/usr/bin/env bash
-# Validate the ddd-expert architecture wireframe checker and its shipped template.
+# Validate the ddd-expert architecture catalog checker, the view renderer, and the shipped template.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-CLAUDE_VALIDATOR="$ROOT/plugins/ddd-expert/scripts/validate-architecture.mjs"
-CODEX_VALIDATOR="$ROOT/codex-plugins/ddd-expert/scripts/validate-architecture.mjs"
-TEMPLATE="$ROOT/plugins/ddd-expert/templates/architecture.html"
+PLUGIN="$ROOT/plugins/ddd-expert"
+VALIDATOR="$PLUGIN/scripts/validate-architecture.mjs"
+RENDERER="$PLUGIN/scripts/render-architecture.mjs"
+TEMPLATE="$PLUGIN/templates/architecture.md"
 
 fail() {
   echo "FAIL $1" >&2
   exit 1
 }
 
-[ -f "$CLAUDE_VALIDATOR" ] || fail "Claude Architecture validator missing"
-[ -f "$CODEX_VALIDATOR" ] || fail "Codex Architecture validator missing"
-cmp -s "$CLAUDE_VALIDATOR" "$CODEX_VALIDATOR" ||
-  fail "Claude and Codex Architecture validators should match"
-node --check "$CLAUDE_VALIDATOR"
+for script in validate-architecture.mjs render-architecture.mjs; do
+  [ -f "$PLUGIN/scripts/$script" ] || fail "Claude $script missing"
+  [ -f "$ROOT/codex-plugins/ddd-expert/scripts/$script" ] || fail "Codex $script missing"
+  cmp -s "$PLUGIN/scripts/$script" "$ROOT/codex-plugins/ddd-expert/scripts/$script" ||
+    fail "Claude and Codex $script should match"
+  node --check "$PLUGIN/scripts/$script"
+done
 
-# The shipped template validates against the shipped domain-object template beside it.
-node "$CLAUDE_VALIDATOR" "$TEMPLATE" | grep -Fq "Domain names match domain-objects.md" ||
-  fail "shipped architecture template does not validate against the domain-object template"
-if grep -Eq '<(script|link)[^>]+(src|href)="https?:' "$TEMPLATE"; then
-  fail "architecture template must be self-contained"
-fi
+# The shipped template uses exactly the sections and headers the validator parses.
+node --input-type=module - "$RENDERER" "$TEMPLATE" <<'NODE' || fail "architecture template headers drift from the validator"
+import fs from "node:fs";
+const { SECTIONS } = await import(process.argv[2]);
+const text = fs.readFileSync(process.argv[3], "utf8");
+const headings = [...text.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
+const headers = [...text.matchAll(/^## .+\n\n(\|.+\|)$/gm)].map((m) => m[1]);
+const expected = SECTIONS.map((s) => "| " + s.headers.join(" | ") + " |");
+if (JSON.stringify(headings) !== JSON.stringify(SECTIONS.map((s) => s.title))) process.exit(1);
+if (JSON.stringify(headers) !== JSON.stringify(expected)) process.exit(1);
+NODE
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-# write_fixture <dir> <json>: an architecture.html holding only the data block.
-write_fixture() {
-  mkdir -p "$1"
-  printf '<!doctype html>\n<script type="application/json" id="architecture-data">\n%s\n</script>\n' "$2" \
-    >"$1/architecture.html"
-}
+# One project: Scheduling consumes Staffing's leave fact and publishes VisitCompleted to Billing.
+make_project() {
+  local dir="$1"
+  mkdir -p "$dir/context/scheduling"
+  cat >"$dir/context-map.md" <<'EOF'
+# Context Map
 
-VALID='{
-  "context": "Scheduling",
-  "components": [
-    { "id": "sub", "kind": "inbound-adapter", "name": "Staffing subscriber", "note": "Kafka" },
-    { "id": "leave", "kind": "integration-message", "name": "DoctorLeaveApproved", "contract": "published-fact", "counterpart": "Staffing" },
-    { "id": "worker", "kind": "inbound-adapter", "name": "Hold expiry processor" },
-    { "id": "expire", "kind": "task", "name": "ExpireHold" },
-    { "id": "app", "kind": "application", "name": "Scheduling Application" },
-    { "id": "handler", "kind": "event-handler", "name": "Publish VisitCompleted" },
-    { "id": "pub", "kind": "application-port", "name": "VisitCompletedPublisher" },
-    { "id": "hold", "kind": "application-port", "name": "TaskEnqueuer" },
-    { "id": "schedule", "kind": "aggregate-root", "name": "Schedule" },
-    { "id": "referral", "kind": "domain-port", "name": "ReferralPort" },
-    { "id": "done", "kind": "domain-event", "name": "VisitCompleted" },
-    { "id": "repo", "kind": "repository", "name": "ScheduleRepository" },
-    { "id": "repo-a", "kind": "adapter", "name": "Schedule repository", "note": "MySQL" },
-    { "id": "referral-a", "kind": "adapter", "name": "Referral ACL" },
-    { "id": "pub-a", "kind": "adapter", "name": "VisitCompleted publisher", "note": "Kafka" },
-    { "id": "queue-a", "kind": "adapter", "name": "Task queue", "note": "Redis" },
-    { "id": "pub-msg", "kind": "integration-message", "name": "VisitCompleted", "contract": "published-fact", "counterpart": "Billing" }
-  ],
-  "dependencies": [
-    { "from": "sub", "to": "app" },
-    { "from": "sub", "to": "leave" },
-    { "from": "worker", "to": "app" },
-    { "from": "worker", "to": "expire" },
-    { "from": "app", "to": "schedule" },
-    { "from": "app", "to": "repo" },
-    { "from": "app", "to": "hold" },
-    { "from": "app", "to": "expire" },
-    { "from": "schedule", "to": "referral" },
-    { "from": "schedule", "to": "done" },
-    { "from": "handler", "to": "done" },
-    { "from": "handler", "to": "pub" },
-    { "from": "repo-a", "to": "repo" },
-    { "from": "referral-a", "to": "referral" },
-    { "from": "pub-a", "to": "pub" },
-    { "from": "pub-a", "to": "pub-msg" },
-    { "from": "queue-a", "to": "hold" },
-    { "from": "queue-a", "to": "expire" }
-  ],
-  "mechanisms": [
-    { "name": "Rate limit", "seam": "app", "serves": "Booking burst" },
-    { "name": "Consumer concurrency limit", "seam": "sub", "serves": "Staffing replays" },
-    { "name": "Transactional outbox", "seam": "pub-a", "serves": "Billing relies on every VisitCompleted" }
-  ]
-}'
+## Bounded Contexts
 
-DOMAIN_OBJECTS='# Scheduling Domain Objects
+| Bounded Context | Purpose | Model |
+|---|---|---|
+| Staffing | Own doctors' leave. | [Model](context/staffing/model.md) |
+| Scheduling | Own doctors' bookable days. | [Model](context/scheduling/model.md) |
+| Billing | Own invoices. | [Model](context/billing/model.md) |
+
+## Semantic Dependencies
+
+| Upstream | Downstream | Published contract | Downstream use |
+|---|---|---|---|
+| Staffing | Scheduling | **Doctor Leave Published Fact Contract:** Staffing publishes each approved leave. | Scheduling frees the doctor's Slots; Policy `Release leave slots` |
+| Scheduling | Billing | **VisitCompleted Published Fact Contract:** Scheduling publishes each completed visit. **Appointment Query Contract:** Scheduling supplies an appointment by id. | Billing opens an invoice; Policy `Open Invoice` |
+EOF
+  cat >"$dir/context/scheduling/model.md" <<'EOF'
+# Scheduling Model
+
+## Aggregate Roots
+
+| Aggregate Root | Definition | Consistency boundary |
+|---|---|---|
+| Schedule | One doctor working day of bookable Slots. | One confirmed appointment per Slot. |
+
+## Policies
+
+- **Release leave slots:** When Staffing reports approved leave, Scheduling frees the doctor's Slots. If it cannot free them, then the hold sweep frees them later.
+- **Expire hold:** When an appointment is held, Scheduling expires the hold within 10 minutes. If it cannot expire it, then the hold stays until the next attempt.
+EOF
+  cat >"$dir/context/scheduling/domain-objects.md" <<'EOF'
+# Scheduling Domain Objects
 
 ## Schedule
 
@@ -94,48 +84,99 @@ DOMAIN_OBJECTS='# Scheduling Domain Objects
   - `ReferralPort`
     - `Find Valid Referral` — `Confirm Appointment` invokes it to obtain a valid referral.
 - **Domain Events:**
-  - `VisitCompleted` — recorded by `Complete Visit`.
-'
+  - `AppointmentHeld` — recorded by `Hold Appointment`.
+    - **Consumed by:** Policy `Expire hold`.
+  - `VisitCompleted` — recorded by `Complete Visit`; published as `VisitCompleted Published Fact Contract`.
+EOF
+  cat >"$dir/context/scheduling/architecture.md" <<'EOF'
+# Scheduling Architecture
 
-write_fixture "$tmp/valid" "$VALID"
-printf '%s' "$DOMAIN_OBJECTS" >"$tmp/valid/domain-objects.md"
-expected='valid Architecture: 17 components, 18 dependencies, 3 mechanisms; Domain names match domain-objects.md'
-actual="$(node "$CLAUDE_VALIDATOR" "$tmp/valid/architecture.html")" || fail "validator rejected valid architecture"
+<!-- The closed contract catalog. -->
+
+## Query Repositories
+
+| Query Repository | Reads | Read needs | Store | Reason |
+|---|---|---|---|---|
+| ScheduleQueryRepository | Schedule facts: open Slots, held and confirmed appointments | Reception sees a doctor's open Slots before it confirms; Appointment Query Contract | MySQL | Every read of Schedule's own facts |
+
+## Application Ports
+
+| Application Port | Authority | Covers | Adapter | Reason |
+|---|---|---|---|---|
+| Publisher | Scheduling's own Published Fact Contracts | VisitCompleted | Kafka | VisitCompleted Published Fact Contract |
+| TaskEnqueuer | Scheduling's task queue | Every task below | asynq on Redis | House Style task queue |
+
+## Tasks
+
+| Task | Advances | Key | Enqueued by | Reason |
+|---|---|---|---|---|
+| Expire hold | Schedule | Appointment | Expire hold | Policy `Expire hold` expires each hold within 10 minutes |
+| Hold sweep | Schedule | One per interval | Every 5 minutes, UTC | Failure outcome of Policy `Release leave slots` |
+
+## Mechanisms
+
+| Mechanism | Seam | Serves |
+|---|---|---|
+| Rate limit of 50 requests per second per clinic | Application | Booking bursts at 08:00 never slow confirmations |
+| Consumer concurrency limit | Staffing subscriber | Staffing replays leave in bursts |
+| Transactional outbox | Publisher | Billing relies on every VisitCompleted |
+| Referral cache for 5 minutes | ReferralPort | Confirmation answers within 300 ms |
+EOF
+}
+
+PROJECT="$tmp/valid"
+CONTEXT="$PROJECT/context/scheduling"
+make_project "$PROJECT"
+
+# A draft validates against --artifacts without a view.
+node "$VALIDATOR" "$CONTEXT/architecture.md" --artifacts "$CONTEXT" | grep -Fq "view not compared" ||
+  fail "validator should accept a draft checked against --artifacts"
+# Without the view, the committed form fails.
+if node "$VALIDATOR" "$CONTEXT/architecture.md" >/dev/null 2>&1; then fail "validator accepted a missing view"; fi
+
+node "$RENDERER" "$CONTEXT" >/dev/null || fail "renderer failed on a valid context"
+expected='valid Architecture: Query Repositories 1, Application Ports 2, Inbound Sources 0, Tasks 2, Mechanisms 4; seams resolved against model.md, domain-objects.md, context-map.md; architecture.html is current'
+actual="$(node "$VALIDATOR" "$CONTEXT/architecture.md")" || fail "validator rejected a valid catalog"
 [ "$actual" = "$expected" ] || fail "unexpected valid output: $actual"
-[ "$(node "$CODEX_VALIDATOR" "$tmp/valid/architecture.html")" = "$expected" ] ||
-  fail "Codex validator rejected valid architecture"
+[ "$(node "$ROOT/codex-plugins/ddd-expert/scripts/validate-architecture.mjs" "$CONTEXT/architecture.md")" = "$expected" ] ||
+  fail "Codex validator disagrees on a valid catalog"
 
-write_fixture "$tmp/no-objects" "$VALID"
-node "$CLAUDE_VALIDATOR" "$tmp/no-objects/architecture.html" | grep -Fq "no domain-objects.md to cross-check" ||
-  fail "validator should skip the Domain name check without domain-objects.md"
+# The view is deterministic, self-contained, and states only the artifacts' relations.
+cp "$CONTEXT/architecture.html" "$tmp/first.html"
+node "$RENDERER" "$CONTEXT/architecture.md" >/dev/null
+cmp -s "$tmp/first.html" "$CONTEXT/architecture.html" || fail "renderer output is not deterministic"
+if grep -Eq '<(script|link)[^>]+(src|href)="https?:' "$CONTEXT/architecture.html"; then
+  fail "architecture view must be self-contained"
+fi
+node - "$CONTEXT/architecture.html" <<'NODE' || fail "view misses a stated relation"
+const fs = require("node:fs");
+const html = fs.readFileSync(process.argv[2], "utf8");
+const view = JSON.parse(html.match(/id="architecture-view">\n([\s\S]*?)\n<\/script>/)[1]);
+const has = (from, to, kind) => view.edges.some((e) => e.from === from && e.to === to && e.kind === kind);
+const card = (name) => view.cards.find((c) => c.name === name);
+if (!has("event:AppointmentHeld", "policy:Expire hold", "reacts")) process.exit(1);
+if (!has("sub:Staffing subscriber", "policy:Release leave slots", "delivers")) process.exit(1);
+if (!has("policy:Expire hold", "task:Expire hold", "enqueues")) process.exit(1);
+if (!card("VisitCompleted Published Fact Contract") || card("VisitCompleted Published Fact Contract").band !== "outbound") process.exit(1);
+if (!card("Schedule").mechanisms.some((m) => m.seam === "ReferralPort")) process.exit(1);
+if (!card("Scheduling Application").lines.some((l) => l.startsWith("Appointment Query Contract"))) process.exit(1);
+if (view.edges.length !== 3) process.exit(1);
+NODE
 
-# The adapter of an application-port carries another context's Asynchronous Intent Contract.
-INTENT="$(VALID="$VALID" python3 -c 'import json,os; d=json.loads(os.environ["VALID"])
-d["components"] += [{"id":"notice","kind":"application-port","name":"ConfirmationNoticePort"},
-  {"id":"notice-a","kind":"adapter","name":"Notification ACL"},
-  {"id":"intent","kind":"integration-message","name":"SendAppointmentNotice","contract":"intent","counterpart":"Notification"}]
-d["dependencies"] += [{"from":"notice-a","to":"notice"},{"from":"notice-a","to":"intent"}]
-print(json.dumps(d))')"
-write_fixture "$tmp/intent" "$INTENT"
-# A periodic task has a schedule instead of an enqueuing component.
-PERIODIC="$(VALID="$VALID" python3 -c 'import json,os; d=json.loads(os.environ["VALID"])
-d["components"] += [{"id":"noshow-p","kind":"inbound-adapter","name":"No-show processor"},
-  {"id":"noshow","kind":"task","name":"MarkNoShows","schedule":"daily 23:00 Asia/Shanghai"}]
-d["dependencies"] += [{"from":"noshow-p","to":"app"},{"from":"noshow-p","to":"noshow"},{"from":"queue-a","to":"noshow"}]
-print(json.dumps(d))')"
-write_fixture "$tmp/periodic" "$PERIODIC"
-node "$CLAUDE_VALIDATOR" "$tmp/periodic/architecture.html" >/dev/null ||
-  fail "validator rejected a periodic task with a schedule"
-node "$CLAUDE_VALIDATOR" "$tmp/intent/architecture.html" >/dev/null ||
-  fail "validator rejected an intent message carried by an application-port adapter"
+# A change to a sibling artifact makes the committed view stale.
+printf -- '- **Notify Billing:** When a visit completes, Scheduling notifies Billing. If it cannot, then it retries.\n' \
+  >>"$CONTEXT/model.md"
+if stale="$(node "$VALIDATOR" "$CONTEXT/architecture.md" 2>&1)"; then fail "validator accepted a stale view"; fi
+printf '%s\n' "$stale" | grep -Fq "architecture.html differs from a fresh render" ||
+  fail "stale view reported the wrong failure: $stale"
 
-# assert_invalid <name> <python-expression editing d> <expected message>
+# assert_invalid <name> <python statement editing s, the catalog text> <expected message>
 assert_invalid() {
-  local name="$1" edit="$2" message="$3" json output
-  json="$(VALID="$VALID" python3 -c "import json,os; d=json.loads(os.environ['VALID']); $edit; print(json.dumps(d))")"
-  write_fixture "$tmp/$name" "$json"
-  printf '%s' "$DOMAIN_OBJECTS" >"$tmp/$name/domain-objects.md"
-  if output="$(node "$CLAUDE_VALIDATOR" "$tmp/$name/architecture.html" 2>&1)"; then
+  local name="$1" edit="$2" message="$3" output
+  make_project "$tmp/$name"
+  local file="$tmp/$name/context/scheduling/architecture.md"
+  python3 -c "import sys; p=sys.argv[1]; s=open(p).read(); $edit; open(p,'w').write(s)" "$file"
+  if output="$(node "$VALIDATOR" "$file" --artifacts "$tmp/$name/context/scheduling" 2>&1)"; then
     fail "validator accepted invalid fixture $name"
   fi
   printf '%s\n' "$output" | grep -Fq -- "$message" || {
@@ -144,38 +185,32 @@ assert_invalid() {
   }
 }
 
-assert_invalid unknown-kind 'd["components"][0]["kind"]="inbound"' 'unknown kind "inbound"'
-assert_invalid unknown-field 'd["dependencies"][0]["label"]="carries"' 'unknown field "label"'
-assert_invalid duplicate-id 'd["components"][1]["id"]="app"' 'duplicate component id "app"'
-assert_invalid unknown-target 'd["dependencies"].append({"from":"app","to":"ghost"})' 'unknown component "ghost"'
-assert_invalid outward 'd["dependencies"].append({"from":"schedule","to":"app"})' 'points from domain to application'
-assert_invalid domain-to-infra 'd["dependencies"].append({"from":"schedule","to":"repo-a"})' 'points from domain to infrastructure'
-assert_invalid transport-to-domain 'd["dependencies"].append({"from":"sub","to":"repo"})' 'points from transport to domain'
-assert_invalid inbound-bypasses-entry 'd["dependencies"]=[x for x in d["dependencies"] if x!={"from":"sub","to":"app"}]+[{"from":"sub","to":"handler"}]' 'inbound-adapter "sub" needs exactly one dependency on the application entry'
-assert_invalid inbound-delegates-twice 'd["dependencies"].append({"from":"sub","to":"handler"})' 'inbound-adapter "sub" needs exactly one dependency on the application entry'
-assert_invalid contract-without-adapter 'd["dependencies"]=[x for x in d["dependencies"] if x["from"]!="repo-a"]; d["components"]=[c for c in d["components"] if c["id"]!="repo-a"]' 'repository "repo" has no implementing adapter'
-assert_invalid idle-adapter 'd["components"].append({"id":"idle","kind":"adapter","name":"Idle"})' 'adapter "idle" implements no contract'
-assert_invalid orphan-message 'd["components"].append({"id":"stray","kind":"integration-message","name":"Stray","contract":"intent","counterpart":"Billing"})' 'integration-message "stray" needs exactly one dependency'
-assert_invalid message-on-repository-adapter 'd["components"].append({"id":"stray","kind":"integration-message","name":"Stray","contract":"intent","counterpart":"Billing"}); d["dependencies"].append({"from":"repo-a","to":"stray"})' 'integration-message "stray" needs exactly one dependency'
-assert_invalid message-on-application-port 'd["dependencies"]=[x for x in d["dependencies"] if x["to"]!="pub-msg"]+[{"from":"pub","to":"pub-msg"}]' 'integration-message "pub-msg" needs exactly one dependency'
-assert_invalid two-carriers 'd["dependencies"].append({"from":"pub-a","to":"leave"})' 'integration-message "leave" needs exactly one dependency'
-assert_invalid message-without-contract 'del d["components"][1]["contract"]' 'contract must be one of published-fact, intent'
-assert_invalid message-without-counterpart 'del d["components"][1]["counterpart"]' 'counterpart must be a non-empty string'
-assert_invalid counterpart-on-component 'd["components"][4]["counterpart"]="Billing"' 'application takes no contract or counterpart'
-assert_invalid task-without-queue 'd["dependencies"]=[x for x in d["dependencies"] if x!={"from":"queue-a","to":"expire"}]' 'task "expire" needs one application-port adapter that delivers it'
-assert_invalid task-without-source 'd["dependencies"]=[x for x in d["dependencies"] if x!={"from":"app","to":"expire"}]' 'task "expire" needs an application or event-handler that enqueues it, or a schedule'
-assert_invalid task-from-domain 'd["dependencies"].append({"from":"schedule","to":"expire"})' 'points from domain to boundary'
-assert_invalid schedule-on-message 'd["components"][1]["schedule"]="hourly"' 'integration-message takes no schedule'
-assert_invalid idle-inbound-adapter 'd["components"].append({"id":"idle-in","kind":"inbound-adapter","name":"Idle"}); d["dependencies"].append({"from":"idle-in","to":"app"})' 'inbound-adapter "idle-in" receives no integration-message or task'
-assert_invalid mechanism-on-domain 'd["mechanisms"].append({"name":"Cache","seam":"repo","serves":"Reads"})' 'a mechanism sits on the application entry, an inbound-adapter, or an adapter'
-assert_invalid mechanism-unknown-seam 'd["mechanisms"][0]["seam"]="ghost"' 'unknown seam "ghost"'
-assert_invalid undrawn-event 'd["components"]=[c for c in d["components"] if c["id"]!="done"]; d["dependencies"]=[x for x in d["dependencies"] if x["to"]!="done"]' 'domain-event "VisitCompleted" from domain-objects.md is not drawn'
-assert_invalid unknown-root '[c.update(name="Calendar") for c in d["components"] if c["id"]=="schedule"]' 'aggregate-root "Calendar" is not in domain-objects.md'
+assert_invalid wrong-title 's=s.replace("# Scheduling Architecture","# Scheduling Design")' 'expected exactly one "# <Bounded Context> Architecture" heading'
+assert_invalid other-context 's=s.replace("# Scheduling Architecture","# Billing Architecture")' 'heading names "Billing" but model.md names "Scheduling"'
+assert_invalid preamble 's=s.replace("<!-- The closed contract catalog. -->","Some prose.")' 'only sections may follow the heading'
+assert_invalid unknown-section 's=s.replace("## Tasks","## Jobs")' 'unknown section "## Jobs"'
+assert_invalid out-of-order 's=s.replace("## Query Repositories","## Tmp").replace("## Application Ports","## Query Repositories").replace("## Tmp","## Application Ports")' 'out of order'
+assert_invalid missing-required 'i=s.index("## Application Ports"); j=s.index("## Tasks"); s=s[:i]+s[j:]' 'missing section "## Application Ports"'
+assert_invalid wrong-headers 's=s.replace("| Query Repository | Reads | Read needs | Store | Reason |","| Query Repository | Reads | Store | Reason | Note |")' 'headers must be: Query Repository | Reads | Read needs | Store | Reason'
+assert_invalid empty-cell 's=s.replace("| Kafka |","|  |")' 'Application Ports row 1 contains an empty cell'
+assert_invalid trailing-prose 's=s+"\nNot carried over: the old cache.\n"' 'Mechanisms row 5 must contain exactly 3 cells'
+assert_invalid duplicate-name 's=s.replace("| Hold sweep |","| Expire hold |")' 'repeats the name "Expire hold"'
+assert_invalid issue-reference 's=s.replace("Booking bursts at 08:00","Booking bursts (#26)")' 'cites issue or pull request "(#26"'
+assert_invalid code-reason 's=s.replace("Every read of Schedule'"'"'s own facts","The existing code has it")' 'takes its Reason from existing code'
+assert_invalid unknown-seam 's=s.replace("| Staffing subscriber |","| Leave consumer |")' 'unknown seam "Leave consumer"'
 
-write_fixture "$tmp/no-block" '{}'
-sed -i 's/architecture-data/other-data/' "$tmp/no-block/architecture.html"
-if node "$CLAUDE_VALIDATOR" "$tmp/no-block/architecture.html" >/dev/null 2>&1; then
-  fail "validator accepted a file without the data block"
-fi
+# None. stands in for an empty required section.
+make_project "$tmp/none"
+python3 - "$tmp/none/context/scheduling/architecture.md" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+start = s.index("| Query Repository |")
+s = s[:start] + "None.\n" + s[s.index("## Application Ports"):]
+s = s.replace("| ScheduleQueryRepository |", "")
+open(p, "w").write(s)
+PY
+node "$VALIDATOR" "$tmp/none/context/scheduling/architecture.md" --artifacts "$tmp/none/context/scheduling" | grep -Fq "Query Repositories 0" ||
+  fail "validator rejected None. for an empty Query Repositories section"
 
-echo "PASS ddd-expert Architecture validator and shipped template compatibility"
+echo "PASS ddd-expert Architecture catalog validator, view renderer, and shipped template"

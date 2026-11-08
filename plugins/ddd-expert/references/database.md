@@ -180,7 +180,7 @@ The legacy 767-byte/191-utf8mb4-character limit is not a MySQL 8 universal limit
 
 - **[House Rule]** `INSERT` names every column; `INSERT INTO t VALUES (...)` is prohibited.
 - **[House Rule]** A batch `INSERT` contains at most 1000 rows.
-- **[House Rule]** A transaction changes at most 2000 rows and executes at most 5 SQL statements. For a use case that cannot fit these bounds, use the bulk, streaming, or consistency mechanism drawn in `architecture.html`; when none is drawn, Codify selects one from confirmed semantics, measured evidence, and accepted project constraints.
+- **[House Rule]** A transaction changes at most 2000 rows and executes at most 5 SQL statements. For a use case that cannot fit these bounds, use the bulk, streaming, or consistency mechanism listed in `architecture.md`; when none is listed, Codify selects one from confirmed semantics, measured evidence, and accepted project constraints.
 - **[House Rule]** `UPDATE` and `DELETE` use deterministic predicates and check affected rows. An update/delete with an arbitrary `LIMIT` is prohibited.
 - **[House Rule]** `UPDATE ... JOIN`, `DELETE ... JOIN`, cross-database joins, correlated update/delete subqueries, stored procedures, stored functions, triggers, views, scheduled database events, and foreign keys are prohibited in this house style.
 - **[House Rule]** Required relationships and uniqueness are enforced through owned write logic plus primary/unique constraints. The foreign-key prohibition is a deployment house rule, not a claim that DDD forbids foreign keys.

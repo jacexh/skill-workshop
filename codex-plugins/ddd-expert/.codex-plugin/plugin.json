@@ -15,7 +15,7 @@
   "interface": {
     "displayName": "DDD Expert",
     "shortDescription": "Strategic and tactical DDD interviews",
-    "longDescription": "Enter EventStorming for strategic discovery, Tactical Design for pressure-led object decisions and the Capability Probe, Architecture Design for a reviewed per-context architecture wireframe, Codify for accepted implementation, or Guard for independent structural review. Reuse confirmed work and apply project conventions within the user's requested scope.",
+    "longDescription": "Enter EventStorming for strategic discovery, Tactical Design for pressure-led object decisions and the Capability Probe, Architecture Design for a reviewed per-context closed contract catalog, Codify for accepted implementation, or Guard for independent structural review. Reuse confirmed work and apply project conventions within the user's requested scope.",
     "developerName": "xuhao",
     "category": "Productivity",
     "capabilities": [
@@ -23,7 +23,7 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Use the DDD Expert skill that matches the current request and existing artifacts: $ddd-expert:event-storming for strategic discovery or recording an accepted model; $ddd-expert:tactical-design for object ownership and behavior or recording accepted objects; $ddd-expert:architecture-design for a context's components, dependencies, and technical mechanisms or recording reported components; $ddd-expert:codify for implementing accepted design; $ddd-expert:guard for independent structural review. Reuse existing confirmations and complete only the requested work."
+      "Use the DDD Expert skill that matches the current request and existing artifacts: $ddd-expert:event-storming for strategic discovery or recording an accepted model; $ddd-expert:tactical-design for object ownership and behavior or recording accepted objects; $ddd-expert:architecture-design for a context's Query Repositories, Application Ports, tasks, and technical mechanisms or a Conflict raised against them; $ddd-expert:codify for implementing accepted design; $ddd-expert:guard for independent structural review. Reuse existing confirmations and complete only the requested work."
     ]
   },
   "skills": "./skills/"

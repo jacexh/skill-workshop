@@ -13,7 +13,7 @@ const skills = ["architecture-design", "codify", "declare-ownership", "event-sto
 // declare-ownership is user-invoked; each host declares that in its own invocation mechanism.
 const claudeOnlyLine = "disable-model-invocation: true\n";
 const codexOnlyFile = "declare-ownership/agents/openai.yaml";
-const templates = ["architecture.html", "artifact-layout.md", "context-map.md", "domain-objects.md", "model.md"];
+const templates = ["architecture.md", "artifact-layout.md", "context-map.md", "domain-objects.md", "model.md"];
 const tracks = ["plugins/ddd-expert", "codex-plugins/ddd-expert"];
 
 function filesUnder(dir) {

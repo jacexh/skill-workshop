@@ -1,21 +1,21 @@
 ---
 name: architecture-design
-description: Use when a Bounded Context needs its software architecture designed, reviewed, or recorded as components by layer, dependencies, and technical mechanisms on seams, including components and mechanisms that Codify reported.
+description: Use when a Bounded Context's contract catalog (Query Repositories, Application Ports, inbound sources, tasks, technical mechanisms) needs deciding, when a change adds a read need or an external dependency, or when Codify raised a Conflict against the catalog.
 ---
 
 # Architecture Design
 
-Draw one Bounded Context's software architecture as a reviewed wireframe: its components by layer, their dependencies, and each technical mechanism on its seam. This is a design review, not an interview. The facilitator derives the complete design from accepted artifacts and House Style. The user challenges it, and the facilitator revises it until the user confirms. The confirmed drawing is core design that Codify follows.
+Decide one Bounded Context's closed contract catalog: its Query Repositories, Application Ports, Inbound Sources, tasks, and technical mechanisms on seams. Codify adds no contract or task outside the catalog, so each contract is decided here, once, from accepted sources. This is a design review, not an interview. The facilitator derives the complete catalog, the user challenges it, and the facilitator revises it until the user confirms.
 
-Read the [workflow contract](../../references/workflow.md) for scope, existing authorization, and instruction conflicts. Read [Architecture writing](../../templates/artifact-layout.md#architecture-writing) for the drawing's content, kinds, dependency directions, and core design.
+Read the [workflow contract](../../references/workflow.md) for scope, existing authorization, and instruction conflicts. Read [Architecture writing](../../templates/artifact-layout.md#architecture-writing) for the catalog's sections, granularity, accepted Reasons, and the closed-catalog rule.
 
 ```text
-accepted model, domain objects, and delivery constraints
--> complete derived design
+read needs, Context Map, domain objects, Policies, delivery constraints
+-> catalog derived through five steps
 -> missing facts, one per turn
 -> self-check
 -> design review until confirmed
--> architecture.html
+-> architecture.md and its generated view
 ```
 
 ## Entry
@@ -24,64 +24,63 @@ Work on one Bounded Context at a time. Read:
 
 - `context-map.md`;
 - the context's `model.md`, and its `domain-objects.md` when it exists;
-- any existing `architecture.html`;
+- any existing `architecture.md`;
 - confirmed delivery constraints and relevant project decisions;
 - open decisions handed on by earlier steps, from the spec or the conversation;
-- the context's existing code.
+- a Codify ⚠️ Conflict against the catalog, when one brought you here;
+- the context's existing code, as evidence of its current state only.
 
 For House Style, read [ddd-core.md](../../references/ddd-core.md) and the active-language router: [Go](../../references/ddd-golang.md), [Python](../../references/ddd-python.md), or [TypeScript](../../references/ddd-typescript.md).
 
-For **recording**, the components, dependencies, and mechanisms come from a Codify completion report or an already confirmed design. Show the additions on the rendered drawing, obtain confirmation under the workflow contract unless it already covers them, and proceed to [Write](#write). An existing drawing changes only where the report or confirmation reaches.
+For a **Codify Conflict**, start from the need, the checked row, and the proposed row or missing fact that the Conflict states, and judge them by the steps below. Add the row when an accepted source supports it, map the need onto an existing row when one covers it, or send an unmodeled fact to the step that owns it. Change the catalog only where the Conflict reaches, then go to [Design review](#design-review).
 
-## Derive the complete design
+## Derive the catalog
 
-Derive every component from its source:
+Derive each section from its sources, in this order. Each step reuses what the earlier steps produced.
 
-| Component | Source |
-|---|---|
-| `aggregate-root`, `domain-service`, `domain-port`, `domain-event` | `domain-objects.md`; without it, the Aggregate Roots in `model.md` and the existing code |
-| `repository` and its `adapter` | one per Aggregate Root (ddd-core Repository) |
-| `inbound-adapter` | each subscriber of a consumed Integration Message and each task processor; synchronous request and response APIs are part of the `application` entry |
-| `application` | one entry per Bounded Context (ddd-core Application and Transport Shape) |
-| `event-handler` | each Policy in `model.md` that reacts to a same-context Domain Event, and each translation of a Domain Event into a Published Fact Contract ([ddd-collaboration.md](../../references/ddd-collaboration.md)) |
-| `integration-message` | each Integration Message in `context-map.md` this context consumes or sends, with its contract type and counterpart ([ddd-collaboration.md](../../references/ddd-collaboration.md)): the `inbound-adapter` that consumes it, or the `adapter` of the `application-port` that sends it |
-| `task`, with one task enqueue `application-port` and its `adapter` per context | each deferred, polling, or periodic Internal Task Contract, per the active-language task queue leaf |
-| `query-repository` and its `adapter` | lists, pages, histories, reports, and projections that a delivery constraint or existing code needs |
-| `application-port` and its `adapter` | one publisher for every Published Fact Contract this context sends, one per Asynchronous Intent sender role (its adapter is the ACL), and each other Application Port |
-| mechanism | each delivery constraint on volume, latency, or availability, on its seam per ddd-core Technical Mechanisms; each Policy failure outcome that needs durable delivery, per ddd-collaboration.md |
+1. **Read needs to modeled facts.** Collect the read needs: Business Rules in `model.md` that state a query or a reading, query contracts that `context-map.md` says this context supplies, and delivery constraints that name a read. State each read need with the facts that `model.md` and `domain-objects.md` hold. When a read need needs a fact that neither holds, do not invent a query concept for it; make it a [correction](../../references/workflow.md#progressive-refinement) through the step that owns the fact. An existing read that matches no source is a missing fact: ask whether it is a read need.
+2. **Facts to Query Repositories.** Group the read needs by the concept whose facts they return: one Query Repository per Root or per read model this context maintains. A read of data that another authority writes is not a Query Repository; it goes to step 3.
+3. **External dependencies to Application Ports.** Collect every authority the context reaches: each Context Map contract it uses or Asynchronous Intent Contract it sends, each external system that a project decision or a Supplied Fact names, its own Published Fact Contracts, and its task queue. Give each authority one Port that covers its capabilities in the authority's published language.
+4. **Inbound Sources.** Add one row for each external system outside the Context Map that sends this context input. Context Map subscribers follow from `context-map.md` and are not listed.
+5. **Tasks and mechanisms.** Add a task for each Policy failure outcome that needs a durable retry, each deferred or polling step, and each periodic piece of work, one per object it advances. Add a mechanism for each delivery constraint on volume, latency, or availability, and for each Policy failure outcome that needs durable delivery ([ddd-collaboration.md](../../references/ddd-collaboration.md)), on its seam.
 
-A Policy that a Published Fact Contract triggers enters through its subscriber, and one that business time triggers enters through the processor of a periodic `task`. An entry mechanism sits on the `application` entry for synchronous APIs or on its `inbound-adapter`; every other mechanism sits on an `adapter`.
+Apply the granularity of [Architecture writing](../../templates/artifact-layout.md#architecture-writing) at every step: a second row over one concept, authority, or object needs one of the named Reasons.
 
-Draw each dependency in a direction that Architecture writing allows.
+Then compare the derived catalog with the existing code. List each existing Query Repository, Application Port, Inbound Source, or task that the catalog does not hold, with the row that absorbs it or the reason it goes away. This consolidation list is handed on through the spec, the issue, or the conversation, and never enters `architecture.md`.
 
-Some facts are missing from the repository and have no House Style or code default. When such a fact would change a component, dependency, or mechanism, ask the user before presenting. Ask one question per turn. Decide design choices yourself and show them in the review. When a fact has a default you are not sure of, use the default and list it as an assumption.
+Some facts are missing from the repository and have no House Style or code default. When such a fact would change a row, ask the user before presenting. Ask one question per turn. Decide design choices yourself and show them in the review. When a fact has a default you are not sure of, use the default and list it as an assumption.
 
-Settle each open decision whose evidence the design supplies. When the design exposes a fact or contradiction that changes `context-map.md`, `model.md`, or `domain-objects.md`, such as a hidden Domain-owned Port or a Domain Event that no Policy or Published Fact Contract needs, make it a [correction](../../references/workflow.md#progressive-refinement) before drawing on it.
+Settle each open decision whose evidence the catalog supplies. When the derivation exposes a fact or contradiction that changes `context-map.md`, `model.md`, or `domain-objects.md`, such as a read need without a modeled fact, an adapter that keeps its own lifecycle state that no Root owns, or a Domain Event that no Policy or Published Fact Contract needs, make it a correction before relying on it.
 
 ## Self-check
 
-Present the design only when all of these hold:
+Present the catalog only when all of these hold:
 
-- every component traces to an accepted artifact, a House Style rule, a delivery constraint, or existing code;
+- every read need maps to a Query Repository or an Application Port, using modeled facts only;
+- every authority the context reaches has exactly one Application Port, unless a named Reason splits it;
+- every concept has at most one Query Repository and every object at most one task, unless a named Reason splits it;
+- every row's Reason names an accepted source, and none names existing code, an issue, or design history;
 - every delivery constraint on volume, latency, or availability has a mechanism on a seam, or is listed as needing none;
-- every same-context Policy has an `event-handler` that depends on its Domain Event, and every other Policy has an `inbound-adapter`;
-- every Integration Message in `context-map.md` that this context consumes or sends is drawn with its counterpart;
-- the [Architecture validator](../../scripts/validate-architecture.mjs) passes on the draft.
+- every Policy failure outcome that needs a durable retry has a task, or an existing task's retry covers it;
+- the [Architecture validator](../../scripts/validate-architecture.mjs) passes on the draft with `--artifacts` pointing at the context directory.
 
 ## Design review
 
-Render the draft from the [architecture template](../../templates/architecture.html) to a temporary file outside the repository, and give the user its path. When the user cannot open local files, serve the draft over HTTP and give its URL. Beside it, list:
+Write the draft `architecture.md` to a temporary directory outside the repository. Render its view with the [view renderer](../../scripts/render-architecture.mjs), using `--artifacts` for the context directory and `--out` for the temporary page. When the user cannot open local files, serve the page over HTTP and give its URL.
 
-- each component, dependency, or mechanism that is not derived directly from an accepted artifact, with its reason;
+Present the catalog tables themselves, not the page: the page helps the user see the whole context, and the tables are what binds Codify. Beside them, list:
+
+- the consolidation list;
+- each row that a named Reason split from another;
 - each assumption;
-- each open decision this design settles, and each one it hands on to Codify with its default.
+- each open decision this catalog settles, and each one it hands on to Codify with its default.
 
-Treat each user question or challenge as review input. Answer it from the sources above, revise the draft when the challenge holds, and render again. Review ends when the user confirms the design.
+Treat each user question or challenge as review input. Judge it against the sources and the granularity rules: revise the catalog when the challenge shows a source, a fact, or a rule that the derivation missed; otherwise keep the row, cite its Reason, and leave the decision to the user. Render again after each revision. Review ends when the user confirms the catalog.
 
 ## Write
 
-Before writing, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write `docs/ddd-expert/context/<context-slug>/architecture.html` from the template, and change only its JSON data block. Run the Architecture validator. If it fails, correct the drawing and run it again; a Domain name mismatch that the drawing cannot resolve is a correction to `domain-objects.md`.
+Before writing, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write `docs/ddd-expert/context/<context-slug>/architecture.md` from the [architecture template](../../templates/architecture.md). Regenerate `architecture.html` beside it with the view renderer, then run the Architecture validator without `--artifacts`. If it fails, correct the catalog and run both again; a seam or name that the catalog cannot resolve is a correction to the artifact that owns it.
 
 ## Completion
 
-Report the written file, the validator result, the stated assumptions, and any decision that remains open. Continue to Codify when implementation is in scope. A design-only request ends with the confirmed drawing.
+Report the written files, the validator result, the consolidation list, the stated assumptions, and any decision that remains open. Continue to Codify when implementation is in scope. A design-only request ends with the confirmed catalog.

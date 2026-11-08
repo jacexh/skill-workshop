@@ -35,6 +35,14 @@ function plain(value) {
     .trim();
 }
 
+// A cell sentence follows the artifact writing contract: one sentence of at most 25 words.
+const MAX_WORDS = 25;
+function oneSentence(text) {
+  const words = text.split(/\s+/).filter(Boolean).length;
+  const sentences = text.split(/[.!?](?:\s+|$)/).filter((part) => part.trim() !== "").length;
+  return words > 0 && words <= MAX_WORDS && sentences <= 1;
+}
+
 function section(lines, heading) {
   const indexes = lines
     .map((line, index) => line.trim() === heading ? index : -1)
@@ -127,6 +135,9 @@ for (const [rawName, rawPurpose, rawModel] of contextRows) {
   contexts.add(name);
 
   if (plain(rawPurpose).length < 3) invalid(`Bounded Context ${name} needs a purpose`);
+  if (!oneSentence(plain(rawPurpose))) {
+    invalid(`Bounded Context ${name} purpose must be one sentence of at most ${MAX_WORDS} words`);
+  }
   const model = rawModel.match(/^\[([^\]]+)\]\((context\/([a-z0-9]+(?:-[a-z0-9]+)*)\/model\.md)\)$/);
   if (!model) invalid(`Bounded Context ${name} needs one context/<slug>/model.md link`);
   if (plain(model[1]) === "") invalid(`Bounded Context ${name} has an empty Model link label`);
@@ -140,10 +151,30 @@ const dependencyRows = parseTable(
 
 const dependencies = [];
 const dependencyKeys = new Set();
-for (const [rawUpstream, rawDownstream, rawContract] of dependencyRows) {
+for (const [rawUpstream, rawDownstream, rawContract, rawUse] of dependencyRows) {
   const upstream = plain(rawUpstream);
   const downstream = plain(rawDownstream);
   const contract = plain(rawContract);
+  const label = `dependency ${upstream} -> ${downstream}`;
+
+  // Published contract: one or more "**<Name> Contract:** <one sentence>" entries, nothing else.
+  const entries = [...rawContract.matchAll(/\*\*([^*]+?)\*\*([^*]*)/g)];
+  if (entries.length === 0 || rawContract.replace(/\*\*([^*]+?)\*\*([^*]*)/g, "").trim() !== "") {
+    invalid(`${label} Published contract must list "**<Name> Contract:** <meaning>" entries`);
+  }
+  for (const [, rawName, rawMeaning] of entries) {
+    const entryName = plain(rawName).replace(/:$/, "").trim();
+    if (!/ Contract$/.test(entryName)) invalid(`${label} contract "${entryName}" must end in "Contract"`);
+    if (!oneSentence(plain(rawMeaning).replace(/^:\s*/, ""))) {
+      invalid(`${label} contract "${entryName}" meaning must be one sentence of at most ${MAX_WORDS} words`);
+    }
+  }
+
+  // Downstream use: one sentence, then Policy references.
+  const reliance = plain(rawUse.replace(/[;,]?\s*Policy `[^`]+`/g, ""));
+  if (!oneSentence(reliance)) {
+    invalid(`${label} Downstream use must be one sentence of at most ${MAX_WORDS} words before its Policy references`);
+  }
 
   if (!contexts.has(upstream) || !contexts.has(downstream)) {
     invalid(`dependency ${upstream} -> ${downstream} names an unknown Bounded Context`);

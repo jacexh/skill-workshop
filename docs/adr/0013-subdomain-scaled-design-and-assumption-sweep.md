@@ -3,6 +3,8 @@
 - Status: Accepted
 - Date: 2026-11-05
 - Amends: the Model contents and the EventStorming-to-Tactical-Design handoff in [ADR 0009](0009-sparse-current-ddd-artifacts.md)
+- Amended by: [ADR 0016](0016-remove-subdomain-classification.md) (Subdomain classification removed)
+- Amended by: [ADR 0015](0015-architecture-design-closed-contract-catalog.md) (`architecture.md` cites the read needs and delivery constraints it realizes)
 - Builds on: [ADR 0011](0011-ddd-artifact-writing-contract.md) for artifact wording and [ADR 0012](0012-eventstorming-records-policies.md) for failure outcomes of required next intents
 
 ## Context
