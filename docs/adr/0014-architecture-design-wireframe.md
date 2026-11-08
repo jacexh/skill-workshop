@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-11-05
 - Amends: the "no diagrams and no separate software-architecture artifact" decision in [ADR 0009](0009-sparse-current-ddd-artifacts.md), and the business-meaning-only scope of [ADR 0011](0011-ddd-artifact-writing-contract.md)
+- Amended by: [ADR 0015](0015-architecture-design-closed-contract-catalog.md) (closed contract catalog in `architecture.md`; generated view)
 - Issue: [#197](https://github.com/jacexh/skill-workshop/issues/197)
 
 ## Context

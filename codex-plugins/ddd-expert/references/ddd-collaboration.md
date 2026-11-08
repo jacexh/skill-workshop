@@ -10,8 +10,8 @@ description: Language-neutral House Style for realizing accepted published APIs,
 Load this leaf only when the accepted design already contains a published
 synchronous API, a local Domain Event, a Published Fact Contract, or an
 Asynchronous Intent Contract. EventStorming and Tactical Design decide which
-collaboration exists and what it means, and Architecture Design draws its
-components. This leaf fixes the ownership, mapping, and verification rules
+collaboration exists and what it means, and Architecture Design catalogs its
+Ports, tasks, and mechanisms. This leaf fixes the ownership, mapping, and verification rules
 those components follow in code.
 
 ## Placement

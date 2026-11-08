@@ -70,10 +70,6 @@ lifecycle-end probe places Visit Completed as the crossing point.
   probe separates it from Billing), Billing (owns invoices; veto probe: only
   billing may void an invoice). Care folded into Scheduling: no probe separated
   it, the doctor only records completion.
-- **Subdomains**: Scheduling is Core (differentiation probe: same-day
-  confirmation is how the clinic wins patients); Billing is Generic (standard
-  invoicing, no clinic-specific advantage), so it skips Tactical Design and
-  goes to Architecture Design for its `VisitCompleted` subscriber.
 - **Aggregate Roots**: `Schedule` — a doctor's day of slots; consistency:
   one confirmed appointment per slot at confirmation time. `Invoice` —
   a billable completed visit; consistency: one invoice per completed visit.
@@ -90,9 +86,7 @@ lifecycle-end probe places Visit Completed as the crossing point.
   Tactical Design settles it when it designs cancellation.
 
 After confirmation, the Context Map and the two Model files are written from
-their templates. The Scheduling Model's Subdomain then reads
-`Core — same-day confirmation is how the clinic wins patients.`, and Business
-Rules read, for example:
+their templates. Business Rules then read, for example:
 
 - **Single occupancy:** If a Slot already holds a confirmed Appointment, then
   the Schedule rejects another confirmation into that Slot.

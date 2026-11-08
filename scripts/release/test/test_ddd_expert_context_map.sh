@@ -36,7 +36,7 @@ cat >"$valid" <<'EOF'
 
 | Upstream | Downstream | Published contract | Downstream use |
 |---|---|---|---|
-| A | B | A Facts | B translates A Facts into local eligibility. |
+| A | B | **A Facts Published Fact Contract:** A publishes each accepted A decision. | B translates A Facts into local eligibility; Policy `Refresh eligibility` |
 EOF
 
 expected='valid Context Map: 3 contexts, 1 dependencies'
@@ -54,14 +54,14 @@ assert_invalid() {
   if output="$(node "$CLAUDE_VALIDATOR" "$fixture" 2>&1)"; then
     fail "validator accepted invalid fixture $(basename "$fixture")"
   fi
-  printf '%s\n' "$output" | rg -Fq -- "$expected_message" || {
+  printf '%s\n' "$output" | grep -Fq -- "$expected_message" || {
     printf '%s\n' "$output" >&2
     fail "invalid fixture $(basename "$fixture") did not report $expected_message"
   }
 }
 
 no_dependencies="$tmp/no-dependencies.md"
-sed '/^| A | B | A Facts |/d' "$valid" >"$no_dependencies"
+sed '/^| A | B |/d' "$valid" >"$no_dependencies"
 [ "$(node "$CLAUDE_VALIDATOR" "$no_dependencies")" = 'valid Context Map: 3 contexts, 0 dependencies' ] ||
   fail "validator should accept a Context Map without semantic dependencies"
 
@@ -91,19 +91,19 @@ sed 's#context/a/model.md#context/a/README.md#' "$valid" >"$bad_model"
 assert_invalid "$bad_model" "needs one context/<slug>/model.md link"
 
 unknown_context="$tmp/unknown-context.md"
-sed 's/^| A | B | A Facts |/| A | D | A Facts |/' "$valid" >"$unknown_context"
+sed 's/^| A | B |/| A | D |/' "$valid" >"$unknown_context"
 assert_invalid "$unknown_context" "names an unknown Bounded Context"
 
 self_dependency="$tmp/self-dependency.md"
-sed 's/^| A | B | A Facts |/| A | A | A Facts |/' "$valid" >"$self_dependency"
+sed 's/^| A | B |/| A | A |/' "$valid" >"$self_dependency"
 assert_invalid "$self_dependency" "self dependency A -> A"
 
 duplicate_dependency="$tmp/duplicate-dependency.md"
-sed '/^| A | B | A Facts |/a| A | B | A Facts | B uses the same contract twice. |' "$valid" >"$duplicate_dependency"
+sed '/^| A | B |/p' "$valid" >"$duplicate_dependency"
 assert_invalid "$duplicate_dependency" "duplicate dependency A -> B for A Facts"
 
 cycle="$tmp/cycle.md"
-sed '/^| A | B | A Facts |/a| B | A | B Facts | A translates B Facts. |' "$valid" >"$cycle"
+sed '/^| A | B |/a| B | A | **B Facts Published Fact Contract:** B publishes each accepted B decision. | A translates B Facts. |' "$valid" >"$cycle"
 assert_invalid "$cycle" "semantic dependencies must be acyclic"
 
 diagram="$tmp/diagram.md"
@@ -120,6 +120,27 @@ assert_invalid "$diagram" "Context Map must not contain diagrams"
 old_section="$tmp/old-section.md"
 sed '/^## Bounded Contexts$/i## Global View\n' "$valid" >"$old_section"
 assert_invalid "$old_section" "expected exactly ## Bounded Contexts then ## Semantic Dependencies"
+
+# The map names contracts in one sentence each and states reliance in one sentence.
+unnamed_contract="$tmp/unnamed-contract.md"
+sed 's/\*\*A Facts Published Fact Contract:\*\* //' "$valid" >"$unnamed_contract"
+assert_invalid "$unnamed_contract" 'Published contract must list "**<Name> Contract:** <meaning>" entries'
+
+not_a_contract="$tmp/not-a-contract.md"
+sed 's/A Facts Published Fact Contract:/A Facts:/' "$valid" >"$not_a_contract"
+assert_invalid "$not_a_contract" 'contract "A Facts" must end in "Contract"'
+
+documented_contract="$tmp/documented-contract.md"
+sed 's/A publishes each accepted A decision\./A publishes each accepted A decision. It retries delivery for one day./' "$valid" >"$documented_contract"
+assert_invalid "$documented_contract" 'meaning must be one sentence of at most 25 words'
+
+long_reliance="$tmp/long-reliance.md"
+sed 's/B translates A Facts into local eligibility;/B translates A Facts into local eligibility. B rejects a stale fact;/' "$valid" >"$long_reliance"
+assert_invalid "$long_reliance" 'Downstream use must be one sentence of at most 25 words before its Policy references'
+
+long_purpose="$tmp/long-purpose.md"
+sed 's/| Owns A decisions\. |/| Owns A decisions. It also records every change. |/' "$valid" >"$long_purpose"
+assert_invalid "$long_purpose" 'Bounded Context A purpose must be one sentence of at most 25 words'
 
 # Exercise the shipped template with the real validator, including a map with
 # no dependencies. Handwritten fixtures above cover malformed output and cycles.
@@ -140,8 +161,10 @@ for (const track of ['plugins', 'codex-plugins']) {
     .replace('<Business authority and purpose in one sentence>', name + ' owns its accepted decisions.')
     .replace('<context-slug>', slug);
   const dependency = dependencyRow.replace('<Upstream>', 'Catalog').replace('<Downstream>', 'Sales')
-    .replace('<Named meaning owned by upstream>', 'Book Availability Query')
-    .replace('<How downstream interprets or relies on it>', 'Sales requires a sellable answer before acceptance.');
+    .replace('**<Name> Contract:** <One sentence: the meaning the upstream owns.>[ **<Name> Contract:** <...>]',
+      '**Book Availability Query Contract:** Catalog answers whether a book is sellable.')
+    .replace('<One sentence: how the downstream relies on it.>[; Policy `<Policy name>`]',
+      'Sales requires a sellable answer before acceptance.');
   const cases = [
     ['isolated', context('Catalog', 'catalog'), '', '1 contexts, 0 dependencies'],
     ['collaboration', [context('Catalog', 'catalog'), context('Sales', 'sales')].join('\n'), dependency, '2 contexts, 1 dependencies'],

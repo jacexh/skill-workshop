@@ -24,8 +24,8 @@ step that applies.
 
 | Step | Entry condition |
 | --- | --- |
-| Tactical Design | Aggregate internals or domain-object behavior still need a decision, within Tactical Design's Subdomain scaling. |
-| Architecture Design | The change adds, renames, or removes a Root, Domain Service, Domain-owned Port, or Domain Event, or adds, removes, or changes a Policy, an Integration Message the context consumes or sends, or a delivery constraint. |
+| Tactical Design | Aggregate internals or domain-object behavior still need a decision. |
+| Architecture Design | The change adds, renames, or removes a Root, Domain Service, Domain-owned Port, or Domain Event; adds, removes, or changes a Policy, an Integration Message the context consumes or sends, or a delivery constraint; or adds a read need or an external dependency that the context's `architecture.md` does not cover. |
 | Codify | Implementation is in scope. |
 
 ## Progressive refinement

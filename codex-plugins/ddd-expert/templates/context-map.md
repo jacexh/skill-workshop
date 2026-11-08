@@ -10,4 +10,4 @@
 
 | Upstream | Downstream | Published contract | Downstream use |
 |---|---|---|---|
-| <Upstream> | <Downstream> | <Named meaning owned by upstream> | <How downstream interprets or relies on it>[; Policy `<Policy name>`] |
+| <Upstream> | <Downstream> | **<Name> Contract:** <One sentence: the meaning the upstream owns.>[ **<Name> Contract:** <...>] | <One sentence: how the downstream relies on it.>[; Policy `<Policy name>`] |
