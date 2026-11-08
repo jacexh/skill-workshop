@@ -14,7 +14,7 @@ design. The first real use, on a large Core context, showed three problems:
   14 tasks, copied one to one from the existing code's API surface. Each new
   interface had added its own Port or Query Repository, and each new screen had
   added its own concept, such as a "creation status" for what the model calls
-  the Work's state. The user had to consolidate Ports, tasks, and read
+  the Root's state. The user had to consolidate Ports, tasks, and read
   repositories turn by turn. The skill gave no rule for it.
 - **Existing code legitimized debt.** The derivation accepted "traces to
   existing code" as a source, and the drawing binds Codify and Guard. A
