@@ -95,7 +95,8 @@ for (const [index, track] of tracks.entries()) {
   for (const skill of ["event-storming", "tactical-design"]) {
     const reachedFromDesign = reachable([path.join(plugin, "skills", skill, "SKILL.md")]);
     for (const resource of ["templates/artifact-layout.md", "templates/domain-objects.md",
-      "templates/context-map.md", "templates/model.md", "scripts/validate-context-map.mjs"]) {
+      "templates/context-map.md", "templates/model.md", "scripts/validate-context-map.mjs",
+      "scripts/validate-model.mjs"]) {
       assert.ok(reachedFromDesign.has(path.join(plugin, resource)), skill + " cannot reach " + resource);
     }
   }

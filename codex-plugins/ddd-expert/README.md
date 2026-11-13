@@ -68,7 +68,7 @@ Software design that the contract catalog leaves unspecified, such as Applicatio
 
 Upgrade with `codex plugin marketplace upgrade skill-workshop-codex`.
 
-Artifacts are written in English in ASD-STE100 style. Changed artifacts follow the [artifact write checks](templates/artifact-layout.md), including the Context Map and Architecture validators. These check representation; accepted business meaning still requires review.
+Artifacts are written in English in ASD-STE100 style. Changed artifacts follow the [artifact write checks](templates/artifact-layout.md), including the Context Map, Model, and Architecture validators. These check representation; accepted business meaning still requires review.
 
 ## Templates
 

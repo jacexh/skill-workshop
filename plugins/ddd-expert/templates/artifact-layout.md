@@ -216,6 +216,20 @@ Resolve `<plugin-root>` from this template's installed location, not the project
 working directory. If validation fails, correct the representation while
 preserving accepted meaning and rerun. A contradiction requiring a new business
 decision remains for the user; report the exact failure and current file state.
+For every changed `model.md` or `domain-objects.md`, and for each context whose
+Semantic Dependencies row changed, run the
+[Model validator](../scripts/validate-model.mjs) on that context's `model.md`.
+It cross-checks the sibling `domain-objects.md` and the Context Map:
+
+```sh
+node "<plugin-root>/scripts/validate-model.mjs" "<project-root>/docs/ddd-expert/context/<context-slug>/model.md"
+```
+
+An `invalid Model:` line is a failed validation: a citation or a Lifecycle
+State transition that resolves nowhere. A `note:` line names a gap that the
+accepted model may intend. The check is complete when every note that names an
+entry this write changed is corrected or reported with the reason it stands.
+
 The view depends on every artifact of its context. After a write to
 `architecture.md`, or to `model.md`, `domain-objects.md`, or `context-map.md`
 of a context that has `architecture.md`, regenerate each affected view with the
@@ -230,6 +244,5 @@ node "<plugin-root>/scripts/render-architecture.mjs" "<project-root>/docs/ddd-ex
 node "<plugin-root>/scripts/validate-architecture.mjs" "<project-root>/docs/ddd-expert/context/<context-slug>/architecture.md"
 ```
 
-Model, domain-object, and architecture files have no automatic semantic validator: review their
-template conformance and accepted ownership directly. A successful script exit
-does not establish business correctness.
+A successful script exit shows that names and structure agree. Business
+correctness rests on the reread above.
