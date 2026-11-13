@@ -10,7 +10,7 @@ Turn confirmed Aggregate Roots and Business Rules into a sparse current domain-o
 Read the [workflow contract](../../references/workflow.md) for scope, existing authorization, and instruction conflicts.
 
 ```text
-confirmed Aggregate Root and Business Rules
+confirmed Aggregate Root, its Business Rules, and handed-on open decisions
 -> essential business pressures
 -> ownership probes and candidate concepts
 -> compared object compositions
@@ -21,7 +21,7 @@ confirmed Aggregate Root and Business Rules
 
 ## Entry boundary
 
-Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, Business Rules, Policies, and the Published Fact Contracts this context owns in `context-map.md` as business authority. Start with the Root and affected slice identified by the request; ask only when that choice is materially ambiguous.
+Read the affected `context-map.md`, `model.md`, relevant project decisions, and existing `domain-objects.md`. For the current Root, treat the context purpose, Root definition and consistency boundary, Business Rules, Policies, the Published Fact Contracts this context owns in `context-map.md`, and the Invariants and clauses already in `domain-objects.md` as business authority. An open decision that EventStorming handed on for the Root is evidence to confirm, not authority. Start with the Root and affected slice identified by the request; ask only when that choice is materially ambiguous.
 
 If tactical refinement exposes a needed correction to business meaning, a Bounded Context boundary, Aggregate Root identity, or a strategic Business Rule, make it as a [correction](../../references/workflow.md#progressive-refinement) in the current conversation and carry the accepted change into the Root-level artifact review, so the tactical model rests on no known contradiction.
 
@@ -43,15 +43,15 @@ Use the shared [design interview presentation](../../references/workflow.md#desi
 - Challenge both user proposals and agent proposals. An existing class or table proves current implementation, not the correct object boundary.
 - Stop asking when another answer would not change this Aggregate Root's business pressures, responsibility ownership, object composition, or descriptions.
 
-Work one Aggregate Root at a time. Within it, follow the smallest affected business-pressure slice; when a Root has no accepted slice, cover every Business Rule that shapes it. Account for every retained or changed object, but do not interview through an entity checklist or reopen unaffected objects without evidence.
+Work one Aggregate Root at a time. Within it, follow the smallest affected business-pressure slice; when a Root has no accepted slice, cover every Business Rule under it in `model.md` and every open decision handed on for it. Account for every retained or changed object, but do not interview through an entity checklist or reopen unaffected objects without evidence.
 
 Before the first pressure list or comparison of a refinement, read the [worked example](../../references/tactical-design-example.md) for the shape of a pressure list, a probe turn, a comparison table, and a confirmed description.
 
 ## Derive essential business pressures
 
-For the current slice, derive the smallest complete set of **essential business pressures** from `model.md`. A pressure is a business decision, Lifecycle State transition, invariant, material external-authority need, or actual Domain Event that the object model must realize. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
+For the current slice, derive the smallest complete set of **essential business pressures** from the Root's Business Rules in `model.md`, its Policies, the open decisions handed on for it, and its accepted Invariants and clauses. A pressure is a business decision, Lifecycle State transition, invariant, material external-authority need, or actual Domain Event that the object model must realize. Group interacting rules when their difficulty comes from being true together; one Business Rule need not produce one pressure.
 
-Every pressure names its governing Business Rules, Policies, or owned Published Fact Contract in the working conversation. Stories, specifications, and code may challenge whether those rules are complete, but they add no confirmed business meaning until the user accepts it. When a material pressure cannot be traced to the Model or the rules contradict it, resolve the smallest strategic correction with the user before continuing and include it in the Root-level review. Keep the pressure set transient; it is reasoning input, not another artifact.
+Every pressure names its source in the working conversation: a Business Rule, Policy, owned Published Fact Contract, or open decision. Stories, specifications, and code may challenge whether those rules are complete, but they add no confirmed business meaning until the user accepts it. A condition or outcome that the probes expose for one Behavior becomes a clause of that Behavior and is confirmed with its object. When a pressure or the rules contradict a strategic decision, resolve the smallest strategic correction with the user before continuing and include it in the Root-level review. Keep the pressure set transient; it is reasoning input, not another artifact.
 
 ## Probe behavior ownership
 
@@ -85,7 +85,7 @@ When a Root exposes a capability by composing an owned Entity's behavior, connec
 <Root Behavior> — <Root> <domain verb> <Object> by composing <Entity>.<Entity Behavior>.
 ```
 
-`<Entity>.<Entity Behavior>` references the Entity-owned Domain behavior; it does not prescribe a method call. Keep the Root entry about aggregate capability and composition, and the Entity entry the owner of its decision, citing its Business Rules, instead of repeating that decision under the Root. Use the ordinary Subject form when no owned behavior is composed.
+`<Entity>.<Entity Behavior>` references the Entity-owned Domain behavior; it does not prescribe a method call. Keep the Root entry about aggregate capability and composition, and the Entity entry the owner of its decision, carrying its clauses, instead of repeating that decision under the Root. Use the ordinary Subject form when no owned behavior is composed.
 
 ### Ownership probes
 
@@ -146,8 +146,9 @@ For a Domain Service, present its complete template description with any affecte
 
 For a newly designed Root, show its integrated compact slice when its composition is complete. Before confirming any newly designed slice, verify that:
 
-- every pressure is traceable to its Business Rules, Policies, or owned Published Fact Contract and assigned to one Behavior; each Behavior cites its Business Rules, and each Consumed by line cites its Policy;
-- every accepted decision rule is a Business Rule in `model.md`;
+- every pressure is traceable to its source and assigned to one Behavior or Invariant, and each Consumed by line cites its Policy;
+- every rule has its home under [Business rule writing](../../templates/artifact-layout.md#business-rule-writing): a clause of the one Behavior that owns it, an Invariant of its object, or a shared Business Rule that its Behaviors cite by name;
+- no Business Rule stays under this Root in `model.md`: each one is now a clause, an Invariant, or a `### Context` rule;
 - every Root and retained Entity states its identity, and its uniqueness scope where the business limits it;
 - every external-authority need is classified as Supplied Fact or Domain-owned Port, and every Supplied Fact names its owning authority; a need whose timing only the Architecture Design entries reveal takes the Supplied Fact default and is handed on as an open decision;
 - every material behavior owner, target, and Lifecycle State transition is resolved;
@@ -161,7 +162,7 @@ Complete when every material decision that would change composition or ownership
 For an already-confirmed Root, check the supplied description against the template
 and accepted authority. Resolve only material gaps that prevent a faithful write.
 
-Use the workflow contract's confirmation rule for the integrated Root. Before any object write, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write or replace accepted descriptions while preserving unrelated content. At completion of a Root or Domain Service slice, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Run the write checks for changed artifacts, then continue with the next affected slice within the requested scope. `domain-objects.md` contains only current accepted descriptions in the template's layout. Pressure sets, probe answers, comparison tables, and rejected alternatives remain conversational working state.
+Use the workflow contract's confirmation rule for the integrated Root. Before any object write, read the [artifact layout and write checks](../../templates/artifact-layout.md). Write or replace accepted descriptions while preserving unrelated content. At completion of a Root or Domain Service slice, revisit the affected `ddd-expert` current artifacts and relevant project decisions as a whole, updating only accepted content changed by the completed design. Remove from `model.md` each rule that now has its home in `domain-objects.md`; the slice confirmation covers that move. Run the write checks for changed artifacts, then continue with the next affected slice within the requested scope. `domain-objects.md` contains only current accepted descriptions in the template's layout. Pressure sets, probe answers, comparison tables, and rejected alternatives remain conversational working state.
 
 ## Completion
 

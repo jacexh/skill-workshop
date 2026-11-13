@@ -16,14 +16,14 @@ docs/ddd-expert/
 ## Ownership
 
 - `context-map.md` owns the Bounded Context inventory and semantic dependencies, naming each contract. See [Context Map writing](#context-map-writing).
-- `model.md` owns one context's purpose, essential language, Aggregate Roots, every Business Rule of the context, and the Policies the context decides.
-- `domain-objects.md` owns confirmed current Root, Entity, and Domain Service descriptions in the [domain-object template](domain-objects.md): Roots and their Entities are grouped by Aggregate, and Domain Services have a separate context-level section. A Behavior cites its governing Business Rules by name.
+- `model.md` owns one context's purpose, essential language, Aggregate Roots, its strategic Business Rules, and the Policies the context decides.
+- `domain-objects.md` owns confirmed current Root, Entity, and Domain Service descriptions in the [domain-object template](domain-objects.md): Roots and their Entities are grouped by Aggregate, and Domain Services have a separate context-level section. Each object carries its Invariants and each Behavior its clauses. See [Business rule writing](#business-rule-writing).
 - `architecture.md` owns one context's closed contract catalog in the [architecture template](architecture.md): its Query Repositories, Application Ports, Inbound Sources, tasks, and technical mechanisms on seams. See [Architecture writing](#architecture-writing).
 - `architecture.html` is the generated view of the whole context for people. It owns no content.
 
 Candidates remain in conversation. These files contain no meeting transcript, design history, workflow status, implementation sequence, or duplicated project decision. `architecture.html` is their only diagram, and only the [view renderer](../scripts/render-architecture.mjs) writes it.
 
-EventStorming updates strategic files after integrated confirmation. Tactical Design updates an Entity description after its Entity confirmation while the Root interview continues; after Root confirmation, it completes that Root's section and applies accepted changes across affected current DDD artifacts and project decisions, preserving unrelated content. Architecture Design writes `architecture.md` after the user confirms its design review, then regenerates `architecture.html`. Codify and Guard treat all artifacts as read-only.
+EventStorming updates strategic files after integrated confirmation. Tactical Design updates an Entity description after its Entity confirmation while the Root interview continues; after Root confirmation, it completes that Root's section, moves each rule it assigned out of `model.md`, and applies accepted changes across affected current DDD artifacts and project decisions, preserving unrelated content. Architecture Design writes `architecture.md` after the user confirms its design review, then regenerates `architecture.html`. Codify and Guard treat all artifacts as read-only.
 
 A Domain Service follows the same object confirmation and write checks. Completing its slice includes accepted changes to affected collaborator descriptions and Business Rules.
 
@@ -40,11 +40,12 @@ coordination, transport, migration history, and design rationale belong in
 project decisions or code. `architecture.md` records software structure only
 in the shape that [Architecture writing](#architecture-writing) gives.
 
-Each meaning has one home: a Business Rule or Policy in `model.md`, its owning
-Behavior in `domain-objects.md`, and a term definition in Essential Language. Other entries
-refer to that home by name. State each meaning as what holds or what happens.
+Each meaning has one home: a rule with the owner of its decision under
+[Business rule writing](#business-rule-writing), a Policy in `model.md`, and a
+term definition in Essential Language. Other entries refer to that home by
+name. State each meaning as what holds or what happens.
 
-When a write changes an entry's meaning, rewrite that whole entry to this section. A rewrite that keeps every accepted condition and outcome is a wording change. A rewrite that splits, merges, or renames a Business Rule or Policy changes accepted content, so it needs confirmation under the workflow contract.
+When a write changes an entry's meaning, rewrite that whole entry to this section. A rewrite that keeps every accepted condition and outcome is a wording change. A rewrite that splits, merges, or renames a Business Rule, Invariant, or Policy changes accepted content, so it needs confirmation under the workflow contract. A move that carries every condition and outcome of a rule to its owner is covered by that owner's confirmation.
 
 ## Context Map writing
 
@@ -60,8 +61,8 @@ what a reader needs to find the right model and contract source.
   upstream's contract source and Business Rules.
 - **Downstream use** is one sentence stating how the downstream relies on the
   contracts, followed by `; Policy` references for its reactions. The
-  downstream's own Business Rules stay in its `model.md`, cited by name when
-  the reliance needs them.
+  downstream's own rules stay in its artifacts, cited by name when the
+  reliance needs them.
 
 A map written before these rules fails the validator. Slim it in the same
 write. A detail that has no home in a `model.md` or contract source becomes a
@@ -70,8 +71,8 @@ leaves the map.
 
 ## Business rule writing
 
-Write each Business Rule as one sentence in an EARS pattern: one claim that a
-concrete scenario can contradict.
+A rule is one claim that a concrete scenario can contradict, written as one
+sentence in an EARS pattern.
 
 | Pattern | Shape |
 |---|---|
@@ -81,10 +82,36 @@ concrete scenario can contradict.
 | Unwanted | `If <condition>, then <concept> <response> ...` |
 | Optional | `Where <feature applies>, <concept> ...` |
 
-Split a claim that needs a second sentence into separate rules. A permission
-rule names the Role that may act, for example: `If the caller is not the Mail
-recipient, then MailDelivery rejects Record read.` Tactical
-behavior ownership belongs in `domain-objects.md`, which cites the rule by name.
+Each rule lives with the owner of its decision:
+
+| The rule | Home | Shape |
+|---|---|---|
+| is a condition or outcome that one Behavior owns | that Behavior in `domain-objects.md` | a **clause** under the Behavior |
+| holds across Behaviors of one object | that object in `domain-objects.md` | a named **Invariant** |
+| is shared by several objects, governs a reading, or has no owning Behavior | `model.md`, under `### Context` | a **Business Rule** |
+| belongs to a Root that Tactical Design has not designed | `model.md`, under that Root | a **Business Rule** |
+
+A Business Rule is one decision: a name and a head sentence that states it. Add
+clauses only when the head cannot hold the decision, one EARS sentence for
+each condition or outcome. Sentences are one decision when removing any one
+of them leaves a concrete scenario without an answer. A Behavior cites an
+Invariant or a shared Business Rule by name after `Rules:`; a clause has no
+name.
+
+EventStorming admits a Business Rule when a strategic decision rests on it:
+removing the rule would change a Bounded Context boundary, an Aggregate Root,
+a consistency boundary, a Role's authority, a Policy, or a contract. A finer
+condition or outcome of one Command is an
+[open decision](../references/workflow.md#progressive-refinement) for Tactical
+Design, which records it as a clause of the Behavior that owns it. At Root
+confirmation, Tactical Design moves each Business Rule under that Root to its
+owner, so `model.md` keeps a Root group only while rules wait for Tactical
+Design.
+
+A term's meaning is an Essential Language entry, the authority a context owns
+is its Purpose, and a choice of what the context leaves out is a project
+decision. A permission rule names the Role that may act, for example: `If the
+caller is not the Mail recipient, then MailDelivery rejects Record read.`
 
 Express the promised behavior or authority at the Model level. Technical concepts
 may be Domain language: "Stopping execution preserves the Session's persistent
@@ -159,7 +186,7 @@ decision.
   subscriber` for the subscriber of a context that the Context Map says this
   context reacts to. It serves a delivery constraint
   or a Policy failure outcome, stated in full. A mechanism that only realizes a
-  command-time Business Rule is Codify's realization of that rule and is not
+  command-time rule is Codify's realization of that rule and is not
   listed.
 - Every **Reason** names its accepted source: a read need, a Context Map
   contract, a delivery constraint, a Policy, or a project decision. Existing
@@ -195,11 +222,11 @@ headers; write content to [Artifact writing](#artifact-writing).
 Replace placeholders and omit inapplicable optional entries.
 
 For each added or revised entry, reread the whole entry against
-[Artifact writing](#artifact-writing), and each Business Rule also against
-[Business rule writing](#business-rule-writing), and each Policy also against
-[Policy writing](#policy-writing). Split, merge, or rewrite
-affected entries until each Business Rule expresses one claim and each Policy
-keeps its Model shape in its home, preserving accepted conditions, outcomes,
+[Artifact writing](#artifact-writing), and each Business Rule, Invariant, and
+clause also against [Business rule writing](#business-rule-writing), and each
+Policy also against [Policy writing](#policy-writing). Split, merge, move, or
+rewrite affected entries until each rule states one decision in its home and
+each Policy keeps its Model shape, preserving accepted conditions, outcomes,
 and unrelated meaning. A split found at write time returns to confirmation
 before the write.
 

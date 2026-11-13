@@ -24,6 +24,7 @@ Billing                                                                         
 Commands   Request Appointment -> Confirm Slot -> Check In -> Complete Visit -> Issue Invoice
 Rules      R1 a slot holds one confirmed appointment (evidence: reception SOP §3)
            R2 an invoice needs a completed visit (evidence: billing code)
+           R3 a receptionist cancels only before the slot starts (evidence: reception SOP §4)
 Hotspots   H1 can a patient cancel after check-in? (unanswered)
 Candidates Aggregates: Appointment, Slot, Visit, Invoice
            Contexts: Scheduling (Request..Check In), Care (Visit), Billing (Invoice)
@@ -73,8 +74,9 @@ lifecycle-end probe places Visit Completed as the crossing point.
 - **Aggregate Roots**: `Schedule` — a doctor's day of slots; consistency:
   one confirmed appointment per slot at confirmation time. `Invoice` —
   a billable completed visit; consistency: one invoice per completed visit.
-- **Business Rules**: Single occupancy; Invoice requires completed visit;
-  Invoice voiding.
+- **Business Rules**: Schedule — Single occupancy (its consistency boundary
+  rests on it). Invoice — Invoice requires completed visit (the dependency on
+  `VisitCompleted` rests on it); Invoice voiding (a Role's authority).
 - **Dependency**: Scheduling -> Billing, Published Fact Contract
   `VisitCompleted`, used by the Billing Policy Open Invoice.
 - **Policies**: Billing — Open Invoice.
@@ -83,15 +85,28 @@ lifecycle-end probe places Visit Completed as the crossing point.
   reception sees the doctor's open slots before confirming; existing online
   booking links keep working.
 - **Open decisions**: H1 cancellation after check-in — default: rejected;
-  Tactical Design settles it when it designs cancellation.
+  Tactical Design settles it when it designs cancellation. A receptionist
+  cancels only before the Slot starts (reception SOP §4) — default: rejected
+  after the start; no strategic decision rests on it, so Tactical Design
+  records it under the cancelling Behavior.
 
 After confirmation, the Context Map and the two Model files are written from
-their templates. Business Rules then read, for example:
+their templates. Business Rules are grouped by Aggregate Root and read, for
+example, in the Scheduling Model:
 
-- **Single occupancy:** If a Slot already holds a confirmed Appointment, then
-  the Schedule rejects another confirmation into that Slot.
-- **Invoice voiding:** If the actor is not a billing clerk, then the Invoice
-  rejects voiding.
+```markdown
+### Schedule
+
+- **Single occupancy:** If a Slot already holds a confirmed Appointment, then the Schedule rejects another confirmation into that Slot.
+```
+
+and in the Billing Model:
+
+```markdown
+### Invoice
+
+- **Invoice voiding:** If the actor is not a billing clerk, then the Invoice rejects voiding.
+```
 
 and the Billing Model records the Policy that reacts to `VisitCompleted`:
 

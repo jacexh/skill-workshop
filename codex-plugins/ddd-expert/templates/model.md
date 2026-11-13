@@ -16,7 +16,14 @@
 
 ## Business Rules
 
-- **<Rule name>:** <One EARS sentence: [When <trigger>, | While <state>, | If <condition>, then | Where <feature applies>,] <concept> <accepted decision, permission, transition, outcome, or invariant>.>
+### <Aggregate Root>
+
+- **<Rule name>:** <Head, one EARS sentence that states the decision: [When <trigger>, | While <state>, | If <condition>, then | Where <feature applies>,] <concept> <accepted decision, permission, transition, outcome, or invariant>.>
+  - <Clause, only when the head cannot hold the decision: one EARS sentence for one condition or outcome.>
+
+### Context
+
+- **<Rule name>:** <A rule that several objects share, that governs a reading, or that no Behavior owns, in the same shape.>
 
 ## Policies
 

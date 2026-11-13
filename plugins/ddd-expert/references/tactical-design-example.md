@@ -5,23 +5,26 @@ shown at the four points where the shape matters: the pressure list, a probe
 turn, the comparison table, and a confirmed description. The conversation may
 use the user's language; artifacts follow their templates.
 
-## Input from `model.md`
+## Input
+
+From `model.md`:
 
 - **Schedule** — a doctor's day of slots; consistency: one confirmed
   appointment per slot at confirmation time.
-- **Single occupancy:** If a Slot already holds a confirmed Appointment, then
-  the Schedule rejects another confirmation into that Slot.
-- **Release before start:** If the Slot start time has passed, then the
-  Schedule rejects cancellation of its Appointment.
-- **Cancellation frees Slot:** When the Schedule cancels a confirmed
-  Appointment, its Slot becomes free.
+- Under `### Schedule`, **Single occupancy:** If a Slot already holds a
+  confirmed Appointment, then the Schedule rejects another confirmation into
+  that Slot.
+
+Open decision handed on by EventStorming: a receptionist cancels an
+Appointment only before its Slot starts (reception SOP §4); default: rejected
+after the start.
 
 ## Pressure list
 
 ```text
 P1 Reject a second confirmation into an occupied Slot at command time (Single occupancy)
-P2 Allow cancellation only before the Slot's start time; needs the current time (Release before start)
-P3 Slot occupancy moves Free -> Confirmed -> Free or Completed (Single occupancy, Cancellation frees Slot)
+P2 Allow cancellation only before the Slot's start time; needs the current time (open decision)
+P3 Slot occupancy moves Free -> Confirmed -> Free or Completed (Single occupancy, open decision)
 P4 Record the completed visit that Billing relies on (Context Map: VisitCompleted)
 ```
 
@@ -36,7 +39,7 @@ nothing else on the Schedule.
 > be back-dated by a supervisor?
 >
 > 💡 **Recommendation** **Judge against the moment of cancellation and let the
-> caller supply the current time as a Supplied Fact.** The rule names no
+> caller supply the current time as a Supplied Fact.** The SOP names no
 > supervisor authority, so the Behavior keeps its decision with a value the
 > caller already has. The alternative, a `ClockPort` the Behavior consults,
 > only earns its place if the Behavior itself must decide when to read the time.
@@ -80,8 +83,10 @@ Definition until the Root is confirmed.
   - `Confirmed` — one Appointment occupies the Slot.
   - `Completed` — the visit took place; terminal.
 - **Behavior:**
-  - `Confirm Appointment` — Slot admits an Appointment, transitioning Slot.State from Free to Confirmed. Rules: `Single occupancy`.
-  - `Release Appointment` — Slot frees its Appointment, using supplied `now` from the clinic clock, transitioning Slot.State from Confirmed to Free. Rules: `Release before start`, `Cancellation frees Slot`.
+  - `Confirm Appointment` — Slot admits an Appointment, transitioning Slot.State from Free to Confirmed.
+    - If the Slot already holds a confirmed Appointment, then Slot rejects the confirmation.
+  - `Release Appointment` — Slot frees its Appointment, using supplied `now` from the clinic clock, transitioning Slot.State from Confirmed to Free.
+    - If `now` is at or after `StartTime`, then Slot rejects the release.
   - `Complete Visit` — Slot records the completed visit, transitioning Slot.State from Confirmed to Completed.
 - **Domain Events:**
   - `VisitCompleted` — recorded by `Complete Visit`; published as `VisitCompleted`.
@@ -89,3 +94,10 @@ Definition until the Root is confirmed.
 
 The Root entry then reads `Confirm Appointment — Schedule confirms an
 Appointment into a Slot by composing Slot.Confirm Appointment.`
+
+Each rule now lives with its owner. `Single occupancy` is the clause of
+`Confirm Appointment`, the one Behavior that owns it, and the cancellation
+limit that the user confirmed is the clause of `Release Appointment`. At Root
+confirmation, `Single occupancy` leaves `model.md` and its `### Schedule`
+group is removed; the Root's consistency boundary still states the strategic
+fact.
