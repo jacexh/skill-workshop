@@ -142,7 +142,7 @@ Present one compact integrated proposal:
 
 Reuse an already-confirmed integrated proposal. Otherwise obtain its confirmation under the workflow contract before writing.
 
-Before writing, read the [artifact layout and write checks](../../templates/artifact-layout.md), [Context Map template](../../templates/context-map.md), and [Model template](../../templates/model.md). Update only accepted current meaning that changed. Validate each changed Context Map with the linked script and verify affected Model links before declaring the write complete.
+Before writing, read the [artifact layout and write checks](../../templates/artifact-layout.md), [Context Map template](../../templates/context-map.md), and [Model template](../../templates/model.md). Update only accepted current meaning that changed. Run the write checks for changed artifacts before declaring the write complete.
 
 ## Completion
 

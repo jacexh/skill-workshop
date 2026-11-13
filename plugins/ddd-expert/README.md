@@ -66,7 +66,7 @@ Only the accepted current-model files described above are workflow artifacts; wo
 
 Software design that the contract catalog leaves unspecified, such as Application methods and their coordination, is Codify implementation latitude, resolved directly through project constraints and the active-language House Style.
 
-Artifacts are written in English in ASD-STE100 style. Changed artifacts follow the [artifact write checks](templates/artifact-layout.md), including the Context Map and Architecture validators. These check representation; accepted business meaning still requires review.
+Artifacts are written in English in ASD-STE100 style. Changed artifacts follow the [artifact write checks](templates/artifact-layout.md), including the Context Map, Model, and Architecture validators. These check representation; accepted business meaning still requires review.
 
 ## Templates
 
