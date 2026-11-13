@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Validate the ddd-expert Model checker: name resolution across model.md,
-# domain-objects.md, and the Context Map, and Lifecycle State transitions.
+# domain-objects.md, and the Context Map, the shape of clauses and Invariants,
+# and Lifecycle State transitions.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -46,12 +47,12 @@ EOF
 
 ## Business Rules
 
-### Occupancy
+### Context
 
-- **Single occupancy:** If a Slot already holds a confirmed Appointment, then
-  the Schedule rejects another confirmation into that Slot.
-- **Release before start:** If the Slot start time has passed, then the Schedule rejects cancellation of its Appointment.
-- **Cancellation frees Slot:** When the Schedule cancels a confirmed Appointment, its Slot becomes free.
+- **Closed day:** A closed doctor day admits no change to its Slots.
+  - If the doctor day is closed, then Scheduling rejects each confirmation and each release.
+- **Open Slot reading:** A receptionist reads the open Slots of
+  each doctor day.
 
 ## Policies
 
@@ -72,7 +73,7 @@ EOF
 - **Lifecycle State:**
   - `No explicit Lifecycle State`
 - **Behavior:**
-  - `Confirm Appointment` — Schedule confirms an Appointment into a Slot by composing `Slot.Confirm Appointment`. Rules: `Single occupancy`.
+  - `Confirm Appointment` — Schedule confirms an Appointment into a Slot by composing `Slot.Confirm Appointment`. Rules: `Closed day`.
 
 ### Time Slot — Entity (`SlotTime`, unique per Schedule)
 
@@ -81,10 +82,16 @@ EOF
   - `TimeSlot.State = Free` — no confirmed Appointment.
   - `Confirmed` — one Appointment occupies the Slot.
   - `Completed` — the visit took place; terminal.
+- **Invariants:**
+  - `Single occupancy` — A Slot holds at most one confirmed Appointment.
 - **Behavior:**
   - `Confirm Appointment` — Slot admits an Appointment, transitioning TimeSlot.State from Free to Confirmed. Rules: `Single occupancy`.
+    - If the Slot already holds a confirmed Appointment, then Slot rejects the confirmation.
   - `Release Appointment` — Slot frees its Appointment, using supplied `now` from the clinic clock,
-    transitioning State from `Confirmed` to `Free` when the start time is ahead. Rules: `Release before start`, `Cancellation frees Slot`.
+    transitioning State from `Confirmed` to `Free` when the start time is ahead. Rules: `Single occupancy`, `Closed day`.
+    - If `now` is at or after `StartTime`, then Slot rejects
+      the release.
+    - When Slot frees its Appointment, the Slot admits a new confirmation.
   - `Complete Visit` — Slot records the completed visit, transitioning TimeSlot.State from Free or Confirmed to Completed and recording VisitCompleted. Rules: `Remind Patient`.
 - **Domain Events:**
   - `VisitCompleted` — recorded by `Complete Visit`; published as `VisitCompleted`.
@@ -110,9 +117,9 @@ BILLING="docs/ddd-expert/context/billing"
 write_project "$tmp/valid"
 node "$ROOT/plugins/ddd-expert/scripts/validate-context-map.mjs" "$tmp/valid/docs/ddd-expert/context-map.md" >/dev/null ||
   fail "the fixture Context Map should pass its own validator"
-expected='valid Model: 3 Business Rules, 1 Policies, 2 domain objects, 3 transitions; Context Map names match'
+expected='valid Model: 2 Business Rules, 1 Policies, 2 domain objects, 1 Invariants, 3 clauses, 3 transitions; Context Map names match'
 actual="$(node "$CLAUDE_VALIDATOR" "$tmp/valid/$SCHEDULING/model.md")" || fail "validator rejected a valid Model"
-[ "$actual" = "$expected" ] || fail "unexpected valid output: $actual"
+[ "$actual" = "$expected" ] || fail "unexpected valid output: $actual (a valid Model in the current shape needs no note)"
 [ "$(node "$CODEX_VALIDATOR" "$tmp/valid/$SCHEDULING/model.md")" = "$expected" ] ||
   fail "Codex validator rejected a valid Model"
 
@@ -167,16 +174,34 @@ assert_note() {
 OBJECTS="context/scheduling/domain-objects.md"
 MODEL="context/scheduling/model.md"
 
-assert_invalid unknown-rule "$OBJECTS" 's/Rules: `Release before start`/Rules: `Release after start`/' \
-  'Time Slot Behavior "Release Appointment" cites "Release after start", which is not a Business Rule or Policy in the Model'
-assert_invalid renamed-rule "$MODEL" 's/\*\*Single occupancy:\*\*/**One Appointment per Slot:**/' \
-  'Schedule Behavior "Confirm Appointment" cites "Single occupancy"'
-assert_invalid duplicate-rule "$MODEL" 's/\*\*Release before start:\*\*/**Single occupancy:**/' \
-  'duplicate Business Rule "Single occupancy"'
-assert_invalid unknown-recorder "$OBJECTS" 's/recorded by `Complete Visit`/recorded by `Finish Visit`/' \
-  'Domain Event "VisitCompleted" is recorded by "Finish Visit", which is not a Behavior under Schedule'
-assert_invalid unknown-second-recorder "$OBJECTS" 's/and `Release Appointment` after/and `Free Appointment` after/' \
-  'Domain Event "SlotConfirmed" is recorded by "Free Appointment"'
+assert_invalid unknown-rule "$OBJECTS" 's/Rules: `Single occupancy`, `Closed day`/Rules: `Single occupancy`, `Closed week`/' \
+  'Time Slot Behavior "Release Appointment" cites "Closed week", which is not an Invariant of its Aggregate or a Business Rule or Policy in the Model'
+assert_invalid renamed-rule "$MODEL" 's/\*\*Closed day:\*\*/**Closed doctor day:**/' \
+  'Schedule Behavior "Confirm Appointment" cites "Closed day"'
+assert_invalid duplicate-rule "$MODEL" 's/\*\*Open Slot reading:\*\*/**Closed day:**/' \
+  'duplicate Business Rule "Closed day"'
+assert_invalid renamed-invariant "$OBJECTS" 's/`Single occupancy` — A Slot/`One Appointment` — A Slot/' \
+  'Time Slot Behavior "Confirm Appointment" cites "Single occupancy"'
+assert_invalid duplicate-invariant "$OBJECTS" 's/^- \*\*Behavior:\*\*$/  - `Single occupancy` — A Slot stays single.\n&/' \
+  'duplicate Invariant "Single occupancy" under Schedule'
+# An Invariant of another Aggregate does not govern this Behavior.
+assert_invalid foreign-invariant "$OBJECTS" 's/Rules: `Remind Patient`/Rules: `Weekly cover`/; $a\
+\
+## Roster\
+\
+### Roster — Aggregate Root (`RosterID`)\
+\
+- **Invariants:**\
+  - `Weekly cover` — A Roster covers each working day.' \
+  'Time Slot Behavior "Complete Visit" cites "Weekly cover"'
+assert_invalid two-sentence-clause "$OBJECTS" 's/then Slot rejects the confirmation\./then Slot rejects the confirmation. The Patient is told./' \
+  'Time Slot Behavior "Confirm Appointment" clause 1 must be one sentence of at most 25 words'
+assert_invalid long-clause "$OBJECTS" 's/the Slot admits a new confirmation\./the Slot admits a new confirmation from any receptionist of the same clinic on the same working day and for the same doctor and room as before./' \
+  'Time Slot Behavior "Release Appointment" clause 2 must be one sentence of at most 25 words'
+assert_invalid two-sentence-invariant "$OBJECTS" 's/A Slot holds at most one confirmed Appointment\./A Slot holds at most one confirmed Appointment. A second one is rejected./' \
+  'Time Slot Invariant "Single occupancy" must be one sentence of at most 25 words'
+assert_invalid two-sentence-rule-clause "$MODEL" 's/each confirmation and each release\./each confirmation. It rejects each release./' \
+  'Business Rule "Closed day" clause 1 must be one sentence of at most 25 words'
 assert_invalid unlinked-event "$OBJECTS" 's/recorded by `Complete Visit`; published/raised at the end of the visit; published/' \
   'Domain Event "VisitCompleted" names no recording Behavior under Schedule'
 assert_invalid loosely-linked-unknown "$OBJECTS" 's/recorded by `Complete Visit`/recorded by each accepted `Finish Visit`/' \
@@ -213,10 +238,12 @@ edit two-errors "$OBJECTS" 's/from Free to Confirmed/from Open to Confirmed/; s/
 [ "$(node "$CLAUDE_VALIDATOR" "$tmp/two-errors/$SCHEDULING/model.md" 2>&1 | grep -c '^invalid Model:')" = 2 ] ||
   fail "validator should report every error in one run"
 
-assert_note uncited-rule "$OBJECTS" 's/, `Cancellation frees Slot`//' \
-  '1 of 3 Business Rules are cited by no Behavior: "Cancellation frees Slot"'
-assert_note no-citations "$OBJECTS" 's/ Rules: .*$//' \
-  'no Behavior cites a Business Rule'
+# A rule under a Root group has no owning Behavior yet: it waits for Tactical Design.
+assert_note waiting-rule "$MODEL" 's/^### Context$/### Schedule\n\n- **Late arrival:** If a Patient arrives late, then the Schedule keeps the Slot.\n\n&/' \
+  '1 of 3 Business Rules are outside `### Context` and have no owning Behavior: "Late arrival"'
+# A Model written before rule groups keeps its cited rules and reports the others.
+assert_note ungrouped-model "$MODEL" '/^### Context$/d' \
+  '1 of 2 Business Rules are outside `### Context` and have no owning Behavior: "Open Slot reading"'
 assert_note dead-state "$OBJECTS" 's/from Free or Confirmed to Completed and recording/from Free to Confirmed and recording/' \
   'Time Slot Lifecycle State "Completed" takes part in no transition and no Behavior names it'
 assert_note unknown-lifecycle "$OBJECTS" 's/transitioning TimeSlot.State from Free to Confirmed/transitioning Occupancy from Vacant to Taken/' \
@@ -239,4 +266,4 @@ if node "$CLAUDE_VALIDATOR" "$tmp/missing/model.md" >/dev/null 2>&1; then
   fail "validator accepted a missing Model"
 fi
 
-echo "PASS ddd-expert Model validator: name resolution and Lifecycle State transitions"
+echo "PASS ddd-expert Model validator: name resolution, rule shape, and Lifecycle State transitions"

@@ -39,29 +39,60 @@ function quoted(text) {
   return [...text.matchAll(/`([^`]+)`/g)].map((match) => match[1].trim());
 }
 
-// Model: the names of the `- **Name:** ...` entries under one `## ` section.
-function entryNames(lines, heading, label) {
-  const names = new Set();
+// A clause or an Invariant follows the artifact writing contract: one sentence of at most
+// 25 words.
+const MAX_WORDS = 25;
+function checkSentence(text, label) {
+  const words = plain(text).split(/\s+/).filter(Boolean).length;
+  const sentences = plain(text).split(/[.!?](?:\s+|$)/).filter((part) => part.trim() !== "").length;
+  if (words === 0 || words > MAX_WORDS || sentences > 1) {
+    errors.push(`${label} must be one sentence of at most ${MAX_WORDS} words`);
+  }
+}
+
+// Model: the `- **Name:** ...` entries under one `## ` section, each with its `### ` group
+// and the clauses under it.
+function entries(lines, heading, label) {
+  const found = new Map();
   let inside = false;
+  let group = "";
+  let name = null;
   for (const line of lines) {
     if (/^##\s/.test(line)) {
       inside = line.trim() === heading;
+      group = "";
+      name = null;
       continue;
     }
-    const entry = inside && line.match(/^-\s+\*\*(.+?)\*\*/);
-    if (!entry) continue;
-    const name = plain(entry[1]).replace(/:$/, "").trim();
-    if (names.has(name)) errors.push(`duplicate ${label} "${name}"`);
-    names.add(name);
+    if (!inside) continue;
+    const groupMatch = line.match(/^###\s+(.+)$/);
+    if (groupMatch) {
+      group = plain(groupMatch[1]);
+      name = null;
+      continue;
+    }
+    const entry = line.match(/^-\s+\*\*(.+?)\*\*/);
+    if (entry) {
+      name = plain(entry[1]).replace(/:$/, "").trim();
+      if (found.has(name)) errors.push(`duplicate ${label} "${name}"`);
+      found.set(name, { group, clauses: 0 });
+      continue;
+    }
+    const clause = name && line.match(/^ {2,}-\s+(.*)$/);
+    if (clause) {
+      found.get(name).clauses += 1;
+      checkSentence(clause[1], `${label} "${name}" clause ${found.get(name).clauses}`);
+    }
   }
-  return names;
+  return found;
 }
 
 const modelLines = linesOf(source);
-const rules = entryNames(modelLines, "## Business Rules", "Business Rule");
-const policies = entryNames(modelLines, "## Policies", "Policy");
+const rules = entries(modelLines, "## Business Rules", "Business Rule");
+const policies = entries(modelLines, "## Policies", "Policy");
 
-// Domain objects: each object's Lifecycle States, Behaviors, and Domain Events.
+// Domain objects: each object's Lifecycle States, Invariants, Behaviors with their clauses,
+// and Domain Events.
 const objects = [];
 const domainObjectsPath = path.join(path.dirname(file), "domain-objects.md");
 const hasDomainObjects = fs.existsSync(domainObjectsPath);
@@ -73,7 +104,7 @@ if (hasDomainObjects) {
   for (const line of linesOf(fs.readFileSync(domainObjectsPath, "utf8"))) {
     const heading = line.match(/^###\s+(.+?)\s+—\s/);
     if (heading) {
-      object = { name: plain(heading[1]), section, states: [], behaviors: [], events: [] };
+      object = { name: plain(heading[1]), section, states: [], invariants: [], behaviors: [], events: [] };
       objects.push(object);
       field = null;
       item = null;
@@ -93,17 +124,22 @@ if (hasDomainObjects) {
     }
     const itemMatch = line.match(/^ {2}-\s+`([^`]+)`(.*)$/);
     if (itemMatch) {
-      item = { name: itemMatch[1].trim(), text: itemMatch[2] };
+      item = { name: itemMatch[1].trim(), text: itemMatch[2], clauses: [] };
       // A state may carry its lifecycle name: `Slot.State = Free`.
       if (field === "Lifecycle State" && item.name !== "No explicit Lifecycle State") {
         object.states.push(item.name.split(/\s+(?:=|—)\s+/).pop());
       }
+      if (field === "Invariants") object.invariants.push(item);
       if (field === "Behavior") object.behaviors.push(item);
       if (field === "Domain Events") object.events.push(item);
       continue;
     }
-    // Nested entries and wrapped lines belong to the current item.
-    if (item && /^ {3,}\S/.test(line)) item.text += ` ${line.trim()}`;
+    // A nested entry under a Behavior is a clause. Other nested entries and wrapped lines
+    // belong to the current item.
+    const clause = item && field === "Behavior" && line.match(/^ {4}-\s+(.*)$/);
+    if (clause) item.clauses.push(clause[1]);
+    else if (item && item.clauses.length > 0 && /^ {5,}\S/.test(line)) item.clauses[item.clauses.length - 1] += ` ${line.trim()}`;
+    else if (item && /^ {3,}\S/.test(line)) item.text += ` ${line.trim()}`;
     else if (line.trim() !== "") item = null;
   }
 }
@@ -111,7 +147,29 @@ if (hasDomainObjects) {
 // A lifecycle name may join the words of its object: Client Secret owns ClientSecret.State.
 const objectByName = new Map(objects.map((object) => [object.name.replace(/\s+/g, ""), object]));
 
-// Each `Rules:` citation names a Business Rule, or the Policy a reaction realizes, of this Model.
+// Each Invariant has one name in its Aggregate. Each Invariant and each clause is one sentence.
+let clauseCount = 0;
+const invariantsOf = new Map();
+for (const object of objects) {
+  if (!invariantsOf.has(object.section)) invariantsOf.set(object.section, new Set());
+  for (const invariant of object.invariants) {
+    if (invariantsOf.get(object.section).has(invariant.name)) {
+      errors.push(`duplicate Invariant "${invariant.name}" under ${object.section}`);
+    }
+    invariantsOf.get(object.section).add(invariant.name);
+    checkSentence(invariant.text.replace(/^\s*—\s*/, ""), `${object.name} Invariant "${invariant.name}"`);
+  }
+  for (const behavior of object.behaviors) {
+    behavior.clauses.forEach((clause, index) => {
+      clauseCount += 1;
+      checkSentence(clause, `${object.name} Behavior "${behavior.name}" clause ${index + 1}`);
+    });
+  }
+}
+const invariantCount = objects.reduce((count, object) => count + object.invariants.length, 0);
+
+// Each `Rules:` citation names an Invariant of its Aggregate, or a Business Rule or the
+// Policy a reaction realizes in this Model.
 const citedRules = new Set();
 for (const object of objects) {
   for (const behavior of object.behaviors) {
@@ -119,19 +177,20 @@ for (const object of objects) {
     if (!citation) continue;
     for (const name of quoted(citation[1])) {
       citedRules.add(name);
-      if (!rules.has(name) && !policies.has(name)) {
-        errors.push(`${object.name} Behavior "${behavior.name}" cites "${name}", which is not a Business Rule or Policy in the Model`);
+      if (!invariantsOf.get(object.section).has(name) && !rules.has(name) && !policies.has(name)) {
+        errors.push(`${object.name} Behavior "${behavior.name}" cites "${name}", which is not an Invariant of its Aggregate or a Business Rule or Policy in the Model`);
       }
     }
   }
 }
-if (hasDomainObjects && rules.size > 0) {
-  const uncited = [...rules].filter((name) => !citedRules.has(name));
-  if (citedRules.size === 0) notes.push("no Behavior cites a Business Rule");
-  else if (uncited.length > 0) {
-    const shown = uncited.slice(0, 20).map((name) => `"${name}"`).join(", ");
-    const more = uncited.length > 20 ? `, and ${uncited.length - 20} more` : "";
-    notes.push(`${uncited.length} of ${rules.size} Business Rules are cited by no Behavior: ${shown}${more}`);
+// A Business Rule outside `### Context` that no Behavior cites has no owner yet: it waits
+// for Tactical Design, or it is a rule that no Behavior owns.
+if (hasDomainObjects) {
+  const waiting = [...rules].filter(([name, rule]) => rule.group !== "Context" && !citedRules.has(name)).map(([name]) => name);
+  if (waiting.length > 0) {
+    const shown = waiting.slice(0, 20).map((name) => `"${name}"`).join(", ");
+    const more = waiting.length > 20 ? `, and ${waiting.length - 20} more` : "";
+    notes.push(`${waiting.length} of ${rules.size} Business Rules are outside \`### Context\` and have no owning Behavior: ${shown}${more}`);
   }
 }
 
@@ -247,7 +306,9 @@ for (const object of objects) {
 // A state that no transition reaches or leaves, and no Behavior of its object names, is dead.
 for (const object of objects) {
   if (object.touched.size === 0) continue;
-  const bodies = object.behaviors.map((behavior) => behavior.text.split(/\bRules?:/)[0]).join(" ");
+  const bodies = object.behaviors
+    .map((behavior) => `${behavior.text.split(/\bRules?:/)[0]} ${behavior.clauses.join(" ")}`)
+    .join(" ");
   for (const state of object.states) {
     if (object.touched.has(state)) continue;
     if (new RegExp(`(?<![\\w-])${escapeRegExp(state)}(?![\\w-])`).test(bodies)) continue;
@@ -309,6 +370,6 @@ if (errors.length > 0) {
 }
 console.log(
   `valid Model: ${rules.size} Business Rules, ${policies.size} Policies, ` +
-  `${hasDomainObjects ? `${objects.length} domain objects, ${transitionCount} transitions` : "no domain-objects.md to cross-check"}; ` +
+  `${hasDomainObjects ? `${objects.length} domain objects, ${invariantCount} Invariants, ${clauseCount} clauses, ${transitionCount} transitions` : "no domain-objects.md to cross-check"}; ` +
   contextMapCheck,
 );

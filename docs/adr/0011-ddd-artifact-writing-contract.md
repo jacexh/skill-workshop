@@ -6,6 +6,7 @@
 - Amended by: [ADR 0014](0014-architecture-design-wireframe.md) (the business-meaning-only rule covers the Markdown artifacts, not `architecture.html`)
 - Amended by: [ADR 0015](0015-architecture-design-closed-contract-catalog.md) (`architecture.md` records software structure, not business meaning)
 - Refined by: [ADR 0017](0017-context-map-names-contracts.md) (Context Map cell shape)
+- Amended by: [ADR 0018](0018-rules-live-with-their-owner.md) (decisions 1 and 2: the home and the unit of a rule)
 
 ## Context
 

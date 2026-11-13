@@ -59,15 +59,23 @@ The accepted current explanation of one Bounded Context: its purpose, essential 
 _Avoid_: meeting minutes, object catalogue, call graph
 
 **Strategic Business Rule**:
-One independently challengeable claim naming a governed business concept or collaboration, any material condition, and an accepted business decision, permission, transition, required outcome, or invariant. It supplies downstream business authority without assigning tactical behavior ownership or prescribing an implementation mechanism.
-_Avoid_: vague principle, object responsibility, technical mechanism
+One independently challengeable decision on which a strategic decision rests: removing it would change a Bounded Context boundary, an Aggregate Root, a consistency boundary, a Role's authority, a Policy, or a contract. It has a name, a head sentence, and clauses only when the head cannot hold the decision. It lives in `model.md`, under its Aggregate Root until Tactical Design gives it an owner, or under `### Context` when several objects share it or no Behavior owns it.
+_Avoid_: vague principle, object responsibility, technical mechanism, method-level condition
+
+**Behavior Clause**:
+One EARS sentence under a Behavior in `domain-objects.md` for a condition or outcome that only this Behavior owns. It has no name; the Behavior is its citable owner.
+_Avoid_: separate Business Rule per sentence, restated Invariant, implementation step
+
+**Object Invariant**:
+A named rule that holds across the Behaviors of one Root or Entity, recorded under `Invariants` in `domain-objects.md` as one EARS sentence and cited by name after `Rules:`.
+_Avoid_: single-Behavior condition, cross-Aggregate rule, data constraint
 
 **Aggregate Root**:
 The externally addressed owner of one immediate consistency boundary. It composes owned Entities and protects the state and rules that must remain valid together.
 _Avoid_: service class, table group, feature folder
 
 **Domain Object Slice**:
-One current Aggregate Root section in `domain-objects.md`, incrementally composed from confirmed object descriptions and completed by integrated Root confirmation. Each object records only definition, Facts, Lifecycle State, behavior, Domain-owned Ports where present, and actual Domain Events.
+One current Aggregate Root section in `domain-objects.md`, incrementally composed from confirmed object descriptions and completed by integrated Root confirmation. Each object records only definition, Facts, Lifecycle State, Invariants, behavior with its clauses, Domain-owned Ports where present, and actual Domain Events.
 _Avoid_: UML, sequence document, implementation plan
 
 **Object Facts**:
@@ -79,7 +87,7 @@ The named state-machine states owned by a Root or Entity and their Domain meanin
 _Avoid_: unnamed lifecycle flag, ordinary fact change, inferred state machine
 
 **Pressure-led Tactical Design**:
-The interview order that completes one Aggregate Root at a time by following its smallest affected business-pressure slice. It expresses essential complexity as pressures traceable to Business Rules, probes candidate behavior ownership, applies the Capability Probe to external-authority needs, and compares credible object compositions by pressure coverage and accidental design burden. Questions are asked one at a time with a recommended answer and a credible alternative.
+The interview order that completes one Aggregate Root at a time by following its smallest affected business-pressure slice. It expresses essential complexity as pressures traceable to Business Rules and handed-on open decisions, records each rule with the owner of its decision, probes candidate behavior ownership, applies the Capability Probe to external-authority needs, and compares credible object compositions by pressure coverage and accidental design burden. Questions are asked one at a time with a recommended answer and a credible alternative.
 _Avoid_: Entity checklist, untraceable scenario, batch questionnaire
 
 **Entity Confirmation**:

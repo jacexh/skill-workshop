@@ -72,7 +72,7 @@ Workshop Events stay in the conversation as analytical evidence. A proposed prod
 
 Derive strategic boundaries from business language, authority, policy, lifecycle, and model purpose. Admit a concern only when it changes a business right, obligation, value, authority, decision, outcome, or required next action. Treat implementation observations as evidence about that business meaning; later design owns the realization.
 
-Derive Business Rules precise enough for a concrete scenario to contradict and for Tactical Design to derive essential business pressures. When drafting or revising them, apply the [business rule writing guidance](../../templates/artifact-layout.md#business-rule-writing), and to Policies the [policy writing guidance](../../templates/artifact-layout.md#policy-writing).
+Record a Business Rule when a strategic decision rests on it, under the admission test of the [business rule writing guidance](../../templates/artifact-layout.md#business-rule-writing), and group the rules by Aggregate Root. A finer condition or outcome of one Command belongs to Tactical Design: hand it on as an [open decision](../../references/workflow.md#progressive-refinement) with the evidence that states it. Apply the same guidance when drafting or revising a rule, and to Policies the [policy writing guidance](../../templates/artifact-layout.md#policy-writing).
 
 ## Probes
 
@@ -112,7 +112,7 @@ Persist only accepted current knowledge:
 - `docs/ddd-expert/context-map.md` owns the Bounded Context inventory and semantic dependencies.
 - `docs/ddd-expert/context/<context-slug>/model.md` owns one context's purpose, essential language, Aggregate Roots, Business Rules, and Policies.
 
-`model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, behavior, Domain-owned Ports where present, and actual Domain Events in `domain-objects.md`; conversational working state remains transient.
+`model.md` remains strategic. Tactical Design records object definition, Facts, Lifecycle State, Invariants, behavior with its clauses, Domain-owned Ports where present, and actual Domain Events in `domain-objects.md`; conversational working state remains transient. The Invariants and clauses there are accepted rules of the context: read them with `model.md` before deriving a rule, and record a new rule for a designed Root under that Root in `model.md`, where it waits for Tactical Design.
 
 ## Assumption sweep
 
@@ -123,7 +123,7 @@ Before the integrated proposal, revisit every assumption stated on the board, pl
 - volume, latency, availability, audit, retention, or compliance expectations;
 - existing data, published APIs, or clients that must keep working.
 
-An answer that changes a business right, obligation, value, authority, decision, outcome, or required next action becomes a Business Rule or reopens the affected step. Every other answer is a **delivery constraint**: record it in the project's spec or issue when one exists, otherwise carry it in the conversation as Architecture Design and Codify input. The sweep is complete when every board assumption and touched delivery dimension has become a Business Rule, a delivery constraint, or a non-blocking Hotspot handed on as an [open decision](../../references/workflow.md#progressive-refinement).
+An answer that changes a business right, obligation, value, authority, decision, outcome, or required next action becomes a Business Rule when a strategic decision rests on it, an open decision for Tactical Design when it is a finer condition or outcome of one Command, or reopens the affected step. Every other answer is a **delivery constraint**: record it in the project's spec or issue when one exists, otherwise carry it in the conversation as Architecture Design and Codify input. The sweep is complete when every board assumption and touched delivery dimension has become a Business Rule, a delivery constraint, or an [open decision](../../references/workflow.md#progressive-refinement).
 
 ## Confirmation and writing
 
@@ -134,7 +134,7 @@ Present one compact integrated proposal:
 - scope and exclusions;
 - Bounded Contexts, their purpose, and the probe that separates each;
 - Aggregate Roots and their consistency boundary;
-- Business Rules;
+- Business Rules by Aggregate Root;
 - Policies and their deciding context;
 - semantic dependencies and named contracts;
 - delivery constraints from the assumption sweep;
