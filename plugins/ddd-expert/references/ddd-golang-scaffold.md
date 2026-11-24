@@ -48,9 +48,7 @@ internal/
         assembler.go             # when whole Application DTO <-> Domain mapping exists
         <responsibility>.go       # named Application methods and input/result types
         query/                    # distinct read semantics, when needed
-          <read_concern>.go
-          repository.go          # when a QueryRepository is required
-          dto.go
+          <read_concern>.go      # read models and their QueryRepository contract
         eventhandler/             # when same-BC reactions exist
           <fact>.go
         task/                     # only when background execution is required

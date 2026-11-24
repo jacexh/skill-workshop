@@ -16,7 +16,7 @@ internal/business/<context>/infrastructure/
   do.go                    # private xorm Data Objects
   convert.go               # pure DO <-> exported Domain/read-model mapping
   <aggregate>_repository.go
-  <read_model>_query_repository.go
+  query_repository.go      # one struct per read data source, implementing its QueryRepository contracts
   <port>_adapter.go        # Domain-owned Port or outbound provider adapter
   <receiver>_acl.go        # outbound ACL to another context
 ```
