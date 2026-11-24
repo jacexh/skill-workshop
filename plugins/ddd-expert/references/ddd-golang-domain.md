@@ -126,8 +126,9 @@ For an accepted `components/fsm` lifecycle, load
 ## Import Boundary and Verification
 
 Domain imports the standard library and applicable Domain-focused packages such
-as `validator/v10`, `google/uuid`, `components/ddd/event`, and `components/fsm`.
-Generated contracts, ConnectRPC, xorm, Kafka, Asynq, Redis, Fx,
+as `validator/v10`, `google/uuid`, `components/ddd/event`, `components/fsm`, and
+an external [Published Language package](ddd-golang-scaffold.md#shared-packages).
+Generated contracts, ConnectRPC, xorm, Kafka, Asynq, Redis, Fx, the rest of
 `internal/pkg`, Infrastructure, and another context's internals remain outer.
 
 Test Factories, `Validate`, Aggregate invariants, state transitions, Domain
