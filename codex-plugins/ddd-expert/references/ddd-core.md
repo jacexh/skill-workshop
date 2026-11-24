@@ -91,9 +91,7 @@ the task or review report, not in DDD artifacts or source comments.
 
 ### Domain-owned Port
 
-A port belongs to the layer that owns its invocation. An **Application Port** is
-Application-owned and continues a use case: the context's publisher, an intent
-sender, the task enqueue port, or another continuation. Realize an accepted Domain-owned Port as a Domain contract
+A port belongs to the layer that owns its invocation. Realize an accepted Domain-owned Port as a Domain contract
 invoked by its recorded Behavior, with an Infrastructure adapter supplied
 by Runtime composition; Application neither prefetches its result nor duplicates
 its contract. Name the contract for its Domain role with a `Port` suffix.
@@ -128,6 +126,10 @@ An **Application DTO** is any immutable, transport-neutral value crossing the
 Application boundary. Its role names it: a command or query input, a command
 result, or a query read model. Every role follows the same DTO rules; the role
 decides only the name and direction.
+
+An **Application Port** is Application-owned and continues a use case: the
+context's publisher, an intent sender, the task enqueue port, or another
+continuation.
 
 An Application assembler holds pure mapping between whole Domain objects and
 Application DTOs. Create it when the context has such a mapping; a context
@@ -194,13 +196,8 @@ Roots atomically:
 The active-language leaf defines the concrete participation mechanism and its
 integration evidence.
 
-## Naming and Errors
+## Errors and Logs
 
-- Commands use imperative intent; events use past-tense facts; read models use
-  consumer-facing meaning.
-- Domain errors name rejected business decisions or preconditions.
-- Application errors name stable use-case outcomes.
-- Transport maps semantic outcomes to public protocol responses.
 - Infrastructure translates a provider error once into a stable inner outcome
   while preserving its cause.
 - The outer execution owner emits the completion log; inner layers log only an

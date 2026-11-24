@@ -22,7 +22,7 @@ use the user's language; artifacts follow their templates.
 P1 Reject a second confirmation into an occupied Slot at command time (Single occupancy)
 P2 Allow cancellation only before the Slot's start time; needs the current time (Release before start)
 P3 Slot occupancy moves Free -> Confirmed -> Free or Completed (Single occupancy, Cancellation frees Slot)
-P4 Record the completed visit that Billing relies on (Context Map: VisitCompleted)
+P4 Record the completed visit that Billing relies on (Context Map: Visit Completed Published Fact Contract)
 ```
 
 ## Probe turn
@@ -84,7 +84,7 @@ Definition until the Root is confirmed.
   - `Release Appointment` — Slot frees its Appointment, using supplied `now` from the clinic clock, transitioning Slot.State from Confirmed to Free. Rules: `Release before start`, `Cancellation frees Slot`.
   - `Complete Visit` — Slot records the completed visit, transitioning Slot.State from Confirmed to Completed.
 - **Domain Events:**
-  - `VisitCompleted` — recorded by `Complete Visit`; published as `VisitCompleted`.
+  - `VisitCompleted` — recorded by `Complete Visit`; published as `Visit Completed Published Fact Contract`.
 ```
 
 The Root entry then reads `Confirm Appointment — Schedule confirms an

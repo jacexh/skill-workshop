@@ -7,7 +7,7 @@ description: Go adapter boundaries and routing for persistence, transactions, ou
 
 ## Applies When
 
-Infrastructure implements Domain-owned Ports and Application Ports and owns external mechanisms. For MySQL persistence in this House Style, use `xorm.io/xorm` with `github.com/go-sql-driver/mysql`. Use `github.com/samber/oops` when an external error first enters controlled code.
+Infrastructure implements Domain-owned Ports and Application Ports and owns external mechanisms. For MySQL persistence in this House Style, use `xorm.io/xorm` with `github.com/go-sql-driver/mysql`.
 
 ## Responsibility And File Shape
 
@@ -16,7 +16,7 @@ internal/business/<context>/infrastructure/
   do.go                    # private xorm Data Objects
   convert.go               # pure DO <-> exported Domain/read-model mapping
   <aggregate>_repository.go
-  <read_model>_query_repository.go
+  query_repository.go      # one struct per read data source, implementing its QueryRepository contracts
   <port>_adapter.go        # Domain-owned Port or outbound provider adapter
   <receiver>_acl.go        # outbound ACL to another context
 ```
@@ -38,19 +38,11 @@ internal/business/<context>/infrastructure/
   and the affected database rules; load persistence conversion only if touched.
 - For a confirmed multi-Root local atomic change, read
   [transaction participation](ddd-golang-transactions.md).
-- For outbound-only ports or ACLs, use the adapter and error rules below.
+- For outbound-only ports or ACLs, use the adapter rules below.
 
 ## Outbound Adapters
 
 Infrastructure fulfills Domain-owned Ports and Application Ports through external APIs, Kafka, cache, taskqueue, or other providers. Keep source composition, generated clients, credentials, topics, serialization, and any accepted fulfillment policy here.
-
-## Error And Logging Boundary
-
-- At the first controlled boundary, enrich and wrap once with `oops.With(...).Wrap(providerErr)`; use `oops.Wrap(providerErr)` only when there is no owned context. Never wrap an already wrapped provider error again.
-- Preserve `errors.Is/As` and stable Domain/Application errors. Later layers add context only when they add new semantics.
-- Return an error unlogged; the caller of the use case logs the outcome.
-- Infrastructure logs only when it suppresses/retries an error or owns a terminal provider operation.
-- Never attach passwords, DSNs, tokens, message payloads, or unbounded SQL values to errors or logs.
 
 ## Verification
 
@@ -62,5 +54,4 @@ affected snapshot/token and continued-live-authority semantics.
 
 For a changed outbound adapter, verify its Domain result, contract translation,
 and affected fulfillment policy at that provider boundary. An outbound-only
-change does not require MySQL evidence. Reuse unaffected evidence; Guard reviews
-available results without executing this verification.
+change does not require MySQL evidence.

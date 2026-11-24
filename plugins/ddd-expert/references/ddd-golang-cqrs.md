@@ -21,8 +21,8 @@ than the Aggregate.
 
 ## QueryRepository Contract
 
-Place the contract and its read models under `application/query/` or
-`application/queries/`. Group cohesive operations by consumer semantics.
+Declare each contract in `application/query/<read_concern>.go` beside its read
+models, grouping operations by consumer semantics.
 
 Each operation takes a filter value, such as `ListUsersFilter`, and returns a
 consumer-named read model, such as `UserPage` with its `Items` and
@@ -35,7 +35,9 @@ once, and maps the result.
 
 ## Infrastructure Adapter
 
-Implement the contract in `infrastructure/query_repository.go` with xorm. Select
+Infrastructure implements the contracts per read data source: one xorm struct in
+`infrastructure/query_repository.go` may implement several, asserting each at
+compile time, with its methods split across files by read concern. Select
 explicit columns, aliases, filters, and stable indexed order. Map query rows
 directly into read models; do not reconstitute an Aggregate on this
 path.

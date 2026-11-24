@@ -75,8 +75,8 @@ lifecycle-end probe places Visit Completed as the crossing point.
   a billable completed visit; consistency: one invoice per completed visit.
 - **Business Rules**: Single occupancy; Invoice requires completed visit;
   Invoice voiding.
-- **Dependency**: Scheduling -> Billing, Published Fact Contract
-  `VisitCompleted`, used by the Billing Policy Open Invoice.
+- **Dependency**: Scheduling -> Billing, **Visit Completed Published Fact
+  Contract**, used by the Billing Policy Open Invoice.
 - **Policies**: Billing — Open Invoice.
 - **Delivery constraints** (assumption sweep; Architecture Design and Codify
   input):
@@ -93,8 +93,8 @@ their templates. Business Rules then read, for example:
 - **Invoice voiding:** If the actor is not a billing clerk, then the Invoice
   rejects voiding.
 
-and the Billing Model records the Policy that reacts to `VisitCompleted`:
+and the Billing Model records the Policy that reacts to that contract:
 
-- **Open Invoice:** When Scheduling publishes `VisitCompleted`, Billing opens
+- **Open Invoice:** When Scheduling publishes Visit Completed, Billing opens
   an Invoice for that Visit. If Billing cannot open the Invoice, then a billing
   clerk issues it by hand.

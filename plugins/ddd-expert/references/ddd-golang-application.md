@@ -13,10 +13,11 @@ Application implements use cases. It coordinates Domain behavior and ports witho
 
 Application owns transport-neutral commands, queries, results and DTOs. It must not import ConnectRPC, RPC generated types, xorm sessions, Kafka, Asynq, Redis, Fx or server lifecycle APIs.
 
-Two accepted, narrow exceptions do not collapse the layer boundary:
+Three accepted, narrow exceptions do not collapse the layer boundary:
 
 - a producer-side `application/eventhandler` may map its own Domain Event to the same bounded context's generated Published Fact Contract under `gen/<context>/integration/...` and publish it through `github.com/go-jimu/components/ddd/message.Publisher`;
-- after Task Queue has been accepted, `application/task` may import its own generated `gen/<context>/task/v1` payload schema and use `github.com/go-jimu/components/taskqueue` types such as `Definition` and `Enqueuer` to construct protobuf-backed tasks.
+- after Task Queue has been accepted, `application/task` may import its own generated `gen/<context>/task/v1` payload schema and use `github.com/go-jimu/components/taskqueue` types such as `Definition` and `Enqueuer` to construct protobuf-backed tasks;
+- for a confirmed same-BC, one-resource multi-Root transaction or an Outbox dispatch, an Application method calls `Within` on `transaction.Transactor` ([ddd-golang-transactions.md](ddd-golang-transactions.md)).
 
 Generated RPC types remain Transport. Kafka and Asynq types remain Runtime. A sender of an asynchronous intent calls a local Application Port; Infrastructure/ACL maps that intent to the receiving context's generated contract.
 
@@ -43,7 +44,7 @@ func AssembleUserDTO(dto *User) *domain.User       // existing DTO state -> Enti
 func AssembleUserEntity(entity *domain.User) *User // Entity -> DTO
 ```
 
-The assembler has no logging, I/O, transaction or business branch. It does not map protobuf or DO types. DTO-to-Entity assembly is for existing data and is followed by Domain validation before behavior. A create-user use case calls `domain.NewUser(...)`; it never calls `AssembleUserDTO` to bypass Factory rules or creation events. Under the request-scoped lifecycle, an assembled post-`Save` `Version` is stale and must not be returned as the current persistence concurrency token.
+The assembler has no logging, I/O, transaction or business branch. It does not map protobuf or DO types. DTO-to-Entity assembly is for existing data and is followed by Domain validation before behavior. A create-user use case calls `domain.NewUser(...)`; it never calls `AssembleUserDTO` to bypass Factory rules or creation events.
 
 Persistence mapping belongs in `infrastructure/convert.go` and follows the analogous `DO <-> Domain Entity` shape.
 
@@ -81,12 +82,7 @@ When Application owns the use-case continuation, place its Application Port besi
 
 Application owns what must commit together; Infrastructure owns how. A single-Aggregate Repository may hide its storage transaction only when no Application scope is active; under an active scope it joins the current transaction. Raw `xorm.Session` never enters Application.
 
-## Errors, Logging and Tests
-
-- Preserve stable Domain error identity with `errors.Is/As`; add `oops` context only when this layer contributes new diagnostics.
-- Application methods leave the call log to their caller.
-- Application logs a business-semantic fact only when it has independent operational value. Durable evidence is a Domain Event, audit record or persisted state, not a log line.
-- Application becomes the execution logger only for a terminal flow with no outer observer or when it deliberately swallows a best-effort failure.
+## Tests
 
 Test use cases with real Domain objects and focused fakes for Repository,
 QueryRepository, ACL, and outbound ports. Cover orchestration and stable errors.

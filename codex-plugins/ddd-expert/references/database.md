@@ -15,47 +15,33 @@ explicit project technology decision.
 
 The adopted database is MySQL 8. The active language House Style selects the adapter, connection API, and UUIDv7 implementation. Verify the deployed MySQL minor version, InnoDB row format, SQL mode, topology, and migration tooling before relying on a version-dependent capability. That verification may select the supported execution mechanism; it does not weaken the schema and persistence rules below.
 
-## Navigation
-
-| Need | Section |
-|---|---|
-| Repository, QueryRepository, and Runtime ownership | Persistence Responsibilities |
-| Table names, standard columns, and physical types | Naming, Storage, and Encoding; Standard Columns; Physical Types |
-| Aggregate and read-model tables | Role-Specific Table Shapes |
-| Indexes, query shape, writes, and pagination | Index Design; SQL Shape |
-| Optimistic/pessimistic concurrency | Transactions and Concurrency |
-| Safe schema change | Migrations |
-
 ## 1. Persistence Responsibilities
 
-- **[House Rule]** Tables are persistence representations, not Domain objects. An Aggregate may map to several tables, and a read model may project or join several sources.
-- **[House Rule]** The accepted Aggregate boundary determines atomic write ownership. A foreign key, shared table, or database transaction does not create an Aggregate boundary.
-- **[House Rule]** A command-side Repository persists exactly one Aggregate Root and its owned state. Its write owns one local transaction by default. Under the confirmed same-context, same-resource exception, several one-Root Repository adapters enlist in the same Application scope and one physical local database transaction; do not replace them with a multi-Root Repository.
-- **[House Rule]** Lists, pages, history, reports, statistics, cross-Aggregate composition, denormalized views, and optimized projections use an Application-owned QueryRepository. A focused read of one reasonably sized Aggregate may use its Domain Repository when full reconstitution is appropriate and no distinct read semantics exist.
-- **[House Rule]** Transport never queries tables or Repositories directly. Infrastructure owns persistence records, mappings, and adapters; Runtime owns the shared connection-pool or database-client lifecycle.
+- Tables are persistence representations, not Domain objects. An Aggregate may map to several tables, and a read model may project or join several sources.
+- The accepted Aggregate boundary determines atomic write ownership. A foreign key, shared table, or database transaction does not create an Aggregate boundary.
+- A command-side Repository persists exactly one Aggregate Root and its owned state. Its write owns one local transaction by default; [ddd-core.md](ddd-core.md#local-transaction-realization) governs the multi-Root exception.
+- Infrastructure owns persistence records, mappings, and adapters; Runtime owns the shared connection-pool or database-client lifecycle.
 
 ### Language Adapter Boundary
 
-- **[House Rule]** Runtime validates the DSN, opens and verifies the database client, configures bounded connection pools, and keeps the client usable until every execution entry point has drained.
-- **[House Rule]** Bounded-context Infrastructure receives an initialized database capability; it does not load configuration or open a process-wide connection. Application opens an accepted multi-Root scope through a provider-neutral callback, while Infrastructure resolves the current provider executor and owns its transaction lifecycle.
-- **[House Rule]** Use ordered SQL migrations for production schema changes. ORM metadata creation, auto-sync, and schema-push features are not deployment mechanisms.
-- **[House Rule]** Bind external values through the adopted adapter's parameter API. Never build SQL by concatenating input.
+- Runtime validates the DSN, opens and verifies the database client, configures bounded connection pools, and keeps the client usable until every execution entry point has drained.
+- Bounded-context Infrastructure receives an initialized database capability; it does not load configuration or open a process-wide connection.
+- Use ordered SQL migrations for production schema changes. ORM metadata creation, auto-sync, and schema-push features are not deployment mechanisms.
 
 ## 2. Naming, Storage, and Encoding
 
 ### Identifiers
 
-- **[House Rule]** Database, table, column, and index identifiers contain lowercase ASCII letters, digits, and underscores only. They do not start with a digit, contain spaces or hyphens, or use uppercase letters.
-- **[House Rule]** Identifiers do not use MySQL reserved words and do not exceed 64 characters.
-- **[House Rule]** Database and table names are singular. A database name follows the application name, replacing hyphens with underscores and omitting a redundant `service` suffix.
-- **[House Rule]** Related table names expose ownership or purpose, such as `user`, `user_login`, and `user_summary`.
-- **[House Rule]** Column names express business or operational meaning in one or two words where practical. Do not use the table name as a column name.
-- **[House Rule]** Every table and column has a descriptive comment.
+- Identifiers use lowercase snake_case.
+- Database and table names are singular. A database name follows the application name, replacing hyphens with underscores and omitting a redundant `service` suffix.
+- Related table names expose ownership or purpose, such as `user`, `user_login`, and `user_summary`.
+- Column names express business or operational meaning in one or two words where practical. Do not use the table name as a column name.
+- Every table and column has a descriptive comment.
 
 ### Storage Defaults
 
-- **[House Rule]** Use `ENGINE=InnoDB`, `DEFAULT CHARSET=utf8mb4`, and `COLLATE=utf8mb4_unicode_ci` explicitly in every `CREATE TABLE` statement.
-- **[House Rule]** Schema review checks collation semantics for every unique textual business key. Case-insensitive collation is not assumed to preserve case-sensitive identity.
+- Use `ENGINE=InnoDB`, `DEFAULT CHARSET=utf8mb4`, and `COLLATE=utf8mb4_unicode_ci` explicitly in every `CREATE TABLE` statement.
+- Schema review checks collation semantics for every unique textual business key. Case-insensitive collation is not assumed to preserve case-sensitive identity.
 
 ### Index Names
 
@@ -65,11 +51,11 @@ The adopted database is MySQL 8. The active language House Style selects the ada
 | Unique index | `uniq_<columns>` | `uniq_order_no` |
 | Regular index | `idx_<columns>` | `idx_user_id_status` |
 
-For a partitioned or sharded physical table, the primary key may include the routing key as specified in the Scale Mechanisms section; `id` remains the logical record identity.
+For a partitioned or sharded physical table, the primary key may include the routing key; `id` remains the logical record identity.
 
 ## 3. Standard Columns and Lifecycle
 
-**[House Rule]** Every table governed by this profile contains these five standard columns:
+Every table governed by this profile contains these five standard columns:
 
 ```sql
 `id` varchar(36) NOT NULL COMMENT 'UUIDv7 primary identity',
@@ -79,12 +65,12 @@ For a partitioned or sharded physical table, the primary key may include the rou
 `deleted_at` bigint NOT NULL DEFAULT '0' COMMENT 'Deletion time in Unix milliseconds; 0 means active'
 ```
 
-- **[House Rule]** Generate `id` as UUIDv7 before persistence through the accepted Domain creation path, or through the owning Application path for records that are not Domain objects, and store its canonical text in `varchar(36)`.
-- **[House Rule]** A new in-memory Aggregate has version `0`; its `INSERT` explicitly writes stored `version = 1`. Rows created outside an Aggregate also start at stored version `1`.
-- **[House Rule]** `created_at`, `updated_at`, and `deleted_at` use Unix milliseconds supplied by the application. `timestamp` and `datetime` are not used in this house style.
-- **[House Rule]** Active-row reads include `deleted_at = 0`. Reads of deleted data are explicit administrative, retention, audit, or restoration paths.
-- **[House Rule]** A soft delete is a version-checked update that sets `deleted_at`, `updated_at`, and increments `version`; it is not an unguarded flag update.
-- **[House Rule]** Append-only rows still insert the five columns. They remain at version `1` unless an accepted operational lifecycle updates them.
+- Generate `id` as UUIDv7 before persistence through the accepted Domain creation path, or through the owning Application path for records that are not Domain objects, and store its canonical text in `varchar(36)`.
+- A new in-memory Aggregate has version `0`; its `INSERT` explicitly writes stored `version = 1`. Rows created outside an Aggregate also start at stored version `1`.
+- `created_at`, `updated_at`, and `deleted_at` use Unix milliseconds supplied by the application. `timestamp` and `datetime` are not used in this house style.
+- Active-row reads include `deleted_at = 0`. Reads of deleted data are explicit administrative, retention, audit, or restoration paths.
+- A soft delete is a version-checked update that sets `deleted_at`, `updated_at`, and increments `version`; it is not an unguarded flag update.
+- Append-only rows still insert the five columns. They remain at version `1` unless an accepted operational lifecycle updates them.
 
 Check affected rows. Zero rows maps to the same stable concurrency-conflict error used by an Aggregate update.
 
@@ -102,106 +88,104 @@ Check affected rows. Zero rows maps to the same stable concurrency-conflict erro
 | Unix-millisecond time | `bigint` |
 | Optimistic version | `int unsigned` |
 
-- **[House Rule]** Persist money with its accepted amount, currency, and unit/exponent semantics; storage does not assume two decimal places.
-- **[House Rule]** `float` and `double` are prohibited for exact business values. Use integer units or `decimal`.
-- **[House Rule]** Integer signedness and capacity match the business range; do not use unsigned arithmetic when negative values are meaningful.
+- Persist money with its accepted amount, currency, and unit/exponent semantics; storage does not assume two decimal places.
+- `float` and `double` are prohibited for exact business values. Use integer units or `decimal`.
+- Integer signedness and capacity match the business range; do not use unsigned arithmetic when negative values are meaningful.
 
 ### Text, Binary, and Structured Values
 
-- **[House Rule]** Short bounded text uses `varchar(n)` with `n` derived from the accepted maximum. Fixed-length values may use `char(n)` only when `n <= 16`; longer values use `varchar`.
-- **[House Rule]** Large text uses `text` only when the record owns it and query paths do not require indexing the full value.
-- **[House Rule]** Large binary objects live in object storage with a persisted locator unless atomic database ownership of the bytes is explicitly accepted.
-- **[House Rule]** MySQL `enum` and `set` are prohibited. Persist stable numeric or textual codes and map them explicitly in Infrastructure.
-- **[House Rule]** JSON is used only for accepted flexible or contract-shaped data. Fields used for core constraints, joins, ordering, or frequent filtering are modeled as typed columns or verified generated columns with indexes.
+- Short bounded text uses `varchar(n)` with `n` derived from the accepted maximum. Fixed-length values may use `char(n)` only when `n <= 16`; longer values use `varchar`.
+- Large text uses `text` only when the record owns it and query paths do not require indexing the full value.
+- Large binary objects live in object storage with a persisted locator unless atomic database ownership of the bytes is explicitly accepted.
+- MySQL `enum` and `set` are prohibited. Persist stable numeric or textual codes and map them explicitly in Infrastructure.
+- JSON is used only for accepted flexible or contract-shaped data. Fields used for core constraints, joins, ordering, or frequent filtering are modeled as typed columns or verified generated columns with indexes.
 
 ### NULL and Defaults
 
-- **[House Rule]** Persistence preserves the accepted distinction among `NULL`, empty string, zero, and an absent row.
-- **[House Rule]** Ordinary scalar columns are `NOT NULL` and declare an explicit default. Strings default to `''`; numeric and Unix-millisecond columns default to `0`; row versions default to `1`.
-- **[House Rule]** A field whose confirmed Domain meaning is genuinely optional uses an explicit representation that preserves that meaning; it must not turn unknown into an apparently valid zero value merely to avoid `NULL`.
-- **[House Rule]** `text`, `blob`, and other types whose default support varies by MySQL version are `NOT NULL` without a schema default; every `INSERT` supplies the value explicitly.
+- Persistence preserves the accepted distinction among `NULL`, empty string, zero, and an absent row.
+- Ordinary scalar columns are `NOT NULL` and declare an explicit default. Strings default to `''`; numeric and Unix-millisecond columns default to `0`; row versions default to `1`.
+- A field whose confirmed Domain meaning is genuinely optional uses an explicit representation that preserves that meaning; it must not turn unknown into an apparently valid zero value merely to avoid `NULL`.
+- `text`, `blob`, and other types whose default support varies by MySQL version are `NOT NULL` without a schema default; every `INSERT` supplies the value explicitly.
 
 ## 5. Role-Specific Table Shapes
 
 ### Aggregate Write Model
 
-- **[House Rule]** Owned child rows carry the root identity and a child identity or stable ordinal. Uniqueness and indexes reflect root ownership.
-- **[House Rule]** Infrastructure persistence records contain ORM mapping metadata and storage-only fields; Domain Entities contain neither ORM metadata nor storage timestamps.
-- **[House Rule]** The active language House Style owns explicit persistence-record/Domain conversion for existing data. New objects use a Domain Factory, not a persistence converter.
+- Owned child rows carry the root identity and a child identity or stable ordinal. Uniqueness and indexes reflect root ownership.
+- Infrastructure persistence records contain ORM mapping metadata and storage-only fields; Domain Entities contain neither ORM metadata nor storage timestamps.
+- The active language House Style owns explicit persistence-record/Domain conversion for existing data. New objects use a Domain Factory, not a persistence converter.
 
 ### CQRS Read Model
 
-- **[House Rule]** A read-model table is shaped from its concrete filter, sort, display, freshness, and authorization semantics. It does not copy an Aggregate schema mechanically.
-- **[House Rule]** Projection consumers use a source version, message identity, or accepted checkpoint to make duplicate and out-of-order behavior explicit.
-- **[House Rule]** QueryRepository returns Application read models and selects only required columns. It does not reconstitute Domain Entities for a projection path.
+- A read-model table is shaped from its concrete filter, sort, display, freshness, and authorization semantics. It does not copy an Aggregate schema mechanically.
+- Projection consumers use a source version, message identity, or accepted checkpoint to make duplicate and out-of-order behavior explicit.
+- QueryRepository returns Application read models and selects only required columns. It does not reconstitute Domain Entities for a projection path.
 
 ## 6. Index Design
 
 ### Operational Caps
 
-- **[House Rule]** A table has no more than 16 indexes, including the primary key.
-- **[House Rule]** An index has no more than 5 key parts.
-- **[House Rule]** A partitioned table's physical primary key has no more than 3 key parts.
-- **[House Rule]** Under the adopted MySQL 8, InnoDB 16 KiB page, and dynamic row-format baseline, an index key does not exceed 3072 bytes. Calculate bytes from the declared charset and prefixes. If the deployed baseline differs, establish its supported limit before writing the migration.
-- **[House Rule]** Prefix indexes are permitted only when measured prefix cardinality and the concrete query semantics are sufficient; uniqueness never relies on a lossy prefix.
+- A table has no more than 16 indexes, including the primary key.
+- An index has no more than 5 key parts.
+- A partitioned table's physical primary key has no more than 3 key parts.
+- Under the adopted MySQL 8, InnoDB 16 KiB page, and dynamic row-format baseline, an index key does not exceed 3072 bytes. Calculate bytes from the declared charset and prefixes. If the deployed baseline differs, establish its supported limit before writing the migration.
+- Prefix indexes are permitted only when measured prefix cardinality and the concrete query semantics are sufficient; uniqueness never relies on a lossy prefix.
 
 The legacy 767-byte/191-utf8mb4-character limit is not a MySQL 8 universal limit and must not be copied into new schema decisions.
 
 ### Access-Path Rules
 
-- **[House Rule]** Every index serves a concrete uniqueness, filter, join, ordering, projection, or locking path. Column popularity alone is not an index design.
-- **[House Rule]** Production join keys and high-frequency filter/order paths have compatible indexes with matching types and collations.
-- **[House Rule]** Composite index order follows the actual equality predicates, then range/order requirements, covering needs, and MySQL leftmost-prefix behavior. Do not put a column first merely because it has higher standalone selectivity.
-- **[House Rule]** Remove redundant indexes after accounting for leftmost prefixes and the InnoDB primary-key suffix on secondary indexes.
-- **[House Rule]** `deleted_at` is not a standalone index unless a concrete recycle, purge, audit, or restoration query uses it selectively. For ordinary active-row access it belongs in the composite index position supported by the full query.
-- **[House Rule]** `updated_at` is indexed when CDC, incremental synchronization, or an operational scan uses it. `created_at` is indexed when an accepted ordering or range path uses it. Do not index every timestamp automatically.
-- **[House Rule]** Material new or changed queries include representative `EXPLAIN ANALYZE` or equivalent plan evidence before release.
+- Every index serves a concrete uniqueness, filter, join, ordering, projection, or locking path. Column popularity alone is not an index design.
+- Production join keys and high-frequency filter/order paths have compatible indexes with matching types and collations.
+- Composite index order follows the actual equality predicates, then range/order requirements, covering needs, and MySQL leftmost-prefix behavior. Do not put a column first merely because it has higher standalone selectivity.
+- Remove redundant indexes after accounting for leftmost prefixes and the InnoDB primary-key suffix on secondary indexes.
+- `deleted_at` is not a standalone index unless a concrete recycle, purge, audit, or restoration query uses it selectively. For ordinary active-row access it belongs in the composite index position supported by the full query.
+- `updated_at` is indexed when CDC, incremental synchronization, or an operational scan uses it. `created_at` is indexed when an accepted ordering or range path uses it. Do not index every timestamp automatically.
+- Material new or changed queries include representative `EXPLAIN ANALYZE` or equivalent plan evidence before release.
 
 ## 7. SQL Shape
 
 ### Reads
 
-- **[House Rule]** Stable application queries list required columns; `SELECT *` is prohibited.
-- **[House Rule]** Except for declared static tables with fewer than 100 rows, an operational query has a bounded, indexable predicate. MySQL may still choose a scan for a small or high-coverage result; the plan, not a slogan, proves whether that is acceptable.
-- **[House Rule]** A leading-wildcard predicate such as `LIKE '%term%'` is prohibited on an unbounded candidate set. Use an accepted search capability or first bound the set through another indexed equality path.
-- **[House Rule]** Predicate values use the same type and collation as indexed columns; implicit conversion is prohibited.
-- **[House Rule]** Do not apply functions or expressions to an indexed column in a predicate when that prevents the required access path. Use a supported generated column when the derived value is an accepted query key.
-- **[House Rule]** An `IN` list contains no more than 50 values. Larger input is chunked or handled by an accepted bulk/query mechanism.
-- **[House Rule]** Evaluate `OR`, subqueries, joins, and full scans with representative plans and row counts; compare them with the actual alternative rather than assuming several application round trips are safer or faster.
-- **[House Rule]** A production read joins no more than three tables and never joins across databases. All selected columns are qualified through aliases.
+- Stable application queries list required columns; `SELECT *` is prohibited.
+- Except for declared static tables with fewer than 100 rows, an operational query has a bounded, indexable predicate. MySQL may still choose a scan for a small or high-coverage result; the plan, not a slogan, proves whether that is acceptable.
+- A leading-wildcard predicate such as `LIKE '%term%'` is prohibited on an unbounded candidate set. Use an accepted search capability or first bound the set through another indexed equality path.
+- Predicate values use the same type and collation as indexed columns; implicit conversion is prohibited.
+- Do not apply functions or expressions to an indexed column in a predicate when that prevents the required access path. Use a supported generated column when the derived value is an accepted query key.
+- An `IN` list contains no more than 50 values. Larger input is chunked or handled by an accepted bulk/query mechanism.
+- Evaluate `OR`, subqueries, joins, and full scans with representative plans and row counts; compare them with the actual alternative rather than assuming several application round trips are safer or faster.
+- A production read joins no more than three tables and never joins across databases. All selected columns are qualified through aliases.
 
 ### Pagination
 
-- **[House Rule]** Deep or unbounded traversal uses keyset pagination with a deterministic indexed order and unique tie-breaker.
-- **[House Rule]** Write the keyset predicate in expanded form, such as `created_at < ? OR (created_at = ? AND id < ?)` with `ORDER BY created_at DESC, id DESC`. A row-constructor range such as `(created_at, id) < (?, ?)` does not produce a full composite range seek on every MySQL 8 minor version; verify the target deployment with `EXPLAIN ANALYZE` or equivalent plan evidence.
-- **[House Rule]** Offset pagination is limited to accepted bounded or randomly addressable page ranges whose plan and latency meet the product requirement.
+- Deep or unbounded traversal uses keyset pagination with a deterministic indexed order and unique tie-breaker.
+- Write the keyset predicate in expanded form, such as `created_at < ? OR (created_at = ? AND id < ?)` with `ORDER BY created_at DESC, id DESC`. A row-constructor range such as `(created_at, id) < (?, ?)` does not produce a full composite range seek on every MySQL 8 minor version; verify the target deployment with `EXPLAIN ANALYZE` or equivalent plan evidence.
+- Offset pagination is limited to accepted bounded or randomly addressable page ranges whose plan and latency meet the product requirement.
 
 ### Writes
 
-- **[House Rule]** `INSERT` names every column; `INSERT INTO t VALUES (...)` is prohibited.
-- **[House Rule]** A batch `INSERT` contains at most 1000 rows.
-- **[House Rule]** A transaction changes at most 2000 rows and executes at most 5 SQL statements. For a use case that cannot fit these bounds, use the bulk, streaming, or consistency mechanism listed in `architecture.md`; when none is listed, Codify selects one from confirmed semantics, measured evidence, and accepted project constraints.
-- **[House Rule]** `UPDATE` and `DELETE` use deterministic predicates and check affected rows. An update/delete with an arbitrary `LIMIT` is prohibited.
-- **[House Rule]** `UPDATE ... JOIN`, `DELETE ... JOIN`, cross-database joins, correlated update/delete subqueries, stored procedures, stored functions, triggers, views, scheduled database events, and foreign keys are prohibited in this house style.
-- **[House Rule]** Required relationships and uniqueness are enforced through owned write logic plus primary/unique constraints. The foreign-key prohibition is a deployment house rule, not a claim that DDD forbids foreign keys.
+- `INSERT` names every column; `INSERT INTO t VALUES (...)` is prohibited.
+- A batch `INSERT` contains at most 1000 rows.
+- A transaction changes at most 2000 rows and executes at most 5 SQL statements. For a use case that cannot fit these bounds, use the bulk, streaming, or consistency mechanism listed in `architecture.md`; when none is listed, Codify selects one from confirmed semantics, measured evidence, and accepted project constraints.
+- `UPDATE` and `DELETE` use deterministic predicates and check affected rows. An update/delete with an arbitrary `LIMIT` is prohibited.
+- `UPDATE ... JOIN`, `DELETE ... JOIN`, cross-database joins, correlated update/delete subqueries, stored procedures, stored functions, triggers, views, scheduled database events, and foreign keys are prohibited in this house style.
+- Required relationships and uniqueness are enforced through owned write logic plus primary/unique constraints. The foreign-key prohibition is a deployment house rule, not a claim that DDD forbids foreign keys.
 
 ## 8. Transactions and Concurrency
 
-- **[House Rule]** Transaction scope implements the accepted consistency boundary supplied by project or DDD authority.
-- **[House Rule]** A confirmed multi-Root atomic use case stays inside one Bounded Context and one local database resource. Every participating one-Root Repository joins the same physical transaction so all writes commit or roll back together.
-- **[House Rule]** A Repository participating in an Application-owned scope neither begins, commits, nor rolls back a nested transaction. Without an outer scope, it retains its ordinary one-Root local transaction behavior.
-- **[House Rule]** Keep transactions short, acquire locks in stable primary-key order, and update by primary or unique keys where possible.
-- **[House Rule]** Keep HTTP, RPC, file, Kafka, and other external calls outside a database transaction.
+- Transaction scope implements the accepted consistency boundary supplied by project or DDD authority.
+- A Repository participating in an Application-owned scope neither begins, commits, nor rolls back a nested transaction. Without an outer scope, it retains its ordinary one-Root local transaction behavior.
+- Keep transactions short, acquire locks in stable primary-key order, and update by primary or unique keys where possible.
+- Keep HTTP, RPC, file, Kafka, and other external calls outside a database transaction.
 
 ### Request-scoped Optimistic Aggregate Lifecycle
 
 This branch applies only when accepted design loads a fresh Aggregate per transaction. Database House Style does not choose it over a resident Aggregate.
 
-- **[House Rule]** The Repository checks affected rows. An update count other than one maps to a stable concurrency-conflict error; do not hide it as not-found or success.
-- **[House Rule]** Repository save does not increment the loaded in-memory Aggregate version. Under this branch, a successful save makes that instance stale: Application may assemble a result and drain recorded events, but must not expose the stale token, mutate, or save the instance again. A later transaction reloads it.
-- **[House Rule]** An Aggregate spanning several owned tables uses one local database transaction. All writes succeed or roll back together.
-- **[House Rule]** In this request-scoped multi-Root branch, publish events only after commit and keep loaded Aggregate instances scoped to the transaction callback.
-- **[House Rule]** The adapter binds the identity, loaded version, and active-row predicate, performs the increment in SQL, checks the affected-row count, and translates provider failures at its owned boundary. Language-specific syntax belongs in the active language House Style.
+- The Repository checks affected rows. An update count other than one maps to a stable concurrency-conflict error; do not hide it as not-found or success.
+- Repository save does not increment the loaded in-memory Aggregate version. Under this branch, a successful save makes that instance stale: Application may assemble a result and drain recorded events, but must not expose the stale token, mutate, or save the instance again. A later transaction reloads it.
+- An Aggregate spanning several owned tables uses one local database transaction. All writes succeed or roll back together.
+- The adapter binds the identity, loaded version, and active-row predicate, performs the increment in SQL, checks the affected-row count, and translates provider failures at its owned boundary. Language-specific syntax belongs in the active language House Style.
 
 ### Resident Aggregate Checkpoints
 
@@ -209,8 +193,8 @@ When accepted design names a resident Aggregate as live authority, the database 
 
 ### Pessimistic Locking
 
-- **[House Rule]** Use `SELECT ... FOR UPDATE` only when accepted behavior requires a decision against current locked state and expected contention makes optimistic retry unsuitable.
-- **[House Rule]** Lock rows in stable primary-key order and keep the decision plus writes in the same local transaction.
+- Use `SELECT ... FOR UPDATE` only when accepted behavior requires a decision against current locked state and expected contention makes optimistic retry unsuitable.
+- Lock rows in stable primary-key order and keep the decision plus writes in the same local transaction.
 
 A row version or row lock protects local database state; it does not provide cross-service consistency.
 
@@ -218,21 +202,20 @@ A row version or row lock protects local database state; it does not provide cro
 
 ### Files and Ownership
 
-- **[House Rule]** Migration files live in `migrations/` as `NNN_<change>.sql`, such as `003_expand_order_currency.sql`. They are ordered, immutable after deployment, and contain comments describing intent, compatibility, and reversal.
-- **[House Rule]** Every migration has a tested roll-forward path and an explicit rollback decision. Include a `DOWN` operation only when reversing it is data-safe.
-- **[House Rule]** A deployed migration remains compatible with every application version that may run during the rollout.
-- **[House Rule]** Incompatible changes use expand -> backfill -> switch reads/writes -> contract. Large backfills are observable, restartable, and bounded below the 1000-row batch and 2000-row transaction caps.
-- **[House Rule]** Verify the exact MySQL minor version and operation before claiming `INSTANT`, `INPLACE`, or `LOCK=NONE`. Requested syntax is not proof that the server avoids a table rebuild or blocking lock.
-- **[House Rule]** Dry-run migration order and syntax against representative MySQL data, then record duration, locks, and affected rows.
+- Migration files live in `migrations/` as `NNN_<change>.sql`, such as `003_expand_order_currency.sql`. They are ordered, immutable after deployment, and contain comments describing intent, compatibility, and reversal.
+- Every migration has a tested roll-forward path and an explicit rollback decision. Include a `DOWN` operation only when reversing it is data-safe.
+- A deployed migration remains compatible with every application version that may run during the rollout.
+- Incompatible changes use expand -> backfill -> switch reads/writes -> contract. Large backfills are observable, restartable, and bounded below the 1000-row batch and 2000-row transaction caps.
+- Verify the exact MySQL minor version and operation before claiming `INSTANT`, `INPLACE`, or `LOCK=NONE`. Requested syntax is not proof that the server avoids a table rebuild or blocking lock.
+- Dry-run migration order and syntax against representative MySQL data, then record duration, locks, and affected rows.
 
 When a new non-null value cannot be assigned safely by a schema default, first add a nullable expansion column, backfill in bounded batches, switch all writers, validate, then contract it to `NOT NULL`.
 
 ## 10. Verification by Changed Behavior
 
-Select the rows covering the changed behavior and affected boundaries. Reuse
-valid evidence for unaffected behavior; this table does not require a full
-persistence suite for every SQL or mapping edit. Persistence and SQL evidence
-uses real adapters and MySQL for the affected paths. Guard reads available evidence.
+Select the rows covering the changed behavior and affected boundaries.
+Persistence and SQL evidence uses real adapters and MySQL for the affected
+paths.
 
 | Changed behavior | Required evidence |
 |---|---|
@@ -247,9 +230,7 @@ uses real adapters and MySQL for the affected paths. Guard reads available evide
 | Schema or migration | Affected naming, standard columns, types, comments, collation, indexes, rollout compatibility, and migration execution/plan evidence |
 
 Static checks, callback fakes, and mock Repositories do not prove physical
-transaction participation. Broaden verification only for new changes, failures,
-or an unresolved risk. Correct failures caused by the requested change before
-reporting completion.
+transaction participation.
 
 ## Related References
 

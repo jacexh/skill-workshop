@@ -32,16 +32,12 @@ Value Objects are immutable values with valid-at-construction factories and
 explicit value equality. Protocol decoding and persistence conversion remain at
 outer boundaries.
 
-## Lifecycle and Service Shape
+## Lifecycle Shape
 
 For an accepted request-scoped optimistic lifecycle, a new Root uses version
 `0`, Infrastructure stores version `1`, and `save()` leaves the loaded instance
 stale. For an accepted resident lifecycle, the live object remains authoritative
 and persistence accepts an immutable snapshot/checkpoint.
-
-A Domain Service is a named, mostly stateless operation over Domain values,
-snapshots, authoritative facts, or time. It returns a Domain decision, value,
-error, or fact.
 
 ## Domain-owned Port
 

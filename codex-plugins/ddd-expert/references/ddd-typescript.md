@@ -107,5 +107,4 @@ technical dependencies and starts active loops.
 - Generated output is read-only and reproduced from contract source.
 - For implementation changes, use configured typecheck, lint, format, build,
   and affected test commands as required by the change. Run a locked install
-  only when dependencies changed or setup is needed. Guard reads existing
-  evidence.
+  only when dependencies changed or setup is needed.

@@ -37,7 +37,7 @@ internal/business/<context>/
   <context>.go              # processor/periodic contribution
 
 internal/pkg/taskqueue/
-  taskqueue.go              # Asynq client/worker/scheduler, lifecycle
+  taskqueue.go              # provider client/worker/scheduler, lifecycle
 ```
 
 | Responsibility | Owner |

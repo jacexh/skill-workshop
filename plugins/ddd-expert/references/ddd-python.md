@@ -112,4 +112,4 @@ contain Application and Transport without a Domain or Infrastructure layer.
 - For implementation changes, use the repository's configured equivalents of
   `ruff check`, `ruff format --check`, mypy, and affected pytest suites. Check
   the lockfile and sync dependencies only when dependencies changed or setup is
-  needed to run those checks. Guard reads existing evidence.
+  needed to run those checks.

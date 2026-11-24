@@ -84,7 +84,7 @@ func (h *UserCreatedHandler) Handle(ctx context.Context, fact event.Event) {
 		return
 	}
 	if err := h.app.PrepareProfile(ctx, application.PrepareProfile{UserID: created.UserID}); err != nil {
-		// suppressed result: the handler logs it as the caller
+		sloghelper.FromContext(ctx).WarnContext(ctx, "prepare profile failed", sloghelper.Error(err))
 	}
 }
 ```

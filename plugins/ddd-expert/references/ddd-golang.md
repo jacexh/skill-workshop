@@ -28,13 +28,8 @@ Infrastructure -> Application and Domain contracts
 | Infrastructure | Repository and QueryRepository adapters, DO conversion, ACLs, Port adapters | Domain decisions, inbound protocol handling, process lifecycle |
 | Runtime | Fx composition, configuration, shared clients, servers, consumers, workers, schedulers, telemetry, shutdown | business rules and bounded-context language |
 
-Application has three narrow, accepted provider-neutral exceptions:
-
-- a producing Application event handler may map a Domain Event to its own generated Integration Message contract and call `message.Publisher`;
-- an accepted internal task may define its durable payload schema under `proto/<context>/task/v1`, then use `components/taskqueue` and `Enqueuer` under `application/task`;
-- only for a confirmed same-BC, one-resource multi-Root transaction or an Outbox dispatch, an Application method may call `Within` on `transaction.Transactor`. The database's transaction Manager and session resolution stay in Runtime and Infrastructure.
-
-Generated RPC/HTTP types remain in Transport. Kafka, franz-go, Asynq, Redis, xorm sessions, Fx, and active loops remain outside Application.
+Application's narrow provider-neutral exceptions are listed in the
+[Application guide](ddd-golang-application.md#boundary-and-allowed-exceptions).
 
 ## Reference Map
 
@@ -116,15 +111,9 @@ decisions. Apply the workflow contract's project-convention rule before adopting
 a dependency or reorganizing existing code. A language choice alone is not a
 stack migration.
 
-## Cross-cutting House Rules
+## Logs and Errors
 
-- Every bounded context exposes `application/application.go` and `<context>.go` as described by the Scaffold guide; `application/assembler.go` exists when the context maps whole Domain Entities to or from Application DTOs.
-- The [Application guide](ddd-golang-application.md) owns use-case methods and read-side entry shapes. Transport delegates to one such use case.
-- Whole Application DTO/Domain Entity conversion lives in `application/assembler.go`. DO/Domain Entity conversion lives in `infrastructure/convert.go`.
-- Exported Domain fields are a mechanical mapping surface. New Aggregates use `domain.NewXxx` or another Domain Factory; outer layers do not assign fields to perform business changes.
-- Business data is validated in Domain. Application DTOs and DOs do not duplicate validator tags. Query filters/read models follow the CQRS guide.
-- Apply the lifecycle selected by accepted authority: a Repository-loaded request-scoped Aggregate becomes stale under the Domain guide's optimistic branch; a resident Aggregate remains the live authority and persists snapshots/checkpoints. Do not infer either branch from persistence technology.
 - The caller of an Application use case logs that call once: Transport middleware for a synchronous request; the Domain Event handler, message subscriber, or task processor for asynchronous work. go-jimu components and provider adapters log delivery. A level states business meaning: Error marks a business failure that nothing recovers. Application emits a separate business-semantic log only when it adds independent value or owns a terminal/suppressed outcome.
-- One bounded context never imports another context's `internal/business/<context>` packages. Collaborate through an accepted published contract, Integration Message, or ACL.
-
-Codify selects the engineering realization from accepted project constraints, repository evidence, and the applicable House Rules while preserving confirmed business boundaries, consistency meaning, and published contracts.
+- At the first controlled boundary, enrich and wrap a provider error once with `oops.With(...).Wrap(providerErr)`, or `oops.Wrap(providerErr)` when there is no owned context. Later layers add context only for new semantics and preserve `errors.Is/As`. A function that returns an error leaves logging to the execution owner.
+- Expected rejection is not an internal failure.
+- Errors and logs carry no secret configuration, credentials, DSNs, full payloads, unbounded SQL values, or sensitive personal data.

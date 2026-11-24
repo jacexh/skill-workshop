@@ -53,7 +53,9 @@ remain outside Domain and Application contracts.
 - Application drains or captures events at the accepted transaction boundary
   and dispatches each reacting Policy through its registered handler. When a
   Policy's failure outcome must survive a process stop, use the durable event
-  or message flow of the active-language leaf instead of in-process dispatch.
+  or message flow of the active-language leaf instead of in-process dispatch;
+  when that leaf has none, raise a ⚠️ **Conflict** before implementing the
+  Policy.
 - A same-context handler maps the event to one named Domain intent or to one
   producer-owned fact contract.
 
@@ -84,26 +86,6 @@ remain outside Domain and Application contracts.
 
 The active-language message leaf defines envelope construction, registry,
 provider API, and exact disposition behavior.
-
-## Contract Evolution
-
-- Prefer additive compatible fields and tolerate unknown fields.
-- Treat a contract name, generated namespace, message kind, field number, or
-  semantic reinterpretation according to the repository's compatibility policy.
-- Remove a field or version only with consumer evidence recorded through the
-  project's contract-change process.
-- Keep internal Domain refactoring independent from the published contract by
-  retaining explicit boundary mapping.
-
-## Verification
-
-- Contract tests prove generation and compatibility checks for the owning
-  schema.
-- Mapping tests use real Domain/Application values and generated contract types.
-- Subscriber tests decode a real envelope, delegate once, and return the
-  expected semantic disposition.
-- Provider integration evidence proves registration and delivery only when the
-  touched implementation includes that provider boundary.
 
 ## Related Leaves
 

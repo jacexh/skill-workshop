@@ -1,3 +1,8 @@
+---
+name: ddd-golang-server
+description: Go House Style for the shared ConnectRPC listener, health reporting, and server lifecycle.
+---
+
 # Go ConnectRPC Server
 
 Read for changes to the shared RPC/HTTP listener, handler registration, health
@@ -48,5 +53,4 @@ together, so both count against the Fx stop timeout.
 
 Exercise the server behavior changed: handler registration and reachability,
 readiness and liveness status, synchronous listener failure, unexpected Serve
-shutdown, or the delayed and bounded drain. Reuse unaffected evidence. Guard
-reads existing results.
+shutdown, or the delayed and bounded drain.

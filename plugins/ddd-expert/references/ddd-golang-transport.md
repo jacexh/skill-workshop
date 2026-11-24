@@ -11,14 +11,7 @@ Transport is the physical house-style name for inbound adapters. It maps one ext
 
 ## Inbound Contract
 
-An inbound adapter may decode its envelope, extract authentication/correlation metadata, map input, delegate once and map the resulting error or outcome. It must not:
-
-- call a Domain Repository or QueryRepository;
-- mutate an Aggregate or implement a Domain branch from exported fields;
-- control a business transaction;
-- coordinate several Application ports;
-- duplicate Domain field validation in protocol DTOs;
-- expose provider types to Application or Domain.
+An inbound adapter decodes its envelope, extracts authentication/correlation metadata, maps input, delegates once to one Application use case, and maps the resulting error or outcome. Everything else, from Repository access to transactions and business validation, happens behind that one call; provider types stay in Transport.
 
 Command-side business data reaches a Domain Factory or reconstituted Entity and is validated in Domain. QueryRepository filters and read models are the explicit exception: Transport maps syntax, while the Application Query use case normalizes, authorizes, and validates read semantics without constructing a fake Domain Entity. Transport only performs checks required to decode and safely interpret its own envelope, then maps inner errors into the boundary's public outcome.
 
@@ -54,12 +47,10 @@ once, and returns the semantic result.
 The Bounded Context module contributes subscriber and processor registrations.
 Kafka and Asynq provider construction, active loops, and lifecycle remain in
 their provider leaves.
-## Errors, Logging and Trace Context
+
+## Errors and Trace Context
 
 Transport maps stable errors to ConnectRPC/HTTP status or returns them to the provider boundary. Outcomes the client can act on carry the error's message; every other error becomes `internal` with a fixed message. The original error stays the unsent cause for `errors.Is` and the single execution logger. A transaction conflict is retryable (`aborted`); an unknown transaction outcome (`unknown`) tells the client the write may have happened.
-
-- ConnectRPC/HTTP middleware owns end-to-end duration and completion.
-- Do not log an error and return it unless this adapter is the terminal owner.
 
 Transport passes `context.Context` unchanged; accepted trace context follows [ddd-golang-observability.md](ddd-golang-observability.md). Async boundaries also log their own `message_id` or `task_id`. Domain remains telemetry-free.
 
