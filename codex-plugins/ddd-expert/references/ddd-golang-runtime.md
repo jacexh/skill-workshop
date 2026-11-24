@@ -9,16 +9,6 @@ description: Go House Style for config loading, Fx composition and lifecycle, th
 
 Runtime owns process configuration, shared technical resources, active loops, composition, startup, and shutdown. It contains no business policy. Shared runtime packages live under `internal/pkg/<capability>`; bounded contexts contribute modules, handlers, and adapters.
 
-## Mandatory Runtime Stack
-
-For covered Go House Style concerns use:
-- `github.com/go-jimu/components/config/loader` for configuration;
-- `go.uber.org/fx` for dependency injection and lifecycle;
-- `log/slog` with `github.com/go-jimu/components/sloghelper` for structured logs;
-- `connectrpc.com/connect/v2` on one standard-library `http.ServeMux` listener for the shared RPC/HTTP server;
-- `github.com/samber/oops` when an external/runtime error first enters controlled code.
-Generated Protobuf and Connect files live under `gen/` and are never edited manually. Contract sources live under `proto/`. Runtime mounts generated handlers; Application never implements generated server interfaces.
-
 ## Component-Owned Configuration
 
 Each runtime component owns an Option/Config type and `Validate() error` beside its constructor. The process aggregates those types only for loading and Fx supply: its `Option` embeds `fx.Out` and holds one `json`/`yaml`/`toml`-tagged field per component Option, so `fx.Supply(option)` provides each one.
@@ -48,13 +38,11 @@ and bounded drain. An entry point, the event dispatcher, or the Outbox exposes
 its hook for `pkg.Lifecycle` to order, as [Shutdown](#shutdown) describes.
 Provider-specific construction stays in the provider leaf.
 
-## Execution Owner Logs And Errors
+## Execution Logs
 
-The router's caller rule decides who logs an execution. Runtime passes the process logger to every go-jimu component and provider adapter, and owns one log for each lifecycle operation it executes itself. Infrastructure enriches and returns errors unless it owns suppression or a terminal operation.
+The [router's logging rule](ddd-golang.md#logs-and-errors) decides who logs an execution. Runtime passes the process logger to every go-jimu component and provider adapter, and owns one log for each lifecycle operation it executes itself.
 
 The shared Connect interceptor wraps every unary and streaming RPC except health checks. It stores the process logger with `sloghelper.NewContext`, recovers a handler panic as `internal`, and records one `request complete` entry with `operation` (the procedure), `elapsed_ms`, `outcome`, and `connect_code`. The level follows what the code means for the service: client-caused outcomes at Info, transient service or dependency failures at Warn, server faults at Error. A failure entry logs the cause behind the `*connect.Error`, not the message sent to the client.
-
-At the first controlled boundary, enrich and wrap once with `oops.With(...).Wrap(providerErr)`; use `oops.Wrap(providerErr)` only when there is no owned context. Never wrap an already wrapped provider error again. Later layers add context only for new semantics, preserve `errors.Is/As`, and do not mechanically wrap or log-and-return the same error. Expected rejection is not an internal failure. Never log secret configuration, credentials, full payloads, or sensitive personal data.
 
 ## Shutdown
 
@@ -107,6 +95,3 @@ Select evidence for the changed runtime behavior and its affected dependencies:
 | Execution logging | Affected completion outcome, level, and error mapping |
 | Active loop or shutdown | Affected reachability, running work finishing on a graceful stop, and bounded stop |
 | OpenTelemetry | Affected observability-leaf cases |
-
-Reuse valid unaffected evidence. Broaden only for new changes, failures, or an
-unresolved risk. Guard reads existing results without running this verification.

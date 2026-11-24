@@ -1,3 +1,8 @@
+---
+name: ddd-golang-transactions
+description: Go House Style for Application transaction scope and Repository participation in one local transaction.
+---
+
 # Go Local Transactions
 
 ## Applies When
@@ -44,4 +49,3 @@ fakes to check that one `Within` encloses the affected loads, decisions, saves,
 and dispatch. For changed transaction participation, use real Repository
 adapters and MySQL. A fresh observer sees every write after commit, and none
 when a later step fails. Callback fakes do not prove physical enlistment.
-Reuse unaffected evidence; Guard reads existing results.

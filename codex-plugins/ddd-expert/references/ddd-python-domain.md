@@ -32,6 +32,9 @@ library and Domain-focused packages only.
 - Aggregates declare `__slots__`, take keyword-only constructor arguments, and
   validate in the constructor, so Factories and `reconstitute()` both validate.
   A Factory assigns new identity with `uuid7()`.
+- Closed Domain values use plain `Enum`, translated via `.value` at mapping
+  boundaries; `IntEnum` or `StrEnum` only when primitive substitutability is
+  part of the accepted model.
 
 Pydantic and SQLAlchemy types remain outside Domain.
 
@@ -48,9 +51,7 @@ detail.
 
 ## Domain Service
 
-Domain Services are synchronous and mostly stateless. They accept Domain values,
-snapshots, authoritative facts, and time, then return Domain values, decisions,
-errors, or facts.
+Domain Services are synchronous.
 
 ## Domain-owned Port
 
@@ -62,10 +63,6 @@ Methods.
 
 The write Repository `Protocol` exposes `get(root_id) -> Root` and
 `save(root) -> None`.
-
-Use plain `Enum` for closed Domain values and translate via `.value` at mapping
-boundaries. Use `IntEnum` or `StrEnum` only when primitive substitutability is
-part of the accepted model.
 
 ## Verification
 

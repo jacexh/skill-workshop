@@ -42,7 +42,7 @@ creation. When accepted events exist, their collection initialization follows
 ## Mutation and Persistence Lifecycle
 
 - The Aggregate Root controls changes to owned Entities and enforces invariants synchronously.
-- Domain methods may change in-memory state and record Domain Events. They never save, publish, enqueue, log, start a goroutine or choose technical retry/provider policy.
+- Domain methods change in-memory state and record Domain Events; outer layers save, publish, enqueue, log, and run concurrent or provider work.
 - Persist owned Entities and Value Objects with their root unless the confirmed Model establishes an independent Aggregate.
 - Technical audit timestamps stay in the DO. Put time in Domain only when business behavior uses it, and pass the authoritative time into the operation when determinism matters.
 
@@ -51,13 +51,8 @@ persistence technology does not select the branch.
 
 ### Request-scoped Aggregate
 
-A Repository-loaded Aggregate may use optimistic locking:
-
-- a new in-memory Aggregate has `Version == 0` and is inserted with stored version `1`;
-- an update increments the stored version only when `id`, loaded `version` and non-deleted predicate match;
-- an affected-row mismatch maps to a stable concurrency-conflict error;
-- `Repository.Save` does not update the in-memory version.
-
+A Repository-loaded Aggregate may use optimistic locking as
+[database.md](database.md#request-scoped-optimistic-aggregate-lifecycle) defines.
 Under this branch, a successful `Save` makes that loaded instance stale. Application may map already-produced results and drain that transaction's events, but must not mutate or save it again. Reload when a later operation or caller requires current state or the new persistence token.
 
 ### Resident Aggregate with checkpoint persistence
@@ -66,32 +61,14 @@ Under this branch, the long-lived in-memory Aggregate remains the live runtime a
 
 ## Entity and Value Object
 
-An Entity has identity and a lifecycle within its Aggregate. Its exported fields follow the same mapping-only rule as the root, and its mutations remain behind Domain methods reached through the root.
-
-A Value Object is defined by attributes:
-
-- construct and validate it in Domain;
-- prefer immutable values and methods returning a new value;
-- compare by value;
-- keep protocol and storage representation outside Domain.
-
-Each accepted Aggregate Root has its own Repository; owned children persist
-through their Root.
+An Entity's exported fields follow the same mapping-only rule as the root, and
+its mutations stay behind Domain methods reached through the root. A Value
+Object's methods return a new value.
 
 ## Domain Service
 
-Use a Domain Service for an important named Domain operation that does not naturally belong to an Entity, Value Object or Aggregate. It does not need to span multiple Aggregates.
-
-A responsible Domain Service:
-
-- has a ubiquitous-language name and a semantic filename;
-- is stateless and deterministic by default;
-- accepts Domain values, snapshots, time and authoritative evidence;
-- returns a decision, value, error or fact;
-- calls public Aggregate behavior rather than assigning exported state;
-- does not save, control transactions, log, retry, schedule or depend on generated/provider APIs.
-
-When a confirmed same-context use case must change several independent roots atomically, the Domain Service owns the named cross-Aggregate business rule and applies it through those roots' public behavior. Application still loads and saves every root and defines the transaction scope. The presence of a Domain Service does not itself authorize the stronger consistency boundary.
+A Domain Service has a semantic filename and calls public Aggregate behavior
+rather than assigning exported state. When a confirmed same-context use case must change several independent roots atomically, the Domain Service owns the named cross-Aggregate business rule and applies it through those roots' public behavior. Application still loads and saves every root and defines the transaction scope. The presence of a Domain Service does not itself authorize the stronger consistency boundary.
 
 ## Domain-owned Port
 
@@ -114,11 +91,9 @@ type Repository interface {
 }
 ```
 
-- Operate on one accepted root; owned child persistence is an implementation detail of that root.
-- Keep SQL, xorm sessions, transactions, cache keys and provider options out of the interface.
-- Return stable not-found and concurrency errors that outer layers can classify with `errors.Is/As`.
-- Command-side loading and a focused single-Aggregate read may use this Repository.
-- Lists, pages, history, reports, statistics, cross-Aggregate composition and optimized projections use an Application QueryRepository; see [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md).
+Return stable not-found and concurrency errors that outer layers classify with
+`errors.Is/As`. Reads beyond one focused Aggregate use an Application
+QueryRepository; see [`ddd-golang-cqrs.md`](ddd-golang-cqrs.md).
 
 For an accepted `components/fsm` lifecycle, load
 [`ddd-golang-fsm.md`](ddd-golang-fsm.md).

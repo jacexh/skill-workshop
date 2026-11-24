@@ -68,5 +68,4 @@ Testcontainers when physical provider semantics carry the risk.
 
 For a changed outbound adapter, verify its Domain result, contract translation,
 and affected fulfillment policy at that provider boundary. An outbound-only
-change does not require MySQL evidence. Reuse unaffected evidence; Guard reviews
-available results without executing this verification.
+change does not require MySQL evidence.

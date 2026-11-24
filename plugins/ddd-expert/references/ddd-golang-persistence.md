@@ -1,3 +1,8 @@
+---
+name: ddd-golang-persistence
+description: Go House Style for xorm Data Objects, persistence conversion, and one-Root Repository adapters.
+---
+
 # Go Persistence Mapping and Repositories
 
 ## Applies When
@@ -18,9 +23,7 @@ from `TableName()`.
 
 Use the timestamp representation required by [database.md](database.md) and keep its converter in the shared database package. Do not make the Domain import a storage timestamp type.
 
-## Exported Domain Mapping
-
-Exported Domain fields are an intentional mapping surface. They permit a converter to construct rehydrated state; they do not permit Application, Transport, or Infrastructure to mutate an existing Aggregate or make business decisions from its fields.
+## Domain Mapping
 
 Name the converters `userToDO`, `userFromDO`, and `userReadModelFromDO`. They
 copy slices, such as a hashed password, in both directions. `userFromDO` rejects
@@ -53,13 +56,8 @@ carries an `operation` attribute named `<aggregate>.<operation>`, such as
 - An affected-row count other than `1` fails the insert, and on update wraps the
   Domain concurrency-conflict error.
 
-This adapter implements the request-scoped optimistic lifecycle: new
-Aggregates have in-memory `Version == 0`, stored rows begin at `1`, and updates
-compare and increment the loaded version atomically. `Save` leaves that loaded
-instance stale; the caller may map its already-produced result and reloads for
-a later mutation. A resident-checkpoint adapter instead accepts the immutable
-snapshot and checkpoint token defined by its accepted design while the live
-Aggregate remains authoritative.
+A resident-checkpoint adapter instead accepts the immutable snapshot and
+checkpoint token defined by its accepted design.
 
 When one Aggregate maps to several tables, its Repository owns a local session
 and transaction around all statements, rolling back on failure and closing the

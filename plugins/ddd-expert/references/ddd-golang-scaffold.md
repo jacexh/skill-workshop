@@ -131,7 +131,7 @@ no use-case behavior or active provider loops.
 
 `internal/pkg/<language>` implements an external Published Language that the Business Rules of several contexts conform to, so they agree on every value. It holds values and validation without Runtime dependencies, and Domain imports it.
 
-Avoid `common`, `shared`, `utils`, and `models`. A package name states the technical capability and owns its configuration, constructor, lifecycle, and shutdown.
+Avoid `common`, `shared`, `utils`, and `models`. A package name states its capability or language; a runtime package owns its configuration, constructor, lifecycle, and shutdown.
 
 ## Tests
 
